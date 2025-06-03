@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import connection
-from .models import InterfaceConsumo
+from .models import InterfaceConsumo, Consumo, Medidor
 import pandas as pd
 
 def import_excel(request):
@@ -20,41 +20,41 @@ def import_excel(request):
             elif excel_file.name.endswith('.csv'):
                 df = pd.read_csv(excel_file, encoding='utf-8', sep=';')
             else:
-                raise ValueError("Unsupported file format")
+                raise ValueError("Formato de archivo no soportado")
 
             # Convert 'fecha' column to datetime objects and format to 'YYYY-MM-DD'
             try:
                 df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%Y-%m-%d')
             except ValueError as e:
-                messages.error(request, f'Error parsing date format: {str(e)}. Please ensure the "fecha" column is in a recognizable date format.')
+                messages.error(request, f'Error en el formato de fecha: {str(e)}. Por favor asegúrese que la columna "fecha" tenga un formato de fecha válido.')
                 return redirect('admin:core_consumo_changelist')
 
             # Insert to staging table
-            records = [
-                InterfaceConsumo(
+            records = []
+            for _, row in df.iterrows():
+                # Buscar o crear el medidor
+                medidor_nombre = str(row['medidor']).strip()
+                medidor, _ = Medidor.objects.get_or_create(
+                    nombre=medidor_nombre,
+                    defaults={'tipo': 'GENERICO'}
+                )
+                
+                # Crear el registro de consumo
+                consumo = Consumo(
                     fecha=row['fecha'],
-                    consumo=row['consumo'],
-                    medidor=row['medidor']
-                ) for _, row in df.iterrows()
-            ]
-            records_to_create = [record.save() for record in records]
+                    consumo=float(row['consumo']),
+                    medidor=medidor
+                )
+                records.append(consumo)
 
-            # Transfer to main table
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO core_consumo (fecha, consumo, medidor)
-                    SELECT i.fecha, i.consumo, i.medidor
-                    FROM interface_core_consumo i
-                    ON CONFLICT (fecha, medidor) DO NOTHING;
+            # Guardar todos los registros
+            Consumo.objects.bulk_create(records, ignore_conflicts=True)
 
-                    TRUNCATE TABLE interface_core_consumo;
-                """)
-
-            messages.success(request, f'Successfully imported {len(df)} records')
+            messages.success(request, f'Se importaron exitosamente {len(df)} registros')
             return redirect('admin:core_consumo_changelist')
 
         except Exception as e:
-            messages.error(request, f'Error importing data: {str(e)}')
+            messages.error(request, f'Error al importar datos: {str(e)}')
             return redirect('admin:core_consumo_changelist')
 
     return render(request, 'admin/import_excel.html')
