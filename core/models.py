@@ -1,5 +1,5 @@
 from django.db import models
-from colorfield.fields import ColorField  # Add this import
+from colorfield.fields import ColorField
 
 
 class Medidor(models.Model):
@@ -7,22 +7,22 @@ class Medidor(models.Model):
     nombre = models.CharField(max_length=50)
     tipo = models.CharField(max_length=50)
     
-def get_str_representation(self):
-    return self.nombre
+    def __str__(self):
+        return self.nombre
         
 
 class Consumo(models.Model):
-    id = models.AutoField(primary_key=True, auto_created=True)
-    fecha = models.DateField()
+    fecha = models.DateTimeField()
     consumo = models.FloatField(null=True, blank=True)
-    medidor1 = models.ForeignKey(Medidor, on_delete=models.CASCADE, null=True, blank=True, related_name='consumos_medidor1')
-    medidor = models.CharField(max_length=50, null=True, blank=True)
+    medidor = models.ForeignKey(Medidor, on_delete=models.CASCADE, null=True, blank=True, related_name='consumos')
     
     class Meta:
         unique_together = [['fecha', 'medidor']]
+        verbose_name = 'Consumo'
+        verbose_name_plural = 'Consumos'
 
     def __str__(self):
-        return f"{self.medidor} - {self.fecha} - {self.consumo} kWh"
+        return f"{self.medidor.nombre if self.medidor else 'Sin medidor'} - {self.fecha} - {self.consumo} kWh"
 
 
 from django.db import models
@@ -34,7 +34,8 @@ class InterfaceConsumo(models.Model):
     
     class Meta:
         db_table = 'interface_core_consumo'
-        managed = True  # Let Django manage the table
+        managed = True
+        unique_together = ['fecha', 'medidor']
 
 
 from django.db import models
@@ -101,9 +102,8 @@ class PuntoMedicion(models.Model):
     objeto_tecnico_ubicacion = models.ForeignKey(UbicacionTecnica, on_delete=models.CASCADE, blank=True, null=True, verbose_name="Ubicación Técnica Asociada")
     categoria = models.ForeignKey(CategoriaPuntoMedicion, on_delete=models.SET_NULL, blank=True, null=True)
     caracteristica = models.ForeignKey(CaracteristicaMedicion, on_delete=models.PROTECT)
-    es_contador = models.BooleanField(verbose_name="Es Contador")
+    es_contador = models.BooleanField(default=False, verbose_name="Es Contador")
     # Removed fields: ambito_medicion_inferior, ambito_medicion_superior, valor_objetivo
-    es_contador = models.BooleanField(null=False, verbose_name="Es Contador")
 
     def __str__(self) -> str:  # Add explicit return type annotation
         return str(self.descripcion)  # Ensure string conversion

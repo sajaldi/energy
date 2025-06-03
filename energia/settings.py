@@ -123,9 +123,18 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',  # Asegúrate de que tu carpeta estática principal esté aquí
+    BASE_DIR / 'core' / 'static',  # Si tienes una carpeta estática dentro de la app core
+]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Configuración para aumentar el límite de campos en solicitudes POST
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Aumentar el límite a 10000 campos
