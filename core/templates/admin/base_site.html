@@ -1,18 +1,70 @@
-{% extends "admin/base.html" %}
-{% load static %}
+{% extends 'admin/base.html' %}
+{% load i18n static %}
 
-{% block extrahead %}
-    {{ block.super }}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/admin_menu.css' %}">
+{% block title %}{{ title }} | {% endblock %}
+
+{% block branding %}
+{# Corregido: Eliminados los paréntesis innecesarios alrededor del valor por defecto #}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:"Django administration" }}</a></h1>
 {% endblock %}
 
-{% block content %}
-<div class="admin-container">
-    {% include 'admin/menu.html' %}
-    
-    <div class="admin-content">
-        {{ block.super }}
-    </div>
-</div>
+{% block nav-global %}
+<ul class="outer-nav">
+    {% comment %} Mantener los enlaces por defecto si los quieres {% endcomment %}
+    {{ block.super }}
+    {% comment %} Agrega tus enlaces personalizados aquí con estilos mejorados {% endcomment %}
+    <li><a href="{% url 'admin:index' %}">Admin</a></li>
+    <li><a href="{% url 'import_consumo' %}">Importar Consumo</a></li>
+</ul>
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <style>
+        /* Estilos para el contenedor de la navegación superior */
+        .outer-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex; /* Usa flexbox para alinear los elementos */
+            align-items: center; /* Centra verticalmente los elementos */
+        }
+
+        /* Estilos para cada elemento de la lista (cada botón) */
+        .outer-nav li {
+            margin-left: 15px; /* Espacio a la izquierda de cada botón */
+        }
+
+        /* Estilos para los enlaces (los botones) */
+        .outer-nav li a {
+            display: inline-block; /* Permite aplicar padding y margin */
+            padding: 8px 15px; /* Espaciado interno del botón */
+            /* Ajuste de color para parecerse más al botón de la imagen */
+            background-color: #66aaff; /* Azul claro */
+            color: white; /* Color del texto */
+            text-decoration: none; /* Elimina el subrayado del enlace */
+            border-radius: 5px; /* Bordes redondeados */
+            transition: background-color 0.3s ease; /* Transición suave al pasar el ratón */
+            /* font-weight: bold; */ /* Puedes descomentar si quieres texto en negrita */
+            border: none; /* Eliminar borde si lo hay por defecto */
+            box-shadow: none; /* Eliminar sombra si la hay por defecto */
+        }
+
+        /* Estilos al pasar el ratón sobre los botones */
+        .outer-nav li a:hover {
+            background-color: #4488ee; /* Un azul ligeramente más oscuro para el hover */
+        }
+
+        /* Asegura que el primer elemento no tenga margen a la izquierda si no hay block.super */
+        .outer-nav li:first-child {
+             margin-left: 0;
+        }
+
+        /* Ajuste para el margen si block.super está presente */
+        .outer-nav li:nth-child(2) { /* Asumiendo que block.super agrega un li */
+             margin-left: 15px; /* Asegura el margen después de los elementos por defecto */
+        }
+
+
+    </style>
 {% endblock %}

@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'colorfield',
 ]
 
+
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -80,13 +82,14 @@ WSGI_APPLICATION = 'energia.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'energia',
+        'NAME': 'db',
         'USER': 'postgres',
-        'PASSWORD': '',  # Replace with your actual password
-        'HOST': 'localhost',
+        'PASSWORD': 'PasswordRoot07',  # Replace with your actual password
+        'HOST': '181.115.47.107',
         'PORT': '5432',
     }
 }
+#Agrega loggin
 
 
 # Password validation
