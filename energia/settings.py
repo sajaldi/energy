@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj
 DEBUG = True
 
 # Actualizado para incluir el dominio específico de ngrok
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok.io', 'heavily-magical-mullet.ngrok-free.app']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok.io','vwgkccc84sowck4wg44gk40g.10.30.1.11.sslip.io', 'heavily-magical-mullet.ngrok-free.app',]
 
 # Configuración CSRF para ngrok
 CSRF_TRUSTED_ORIGINS = ['https://heavily-magical-mullet.ngrok-free.app']
