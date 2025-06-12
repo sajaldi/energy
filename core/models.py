@@ -1,15 +1,38 @@
 from django.db import models
 from colorfield.fields import ColorField
 
-
+class TipoMedidor(models.Model):
+    """Representa un tipo de medidor."""
+    nombre = models.CharField(max_length=50, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+    #verbose
+    verbose_name = 'Tipo de Medidor'
+    verbose_name_plural = 'Tipos de Medidores'
+    def __str__(self) -> str:
+        return str(self.nombre)
+        
 class Medidor(models.Model):
     
     nombre = models.CharField(max_length=50)
-    tipo = models.CharField(max_length=50)
-    
+    tipo = models.CharField(max_length=50, blank=True, null=True)
+    tipo_medidor = models.ForeignKey(TipoMedidor, on_delete=models.CASCADE, null=True, blank=True, related_name='medidores')
+    medidor_padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='medidores_hijos')
     def __str__(self):
         return self.nombre
-        
+
+class VistaConsumoDiferencia(models.Model):
+    medidor_id = models.IntegerField(primary_key=True)  # Django necesita un primary_key
+    fecha = models.DateTimeField()
+    consumo = models.FloatField()
+    consumo_anterior = models.FloatField()
+    diferencia_consumo = models.FloatField()
+
+    class Meta:
+        managed = False  # Evita que Django intente crear esta tabla
+        db_table = 'vista_consumo_diferencia'
+        verbose_name = 'Vista Consumo Diferencia'
+        verbose_name_plural = 'Vista Consumo Diferencia'
+        ordering = ['-fecha']
 
 class Consumo(models.Model):
     fecha = models.DateTimeField()
@@ -28,15 +51,16 @@ class Consumo(models.Model):
 from django.db import models
 
 class InterfaceConsumo(models.Model):
-    fecha = models.DateField()
-    consumo = models.FloatField()
-    medidor = models.CharField(max_length=50)
+    fecha = models.DateTimeField(null=True, blank=True)
+    consumo = models.FloatField(null=True, blank=True)
+    medidor = models.CharField(max_length=50, null=True, blank=True)
     
     class Meta:
         db_table = 'interface_core_consumo'
         managed = True
         unique_together = ['fecha', 'medidor']
 
+        # NO unique_together HERE
 
 from django.db import models
 

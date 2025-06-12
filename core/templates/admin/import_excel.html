@@ -1,14 +1,206 @@
 {% extends "admin/base_site.html" %}
+{% load static %} {# Asegúrate de cargar la etiqueta static #}
+{% load i18n %} {# Cargar i18n para mensajes de Django #}
 
 {% block content %}
 <div class="module">
     <h2>Importar datos de consumo desde Excel</h2>
-    <form method="post" enctype="multipart/form-data">
+    <p>Por favor, asegúrate de que tu archivo Excel o CSV contenga las columnas 'fecha', 'consumo' y 'medidor'. Puedes arrastrar y soltar el archivo en el área designada o hacer clic para seleccionarlo.</p> {# Texto instructivo actualizado #}
+
+    {# Área de Drag and Drop y el formulario #}
+    <form method="post" enctype="multipart/form-data" id="upload-form">
         {% csrf_token %}
-        <div>
-            <input type="file" name="excel_file" accept=".xlsx, .xls, .csv">
-            <button type="submit" class="button">Importar</button>
+        {# El input de archivo original, ahora oculto #}
+        <input type="file" name="excel_file" id="excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;">
+
+        {# El área visual de drag and drop con estilos de botón #}
+        <div id="drop-zone" style="
+            border: none; /* Eliminar borde por defecto */
+            background-color: #66aaff; /* Azul claro similar al botón */
+            color: white; /* Texto blanco */
+            padding: 30px; /* Espaciado interno */
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 15px;
+            border-radius: 5px; /* Bordes redondeados */
+            transition: background-color 0.3s ease; /* Transición suave */
+            font-weight: bold; /* Texto en negrita */
+            box-shadow: none; /* Eliminar sombra si la hay por defecto */
+        ">
+            Arrastra y suelta tu archivo aquí o haz clic para seleccionar
         </div>
+
+        {# Botón de importar, inicialmente oculto hasta que se seleccione un archivo #}
+        <button type="submit" class="button" id="import-button" style="
+            display: none; /* Sigue oculto inicialmente */
+            background-color: #66aaff; /* Azul claro similar al botón */
+            color: white; /* Texto blanco */
+            padding: 10px 20px; /* Espaciado del botón */
+            border: none; /* Eliminar borde por defecto */
+            border-radius: 5px; /* Bordes redondeados */
+            cursor: pointer;
+            transition: background-color 0.3s ease; /* Transición suave */
+            font-weight: bold; /* Texto en negrita */
+            box-shadow: none; /* Eliminar sombra si la hay por defecto */
+        ">
+            Importar
+        </button>
     </form>
 </div>
+
+{# Área de salida estilo terminal #}
+<div class="module" style="margin-top: 20px;">
+    <h3>Estado del Proceso</h3>
+    <div id="terminal-output" style="
+        background-color: #1e1e1e; /* Fondo negro */
+        color: #00ff00; /* Texto verde */
+        padding: 15px;
+        border-radius: 5px;
+        font-family: 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace; /* Fuente tipo terminal */
+        white-space: pre-wrap; /* Preservar saltos de línea y espacios */
+        max-height: 300px; /* Altura máxima */
+        overflow-y: auto; /* Añadir scroll si el contenido excede la altura */
+    ">
+        Esperando archivo para importar...
+    </div>
+</div>
+
+
+{# Sección para la imagen de instructivos #}
+<div class="module" style="margin-top: 20px;"> {# Añade un poco de espacio arriba #}
+    <h3>Instrucciones de Formato del Archivo</h3>
+    {# Reemplaza 'path/to/your/instructions_image.png' con la ruta correcta a tu imagen estática #}
+    <img src="{% static '/instrucciones.png' %}" alt="Instrucciones para el archivo de importación" style="max-width: 100%; height: auto; display: block; margin: 0 auto;"> {# Estilo básico para que la imagen sea responsive y centrada #}
+    <p style="text-align: center; margin-top: 10px;">Asegúrate de que tu archivo sigue el formato mostrado arriba.</p> {# Texto adicional si es necesario y centrado #}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('excel-file-input');
+    const importButton = document.getElementById('import-button');
+    const form = document.getElementById('upload-form');
+    const terminalOutput = document.getElementById('terminal-output');
+
+    // Función para agregar mensajes a la terminal
+    function logToTerminal(message, type = 'info') {
+        const line = document.createElement('div');
+        line.textContent = `[${type.toUpperCase()}] ${message}`;
+        // Opcional: añadir clases para colorear según el tipo (info, warning, error)
+        // line.className = `log-${type}`;
+        terminalOutput.appendChild(line);
+        terminalOutput.scrollTop = terminalOutput.scrollHeight; // Scroll al final
+    }
+
+    // Limpiar el mensaje inicial al interactuar
+    function clearInitialMessage() {
+        if (terminalOutput.textContent === 'Esperando archivo para importar...') {
+            terminalOutput.textContent = '';
+        }
+    }
+
+
+    // Prevenir el comportamiento por defecto de arrastrar y soltar en la ventana
+    document.body.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    document.body.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    // Resaltar la zona de drop al arrastrar un archivo sobre ella
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.style.backgroundColor = '#4488ee'; // Cambia el color de fondo al pasar el ratón
+    });
+
+    // Restaurar el borde cuando el archivo sale de la zona de drop
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.style.backgroundColor = '#66aaff'; // Restaurar el color de fondo
+    });
+
+    // Manejar el archivo soltado
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.style.backgroundColor = '#66aaff'; // Restaurar el color de fondo
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            clearInitialMessage(); // Limpiar mensaje inicial
+            // Asignar el archivo seleccionado al input de tipo file
+            fileInput.files = files;
+            // Actualizar el texto de la zona de drop para mostrar el nombre del archivo
+            dropZone.textContent = 'Archivo seleccionado: ' + files[0].name;
+            // Mostrar el botón de importar
+            importButton.style.display = 'block';
+            logToTerminal(`Archivo "${files[0].name}" listo para importar.`, 'info');
+        }
+    });
+
+    // Permitir hacer clic en la zona de drop para abrir el selector de archivos
+    dropZone.addEventListener('click', function() {
+        fileInput.click();
+    });
+
+    // Manejar la selección de archivo a través del clic (cuando el input cambia)
+    fileInput.addEventListener('change', function() {
+        if (fileInput.files.length > 0) {
+            clearInitialMessage(); // Limpiar mensaje inicial
+            // Actualizar el texto de la zona de drop
+            dropZone.textContent = 'Archivo seleccionado: ' + fileInput.files[0].name;
+            // Mostrar el botón de importar
+            importButton.style.display = 'block';
+            logToTerminal(`Archivo "${fileInput.files[0].name}" seleccionado.`, 'info');
+        } else {
+            // Si se cancela la selección, restaurar el texto y ocultar el botón
+            dropZone.textContent = 'Arrastra y suelta tu archivo aquí o haz clic para seleccionar';
+            importButton.style.display = 'none';
+            logToTerminal('Selección de archivo cancelada.', 'info');
+        }
+    });
+
+    // Manejar el envío del formulario
+    form.addEventListener('submit', function(e) {
+        if (fileInput.files.length === 0) {
+            e.preventDefault(); // Prevenir el envío si no hay archivo
+            alert('Por favor, selecciona un archivo para importar.'); // Usar un mensaje box más amigable en lugar de alert en producción
+        } else {
+            // Opcional: Mostrar mensaje de procesamiento y deshabilitar el formulario
+            // e.preventDefault(); // Descomentar si quieres enviar con fetch/XHR en lugar de envío normal
+            terminalOutput.textContent = ''; // Limpiar salida anterior
+            logToTerminal('Iniciando proceso de importación...', 'info');
+            // Si no usas preventDefault(), la página se recargará después del envío.
+            // Los mensajes de resultado se mostrarán en la recarga.
+        }
+    });
+
+    // --- Mostrar mensajes de Django en la terminal después de la recarga ---
+    // Esto asume que tu vista pasa los mensajes de Django (messages framework)
+    // Puedes adaptar esto si pasas los mensajes de log en el contexto de otra forma.
+    const djangoMessages = document.querySelectorAll('.messagelist li'); // Busca los mensajes de Django
+
+    if (djangoMessages.length > 0) {
+        terminalOutput.textContent = ''; // Limpiar el mensaje inicial si hay mensajes de Django
+        logToTerminal('Resultados de la importación anterior:', 'info');
+        djangoMessages.forEach(function(message) {
+            // Adapta el tipo según las clases de mensajes de Django (success, error, warning, info)
+            const messageType = message.className.replace('messagelist', '').trim() || 'info';
+            logToTerminal(message.textContent.trim(), messageType);
+        });
+        // Opcional: Eliminar los mensajes de Django de la vista principal si se muestran en la terminal
+        // const messagesContainer = document.querySelector('.messagelist').parentElement;
+        // if (messagesContainer) {
+        //     messagesContainer.style.display = 'none';
+        // }
+    }
+
+});
+</script>
+
 {% endblock %}

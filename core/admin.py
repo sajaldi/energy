@@ -3,8 +3,8 @@ from django.utils.safestring import mark_safe
 from import_export import resources, fields, widgets
 from import_export.admin import ImportExportModelAdmin
 from .models import (
-    Consumo, Medidor, PuntoMedicion, Equipo,
-    CaracteristicaMedicion, CategoriaPuntoMedicion, DocumentoMedicion, RangoMedicion
+    Consumo, InterfaceConsumo, Medidor, PuntoMedicion, Equipo,
+    CaracteristicaMedicion, CategoriaPuntoMedicion, DocumentoMedicion, RangoMedicion, TipoMedidor, VistaConsumoDiferencia
 )
 from . import views
 from datetime import datetime
@@ -165,11 +165,13 @@ class FixedImportExportAdmin(ImportExportModelAdmin):
 @admin.register(Consumo)
 class ConsumoAdmin(FixedImportExportAdmin):
     resource_class = ConsumoResource
-    list_display = ['fecha', 'consumo', 'medidor']
+    list_display = ['id','fecha', 'consumo', 'medidor']
     list_filter = ['fecha', 'medidor']
     raw_id_fields = ['medidor']
     date_hierarchy = 'fecha'
-
+    #paginas por defecto
+    list_per_page = 10
+    search_fields = ['id','medidor__nombre', 'consumo']
     def get_import_formats(self):
         from import_export.formats import base_formats
         return [base_formats.CSV]
@@ -201,11 +203,72 @@ class ConsumoAdmin(FixedImportExportAdmin):
         extra_context['import_url'] = 'admin:import_consumo'
         return super().changelist_view(request, extra_context=extra_context)
 
+#Crea la admin class para el modelo TipoMedidor
+@admin.register(TipoMedidor)
+class TipoMedidorAdmin(admin.ModelAdmin):
+    list_display = ['nombre', 'descripcion']
+    search_fields = ['nombre']
+    list_filter = ['nombre']
+    ordering = ['nombre']
+    list_per_page = 10
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.prefetch_related('medidores')
+    def medidores_count(self, obj):
+        return obj.medidores.count()
+
+#Inline para medidores hijos
+class MedidorInline(admin.TabularInline):
+    model = Medidor
+    extra = 0
+    fields = ['nombre', 'tipo', 'tipo_medidor']
+    readonly_fields = ['nombre', 'tipo', 'tipo_medidor']
+    show_change_link = True
+    ordering = ['nombre']
+    list_per_page = 10
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.prefetch_related('tipo_medidor')
+#Admin Class para el modelo Medidor
+@admin.register(Medidor)
+class MedidorAdmin(admin.ModelAdmin):
+    list_display = ['id','nombre', 'tipo', 'tipo_medidor', 'medidor_padre']
+    search_fields = ['nombre']
+    list_filter = ['tipo', 'tipo_medidor']
+    ordering = ['nombre']
+    list_per_page = 10
+    #agrega el inline de medidores hijos
+
+
+    inlines = [MedidorInline]
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.prefetch_related('tipo_medidor', 'medidor_padre')
+    def medidores_count(self, obj):
+        return obj.medidores.count()
+
 # Registrar los modelos fuera de la clase ConsumoAdmin
-admin.site.register(Medidor)
+admin.site.register(InterfaceConsumo)
+
 admin.site.register(PuntoMedicion)
 admin.site.register(Equipo)
 admin.site.register(CaracteristicaMedicion)
 admin.site.register(CategoriaPuntoMedicion)
 admin.site.register(DocumentoMedicion)
 admin.site.register(RangoMedicion)
+
+@admin.register(VistaConsumoDiferencia)
+class VistaConsumoDiferenciaAdmin(admin.ModelAdmin):
+    list_display = ['fecha', 'medidor_id', 'consumo', 'consumo_anterior', 'diferencia_consumo']
+    list_filter = ['fecha', 'medidor_id']
+    search_fields = ['medidor_id']
+    readonly_fields = [f.name for f in VistaConsumoDiferencia._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
