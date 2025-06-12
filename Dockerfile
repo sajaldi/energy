@@ -19,8 +19,7 @@ RUN pip install -r requirements.txt
 
 COPY . /app/
 
-# Recolectar archivos estáticos (opcional, si usas staticfiles)
-RUN python manage.py collectstatic --noinput
+
 
 # Puerto que usaremos para correr gunicorn
 EXPOSE 8000
