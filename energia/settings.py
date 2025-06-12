@@ -85,7 +85,7 @@ DATABASES = {
         'NAME': 'db',
         'USER': 'postgres',
         'PASSWORD': 'PasswordRoot07',  # Replace with your actual password
-        'HOST': '181.115.47.107',
+        'HOST': '10.30.11',
         'PORT': '5432',
     }
 }
