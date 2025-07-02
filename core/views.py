@@ -1,11 +1,25 @@
+
+import io
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import connection, transaction, IntegrityError
+from django.urls import reverse
 from .models import InterfaceConsumo, Consumo, Medidor # Asegúrate que tus modelos están aquí
 import pandas as pd
 import logging
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone # Para fechas conscientes de zona horaria si es necesario
+from datetime import datetime
+import io
+import base64
+import matplotlib
+matplotlib.use('Agg') # Importante: evita que Matplotlib intente usar un backend de GUI
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
+import numpy as np
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -305,6 +319,194 @@ def import_excel(request):
             return redirect('admin:core_consumo_changelist')
 
     return render(request, 'admin/import_excel.html') # Asegúrate que tu template de importación existe
+
+
+
+
+# --- NUEVA VISTA PARA EL REPORTE DE CONSUMO ---
+@staff_member_required
+# core/views.py
+
+# ... (tus importaciones existentes, asegúrate de que 'json' esté)
+# ...
+
+@staff_member_required
+
+# ==============================================================================
+# VISTA 1: REPORTE MENSUAL (VERSIÓN CON print() PARA DEPURACIÓN)
+# ==============================================================================
+@staff_member_required
+def reporte_consumo_mensual(request):
+    # ==============================================================================
+    # PRINT DE ARRANQUE: Este tiene que aparecer siempre que se carga la página.
+    # ==============================================================================
+    print("\n[INFO] La función 'reporte_consumo_mensual' ha sido llamada.", flush=True)
+
+    medidores = Medidor.objects.all().order_by('nombre')
+    context = { 'medidores': medidores, 'report_results': None, 'selected_medidores': [], 'start_date_str': '', 'end_date_str': '' }
+
+    if request.method == 'POST':
+        print("[INFO] La petición es de tipo POST.", flush=True)
+
+        selected_ids_str = request.POST.getlist('medidores')
+        start_date_str = request.POST.get('start_date')
+        end_date_str = request.POST.get('end_date')
+
+        context.update({'selected_medidores': selected_ids_str, 'start_date_str': start_date_str, 'end_date_str': end_date_str})
+
+        if not all([selected_ids_str, start_date_str, end_date_str]):
+             messages.error(request, "Debes seleccionar al menos un medidor y un rango de fechas.")
+             return render(request, 'admin/reporte_consumo.html', context)
+        
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+        except (ValueError, TypeError):
+             messages.error(request, "Formato de fechas inválido.")
+             return render(request, 'admin/reporte_consumo.html', context)
+        
+        report_results = []
+        selected_ids = [int(id_str) for id_str in selected_ids_str]
+        
+        for medidor_id in selected_ids:
+            try:
+                medidor_obj = Medidor.objects.select_related('unidad').get(pk=medidor_id)
+                unidad_simbolo = "unidades"
+                if medidor_obj.unidad and medidor_obj.unidad.simbolo:
+                    unidad_simbolo = medidor_obj.unidad.simbolo
+
+                tipo_bruto_db = medidor_obj.tipo
+                tipo_normalizado = (tipo_bruto_db or "").strip().upper()
+
+                # !!====================================================================!!
+                # !! PASO DE DEPURACIÓN CRÍTICO: Usar print() con flush=True            !!
+                # !!====================================================================!!
+                print("\n#<===================[ INICIO DEBUG MEDIDOR ]===================>#", flush=True)
+                print(f"#<== ID: {medidor_id} | Nombre: {medidor_obj.nombre}", flush=True)
+                print(f"#<== Valor 'tipo' en BD: '{tipo_bruto_db}' (Tipo Python: {type(tipo_bruto_db)})", flush=True)
+                print(f"#<== Valor 'tipo' Normalizado: '{tipo_normalizado}'", flush=True)
+                
+                query_mensual = ""
+                if tipo_normalizado == 'PUNTUAL':
+                    print("#<== DECISIÓN: Lógica para 'PUNTUAL' (SUMA).", flush=True)
+                    query_mensual = f"""
+                        SELECT TO_CHAR(fecha, 'YYYY-MM') AS mes, SUM(consumo) AS consumo_mensual
+                        FROM core_consumo WHERE medidor_id = {medidor_id} AND fecha >= '{start_date.strftime('%Y-%m-%d')}' AND fecha < '{end_date.strftime('%Y-%m-%d')}'
+                        GROUP BY TO_CHAR(fecha, 'YYYY-MM') HAVING SUM(consumo) IS NOT NULL ORDER BY mes;
+                    """
+                else:
+                    print("#<== DECISIÓN: Lógica para 'ACUMULADO/OTRO' (RESTA).", flush=True)
+                    query_mensual = f"""
+                        SELECT mes, (consumo_actual - consumo_anterior) AS consumo_mensual FROM (
+                            SELECT TO_CHAR(fecha_final_mes, 'YYYY-MM') AS mes, consumo_final_mes AS consumo_actual,
+                                   LAG(consumo_final_mes) OVER (PARTITION BY medidor_id ORDER BY fecha_final_mes) AS consumo_anterior
+                            FROM (
+                                SELECT medidor_id, MAX(fecha) AS fecha_final_mes,
+                                       (SELECT consumo FROM core_consumo WHERE medidor_id = c.medidor_id AND fecha = MAX(c.fecha)) AS consumo_final_mes
+                                FROM core_consumo c WHERE fecha >= '{start_date.strftime('%Y-%m-%d')}' AND fecha < '{end_date.strftime('%Y-%m-%d')}' AND medidor_id = {medidor_id}
+                                GROUP BY medidor_id, TO_CHAR(fecha, 'YYYY-MM')
+                            ) AS lecturas
+                        ) AS calculo WHERE consumo_anterior IS NOT NULL ORDER BY mes;
+                    """
+                print("#<====================[ FIN DEBUG MEDIDOR ]=====================>#\n", flush=True)
+
+                df_mensual = pd.read_sql(query_mensual, connection)
+
+                if df_mensual.empty: continue
+
+                # (El resto del código para generar el gráfico, tabla, etc. se mantiene igual)
+                df_mensual['mes_ordinal'] = pd.to_datetime(df_mensual['mes'])
+                df_mensual = df_mensual.sort_values('mes_ordinal')
+                fig, ax = plt.subplots(figsize=(12, 6))
+                bars = ax.bar(df_mensual['mes'], df_mensual['consumo_mensual'], label=f'Consumo Mensual ({unidad_simbolo})')
+                ax.bar_label(bars, fmt=lambda x: f'{x:,.0f} {unidad_simbolo}'.replace(',', '.'), padding=3, color='white', fontsize=11, bbox=dict(facecolor='#003366', edgecolor='none', boxstyle='round,pad=0.4'))
+                max_height = df_mensual['consumo_mensual'].max()
+                if max_height > 0: ax.set_ylim(top=max_height * 1.20)
+                ax.set_ylabel(f'Consumo ({unidad_simbolo})')
+                ax.set_title(f"Consumo Mensual - {medidor_obj.nombre}")
+                ax.legend()
+                ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+                fig.autofmt_xdate(rotation=45, ha='right')
+                plt.tight_layout()
+                buf = io.BytesIO()
+                plt.savefig(buf, format='png')
+                img_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+                plt.close(fig)
+
+                links_html = '<div><strong>Ver detalle diario por mes:</strong></div><p>'
+                links = []
+                for mes in df_mensual['mes']:
+                    url = reverse('core:reporte_detalle_diario_ajax', args=[medidor_id, mes])
+                    links.append(f'<a href="{url}" class="btn btn-outline-primary btn-sm m-1 daily-detail-link">{mes}</a>')
+                links_html += ' '.join(links) + '</p>'
+
+                medidor_result = { 'name': medidor_obj.nombre, 'id': medidor_id, 'chart_b64': img_base64, 'links_html': links_html, 'table_data': df_mensual.to_dict('records'), 'unidad_simbolo': unidad_simbolo }
+                report_results.append(medidor_result)
+
+            except Exception as e:
+                logging.error(f"Error procesando medidor {medidor_id}: {e}", exc_info=True)
+                messages.warning(request, f"Ocurrió un error al procesar el medidor ID {medidor_id}.")
+
+        context['report_results'] = report_results
+    return render(request, 'admin/reporte_consumo.html', context)
+
+@staff_member_required
+def reporte_consumo_diario(request, medidor_id, mes_str):
+    try:
+        medidor = Medidor.objects.select_related('unidad').get(pk=medidor_id)
+        datetime.strptime(mes_str, '%Y-%m')
+    except (Medidor.DoesNotExist, ValueError):
+        return HttpResponseBadRequest("Parámetros inválidos.", status=400)
+
+    unidad_simbolo = "unidades"
+    if medidor.unidad and medidor.unidad.simbolo:
+        unidad_simbolo = medidor.unidad.simbolo
+
+    tipo_medidor_normalizado = (medidor.tipo or "").strip().upper()
+    logging.info(f"DEBUG DIARIO: Medidor ID: {medidor_id}, Tipo Normalizado: '{tipo_medidor_normalizado}'")
+    
+    query_diario = ""
+    if tipo_medidor_normalizado == 'PUNTUAL':
+        logging.info(f"==> (DIARIO) Medidor {medidor_id} es PUNTUAL. Usando SUM().")
+        query_diario = f"""
+            SELECT TO_CHAR(fecha, 'YYYY-MM-DD') AS dia, SUM(consumo) AS consumo_diario
+            FROM core_consumo WHERE medidor_id = {medidor_id} AND TO_CHAR(fecha, 'YYYY-MM') = '{mes_str}'
+            GROUP BY DATE(fecha) HAVING SUM(consumo) IS NOT NULL ORDER BY dia;
+        """
+    else:
+        logging.info(f"==> (DIARIO) Medidor {medidor_id} es ACUMULADO/OTRO. Usando LAG().")
+        query_diario = f"""
+            SELECT TO_CHAR(dia, 'YYYY-MM-DD') AS dia, (lectura_dia - COALESCE(lectura_anterior, lectura_dia)) as consumo_diario FROM (
+                SELECT dia, lectura_dia, LAG(lectura_dia, 1) OVER (ORDER BY dia) as lectura_anterior FROM (
+                    SELECT DATE(fecha) as dia, MAX(consumo) as lectura_dia FROM core_consumo
+                    WHERE medidor_id = {medidor_id} AND TO_CHAR(fecha, 'YYYY-MM') = '{mes_str}'
+                    GROUP BY DATE(fecha)
+                ) as lecturas_diarias
+            ) as calculo_diario WHERE (lectura_dia - COALESCE(lectura_anterior, lectura_dia)) >= 0 ORDER BY dia;
+        """
+
+    df_diario = pd.read_sql(query_diario, connection)
+
+    if df_diario.empty:
+        return HttpResponse(f"<div class='alert alert-info'>No se encontraron datos de consumo diario para '{medidor.nombre}' en {mes_str}.</div>")
+    
+    df_diario['dia_dt'] = pd.to_datetime(df_diario['dia'])
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(df_diario['dia_dt'], df_diario['consumo_diario'], marker='o', linestyle='-', label=f'Consumo Diario ({unidad_simbolo})')
+    ax.set_ylabel(f'Consumo ({unidad_simbolo})')
+    ax.set_title(f"Detalle de Consumo Diario - {medidor.nombre} ({mes_str})")
+    ax.legend()
+    ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+    fig.autofmt_xdate(rotation=45, ha='right')
+    plt.tight_layout()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    img_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+    plt.close(fig)
+
+    html_response = f'<img src="data:image/png;base64,{img_base64}" class="img-fluid" alt="Gráfico de consumo diario">'
+    return HttpResponse(html_response)
 
 
 # Asumiendo que esta es otra vista, también debería estar protegida si es parte del admin

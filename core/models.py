@@ -10,6 +10,20 @@ class TipoMedidor(models.Model):
     verbose_name_plural = 'Tipos de Medidores'
     def __str__(self) -> str:
         return str(self.nombre)
+    
+
+class UnidadMedida(models.Model):
+    """Representa una unidad de medida."""
+    nombre = models.CharField(max_length=50, unique=True)
+    simbolo = models.CharField(max_length=10, blank=True, null=True)
+    descripcion = models.TextField(blank=True, null=True)
+
+    def __str__(self) -> str:
+        return str(self.nombre)
+    
+    class Meta:
+        verbose_name = 'Unidad de Medida'
+        verbose_name_plural = 'Unidades de Medida'
         
 class Medidor(models.Model):
     
@@ -17,6 +31,7 @@ class Medidor(models.Model):
     tipo = models.CharField(max_length=50, blank=True, null=True)
     tipo_medidor = models.ForeignKey(TipoMedidor, on_delete=models.CASCADE, null=True, blank=True, related_name='medidores')
     medidor_padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='medidores_hijos')
+    unidad = models.ForeignKey(UnidadMedida, on_delete=models.CASCADE, null=True, blank=True, related_name='medidores')
     def __str__(self):
         return self.nombre
 
@@ -35,18 +50,36 @@ class VistaConsumoDiferencia(models.Model):
         ordering = ['-fecha']
 
 class Consumo(models.Model):
-    fecha = models.DateTimeField()
+    # El db_index en la fecha también ayuda a las consultas de rango
+    fecha = models.DateTimeField(db_index=True) 
     consumo = models.FloatField(null=True, blank=True)
-    medidor = models.ForeignKey(Medidor, on_delete=models.CASCADE, null=True, blank=True, related_name='consumos')
+    medidor = models.ForeignKey(
+        'Medidor',  # Usar el nombre como string es más seguro para evitar importaciones circulares
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name='consumos',
+        # --- OPTIMIZACIÓN 1: AÑADIR ÍNDICE SIMPLE ---
+        # Acelera drásticamente cualquier consulta que filtre por medidor (ej. WHERE medidor_id = X)
+        db_index=True 
+    )
     
     class Meta:
         unique_together = [['fecha', 'medidor']]
         verbose_name = 'Consumo'
         verbose_name_plural = 'Consumos'
+        # --- OPTIMIZACIÓN 2: AÑADIR ÍNDICE COMPUESTO ---
+        # Súper optimización para consultas que filtran por medidor Y ordenan/filtran por fecha.
+        # Es exactamente lo que hacemos en los gráficos e inlines.
+        indexes = [
+            models.Index(fields=['medidor', 'fecha']),
+        ]
 
     def __str__(self):
-        return f"{self.medidor.nombre if self.medidor else 'Sin medidor'} - {self.fecha} - {self.consumo} kWh"
-
+        # Pequeña mejora: quitamos 'kWh' para que no sea fijo, ya que ahora la unidad es dinámica.
+        return f"{self.medidor.nombre if self.medidor else 'Sin medidor'} - {self.fecha} - {self.consumo}"
+    
+    
 
 from django.db import models
 
