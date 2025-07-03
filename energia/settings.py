@@ -38,7 +38,7 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok.io', '.sslip.io']
 
 # Si vas a usar una IP específica o dominio en Coolify, agrégala aquí.
 # Por ejemplo, si tu Coolify tiene un IP público o un dominio personalizado.
-# ALLOWED_HOSTS = ['your_coolify_domain.com', 'your_coolify_ip', 'localhost', '127.0.0.1']
+# ALLOWED_HOSTS = ['vwgkccc84sowck4wg44gk40g.10.30.1.11.sslip.io', 'your_coolify_ip', 'localhost', '127.0.0.1','181.115.47.107']
 
 # Configuración CSRF para ngrok (generalmente no necesaria en producción directa con Coolify)
 # En producción, Coolify manejará esto o tu dominio final.
@@ -48,7 +48,9 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok.io', '.sslip.io']
 CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.app', # Para ngrok
     'https://*.ngrok.io',       # Para ngrok
-    'http://localhost:3000',    # Si usas algún frontend en este puerto local
+    'http://localhost:3000', 
+    'http://181.115.47.107:3000',
+    # Si usas algún frontend en este puerto local
     # Añade aquí el dominio o IP de tu aplicación en Coolify, si es necesario.
     # Por ejemplo: 'https://your-coolify-domain.com',
     # 'http://your-coolify-ip',
