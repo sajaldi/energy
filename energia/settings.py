@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,16 +20,41 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj'
+# ¡IMPORTANTE! En producción, esta clave DEBE obtenerse de una variable de entorno.
+# No la dejes codificada aquí.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj')
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# ¡IMPORTANTE! En producción, DEBUG debe ser False por seguridad.
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena 'True'/'False' a booleano
 
-# Actualizado para incluir el dominio específico de ngrok
-ALLOWED_HOSTS = ['181.115.47.107','localhost', '127.0.0.1', '.ngrok.io','vwgkccc84sowck4wg44gk40g.10.30.1.11.sslip.io', 'heavily-magical-mullet.ngrok-free.app',]
 
-# Configuración CSRF para ngrok
-CSRF_TRUSTED_ORIGINS = ['https://heavily-magical-mullet.ngrok-free.app','http://181.115.47.107:3000']
+# ALLOWED_HOSTS
+# En producción, esto debe incluir los dominios o IPs de Coolify/tu servidor.
+# Si Coolify usa un proxy inverso (como Nginx), a menudo puedes usar '*' si confías en el proxy,
+# pero es mejor ser explícito.
+# Los valores de ngrok y sslip.io son para desarrollo/pruebas.
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok.io', '.sslip.io']
+
+# Si vas a usar una IP específica o dominio en Coolify, agrégala aquí.
+# Por ejemplo, si tu Coolify tiene un IP público o un dominio personalizado.
+# ALLOWED_HOSTS = ['your_coolify_domain.com', 'your_coolify_ip', 'localhost', '127.0.0.1']
+
+# Configuración CSRF para ngrok (generalmente no necesaria en producción directa con Coolify)
+# En producción, Coolify manejará esto o tu dominio final.
+# CSRF_TRUSTED_ORIGINS = ['https://heavily-magical-mullet.ngrok-free.app','http://181.115.47.107:3000']
+# Puedes mantener esto si necesitas ngrok para depuración remota.
+# Para producción, es probable que no necesites especificar esto, ya que CSRF manejará tu dominio real.
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.ngrok-free.app', # Para ngrok
+    'https://*.ngrok.io',       # Para ngrok
+    'http://localhost:3000',    # Si usas algún frontend en este puerto local
+    # Añade aquí el dominio o IP de tu aplicación en Coolify, si es necesario.
+    # Por ejemplo: 'https://your-coolify-domain.com',
+    # 'http://your-coolify-ip',
+]
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -37,12 +62,11 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.staticfiles', # Siempre debe estar
     'import_export',
-    'core',  # Make sure this line exists
+    'core',
     'colorfield',
 ]
-
 
 
 MIDDLEWARE = [
@@ -60,7 +84,7 @@ ROOT_URLCONF = 'energia.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'core' / 'templates'],
+        'DIRS': [BASE_DIR / 'core' / 'templates'], # Ruta relativa a BASE_DIR
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -82,15 +106,22 @@ WSGI_APPLICATION = 'energia.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'db',
+        'NAME': 'db', # ¡IMPORTANTE! Para producción, estos valores DEBEN venir de variables de entorno.
         'USER': 'postgres',
-        'PASSWORD': 'PasswordRoot07',  # Replace with your actual password
-        'HOST': '10.30.1.13',
+        'PASSWORD': 'PasswordRoot07', # ¡CAMBIA ESTO! En Coolify, usa las credenciales de la base de datos vinculada.
+        'HOST': '10.30.1.13', # ¡CAMBIA ESTO! Debe ser el host/servicio de tu base de datos en Coolify.
         'PORT': '5432',
     }
 }
-#Agrega loggin
-
+# Para Coolify, la configuración de la base de datos debería verse más así, usando variables de entorno:
+# import dj_database_url
+# DATABASES = {
+#     'default': dj_database_url.config(
+#         default=os.environ.get('DATABASE_URL', 'postgres://user:password@host:port/dbname'),
+#         conn_max_age=600
+#     )
+# }
+# Asegúrate de instalar dj-database-url: `pip install dj-database-url`
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -114,30 +145,78 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-hn' # Cambiado a español de Honduras, o el que prefieras
+TIME_ZONE = 'America/Tegucigalpa' # Cambiado a la zona horaria de Honduras
 
-TIME_ZONE = 'UTC'
+USE_I18N = True # Habilita la internacionalización
 
-USE_I18N = True
-
-USE_TZ = True
+USE_TZ = True # Habilita zonas horarias para los modelos (recomendado)
 
 
-# Static files (CSS, JavaScript, Images)
+# --- Static files (CSS, JavaScript, Images) ---
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
+# La URL para servir los archivos estáticos en el navegador.
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# El directorio donde `collectstatic` recolectará *todos* los archivos estáticos
+# de tus aplicaciones y de STATICFILES_DIRS. Este es el directorio que tu servidor web
+# (como Nginx o el que Coolify use) debe servir directamente.
+# Es crucial que este directorio sea accesible por tu servidor web.
+STATIC_ROOT = BASE_DIR / 'staticfiles' # Un directorio llamado 'staticfiles' en la raíz de tu proyecto
 
 
+# Dónde Django debe buscar *archivos estáticos adicionales* (no de una app específica).
+# Esto incluye tu carpeta 'static' global en la raíz del proyecto.
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',  # Asegúrate de que tu carpeta estática principal esté aquí
-    BASE_DIR / 'core' / 'static',  # Si tienes una carpeta estática dentro de la app core
+    BASE_DIR / 'static',         # Carpeta 'static' en la raíz de tu proyecto (junto a manage.py)
+    BASE_DIR / 'core' / 'static', # Si tienes archivos estáticos específicos dentro de tu app 'core'
 ]
+
+
+# --- Media files (User-uploaded files) ---
+# La URL para servir los archivos subidos por los usuarios en el navegador.
+MEDIA_URL = '/media/'
+
+# El directorio donde se guardarán físicamente los archivos subidos por los usuarios.
+# Asegúrate de que este directorio tenga permisos de escritura para tu aplicación.
+MEDIA_ROOT = BASE_DIR / 'media'
+
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configuración para aumentar el límite de campos en solicitudes POST
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Aumentar el límite a 10000 campos
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
+# Configuración de Logging (ejemplo básico, puedes expandir según necesites)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
