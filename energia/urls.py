@@ -6,8 +6,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     # La ruta del admin oficial de Django
     path('admin/', admin.site.urls),
-    
-    # Incluye TODAS las URLs de tu app 'core' en la raíz del sitio.
+       # Incluye TODAS las URLs de tu app 'core' en la raíz del sitio.
     path('', include('core.urls', namespace='core')),
 ]
 
