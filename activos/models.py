@@ -12,6 +12,20 @@ class Categoria(models.Model):
         verbose_name = "Categoría"
         verbose_name_plural = "Categorías"
 
+class Ubicacion(models.Model):
+    nombre = models.CharField(max_length=100)
+    padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_ubicaciones')
+    descripcion = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        if self.padre:
+            return f"{self.padre} -> {self.nombre}"
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Ubicación"
+        verbose_name_plural = "Ubicaciones"
+
 class Activo(models.Model):
     ESTADO_CHOICES = [
         ('OPERATIVO', 'Operativo'),
@@ -38,7 +52,8 @@ class Activo(models.Model):
     
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='activos_asignados', help_text="Persona responsable del activo")
     
-    ubicacion = models.CharField(max_length=255, blank=True, null=True, help_text="Ubicación física del activo (Ej: Oficina 201)")
+    ubicacion_legacy = models.CharField(max_length=255, blank=True, null=True, help_text="Ubicación física del activo (Texto libre - Deprecado)")
+    ubicacion = models.ForeignKey('Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='activos', help_text="Ubicación jerárquica")
     
     foto = models.ImageField(upload_to='activos_fotos/', blank=True, null=True)
     
