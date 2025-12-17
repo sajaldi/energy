@@ -58,6 +58,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -67,6 +68,7 @@ INSTALLED_APPS = [
     'import_export',
     'core',
     'colorfield',
+    'activos',
 ]
 
 
@@ -110,7 +112,7 @@ DATABASES = {
         'NAME': 'db', # ¡IMPORTANTE! Para producción, estos valores DEBEN venir de variables de entorno.
         'USER': 'postgres',
         'PASSWORD': 'PasswordRoot07', # ¡CAMBIA ESTO! En Coolify, usa las credenciales de la base de datos vinculada.
-        'HOST': '10.30.1.13', # ¡CAMBIA ESTO! Debe ser el host/servicio de tu base de datos en Coolify.
+        'HOST': os.environ.get('DB_HOST', '10.30.1.13'), # Cambia dinámicamente según la variable de entorno
         'PORT': '5432',
     }
 }
@@ -220,4 +222,61 @@ LOGGING = {
             'propagate': True,
         },
     },
+}
+
+JAZZMIN_SETTINGS = {
+    "site_title": "Energía Admin",
+    "site_header": "Energía",
+    "site_brand": "Energía",
+    "welcome_sign": "Bienvenido al panel de administración",
+    "copyright": "Energía Ltd",
+    "search_model": ["auth.User"],
+    "user_avatar": None,
+    "topmenu_links": [
+        {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"model": "auth.User"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "hide_apps": [],
+    "hide_models": [],
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+    },
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-circle",
+    "related_modal_active": False,
+    "custom_css": None,
+    "custom_js": None,
+    "use_google_fonts_cdn": True,
+    "show_ui_builder": True,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-success",
+    "accent": "accent-teal",
+    "navbar": "navbar-dark navbar-teal",
+    "no_navbar_border": False,
+    "navbar_fixed": False,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-teal",
+    "sidebar_nav_small_text": False,
+    "theme": "flatly",
+    "dark_mode_theme": "darkly",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
 }
