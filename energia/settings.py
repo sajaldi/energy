@@ -34,7 +34,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena '
 # Si Coolify usa un proxy inverso (como Nginx), a menudo puedes usar '*' si confías en el proxy,
 # pero es mejor ser explícito.
 # Los valores de ngrok y sslip.io son para desarrollo/pruebas.
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok.io', '.sslip.io','181.115.47.107','10.30.1.13']
+ALLOWED_HOSTS = ['*']
 
 # Si vas a usar una IP específica o dominio en Coolify, agrégala aquí.
 # Por ejemplo, si tu Coolify tiene un IP público o un dominio personalizado.
@@ -74,6 +74,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
