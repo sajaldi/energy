@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'core',
     'colorfield',
     'activos',
+    'mptt',
 ]
 
 
