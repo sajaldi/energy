@@ -1,5 +1,6 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
+from mptt.admin import DraggableMPTTAdmin
 from .models import Activo, Categoria, Ubicacion
 
 @admin.register(Categoria)
@@ -8,9 +9,11 @@ class CategoriaAdmin(ImportExportModelAdmin):
     search_fields = ('nombre',)
 
 @admin.register(Ubicacion)
-class UbicacionAdmin(ImportExportModelAdmin):
-    list_display = ('nombre', 'padre', 'descripcion')
-    search_fields = ('nombre', 'padre__nombre')
+class UbicacionAdmin(DraggableMPTTAdmin):
+    mptt_indent_field = "nombre"
+    list_display = ('tree_actions', 'indented_title', 'descripcion')
+    list_display_links = ('indented_title',)
+    search_fields = ('nombre',)
     list_filter = ('padre',)
 
 @admin.register(Activo)

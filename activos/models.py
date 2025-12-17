@@ -12,14 +12,18 @@ class Categoria(models.Model):
         verbose_name = "Categoría"
         verbose_name_plural = "Categorías"
 
-class Ubicacion(models.Model):
+from mptt.models import MPTTModel, TreeForeignKey
+
+class Ubicacion(MPTTModel):
     nombre = models.CharField(max_length=100)
-    padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_ubicaciones')
+    padre = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_ubicaciones')
     descripcion = models.TextField(blank=True, null=True)
 
+    class MPTTMeta:
+        order_insertion_by = ['nombre']
+        parent_attr = 'padre'
+
     def __str__(self):
-        if self.padre:
-            return f"{self.padre} -> {self.nombre}"
         return self.nombre
 
     class Meta:
