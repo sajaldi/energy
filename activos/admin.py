@@ -1,17 +1,23 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
-from .models import Activo, Categoria
+from .models import Activo, Categoria, Ubicacion
 
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
     list_display = ('nombre', 'descripcion')
     search_fields = ('nombre',)
 
+@admin.register(Ubicacion)
+class UbicacionAdmin(ImportExportModelAdmin):
+    list_display = ('nombre', 'padre', 'descripcion')
+    search_fields = ('nombre', 'padre__nombre')
+    list_filter = ('padre',)
+
 @admin.register(Activo)
 class ActivoAdmin(ImportExportModelAdmin):
     list_display = ('codigo_interno', 'nombre', 'marca', 'modelo', 'serie', 'categoria', 'estado', 'ubicacion', 'responsable')
-    list_filter = ('estado', 'categoria', 'marca', 'creado_en')
-    search_fields = ('nombre', 'codigo_interno', 'serie', 'marca', 'modelo', 'ubicacion')
+    list_filter = ('estado', 'categoria', 'marca', 'creado_en', 'ubicacion')
+    search_fields = ('nombre', 'codigo_interno', 'serie', 'marca', 'modelo', 'ubicacion__nombre', 'ubicacion_legacy')
     readonly_fields = ('creado_en', 'actualizado_en')
     
     fieldsets = (
@@ -22,7 +28,7 @@ class ActivoAdmin(ImportExportModelAdmin):
             'fields': ('marca', 'modelo', 'descripcion', 'foto')
         }),
         ('Estado y Ubicación', {
-            'fields': ('estado', 'ubicacion', 'responsable')
+            'fields': ('estado', 'ubicacion', 'ubicacion_legacy', 'responsable')
         }),
         ('Información Financiera', {
             'fields': ('fecha_compra', 'costo')
