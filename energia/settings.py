@@ -113,19 +113,8 @@ import dj_database_url
 
 DATABASES = {}
 
-# Si existe DATABASE_URL (Coolify estándar), úsala.
 if os.environ.get('DATABASE_URL'):
     DATABASES['default'] = dj_database_url.config(conn_max_age=600)
-# Si existe DB_HOST (Coolify manual), usa Postgres manual.
-elif os.environ.get('DB_HOST'):
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'db'),
-        'USER': 'postgres',
-        'PASSWORD': 'PasswordRoot07', 
-        'HOST': os.environ.get('DB_HOST'),
-        'PORT': '5432',
-    }
 else:
     # DESARROLLO LOCAL: Usar PostgreSQL remoto explícito
     DATABASES['default'] = {

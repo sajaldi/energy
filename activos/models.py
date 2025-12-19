@@ -133,7 +133,8 @@ class Activo(models.Model):
 class Plano(models.Model):
     nombre = models.CharField(max_length=100)
     ubicacion = models.ForeignKey(Ubicacion, on_delete=models.CASCADE, related_name='planos')
-    imagen = models.ImageField(upload_to='planos/')
+    activos = models.ManyToManyField('Activo', blank=True, related_name='planos', help_text="Activos que se visualizan en este plano")
+    archivo = models.FileField(upload_to='planos/', null=True, blank=True, help_text="Subir imagen o PDF del plano")
     descripcion = models.TextField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
