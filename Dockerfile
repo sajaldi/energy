@@ -25,4 +25,4 @@ COPY . /app/
 EXPOSE 8000
 
 # Ejecutar migraciones y levantar gunicorn
-CMD python manage.py collectstatic --noinput && python manage.py migrate && gunicorn energy.wsgi:application --bind 0.0.0.0:8000
+CMD python manage.py collectstatic --noinput && python manage.py migrate && gunicorn energia.wsgi:application --bind 0.0.0.0:8000
