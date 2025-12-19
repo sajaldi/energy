@@ -25,4 +25,5 @@ COPY . /app/
 EXPOSE 3000
 
 # Ejecutar migraciones y levantar gunicorn
-CMD python manage.py collectstatic --noinput && python manage.py migrate && gunicorn energia.wsgi:application --bind 0.0.0.0:3000
+# Usamos shell form para permitir variable de expansión
+CMD sh -c "python manage.py collectstatic --noinput && python manage.py migrate && gunicorn energia.wsgi:application --bind 0.0.0.0:${PORT:-8000}"
