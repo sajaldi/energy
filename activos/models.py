@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from colorfield.fields import ColorField
 
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
@@ -144,3 +145,41 @@ class Plano(models.Model):
     class Meta:
         verbose_name = "Plano"
         verbose_name_plural = "Planos"
+
+class VisorPlano(models.Model):
+    nombre = models.CharField(max_length=100)
+    plano = models.ForeignKey(Plano, on_delete=models.CASCADE, related_name='visores')
+    descripcion = models.TextField(blank=True, null=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.nombre} ({self.plano.nombre})"
+
+    class Meta:
+        verbose_name = "Visor de Plano"
+        verbose_name_plural = "Visores de Planos"
+
+class PinPlano(models.Model):
+    visor = models.ForeignKey(VisorPlano, on_delete=models.CASCADE, related_name='pines')
+    activo = models.ForeignKey(Activo, on_delete=models.CASCADE, related_name='pines_planos', null=True, blank=True)
+    x = models.FloatField(help_text="Posición X en píxeles absolutos")
+    y = models.FloatField(help_text="Posición Y en píxeles absolutos")
+    color = ColorField(default='#FF0000')
+    nota = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Pin en {self.visor.nombre} - {self.activo.nombre if self.activo else 'S/A'}"
+
+    class Meta:
+        verbose_name = "Pin de Plano"
+        verbose_name_plural = "Pines de Planos"
+
+class PinFoto(models.Model):
+    pin = models.ForeignKey(PinPlano, on_delete=models.CASCADE, related_name='fotos')
+    imagen = models.ImageField(upload_to='pines/fotos/')
+    descripcion = models.CharField(max_length=100, blank=True, null=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Foto de Pin"
+        verbose_name_plural = "Fotos de Pines"

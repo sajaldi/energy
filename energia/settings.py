@@ -109,22 +109,16 @@ WSGI_APPLICATION = 'energia.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-import dj_database_url
-
-DATABASES = {}
-
-if os.environ.get('DATABASE_URL'):
-    DATABASES['default'] = dj_database_url.config(conn_max_age=600)
-else:
-    # DESARROLLO LOCAL: Usar PostgreSQL remoto explícito
-    DATABASES['default'] = {
+DATABASES = {
+    'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'db',
         'USER': 'postgres',
         'PASSWORD': 'PasswordRoot07',
-        'HOST': '181.115.47.107', # IP Pública
+        'HOST': '181.115.47.107',
         'PORT': '5432',
     }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
