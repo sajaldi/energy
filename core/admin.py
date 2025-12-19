@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 from import_export import resources, fields, widgets
+from import_export.widgets import ForeignKeyWidget
 from import_export.admin import ImportExportModelAdmin
 from django.urls import path, reverse
 from django.utils.html import format_html
@@ -16,8 +17,11 @@ from django.db import transaction
 
 from .models import (
     Consumo, InterfaceConsumo, Medidor, PuntoMedicion, Equipo,
-    CaracteristicaMedicion, CategoriaPuntoMedicion, DocumentoMedicion, RangoMedicion, TipoMedidor, UnidadMedida, VistaConsumoDiferencia
+    CaracteristicaMedicion, CategoriaPuntoMedicion, DocumentoMedicion, RangoMedicion, TipoMedidor, UnidadMedida, VistaConsumoDiferencia,
+    Servicio, KPI
 )
+
+
 from . import views
 
 # ==============================================================================
@@ -188,6 +192,40 @@ admin.site.register(CaracteristicaMedicion)
 admin.site.register(CategoriaPuntoMedicion)
 admin.site.register(DocumentoMedicion)
 admin.site.register(RangoMedicion)
+class ServicioResource(resources.ModelResource):
+    class Meta:
+        model = Servicio
+        fields = ('id', 'nombre', 'descripcion')
+        export_order = ('id', 'nombre', 'descripcion')
+        skip_unchanged = True
+        report_skipped = True
+
+@admin.register(Servicio)
+class ServicioAdmin(ImportExportModelAdmin):
+    resource_class = ServicioResource
+    list_display = ('nombre', 'descripcion')
+    search_fields = ('nombre',)
+
+class KPIResource(resources.ModelResource):
+    servicio_nombre = fields.Field(
+        column_name='servicio_nombre',
+        attribute='servicio',
+        widget=ForeignKeyWidget(Servicio, field='nombre')
+    )
+
+    class Meta:
+        model = KPI
+        fields = ('id', 'kpi', 'descripcion', 'servicio_nombre')
+        export_order = ('id', 'kpi', 'servicio_nombre', 'descripcion')
+        skip_unchanged = True
+        report_skipped = True
+
+@admin.register(KPI)
+class KPIAdmin(ImportExportModelAdmin):
+    resource_class = KPIResource
+    list_display = ('kpi', 'servicio', 'descripcion')
+    list_filter = ('servicio',)
+    search_fields = ('kpi', 'descripcion', 'servicio__nombre')
 
 @admin.register(VistaConsumoDiferencia)
 class VistaConsumoDiferenciaAdmin(admin.ModelAdmin):

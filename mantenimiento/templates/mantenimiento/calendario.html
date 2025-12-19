@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programación Anual de Mantenimiento {{ year }}</title>
+    <style>
+        :root {
+            --primary-bg: #f4f7f6;
+            --table-border: #adb5bd;
+            --header-bg: #2d3e50;
+            --header-text: #ffffff;
+            --sub-header-bg: #95a5a6;
+            --cell-bg: #ffffff;
+            --accent-color: #ff9f43;
+            --accent-text: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--primary-bg);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 100%;
+            overflow-x: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--header-bg);
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            min-width: 1300px;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--table-border);
+            text-align: center;
+            padding: 4px;
+        }
+
+        .header-main th {
+            text-align: left !important;
+            padding-left: 10px;
+            background-color: var(--header-bg);
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .header-month {
+            background-color: #4b6584 !important;
+            color: white !important;
+            font-size: 12px;
+            text-align: center !important;
+        }
+
+        .header-week {
+            background-color: #e9ecef;
+            font-size: 9px;
+            color: #666;
+        }
+
+        .row-rutina {
+            text-align: left !important;
+            padding-left: 10px;
+            background-color: #f8f9fa;
+            width: 280px;
+            position: sticky;
+            left: 0;
+            z-index: 10;
+        }
+
+        .col-horario {
+            width: 150px;
+            background-color: #f1f2f6;
+            font-weight: 500;
+            color: #2f3542;
+            font-size: 10px;
+            text-align: center !important;
+        }
+
+        .rutina-nombre {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .rutina-desc {
+            font-weight: normal;
+            font-size: 9px;
+            color: #666;
+            display: block;
+            font-style: italic;
+        }
+
+        .cell-event {
+            background-color: var(--accent-color);
+            color: var(--accent-text);
+            font-weight: bold;
+            border-radius: 3px;
+            padding: 2px 4px;
+            margin: 2px 0;
+            display: block;
+            font-size: 9px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .cell-group {
+            background-color: #27ae60;
+            cursor: pointer;
+        }
+
+        .order-tooltip {
+            position: fixed;
+            background: #2d3436;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            z-index: 1000;
+            width: 200px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            display: none;
+            text-align: left;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .tooltip-title {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: var(--accent-color);
+            border-bottom: 1px solid #444;
+            padding-bottom: 3px;
+        }
+
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .tooltip-label {
+            color: #aaa;
+        }
+
+        .item-child {
+            background-color: #2980b9;
+            margin-left: 5px;
+            font-size: 8px;
+        }
+
+        .discipline-row td,
+        .subdiscipline-row td,
+        .frequency-row td {
+            text-align: left !important;
+            padding-left: 15px !important;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .discipline-row {
+            background-color: var(--header-bg);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .subdiscipline-row {
+            background-color: var(--sub-header-bg);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .frequency-row {
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            font-size: 11px;
+            font-weight: bold;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .toggle-icon::before {
+            content: '▼';
+            display: inline-block;
+            margin-right: 8px;
+            transition: transform 0.2s;
+            font-size: 10px;
+        }
+
+        .collapsed .toggle-icon::before {
+            transform: rotate(-90deg);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Programación Anual de Mantenimiento {{ year }}</h1>
+
+    <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
+        <form method="get">
+            <input type="number" name="year" value="{{ year }}"
+                style="padding: 8px; border-radius: 4px; border: 1px solid #ddd; width: 80px;">
+            <button type="submit"
+                style="padding: 8px 15px; background: white; border: 1px solid #ddd; cursor: pointer;">Actualizar</button>
+            <button type="button" onclick="window.print()"
+                style="padding: 8px 15px; background: white; border: 1px solid #ddd; cursor: pointer;">Imprimir
+                PDF</button>
+        </form>
+    </div>
+
+    <div class="container">
+        <table>
+            <thead>
+                <tr class="header-main">
+                    <th rowspan="2" class="row-rutina">Actividad / Descripción</th>
+                    <th rowspan="2" class="col-horario">Horario</th>
+                    {% for mes in meses %}
+                    <th colspan="{{ mes.semanas|length }}" class="header-month">{{ mes.nombre }}</th>
+                    {% endfor %}
+                </tr>
+                <tr class="header-week">
+                    {% for mes in meses %}
+                    {% for s in mes.semanas %}
+                    <th>S{{ s }}</th>
+                    {% endfor %}
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in disciplinas %}
+                <tr class="discipline-row" onclick="toggleSection('dis-{{ forloop.counter }}', this)">
+                    <td colspan="{{ total_colspan }}"><span class="toggle-icon"></span> {{ d.nombre }}</td>
+                </tr>
+                {% for sd in d.subs %}
+                <tr class="subdiscipline-row dis-{{ forloop.parentloop.counter }}"
+                    id="sub-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
+                    onclick="toggleSubSection('sub-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
+                    <td colspan="{{ total_colspan }}" style="padding-left: 30px;"><span class="toggle-icon"></span> {{
+                        sd.nombre }}</td>
+                </tr>
+                {% for f in sd.frecuencias %}
+                <tr class="frequency-row dis-{{ forloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}"
+                    id="frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
+                    onclick="toggleFrecSection('frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
+                    <td colspan="{{ total_colspan }}" style="padding-left: 50px;"><span class="toggle-icon"></span> {{
+                        f.nombre }}</td>
+                </tr>
+                {% for r in f.rutinas %}
+                <tr
+                    class="dis-{{ forloop.parentloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }} frec-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
+                    <td class="row-rutina" style="padding-left: 70px;">
+                        <span class="rutina-nombre">{{ r.nombre }}</span>
+                        <span class="rutina-desc">{{ r.descripcion }}</span>
+                    </td>
+                    <td class="col-horario">{{ r.horario }}</td>
+                    {% for celda in r.celdas %}
+                    <td class="{% if celda %}cell-active{% else %}cell-empty{% endif %}">
+                        {% if celda %}
+                        {% if celda.is_group %}
+                        <div class="group-container"
+                            id="grp-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
+                            <span class="cell-event cell-group"
+                                onclick="toggleGroup('grp-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.counter }}')">
+                                {{ celda.summary }} ({{ celda.items|length }}) ⊕
+                            </span>
+                            <div class="group-items hidden">
+                                {% for ot in celda.items %}
+                                <span class="cell-event item-child has-tooltip"
+                                    onmouseover="showTooltip(event, '{{ ot.ubicacion }}', '{{ ot.fecha }}', '{{ ot.inicio }}', '{{ ot.fin }}', '{{ ot.estado }}', '{{ ot.id }}')"
+                                    onmouseout="hideTooltip()">
+                                    {{ ot.ubicacion }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% else %}
+                        {% with ot=celda.items.0 %}
+                        <span class="cell-event has-tooltip"
+                            onmouseover="showTooltip(event, '{{ ot.ubicacion }}', '{{ ot.fecha }}', '{{ ot.inicio }}', '{{ ot.fin }}', '{{ ot.estado }}', '{{ ot.id }}')"
+                            onmouseout="hideTooltip()">
+                            {{ ot.ubicacion }}
+                        </span>
+                        {% endwith %}
+                        {% endif %}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+                {% endfor %}
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="orderTooltip" class="order-tooltip">
+        <div class="tooltip-title" id="tt-ubi">Ubicación</div>
+        <div class="tooltip-row"><span class="tooltip-label">ID Orden:</span> <span id="tt-id"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">Fecha:</span> <span id="tt-fec"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">Horario:</span> <span id="tt-hor"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span id="tt-est"></span></div>
+    </div>
+
+    <script>
+        const tooltip = document.getElementById('orderTooltip');
+        function showTooltip(e, ubi, fec, ini, fin, est, id) {
+            document.getElementById('tt-ubi').innerText = ubi;
+            document.getElementById('tt-id').innerText = '#' + id;
+            document.getElementById('tt-fec').innerText = fec;
+            document.getElementById('tt-hor').innerText = ini + ' - ' + fin;
+            document.getElementById('tt-est').innerText = est;
+            tooltip.style.display = 'block';
+            updateTooltipPos(e);
+        }
+        function hideTooltip() { tooltip.style.display = 'none'; }
+        function updateTooltipPos(e) {
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        }
+        document.addEventListener('mousemove', (e) => { if (tooltip.style.display === 'block') updateTooltipPos(e); });
+
+        function toggleGroup(id) {
+            const container = document.getElementById(id);
+            container.querySelector('.group-items').classList.toggle('hidden');
+        }
+
+        function toggleSection(disClass, element) {
+            const rows = document.querySelectorAll('.' + disClass);
+            const isCollapsed = element.classList.toggle('collapsed');
+            rows.forEach(row => {
+                if (isCollapsed) row.classList.add('hidden');
+                else {
+                    row.classList.remove('hidden');
+                    if ((row.classList.contains('subdiscipline-row') || row.classList.contains('frequency-row')) && row.classList.contains('collapsed')) {
+                        document.querySelectorAll('.' + row.id).forEach(sr => sr.classList.add('hidden'));
+                    }
+                }
+            });
+        }
+
+        function toggleSubSection(subClass, element) {
+            const rows = document.querySelectorAll('.' + subClass);
+            const isCollapsed = element.classList.toggle('collapsed');
+            rows.forEach(row => {
+                if (isCollapsed) row.classList.add('hidden');
+                else {
+                    row.classList.remove('hidden');
+                    if (row.classList.contains('frequency-row') && row.classList.contains('collapsed')) {
+                        document.querySelectorAll('.' + row.id).forEach(fr => fr.classList.add('hidden'));
+                    }
+                }
+            });
+            event.stopPropagation();
+        }
+
+        function toggleFrecSection(frecClass, element) {
+            const rows = document.querySelectorAll('.' + frecClass);
+            const isCollapsed = element.classList.toggle('collapsed');
+            rows.forEach(row => {
+                if (isCollapsed) row.classList.add('hidden');
+                else row.classList.remove('hidden');
+            });
+            event.stopPropagation();
+        }
+    </script>
+</body>
+
+</html>
