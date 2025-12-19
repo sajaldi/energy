@@ -129,3 +129,17 @@ class Activo(models.Model):
     class Meta:
         verbose_name = "Activo"
         verbose_name_plural = "Activos"
+
+class Plano(models.Model):
+    nombre = models.CharField(max_length=100)
+    ubicacion = models.ForeignKey(Ubicacion, on_delete=models.CASCADE, related_name='planos')
+    imagen = models.ImageField(upload_to='planos/')
+    descripcion = models.TextField(blank=True, null=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.nombre} - {self.ubicacion.nombre}"
+        
+    class Meta:
+        verbose_name = "Plano"
+        verbose_name_plural = "Planos"
