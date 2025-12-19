@@ -12,6 +12,7 @@ class PlanoAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'ubicacion', 'creado_en')
     list_filter = ('ubicacion',)
     search_fields = ('nombre', 'ubicacion__nombre')
+    filter_horizontal = ('activos',)
 
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
