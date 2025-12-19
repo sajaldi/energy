@@ -3,16 +3,48 @@ from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from mptt.admin import DraggableMPTTAdmin
-from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano
+from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano
 
 # ... (resto de registros)
 
+from django.utils.html import format_html
+
 @admin.register(Plano)
 class PlanoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'ubicacion', 'creado_en')
+    list_display = ('nombre', 'ubicacion', 'visualizar_archivo', 'creado_en')
     list_filter = ('ubicacion',)
     search_fields = ('nombre', 'ubicacion__nombre')
     filter_horizontal = ('activos',)
+    readonly_fields = ('visualizar_archivo',)
+
+    def visualizar_archivo(self, obj):
+        if obj.archivo:
+            return format_html('<a href="{0}" target="_blank">📄 Ver Plano</a>', obj.archivo.url)
+        return "No hay archivo"
+    visualizar_archivo.short_description = "Visualizar"
+
+class PinPlanoInline(admin.TabularInline):
+    model = PinPlano
+    extra = 1
+    autocomplete_fields = ['activo']
+
+@admin.register(VisorPlano)
+class VisorPlanoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'plano', 'abrir_visor', 'creado_en')
+    list_filter = ('plano',)
+    search_fields = ('nombre', 'plano__nombre')
+    inlines = [PinPlanoInline]
+
+    def abrir_visor(self, obj):
+        return format_html('<a href="/activos/visor/{0}/" target="_blank" class="button" style="background-color: #447e9b; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none;">👁️ Abrir Visor Interactivo</a>', obj.pk)
+    abrir_visor.short_description = "Visor"
+
+@admin.register(PinPlano)
+class PinPlanoAdmin(admin.ModelAdmin):
+    list_display = ('visor', 'activo', 'x', 'y', 'color')
+    list_filter = ('visor', 'visor__plano')
+    search_fields = ('visor__nombre', 'activo__nombre')
+    autocomplete_fields = ['activo', 'visor']
 
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
@@ -127,13 +159,35 @@ class ActivoAdmin(ImportExportModelAdmin):
     list_display = ('codigo_interno', 'nombre', 'get_marca', 'modelo', 'serie', 'categoria', 'estado', 'ubicacion', 'responsable')
     list_filter = ('estado', 'categoria', 'modelo__marca', 'creado_en', 'ubicacion')
     search_fields = ('nombre', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
-    readonly_fields = ('creado_en', 'actualizado_en')
+    readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano')
     
     def get_marca(self, obj):
         if obj.modelo:
             return obj.modelo.marca
         return obj.marca_legacy
     get_marca.short_description = 'Marca'
+
+    def ver_en_plano(self, obj):
+        pines = obj.pines_planos.all()
+        if not pines:
+            return format_html('<span style="color: #999;">❌ No ubicado en planos</span>')
+        
+        html = '<div style="display: flex; flex-wrap: wrap; gap: 10px;">'
+        for pin in pines:
+            html += format_html(
+                '<a href="/activos/visor/{0}/" target="_blank" style="background: #1e293b; color: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #00d2ff; text-decoration: none; display: flex; align-items: center; gap: 8px;">'
+                '<span style="color: #00d2ff; font-size: 1.2rem;">📍</span>'
+                '<div>'
+                '<div style="font-weight: bold; font-size: 0.8rem;">{1}</div>'
+                '<div style="font-size: 0.7rem; opacity: 0.7;">Ver en Plano</div>'
+                '</div>'
+                '</a>',
+                pin.visor.id,
+                pin.visor.nombre
+            )
+        html += '</div>'
+        return format_html(html)
+    ver_en_plano.short_description = 'Ubicación en Planos'
 
     fieldsets = (
         ('Identificación', {
@@ -143,7 +197,7 @@ class ActivoAdmin(ImportExportModelAdmin):
             'fields': ('modelo', 'marca_legacy', 'modelo_legacy', 'descripcion', 'foto')
         }),
         ('Estado y Ubicación', {
-            'fields': ('estado', 'ubicacion', 'ubicacion_legacy', 'responsable')
+            'fields': ('estado', 'ubicacion', 'ubicacion_legacy', 'responsable', 'ver_en_plano')
         }),
         ('Información Financiera', {
             'fields': ('fecha_compra', 'costo')
