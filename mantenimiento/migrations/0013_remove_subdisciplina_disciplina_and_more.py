@@ -11,21 +11,13 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RemoveField(
-            model_name='subdisciplina',
-            name='disciplina',
-        ),
-        migrations.AlterUniqueTogether(
-            name='subdisciplina',
-            unique_together=None,
-        ),
-        migrations.RemoveField(
             model_name='rutina',
             name='sub_disciplina',
         ),
         migrations.DeleteModel(
-            name='Disciplina',
+            name='SubDisciplina',
         ),
         migrations.DeleteModel(
-            name='SubDisciplina',
+            name='Disciplina',
         ),
     ]
