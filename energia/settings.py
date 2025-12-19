@@ -109,25 +109,14 @@ WSGI_APPLICATION = 'energia.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'db', # ¡IMPORTANTE! Para producción, estos valores DEBEN venir de variables de entorno.
-        'USER': 'postgres',
-        'PASSWORD': 'PasswordRoot07', # ¡CAMBIA ESTO! En Coolify, usa las credenciales de la base de datos vinculada.
-        'HOST': os.environ.get('DB_HOST', '10.30.1.13'), # Cambia dinámicamente según la variable de entorno
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', f"postgres://postgres:PasswordRoot07@{os.environ.get('DB_HOST', '10.30.1.13')}:5432/db"),
+        conn_max_age=600
+    )
 }
-# Para Coolify, la configuración de la base de datos debería verse más así, usando variables de entorno:
-# import dj_database_url
-# DATABASES = {
-#     'default': dj_database_url.config(
-#         default=os.environ.get('DATABASE_URL', 'postgres://user:password@host:port/dbname'),
-#         conn_max_age=600
-#     )
-# }
-# Asegúrate de instalar dj-database-url: `pip install dj-database-url`
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
