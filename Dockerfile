@@ -21,8 +21,8 @@ COPY . /app/
 
 
 
-# Puerto que usaremos para correr gunicorn
-EXPOSE 8000
+# Puerto que usaremos para correr gunicorn (Coolify suele usar 3000 por defecto)
+EXPOSE 3000
 
 # Ejecutar migraciones y levantar gunicorn
-CMD python manage.py collectstatic --noinput && python manage.py migrate && gunicorn energia.wsgi:application --bind 0.0.0.0:8000
+CMD python manage.py collectstatic --noinput && python manage.py migrate && gunicorn energia.wsgi:application --bind 0.0.0.0:3000
