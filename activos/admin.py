@@ -3,7 +3,15 @@ from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from mptt.admin import DraggableMPTTAdmin
-from .models import Activo, Categoria, Ubicacion, Marca, Modelo
+from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano
+
+# ... (resto de registros)
+
+@admin.register(Plano)
+class PlanoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'ubicacion', 'creado_en')
+    list_filter = ('ubicacion',)
+    search_fields = ('nombre', 'ubicacion__nombre')
 
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
