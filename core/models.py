@@ -184,3 +184,28 @@ class DocumentoMedicion(models.Model):
         verbose_name = "Documento de Medición"
         verbose_name_plural = "Documentos de Medición"
         ordering = ['-fecha_hora_lectura']
+
+class Servicio(models.Model):
+    """Representa un servicio para agrupar KPIs."""
+    nombre = models.CharField(max_length=100, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Servicio"
+        verbose_name_plural = "Servicios"
+
+class KPI(models.Model):
+    """Representa un indicador clave de rendimiento (KPI)."""
+    kpi = models.CharField(max_length=100, verbose_name="KPI")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
+    servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE, related_name='kpis', verbose_name="Servicio")
+
+    def __str__(self):
+        return f"{self.kpi} ({self.servicio.nombre})"
+
+    class Meta:
+        verbose_name = "KPI"
+        verbose_name_plural = "KPIs"

@@ -8,6 +8,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
        # Incluye TODAS las URLs de tu app 'core' en la raíz del sitio.
     path('', include('core.urls', namespace='core')),
+    path('mantenimiento/', include('mantenimiento.urls', namespace='mantenimiento')),
 ]
 
 if settings.DEBUG:

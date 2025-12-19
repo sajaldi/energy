@@ -23,12 +23,70 @@ class Ubicacion(MPTTModel):
         order_insertion_by = ['nombre']
         parent_attr = 'padre'
 
+    def get_ruta_completa(self, separador=' → '):
+        """
+        Devuelve la ruta completa de la ubicación en la jerarquía.
+        Ej: 'Campus Principal → Edificio A → Nivel 1'
+        
+        Si la instancia no está guardada, devuelve solo el nombre.
+        """
+        # Verificar si la instancia está guardada en la BD
+        if not self.pk:
+            return self.nombre
+        
+        try:
+            ancestros = self.get_ancestors(include_self=True)
+            return separador.join([u.nombre for u in ancestros])
+        except:
+            # Fallback si hay algún problema
+            return self.nombre
+    
+    def get_clave_unica(self):
+        """
+        Devuelve una clave única compuesta por la concatenación de toda la jerarquía.
+        Ej: 'Campus Principal|Edificio A|Nivel 1'
+        
+        Esto permite tener múltiples ubicaciones con el mismo nombre en diferentes padres.
+        Si la instancia no está guardada, devuelve solo el nombre.
+        """
+        # Verificar si la instancia está guardada en la BD
+        if not self.pk:
+            return self.nombre
+        
+        return self.get_ruta_completa(separador='|')
+    
+    @property
+    def ruta_completa(self):
+        """Propiedad para acceso rápido a la ruta completa"""
+        return self.get_ruta_completa()
+
     def __str__(self):
-        return self.nombre
+        return self.get_ruta_completa()
 
     class Meta:
         verbose_name = "Ubicación"
         verbose_name_plural = "Ubicaciones"
+
+class Marca(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Marca"
+        verbose_name_plural = "Marcas"
+
+class Modelo(models.Model):
+    nombre = models.CharField(max_length=100)
+    marca = models.ForeignKey(Marca, on_delete=models.CASCADE, related_name='modelos')
+
+    def __str__(self):
+        return f"{self.marca} - {self.nombre}"
+
+    class Meta:
+        verbose_name = "Modelo"
+        verbose_name_plural = "Modelos"
 
 class Activo(models.Model):
     ESTADO_CHOICES = [
@@ -42,8 +100,9 @@ class Activo(models.Model):
     codigo_interno = models.CharField(max_length=50, unique=True, blank=True, null=True, help_text="Código de inventario interno")
     serie = models.CharField(max_length=100, blank=True, null=True, help_text="Número de serie del fabricante")
     
-    marca = models.CharField(max_length=100, blank=True, null=True)
-    modelo = models.CharField(max_length=100, blank=True, null=True)
+    marca_legacy = models.CharField(max_length=100, blank=True, null=True)
+    modelo_legacy = models.CharField(max_length=100, blank=True, null=True)
+    modelo = models.ForeignKey(Modelo, on_delete=models.SET_NULL, null=True, blank=True, related_name='activos')
     
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, related_name='activos')
     
