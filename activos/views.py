@@ -64,7 +64,8 @@ def guardar_pin(request):
                 'nombre_activo': pin.activo.nombre if pin.activo else 'Sin activo',
                 'codigo_externo': pin.activo.codigo_interno if pin.activo else '',
                 'nota': pin.nota,
-                'fotos': fotos_urls
+                'fotos': fotos_urls,
+                'icono': pin.activo.categoria.icono if (pin.activo and pin.activo.categoria) else 'location'
             })
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)

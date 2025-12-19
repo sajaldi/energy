@@ -48,7 +48,7 @@ class PinPlanoAdmin(admin.ModelAdmin):
 
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
-    list_display = ('nombre', 'descripcion')
+    list_display = ('nombre', 'icono', 'descripcion')
     search_fields = ('nombre',)
 
 class UbicacionResource(resources.ModelResource):
