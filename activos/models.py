@@ -4,6 +4,7 @@ from colorfield.fields import ColorField
 
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
+    icono = models.CharField(max_length=50, default='location', help_text="Nombre del icono de Ionicons (ej: flash, water, construct, bulb)")
     descripcion = models.TextField(blank=True, null=True)
 
     def __str__(self):

@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
+import dj_database_url
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -22,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 # ¡IMPORTANTE! En producción, esta clave DEBE obtenerse de una variable de entorno.
 # No la dejes codificada aquí.
-SECRET_KEY = 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # ¡IMPORTANTE! En producción, DEBUG debe ser False por seguridad.
@@ -34,7 +35,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena '
 # Si Coolify usa un proxy inverso (como Nginx), a menudo puedes usar '*' si confías en el proxy,
 # pero es mejor ser explícito.
 # Los valores de ngrok y sslip.io son para desarrollo/pruebas.
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
 
 # Si vas a usar una IP específica o dominio en Coolify, agrégala aquí.
 # Por ejemplo, si tu Coolify tiene un IP público o un dominio personalizado.
@@ -110,14 +111,11 @@ WSGI_APPLICATION = 'energia.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'db',
-        'USER': 'postgres',
-        'PASSWORD': 'PasswordRoot07',
-        'HOST': '181.115.47.107',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', 'postgres://postgres:PasswordRoot07@181.115.47.107:5432/db'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # Password validation
@@ -165,10 +163,14 @@ STATIC_ROOT = BASE_DIR / 'staticfiles' # Un directorio llamado 'staticfiles' en 
 
 # Dónde Django debe buscar *archivos estáticos adicionales* (no de una app específica).
 # Esto incluye tu carpeta 'static' global en la raíz del proyecto.
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',         # Carpeta 'static' en la raíz de tu proyecto (junto a manage.py)
-    BASE_DIR / 'core' / 'static', # Si tienes archivos estáticos específicos dentro de tu app 'core'
-]
+STATICFILES_DIRS = []
+_static_global = BASE_DIR / 'static'
+if _static_global.exists():
+    STATICFILES_DIRS.append(_static_global)
+
+_static_core = BASE_DIR / 'core' / 'static'
+if _static_core.exists():
+    STATICFILES_DIRS.append(_static_core)
 
 
 # --- Media files (User-uploaded files) ---

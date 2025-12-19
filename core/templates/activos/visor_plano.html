@@ -725,9 +725,10 @@
                         data-activo="{{ pin.activo.id|default:'' }}"
                         data-label="{{ pin.activo.nombre|default:'Sin activo' }}" data-color="{{ pin.color }}"
                         data-nota="{{ pin.nota|default:'' }}" data-x="{{ pin.x }}" data-y="{{ pin.y }}"
+                        data-icon="{{ pin.activo.categoria.icono|default:'location' }}"
                         data-fotos='[{% for foto in pin.fotos.all %}"{{ foto.imagen.url }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
                         style="left: {{ pin.x }}px; top: {{ pin.y }}px; color: {{ pin.color }}; pointer-events: auto;">
-                        <ion-icon name="location"></ion-icon>
+                        <ion-icon name="{{ pin.activo.categoria.icono|default:'location' }}"></ion-icon>
                     </div>
                     {% endfor %}
                     {% endlocalize %}
@@ -1112,6 +1113,7 @@
             pin.dataset.x = x.toFixed(1);
             pin.dataset.y = y.toFixed(1);
             pin.dataset.fotos = '[]';
+            pin.dataset.icon = 'location';
             pin.style.color = '#FF0000';
             pin.style.pointerEvents = 'auto';
             pin.innerHTML = '<ion-icon name="location"></ion-icon>';
@@ -1228,7 +1230,11 @@
                 activePin.dataset.fotos = JSON.stringify(result.fotos);
                 activePin.dataset.x = x.toFixed(1);
                 activePin.dataset.y = y.toFixed(1);
+                activePin.dataset.icon = result.icono || 'location';
                 activePin.style.color = color;
+
+                // Actualizar icono visualmente
+                activePin.querySelector('ion-icon').name = result.icono || 'location';
 
                 showToast('Pin guardado (Píxeles)');
                 pinPanel.classList.remove('active');
@@ -1294,6 +1300,7 @@
             pines.forEach(pin => {
                 const label = pin.dataset.label;
                 const nota = pin.dataset.nota || '';
+                const icono = pin.dataset.icon || 'location';
 
                 if (filter && !label.toLowerCase().includes(filter.toLowerCase()) && !nota.toLowerCase().includes(filter.toLowerCase())) {
                     return;
@@ -1305,7 +1312,7 @@
 
                 item.innerHTML = `
                     <div class="pin-icon" style="color: ${pin.style.color}">
-                        <ion-icon name="location"></ion-icon>
+                        <ion-icon name="${icono}"></ion-icon>
                     </div>
                     <div class="pin-info">
                         <h4>${label}</h4>
