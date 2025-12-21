@@ -24,7 +24,7 @@
         border-bottom: 1px solid #e1dfdd;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 
-        display: flex;
+        display: flex !important;
         align-items: center;
         flex-wrap: wrap;
         justify-content: flex-start;
@@ -144,16 +144,24 @@
 </style>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        // Mover la barra de herramientas al principio del formulario para que sea full-width
-        // y esté "encima" del contenido, fuera de la columna lateral de Jazzmin.
-        var submitRow = document.querySelector('.submit-row');
-        var form = document.querySelector('#content-main form');
+        // Intentar encontrar la barra de herramientas y el formulario
+        var submitRows = document.querySelectorAll('.submit-row');
+        var form = document.querySelector('#content-main form') || document.querySelector('form');
 
-        if (submitRow && form) {
-            // Insertar antes del primer hijo del formulario
-            form.insertBefore(submitRow, form.firstChild);
-            // Asegurar que sea visible
-            submitRow.style.display = 'flex';
+        if (submitRows.length > 0 && form) {
+            // Usamos la primera barra encontrada (o la última si Jazzmin duplica)
+            // Preferimos mover la que acabamos de renderizar
+            var toolbar = submitRows[0];
+
+            // Mover al principio del formulario
+            form.insertBefore(toolbar, form.firstChild);
+
+            // Forzar visualización
+            toolbar.style.display = 'flex';
+            toolbar.style.visibility = 'visible';
+            toolbar.style.opacity = '1';
+        } else {
+            console.warn("Dynamics Toolbar: No se encontró .submit-row o el formulario.");
         }
     });
 </script>
