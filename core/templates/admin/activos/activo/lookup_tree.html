@@ -1,0 +1,275 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static core_tags %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/all.min.css">
+<style>
+    :root {
+        --primary: #007bff;
+        --bg-light: #f4f6f9;
+        --card-bg: #ffffff;
+        --border: #dee2e6;
+        --text-main: #343a40;
+        --text-muted: #6c757d;
+    }
+
+    body.popup {
+        background: var(--bg-light);
+        color: var(--text-main);
+        padding: 20px;
+        font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    #content {
+        margin: 0;
+        padding: 0;
+    }
+
+    .tree-container {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 20px;
+        box-shadow: 0 0 1px rgba(0, 0, 0, .125), 0 1px 3px rgba(0, 0, 0, .2);
+    }
+
+    .search-box {
+        margin-bottom: 20px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--bg-light);
+        padding: 10px 0;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 10px 15px;
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text-main);
+        font-size: 0.9rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .search-box input:focus {
+        border-color: var(--primary);
+    }
+
+    .tree-node {
+        margin-left: 20px;
+        border-left: 1px solid #eee;
+        padding-left: 10px;
+    }
+
+    .node-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        border-radius: 3px;
+        transition: background 0.1s;
+        margin: 1px 0;
+        color: var(--text-main);
+        font-size: 0.95rem;
+    }
+
+    .node-header:hover {
+        background: #f8f9fa;
+    }
+
+    .node-icon {
+        width: 16px;
+        color: var(--text-muted);
+        transition: transform 0.2s;
+    }
+
+    .node-content {
+        display: none;
+    }
+
+    .node-header.expanded .node-icon.folder {
+        transform: rotate(90deg);
+    }
+
+    .node-header.expanded+.node-content {
+        display: block;
+    }
+
+    .category-label {
+        color: var(--primary);
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 12px;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .asset-item {
+        margin-left: 20px;
+        padding: 8px 12px;
+        background: #ffffff;
+        border: 1px solid #edf2f7;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .asset-item:hover {
+        background: #f1f7ff;
+        border-color: #b3d7ff;
+        transform: translateX(3px);
+    }
+
+    .asset-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .asset-name {
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 0.9rem;
+    }
+
+    .asset-code {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+    }
+
+    .badge {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: #e2e8f0;
+        color: #4a5568;
+        font-weight: 600;
+    }
+
+    .asset-item:hover .badge {
+        background: var(--primary);
+        color: white;
+    }
+
+    /* Ocultar nodos vacíos durante búsqueda */
+    .hidden {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="search-box">
+    <input type="text" id="tree-search" placeholder="Buscar activo por nombre o código..." onkeyup="filterTree()">
+</div>
+
+<div class="tree-container">
+    <div id="asset-tree">
+        {% if tree_data %}
+        {% for u in ubicaciones %}
+        {% if u.level == 0 %}
+        {% include "admin/activos/activo/tree_node.html" with node=u %}
+        {% endif %}
+        {% endfor %}
+        {% else %}
+        <div style="text-align: center; color: #64748b; padding: 40px;">
+            <i class="fas fa-search" style="font-size: 3rem; opacity: 0.3; margin-bottom: 20px; display: block;"></i>
+            <p>No se encontraron activos asociados a ubicaciones.</p>
+            <p style="font-size: 0.8rem;">Asegúrate de que los activos tengan una ubicación asignada.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Expandir raíces por defecto
+    window.addEventListener('DOMContentLoaded', () => {
+        const roots = document.querySelectorAll('#asset-tree > .tree-node > .node-header');
+        roots.forEach(r => r.classList.add('expanded'));
+    });
+
+    function toggleNode(el) {
+        el.classList.toggle('expanded');
+    }
+
+    function selectAsset(id, name) {
+        // Esta es la función estándar de Django admin para cerrar popups
+        if (window.opener && window.opener.dismissRelatedLookupPopup) {
+            window.opener.dismissRelatedLookupPopup(window, id, name);
+        } else {
+            // Fallback para cuando se abre directamente o nuevas versiones
+            try {
+                const nameInPopup = name;
+                opener.dismissRelatedLookupPopup(window, id, nameInPopup);
+            } catch (e) {
+                console.error("Error al cerrar popup de Django:", e);
+                alert("Seleccionado: " + name + " (ID: " + id + ")");
+            }
+        }
+    }
+
+    function filterTree() {
+        const query = document.getElementById('tree-search').value.toLowerCase();
+        const assetItems = document.querySelectorAll('.asset-item');
+
+        if (!query) {
+            document.querySelectorAll('.hidden').forEach(el => el.classList.remove('hidden'));
+            document.querySelectorAll('.node-header').forEach(el => el.classList.remove('expanded'));
+            return;
+        }
+
+        assetItems.forEach(item => {
+            const text = item.innerText.toLowerCase();
+            const parentContent = item.closest('.node-content');
+            const parentNodes = [];
+
+            let temp = item;
+            while (temp = temp.parentElement.closest('.tree-node')) {
+                const header = temp.querySelector(':scope > .node-header');
+                if (header) parentNodes.push(header);
+            }
+
+            if (text.includes(query)) {
+                item.classList.remove('hidden');
+                // Expandir todos los padres
+                let tempParent = item.parentElement;
+                while (tempParent) {
+                    if (tempParent.classList.contains('node-content')) {
+                        tempParent.style.display = 'block';
+                        const header = tempParent.previousElementSibling;
+                        if (header) header.classList.add('expanded');
+                    }
+                    tempParent = tempParent.parentElement;
+                    if (tempParent.id === 'asset-tree') break;
+                }
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+
+        // Ocultar cabeceras de ubicaciones que no tienen hijos visibles
+        document.querySelectorAll('.tree-node').forEach(node => {
+            const hasVisibleAssets = node.querySelectorAll('.asset-item:not(.hidden)').length > 0;
+            const header = node.querySelector(':scope > .node-header');
+            if (hasVisibleAssets) {
+                node.classList.remove('hidden');
+                if (header) header.classList.add('expanded');
+            } else {
+                node.classList.add('hidden');
+            }
+        });
+    }
+</script>
+{% endblock %}

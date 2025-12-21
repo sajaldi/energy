@@ -1,10 +1,11 @@
+from datetime import timedelta
 from django.contrib import admin, messages
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
 from mptt.admin import DraggableMPTTAdmin
 from mptt.admin import DraggableMPTTAdmin
-from .models import Categoria, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo
+from .models import Categoria, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso
 
 class CategoriaResource(resources.ModelResource):
     """
@@ -219,9 +220,52 @@ class ProgramacionAdmin(admin.ModelAdmin):
 
 
 
+@admin.register(Aviso)
+class AvisoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'prioridad', 'estado', 'ubicacion', 'activo', 'solicitante', 'creado_en')
+    list_filter = ('estado', 'prioridad', 'creado_en')
+    search_fields = ('descripcion', 'ubicacion__nombre', 'activo__nombre')
+    actions = ['generar_ot_action']
+    raw_id_fields = ('activo', 'ubicacion', 'solicitante')
+
+    @admin.action(description="Generar Orden de Trabajo Correctiva")
+    def generar_ot_action(self, request, queryset):
+        count = 0
+        for aviso in queryset:
+            if OrdenTrabajo.objects.filter(aviso=aviso).exists():
+                self.message_user(request, f"El aviso {aviso.id} ya tiene una OT asociada.", messages.WARNING)
+                continue
+                
+            ot = OrdenTrabajo.objects.create(
+                tipo='CORRECTIVA',
+                prioridad=aviso.prioridad,
+                aviso=aviso,
+                ubicacion=aviso.ubicacion,
+                activo=aviso.activo,
+                inicio_programado=aviso.creado_en, 
+                fin_programado=aviso.creado_en + timedelta(hours=2),
+                notas=aviso.descripcion,
+                estado='PROGRAMADA'
+            )
+            aviso.estado = 'PROCESO'
+            aviso.save()
+            count += 1
+            
+        if count:
+            self.message_user(request, f"Se han generado {count} Órdenes de Trabajo Correctivas.", messages.SUCCESS)
+
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'rutina', 'ubicacion', 'activo', 'inicio_programado', 'fin_programado', 'estado')
-    list_filter = ('estado', 'inicio_programado', 'rutina', 'ubicacion')
-    search_fields = ('rutina__nombre', 'ubicacion__nombre', 'activo__nombre', 'notas')
+    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'activo', 'tecnico', 'estado')
+    list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico')
+    search_fields = ('rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activo__nombre', 'notas')
     date_hierarchy = 'inicio_programado'
+    raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'activo', 'programacion')
+
+    def get_descripcion(self, obj):
+        if obj.rutina:
+            return obj.rutina.nombre
+        if obj.aviso:
+            return f"CORR: {obj.aviso.descripcion[:30]}"
+        return "OT Sin descripción"
+    get_descripcion.short_description = 'Descripción/Rutina'

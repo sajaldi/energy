@@ -7,4 +7,5 @@ urlpatterns = [
     path('visor/<int:visor_id>/', views.visor_plano, name='visor_plano'),
     path('api/guardar-pin/', views.guardar_pin, name='guardar_pin'),
     path('api/eliminar-pin/<int:pin_id>/', views.eliminar_pin, name='eliminar_pin'),
+    path('api/import-progress/<str:task_id>/', views.import_progress, name='import_progress'),
 ]

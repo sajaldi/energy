@@ -1,6 +1,7 @@
 from django.db import models
 from datetime import datetime, date, timedelta
 from mptt.models import MPTTModel, TreeForeignKey
+from django.contrib.auth.models import User
 
 class Categoria(MPTTModel):
     """
@@ -258,7 +259,11 @@ class Programacion(models.Model):
                             ubicacion=area,
                             inicio_programado=inicio_propuesto,
                             fin_programado=fin_propuesto,
-                            defaults={'rutina': self.rutina}
+                            defaults={
+                                'rutina': self.rutina,
+                                'tipo': 'PREVENTIVA',
+                                'prioridad': 'MEDIA'
+                            }
                         )
                         cursor_dt = fin_propuesto
                         ordenes_creadas += 1
@@ -273,6 +278,41 @@ class Programacion(models.Model):
         self.save()
         return ordenes_creadas
 
+class Aviso(models.Model):
+    PRIORIDAD_CHOICES = [
+        ('BAJA', 'Baja'),
+        ('MEDIA', 'Media'),
+        ('ALTA', 'Alta'),
+        ('CRITICA', 'Crítica'),
+    ]
+    
+    ESTADO_CHOICES = [
+        ('ABIERTO', 'Abierto'),
+        ('PROCESO', 'En Proceso'),
+        ('CERRADO', 'Cerrado'),
+        ('CANCELADO', 'Cancelado'),
+    ]
+
+    activo = models.ForeignKey('activos.Activo', on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos')
+    ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='avisos')
+    descripcion = models.TextField(help_text="Descripción detallada de la falla o solicitud")
+    prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA')
+    estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='ABIERTO')
+    
+    solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='avisos_reportados')
+    foto = models.ImageField(upload_to='avisos/', null=True, blank=True)
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"AV-{self.id}: {self.descripcion[:30]} ({self.estado})"
+
+    class Meta:
+        verbose_name = "Aviso"
+        verbose_name_plural = "Avisos"
+        ordering = ['-creado_en']
+
 class OrdenTrabajo(models.Model):
     ESTADO_CHOICES = [
         ('PROGRAMADA', 'Programada'),
@@ -280,8 +320,25 @@ class OrdenTrabajo(models.Model):
         ('REALIZADA', 'Realizada'),
         ('CANCELADA', 'Cancelada'),
     ]
+
+    TIPO_CHOICES = [
+        ('PREVENTIVA', 'Preventiva'),
+        ('CORRECTIVA', 'Correctiva'),
+    ]
     
-    rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='ordenes')
+    PRIORIDAD_CHOICES = [
+        ('BAJA', 'Baja'),
+        ('MEDIA', 'Media'),
+        ('ALTA', 'Alta'),
+        ('CRITICA', 'Crítica'),
+    ]
+    
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default='PREVENTIVA')
+    prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA')
+    rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='ordenes', null=True, blank=True)
+    aviso = models.ForeignKey(Aviso, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes')
+    tecnico = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asignadas')
+    
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='ordenes_trabajo', null=True, blank=True)
     activo = models.ForeignKey('activos.Activo', on_delete=models.CASCADE, related_name='ordenes_trabajo', null=True, blank=True)
     programacion = models.ForeignKey(Programacion, on_delete=models.CASCADE, null=True, blank=True, related_name='ordenes')
@@ -303,4 +360,6 @@ class OrdenTrabajo(models.Model):
         ordering = ['inicio_programado', 'ubicacion']
 
     def __str__(self):
-        return f"OT-{self.id}: {self.rutina.nombre} - {self.ubicacion.nombre if self.ubicacion else 'S/U'} ({self.inicio_programado.date()})"
+        nombre = self.rutina.nombre if self.rutina else (self.aviso.descripcion[:30] if self.aviso else "OT Correctiva")
+        lugar = self.ubicacion.nombre if self.ubicacion else (self.activo.nombre if self.activo else 'S/U')
+        return f"{self.tipo[:3]} OT-{self.id}: {nombre} - {lugar} ({self.inicio_programado.date()})"

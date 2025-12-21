@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from .models import VisorPlano, PinPlano, Activo
 import json
 from django.views.decorators.csrf import csrf_exempt
+from celery.result import AsyncResult
 
 def visor_plano(request, visor_id):
     visor = get_object_or_404(VisorPlano, pk=visor_id)
@@ -78,3 +79,46 @@ def eliminar_pin(request, pin_id):
         pin.delete()
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'error'}, status=405)
+
+def import_progress(request, task_id):
+    """
+    API endpoint para obtener el progreso de una tarea de importación Celery.
+    """
+    task = AsyncResult(task_id)
+    
+    if task.state == 'PENDING':
+        response = {
+            'state': task.state,
+            'current': 0,
+            'total': 1,
+            'status': 'Esperando inicio...',
+            'percent': 0
+        }
+    elif task.state == 'PROGRESS':
+        response = {
+            'state': task.state,
+            'current': task.info.get('current', 0),
+            'total': task.info.get('total', 1),
+            'status': task.info.get('status', ''),
+            'current_row': task.info.get('current_row', ''),
+            'percent': task.info.get('percent', 0)
+        }
+    elif task.state == 'SUCCESS':
+        response = {
+            'state': task.state,
+            'current': 100,
+            'total': 100,
+            'status': 'Completado',
+            'percent': 100,
+            'result': task.info
+        }
+    else:  # FAILURE, etc.
+        response = {
+            'state': task.state,
+            'current': 1,
+            'total': 1,
+            'status': str(task.info),  # Exception info
+            'percent': 0
+        }
+    
+    return JsonResponse(response)
