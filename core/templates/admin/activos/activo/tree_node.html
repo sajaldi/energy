@@ -1,0 +1,39 @@
+{% load core_tags %}
+<div class="tree-node" data-node-id="{{ node.id }}">
+    <div class="node-header" onclick="toggleNode(this)">
+        <i class="fas fa-chevron-right node-icon folder"></i>
+        <span class="node-name" style="font-weight: 500;">{{ node.nombre }}</span>
+    </div>
+
+    <div class="node-content">
+        {# 1. Renderizar Sub-ubicaciones (Recursivo) #}
+        {% for sub in node.get_children %}
+        {% include "admin/activos/activo/tree_node.html" with node=sub %}
+        {% endfor %}
+
+        {# 2. Renderizar Categorías y Activos de ESTA ubicación #}
+        {% with node_id_str=node.id|stringformat:"s" %}
+        {% with cat_dict=tree_data|dict_get:node_id_str %}
+        {% if cat_dict %}
+        {% for cat_id, cat_info in cat_dict.items %}
+        <div class="category-group" style="margin-left: 15px;">
+            <div class="category-label">
+                <i class="fas fa-layer-group" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                {{ cat_info.nombre }}
+            </div>
+
+            {% for activo in cat_info.activos %}
+            <div class="asset-item" onclick="selectAsset('{{ activo.id }}', '{{ activo.nombre|escapejs }}')">
+                <div class="asset-info">
+                    <span class="asset-name">{{ activo.nombre }}</span>
+                    <span class="asset-code">{{ activo.codigo_interno }}</span>
+                </div>
+                <span class="badge">{{ activo.estado }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </div>
+</div>

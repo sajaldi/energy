@@ -10,7 +10,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
-import dj_database_url
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -23,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 # ¡IMPORTANTE! En producción, esta clave DEBE obtenerse de una variable de entorno.
 # No la dejes codificada aquí.
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj')
+SECRET_KEY = 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # ¡IMPORTANTE! En producción, DEBUG debe ser False por seguridad.
@@ -35,7 +34,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena '
 # Si Coolify usa un proxy inverso (como Nginx), a menudo puedes usar '*' si confías en el proxy,
 # pero es mejor ser explícito.
 # Los valores de ngrok y sslip.io son para desarrollo/pruebas.
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = ['*']
 
 # Si vas a usar una IP específica o dominio en Coolify, agrégala aquí.
 # Por ejemplo, si tu Coolify tiene un IP público o un dominio personalizado.
@@ -67,6 +66,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles', # Siempre debe estar
     'import_export',
+    'django_celery_results',  # Para almacenar resultados de tareas Celery
     'core',
     'colorfield',
     'activos',
@@ -108,14 +108,15 @@ WSGI_APPLICATION = 'energia.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL', 'postgres://postgres:PasswordRoot07@181.115.47.107:5432/db'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'db',
+        'USER': 'postgres',
+        'PASSWORD': 'PasswordRoot07',
+        'HOST': '181.115.47.107',
+        'PORT': '5432',
+    }
 }
 
 # Password validation
@@ -233,7 +234,7 @@ JAZZMIN_SETTINGS = {
         {"model": "auth.User"},
     ],
     "show_sidebar": True,
-    "navigation_expanded": True,
+    "navigation_expanded": False,
     "hide_apps": [],
     "hide_models": [],
     "icons": {
@@ -255,18 +256,20 @@ JAZZMIN_UI_TWEAKS = {
     "footer_small_text": False,
     "body_small_text": False,
     "brand_small_text": False,
-    "brand_colour": "navbar-success",
-    "accent": "accent-teal",
-    "navbar": "navbar-dark navbar-teal",
+    "brand_colour": "navbar-primary",
+    "accent": "accent-primary",
+    "navbar": "navbar-primary navbar-dark",
     "no_navbar_border": False,
     "navbar_fixed": False,
     "layout_boxed": False,
     "footer_fixed": False,
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-teal",
+    "sidebar": "sidebar-light-primary",
     "sidebar_nav_small_text": False,
-    "theme": "flatly",
-    "dark_mode_theme": "darkly",
+    "sidebar_disable_expand": False,
+    "sidebar_collapse": True,
+    "theme": "yeti",
+    "dark_mode_theme": None,
     "button_classes": {
         "primary": "btn-primary",
         "secondary": "btn-secondary",
@@ -276,3 +279,28 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success"
     }
 }
+
+# Habilitar iframes para popups y modales en el admin
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+# ===== CELERY CONFIGURATION =====
+# Celery Configuration Options
+# En desarrollo usa localhost, en producción usa el nombre del servicio de docker-compose
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'django-db')
+CELERY_CACHE_BACKEND = 'default'
+
+# Celery Task Settings
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo por tarea
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# Configuración adicional para producción
+if not DEBUG:
+    # En producción, usar configuración más robusta
+    CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+    CELERY_BROKER_CONNECTION_RETRY = True
+    CELERY_BROKER_CONNECTION_MAX_RETRIES = 10

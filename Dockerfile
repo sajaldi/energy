@@ -1,29 +1,38 @@
-# Dockerfile
+# Dockerfile para Django + Celery en Coolify
 
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Instalar dependencias del sistema que Django podría necesitar
+# Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
+# Copiar e instalar dependencias de Python
 COPY requirements.txt /app/
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
+# Copiar código de la aplicación
 COPY . /app/
 
+# Crear directorios necesarios
+RUN mkdir -p /app/media /app/staticfiles
 
+# Recolectar archivos estáticos
+RUN python manage.py collectstatic --noinput || true
 
-# Puerto que usaremos para correr gunicorn (Coolify suele usar 3000 por defecto)
-EXPOSE 3000
+# Exponer puerto
+EXPOSE 8000
 
-# Ejecutar migraciones y levantar gunicorn
-# Usamos shell form para permitir variable de expansión
-CMD sh -c "python manage.py collectstatic --noinput && python manage.py migrate && gunicorn energia.wsgi:application --bind 0.0.0.0:${PORT:-8000}"
+# El comando se define en docker-compose.yml o se puede override
+# Por defecto, ejecutar migraciones y gunicorn
+CMD python manage.py migrate && \
+    gunicorn energia.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 120

@@ -68,6 +68,7 @@ class Ubicacion(MPTTModel):
     class Meta:
         verbose_name = "Ubicación"
         verbose_name_plural = "Ubicaciones"
+        unique_together = ('nombre', 'padre')
 
 class Marca(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
