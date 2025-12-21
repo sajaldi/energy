@@ -142,13 +142,30 @@
         }
     }
 </style>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Mover la barra de herramientas al principio del formulario para que sea full-width
+        // y esté "encima" del contenido, fuera de la columna lateral de Jazzmin.
+        var submitRow = document.querySelector('.submit-row');
+        var form = document.querySelector('#content-main form');
+
+        if (submitRow && form) {
+            // Insertar antes del primer hijo del formulario
+            form.insertBefore(submitRow, form.firstChild);
+            // Asegurar que sea visible
+            submitRow.style.display = 'flex';
+        }
+    });
+</script>
 {% endblock %}
 
+{# Eliminamos el bloque superior porque lo movemos por JS, o dejamos vacío para evitar duplicados si Jazzmin lo
+renderiza #}
 {% block submit_buttons_top %}
+{# Dejamos que se renderice y luego lo movemos #}
 {% submit_row %}
 {% endblock %}
 
 {% block submit_buttons_bottom %}
-{# Dejamos la barra inferior también disponible, usará el mismo estilo #}
-{% submit_row %}
+{# Opcional: duplicar barra abajo o quitarla #}
 {% endblock %}
