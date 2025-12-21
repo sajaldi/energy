@@ -1,0 +1,194 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Ocultar la barra de herramientas original de Django si se muestra en otro lugar */
+    .submit-row {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+
+        padding: 10px 20px;
+        margin: 0 0 20px 0;
+        background: #ffffff;
+        border-bottom: 1px solid #e1dfdd;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+
+        display: flex !important;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        text-align: left !important;
+        float: none !important;
+        /* Prevenir float de Jazzmin */
+    }
+
+    /* Ajuste para contenedor principal si es necesario */
+    /* Asegura que el sticky funcione correctamente dentro de los contenedores de Django/Jazzmin */
+    #content-main {
+        overflow: visible;
+    }
+
+    /* Prevenir conflictos con columnas de Jazzmin */
+    .col-12 .submit-row {
+        margin-left: -15px;
+        /* Compensar padding de columnas bootstrap si es necesario */
+        margin-right: -15px;
+        width: calc(100% + 30px);
+        max-width: calc(100% + 30px);
+    }
+
+    /* Estilo para los botones tipo Dynamics */
+    .btn-dynamics {
+        background-color: transparent;
+        border: 1px solid transparent;
+        color: #323130;
+        cursor: pointer;
+        padding: 6px 16px;
+        margin-right: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        /* Un poco más grueso */
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none !important;
+        border-radius: 2px;
+        transition: all 0.1s ease;
+        height: 40px;
+        /* Altura fija estándar */
+        white-space: nowrap;
+    }
+
+    .btn-dynamics i {
+        margin-right: 8px;
+        font-size: 16px;
+        color: #0078d4;
+        /* Color azul Dynamics por defecto */
+    }
+
+    /* Colores específicos para acciones */
+    .btn-save i {
+        color: #107c10;
+    }
+
+    /* Guardar: Verde */
+    .btn-delete i {
+        color: #d13438;
+    }
+
+    /* Eliminar: Rojo */
+    .btn-close i {
+        color: #323130;
+    }
+
+    /* Cerrar: Gris oscuro */
+
+    /* Hover effects estilo Office */
+    .btn-dynamics:hover {
+        background-color: #f3f2f1;
+        color: #201f1e;
+    }
+
+    .btn-dynamics:active {
+        background-color: #edebe9;
+    }
+
+    /* Separador estilo Dynamics */
+    .btn-dynamics.separator {
+        border-left: 1px solid #e1dfdd;
+        margin-left: 8px;
+        padding-left: 12px;
+    }
+
+    input[type=submit].btn-dynamics {
+        font-family: "Segoe UI", "Helvetica Neue", "Arial", sans-serif;
+    }
+
+    .submit-row:last-child {
+        /* Barra inferior opcional */
+        margin-top: 20px;
+        position: relative;
+        /* No sticky la de abajo */
+        box-shadow: none;
+        border-top: 1px solid #e1dfdd;
+        border-bottom: none;
+    }
+
+    @media (max-width: 767px) {
+        .submit-row {
+            padding: 10px;
+            top: 50px;
+            /* Compensar header móvil si es necesario */
+        }
+
+        .btn-dynamics span {
+            display: none;
+            /* Ocultar texto en móviles, solo iconos */
+        }
+
+        .btn-dynamics i {
+            margin-right: 0;
+            font-size: 20px;
+        }
+    }
+</style>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Intentar encontrar la barra de herramientas y el formulario
+        var submitRows = document.querySelectorAll('.submit-row');
+        var form = document.querySelector('#content-main form') || document.querySelector('form');
+
+        if (submitRows.length > 0 && form) {
+            // Usamos la primera barra encontrada
+            var toolbar = submitRows[0];
+
+            // 1. Mover toolbar al principio del formulario
+            form.insertBefore(toolbar, form.firstChild);
+            toolbar.style.display = 'flex';
+
+            // 2. Expandir el área principal para ocupar el espacio del sidebar vacío
+            // Jazzmin usa col-lg-9 para contenido y col-lg-3 para sidebar
+            var contentCol = document.querySelector('.col-lg-9');
+            var sidebarCol = document.querySelector('.col-lg-3');
+
+            if (contentCol) {
+                // Cambiar a ancho completo
+                contentCol.classList.remove('col-lg-9');
+                contentCol.classList.add('col-lg-12');
+            }
+
+            if (sidebarCol) {
+                // Ocultar la columna lateral si está vacía o solo tenía la toolbar original
+                // Verificamos si tiene contenido importante antes de ocultar
+                // Pero como la barra ya no está allí, asumimos que queremos el espacio
+                sidebarCol.style.display = 'none';
+            }
+
+        } else {
+            console.warn("Dynamics Toolbar: No se encontró .submit-row o el formulario.");
+        }
+    });
+</script>
+{% endblock %}
+
+{# Eliminamos el bloque superior porque lo movemos por JS, o dejamos vacío para evitar duplicados si Jazzmin lo
+renderiza #}
+{% block submit_buttons_top %}
+{# Dejamos que se renderice y luego lo movemos #}
+{% submit_row %}
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+{# Jazzmin usa este bloque. Renderizamos aquí y el JS lo mueve arriba. #}
+{% submit_row %}
+{% endblock %}
