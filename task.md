@@ -62,6 +62,29 @@
     - [x] Agregar campo `orden` a Ubicaciones para secuencia personalizada.
     - [x] Asegurar secuencialidad back-to-back basada en `tiempo_estimado`.
     - [x] Validar que el total de tareas quepa en el plazo de la frecuencia.
+- [x] **Optimización de Importación, Eliminación y Exportación**
+    - [x] Desactivar actualizaciones de MPTT durante carga masiva y reconstruir al final.
+    - [x] Optimizar eliminación masiva en el admin (borrado en bloque + reconstrucción única).
+    - [x] Eliminar problema N+1 en exportación mediante caché de rutas en memoria.
+    - [x] Habilitar operaciones en bloque (bulk) para carga de datos.
+- [x] **Optimización de Rendimiento Global**
+    - [x] Agregar índices a `Activo`, `OrdenTrabajo` y `Aviso`.
+    - [x] Optimizar admin con `select_related` y `autocomplete_fields` generales.
+    - [x] Configurar `CONN_MAX_AGE` para mitigar latencia de BD remota.
+    - [x] Eliminar consultas N+1 en conteos de activos y órdenes de trabajo.
+
+# Infraestructura y Rendimiento
+## Fase 8: Eliminación de MPTT y Simplificación
+- [x] **Limpieza de Modelos**
+    - [x] Remover `MPTTModel` de `Ubicacion`.
+    - [x] Remover `MPTTModel` de `Categoria`.
+- [x] **Actualización de Admin**
+    - [x] Cambiar `DraggableMPTTAdmin` por `admin.ModelAdmin` estándar.
+    - [x] Simplificar `UbicacionResource` y `CategoriaResource`.
+- [x] **Configuración Global**
+    - [x] Eliminar `mptt` de `settings.py`.
+- [x] **Migración de Datos**
+    - [x] Generar y aplicar migraciones para remover campos `lft`, `rght`, `tree_id`, `level`.
 
 # Experiencia de Usuario (UX)
 ## Fase 7: Onboarding y Tutorial de Bienvenida

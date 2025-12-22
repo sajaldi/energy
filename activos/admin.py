@@ -1,9 +1,9 @@
 from django.db import models
 from django.contrib import admin
+from django.db.models import Count
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
-from mptt.admin import DraggableMPTTAdmin
 from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano
 
 # ... (resto de registros)
@@ -52,6 +52,20 @@ class CategoriaAdmin(ImportExportModelAdmin):
     list_display = ('nombre', 'icono', 'descripcion')
     search_fields = ('nombre',)
 
+class SmartParentWidget(ForeignKeyWidget):
+    """
+    Widget inteligente que maneja casos donde múltiples objetos coinciden
+    con el nombre (común en jerarquías no únicas).
+    Devuelve el primer objeto encontrado en lugar de lanzar MultipleObjectsReturned.
+    """
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        try:
+            return self.get_queryset(value, row, **kwargs).filter(nombre=value).first()
+        except Exception:
+            return None
+
 class UbicacionResource(resources.ModelResource):
     """
     Resource personalizado para exportar/importar ubicaciones jerárquicas.
@@ -65,7 +79,7 @@ class UbicacionResource(resources.ModelResource):
     padre_nombre = fields.Field(
         column_name='padre_nombre',
         attribute='padre',
-        widget=ForeignKeyWidget(Ubicacion, field='nombre')
+        widget=SmartParentWidget(Ubicacion, field='nombre')
     )
     
     # Campo ID como solo lectura para evitar errores si el ID del archivo ya no existe
@@ -74,51 +88,94 @@ class UbicacionResource(resources.ModelResource):
     # Campos calculados automáticamente - SOLO para exportación
     clave_unica = fields.Field(
         column_name='clave_unica',
-        attribute='get_clave_unica',
-        readonly=True  # No se puede importar, solo exportar
+        readonly=True
     )
     
     ruta_completa = fields.Field(
         column_name='ruta_completa',
-        attribute='ruta_completa',
-        readonly=True  # No se puede importar, solo exportar
+        readonly=True
     )
     
     class Meta:
         model = Ubicacion
-        # IMPORTANTE: Definimos campos de identidad para que NO use el ID del archivo
-        # Esto permite que si el ID no existe (fue limpiado), lo cree o actualice por Nombre+Padre
         import_id_fields = ('nombre', 'padre_nombre')
-        fields = ('id', 'nombre', 'padre_nombre', 'descripcion', 'ruta_completa', 'clave_unica')
-        export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'padre_nombre', 'descripcion')
+        fields = ('id', 'nombre', 'padre_nombre', 'orden', 'descripcion', 'ruta_completa', 'clave_unica')
+        export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'padre_nombre', 'orden', 'descripcion')
         skip_unchanged = True
         report_skipped = True
-    
-    def get_instance(self, instance_loader, row):
-        """
-        Busca la ubicación existente por la combinación única de nombre + padre.
-        Ignoramos el ID del archivo para evitar errores si el registro fue recreado con otro ID.
-        """
-        nombre = str(row.get('nombre') or '').strip()
-        padre_nombre = str(row.get('padre_nombre') or '').strip()
+        use_bulk = True
+        batch_size = 1000
+
+    def before_export(self, queryset, *args, **kwargs):
+        """Precarga todas las rutas en memoria para evitar N+1 queries"""
+        self.ruta_cache = {}
+        self.clave_cache = {}
+        # Usamos orden jerárquico manual (padre_id, orden)
+        all_locs = Ubicacion.objects.all().order_by('padre_id', 'orden', 'nombre')
         
-        if not nombre:
-            return None
-            
-        # Buscar por lógica de negocio: Nombre + Padre
-        try:
-            padre = None
-            if padre_nombre:
-                # Buscar el padre. Si hay ambigüedad, tomamos el que aparezca primero.
-                padre = Ubicacion.objects.filter(nombre=padre_nombre).first()
-                if not padre:
-                    # Si el padre no existe, no podemos encontrar la instancia hijo aún
-                    return None
-            
-            # Buscar ubicación por nombre y su padre específico
-            return Ubicacion.objects.filter(nombre=nombre, padre=padre).first()
-        except Exception:
-            return None
+        # Mapa para construcción de rutas
+        loc_map = {l.id: l for l in all_locs}
+        
+        for loc in all_locs:
+            path = [loc.nombre]
+            curr = loc.padre
+            while curr:
+                # Usamos el mapa para evitar queries
+                curr_obj = loc_map.get(curr.id)
+                if curr_obj:
+                    path.append(curr_obj.nombre)
+                    curr = curr_obj.padre
+                else:
+                    break
+            self.ruta_cache[loc.id] = " → ".join(reversed(path))
+            self.clave_cache[loc.id] = "|".join(reversed(path))
+
+    def dehydrate_ruta_completa(self, obj):
+        return self.ruta_cache.get(obj.id, "")
+
+    def dehydrate_clave_unica(self, obj):
+        return self.clave_cache.get(obj.id, "")
+
+    def before_import(self, dataset, *args, **kwargs):
+        """Precarga todas las ubicaciones para evitar N+1 queries"""
+        # Mapa de (nombre, padre_id) -> id para get_instance
+        self.instance_map = {}
+        # Mapa de nombre -> id (para resolver padres por nombre rápido)
+        self.name_to_id = {}
+        
+        for loc in Ubicacion.objects.all().values('id', 'nombre', 'padre_id'):
+            self.instance_map[(loc['nombre'], loc['padre_id'])] = loc['id']
+            if loc['nombre'] not in self.name_to_id:
+                self.name_to_id[loc['nombre']] = loc['id']
+
+    def before_import_row(self, row, **kwargs):
+        """Resuelve el padre usando el caché en lugar de queries"""
+        padre_nombre = str(row.get('padre_nombre') or '').strip()
+        if padre_nombre:
+            row['padre_id_fast'] = self.name_to_id.get(padre_nombre)
+        else:
+            row['padre_id_fast'] = None
+
+    def init_instance(self, row=None):
+        """Inicializa instancia con el padre resuelto"""
+        instance = super().init_instance(row)
+        padre_id = row.get('padre_id_fast')
+        if padre_id:
+            instance.padre_id = padre_id
+        return instance
+
+    def get_instance(self, instance_loader, row):
+        """Usa el mapa en memoria para encontrar la instancia"""
+        nombre = str(row.get('nombre') or '').strip()
+        padre_id = row.get('padre_id_fast')
+        
+        pk = self.instance_map.get((nombre, padre_id))
+        if pk:
+            try:
+                return self._meta.model(pk=pk)
+            except Exception:
+                return None
+        return None
 
 
 class ModeloInline(admin.TabularInline):
@@ -135,12 +192,17 @@ class MarcaAdmin(admin.ModelAdmin):
 class ModeloAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'marca', 'total_activos')
     list_filter = ('marca',)
+    list_select_related = ('marca',)
     search_fields = ('nombre', 'marca__nombre')
     readonly_fields = ('lista_activos_ubicacion',)
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(activos_count=Count('activos'))
+
     def total_activos(self, obj):
-        return obj.activos.count()
+        return getattr(obj, 'activos_count', obj.activos.count())
     total_activos.short_description = 'Total Activos'
+    total_activos.admin_order_field = 'activos_count'
 
     def lista_activos_ubicacion(self, obj):
         activos = obj.activos.select_related('ubicacion').order_by('ubicacion__tree_id', 'ubicacion__lft')
@@ -195,24 +257,25 @@ class ModeloAdmin(admin.ModelAdmin):
 from import_export.admin import ImportExportModelAdmin, ImportExportMixin
 
 @admin.register(Ubicacion)
-class UbicacionAdmin(ImportExportMixin, DraggableMPTTAdmin):
+class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     """
-    Admin que combina la funcionalidad de drag-and-drop de MPTT 
-    con la capacidad de import/export de django-import-export.
+    Admin para ubicaciones jerárquicas con estructura simple.
     """
     resource_class = UbicacionResource
-    mptt_indent_field = "nombre"
-    list_display = ('tree_actions', 'indented_title', 'orden', 'descripcion')
-    list_display_links = ('indented_title',)
+    list_display = ('nombre', 'padre', 'orden', 'descripcion')
     list_editable = ('orden',)
     search_fields = ('nombre',)
     list_filter = ('padre',)
+    autocomplete_fields = ('padre',)
+
 
 @admin.register(Activo)
 class ActivoAdmin(ImportExportMixin, admin.ModelAdmin):
     list_display = ('codigo_interno', 'nombre', 'get_marca', 'modelo', 'serie', 'categoria', 'estado', 'ubicacion', 'responsable')
     list_filter = ('estado', 'categoria', 'modelo__marca', 'creado_en', 'ubicacion')
+    list_select_related = ('modelo__marca', 'categoria', 'ubicacion', 'responsable')
     search_fields = ('nombre', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
+    autocomplete_fields = ('modelo', 'categoria', 'ubicacion', 'responsable')
     readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano')
 
     def changelist_view(self, request, extra_context=None):
