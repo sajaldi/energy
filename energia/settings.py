@@ -72,7 +72,6 @@ INSTALLED_APPS = [
     'django_celery_results',  # Para almacenar resultados de tareas Celery
     'colorfield',
     'activos',
-    'mptt',
     'mantenimiento',
 ]
 
@@ -135,6 +134,8 @@ else:
             'PASSWORD': 'PasswordRoot07',
             'HOST': '181.115.47.107',
             'PORT': '5432',
+            'CONN_MAX_AGE': 600,
+            'CONN_HEALTH_CHECKS': True,
         }
     }
 

@@ -1,53 +1,31 @@
 from django.db import models
 from datetime import datetime, date, timedelta
-from mptt.models import MPTTModel, TreeForeignKey
+
 from django.contrib.auth.models import User
 
-class Categoria(MPTTModel):
+class Categoria(models.Model):
     """
     Categoría jerárquica para clasificar rutinas de mantenimiento.
     Reemplaza el sistema anterior de Disciplina/SubDisciplina.
-    
-    Ejemplos de jerarquía:
-    - Eléctrica
-      - Subestaciones
-        - Transformadores
-        - Tableros
-      - Motores
-    - Mecánica
-      - Bombas
-      - Compresores
     """
     nombre = models.CharField(max_length=100)
-    padre = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategorias')
+    padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategorias')
     descripcion = models.TextField(blank=True, null=True)
-    
-    class MPTTMeta:
-        order_insertion_by = ['nombre']
-        parent_attr = 'padre'
     
     def get_ruta_completa(self, separador=' → '):
         """
         Devuelve la ruta completa de la categoría en la jerarquía.
         Ej: 'Eléctrica → Subestaciones → Transformadores'
         """
-        if not self.pk:
-            return self.nombre
-        
-        try:
-            ancestros = self.get_ancestors(include_self=True)
-            return separador.join([c.nombre for c in ancestros])
-        except:
-            return self.nombre
+        path = [self.nombre]
+        curr = self.padre
+        while curr:
+            path.append(curr.nombre)
+            curr = curr.padre
+        return separador.join(reversed(path))
     
     def get_clave_unica(self):
-        """
-        Devuelve una clave única compuesta.
-        Ej: 'Eléctrica|Subestaciones|Transformadores'
-        """
-        if not self.pk:
-            return self.nombre
-        
+        """Devuelve una clave única compuesta."""
         return self.get_ruta_completa(separador='|')
     
     @property
@@ -192,7 +170,7 @@ class PlanificacionMensual(models.Model):
     mes = models.PositiveIntegerField(choices=[(i, datetime(2000, i, 1).strftime('%B')) for i in range(1, 13)])
     anio = models.PositiveIntegerField(default=datetime.now().year)
     nombre = models.CharField(max_length=200, help_text="Ej: Mantenimiento Preventivo Enero 2024")
-    estado = models.CharField(max_length=20, choices=ESTADOS, default='BORRADOR')
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='BORRADOR', db_index=True)
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='planificaciones')
     notas = models.TextField(blank=True, null=True)
     
@@ -339,8 +317,8 @@ class Aviso(models.Model):
     activo = models.ForeignKey('activos.Activo', on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos')
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='avisos')
     descripcion = models.TextField(help_text="Descripción detallada de la falla o solicitud")
-    prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA')
-    estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='ABIERTO')
+    prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA', db_index=True)
+    estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='ABIERTO', db_index=True)
     
     solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='avisos_reportados')
     foto = models.ImageField(upload_to='avisos/', null=True, blank=True)
@@ -376,8 +354,8 @@ class OrdenTrabajo(models.Model):
         ('CRITICA', 'Crítica'),
     ]
     
-    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default='PREVENTIVA')
-    prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA')
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default='PREVENTIVA', db_index=True)
+    prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA', db_index=True)
     rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='ordenes', null=True, blank=True)
     aviso = models.ForeignKey(Aviso, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes')
     tecnico = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asignadas')
@@ -387,11 +365,11 @@ class OrdenTrabajo(models.Model):
     programacion = models.ForeignKey(Programacion, on_delete=models.CASCADE, null=True, blank=True, related_name='ordenes')
     planificacion = models.ForeignKey(PlanificacionMensual, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes', verbose_name="Plan Mensual")
     
-    inicio_programado = models.DateTimeField(help_text="Fecha y hora de inicio prevista")
+    inicio_programado = models.DateTimeField(help_text="Fecha y hora de inicio prevista", db_index=True)
     fin_programado = models.DateTimeField(help_text="Fecha y hora de fin prevista")
     
     fecha_ejecucion = models.DateTimeField(null=True, blank=True)
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PROGRAMADA')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PROGRAMADA', db_index=True)
     
     notas = models.TextField(blank=True, null=True)
     

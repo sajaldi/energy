@@ -1,10 +1,9 @@
 from datetime import timedelta
+from django.db.models import Count
 from django.contrib import admin, messages
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
-from mptt.admin import DraggableMPTTAdmin
-from mptt.admin import DraggableMPTTAdmin
 from .models import Categoria, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual
 
 class CategoriaResource(resources.ModelResource):
@@ -63,16 +62,15 @@ class CategoriaResource(resources.ModelResource):
         return None
 
 @admin.register(Categoria)
-class CategoriaAdmin(ImportExportModelAdmin, DraggableMPTTAdmin):
+class CategoriaAdmin(ImportExportModelAdmin):
     """
-    Admin para categorías jerárquicas con drag-and-drop.
+    Admin para categorías jerárquicas con estructura simple.
     """
     resource_class = CategoriaResource
-    mptt_indent_field = "nombre"
-    list_display = ('tree_actions', 'indented_title', 'descripcion')
-    list_display_links = ('indented_title',)
+    list_display = ('nombre', 'padre', 'descripcion')
     search_fields = ('nombre',)
     list_filter = ('padre',)
+    autocomplete_fields = ('padre',)
 
 
 @admin.register(Frecuencia)
@@ -170,15 +168,23 @@ class OrdenTrabajoInline(admin.TabularInline):
 class PlanificacionMensualAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'mes', 'anio', 'estado', 'responsable', 'get_total_ordenes', 'get_total_horas')
     list_filter = ('estado', 'mes', 'anio')
+    list_select_related = ('responsable',)
     search_fields = ('nombre', 'notas')
     inlines = [OrdenTrabajoInline]
     actions = ['poblar_plan_action']
     
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            ordenes_count=Count('ordenes')
+        ).prefetch_related('ordenes__rutina')
+
     def get_total_ordenes(self, obj):
-        return obj.ordenes.count()
+        return getattr(obj, 'ordenes_count', obj.ordenes.count())
     get_total_ordenes.short_description = "N° OTs"
+    get_total_ordenes.admin_order_field = 'ordenes_count'
 
     def get_total_horas(self, obj):
+        # Al estar pre-cargado con prefetch_related('ordenes__rutina'), no hará nuevas queries
         total = 0
         for ot in obj.ordenes.all():
             if ot.rutina and ot.rutina.tiempo_estimado:
@@ -203,6 +209,8 @@ class PlanificacionMensualAdmin(admin.ModelAdmin):
 class ProgramacionAdmin(admin.ModelAdmin):
     list_display = ('id', 'rutina', 'get_areas', 'horario', 'procesada')
     list_filter = ('rutina__frecuencia', 'procesada')
+    list_select_related = ('rutina', 'horario')
+    search_fields = ('id', 'rutina__nombre')
     fields = ('rutina', 'horario', 'areas', 'activos', 'fecha_inicio', 'fecha_fin', 'procesada')
     filter_horizontal = ('areas', 'activos')
     actions = ['generar_ordenes_action', 'reset_procesada_action', 'eliminar_ordenes_action']
@@ -213,7 +221,11 @@ class ProgramacionAdmin(admin.ModelAdmin):
         return format_html('<a class="button" href="{}" target="_blank">Ver Programación Anual</a>', url)
     ver_calendario_link.short_description = 'Calendario'
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('areas')
+
     def get_areas(self, obj):
+        # Al usar prefetch_related('areas'), esto no genera queries N+1
         return ", ".join([a.nombre for a in obj.areas.all()])
     get_areas.short_description = 'Áreas'
 
@@ -259,7 +271,9 @@ class ProgramacionAdmin(admin.ModelAdmin):
 class AvisoAdmin(admin.ModelAdmin):
     list_display = ('id', 'prioridad', 'estado', 'ubicacion', 'activo', 'solicitante', 'creado_en')
     list_filter = ('estado', 'prioridad', 'creado_en')
+    list_select_related = ('ubicacion', 'activo', 'solicitante')
     search_fields = ('descripcion', 'ubicacion__nombre', 'activo__nombre')
+    autocomplete_fields = ('activo', 'ubicacion', 'solicitante')
     actions = ['generar_ot_action']
     raw_id_fields = ('activo', 'ubicacion', 'solicitante')
 
@@ -293,7 +307,9 @@ class AvisoAdmin(admin.ModelAdmin):
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'activo', 'tecnico', 'estado')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico')
+    list_select_related = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'activo', 'programacion')
     search_fields = ('rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activo__nombre', 'notas')
+    autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'activo', 'programacion')
     date_hierarchy = 'inicio_programado'
     raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'activo', 'programacion')
 

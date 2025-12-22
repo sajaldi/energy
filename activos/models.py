@@ -14,54 +14,51 @@ class Categoria(models.Model):
         verbose_name = "Categoría"
         verbose_name_plural = "Categorías"
 
-from mptt.models import MPTTModel, TreeForeignKey
 
-class Ubicacion(MPTTModel):
+
+class Ubicacion(models.Model):
     nombre = models.CharField(max_length=100)
-    padre = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_ubicaciones')
+    padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_ubicaciones')
     descripcion = models.TextField(blank=True, null=True)
     orden = models.PositiveIntegerField(default=0, help_text="Orden de visualización y programación")
-
-    class MPTTMeta:
-        order_insertion_by = ['orden', 'nombre']
-        parent_attr = 'padre'
 
     def get_ruta_completa(self, separador=' → '):
         """
         Devuelve la ruta completa de la ubicación en la jerarquía.
         Ej: 'Campus Principal → Edificio A → Nivel 1'
-        
-        Si la instancia no está guardada, devuelve solo el nombre.
         """
-        # Verificar si la instancia está guardada en la BD
-        if not self.pk:
-            return self.nombre
-        
-        try:
-            ancestros = self.get_ancestors(include_self=True)
-            return separador.join([u.nombre for u in ancestros])
-        except:
-            # Fallback si hay algún problema
-            return self.nombre
+        path = [self.nombre]
+        curr = self.padre
+        while curr:
+            path.append(curr.nombre)
+            curr = curr.padre
+        return separador.join(reversed(path))
     
     def get_clave_unica(self):
-        """
-        Devuelve una clave única compuesta por la concatenación de toda la jerarquía.
-        Ej: 'Campus Principal|Edificio A|Nivel 1'
-        
-        Esto permite tener múltiples ubicaciones con el mismo nombre en diferentes padres.
-        Si la instancia no está guardada, devuelve solo el nombre.
-        """
-        # Verificar si la instancia está guardada en la BD
-        if not self.pk:
-            return self.nombre
-        
+        """Devuelve una clave única compuesta por la concatenación de toda la jerarquía."""
         return self.get_ruta_completa(separador='|')
     
     @property
     def ruta_completa(self):
         """Propiedad para acceso rápido a la ruta completa"""
         return self.get_ruta_completa()
+
+    def get_descendants(self, include_self=True):
+        """
+        Reemplazo manual para get_descendants de MPTT.
+        Retorna un QuerySet con todos los descendientes.
+        """
+        descendants_ids = []
+        if include_self:
+            descendants_ids.append(self.id)
+        
+        def _get_children(parent):
+            for child in parent.sub_ubicaciones.all():
+                descendants_ids.append(child.id)
+                _get_children(child)
+        
+        _get_children(self)
+        return Ubicacion.objects.filter(id__in=descendants_ids)
 
     def __str__(self):
         return self.get_ruta_completa()
@@ -102,7 +99,7 @@ class Activo(models.Model):
 
     nombre = models.CharField(max_length=200, help_text="Nombre del activo o equipo")
     codigo_interno = models.CharField(max_length=50, unique=True, blank=True, null=True, help_text="Código de inventario interno")
-    serie = models.CharField(max_length=100, blank=True, null=True, help_text="Número de serie del fabricante")
+    serie = models.CharField(max_length=100, blank=True, null=True, help_text="Número de serie del fabricante", db_index=True)
     
     marca_legacy = models.CharField(max_length=100, blank=True, null=True)
     modelo_legacy = models.CharField(max_length=100, blank=True, null=True)
@@ -115,7 +112,7 @@ class Activo(models.Model):
     fecha_compra = models.DateField(blank=True, null=True)
     costo = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='OPERATIVO')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='OPERATIVO', db_index=True)
     
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='activos_asignados', help_text="Persona responsable del activo")
     
@@ -124,7 +121,7 @@ class Activo(models.Model):
     
     foto = models.ImageField(upload_to='activos_fotos/', blank=True, null=True)
     
-    creado_en = models.DateTimeField(auto_now_add=True)
+    creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
     def __str__(self):
