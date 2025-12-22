@@ -509,7 +509,14 @@ def reporte_consumo_diario(request, medidor_id, mes_str):
     return HttpResponse(html_response)
 
 
-# Asumiendo que esta es otra vista, también debería estar protegida si es parte del admin
 @staff_member_required
-def admin_menu(request):
-    return render(request, 'admin/')
+def finalizar_tutorial(request):
+    if request.method == 'POST':
+        perfil, created = PerfilUsuario.objects.get_or_create(usuario=request.user)
+        perfil.visto_tutorial = True
+        perfil.save()
+        return json_response({'status': 'ok'})
+    return HttpResponseBadRequest("Método no permitido")
+
+def json_response(data):
+    return HttpResponse(json.dumps(data), content_type="application/json")

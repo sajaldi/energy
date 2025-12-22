@@ -202,8 +202,9 @@ class UbicacionAdmin(ImportExportMixin, DraggableMPTTAdmin):
     """
     resource_class = UbicacionResource
     mptt_indent_field = "nombre"
-    list_display = ('tree_actions', 'indented_title', 'descripcion')
+    list_display = ('tree_actions', 'indented_title', 'orden', 'descripcion')
     list_display_links = ('indented_title',)
+    list_editable = ('orden',)
     search_fields = ('nombre',)
     list_filter = ('padre',)
 

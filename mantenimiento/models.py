@@ -181,6 +181,32 @@ class RestriccionCalendario(models.Model):
     def __str__(self):
         return f"{self.fecha} - {self.motivo}"
 
+class PlanificacionMensual(models.Model):
+    ESTADOS = [
+        ('BORRADOR', 'Borrador'),
+        ('APROBADO', 'Aprobado'),
+        ('EJECUCION', 'En Ejecución'),
+        ('CERRADO', 'Cerrado'),
+    ]
+    
+    mes = models.PositiveIntegerField(choices=[(i, datetime(2000, i, 1).strftime('%B')) for i in range(1, 13)])
+    anio = models.PositiveIntegerField(default=datetime.now().year)
+    nombre = models.CharField(max_length=200, help_text="Ej: Mantenimiento Preventivo Enero 2024")
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='BORRADOR')
+    responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='planificaciones')
+    notas = models.TextField(blank=True, null=True)
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Planificación Mensual"
+        verbose_name_plural = "Planificaciones Mensuales"
+        unique_together = ('mes', 'anio')
+
+    def __str__(self):
+        return f"{self.nombre} ({self.get_estado_display()})"
+
 class Programacion(models.Model):
     rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='programaciones')
     horario = models.ForeignKey(Horario, on_delete=models.SET_NULL, null=True, related_name='programaciones')
@@ -204,7 +230,10 @@ class Programacion(models.Model):
         return f"Prog: {self.rutina.nombre} ({self.areas.count()} áreas)"
 
     def generar_ordenes(self):
-        """Genera órdenes de trabajo secuenciales para cada AREA (Ubicación) seleccionada"""
+        """
+        Genera órdenes de trabajo secuenciales expandiendo las áreas seleccionadas
+        a todos sus niveles (descendientes) y respetando el tiempo estimado.
+        """
         if self.procesada:
             return 0
             
@@ -213,11 +242,21 @@ class Programacion(models.Model):
         limite = self.fecha_fin or (self.fecha_inicio + timedelta(days=365))
         restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
         
-        # 1. Obtener las áreas (sub-ubicaciones) seleccionadas
-        areas_a_programar = self.areas.all().order_by('nombre')
-        
-        if not areas_a_programar.exists() or not self.horario:
+        # 1. Expandir áreas a sus descendientes (niveles)
+        areas_iniciales = self.areas.all()
+        if not areas_iniciales.exists() or not self.horario:
             return 0
+            
+        # Usamos un set para evitar duplicados si hay solapamiento de jerarquías
+        todas_las_areas = set()
+        for area in areas_iniciales:
+            # Incluir a los descendientes y a sí mismo
+            descendientes = area.get_descendants(include_self=True)
+            for d in descendientes:
+                todas_las_areas.add(d)
+        
+        # Convertir a lista y ordenar por nivel, orden y nombre para cumplir "nivel por nivel"
+        areas_a_programar = sorted(list(todas_las_areas), key=lambda x: (x.level, x.orden, x.nombre))
             
         frecuencia_dias = self.rutina.frecuencia.dias
         tiempo_rutina = self.rutina.tiempo_estimado or timedelta(hours=1)
@@ -229,6 +268,7 @@ class Programacion(models.Model):
             
             for area in areas_a_programar:
                 # Buscar el siguiente hueco disponible en el horario
+                # cursor_dt mantiene la secuencialidad back-to-back dentro del ciclo
                 base_dt = cursor_dt if cursor_dt else datetime.combine(fecha_ciclo, datetime.min.time())
                 
                 orden_agendada = False
@@ -236,6 +276,7 @@ class Programacion(models.Model):
                 while not orden_agendada and intentos_dias < 365:
                     fecha_actual = base_dt.date()
                     
+                    # Saltar días festivos o restringidos
                     if fecha_actual in restricciones:
                         base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
                         intentos_dias += 1
@@ -265,10 +306,12 @@ class Programacion(models.Model):
                                 'prioridad': 'MEDIA'
                             }
                         )
+                        # El cursor_dt se actualiza al fin de esta orden para que la siguiente empiece inmediatamente
                         cursor_dt = fin_propuesto
                         ordenes_creadas += 1
                         orden_agendada = True
                     else:
+                        # Si no cabe en el día actual, intentar en el siguiente
                         base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
                         intentos_dias += 1
             
@@ -342,6 +385,7 @@ class OrdenTrabajo(models.Model):
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='ordenes_trabajo', null=True, blank=True)
     activo = models.ForeignKey('activos.Activo', on_delete=models.CASCADE, related_name='ordenes_trabajo', null=True, blank=True)
     programacion = models.ForeignKey(Programacion, on_delete=models.CASCADE, null=True, blank=True, related_name='ordenes')
+    planificacion = models.ForeignKey(PlanificacionMensual, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes', verbose_name="Plan Mensual")
     
     inicio_programado = models.DateTimeField(help_text="Fecha y hora de inicio prevista")
     fin_programado = models.DateTimeField(help_text="Fecha y hora de fin prevista")

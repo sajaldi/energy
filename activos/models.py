@@ -20,9 +20,10 @@ class Ubicacion(MPTTModel):
     nombre = models.CharField(max_length=100)
     padre = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_ubicaciones')
     descripcion = models.TextField(blank=True, null=True)
+    orden = models.PositiveIntegerField(default=0, help_text="Orden de visualización y programación")
 
     class MPTTMeta:
-        order_insertion_by = ['nombre']
+        order_insertion_by = ['orden', 'nombre']
         parent_attr = 'padre'
 
     def get_ruta_completa(self, separador=' → '):

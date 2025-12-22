@@ -58,6 +58,9 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 INSTALLED_APPS = [
+    'core',  # Mover al inicio para que sus templates (overrides) tengan prioridad
+    'documentos', # Nueva gestión documental
+    'comunicaciones', # Nuevo sistema de mail/transmittals
     'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -67,7 +70,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles', # Siempre debe estar
     'import_export',
     'django_celery_results',  # Para almacenar resultados de tareas Celery
-    'core',
     'colorfield',
     'activos',
     'mptt',
@@ -91,7 +93,7 @@ ROOT_URLCONF = 'energia.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'core' / 'templates'], # Ruta relativa a BASE_DIR
+        'DIRS': [BASE_DIR / 'templates', BASE_DIR / 'core' / 'templates'], # Ruta relativa a BASE_DIR
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -263,7 +265,7 @@ JAZZMIN_SETTINGS = {
     "default_icon_children": "fas fa-circle",
     "related_modal_active": False,
     "custom_css": None,
-    "custom_js": None,
+    "custom_js": "core/js/onboarding.js",
     "use_google_fonts_cdn": True,
     "show_ui_builder": True,
 }
@@ -321,3 +323,7 @@ if not DEBUG:
     CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
     CELERY_BROKER_CONNECTION_RETRY = True
     CELERY_BROKER_CONNECTION_MAX_RETRIES = 10
+
+# Configuración de Email para Desarrollo
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'notificaciones@energia.com'
