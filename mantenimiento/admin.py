@@ -30,7 +30,7 @@ class CategoriaResource(resources.ModelResource):
     
     class Meta:
         model = Categoria
-        fields = ('id', 'nombre', 'padre_nombre', 'descripcion', 'ruta_completa', 'clave_unica')
+        fields = ('id', 'nombre', 'padre', 'descripcion')
         export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'padre_nombre', 'descripcion')
         skip_unchanged = True
         report_skipped = True

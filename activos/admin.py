@@ -99,7 +99,7 @@ class UbicacionResource(resources.ModelResource):
     class Meta:
         model = Ubicacion
         import_id_fields = ('nombre', 'padre_nombre')
-        fields = ('id', 'nombre', 'padre_nombre', 'orden', 'descripcion', 'ruta_completa', 'clave_unica')
+        fields = ('id', 'nombre', 'padre', 'orden', 'descripcion')
         export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'padre_nombre', 'orden', 'descripcion')
         skip_unchanged = True
         report_skipped = True
