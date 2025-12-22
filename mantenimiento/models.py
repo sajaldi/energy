@@ -27,11 +27,42 @@ class Categoria(models.Model):
     def get_clave_unica(self):
         """Devuelve una clave única compuesta."""
         return self.get_ruta_completa(separador='|')
+
+    def get_root(self):
+        """Devuelve el nodo raíz de la jerarquía (Disciplina)."""
+        curr = self
+        while curr.padre:
+            curr = curr.padre
+        return curr
+
+    def get_descendants(self, include_self=True):
+        """Retorna un QuerySet con todos los descendientes."""
+        descendants_ids = []
+        if include_self:
+            descendants_ids.append(self.id)
+        
+        def _get_children(parent):
+            for child in parent.subcategorias.all():
+                descendants_ids.append(child.id)
+                _get_children(child)
+        
+        _get_children(self)
+        return Categoria.objects.filter(id__in=descendants_ids)
     
     @property
     def ruta_completa(self):
         """Propiedad para acceso rápido a la ruta completa"""
         return self.get_ruta_completa()
+
+    @property
+    def level(self):
+        """Calcula el nivel de profundidad (0 para raíz)."""
+        count = 0
+        curr = self.padre
+        while curr:
+            count += 1
+            curr = curr.padre
+        return count
     
     def __str__(self):
         return self.get_ruta_completa()
@@ -234,7 +265,8 @@ class Programacion(models.Model):
                 todas_las_areas.add(d)
         
         # Convertir a lista y ordenar por nivel, orden y nombre para cumplir "nivel por nivel"
-        areas_a_programar = sorted(list(todas_las_areas), key=lambda x: (x.level, x.orden, x.nombre))
+        # Usamos getattr por seguridad si el objeto no tiene el atributo level
+        areas_a_programar = sorted(list(todas_las_areas), key=lambda x: (getattr(x, 'level', 0), getattr(x, 'orden', 0), getattr(x, 'nombre', '')))
             
         frecuencia_dias = self.rutina.frecuencia.dias
         tiempo_rutina = self.rutina.tiempo_estimado or timedelta(hours=1)

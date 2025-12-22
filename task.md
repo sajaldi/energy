@@ -1,31 +1,31 @@
 # Tareas: Sistema de Gestión Documental (EDMS - Tipo Aconex)
 
 ## Fase 1: Fundamentos y Modelado de Datos
-- [ ] **Diseño del Esquema de Datos**
+- [x] **Diseño del Esquema de Datos**
     - [x] `Documento`: Entidad principal con metadatos fijos (Código, Título, Autor).
     - [x] `Revision`: Versiones del documento (Archivo, Versión, Estado, Fecha).
     - [x] `Metadatos`: Tablas auxiliares (TipoDocumento, Disciplina, Status).
-- [ ] **Configuración de la App**
+- [x] **Configuración de la App**
     - [x] Crear app `documentos`.
     - [x] Definir modelos y relaciones.
     - [x] Configurar Admin de Django (usando la nueva toolbar).
 
 ## Fase 2: Lógica de Negocio y Control
-- [ ] **Control de Versiones y Numeración**
-    - [ ] Lógica para autoincremento de revisiones (A -> B -> 0 -> 1).
-    - [ ] Validación de unicidad de Códigos de Documento.
-- [ ] **Almacenamiento y Seguridad**
-    - [ ] Configurar ruta de subida organizada (`/media/docs/{proyecto}/{disciplina}`).
-    - [ ] Hash de archivos (MD5/SHA) para integridad.
-- [ ] **Integración**
-    - [ ] Relación con `Ubicacion` y `Activo` (Many-to-Many).
+- [x] **Control de Versiones y Numeración**
+    - [x] Lógica para autoincremento de revisiones (A -> B -> 0 -> 1).
+    - [x] Validación de unicidad de Códigos de Documento.
+- [x] **Almacenamiento y Seguridad**
+    - [x] Configurar ruta de subida organizada (`/media/docs/{proyecto}/{disciplina}`).
+    - [x] Hash de archivos (MD5/SHA) para integridad.
+- [x] **Integración**
+    - [x] Relación con `Ubicacion` y `Activo` (Many-to-Many).
 
 ## Fase 3: Interfaz de Usuario (Admin & Visor)
-- [ ] **Vistas del Admin**
-    - [ ] Listado con filtros avanzados (Faceted Search similar a Aconex).
-    - [ ] Acciones masivas (Descargar zip, Transmitir).
-- [ ] **Visualización**
-    - [ ] Integración con el visor de PDF existente.
+- [x] **Vistas del Admin**
+    - [x] Listado con filtros avanzados (Faceted Search similar a Aconex).
+    - [x] Acciones masivas (Descargar zip, Transmitir).
+- [x] **Visualización**
+    - [x] Integración con el visor de PDF existente.
 
 # Sistema de Comunicaciones (mail/Transmittals)
 ## Fase 4: Correspondencia Formal (Tipo Aconex)
@@ -81,10 +81,15 @@
 - [x] **Actualización de Admin**
     - [x] Cambiar `DraggableMPTTAdmin` por `admin.ModelAdmin` estándar.
     - [x] Simplificar `UbicacionResource` y `CategoriaResource`.
+    - [x] Implementar caching en `before_import` para evitar N+1 queries.
 - [x] **Configuración Global**
     - [x] Eliminar `mptt` de `settings.py`.
 - [x] **Migración de Datos**
     - [x] Generar y aplicar migraciones para remover campos `lft`, `rght`, `tree_id`, `level`.
+- [x] **Optimización Extra de Importación**
+    - [x] Habilitar `use_bulk=True` en todos los recursos (Activo, Consumo, Rutina, etc).
+    - [x] Implementar `ActivoResource` con precarga de FKs.
+- [x] Corregir `AttributeError` en Calendario de Mantenimiento (reemplazar `get_root`).
 
 # Experiencia de Usuario (UX)
 ## Fase 7: Onboarding y Tutorial de Bienvenida
@@ -97,4 +102,4 @@
     - [x] Inyectar JS condicionalmente si el usuario es nuevo.
 
 > [!TIP]
-> Consulta [walkthrough_comunicaciones.md](file:///d:/Apps/energia/energy/walkthrough_comunicaciones.md) para aprender a usar el sistema.
+> Consulta [walkthrough_optimizacion.md](file:///C:/Users/Saul/.gemini/antigravity/brain/9b90c12b-d0ed-40f8-8d1b-9daaeba5c1cf/walkthrough_optimizacion.md) para ver los detalles de las mejoras de rendimiento.

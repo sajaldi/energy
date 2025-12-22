@@ -34,31 +34,41 @@ class CategoriaResource(resources.ModelResource):
         export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'padre_nombre', 'descripcion')
         skip_unchanged = True
         report_skipped = True
-    
+        use_bulk = True
+        batch_size = 1000
+
+    def before_import(self, dataset, *args, **kwargs):
+        """Precarga todas las categorías para evitar N+1 queries"""
+        self.instance_map = {}
+        self.name_to_id = {}
+        for cat in Categoria.objects.all().values('id', 'nombre', 'padre_id'):
+            self.instance_map[(cat['nombre'], cat['padre_id'])] = cat['id']
+            if cat['nombre'] not in self.name_to_id:
+                self.name_to_id[cat['nombre']] = cat['id']
+
+    def before_import_row(self, row, **kwargs):
+        """Resuelve el padre usando el caché"""
+        padre_nombre = str(row.get('padre_nombre') or '').strip()
+        row['padre_id_fast'] = self.name_to_id.get(padre_nombre)
+
+    def init_instance(self, row=None):
+        """Inicializa instancia con el padre resuelto"""
+        instance = super().init_instance(row)
+        padre_id = row.get('padre_id_fast')
+        if padre_id:
+            instance.padre_id = padre_id
+        return instance
+
     def get_instance(self, instance_loader, row):
-        """Busca la categoría por nombre + padre"""
-        try:
-            nombre = row.get('nombre', '').strip()
-            padre_nombre = row.get('padre_nombre', '').strip()
-            
-            if not nombre:
+        """Usa el mapa en memoria para encontrar la instancia"""
+        nombre = str(row.get('nombre') or '').strip()
+        padre_id = row.get('padre_id_fast')
+        pk = self.instance_map.get((nombre, padre_id))
+        if pk:
+            try:
+                return self._meta.model(pk=pk)
+            except Exception:
                 return None
-            
-            padre = None
-            if padre_nombre:
-                try:
-                    padre = Categoria.objects.filter(nombre=padre_nombre).first()
-                except Categoria.DoesNotExist:
-                    return None
-            
-            if padre:
-                return Categoria.objects.filter(nombre=nombre, padre=padre).first()
-            else:
-                return Categoria.objects.filter(nombre=nombre, padre__isnull=True).first()
-                
-        except Exception:
-            pass
-        
         return None
 
 @admin.register(Categoria)
@@ -110,6 +120,8 @@ class RutinaResource(resources.ModelResource):
                        'frecuencia_nombre', 'tiempo_estimado', 'cantidad_tecnicos', 'descripcion')
         skip_unchanged = True
         report_skipped = True
+        use_bulk = True
+        batch_size = 1000
     
     def dehydrate_categoria_ruta(self, rutina):
         """Exporta la ruta completa de la categoría"""
@@ -125,6 +137,7 @@ class PasoRutinaInline(admin.TabularInline):
 class RutinaAdmin(ImportExportModelAdmin):
     resource_class = RutinaResource
     list_display = ('nombre', 'categoria', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos')
+    list_select_related = ('categoria', 'frecuencia')
     list_filter = ('categoria', 'frecuencia')
     search_fields = ('nombre', 'descripcion')
     inlines = [PasoRutinaInline]

@@ -26,6 +26,16 @@ def calendario_mantenimiento(request):
         'inicio_programado'
     )
     
+    # Optimización: Precargar categorías en memoria para evitar N+1 al usar get_root()
+    categorias_full = {c.id: c for c in Categoria.objects.all()}
+    for cat in categorias_full.values():
+        if cat.padre_id:
+            cat.padre = categorias_full.get(cat.padre_id)
+
+    # Re-vincular las categorías de las rutinas de las OTs con las del mapa manual
+    for ot in ordenes:
+        if ot.rutina and ot.rutina.categoria_id:
+            ot.rutina.categoria = categorias_full.get(ot.rutina.categoria_id)
     MESES_NOMBRES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
     
     meses_info = []
