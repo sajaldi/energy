@@ -4,6 +4,7 @@ from django.db.models import Count
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
+from django.contrib.auth.models import User
 from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano
 
 # ... (resto de registros)
@@ -14,6 +15,7 @@ from django.utils.html import format_html
 class PlanoAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'ubicacion', 'visualizar_archivo', 'creado_en')
     list_filter = ('ubicacion',)
+    list_select_related = ('ubicacion',)
     search_fields = ('nombre', 'ubicacion__nombre')
     filter_horizontal = ('activos',)
     readonly_fields = ('visualizar_archivo',)
@@ -33,6 +35,7 @@ class PinPlanoInline(admin.TabularInline):
 class VisorPlanoAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'plano', 'abrir_visor', 'creado_en')
     list_filter = ('plano',)
+    list_select_related = ('plano',)
     search_fields = ('nombre', 'plano__nombre')
     inlines = [PinPlanoInline]
 
@@ -44,6 +47,7 @@ class VisorPlanoAdmin(admin.ModelAdmin):
 class PinPlanoAdmin(admin.ModelAdmin):
     list_display = ('visor', 'activo', 'x', 'y', 'color')
     list_filter = ('visor', 'visor__plano')
+    list_select_related = ('visor', 'activo')
     search_fields = ('visor__nombre', 'activo__nombre')
     autocomplete_fields = ['activo', 'visor']
 
@@ -205,7 +209,7 @@ class ModeloAdmin(admin.ModelAdmin):
     total_activos.admin_order_field = 'activos_count'
 
     def lista_activos_ubicacion(self, obj):
-        activos = obj.activos.select_related('ubicacion').order_by('ubicacion__tree_id', 'ubicacion__lft')
+        activos = obj.activos.select_related('ubicacion').order_by('ubicacion__nombre')
         if not activos:
             return format_html('<span style="color: #999;">No hay activos registrados con este modelo.</span>')
 
@@ -269,8 +273,40 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     autocomplete_fields = ('padre',)
 
 
+class ActivoResource(resources.ModelResource):
+    modelo_nombre = fields.Field(
+        column_name='modelo_nombre',
+        attribute='modelo',
+        widget=ForeignKeyWidget(Modelo, field='nombre')
+    )
+    categoria_nombre = fields.Field(
+        column_name='categoria_nombre',
+        attribute='categoria',
+        widget=ForeignKeyWidget(Categoria, field='nombre')
+    )
+    ubicacion_nombre = fields.Field(
+        column_name='ubicacion_nombre',
+        attribute='ubicacion',
+        widget=ForeignKeyWidget(Ubicacion, field='nombre')
+    )
+    responsable_username = fields.Field(
+        column_name='responsable_username',
+        attribute='responsable',
+        widget=ForeignKeyWidget(User, field='username')
+    )
+
+    class Meta:
+        model = Activo
+        fields = ('id', 'nombre', 'codigo_interno', 'serie', 'modelo_nombre', 'categoria_nombre', 'estado', 'ubicacion_nombre', 'responsable_username')
+        export_order = ('id', 'codigo_interno', 'nombre', 'serie', 'modelo_nombre', 'categoria_nombre', 'estado', 'ubicacion_nombre', 'responsable_username')
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = True
+        batch_size = 1000
+
 @admin.register(Activo)
 class ActivoAdmin(ImportExportMixin, admin.ModelAdmin):
+    resource_class = ActivoResource
     list_display = ('codigo_interno', 'nombre', 'get_marca', 'modelo', 'serie', 'categoria', 'estado', 'ubicacion', 'responsable')
     list_filter = ('estado', 'categoria', 'modelo__marca', 'creado_en', 'ubicacion')
     list_select_related = ('modelo__marca', 'categoria', 'ubicacion', 'responsable')
@@ -282,8 +318,8 @@ class ActivoAdmin(ImportExportMixin, admin.ModelAdmin):
         if request.GET.get('_popup'):
             from .models import Ubicacion, Activo
             
-            # Obtener todas las ubicaciones en orden jerárquico (MPTT)
-            ubicaciones = Ubicacion.objects.all().order_by('tree_id', 'lft')
+            # Obtener todas las ubicaciones en orden alfabético (MPTT removido)
+            ubicaciones = Ubicacion.objects.all().order_by('nombre')
             
             # Obtener activos base (ignorando filtros del admin que puedan restringir el popup involuntariamente)
             queryset = Activo.objects.all().select_related('ubicacion', 'categoria')

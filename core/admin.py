@@ -84,8 +84,28 @@ def generar_grafico_ultimos_6_meses(medidor):
 # CLASES DE RECURSOS PARA IMPORT/EXPORT (sin cambios)
 # ==============================================================================
 class ConsumoResource(resources.ModelResource):
-    # ... (tu código de ConsumoResource sin cambios) ...
-    pass
+    medidor = fields.Field(
+        column_name='medidor',
+        attribute='medidor',
+        widget=ForeignKeyWidget(Medidor, field='nombre')
+    )
+
+    class Meta:
+        model = Consumo
+        fields = ('id', 'fecha', 'consumo', 'medidor')
+        export_order = ('id', 'fecha', 'medidor', 'consumo')
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = True
+        batch_size = 1000
+
+    def before_import(self, dataset, *args, **kwargs):
+        """Precarga medidores para evitar N+1 queries"""
+        self.medidor_map = {m.nombre: m.id for m in Medidor.objects.all().values('id', 'nombre')}
+
+    def before_import_row(self, row, **kwargs):
+        """Opcional: validaciones o transformaciones rápidas"""
+        pass
 
 class FixedImportExportAdmin(ImportExportModelAdmin):
     # ... (tu código de FixedImportExportAdmin sin cambios) ...
@@ -101,6 +121,7 @@ class ConsumoAdmin(FixedImportExportAdmin):
     # Mantenemos el resto de tu configuración
     list_display = ['id','fecha', 'consumo', 'medidor']
     list_filter = ['fecha', 'medidor']
+    list_select_related = ['medidor']
     raw_id_fields = ['medidor']
     date_hierarchy = 'fecha'
     list_per_page = 10

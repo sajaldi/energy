@@ -262,15 +262,17 @@
                 <tr class="subdiscipline-row dis-{{ forloop.parentloop.counter }}"
                     id="sub-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
                     onclick="toggleSubSection('sub-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
-                    <td colspan="{{ total_colspan }}" style="padding-left: 30px;"><span class="toggle-icon"></span> {{
-                        sd.nombre }}</td>
+                    <td colspan="{{ total_colspan }}" style="padding-left: 30px;"><span class="toggle-icon"></span>
+                        <strong>{{ sd.nombre }}</strong>
+                    </td>
                 </tr>
                 {% for f in sd.frecuencias %}
                 <tr class="frequency-row dis-{{ forloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}"
                     id="frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
                     onclick="toggleFrecSection('frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
-                    <td colspan="{{ total_colspan }}" style="padding-left: 50px;"><span class="toggle-icon"></span> {{
-                        f.nombre }}</td>
+                    <td colspan="{{ total_colspan }}" style="padding-left: 50px;"><span class="toggle-icon"></span>
+                        <strong>{{ f.nombre }}</strong>
+                    </td>
                 </tr>
                 {% for r in f.rutinas %}
                 <tr
@@ -287,16 +289,13 @@
                         <div class="group-container"
                             id="grp-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
                             <span class="cell-event cell-group"
-                                onclick="toggleGroup('grp-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.counter }}')">
-                                {{ celda.summary }} ({{ celda.items|length }}) ⊕
-                            </span>
+                                onclick="toggleGroup('grp-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}')">{{
+                                celda.summary }} ({{ celda.items|length }}) ⊕</span>
                             <div class="group-items hidden">
                                 {% for ot in celda.items %}
                                 <span class="cell-event item-child has-tooltip"
                                     onmouseover="showTooltip(event, '{{ ot.ubicacion }}', '{{ ot.fecha }}', '{{ ot.inicio }}', '{{ ot.fin }}', '{{ ot.estado }}', '{{ ot.id }}')"
-                                    onmouseout="hideTooltip()">
-                                    {{ ot.ubicacion }}
-                                </span>
+                                    onmouseout="hideTooltip()">{{ ot.ubicacion }}</span>
                                 {% endfor %}
                             </div>
                         </div>
@@ -304,9 +303,7 @@
                         {% with ot=celda.items.0 %}
                         <span class="cell-event has-tooltip"
                             onmouseover="showTooltip(event, '{{ ot.ubicacion }}', '{{ ot.fecha }}', '{{ ot.inicio }}', '{{ ot.fin }}', '{{ ot.estado }}', '{{ ot.id }}')"
-                            onmouseout="hideTooltip()">
-                            {{ ot.ubicacion }}
-                        </span>
+                            onmouseout="hideTooltip()">{{ ot.ubicacion }}</span>
                         {% endwith %}
                         {% endif %}
                         {% endif %}

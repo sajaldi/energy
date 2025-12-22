@@ -43,6 +43,23 @@ class Ubicacion(models.Model):
         """Propiedad para acceso rápido a la ruta completa"""
         return self.get_ruta_completa()
 
+    @property
+    def level(self):
+        """Calcula el nivel de profundidad (0 para raíz)."""
+        count = 0
+        curr = self.padre
+        while curr:
+            count += 1
+            curr = curr.padre
+        return count
+
+    def get_root(self):
+        """Devuelve el nodo raíz de la jerarquía (Campus/Sede)."""
+        curr = self
+        while curr.padre:
+            curr = curr.padre
+        return curr
+
     def get_descendants(self, include_self=True):
         """
         Reemplazo manual para get_descendants de MPTT.
