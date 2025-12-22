@@ -5,7 +5,7 @@ from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
 from mptt.admin import DraggableMPTTAdmin
 from mptt.admin import DraggableMPTTAdmin
-from .models import Categoria, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso
+from .models import Categoria, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual
 
 class CategoriaResource(resources.ModelResource):
     """
@@ -161,8 +161,43 @@ class RestriccionCalendarioAdmin(admin.ModelAdmin):
 class OrdenTrabajoInline(admin.TabularInline):
     model = OrdenTrabajo
     extra = 0
-    readonly_fields = ('inicio_programado', 'fin_programado', 'estado', 'rutina', 'ubicacion', 'activo')
-    can_delete = False
+    raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'activo', 'programacion')
+    fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'activo', 'tecnico', 'inicio_programado', 'estado')
+    readonly_fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'activo', 'inicio_programado')
+    can_delete = True
+
+@admin.register(PlanificacionMensual)
+class PlanificacionMensualAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'mes', 'anio', 'estado', 'responsable', 'get_total_ordenes', 'get_total_horas')
+    list_filter = ('estado', 'mes', 'anio')
+    search_fields = ('nombre', 'notas')
+    inlines = [OrdenTrabajoInline]
+    actions = ['poblar_plan_action']
+    
+    def get_total_ordenes(self, obj):
+        return obj.ordenes.count()
+    get_total_ordenes.short_description = "N° OTs"
+
+    def get_total_horas(self, obj):
+        total = 0
+        for ot in obj.ordenes.all():
+            if ot.rutina and ot.rutina.tiempo_estimado:
+                total += ot.rutina.tiempo_estimado.total_seconds() / 3600
+        return f"{total:.1f} hrs"
+    get_total_horas.short_description = "Total HH"
+
+    @admin.action(description="Poblar plan con OTs del mes/año")
+    def poblar_plan_action(self, request, queryset):
+        for plan in queryset:
+            # Buscar OTs que no tengan plan y caigan en el mes/año
+            ots = OrdenTrabajo.objects.filter(
+                inicio_programado__month=plan.mes,
+                inicio_programado__year=plan.anio,
+                planificacion__isnull=True
+            )
+            count = ots.count()
+            ots.update(planificacion=plan)
+            self.message_user(request, f"Se han agregado {count} órdenes al plan {plan.nombre}.")
 
 @admin.register(Programacion)
 class ProgramacionAdmin(admin.ModelAdmin):

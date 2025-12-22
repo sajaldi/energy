@@ -14,15 +14,14 @@ def calendario_mantenimiento(request):
     ordenes = OrdenTrabajo.objects.filter(
         inicio_programado__year=year
     ).select_related(
-        'rutina__sub_disciplina__disciplina',
+        'rutina__categoria',
         'rutina__frecuencia',
         'ubicacion',
         'programacion__horario'
     ).prefetch_related(
         'programacion__horario__dias'
     ).order_by(
-        'rutina__sub_disciplina__disciplina__nombre',
-        'rutina__sub_disciplina__nombre',
+        'rutina__categoria__nombre',
         'rutina__nombre',
         'inicio_programado'
     )
@@ -47,12 +46,21 @@ def calendario_mantenimiento(request):
     # Identificar órdenes y agruparlas
     for ot in ordenes:
         rut = ot.rutina
-        sub = rut.sub_disciplina
-        dis = sub.disciplina if sub else None
+        cat = rut.categoria
+        
+        if cat:
+            # Simplificamos: Disciplina = Raíz, Sub-Disciplina = Categoría Actual
+            # Nota: get_root() es eficiente en MPTT
+            dis_name = cat.get_root().nombre
+            sub_name = cat.nombre
+        else:
+            dis_name = "SIN CATEGORÍA"
+            sub_name = "GENERAL"
+            
         frec = rut.frecuencia
         
-        d_key = dis.nombre if dis else "SIN DISCIPLINA"
-        s_key = sub.nombre if sub else "SIN SUB-DISCIPLINA"
+        d_key = dis_name
+        s_key = sub_name
         # Use frec.dias for sorting
         f_key = (frec.dias, frec.nombre) if frec and frec.dias is not None else (float('inf'), "SIN FRECUENCIA")
         r_key = rut.id

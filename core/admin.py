@@ -18,8 +18,14 @@ from django.db import transaction
 from .models import (
     Consumo, InterfaceConsumo, Medidor, PuntoMedicion, Equipo,
     CaracteristicaMedicion, CategoriaPuntoMedicion, DocumentoMedicion, RangoMedicion, TipoMedidor, UnidadMedida, VistaConsumoDiferencia,
-    Servicio, KPI
+    Servicio, KPI, PerfilUsuario
 )
+
+@admin.register(PerfilUsuario)
+class PerfilUsuarioAdmin(admin.ModelAdmin):
+    list_display = ('usuario', 'visto_tutorial')
+    list_filter = ('visto_tutorial',)
+    search_fields = ('usuario__username', 'usuario__email')
 
 
 from . import views

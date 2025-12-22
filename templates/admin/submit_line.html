@@ -1,0 +1,39 @@
+{% load i18n admin_urls %}
+<div class="submit-row dynamics-toolbar">
+    {% if show_save %}
+    <button type="submit" value="{% translate 'Save' %}" class="btn-dynamics btn-save" name="_save">
+        <i class="fas fa-save"></i> {% translate 'Save' %}
+    </button>
+    {% endif %}
+
+    {% if show_save_and_add_another %}
+    <button type="submit" value="{% translate 'Save and add another' %}" class="btn-dynamics" name="_addanother">
+        <i class="fas fa-plus-circle"></i> {% translate 'Save and add another' %}
+    </button>
+    {% endif %}
+
+    {% if show_save_and_continue %}
+    <button type="submit" value="{% translate 'Save and continue editing' %}" class="btn-dynamics" name="_continue">
+        <i class="fas fa-edit"></i> {% translate 'Save and continue editing' %}
+    </button>
+    {% endif %}
+
+    {% if show_save_as_new %}
+    <button type="submit" value="{% translate 'Save as new' %}" class="btn-dynamics" name="_saveasnew">
+        <i class="fas fa-copy"></i> {% translate 'Save as new' %}
+    </button>
+    {% endif %}
+
+    {% if show_delete_link and original %}
+    {% url opts|admin_urlname:'delete' original.pk|admin_urlquote as delete_url %}
+    <a href="{% add_preserved_filters delete_url %}" class="btn-dynamics btn-delete">
+        <i class="fas fa-trash-alt"></i> {% translate "Delete" %}
+    </a>
+    {% endif %}
+
+    {% if show_close %}
+    <a href="{% url opts|admin_urlname:'changelist' %}" class="btn-dynamics btn-close">
+        <i class="fas fa-times"></i> {% translate 'Close' %}
+    </a>
+    {% endif %}
+</div>

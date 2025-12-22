@@ -209,3 +209,29 @@ class KPI(models.Model):
     class Meta:
         verbose_name = "KPI"
         verbose_name_plural = "KPIs"
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+class PerfilUsuario(models.Model):
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
+    visto_tutorial = models.BooleanField(default=False, verbose_name="Visto tutorial")
+    
+    def __str__(self):
+        return f"Perfil de {self.usuario.username}"
+
+    class Meta:
+        verbose_name = "Perfil de Usuario"
+        verbose_name_plural = "Perfiles de Usuarios"
+
+@receiver(post_save, sender=User)
+def crear_perfil_usuario(sender, instance, created, **kwargs):
+    if created:
+        PerfilUsuario.objects.create(usuario=instance)
+
+@receiver(post_save, sender=User)
+def guardar_perfil_usuario(sender, instance, **kwargs):
+    if hasattr(instance, 'perfil'):
+        instance.perfil.save()
+    else:
+        PerfilUsuario.objects.get_or_create(usuario=instance)
