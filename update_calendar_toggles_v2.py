@@ -1,0 +1,444 @@
+import os
+
+content = r"""<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matriz Detallada de Mantenimiento {{ year }}</title>
+    <style>
+        :root {
+            --primary-bg: #f8f9fa;
+            --table-border: #ced4da;
+            --header-bg: #2d3e50;
+            --header-text: #ffffff;
+            --sub-header-bg: #f9e4e1;
+            --cell-bg: #ffffff;
+            --accent-color: #c00000;
+            --accent-text: #ffffff;
+            --excel-blue: #2d3e50;
+            --excel-red: #c00000;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--primary-bg);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 100%;
+            overflow-x: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--header-bg);
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            min-width: 1300px;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--table-border);
+            text-align: center;
+            padding: 4px;
+        }
+
+        .header-main th {
+            text-align: left !important;
+            padding-left: 10px;
+            background-color: var(--header-bg);
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .header-month {
+            background-color: var(--excel-blue) !important;
+            border-top: 3px solid var(--excel-red);
+            color: white !important;
+            font-size: 12px;
+            text-align: center !important;
+        }
+
+        .header-week {
+            background-color: #e9ecef;
+            font-size: 9px;
+            color: #666;
+        }
+
+        .row-rutina {
+            text-align: left !important;
+            padding-left: 10px;
+            background-color: #f8f9fa;
+            width: 300px;
+            position: sticky;
+            left: 0;
+            z-index: 10;
+        }
+
+        .cell-x {
+            color: var(--accent-color);
+            font-weight: 900;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .cell-empty {
+            background-color: #fff;
+        }
+
+        .discipline-row td,
+        .subdiscipline-row td,
+        .frequency-row td,
+        .rutina-group-row td {
+            text-align: left !important;
+            padding-left: 15px !important;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .discipline-row {
+            background-color: #444;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 800;
+            border-bottom: 2px solid var(--excel-red);
+        }
+
+        .subdiscipline-row {
+            background-color: #f1f2f6;
+            color: #2d3e50;
+            font-size: 12px;
+            font-weight: bold;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .frequency-row {
+            background-color: #F4D4D2;
+            color: #2c3e50;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .rutina-group-row {
+            background-color: #f1f2f6;
+            color: #2f3542;
+            font-size: 10px;
+            font-weight: 600;
+            font-style: italic;
+        }
+
+        .location-row {
+            background-color: #ffffff;
+        }
+
+        .location-name {
+            text-align: left !important;
+            padding-left: 80px !important;
+            font-weight: 500;
+            font-size: 10px;
+        }
+
+        .toggle-icon::before {
+            content: '▼';
+            display: inline-block;
+            margin-right: 8px;
+            transition: transform 0.2s;
+            font-size: 10px;
+        }
+
+        .collapsed .toggle-icon::before {
+            transform: rotate(-90deg);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Marcas de Resumen en Cabeceras */
+        .summary-mark {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .summary-mark-active {
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        /* High specificity for active markers when parent is collapsed */
+        tr.collapsed .summary-mark-active {
+            background-color: #e67e22 !important;
+            box-shadow: 0 0 6px rgba(230, 126, 34, 0.9) !important;
+            width: 10px !important;
+            height: 10px !important;
+            opacity: 1 !important;
+            border: 1px solid rgba(0, 0, 0, 0.2) !important;
+        }
+
+        .summary-mark-active::after {
+            content: '';
+        }
+
+        .order-tooltip {
+            position: fixed;
+            background: #2d3436;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            z-index: 1000;
+            width: 200px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            display: none;
+            text-align: left;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .tooltip-title {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: var(--accent-color);
+            border-bottom: 1px solid #444;
+            padding-bottom: 3px;
+        }
+
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .tooltip-label {
+            color: #aaa;
+        }
+
+        /* Estilos del Resumen */
+        .summary-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            min-width: 150px;
+            border-top: 4px solid var(--accent-color);
+        }
+
+        .summary-value {
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--header-bg);
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Matriz Detallada de Mantenimiento {{ year }}</h1>
+
+    <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
+        <form method="get">
+            <input type="number" name="year" value="{{ year }}"
+                style="padding: 8px; border-radius: 4px; border: 1px solid #ddd; width: 80px;">
+            <button type="submit"
+                style="padding: 8px 15px; background: var(--excel-red); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Actualizar</button>
+            <a href="{% url 'mantenimiento:calendario' %}?year={{ year }}"
+                style="padding: 8px 15px; background: var(--excel-blue); color: white; border-radius: 4px; text-decoration: none; font-size: 13px; font-weight: bold;">Vista
+                General</a>
+            <button type="button" onclick="window.print()"
+                style="padding: 8px 15px; background: white; border: 1px solid var(--excel-red); color: var(--excel-red); border-radius: 4px; cursor: pointer; font-weight: bold;">Imprimir</button>
+        </form>
+    </div>
+
+    <div class="summary-container">
+        <div class="summary-card" style="border-top-color: var(--excel-red);">
+            <span class="summary-value">{{ resumen.disciplinas }}</span>
+            <span class="summary-label">Disciplinas</span>
+        </div>
+        <div class="summary-card" style="border-top-color: var(--excel-blue);">
+            <span class="summary-value">{{ resumen.rutinas }}</span>
+            <span class="summary-label">Rutinas</span>
+        </div>
+        <div class="summary-card" style="border-top-color: #666;">
+            <span class="summary-value">{{ resumen.ubicaciones }}</span>
+            <span class="summary-label">Ubicaciones</span>
+        </div>
+        <div class="summary-card" style="border-top-color: var(--excel-red);">
+            <span class="summary-value">{{ resumen.ordenes }}</span>
+            <span class="summary-label">Órdenes Totales</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <table>
+            <thead>
+                <tr class="header-main">
+                    <th class="row-rutina">Actividad / Ubicación</th>
+                    {% for mes in meses %}
+                    <th colspan="{{ mes.semanas|length }}" class="header-month">{{ mes.nombre }}</th>
+                    {% endfor %}
+                </tr>
+                <tr class="header-week">
+                    <th class="row-rutina"></th>
+                    {% for mes in meses %}
+                    {% for s in mes.semanas %}
+                    <th>S{{ s }}</th>
+                    {% endfor %}
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in disciplinas %}
+                <tr class="discipline-row collapsed" onclick="toggleSection('dis-{{ forloop.counter }}', this)">
+                    <td class="row-rutina"><span class="toggle-icon"></span> {{ d.nombre }}</td>
+                    {% for c in d.celdas_resumen %}
+                    <td><span class="summary-mark {% if c.active %}summary-mark-active{% endif %}"></span></td>
+                    {% endfor %}
+                </tr>
+                {% for sd in d.subs %}
+                <tr class="subdiscipline-row dis-{{ forloop.parentloop.counter }} collapsed hidden"
+                    id="sub-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
+                    onclick="toggleSection('sub-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
+                    <td class="row-rutina" style="padding-left: 30px;"><span class="toggle-icon"></span><strong>{{ sd.nombre }}</strong></td>
+                    {% for c in sd.celdas_resumen %}
+                    <td><span class="summary-mark {% if c.active %}summary-mark-active{% endif %}"></span></td>
+                    {% endfor %}
+                </tr>
+                {% for f in sd.frecuencias %}
+                <tr class="frequency-row dis-{{ forloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }} collapsed hidden"
+                    id="frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
+                    onclick="toggleSection('frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
+                    <td class="row-rutina" style="padding-left: 50px;"><span class="toggle-icon"></span><strong>{{ f.nombre }}</strong></td>
+                    {% for c in f.celdas_resumen %}
+                    <td><span class="summary-mark {% if c.active %}summary-mark-active{% endif %}"></span></td>
+                    {% endfor %}
+                </tr>
+                {% for r in f.rutinas %}
+                <tr class="rutina-group-row dis-{{ forloop.parentloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }} frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }} collapsed hidden"
+                    id="rut-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}-{{forloop.counter}}"
+                    onclick="toggleSection('rut-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}-{{forloop.counter}}', this)">
+                    <td class="row-rutina" style="padding-left: 70px;"><span class="toggle-icon"></span><strong>{{ r.nombre }}</strong></td>
+                    {% for c in r.celdas_resumen %}
+                    <td><span class="summary-mark {% if c.active %}summary-mark-active{% endif %}"></span></td>
+                    {% endfor %}
+                </tr>
+                {% for u in r.ubicaciones %}
+                <tr
+                    class="location-row dis-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }} frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.parentloop.counter }} rut-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}-{{forloop.counter}} hidden">
+                    <td class="location-name">{{ u.nombre }}</td>
+                    {% for celda in u.celdas %}
+                    <td class="{% if celda.active %}cell-active{% else %}cell-empty{% endif %}">
+                        {% if celda.active %}
+                        <span class="cell-x"
+                            onmouseover="showTooltip(event, '{{ u.nombre }}', '{{ celda.items.0.fecha }}', '{{ celda.items.0.inicio }}', '{{ celda.items.0.fin }}', '{{ celda.items.0.estado }}', '{{ celda.items.0.id }}')"
+                            onmouseout="hideTooltip()">X</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+                {% endfor %}
+                {% endfor %}
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="orderTooltip" class="order-tooltip">
+        <div class="tooltip-title" id="tt-ubi">Ubicación</div>
+        <div class="tooltip-row"><span class="tooltip-label">ID Orden:</span> <span id="tt-id"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">Fecha:</span> <span id="tt-fec"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">Horario:</span> <span id="tt-hor"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span id="tt-est"></span></div>
+    </div>
+
+    <script>
+        const tooltip = document.getElementById('orderTooltip');
+        function showTooltip(e, ubi, fec, ini, fin, est, id) {
+            document.getElementById('tt-ubi').innerText = ubi;
+            document.getElementById('tt-id').innerText = '#' + id;
+            document.getElementById('tt-fec').innerText = fec;
+            document.getElementById('tt-hor').innerText = ini + ' - ' + fin;
+            document.getElementById('tt-est').innerText = est;
+            tooltip.style.display = 'block';
+            updateTooltipPos(e);
+        }
+        function hideTooltip() { tooltip.style.display = 'none'; }
+        function updateTooltipPos(e) {
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        }
+        document.addEventListener('mousemove', (e) => { if (tooltip.style.display === 'block') updateTooltipPos(e); });
+
+        // Simplified toggle function that handles all levels correctly
+        function toggleSection(contentClass, headerElement) {
+            const rows = document.querySelectorAll('.' + contentClass);
+            const isCollapsing = headerElement.classList.toggle('collapsed');
+            
+            rows.forEach(row => {
+                if (isCollapsing) {
+                    // Hide child and all its descendants recursively
+                    row.classList.add('hidden');
+                    if (row.id) {
+                        // If the row is also a header, collapse it too
+                        row.classList.add('collapsed');
+                        document.querySelectorAll('.' + row.id).forEach(descendant => {
+                            descendant.classList.add('hidden');
+                        });
+                    }
+                } else {
+                    // Just show direct children
+                    row.classList.remove('hidden');
+                }
+            });
+            
+            // Stop propagation to prevent accidental parent toggles
+            if (window.event) window.event.stopPropagation();
+        }
+    </script>
+</body>
+
+</html>"""
+
+with open(r"d:\Apps\energia\energy\mantenimiento\templates\mantenimiento\calendario_detallado.html", "w", encoding="utf-8") as f:
+    f.write(content)

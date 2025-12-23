@@ -179,17 +179,26 @@ class VisorPlano(models.Model):
 class PinPlano(models.Model):
     visor = models.ForeignKey(VisorPlano, on_delete=models.CASCADE, related_name='pines')
     activo = models.ForeignKey(Activo, on_delete=models.CASCADE, related_name='pines_planos', null=True, blank=True)
+    aviso = models.ForeignKey('mantenimiento.Aviso', on_delete=models.SET_NULL, null=True, blank=True, related_name='pines_planos')
     x = models.FloatField(help_text="Posición X en píxeles absolutos")
     y = models.FloatField(help_text="Posición Y en píxeles absolutos")
     color = ColorField(default='#FF0000')
     nota = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"Pin en {self.visor.nombre} - {self.activo.nombre if self.activo else 'S/A'}"
+        desc = self.activo.nombre if self.activo else (f"Aviso {self.aviso.id}" if self.aviso else "S/A")
+        return f"Pin en {self.visor.nombre} - {desc}"
 
     class Meta:
         verbose_name = "Pin de Plano"
         verbose_name_plural = "Pines de Planos"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['visor', 'activo'], 
+                name='unique_activo_per_visor',
+                condition=models.Q(activo__isnull=False)
+            )
+        ]
 
 class PinFoto(models.Model):
     pin = models.ForeignKey(PinPlano, on_delete=models.CASCADE, related_name='fotos')

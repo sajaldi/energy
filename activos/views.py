@@ -4,18 +4,31 @@ from .models import VisorPlano, PinPlano, Activo
 import json
 from django.views.decorators.csrf import csrf_exempt
 from celery.result import AsyncResult
+from django.contrib.admin.views.decorators import staff_member_required
 
 def visor_plano(request, visor_id):
     visor = get_object_or_404(VisorPlano, pk=visor_id)
     # Prefetch activos for performance in the modal
-    activos = Activo.objects.all().order_by('nombre')
+    activos = Activo.objects.all().select_related('categoria', 'ubicacion').order_by('nombre')
+    
+    from .models import Categoria, Ubicacion
+    from mantenimiento.models import Aviso
+    
+    categorias = Categoria.objects.all().order_by('nombre')
+    ubicaciones = Ubicacion.objects.all().order_by('nombre')
+    # Solo avisos abiertos o en proceso
+    avisos = Aviso.objects.filter(estado__in=['ABIERTO', 'PROCESO']).order_by('-fecha_compra' if hasattr(Aviso, 'fecha_compra') else '-creado_en')
     
     return render(request, 'activos/visor_plano.html', {
         'visor': visor,
-        'activos': activos
+        'activos': activos,
+        'categorias': categorias,
+        'ubicaciones': ubicaciones,
+        'avisos': avisos,
     })
 
 @csrf_exempt
+@staff_member_required
 def guardar_pin(request):
     if request.method == 'POST':
         try:
@@ -28,6 +41,7 @@ def guardar_pin(request):
             pin_id = data.get('id')
             visor_id = data.get('visor_id')
             activo_id = data.get('activo_id')
+            aviso_id = data.get('aviso_id')
             x = float(data.get('x'))
             y = float(data.get('y'))
             color = data.get('color', '#FF0000')
@@ -39,9 +53,21 @@ def guardar_pin(request):
                 pin = PinPlano(visor_id=visor_id)
 
             if activo_id:
+                # Verificar duplicados en el mismo visor
+                dup = PinPlano.objects.filter(visor_id=visor_id, activo_id=activo_id).exclude(id=pin.id).first()
+                if dup:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'El activo "{dup.activo.nombre}" ya está ubicado en este plano.'
+                    }, status=400)
                 pin.activo_id = activo_id
             else:
                 pin.activo = None
+            
+            if aviso_id:
+                pin.aviso_id = aviso_id
+            else:
+                pin.aviso = None
                 
             pin.x = x
             pin.y = y
@@ -58,15 +84,34 @@ def guardar_pin(request):
             # Obtener URLs de las fotos
             fotos_urls = [f.imagen.url for f in pin.fotos.all()]
 
+            nombre_label = "Sin asignar"
+            icono_label = "location"
+            aviso_meta = {}
+            
+            if pin.activo:
+                nombre_label = pin.activo.nombre
+                icono_label = pin.activo.categoria.icono if pin.activo.categoria else 'cube'
+            elif pin.aviso:
+                nombre_label = f"AV-{pin.aviso.id}"
+                icono_label = "warning"
+                aviso_meta = {
+                    'prioridad': pin.aviso.get_prioridad_display(),
+                    'estado': pin.aviso.get_estado_display(),
+                    'solicitante': pin.aviso.solicitante.username if pin.aviso.solicitante else 'Anónimo',
+                    'descripcion': pin.aviso.descripcion
+                }
+
             return JsonResponse({
                 'status': 'success',
                 'pin_id': pin.id,
                 'activo_id': pin.activo.id if pin.activo else None,
-                'nombre_activo': pin.activo.nombre if pin.activo else 'Sin activo',
+                'aviso_id': pin.aviso.id if pin.aviso else None,
+                'nombre_activo': nombre_label,
                 'codigo_externo': pin.activo.codigo_interno if pin.activo else '',
                 'nota': pin.nota,
                 'fotos': fotos_urls,
-                'icono': pin.activo.categoria.icono if (pin.activo and pin.activo.categoria) else 'location'
+                'icono': icono_label,
+                'aviso_meta': aviso_meta
             })
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
@@ -122,3 +167,12 @@ def import_progress(request, task_id):
         }
     
     return JsonResponse(response)
+
+@staff_member_required
+def get_import_progress(request):
+    """
+    Retorna el porcentaje de avance de la importación para el usuario actual.
+    """
+    from django.core.cache import cache
+    progress = cache.get(f"import_progress_{request.user.id}", 0)
+    return JsonResponse({'progress': progress})
