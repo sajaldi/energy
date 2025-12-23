@@ -1,4 +1,5 @@
 from datetime import timedelta
+from django.db import models
 from django.db.models import Count
 from django.contrib import admin, messages
 from import_export.admin import ImportExportModelAdmin
@@ -45,6 +46,8 @@ class CategoriaResource(resources.ModelResource):
                 # Pero para la mayoría de los casos de 'texto', esto lo hace más amigable.
                 pass
 
+from django import forms
+
 class SubcategoriaInline(admin.TabularInline):
     model = Categoria
     fk_name = 'padre'
@@ -52,6 +55,16 @@ class SubcategoriaInline(admin.TabularInline):
     verbose_name = "Subcategoría"
     verbose_name_plural = "Subcategorías"
     fields = ('nombre', 'descripcion')
+    # Forzar que la descripción sea un input de texto en lugar de un textarea para que quepa en la tabla
+    formfield_overrides = {
+        models.TextField: {'widget': forms.TextInput(attrs={'style': 'width: 100%; min-width: 400px;'})},
+        models.CharField: {'widget': forms.TextInput(attrs={'style': 'width: 100%; min-width: 250px;'})},
+    }
+    
+    class Media:
+        css = {
+            'all': ('admin/css/forms.css',) # Opcional, pero útil para cargar estilos base
+        }
 
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
