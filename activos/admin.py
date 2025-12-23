@@ -58,27 +58,18 @@ class CategoriaAdmin(ImportExportModelAdmin):
 
 class SmartParentWidget(ForeignKeyWidget):
     """
-    Widget inteligente que maneja casos donde múltiples objetos coinciden
-    con el nombre (común en jerarquías no únicas).
-    Devuelve el primer objeto encontrado en lugar de lanzar MultipleObjectsReturned.
+    Widget que busca el padre por nombre y devuelve el primero encontrado.
+    Evita MultipleObjectsReturned en jerarquías con nombres repetidos en distintos niveles.
     """
     def clean(self, value, row=None, **kwargs):
         if not value:
             return None
-        try:
-            return self.get_queryset(value, row, **kwargs).filter(nombre=value).first()
-        except Exception:
-            return None
+        return Ubicacion.objects.filter(nombre=value).first()
 
 class UbicacionResource(resources.ModelResource):
     """
-    Resource personalizado para exportar/importar ubicaciones jerárquicas.
-    
-    IMPORTACIÓN: Solo necesitas proporcionar 'nombre' y 'padre_nombre'
-    EXPORTACIÓN: Se generan automáticamente 'clave_unica' y 'ruta_completa'
-    
-    Permite múltiples ubicaciones con el mismo nombre en diferentes padres.
-    Ej: Puedes tener "Nivel 1" en Torre A, Torre B, Torre C sin conflictos.
+    Resource para Ubicaciones jerárquicas.
+    Permite importar usando 'padre_nombre' en lugar de IDs.
     """
     padre_nombre = fields.Field(
         column_name='padre_nombre',
@@ -86,100 +77,28 @@ class UbicacionResource(resources.ModelResource):
         widget=SmartParentWidget(Ubicacion, field='nombre')
     )
     
-    # Campo ID como solo lectura para evitar errores si el ID del archivo ya no existe
+    # Campos adicionales para exportación
     id = fields.Field(column_name='id', attribute='id', readonly=True)
-    
-    # Campos calculados automáticamente - SOLO para exportación
-    clave_unica = fields.Field(
-        column_name='clave_unica',
-        readonly=True
-    )
-    
-    ruta_completa = fields.Field(
-        column_name='ruta_completa',
-        readonly=True
-    )
-    
+    clave_unica = fields.Field(column_name='clave_unica', readonly=True)
+    ruta_completa = fields.Field(column_name='ruta_completa', readonly=True)
+
     class Meta:
         model = Ubicacion
+        # Usamos nombre y padre_nombre como identificadores para evitar duplicados en importación
         import_id_fields = ('nombre', 'padre_nombre')
-        fields = ('id', 'nombre', 'padre', 'orden', 'descripcion')
+        fields = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'padre_nombre', 'orden', 'descripcion')
         export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'padre_nombre', 'orden', 'descripcion')
         skip_unchanged = True
         report_skipped = True
-        use_bulk = True
-        batch_size = 1000
-
-    def before_export(self, queryset, *args, **kwargs):
-        """Precarga todas las rutas en memoria para evitar N+1 queries"""
-        self.ruta_cache = {}
-        self.clave_cache = {}
-        # Usamos orden jerárquico manual (padre_id, orden)
-        all_locs = Ubicacion.objects.all().order_by('padre_id', 'orden', 'nombre')
         
-        # Mapa para construcción de rutas
-        loc_map = {l.id: l for l in all_locs}
-        
-        for loc in all_locs:
-            path = [loc.nombre]
-            curr = loc.padre
-            while curr:
-                # Usamos el mapa para evitar queries
-                curr_obj = loc_map.get(curr.id)
-                if curr_obj:
-                    path.append(curr_obj.nombre)
-                    curr = curr_obj.padre
-                else:
-                    break
-            self.ruta_cache[loc.id] = " → ".join(reversed(path))
-            self.clave_cache[loc.id] = "|".join(reversed(path))
-
-    def dehydrate_ruta_completa(self, obj):
-        return self.ruta_cache.get(obj.id, "")
+        # Desactivamos bulk para manejar la jerarquía fila a fila y evitar errores de bulk_update con PKs
+        use_bulk = False
 
     def dehydrate_clave_unica(self, obj):
-        return self.clave_cache.get(obj.id, "")
+        return obj.get_clave_unica()
 
-    def before_import(self, dataset, *args, **kwargs):
-        """Precarga todas las ubicaciones para evitar N+1 queries"""
-        # Mapa de (nombre, padre_id) -> id para get_instance
-        self.instance_map = {}
-        # Mapa de nombre -> id (para resolver padres por nombre rápido)
-        self.name_to_id = {}
-        
-        for loc in Ubicacion.objects.all().values('id', 'nombre', 'padre_id'):
-            self.instance_map[(loc['nombre'], loc['padre_id'])] = loc['id']
-            if loc['nombre'] not in self.name_to_id:
-                self.name_to_id[loc['nombre']] = loc['id']
-
-    def before_import_row(self, row, **kwargs):
-        """Resuelve el padre usando el caché en lugar de queries"""
-        padre_nombre = str(row.get('padre_nombre') or '').strip()
-        if padre_nombre:
-            row['padre_id_fast'] = self.name_to_id.get(padre_nombre)
-        else:
-            row['padre_id_fast'] = None
-
-    def init_instance(self, row=None):
-        """Inicializa instancia con el padre resuelto"""
-        instance = super().init_instance(row)
-        padre_id = row.get('padre_id_fast')
-        if padre_id:
-            instance.padre_id = padre_id
-        return instance
-
-    def get_instance(self, instance_loader, row):
-        """Usa el mapa en memoria para encontrar la instancia"""
-        nombre = str(row.get('nombre') or '').strip()
-        padre_id = row.get('padre_id_fast')
-        
-        pk = self.instance_map.get((nombre, padre_id))
-        if pk:
-            try:
-                return self._meta.model(pk=pk)
-            except Exception:
-                return None
-        return None
+    def dehydrate_ruta_completa(self, obj):
+        return obj.ruta_completa
 
 
 class ModeloInline(admin.TabularInline):
@@ -187,16 +106,49 @@ class ModeloInline(admin.TabularInline):
     extra = 1
 
 @admin.register(Marca)
-class MarcaAdmin(admin.ModelAdmin):
+class MarcaAdmin(ImportExportModelAdmin):
     list_display = ('nombre',)
     search_fields = ('nombre',)
     inlines = [ModeloInline]
 
+class ModeloResource(resources.ModelResource):
+    marca_nombre = fields.Field(
+        column_name='marca_nombre',
+        attribute='marca',
+        widget=ForeignKeyWidget(Marca, field='nombre')
+    )
+
+    class Meta:
+        model = Modelo
+        # Identificamos por nombre y marca para que si el ID está vacío, 
+        # actualice si ya existe esa combinación o cree uno nuevo si no.
+        import_id_fields = ('nombre', 'marca_nombre')
+        fields = ('id', 'nombre', 'marca_nombre')
+        export_order = ('id', 'nombre', 'marca_nombre')
+
+    def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
+        if not any(row.values()): return True
+        return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
+
+    def before_import_row(self, row, **kwargs):
+        """Asegurar que la marca existe antes de importar el modelo"""
+        marca_name = str(row.get('marca_nombre') or '').strip()
+        if marca_name:
+            from .models import Marca
+            Marca.objects.get_or_create(nombre=marca_name)
+
 @admin.register(Modelo)
-class ModeloAdmin(admin.ModelAdmin):
+class ModeloAdmin(ImportExportModelAdmin):
+    resource_class = ModeloResource
     list_display = ('nombre', 'marca', 'total_activos')
     list_filter = ('marca',)
     list_select_related = ('marca',)
+
+    def get_import_resource_kwargs(self, request, *args, **kwargs):
+        return {'user': request.user}
+    
+    def get_export_resource_kwargs(self, request, *args, **kwargs):
+        return {'user': request.user}
     search_fields = ('nombre', 'marca__nombre')
     readonly_fields = ('lista_activos_ubicacion',)
 
@@ -273,7 +225,51 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     autocomplete_fields = ('padre',)
 
 
+class SmartUbicacionWidget(ForeignKeyWidget):
+    """
+    Widget optimizado que utiliza el caché del Resource para evitar consultas N+1.
+    """
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        
+        value_str = str(value).strip()
+        resource = kwargs.get('resource')
+        
+        # 1. Intentar resolver por Clave Única (Ruta con pipes o flechas) desde caché
+        normalized_val = value_str.replace(' → ', '|')
+        
+        if resource and hasattr(resource, 'ubicacion_clave_cache'):
+            if normalized_val in resource.ubicacion_clave_cache:
+                return resource.ubicacion_clave_cache[normalized_val]
+        
+        # 2. Intentar resolver por Nombre Simple desde caché
+        if resource and hasattr(resource, 'ubicacion_nombre_cache'):
+            if value_str in resource.ubicacion_nombre_cache:
+                return resource.ubicacion_nombre_cache[value_str]
+
+        # 3. Fallback: Consulta directa
+        parts = []
+        if '|' in value_str:
+            parts = [p.strip() for p in value_str.split('|')]
+        elif '→' in value_str:
+            parts = [p.strip() for p in value_str.split('→')]
+            
+        if parts:
+            nombre_final = parts[-1]
+            candidatos = Ubicacion.objects.filter(nombre__iexact=nombre_final)
+            for cand in candidatos:
+                if cand.get_clave_unica() == normalized_val or cand.get_ruta_completa() == value_str:
+                    return cand
+        
+        return Ubicacion.objects.filter(nombre__iexact=value_str).first()
+
 class ActivoResource(resources.ModelResource):
+    marca_nombre = fields.Field(
+        column_name='marca_nombre',
+        attribute='modelo__marca__nombre',
+        readonly=True
+    )
     modelo_nombre = fields.Field(
         column_name='modelo_nombre',
         attribute='modelo',
@@ -287,7 +283,7 @@ class ActivoResource(resources.ModelResource):
     ubicacion_nombre = fields.Field(
         column_name='ubicacion_nombre',
         attribute='ubicacion',
-        widget=ForeignKeyWidget(Ubicacion, field='nombre')
+        widget=SmartUbicacionWidget(Ubicacion, field='nombre')
     )
     responsable_username = fields.Field(
         column_name='responsable_username',
@@ -297,16 +293,117 @@ class ActivoResource(resources.ModelResource):
 
     class Meta:
         model = Activo
-        fields = ('id', 'nombre', 'codigo_interno', 'serie', 'modelo_nombre', 'categoria_nombre', 'estado', 'ubicacion_nombre', 'responsable_username')
-        export_order = ('id', 'codigo_interno', 'nombre', 'serie', 'modelo_nombre', 'categoria_nombre', 'estado', 'ubicacion_nombre', 'responsable_username')
+        import_id_fields = ('codigo_interno',)
+        fields = (
+            'id', 'nombre', 'codigo_interno', 'serie', 'marca_nombre', 'modelo_nombre', 
+            'categoria_nombre', 'estado', 'ubicacion_nombre', 'responsable_username',
+            'descripcion', 'fecha_compra', 'costo', 'ubicacion_legacy'
+        )
+        export_order = fields
         skip_unchanged = True
         report_skipped = True
         use_bulk = True
-        batch_size = 1000
+        batch_size = 500
+
+    def get_bulk_update_fields(self):
+        """Evita Fallos con Campos Virtuales en Bulk Update"""
+        actual_fields = [f.name for f in self._meta.model._meta.get_fields()]
+        fields = super().get_bulk_update_fields()
+        return [f for f in fields if f in actual_fields and f != 'id']
+
+    def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
+        """Ignorar filas vacías"""
+        if not any(row.values()):
+            return True
+        if not str(row.get('nombre') or '').strip() and not str(row.get('codigo_interno') or '').strip():
+            return True
+        return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
+
+    def before_import(self, dataset, *args, **kwargs):
+        """Precarga cachés para velocidad y progreso"""
+        from django.core.cache import cache
+        from .models import Marca, Modelo, Categoria, Ubicacion
+        
+        # 0. Inicializar progreso
+        user = kwargs.get('user')
+        if user:
+            cache.set(f"import_progress_{user.id}", 0, 300)
+            cache.set(f"import_progress_{user.id}_count", 0, 300)
+            self.total_rows = len(dataset)
+
+        # 1. Caché Ubicaciones
+        self.ubicacion_clave_cache = {}
+        self.ubicacion_nombre_cache = {}
+        for loc in Ubicacion.objects.all().select_related('padre'):
+            self.ubicacion_clave_cache[loc.get_clave_unica()] = loc
+            if loc.nombre not in self.ubicacion_nombre_cache:
+                self.ubicacion_nombre_cache[loc.nombre] = loc
+        self.fields['ubicacion_nombre'].widget.resource = self
+
+        # 2. Caché Marcas/Modelos (Solo los nombres en mayúsculas para búsqueda rápida)
+        self.marca_cache = {m.nombre.upper(): m for m in Marca.objects.all()}
+        self.modelo_cache = {m.nombre.upper(): m for m in Modelo.objects.all().select_related('marca')}
+
+    def after_import_row(self, row, row_result, **kwargs):
+        """Actualizar progreso en caché"""
+        from django.core.cache import cache
+        user = kwargs.get('user')
+        if user and hasattr(self, 'total_rows') and self.total_rows > 0:
+            current = cache.get(f"import_progress_{user.id}_count", 0) + 1
+            cache.set(f"import_progress_{user.id}_count", current, 300)
+            percent = int((current / self.total_rows) * 100)
+            # Asegurarse de no pasarnos de 100 si hay headers o filas extra
+            if percent > 100: percent = 100
+            cache.set(f"import_progress_{user.id}", percent, 300)
+
+    def before_import_row(self, row, **kwargs):
+        """Auto-creación inteligente de Marcas y Modelos"""
+        from .models import Marca, Modelo
+        
+        mod_name = str(row.get('modelo_nombre') or '').strip()
+        mar_name = str(row.get('marca_nombre') or '').strip()
+        
+        if mod_name:
+            mod_key = mod_name.upper()
+            mar_key = mar_name.upper()
+            
+            # Garantizar Marca
+            marca_obj = None
+            if mar_name:
+                if mar_key not in self.marca_cache:
+                    marca_obj, _ = Marca.objects.get_or_create(nombre=mar_name)
+                    self.marca_cache[mar_key] = marca_obj
+                else:
+                    marca_obj = self.marca_cache[mar_key]
+            
+            # Garantizar Modelo
+            if mod_key not in self.modelo_cache:
+                if marca_obj:
+                    mod_obj, _ = Modelo.objects.get_or_create(nombre=mod_name, marca=marca_obj)
+                    self.modelo_cache[mod_key] = mod_obj
+                else:
+                    # Si no hay marca, buscamos una genérica o creamos el modelo sin ella (si fallara la DB diría)
+                    # pero como 'marca' es NOT NULL, creamos una marca genérica "IMPORTADO" si es necesario
+                    marca_gen, _ = Marca.objects.get_or_create(nombre="GENERICO")
+                    mod_obj, _ = Modelo.objects.get_or_create(nombre=mod_name, marca=marca_gen)
+                    self.modelo_cache[mod_key] = mod_obj
+
+    def get_instance(self, instance_loader, row):
+        codigo = row.get('codigo_interno')
+        if codigo:
+            return self._meta.model.objects.filter(codigo_interno=codigo).first()
+        return None
 
 @admin.register(Activo)
-class ActivoAdmin(ImportExportMixin, admin.ModelAdmin):
+class ActivoAdmin(ImportExportModelAdmin):
     resource_class = ActivoResource
+
+    def get_import_resource_kwargs(self, request, *args, **kwargs):
+        return {'user': request.user}
+    
+    def get_export_resource_kwargs(self, request, *args, **kwargs):
+        return {'user': request.user}
+
     list_display = ('codigo_interno', 'nombre', 'get_marca', 'modelo', 'serie', 'categoria', 'estado', 'ubicacion', 'responsable')
     list_filter = ('estado', 'categoria', 'modelo__marca', 'creado_en', 'ubicacion')
     list_select_related = ('modelo__marca', 'categoria', 'ubicacion', 'responsable')
@@ -364,8 +461,8 @@ class ActivoAdmin(ImportExportMixin, admin.ModelAdmin):
             self.change_list_template = 'admin/activos/activo/lookup_tree.html'
             
         else:
-            # Restaurar la plantilla original si no es popup
-            self.change_list_template = None
+            # Restaurar la plantilla de importación/exportación si no es popup
+            self.change_list_template = 'admin/import_export/change_list_import_export.html'
             
         return super().changelist_view(request, extra_context=extra_context)
     

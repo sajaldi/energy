@@ -746,6 +746,50 @@
             height: 100%;
             border: none;
         }
+
+        /* Lightbox Style */
+        #lightbox-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(5px);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        #lightbox-modal.active {
+            display: flex;
+        }
+
+        #lightbox-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            cursor: default;
+        }
+
+        #lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 2.5rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        #lightbox-close:hover {
+            transform: scale(1.1);
+        }
     </style>
 </head>
 
@@ -831,13 +875,16 @@
                     {% localize off %}
                     {% for pin in visor.pines.all %}
                     <div class="pin" id="pin-{{ pin.id }}" data-id="{{ pin.id }}"
-                        data-activo="{{ pin.activo.id|default:'' }}"
-                        data-label="{{ pin.activo.nombre|default:'Sin activo' }}" data-color="{{ pin.color }}"
-                        data-nota="{{ pin.nota|default:'' }}" data-x="{{ pin.x }}" data-y="{{ pin.y }}"
-                        data-icon="{{ pin.activo.categoria.icono|default:'location' }}"
+                        data-activo="{{ pin.activo.id|default:'' }}" data-aviso="{{ pin.aviso.id|default:'' }}"
+                        data-label="{% if pin.activo %}{{ pin.activo.nombre }}{% elif pin.aviso %}AV-{{ pin.aviso.id }}{% else %}Sin asignar{% endif %}"
+                        data-color="{{ pin.color }}" data-nota="{{ pin.nota|default:'' }}" data-x="{{ pin.x }}"
+                        data-y="{{ pin.y }}"
+                        data-icon="{% if pin.activo %}{{ pin.activo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"
+                        data-aviso-meta='{% if pin.aviso %}{"prioridad":"{{ pin.aviso.get_prioridad_display }}","estado":"{{ pin.aviso.get_estado_display }}","solicitante":"{{ pin.aviso.solicitante.username|default:"Anónimo" }}","descripcion":"{{ pin.aviso.descripcion|escapejs }}"}{% else %}{}{% endif %}'
                         data-fotos='[{% for foto in pin.fotos.all %}"{{ foto.imagen.url }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
                         style="left: {{ pin.x }}px; top: {{ pin.y }}px; color: {{ pin.color }}; pointer-events: auto;">
-                        <ion-icon name="{{ pin.activo.categoria.icono|default:'location' }}"></ion-icon>
+                        <ion-icon
+                            name="{% if pin.activo %}{{ pin.activo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"></ion-icon>
                     </div>
                     {% endfor %}
                     {% endlocalize %}
@@ -866,8 +913,20 @@
             </div>
 
             <div id="pin-hover-card">
-                <h4 id="hover-activo">Nombre Activo</h4>
-                <p id="hover-nota">Notas del pin...</p>
+                <div id="hover-header"
+                    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <h4 id="hover-activo" style="margin:0;">Nombre Activo</h4>
+                    <span id="hover-badge"
+                        style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; display:none;"></span>
+                </div>
+                <div id="hover-aviso-info"
+                    style="display:none; margin-bottom: 10px; padding: 8px; background: #fff5f5; border-radius: 6px; border-left: 3px solid #ff4d4d;">
+                    <div style="font-size: 0.75rem; color: #b91c1c; font-weight: 700; margin-bottom: 4px;">DATOS DEL
+                        AVISO</div>
+                    <div id="hover-aviso-detail" style="font-size: 0.75rem; line-height: 1.3;"></div>
+                </div>
+                <p id="hover-nota" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Notas del
+                    pin...</p>
                 <div class="hover-gallery" id="hover-gallery"></div>
             </div>
     </div>
@@ -882,10 +941,54 @@
 
         <div class="form-group">
             <label>Activo Relacionado</label>
+
+            <!-- Buscador de Activos Mejorado -->
+            <div
+                style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border);">
+                <div style="margin-bottom: 8px;">
+                    <input type="text" id="asset-search-text" placeholder="Buscar por nombre o código..."
+                        style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem;"
+                        oninput="filterAssetSelect()">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <select id="asset-filter-cat"
+                        style="padding: 6px; font-size: 0.75rem; border: 1px solid var(--border); border-radius: 4px;"
+                        onchange="filterAssetSelect()">
+                        <option value="">Todas las Categorías</option>
+                        {% for cat in categorias %}
+                        <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <select id="asset-filter-loc"
+                        style="padding: 6px; font-size: 0.75rem; border: 1px solid var(--border); border-radius: 4px;"
+                        onchange="filterAssetSelect()">
+                        <option value="">Todas las Ubicaciones</option>
+                        {% for loc in ubicaciones %}
+                        <option value="{{ loc.id }}">{{ loc.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
             <select id="pin-activo">
                 <option value="">Seleccione un activo...</option>
                 {% for activo in activos %}
-                <option value="{{ activo.id }}">{{ activo.nombre }} ({{ activo.codigo_interno }})</option>
+                <option value="{{ activo.id }}" data-categoria="{{ activo.categoria.id|default:'' }}"
+                    data-ubicacion="{{ activo.ubicacion.id|default:'' }}" data-nombre="{{ activo.nombre|lower }}"
+                    data-codigo="{{ activo.codigo_interno|default:''|lower }}">
+                    {{ activo.nombre }} ({{ activo.codigo_interno }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Aviso de Mantenimiento</label>
+            <select id="pin-aviso">
+                <option value="">Ningún aviso vinculado...</option>
+                {% for aviso in avisos %}
+                <option value="{{ aviso.id }}">AV-{{ aviso.id }}: {{ aviso.descripcion|truncatechars:50 }} ({{
+                    aviso.prioridad }})</option>
                 {% endfor %}
             </select>
         </div>
@@ -913,9 +1016,14 @@
 
         <div id="details-btn-container" style="display: none; margin-bottom: 2rem;">
             <button id="btn-asset-details" onclick="openAssetModal()" class="btn"
-                style="width: 100%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; font-weight: 500;">
+                style="width: 100%; background: var(--primary); color: white; display: none; align-items: center; justify-content: center; gap: 8px; border: none; font-weight: 500; margin-bottom: 8px;">
                 <ion-icon name="information-circle-outline" style="font-size: 1.3rem;"></ion-icon>
                 Detalles del Activo
+            </button>
+            <button id="btn-notice-details" onclick="openNoticeModal()" class="btn"
+                style="width: 100%; background: #e11d48; color: white; display: none; align-items: center; justify-content: center; gap: 8px; border: none; font-weight: 500;">
+                <ion-icon name="warning-outline" style="font-size: 1.3rem;"></ion-icon>
+                Ver Aviso de Mantenimiento
             </button>
         </div>
 
@@ -930,7 +1038,7 @@
     </div>
 
     <script>
-        const VISOR_ID = {{ visor.id }};
+        const VISOR_ID = Number("{{ visor.id }}");
         const mainView = document.getElementById('main-canvas');
         const zoomContainer = document.getElementById('zoom-container');
         const pinesLayer = document.getElementById('pines-layer');
@@ -1050,6 +1158,33 @@
                 hoverActivo.innerText = pin.dataset.label;
                 hoverNota.innerText = pin.dataset.nota || '';
 
+                const avisoMeta = document.getElementById('hover-aviso-info');
+                const avisoDetail = document.getElementById('hover-aviso-detail');
+                const badge = document.getElementById('hover-badge');
+
+                if (pin.dataset.aviso) {
+                    avisoMeta.style.display = 'block';
+                    badge.style.display = 'inline-block';
+                    badge.innerText = 'AVISO';
+                    badge.style.background = '#fee2e2';
+                    badge.style.color = '#991b1b';
+
+                    try {
+                        const meta = JSON.parse(pin.dataset.avisoMeta || '{}');
+                        avisoDetail.innerHTML = `
+                            <strong>Prioridad:</strong> ${meta.prioridad || '-'}<br>
+                            <strong>Estado:</strong> ${meta.estado || '-'}<br>
+                            <strong>Reportado por:</strong> ${meta.solicitante || '-'}<br>
+                            <div style="margin-top:4px; border-top: 1px solid #fecaca; padding-top:4px;">
+                                ${meta.descripcion || ''}
+                            </div>
+                        `;
+                    } catch (e) { avisoDetail.innerText = 'Error cargando datos del aviso'; }
+                } else {
+                    avisoMeta.style.display = 'none';
+                    badge.style.display = 'none';
+                }
+
                 // Cargar mini galería
                 hoverGallery.innerHTML = '';
                 try {
@@ -1057,6 +1192,11 @@
                     fotos.slice(0, 3).forEach(src => {
                         const img = document.createElement('img');
                         img.src = src;
+                        img.style.cursor = 'pointer';
+                        img.onclick = (e) => {
+                            e.stopPropagation();
+                            openLightbox(src);
+                        };
                         hoverGallery.appendChild(img);
                     });
                 } catch (e) { }
@@ -1178,6 +1318,7 @@
 
             // Cargar datos actuales en campos para no perderlos al guardar
             document.getElementById('pin-activo').value = activePin.dataset.activo || '';
+            document.getElementById('pin-aviso').value = activePin.dataset.aviso || '';
             document.getElementById('pin-color').value = activePin.dataset.color || '#FF0000';
             document.getElementById('pin-nota').value = activePin.dataset.nota || '';
 
@@ -1252,7 +1393,10 @@
                 const item = document.createElement('div');
                 item.className = 'photo-item';
                 const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
+                const url = URL.createObjectURL(file);
+                img.src = url;
+                img.style.cursor = 'pointer';
+                img.onclick = () => openLightbox(url);
                 item.appendChild(img);
                 panelGallery.appendChild(item);
             });
@@ -1273,17 +1417,22 @@
             selectedFiles = [];
 
             const activoId = pin.dataset.activo || '';
+            const avisoId = pin.dataset.aviso || '';
             document.getElementById('pin-activo').value = activoId;
+            document.getElementById('pin-aviso').value = avisoId;
             document.getElementById('pin-color').value = pin.dataset.color || '#FF0000';
             document.getElementById('pin-nota').value = pin.dataset.nota || '';
             document.getElementById('btn-delete').style.display = pin.id.startsWith('temp') ? 'none' : 'flex';
 
-            // Mostrar/Ocultar botón de detalles
+            // Mostrar/Ocultar botones de detalles
             const detailsBtnContainer = document.getElementById('details-btn-container');
             const assetDetailsBtn = document.getElementById('btn-asset-details');
+            const noticeDetailsBtn = document.getElementById('btn-notice-details');
 
-            if (activoId) {
+            if (activoId || avisoId) {
                 detailsBtnContainer.style.display = 'block';
+                assetDetailsBtn.style.display = activoId ? 'flex' : 'none';
+                noticeDetailsBtn.style.display = avisoId ? 'flex' : 'none';
             } else {
                 detailsBtnContainer.style.display = 'none';
             }
@@ -1295,7 +1444,7 @@
                 fotos.forEach(src => {
                     const item = document.createElement('div');
                     item.className = 'photo-item';
-                    item.innerHTML = `<img src="${src}">`;
+                    item.innerHTML = `<img src="${src}" style="cursor: pointer;" onclick="openLightbox('${src}')">`;
                     panelGallery.appendChild(item);
                 });
             } catch (e) { }
@@ -1323,6 +1472,7 @@
             }
 
             const activoId = document.getElementById('pin-activo').value;
+            const avisoId = document.getElementById('pin-aviso').value;
             const color = document.getElementById('pin-color').value;
             const nota = document.getElementById('pin-nota').value;
 
@@ -1331,6 +1481,7 @@
             formData.append('id', activePin.dataset.id || '');
             formData.append('visor_id', VISOR_ID);
             formData.append('activo_id', activoId);
+            formData.append('aviso_id', avisoId);
             formData.append('x', x);
             formData.append('y', y);
             formData.append('color', color);
@@ -1351,11 +1502,13 @@
             if (result.status === 'success') {
                 activePin.dataset.id = result.pin_id;
                 activePin.id = 'pin-' + result.pin_id;
-                activePin.dataset.activo = activoId;
+                activePin.dataset.activo = result.activo_id || '';
+                activePin.dataset.aviso = result.aviso_id || '';
                 activePin.dataset.label = result.nombre_activo;
                 activePin.dataset.color = color;
                 activePin.dataset.nota = result.nota;
                 activePin.dataset.fotos = JSON.stringify(result.fotos);
+                activePin.dataset.avisoMeta = JSON.stringify(result.aviso_meta || {});
                 activePin.dataset.x = x.toFixed(1);
                 activePin.dataset.y = y.toFixed(1);
                 activePin.dataset.icon = result.icono || 'location';
@@ -1365,9 +1518,25 @@
                 activePin.querySelector('ion-icon').name = result.icono || 'location';
 
                 showToast('Pin guardado (Píxeles)');
+
+                // Actualizar visibilidad de botones de detalles en el panel si sigue abierto
+                const detailsBtnContainer = document.getElementById('details-btn-container');
+                const assetDetailsBtn = document.getElementById('btn-asset-details');
+                const noticeDetailsBtn = document.getElementById('btn-notice-details');
+
+                if (result.activo_id || result.aviso_id) {
+                    detailsBtnContainer.style.display = 'block';
+                    assetDetailsBtn.style.display = result.activo_id ? 'flex' : 'none';
+                    noticeDetailsBtn.style.display = result.aviso_id ? 'flex' : 'none';
+                } else {
+                    detailsBtnContainer.style.display = 'none';
+                }
+
                 pinPanel.classList.remove('active');
                 activePin = null;
                 renderSidebarList(); // Actualizar lista
+            } else {
+                showToast(result.message || 'Error al guardar el pin', 'danger');
             }
         }
 
@@ -1388,9 +1557,18 @@
             }
         }
 
-        function showToast(msg) {
+        function showToast(msg, type = 'success') {
             const toast = document.getElementById('toast');
             document.getElementById('toast-msg').innerText = msg;
+
+            if (type === 'danger') {
+                toast.style.borderLeftColor = 'var(--danger)';
+                toast.style.color = 'var(--danger)';
+            } else {
+                toast.style.borderLeftColor = 'var(--primary)';
+                toast.style.color = 'var(--text-main)';
+            }
+
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
@@ -1490,6 +1668,33 @@
         function zoomIn() { pz.zoomIn(); }
         function zoomOut() { pz.zoomOut(); }
 
+        function filterAssetSelect() {
+            const text = document.getElementById('asset-search-text').value.toLowerCase();
+            const cat = document.getElementById('asset-filter-cat').value;
+            const loc = document.getElementById('asset-filter-loc').value;
+            const select = document.getElementById('pin-activo');
+            const options = select.querySelectorAll('option');
+
+            options.forEach(opt => {
+                if (!opt.value) return; // Saltar el "Seleccione un activo..."
+
+                const matchesText = !text || opt.dataset.nombre.includes(text) || opt.dataset.codigo.includes(text);
+                const matchesCat = !cat || opt.dataset.categoria === cat;
+                const matchesLoc = !loc || opt.dataset.ubicacion === loc;
+
+                if (matchesText && matchesCat && matchesLoc) {
+                    opt.style.display = 'block';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+
+            // Si la opción seleccionada actualmente está oculta, deseleccionarla
+            if (select.selectedOptions[0] && select.selectedOptions[0].style.display === 'none') {
+                select.value = '';
+            }
+        }
+
         setTool('pan');
     </script>
     <script>
@@ -1502,6 +1707,21 @@
             if (modal && iframe) {
                 const url = `/admin/activos/activo/${activoId}/change/?_popup=1`;
                 iframe.src = url;
+                document.getElementById('modal-title-text').innerText = 'Ficha del Activo';
+                modal.classList.add('active');
+            }
+        }
+
+        function openNoticeModal() {
+            const avisoId = document.getElementById('pin-aviso').value;
+            if (!avisoId) return;
+
+            const modal = document.getElementById('asset-modal');
+            const iframe = document.getElementById('asset-iframe');
+            if (modal && iframe) {
+                const url = `/admin/mantenimiento/aviso/${avisoId}/change/?_popup=1`;
+                iframe.src = url;
+                document.getElementById('modal-title-text').innerText = 'Aviso de Mantenimiento';
                 modal.classList.add('active');
             }
         }
@@ -1522,21 +1742,38 @@
                 if (e.target.id === 'asset-modal') closeAssetModal();
             });
         }
+
+        function openLightbox(src) {
+            const lb = document.getElementById('lightbox-modal');
+            const img = document.getElementById('lightbox-img');
+            img.src = src;
+            lb.classList.add('active');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox-modal').classList.remove('active');
+        }
     </script>
 
-    <!-- Asset Detail Modal -->
+    <!-- Asset/Notice Detail Modal -->
     <div id="asset-modal">
-        <div class="modal-content" style="max-height: 90vh;">
+        <div class="modal-content" style="max-height: 95vh; height: 95vh;">
             <div class="modal-header">
-                <h3><ion-icon name="cube-outline" style="color: var(--primary)"></ion-icon> Ficha del Activo</h3>
+                <h3><ion-icon name="information-circle-outline" style="color: var(--primary)"></ion-icon> <span
+                        id="modal-title-text">Ficha</span></h3>
                 <button class="btn btn-sm" onclick="closeAssetModal()">
                     <ion-icon name="close"></ion-icon>
                 </button>
             </div>
-            <div class="modal-body" style="height: calc(90vh - 60px);">
+            <div class="modal-body" style="height: calc(95vh - 60px);">
                 <iframe id="asset-iframe" src="about:blank"></iframe>
             </div>
         </div>
+    </div>
+    <!-- Lightbox Modal -->
+    <div id="lightbox-modal" onclick="closeLightbox()">
+        <ion-icon name="close" id="lightbox-close" onclick="closeLightbox()"></ion-icon>
+        <img id="lightbox-img" src="" onclick="event.stopPropagation()">
     </div>
 </body>
 
