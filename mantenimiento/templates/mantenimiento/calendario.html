@@ -299,7 +299,7 @@
                             <div class="group-items hidden">
                                 {% for ot in celda.items %}
                                 <span class="cell-event item-child has-tooltip"
-                                    onmouseover="showTooltip(event, '{{ ot.ubicacion }}', '{{ ot.fecha }}', '{{ ot.inicio }}', '{{ ot.fin }}', '{{ ot.estado }}', '{{ ot.id }}')"
+                                    onmouseover="showTooltip(event, '{{ ot.ubicacion }}', '{{ ot.fecha }}', '{{ ot.inicio }}', '{{ ot.fin }}', '{{ ot.estado }}', '{{ ot.id }}', '{{ ot.activos|join:', ' }}')"
                                     onmouseout="hideTooltip()">{{ ot.ubicacion }}</span>
                                 {% endfor %}
                             </div>
@@ -307,7 +307,7 @@
                         {% else %}
                         {% with ot=celda.items.0 %}
                         <span class="cell-event has-tooltip"
-                            onmouseover="showTooltip(event, '{{ ot.ubicacion }}', '{{ ot.fecha }}', '{{ ot.inicio }}', '{{ ot.fin }}', '{{ ot.estado }}', '{{ ot.id }}')"
+                            onmouseover="showTooltip(event, '{{ ot.ubicacion }}', '{{ ot.fecha }}', '{{ ot.inicio }}', '{{ ot.fin }}', '{{ ot.estado }}', '{{ ot.id }}', '{{ ot.activos|join:', ' }}')"
                             onmouseout="hideTooltip()">{{ ot.ubicacion }}</span>
                         {% endwith %}
                         {% endif %}
@@ -329,16 +329,21 @@
         <div class="tooltip-row"><span class="tooltip-label">Fecha:</span> <span id="tt-fec"></span></div>
         <div class="tooltip-row"><span class="tooltip-label">Horario:</span> <span id="tt-hor"></span></div>
         <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span id="tt-est"></span></div>
+        <div class="tooltip-row" style="flex-direction: column; align-items: flex-start; margin-top: 5px;">
+            <span class="tooltip-label">Equipos:</span>
+            <span id="tt-act" style="color: #fff; font-size: 10px; margin-top: 2px;"></span>
+        </div>
     </div>
 
     <script>
         const tooltip = document.getElementById('orderTooltip');
-        function showTooltip(e, ubi, fec, ini, fin, est, id) {
+        function showTooltip(e, ubi, fec, ini, fin, est, id, activos) {
             document.getElementById('tt-ubi').innerText = ubi;
             document.getElementById('tt-id').innerText = '#' + id;
             document.getElementById('tt-fec').innerText = fec;
             document.getElementById('tt-hor').innerText = ini + ' - ' + fin;
             document.getElementById('tt-est').innerText = est;
+            document.getElementById('tt-act').innerText = activos || 'N/A';
             tooltip.style.display = 'block';
             updateTooltipPos(e);
         }

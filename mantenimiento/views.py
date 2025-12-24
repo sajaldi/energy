@@ -19,7 +19,8 @@ def calendario_mantenimiento(request):
         'ubicacion',
         'programacion__horario'
     ).prefetch_related(
-        'programacion__horario__dias'
+        'programacion__horario__dias',
+        'activos'
     ).order_by(
         'rutina__categoria__nombre',
         'rutina__nombre',
@@ -101,6 +102,7 @@ def calendario_mantenimiento(request):
         order_info = {
             'id': ot.id,
             'ubicacion': ot.ubicacion.nombre if ot.ubicacion else "S/A",
+            'activos': [a.nombre for a in ot.activos.all()],
             'inicio': ot.inicio_programado.strftime('%H:%M'),
             'fin': ot.fin_programado.strftime('%H:%M'),
             'fecha': ot.inicio_programado.strftime('%d/%m/%Y'),

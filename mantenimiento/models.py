@@ -2,6 +2,7 @@ from django.db import models
 from datetime import datetime, date, timedelta
 
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 class Categoria(models.Model):
     """
@@ -238,7 +239,7 @@ class Programacion(models.Model):
         verbose_name_plural = "Programaciones"
 
     def __str__(self):
-        return f"Prog: {self.rutina.nombre} ({self.areas.count()} áreas)"
+        return f"Prog: {self.rutina.nombre}"
 
     def generar_ordenes(self):
         """
@@ -275,64 +276,100 @@ class Programacion(models.Model):
         
         fecha_ciclo = self.fecha_inicio
         while fecha_ciclo <= limite:
+            # Inicializar el cursor global para este ciclo de mantenimiento
+            # Esto serializa el trabajo a través de las áreas
+            fecha_actual = fecha_ciclo
             cursor_dt = None
             
             for area in areas_a_programar:
-                # 2. Identificar qué vamos a programar en esta ubicación
-                items_a_programar = [] # Lista de (Ubicacion, Activo o None)
-                
+                # 2. Buscar activos que coincidan con la categoría
+                activos_pendientes = []
                 if cat_activo:
-                    # Buscar activos en esta ubicación que coincidan con la categoría (vía Modelo)
-                    activos_matching = Activo.objects.filter(ubicacion=area, modelo__categoria=cat_activo)
-                    for act in activos_matching:
-                        items_a_programar.append((area, act))
+                    activos_pendientes = list(Activo.objects.filter(ubicacion=area, modelo__categoria=cat_activo))
                 else:
-                    # Si la rutina no tiene categoría de activo, programamos el área completa (legacy)
-                    items_a_programar.append((area, None))
+                    # Si no hay categoría de activo, generamos una orden vacía para el área
+                    activos_pendientes = [None]
 
-                for loc, asset in items_a_programar:
-                    # Buscar el siguiente hueco disponible en el horario para cada item
-                    base_dt = cursor_dt if cursor_dt else datetime.combine(fecha_ciclo, datetime.min.time())
-                    
-                    orden_agendada = False
-                    intentos_dias = 0
-                    while not orden_agendada and intentos_dias < 365:
-                        fecha_actual = base_dt.date()
-                        
+
+                while activos_pendientes:
+                    # 1. Encontrar el siguiente día válido (laboral y sin restricciones)
+                    # Loop de avance de días
+                    while True:
+                        if fecha_actual > limite:
+                            activos_pendientes = [] # Romper loop externo
+                            break
+                            
+                        # Chequear restricciones (feriados, etc)
                         if fecha_actual in restricciones:
-                            base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
-                            intentos_dias += 1
+                            fecha_actual += timedelta(days=1)
+                            cursor_dt = None
                             continue
                             
+                        # Chequear si hay horario para este día de la semana
                         horario_dia = self.horario.dias.filter(dia=fecha_actual.weekday()).first()
                         if not horario_dia:
-                            base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
-                            intentos_dias += 1
+                            fecha_actual += timedelta(days=1)
+                            cursor_dt = None
                             continue
                         
+                        # Si pasa todo, es un día válido
+                        break
+                    
+                    if fecha_actual > limite:
+                        break
+
+                    # 2. Configurar tiempos del día (Timezone Aware)
+                    try:
+                        inicio_laboral = timezone.make_aware(datetime.combine(fecha_actual, horario_dia.hora_inicio))
+                        fin_laboral = timezone.make_aware(datetime.combine(fecha_actual, horario_dia.hora_fin))
+                    except ValueError:
                         inicio_laboral = datetime.combine(fecha_actual, horario_dia.hora_inicio)
                         fin_laboral = datetime.combine(fecha_actual, horario_dia.hora_fin)
+                    
+                    # 3. Determinar hora de inicio de trabajo (cursor vs inicio jornada)
+                    ready_dt = max(cursor_dt, inicio_laboral) if cursor_dt else inicio_laboral
+                    
+                    # 4. Calcular capacidad restante
+                    tiempo_disponible = fin_laboral - ready_dt
+                    
+                    # Si ya no queda tiempo (o el cursor se pasó), avanzar al siguiente día
+                    if tiempo_disponible.total_seconds() <= 0:
+                        fecha_actual += timedelta(days=1)
+                        cursor_dt = None
+                        continue
                         
-                        inicio_propuesto = max(base_dt, inicio_laboral)
-                        fin_propuesto = inicio_propuesto + tiempo_rutina
-                        
-                        if fin_propuesto <= fin_laboral:
-                            OrdenTrabajo.objects.create(
-                                programacion=self,
-                                ubicacion=loc,
-                                activo=asset,
-                                inicio_programado=inicio_propuesto,
-                                fin_programado=fin_propuesto,
-                                rutina=self.rutina,
-                                tipo='PREVENTIVA',
-                                prioridad='MEDIA'
-                            )
-                            cursor_dt = fin_propuesto
-                            ordenes_creadas += 1
-                            orden_agendada = True
-                        else:
-                            base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
-                            intentos_dias += 1
+                    max_activos = int(tiempo_disponible / tiempo_rutina)
+                    
+                    if max_activos <= 0:
+                        # No cabe ni un activo completo, avanzar al siguiente día
+                        fecha_actual += timedelta(days=1)
+                        cursor_dt = None
+                        continue
+
+                    # 5. Tomar lote y Crear Orden
+                    lote = activos_pendientes[:max_activos]
+                    activos_pendientes = activos_pendientes[max_activos:]
+                    
+                    duracion_total = tiempo_rutina * len([a for a in lote if a is not None])
+                    if duracion_total == timedelta(0): duracion_total = tiempo_rutina # Caso preventivo sin activos
+
+                    ot = OrdenTrabajo.objects.create(
+                        programacion=self,
+                        ubicacion=area,
+                        inicio_programado=ready_dt,
+                        fin_programado=ready_dt + duracion_total,
+                        rutina=self.rutina,
+                        tipo='PREVENTIVA',
+                        prioridad='MEDIA'
+                    )
+                    
+                    activos_reales = [a for a in lote if a is not None]
+                    if activos_reales:
+                        ot.activos.set(activos_reales)
+                    
+                    # Avanzar el cursor intra-día
+                    cursor_dt = ready_dt + duracion_total
+                    ordenes_creadas += 1
             
             fecha_ciclo += timedelta(days=frecuencia_dias)
             
@@ -402,7 +439,7 @@ class OrdenTrabajo(models.Model):
     tecnico = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asignadas')
     
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='ordenes_trabajo', null=True, blank=True)
-    activo = models.ForeignKey('activos.Activo', on_delete=models.CASCADE, related_name='ordenes_trabajo', null=True, blank=True)
+    activos = models.ManyToManyField('activos.Activo', related_name='ordenes_trabajo', blank=True)
     programacion = models.ForeignKey(Programacion, on_delete=models.CASCADE, null=True, blank=True, related_name='ordenes')
     planificacion = models.ForeignKey(PlanificacionMensual, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes', verbose_name="Plan Mensual")
     
@@ -424,5 +461,5 @@ class OrdenTrabajo(models.Model):
 
     def __str__(self):
         nombre = self.rutina.nombre if self.rutina else (self.aviso.descripcion[:30] if self.aviso else "OT Correctiva")
-        lugar = self.ubicacion.nombre if self.ubicacion else (self.activo.nombre if self.activo else 'S/U')
+        lugar = self.ubicacion.nombre if self.ubicacion else "S/U"
         return f"{self.tipo[:3]} OT-{self.id}: {nombre} - {lugar} ({self.inicio_programado.date()})"
