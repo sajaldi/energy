@@ -9,7 +9,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 def visor_plano(request, visor_id):
     visor = get_object_or_404(VisorPlano, pk=visor_id)
     # Prefetch activos for performance in the modal
-    activos = Activo.objects.all().select_related('categoria', 'ubicacion').order_by('nombre')
+    activos = Activo.objects.all().select_related('modelo__categoria', 'ubicacion').order_by('nombre')
     
     from .models import Categoria, Ubicacion
     from mantenimiento.models import Aviso
@@ -90,7 +90,8 @@ def guardar_pin(request):
             
             if pin.activo:
                 nombre_label = pin.activo.nombre
-                icono_label = pin.activo.categoria.icono if pin.activo.categoria else 'cube'
+                cat = pin.activo.modelo.categoria if pin.activo.modelo else None
+                icono_label = cat.icono if cat else 'cube'
             elif pin.aviso:
                 nombre_label = f"AV-{pin.aviso.id}"
                 icono_label = "warning"

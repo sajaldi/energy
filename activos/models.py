@@ -98,6 +98,7 @@ class Marca(models.Model):
 class Modelo(models.Model):
     nombre = models.CharField(max_length=100)
     marca = models.ForeignKey(Marca, on_delete=models.CASCADE, related_name='modelos')
+    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, related_name='modelos')
 
     def __str__(self):
         return f"{self.marca} - {self.nombre}"
@@ -122,7 +123,7 @@ class Activo(models.Model):
     modelo_legacy = models.CharField(max_length=100, blank=True, null=True)
     modelo = models.ForeignKey(Modelo, on_delete=models.SET_NULL, null=True, blank=True, related_name='activos')
     
-    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, related_name='activos')
+    # Categoria se movió a Modelo
     
     descripcion = models.TextField(blank=True, null=True)
     

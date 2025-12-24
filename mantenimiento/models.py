@@ -86,7 +86,9 @@ class Frecuencia(models.Model):
 class Rutina(models.Model):
     nombre = models.CharField(max_length=200)
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas', 
-                                  help_text="Categoría de la rutina (puede ser de cualquier nivel)")
+                                  help_text="Clasificación de mantenimiento (ej: Mecánica, Eléctrica)")
+    categoria_activo = models.ForeignKey('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas',
+                                        help_text="Tipo de equipo al que aplica esta rutina (ej: Motores, Bombas)")
     descripcion = models.TextField(blank=True, null=True)
 
     frecuencia = models.ForeignKey(Frecuencia, on_delete=models.SET_NULL, null=True, related_name='rutinas')
@@ -241,35 +243,34 @@ class Programacion(models.Model):
     def generar_ordenes(self):
         """
         Genera órdenes de trabajo secuenciales expandiendo las áreas seleccionadas
-        a todos sus niveles (descendientes) y respetando el tiempo estimado.
+        a todos sus niveles (descendientes) y buscando activos que coincidan con la
+        categoría de la rutina. Crea una orden por cada activo encontrado.
         """
         if self.procesada:
             return 0
             
-        from activos.models import Ubicacion
+        from activos.models import Ubicacion, Activo
         
         limite = self.fecha_fin or (self.fecha_inicio + timedelta(days=365))
         restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
         
-        # 1. Expandir áreas a sus descendientes (niveles)
+        # 1. Expandir áreas a sus descendientes
         areas_iniciales = self.areas.all()
         if not areas_iniciales.exists() or not self.horario:
             return 0
             
-        # Usamos un set para evitar duplicados si hay solapamiento de jerarquías
         todas_las_areas = set()
         for area in areas_iniciales:
-            # Incluir a los descendientes y a sí mismo
             descendientes = area.get_descendants(include_self=True)
             for d in descendientes:
                 todas_las_areas.add(d)
         
-        # Convertir a lista y ordenar por nivel, orden y nombre para cumplir "nivel por nivel"
-        # Usamos getattr por seguridad si el objeto no tiene el atributo level
+        # Ordenar áreas jerárquicamente
         areas_a_programar = sorted(list(todas_las_areas), key=lambda x: (getattr(x, 'level', 0), getattr(x, 'orden', 0), getattr(x, 'nombre', '')))
             
         frecuencia_dias = self.rutina.frecuencia.dias
         tiempo_rutina = self.rutina.tiempo_estimado or timedelta(hours=1)
+        cat_activo = self.rutina.categoria_activo
         ordenes_creadas = 0
         
         fecha_ciclo = self.fecha_inicio
@@ -277,53 +278,61 @@ class Programacion(models.Model):
             cursor_dt = None
             
             for area in areas_a_programar:
-                # Buscar el siguiente hueco disponible en el horario
-                # cursor_dt mantiene la secuencialidad back-to-back dentro del ciclo
-                base_dt = cursor_dt if cursor_dt else datetime.combine(fecha_ciclo, datetime.min.time())
+                # 2. Identificar qué vamos a programar en esta ubicación
+                items_a_programar = [] # Lista de (Ubicacion, Activo o None)
                 
-                orden_agendada = False
-                intentos_dias = 0
-                while not orden_agendada and intentos_dias < 365:
-                    fecha_actual = base_dt.date()
+                if cat_activo:
+                    # Buscar activos en esta ubicación que coincidan con la categoría (vía Modelo)
+                    activos_matching = Activo.objects.filter(ubicacion=area, modelo__categoria=cat_activo)
+                    for act in activos_matching:
+                        items_a_programar.append((area, act))
+                else:
+                    # Si la rutina no tiene categoría de activo, programamos el área completa (legacy)
+                    items_a_programar.append((area, None))
+
+                for loc, asset in items_a_programar:
+                    # Buscar el siguiente hueco disponible en el horario para cada item
+                    base_dt = cursor_dt if cursor_dt else datetime.combine(fecha_ciclo, datetime.min.time())
                     
-                    # Saltar días festivos o restringidos
-                    if fecha_actual in restricciones:
-                        base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
-                        intentos_dias += 1
-                        continue
+                    orden_agendada = False
+                    intentos_dias = 0
+                    while not orden_agendada and intentos_dias < 365:
+                        fecha_actual = base_dt.date()
                         
-                    horario_dia = self.horario.dias.filter(dia=fecha_actual.weekday()).first()
-                    if not horario_dia:
-                        base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
-                        intentos_dias += 1
-                        continue
-                    
-                    inicio_laboral = datetime.combine(fecha_actual, horario_dia.hora_inicio)
-                    fin_laboral = datetime.combine(fecha_actual, horario_dia.hora_fin)
-                    
-                    inicio_propuesto = max(base_dt, inicio_laboral)
-                    fin_propuesto = inicio_propuesto + tiempo_rutina
-                    
-                    if fin_propuesto <= fin_laboral:
-                        OrdenTrabajo.objects.get_or_create(
-                            programacion=self,
-                            ubicacion=area,
-                            inicio_programado=inicio_propuesto,
-                            fin_programado=fin_propuesto,
-                            defaults={
-                                'rutina': self.rutina,
-                                'tipo': 'PREVENTIVA',
-                                'prioridad': 'MEDIA'
-                            }
-                        )
-                        # El cursor_dt se actualiza al fin de esta orden para que la siguiente empiece inmediatamente
-                        cursor_dt = fin_propuesto
-                        ordenes_creadas += 1
-                        orden_agendada = True
-                    else:
-                        # Si no cabe en el día actual, intentar en el siguiente
-                        base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
-                        intentos_dias += 1
+                        if fecha_actual in restricciones:
+                            base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
+                            intentos_dias += 1
+                            continue
+                            
+                        horario_dia = self.horario.dias.filter(dia=fecha_actual.weekday()).first()
+                        if not horario_dia:
+                            base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
+                            intentos_dias += 1
+                            continue
+                        
+                        inicio_laboral = datetime.combine(fecha_actual, horario_dia.hora_inicio)
+                        fin_laboral = datetime.combine(fecha_actual, horario_dia.hora_fin)
+                        
+                        inicio_propuesto = max(base_dt, inicio_laboral)
+                        fin_propuesto = inicio_propuesto + tiempo_rutina
+                        
+                        if fin_propuesto <= fin_laboral:
+                            OrdenTrabajo.objects.create(
+                                programacion=self,
+                                ubicacion=loc,
+                                activo=asset,
+                                inicio_programado=inicio_propuesto,
+                                fin_programado=fin_propuesto,
+                                rutina=self.rutina,
+                                tipo='PREVENTIVA',
+                                prioridad='MEDIA'
+                            )
+                            cursor_dt = fin_propuesto
+                            ordenes_creadas += 1
+                            orden_agendada = True
+                        else:
+                            base_dt = datetime.combine(fecha_actual + timedelta(days=1), datetime.min.time())
+                            intentos_dias += 1
             
             fecha_ciclo += timedelta(days=frecuencia_dias)
             

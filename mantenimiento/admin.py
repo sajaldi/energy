@@ -6,6 +6,7 @@ from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
 from .models import Categoria, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual
+from activos.models import Categoria as CategoriaActivo
 
 class CategoriaResource(resources.ModelResource):
     """
@@ -83,6 +84,7 @@ class CategoriaAdmin(ImportExportModelAdmin):
 class FrecuenciaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'dias')
     ordering = ('dias',)
+    search_fields = ('nombre',)
 
 class RutinaResource(resources.ModelResource):
     """
@@ -108,11 +110,17 @@ class RutinaResource(resources.ModelResource):
         widget=ForeignKeyWidget(Frecuencia, field='nombre')
     )
     
+    categoria_activo_nombre = fields.Field(
+        column_name='categoria_activo_nombre',
+        attribute='categoria_activo',
+        widget=ForeignKeyWidget(CategoriaActivo, field='nombre')
+    )
+
     class Meta:
         model = Rutina
-        fields = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 'frecuencia_nombre', 
-                  'descripcion', 'tiempo_estimado', 'cantidad_tecnicos')
-        export_order = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 
+        fields = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 'categoria_activo_nombre', 
+                  'frecuencia_nombre', 'descripcion', 'tiempo_estimado', 'cantidad_tecnicos')
+        export_order = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 'categoria_activo_nombre', 
                        'frecuencia_nombre', 'tiempo_estimado', 'cantidad_tecnicos', 'descripcion')
         skip_unchanged = True
         report_skipped = True
@@ -132,10 +140,11 @@ class PasoRutinaInline(admin.TabularInline):
 @admin.register(Rutina)
 class RutinaAdmin(ImportExportModelAdmin):
     resource_class = RutinaResource
-    list_display = ('nombre', 'categoria', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos')
-    list_select_related = ('categoria', 'frecuencia')
-    list_filter = ('categoria', 'frecuencia')
+    list_display = ('nombre', 'categoria', 'categoria_activo', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos')
+    list_select_related = ('categoria', 'categoria_activo', 'frecuencia')
+    list_filter = ('categoria', 'categoria_activo', 'frecuencia')
     search_fields = ('nombre', 'descripcion')
+    autocomplete_fields = ('categoria', 'categoria_activo', 'frecuencia')
     inlines = [PasoRutinaInline]
 
 

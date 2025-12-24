@@ -117,14 +117,19 @@ class ModeloResource(resources.ModelResource):
         attribute='marca',
         widget=ForeignKeyWidget(Marca, field='nombre')
     )
+    categoria_nombre = fields.Field(
+        column_name='categoria_nombre',
+        attribute='categoria',
+        widget=ForeignKeyWidget(Categoria, field='nombre')
+    )
 
     class Meta:
         model = Modelo
         # Identificamos por nombre y marca para que si el ID está vacío, 
         # actualice si ya existe esa combinación o cree uno nuevo si no.
         import_id_fields = ('nombre', 'marca_nombre')
-        fields = ('id', 'nombre', 'marca_nombre')
-        export_order = ('id', 'nombre', 'marca_nombre')
+        fields = ('id', 'nombre', 'marca_nombre', 'categoria_nombre')
+        export_order = ('id', 'nombre', 'marca_nombre', 'categoria_nombre')
 
     def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
         if not any(row.values()): return True
@@ -140,9 +145,10 @@ class ModeloResource(resources.ModelResource):
 @admin.register(Modelo)
 class ModeloAdmin(ImportExportModelAdmin):
     resource_class = ModeloResource
-    list_display = ('nombre', 'marca', 'total_activos')
-    list_filter = ('marca',)
-    list_select_related = ('marca',)
+    list_display = ('nombre', 'marca', 'categoria', 'total_activos')
+    list_filter = ('marca', 'categoria')
+    list_select_related = ('marca', 'categoria')
+    autocomplete_fields = ('marca', 'categoria')
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
@@ -150,7 +156,51 @@ class ModeloAdmin(ImportExportModelAdmin):
     def get_export_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
     search_fields = ('nombre', 'marca__nombre')
-    readonly_fields = ('lista_activos_ubicacion',)
+    readonly_fields = ('lista_activos_ubicacion', 'rutinas_aplicables')
+
+    def rutinas_aplicables(self, obj):
+        if not obj.categoria:
+            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
+        
+        from mantenimiento.models import Rutina
+        rutinas = Rutina.objects.filter(categoria_activo=obj.categoria).select_related('frecuencia', 'categoria')
+        
+        if not rutinas.exists():
+            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas de mantenimiento configuradas para la categoría "{0}".</span>', obj.categoria.nombre)
+            
+        html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
+        html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
+        html += '<thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">'
+        html += '<tr>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">Rutina</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Frecuencia</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">HH/Técnicos</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Acción</th>'
+        html += '</tr></thead><tbody>'
+        
+        for r in rutinas:
+            frec_nombre = r.frecuencia.nombre if r.frecuencia else "N/A"
+            hh = r.tiempo_estimado if r.tiempo_estimado else "---"
+            tecs = r.cantidad_tecnicos
+            
+            html += f'<tr style="border-bottom: 1px solid #f1f5f9;">'
+            html += f'<td style="padding: 12px 15px;">'
+            html += f'<div style="font-weight: 600; color: #1e293b;">{r.nombre}</div>'
+            html += f'<div style="font-size: 0.75rem; color: #64748b;">{r.categoria.nombre if r.categoria else "General"}</div>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<span style="background: #eff6ff; color: #2563eb; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 0.75rem;">{frec_nombre}</span>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center; color: #475569;">'
+            html += f'{hh} <br> <small style="color: #94a3b8;">({tecs} Tec.)</small>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<a href="/admin/mantenimiento/rutina/{r.id}/change/" target="_blank" style="background: #f1f5f9; color: #475569; padding: 5px; border-radius: 4px; display: inline-flex; align-items: center; border: 1px solid #e2e8f0; text-decoration: none;">'
+            html += f'<ion-icon name="open-outline" style="font-size: 1rem;"></ion-icon>'
+            html += '</a></td></tr>'
+        
+        html += '</tbody></table></div>'
+        return format_html(html)
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(activos_count=Count('activos'))
@@ -202,7 +252,11 @@ class ModeloAdmin(ImportExportModelAdmin):
 
     fieldsets = (
         ('Información General', {
-            'fields': ('nombre', 'marca')
+            'fields': ('nombre', 'marca', 'categoria')
+        }),
+        ('Mantenimiento Preventivo Sugerido', {
+            'fields': ('rutinas_aplicables',),
+            'description': 'Listado de rutinas que aplican a todos los activos de este modelo basándose en su categoría.'
         }),
         ('Distribución de Activos', {
             'fields': ('lista_activos_ubicacion',),
@@ -236,32 +290,31 @@ class SmartUbicacionWidget(ForeignKeyWidget):
         value_str = str(value).strip()
         resource = kwargs.get('resource')
         
-        # 1. Intentar resolver por Clave Única (Ruta con pipes o flechas) desde caché
-        normalized_val = value_str.replace(' → ', '|')
+        # 1. Normalizar separadores comunes
+        normalized_val = value_str.replace(' → ', '|').replace(' -> ', '|').replace(' > ', '|')
         
+        # 2. Intentar resolver por Clave Única (Ruta Completa) desde caché
         if resource and hasattr(resource, 'ubicacion_clave_cache'):
             if normalized_val in resource.ubicacion_clave_cache:
                 return resource.ubicacion_clave_cache[normalized_val]
         
-        # 2. Intentar resolver por Nombre Simple desde caché
+        # 3. Intentar resolver por Nombre Simple (solo si es único) desde caché
         if resource and hasattr(resource, 'ubicacion_nombre_cache'):
             if value_str in resource.ubicacion_nombre_cache:
                 return resource.ubicacion_nombre_cache[value_str]
 
-        # 3. Fallback: Consulta directa
-        parts = []
-        if '|' in value_str:
-            parts = [p.strip() for p in value_str.split('|')]
-        elif '→' in value_str:
-            parts = [p.strip() for p in value_str.split('→')]
-            
-        if parts:
+        # 4. Fallback: Resolución manual si el caché no lo tiene o el valor tiene jerarquía
+        if '|' in normalized_val:
+            parts = [p.strip() for p in normalized_val.split('|')]
             nombre_final = parts[-1]
             candidatos = Ubicacion.objects.filter(nombre__iexact=nombre_final)
             for cand in candidatos:
-                if cand.get_clave_unica() == normalized_val or cand.get_ruta_completa() == value_str:
+                if cand.get_clave_unica() == normalized_val:
                     return cand
         
+        # Si llegamos aquí y hay jerarquía pero no se encontró, o no hay jerarquía...
+        # Buscamos por nombre, pero si hay múltiples "Nivel 6", devolvemos el primero 
+        # (aunque avisamos implícitamente que la jerarquía es mejor)
         return Ubicacion.objects.filter(nombre__iexact=value_str).first()
 
 class ActivoResource(resources.ModelResource):
@@ -277,8 +330,9 @@ class ActivoResource(resources.ModelResource):
     )
     categoria_nombre = fields.Field(
         column_name='categoria_nombre',
-        attribute='categoria',
-        widget=ForeignKeyWidget(Categoria, field='nombre')
+        attribute='modelo__categoria',
+        widget=ForeignKeyWidget(Categoria, field='nombre'),
+        readonly=True
     )
     ubicacion_nombre = fields.Field(
         column_name='ubicacion_nombre',
@@ -312,17 +366,32 @@ class ActivoResource(resources.ModelResource):
         return [f for f in fields if f in actual_fields and f != 'id']
 
     def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
-        """Ignorar filas vacías"""
+        """Lógica inteligente para decidir si omitir o no una fila"""
+        # 1. Ignorar filas vacías o sin identificador
         if not any(row.values()):
             return True
         if not str(row.get('nombre') or '').strip() and not str(row.get('codigo_interno') or '').strip():
             return True
+
+        # 2. Forzar actualización si cambió el modelo (indirecto)
+        excel_model = str(row.get('modelo_nombre') or '').strip().upper()
+        current_model = original.modelo.nombre.upper() if original and original.modelo else ''
+        if excel_model != current_model:
+            return False
+            
+        # 3. Forzar actualización si cambió la categoría (indirecto via modelo)
+        excel_cat = str(row.get('categoria_nombre') or '').strip().upper()
+        current_cat = original.modelo.categoria.nombre.upper() if original and original.modelo and original.modelo.categoria else ''
+        if excel_cat != current_cat:
+            return False
+            
         return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
 
     def before_import(self, dataset, *args, **kwargs):
-        """Precarga cachés para velocidad y progreso"""
+        """Precarga cachés para velocidad y precisión en jerarquías"""
         from django.core.cache import cache
         from .models import Marca, Modelo, Categoria, Ubicacion
+        from django.db.models import Count
         
         # 0. Inicializar progreso
         user = kwargs.get('user')
@@ -334,13 +403,26 @@ class ActivoResource(resources.ModelResource):
         # 1. Caché Ubicaciones
         self.ubicacion_clave_cache = {}
         self.ubicacion_nombre_cache = {}
+        
+        # Identificar nombres duplicados para evitar ambigüedad en el caché simple
+        nombres_duplicados = set(
+            Ubicacion.objects.values('nombre')
+            .annotate(count=Count('id'))
+            .filter(count__gt=1)
+            .values_list('nombre', flat=True)
+        )
+        
         for loc in Ubicacion.objects.all().select_related('padre'):
+            # Siempre cacheamos la ruta completa (jerarquía)
             self.ubicacion_clave_cache[loc.get_clave_unica()] = loc
-            if loc.nombre not in self.ubicacion_nombre_cache:
+            
+            # Solo cacheamos el nombre simple si NO es un nombre ambiguo (duplicado)
+            if loc.nombre not in nombres_duplicados:
                 self.ubicacion_nombre_cache[loc.nombre] = loc
+        
         self.fields['ubicacion_nombre'].widget.resource = self
 
-        # 2. Caché Marcas/Modelos (Solo los nombres en mayúsculas para búsqueda rápida)
+        # 2. Caché Marcas/Modelos...
         self.marca_cache = {m.nombre.upper(): m for m in Marca.objects.all()}
         self.modelo_cache = {m.nombre.upper(): m for m in Modelo.objects.all().select_related('marca')}
 
@@ -356,18 +438,25 @@ class ActivoResource(resources.ModelResource):
             if percent > 100: percent = 100
             cache.set(f"import_progress_{user.id}", percent, 300)
 
+    def dehydrate_ubicacion_nombre(self, activo):
+        """Exportar la ruta completa para evitar ambigüedad en futuras importaciones"""
+        if activo.ubicacion:
+            return activo.ubicacion.get_ruta_completa()
+        return ""
+
     def before_import_row(self, row, **kwargs):
-        """Auto-creación inteligente de Marcas y Modelos"""
-        from .models import Marca, Modelo
+        """Auto-creación inteligente de Marcas, Modelos y asignación de Categoría"""
+        from .models import Marca, Modelo, Categoria
         
         mod_name = str(row.get('modelo_nombre') or '').strip()
         mar_name = str(row.get('marca_nombre') or '').strip()
+        cat_name = str(row.get('categoria_nombre') or '').strip()
         
         if mod_name:
             mod_key = mod_name.upper()
             mar_key = mar_name.upper()
             
-            # Garantizar Marca
+            # 1. Garantizar Marca
             marca_obj = None
             if mar_name:
                 if mar_key not in self.marca_cache:
@@ -375,18 +464,31 @@ class ActivoResource(resources.ModelResource):
                     self.marca_cache[mar_key] = marca_obj
                 else:
                     marca_obj = self.marca_cache[mar_key]
+            else:
+                marca_obj, _ = Marca.objects.get_or_create(nombre="GENERICO")
             
-            # Garantizar Modelo
+            # 2. Garantizar Categoría
+            cat_obj = None
+            if cat_name:
+                cat_obj, _ = Categoria.objects.get_or_create(nombre=cat_name)
+            
+            # 3. Garantizar Modelo
             if mod_key not in self.modelo_cache:
-                if marca_obj:
-                    mod_obj, _ = Modelo.objects.get_or_create(nombre=mod_name, marca=marca_obj)
-                    self.modelo_cache[mod_key] = mod_obj
-                else:
-                    # Si no hay marca, buscamos una genérica o creamos el modelo sin ella (si fallara la DB diría)
-                    # pero como 'marca' es NOT NULL, creamos una marca genérica "IMPORTADO" si es necesario
-                    marca_gen, _ = Marca.objects.get_or_create(nombre="GENERICO")
-                    mod_obj, _ = Modelo.objects.get_or_create(nombre=mod_name, marca=marca_gen)
-                    self.modelo_cache[mod_key] = mod_obj
+                mod_obj, _ = Modelo.objects.get_or_create(
+                    nombre=mod_name, 
+                    marca=marca_obj,
+                    defaults={'categoria': cat_obj}
+                )
+                # Si ya existía pero sin categoría, o con una distinta, actualizamos
+                if cat_obj and mod_obj.categoria != cat_obj:
+                    mod_obj.categoria = cat_obj
+                    mod_obj.save()
+                self.modelo_cache[mod_key] = mod_obj
+            else:
+                mod_obj = self.modelo_cache[mod_key]
+                if cat_obj and mod_obj.categoria != cat_obj:
+                    mod_obj.categoria = cat_obj
+                    mod_obj.save()
 
     def get_instance(self, instance_loader, row):
         codigo = row.get('codigo_interno')
@@ -404,12 +506,56 @@ class ActivoAdmin(ImportExportModelAdmin):
     def get_export_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
 
-    list_display = ('codigo_interno', 'nombre', 'get_marca', 'modelo', 'serie', 'categoria', 'estado', 'ubicacion', 'responsable')
-    list_filter = ('estado', 'categoria', 'modelo__marca', 'creado_en', 'ubicacion')
-    list_select_related = ('modelo__marca', 'categoria', 'ubicacion', 'responsable')
+    list_display = ('codigo_interno', 'nombre', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'ubicacion', 'responsable')
+    list_filter = ('estado', 'modelo__categoria', 'modelo__marca', 'creado_en', 'ubicacion')
+    list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable')
     search_fields = ('nombre', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
-    autocomplete_fields = ('modelo', 'categoria', 'ubicacion', 'responsable')
-    readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano')
+    autocomplete_fields = ('modelo', 'ubicacion', 'responsable')
+    readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables')
+
+    def rutinas_aplicables(self, obj):
+        if not obj.modelo or not obj.modelo.categoria:
+            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
+        
+        from mantenimiento.models import Rutina
+        rutinas = Rutina.objects.filter(categoria_activo=obj.modelo.categoria).select_related('frecuencia')
+        
+        if not rutinas.exists():
+            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas de mantenimiento configuradas para la categoría "{0}".</span>', obj.modelo.categoria.nombre)
+            
+        html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
+        html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
+        html += '<thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">'
+        html += '<tr>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">Rutina</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Frecuencia</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">HH/Técnicos</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Acción</th>'
+        html += '</tr></thead><tbody>'
+        
+        for r in rutinas:
+            frec_nombre = r.frecuencia.nombre if r.frecuencia else "N/A"
+            hh = r.tiempo_estimado if r.tiempo_estimado else "---"
+            tecs = r.cantidad_tecnicos
+            
+            html += f'<tr style="border-bottom: 1px solid #f1f5f9;">'
+            html += f'<td style="padding: 12px 15px;">'
+            html += f'<div style="font-weight: 600; color: #1e293b;">{r.nombre}</div>'
+            html += f'<div style="font-size: 0.75rem; color: #64748b;">{r.categoria.nombre if r.categoria else "General"}</div>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<span style="background: #eff6ff; color: #2563eb; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 0.75rem;">{frec_nombre}</span>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center; color: #475569;">'
+            html += f'{hh} <br> <small style="color: #94a3b8;">({tecs} Tec.)</small>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<a href="/admin/mantenimiento/rutina/{r.id}/change/" target="_blank" style="background: #f1f5f9; color: #475569; padding: 5px; border-radius: 4px; display: inline-flex; align-items: center; border: 1px solid #e2e8f0; text-decoration: none;">'
+            html += f'<ion-icon name="open-outline" style="font-size: 1rem;"></ion-icon>'
+            html += '</a></td></tr>'
+        
+        html += '</tbody></table></div>'
+        return format_html(html)
 
     def changelist_view(self, request, extra_context=None):
         if request.GET.get('_popup'):
@@ -435,8 +581,9 @@ class ActivoAdmin(ImportExportModelAdmin):
             for activo in queryset:
                 if not activo.ubicacion: continue
                 u_id = str(activo.ubicacion.id)
-                c_id = str(activo.categoria.id) if activo.categoria else "0"
-                c_nombre = activo.categoria.nombre if activo.categoria else "Sin Categoría"
+                cat = activo.modelo.categoria if activo.modelo else None
+                c_id = str(cat.id) if cat else "0"
+                c_nombre = cat.nombre if cat else "Sin Categoría"
                 
                 if u_id not in tree_data:
                     tree_data[u_id] = {}
@@ -466,6 +613,12 @@ class ActivoAdmin(ImportExportModelAdmin):
             
         return super().changelist_view(request, extra_context=extra_context)
     
+    def get_categoria(self, obj):
+        if obj.modelo and obj.modelo.categoria:
+            return obj.modelo.categoria
+        return "---"
+    get_categoria.short_description = 'Categoría'
+
     def get_marca(self, obj):
         if obj.modelo:
             return obj.modelo.marca
@@ -496,13 +649,17 @@ class ActivoAdmin(ImportExportModelAdmin):
 
     fieldsets = (
         ('Identificación', {
-            'fields': ('nombre', 'codigo_interno', 'serie', 'categoria')
+            'fields': ('nombre', 'codigo_interno', 'serie')
         }),
         ('Detalles Técnicos', {
             'fields': ('modelo', 'marca_legacy', 'modelo_legacy', 'descripcion', 'foto')
         }),
         ('Estado y Ubicación', {
             'fields': ('estado', 'ubicacion', 'ubicacion_legacy', 'responsable', 'ver_en_plano')
+        }),
+        ('Mantenimiento Preventivo', {
+            'fields': ('rutinas_aplicables',),
+            'description': 'Rutinas de mantenimiento asociadas automáticamente según la categoría del modelo de este equipo.'
         }),
         ('Información Financiera', {
             'fields': ('fecha_compra', 'costo')
