@@ -879,12 +879,12 @@
                         data-label="{% if pin.activo %}{{ pin.activo.nombre }}{% elif pin.aviso %}AV-{{ pin.aviso.id }}{% else %}Sin asignar{% endif %}"
                         data-color="{{ pin.color }}" data-nota="{{ pin.nota|default:'' }}" data-x="{{ pin.x }}"
                         data-y="{{ pin.y }}"
-                        data-icon="{% if pin.activo %}{{ pin.activo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"
+                        data-icon="{% if pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"
                         data-aviso-meta='{% if pin.aviso %}{"prioridad":"{{ pin.aviso.get_prioridad_display }}","estado":"{{ pin.aviso.get_estado_display }}","solicitante":"{{ pin.aviso.solicitante.username|default:"Anónimo" }}","descripcion":"{{ pin.aviso.descripcion|escapejs }}"}{% else %}{}{% endif %}'
                         data-fotos='[{% for foto in pin.fotos.all %}"{{ foto.imagen.url }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
                         style="left: {{ pin.x }}px; top: {{ pin.y }}px; color: {{ pin.color }}; pointer-events: auto;">
                         <ion-icon
-                            name="{% if pin.activo %}{{ pin.activo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"></ion-icon>
+                            name="{% if pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"></ion-icon>
                     </div>
                     {% endfor %}
                     {% endlocalize %}
@@ -973,7 +973,7 @@
             <select id="pin-activo">
                 <option value="">Seleccione un activo...</option>
                 {% for activo in activos %}
-                <option value="{{ activo.id }}" data-categoria="{{ activo.categoria.id|default:'' }}"
+                <option value="{{ activo.id }}" data-categoria="{{ activo.modelo.categoria.id|default:'' }}"
                     data-ubicacion="{{ activo.ubicacion.id|default:'' }}" data-nombre="{{ activo.nombre|lower }}"
                     data-codigo="{{ activo.codigo_interno|default:''|lower }}">
                     {{ activo.nombre }} ({{ activo.codigo_interno }})
