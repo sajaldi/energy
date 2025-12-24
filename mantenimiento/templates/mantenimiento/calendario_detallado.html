@@ -264,7 +264,8 @@
             <button type="submit"
                 style="padding: 8px 15px; background: var(--excel-red); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Actualizar</button>
             <a href="{% url 'mantenimiento:calendario' %}?year={{ year }}"
-                style="padding: 8px 15px; background: var(--excel-blue); color: white; border-radius: 4px; text-decoration: none; font-size: 13px; font-weight: bold;">Vista General</a>
+                style="padding: 8px 15px; background: var(--excel-blue); color: white; border-radius: 4px; text-decoration: none; font-size: 13px; font-weight: bold;">Vista
+                General</a>
             <button type="button" onclick="window.print()"
                 style="padding: 8px 15px; background: white; border: 1px solid var(--excel-red); color: var(--excel-red); border-radius: 4px; cursor: pointer; font-weight: bold;">Imprimir</button>
         </form>
@@ -309,50 +310,56 @@
             </thead>
             <tbody>
                 {% for d in disciplinas %}
-                <tr class="discipline-row collapsed" id="dis-{{ forloop.counter }}" onclick="toggleSection('dis-{{ forloop.counter }}', this)">
+                <tr class="discipline-row collapsed" id="dis-{{ forloop.counter }}"
+                    onclick="toggleSection('dis-{{ forloop.counter }}', this)">
                     <td class="row-rutina"><span class="toggle-icon"></span> {{ d.nombre }}</td>
                     {% for c in d.celdas_resumen %}
                     <td><span class="summary-mark {% if c.active %}summary-mark-active{% endif %}"></span></td>
                     {% endfor %}
                 </tr>
                 {% for sd in d.subs %}
-                <tr class="subdiscipline-row dis-{{ forloop.parentloop.counter }} collapsed hidden" 
-                    id="sub-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" 
+                <tr class="subdiscipline-row dis-{{ forloop.parentloop.counter }} collapsed hidden"
+                    id="sub-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
                     data-parent="dis-{{ forloop.parentloop.counter }}"
                     onclick="toggleSection('sub-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
-                    <td class="row-rutina" style="padding-left: 30px;"><span class="toggle-icon"></span><strong>{{ sd.nombre }}</strong></td>
+                    <td class="row-rutina" style="padding-left: 30px;"><span class="toggle-icon"></span><strong>{{
+                            sd.nombre }}</strong></td>
                     {% for c in sd.celdas_resumen %}
                     <td><span class="summary-mark {% if c.active %}summary-mark-active{% endif %}"></span></td>
                     {% endfor %}
                 </tr>
                 {% for f in sd.frecuencias %}
-                <tr class="frequency-row dis-{{ forloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }} collapsed hidden" 
-                    id="frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" 
+                <tr class="frequency-row dis-{{ forloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }} collapsed hidden"
+                    id="frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
                     data-parent="sub-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}"
                     onclick="toggleSection('frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
-                    <td class="row-rutina" style="padding-left: 50px;"><span class="toggle-icon"></span><strong>{{ f.nombre }}</strong></td>
+                    <td class="row-rutina" style="padding-left: 50px;"><span class="toggle-icon"></span><strong>{{
+                            f.nombre }}</strong></td>
                     {% for c in f.celdas_resumen %}
                     <td><span class="summary-mark {% if c.active %}summary-mark-active{% endif %}"></span></td>
                     {% endfor %}
                 </tr>
                 {% for r in f.rutinas %}
-                <tr class="rutina-group-row dis-{{ forloop.parentloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }} frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }} collapsed hidden" 
-                    id="rut-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}-{{forloop.counter}}" 
+                <tr class="rutina-group-row dis-{{ forloop.parentloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }} frec-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }} collapsed hidden"
+                    id="rut-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}-{{forloop.counter}}"
                     data-parent="frec-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}"
                     onclick="toggleSection('rut-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}-{{forloop.counter}}', this)">
-                    <td class="row-rutina" style="padding-left: 70px;"><span class="toggle-icon"></span><strong>{{ r.nombre }}</strong></td>
+                    <td class="row-rutina" style="padding-left: 70px;"><span class="toggle-icon"></span><strong>{{
+                            r.nombre }}</strong></td>
                     {% for c in r.celdas_resumen %}
                     <td><span class="summary-mark {% if c.active %}summary-mark-active{% endif %}"></span></td>
                     {% endfor %}
                 </tr>
                 {% for u in r.ubicaciones %}
-                <tr class="location-row dis-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }} frec-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }} rut-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}-{{forloop.parentloop.counter}} hidden" 
+                <tr class="location-row dis-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }} sub-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }} frec-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }} rut-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}-{{forloop.parentloop.counter}} hidden"
                     data-parent="rut-{{forloop.parentloop.parentloop.parentloop.counter}}-{{forloop.parentloop.parentloop.counter}}-{{forloop.parentloop.counter}}-{{forloop.parentloop.counter}}">
                     <td class="location-name">{{ u.nombre }}</td>
                     {% for celda in u.celdas %}
                     <td class="{% if celda.active %}cell-active{% else %}cell-empty{% endif %}">
                         {% if celda.active %}
-                        <span class="cell-x" onmouseover="showTooltip(event, '{{ u.nombre }}', '{{ celda.items.0.fecha }}', '{{ celda.items.0.inicio }}', '{{ celda.items.0.fin }}', '{{ celda.items.0.estado }}', '{{ celda.items.0.id }}')" onmouseout="hideTooltip()">X</span>
+                        <span class="cell-x"
+                            onmouseover="showTooltip(event, '{{ u.nombre }}', '{{ celda.items.0.fecha }}', '{{ celda.items.0.inicio }}', '{{ celda.items.0.fin }}', '{{ celda.items.0.estado }}', '{{ celda.items.0.id }}', '{{ celda.items.0.activos|join:', ' }}')"
+                            onmouseout="hideTooltip()">X</span>
                         {% endif %}
                     </td>
                     {% endfor %}
@@ -372,16 +379,21 @@
         <div class="tooltip-row"><span class="tooltip-label">Fecha:</span> <span id="tt-fec"></span></div>
         <div class="tooltip-row"><span class="tooltip-label">Horario:</span> <span id="tt-hor"></span></div>
         <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span id="tt-est"></span></div>
+        <div class="tooltip-row" style="flex-direction: column; align-items: flex-start; margin-top: 5px;">
+            <span class="tooltip-label">Equipos:</span>
+            <span id="tt-act" style="color: #fff; font-size: 10px; margin-top: 2px;"></span>
+        </div>
     </div>
 
     <script>
         const tooltip = document.getElementById('orderTooltip');
-        function showTooltip(e, ubi, fec, ini, fin, est, id) {
+        function showTooltip(e, ubi, fec, ini, fin, est, id, activos) {
             document.getElementById('tt-ubi').innerText = ubi;
             document.getElementById('tt-id').innerText = '#' + id;
             document.getElementById('tt-fec').innerText = fec;
             document.getElementById('tt-hor').innerText = ini + ' - ' + fin;
             document.getElementById('tt-est').innerText = est;
+            document.getElementById('tt-act').innerText = activos || 'N/A';
             tooltip.style.display = 'block';
             updateTooltipPos(e);
         }
@@ -394,7 +406,7 @@
 
         function toggleSection(selfId, headerElement) {
             const isCollapsing = headerElement.classList.toggle('collapsed');
-            
+
             if (isCollapsing) {
                 // If we are collapsing, hide ALL rows that have this ID in their class (direct and indirect descendants)
                 document.querySelectorAll('.' + selfId).forEach(row => {
@@ -410,7 +422,7 @@
                     row.classList.remove('hidden');
                 });
             }
-            
+
             if (window.event) window.event.stopPropagation();
         }
     </script>

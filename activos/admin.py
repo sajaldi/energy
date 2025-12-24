@@ -266,17 +266,117 @@ class ModeloAdmin(ImportExportModelAdmin):
 
 from import_export.admin import ImportExportModelAdmin, ImportExportMixin
 
+class UbicacionHijaInline(admin.TabularInline):
+    model = Ubicacion
+    fk_name = 'padre'
+    extra = 1
+    verbose_name = "Sub-Ubicación"
+    verbose_name_plural = "Sub-Ubicaciones (Niveles Hijos)"
+    fields = ('render_icon', 'nombre', 'orden', 'total_count', 'descripcion')
+    readonly_fields = ('render_icon', 'total_count')
+    show_change_link = True
+
+    def render_icon(self, obj):
+        return format_html('<div style="font-size: 1.2rem; display: flex; align-items: center; justify-content: center; height: 100%;">📍</div>')
+    render_icon.short_description = 'Tipo'
+
+    def total_count(self, obj):
+        if not obj.pk:
+            return format_html('<span style="color: #94a3b8; font-size: 0.7rem;">(Pendiente)</span>')
+        count = obj.activos.count()
+        if count == 0:
+            return format_html('<span style="color: #cbd5e1; font-size: 0.75rem;">Vacío</span>')
+        return format_html(
+            '<div style="background: #eff6ff; color: #2563eb; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; display: inline-block; border: 1px solid #dbeafe;">'
+            '{} EQUIPOS'
+            '</div>', count
+        )
+    total_count.short_description = 'Equipos'
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if db_field.name == 'nombre':
+            formfield.widget.attrs.update({'style': 'width: 250px;'})
+        elif db_field.name == 'orden':
+            formfield.widget.attrs.update({'style': 'width: 60px;'})
+        elif db_field.name == 'descripcion':
+            from django.forms import TextInput
+            formfield.widget = TextInput(attrs={'style': 'width: 100%; min-width: 300px;', 'placeholder': 'Opcional...'})
+        return formfield
+
 @admin.register(Ubicacion)
 class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     """
-    Admin para ubicaciones jerárquicas con estructura simple.
+    Admin para ubicaciones jerárquicas con estructura premium.
     """
     resource_class = UbicacionResource
-    list_display = ('nombre', 'padre', 'orden', 'descripcion')
+    list_display = ('nombre_con_indentacion', 'padre', 'orden', 'total_hijos', 'total_activos')
+    list_display_links = ('nombre_con_indentacion',)
     list_editable = ('orden',)
     search_fields = ('nombre',)
     list_filter = ('padre',)
     autocomplete_fields = ('padre',)
+    inlines = [UbicacionHijaInline]
+
+    class Media:
+        css = {
+            'all': (
+                'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap',
+                # CSS inyectado para ajustar anchos de columnas del inline
+                'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css',
+            )
+        }
+        js = ('https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js', 
+              'https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js')
+
+    # Añadimos un pequeño hack de CSS inline para el admin
+    def get_inline_instances(self, request, obj=None):
+        from django.utils.safestring import mark_safe
+        # Inyectamos estilos directamente en el encabezado mediante un truco de admin
+        # para forzar anchos de tabla del inline
+        request._inline_css = mark_safe("""
+            <style>
+                .inline-group .tabular td.column-render_icon { width: 50px !important; text-align: center; }
+                .inline-group .tabular td.column-orden { width: 80px !important; }
+                .inline-group .tabular td.column-total_count { width: 120px !important; white-space: nowrap; }
+                .inline-group .tabular td.column-nombre { width: 300px !important; }
+                .inline-group fieldset { border: none !important; border-top: 1px solid #eee !important; }
+            </style>
+        """)
+        return super().get_inline_instances(request, obj)
+
+    def nombre_con_indentacion(self, obj):
+        level = obj.level
+        indent = level * 20
+        icon = "🏢" if level == 0 else "↳"
+        color = "#1e293b" if level == 0 else "#64748b"
+        weight = "700" if level == 0 else "400"
+        
+        return format_html(
+            '<div style="text-indent: {0}px; color: {1}; font-weight: {2}; display: flex; align-items: center;">'
+            '<span style="margin-right: 8px; opacity: 0.6; font-style: normal;">{3}</span> {4}'
+            '</div>',
+            indent, color, weight, icon, obj.nombre
+        )
+    nombre_con_indentacion.short_description = 'Ubicación'
+
+    def total_hijos(self, obj):
+        count = obj.sub_ubicaciones.count()
+        if count == 0:
+            return format_html('<span style="color: #cbd5e1; font-size: 0.8rem;">Vacio</span>')
+        return format_html('<span style="background: #f1f5f9; color: #475569; padding: 2px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem;">{} sub-niveles</span>', count)
+    total_hijos.short_description = 'Estructura'
+
+    def total_activos(self, obj):
+        # Contar activos en esta ubicación y todas sus descendientes
+        from .models import Activo
+        ubicaciones_ids = obj.get_descendants().values_list('id', flat=True)
+        total = Activo.objects.filter(ubicacion_id__in=ubicaciones_ids).count()
+        
+        if total == 0:
+            return format_html('<span style="color: #cbd5e1; font-size: 0.8rem;">Sin equipos</span>')
+        return format_html('<span style="background: #eff6ff; color: #1d4ed8; padding: 2px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem;">{} equipos</span>', total)
+    total_activos.short_description = 'Carga de Activos'
 
 
 class SmartUbicacionWidget(ForeignKeyWidget):
@@ -360,10 +460,23 @@ class ActivoResource(resources.ModelResource):
         batch_size = 500
 
     def get_bulk_update_fields(self):
-        """Evita Fallos con Campos Virtuales en Bulk Update"""
-        actual_fields = [f.name for f in self._meta.model._meta.get_fields()]
-        fields = super().get_bulk_update_fields()
-        return [f for f in fields if f in actual_fields and f != 'id']
+        """Mapea nombres de campos del Resource a atributos reales del Modelo para Bulk Update"""
+        actual_fields = {f.name for f in self._meta.model._meta.get_fields()}
+        resource_fields = self.get_fields()
+        
+        update_fields = set()
+        for f_name in super().get_bulk_update_fields():
+            # Buscar el campo en el resource para ver qué atributo de modelo impacta
+            res_field = next((rf for rf in resource_fields if rf.attribute and rf.column_name == f_name or rf.attribute == f_name), None)
+            
+            attr = res_field.attribute if res_field else f_name
+            # Manejar atributos anidados (ej: modelo__nombre -> solo nos interesa 'modelo')
+            base_attr = attr.split('__')[0] if attr else None
+            
+            if base_attr in actual_fields and base_attr != 'id':
+                update_fields.add(base_attr)
+                
+        return list(update_fields)
 
     def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
         """Lógica inteligente para decidir si omitir o no una fila"""

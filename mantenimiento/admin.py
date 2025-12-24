@@ -177,10 +177,14 @@ class RestriccionCalendarioAdmin(admin.ModelAdmin):
 class OrdenTrabajoInline(admin.TabularInline):
     model = OrdenTrabajo
     extra = 0
-    raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'activo', 'programacion')
-    fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'activo', 'tecnico', 'inicio_programado', 'estado')
-    readonly_fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'activo', 'inicio_programado')
+    raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion')
+    fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'tecnico', 'inicio_programado', 'estado')
+    readonly_fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'inicio_programado')
     can_delete = True
+    
+    def get_activos_list(self, obj):
+        return ", ".join([a.nombre for a in obj.activos.all()])
+    get_activos_list.short_description = "Activos"
 
 @admin.register(PlanificacionMensual)
 class PlanificacionMensualAdmin(admin.ModelAdmin):
@@ -308,12 +312,13 @@ class AvisoAdmin(admin.ModelAdmin):
                 prioridad=aviso.prioridad,
                 aviso=aviso,
                 ubicacion=aviso.ubicacion,
-                activo=aviso.activo,
                 inicio_programado=aviso.creado_en, 
                 fin_programado=aviso.creado_en + timedelta(hours=2),
                 notas=aviso.descripcion,
                 estado='PROGRAMADA'
             )
+            if aviso.activo:
+                ot.activos.add(aviso.activo)
             aviso.estado = 'PROCESO'
             aviso.save()
             count += 1
@@ -323,13 +328,21 @@ class AvisoAdmin(admin.ModelAdmin):
 
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'activo', 'tecnico', 'estado')
+    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'estado')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico')
-    list_select_related = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'activo', 'programacion')
-    search_fields = ('rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activo__nombre', 'notas')
-    autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'activo', 'programacion')
+    list_select_related = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
+    search_fields = ('rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
+    autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
     date_hierarchy = 'inicio_programado'
-    raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'activo', 'programacion')
+    raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
+    filter_horizontal = ('activos',)
+
+    def get_activos_format(self, obj):
+        count = obj.activos.count()
+        if count == 0: return "-"
+        if count == 1: return obj.activos.first().nombre
+        return f"{count} activos"
+    get_activos_format.short_description = 'Activos'
 
     def get_descripcion(self, obj):
         if obj.rutina:
