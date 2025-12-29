@@ -1,0 +1,178 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Documentos Firmados{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .lista-container {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2rem;
+    }
+
+    .documento-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s;
+    }
+
+    .documento-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .documento-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1rem;
+    }
+
+    .estado-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .estado-pendiente {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .estado-parcial {
+        background: #cfe2ff;
+        color: #084298;
+    }
+
+    .estado-completo {
+        background: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .estado-rechazado {
+        background: #f8d7da;
+        color: #842029;
+    }
+
+    .firmas-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .firma-mini {
+        background: #f8f9fa;
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+
+    .firma-mini.firmada {
+        border-left: 4px solid #28a745;
+    }
+
+    .firma-mini.pendiente {
+        border-left: 4px solid #ffc107;
+    }
+
+    .firma-mini.rechazada {
+        border-left: 4px solid #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lista-container">
+    <div class="page-header">
+        <h1>📋 Gestión de Documentos Firmados</h1>
+        <p>Todos los documentos con firmas electrónicas</p>
+    </div>
+
+    {% for doc in documentos %}
+    <div class="documento-card">
+        <div class="documento-header">
+            <div>
+                <h2 style="margin: 0 0 0.5rem 0;">{{ doc.documento.codigo }}</h2>
+                <p style="margin: 0; color: #7f8c8d;">{{ doc.documento.titulo }}</p>
+            </div>
+            <div class="estado-badge estado-{{ doc.estado|lower }}">
+                {% if doc.estado == 'COMPLETO' %}✅{% elif doc.estado == 'RECHAZADO' %}❌{% elif doc.estado == 'PARCIAL'
+                %}📝{% else %}⏳{% endif %}
+                {{ doc.get_estado_display }}
+            </div>
+        </div>
+
+        <h4>Firmas:</h4>
+        <div class="firmas-grid">
+            {% for firma_req in doc.firmas_requeridas.all %}
+            <div
+                class="firma-mini {% if firma_req.firma_aplicada.firmado %}firmada{% elif firma_req.firma_aplicada.rechazado %}rechazada{% else %}pendiente{% endif %}">
+                <div>
+                    {% if firma_req.firma_aplicada.firmado %}✅{% elif firma_req.firma_aplicada.rechazado %}❌{% else
+                    %}⏳{% endif %}
+                    <strong>{{ firma_req.firmante.get_full_name }}</strong>
+                </div>
+                {% if firma_req.rol %}
+                <div style="font-size: 0.8rem; color: #7f8c8d;">{{ firma_req.rol }}</div>
+                {% endif %}
+                {% if firma_req.firma_aplicada.firmado %}
+                <div style="font-size: 0.75rem; color: #28a745; margin-top: 0.25rem;">
+                    {{ firma_req.firma_aplicada.fecha_firma|date:"d/m/Y H:i" }}
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <p style="color: #95a5a6;">Sin firmantes asignados</p>
+            {% endfor %}
+        </div>
+
+        <!-- Botones de acción para PDFs -->
+        {% if doc.estado == 'COMPLETO' %}
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #ecf0f1;">
+            <h4 style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.75rem;">📄 Documento Firmado:</h4>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <a href="{% url 'firmas:ver_pdf_firmado' doc.id %}" target="_blank"
+                    style="padding: 0.5rem 1rem; background: #3498db; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600;">
+                    👁️ Ver PDF
+                </a>
+                <a href="{% url 'firmas:descargar_pdf_firmado' doc.id %}"
+                    style="padding: 0.5rem 1rem; background: #27ae60; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600;">
+                    📥 Descargar PDF
+                </a>
+                {% if not doc.pdf_firmado %}
+                <a href="{% url 'firmas:generar_pdf_firmado' doc.id %}"
+                    style="padding: 0.5rem 1rem; background: #9b59b6; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600;">
+                    🔨 Generar PDF
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div style="text-align: center; padding: 4rem; background: white; border-radius: 12px;">
+        <div style="font-size: 5rem; opacity: 0.5;">📄</div>
+        <h2 style="color: #7f8c8d;">No hay documentos para firmar</h2>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

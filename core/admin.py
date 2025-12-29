@@ -18,8 +18,26 @@ from django.db import transaction
 from .models import (
     Consumo, InterfaceConsumo, Medidor, PuntoMedicion, Equipo,
     CaracteristicaMedicion, CategoriaPuntoMedicion, DocumentoMedicion, RangoMedicion, TipoMedidor, UnidadMedida, VistaConsumoDiferencia,
-    Servicio, KPI, PerfilUsuario
+    Servicio, KPI, PerfilUsuario, ConfiguracionUI
 )
+
+@admin.register(ConfiguracionUI)
+class ConfiguracionUIAdmin(admin.ModelAdmin):
+    fieldsets = (
+        ('General', {
+            'fields': ('titulo_proyecto', 'color_primario', 'color_secundario')
+        }),
+        ('Matriz de Mantenimiento', {
+            'fields': ('matriz_header_bg', 'matriz_header_text', 'matriz_border_color', 'matriz_hover_row', 'matriz_hover_cell')
+        }),
+        ('Órdenes de Trabajo', {
+            'fields': ('orden_preventiva_bg', 'orden_correctiva_bg', 'orden_texto')
+        }),
+    )
+
+    def has_add_permission(self, request):
+        # Only allow adding if there is no config yet
+        return not ConfiguracionUI.objects.exists()
 
 @admin.register(PerfilUsuario)
 class PerfilUsuarioAdmin(admin.ModelAdmin):

@@ -1,5 +1,6 @@
 from django.db import models
 from colorfield.fields import ColorField
+from .models_config import ConfiguracionUI
 
 class TipoMedidor(models.Model):
     """Representa un tipo de medidor."""

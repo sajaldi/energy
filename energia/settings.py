@@ -36,6 +36,10 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena '
 # Los valores de ngrok y sslip.io son para desarrollo/pruebas.
 ALLOWED_HOSTS = ['*']
 
+# URL base para el sitio (usada para generar links en PDFs de firmas)
+# En producción, configurar esto como variable de entorno o poner el dominio real
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
+
 # Si vas a usar una IP específica o dominio en Coolify, agrégala aquí.
 # Por ejemplo, si tu Coolify tiene un IP público o un dominio personalizado.
 # ALLOWED_HOSTS = ['vwgkccc84sowck4wg44gk40g.10.30.1.11.sslip.io', 'your_coolify_ip', 'localhost', '127.0.0.1','181.115.47.107']
@@ -100,6 +104,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.ui_config',
             ],
         },
     },

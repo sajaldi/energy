@@ -27,7 +27,7 @@ class RevisionInline(admin.TabularInline):
 
 @admin.register(Documento)
 class DocumentoAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'titulo', 'tipo_documento', 'disciplina', 'estado_actual', 'get_ultima_revision_info')
+    list_display = ('codigo', 'titulo', 'tipo_documento', 'disciplina', 'estado_actual', 'get_ultima_revision_info', 'solicitar_firmas_link')
     list_filter = ('tipo_documento', 'disciplina', 'estado_actual')
     search_fields = ('codigo', 'titulo', 'revisiones__comentarios')
     
@@ -65,6 +65,16 @@ class DocumentoAdmin(admin.ModelAdmin):
             )
         return "Sin Versión"
     get_ultima_revision_info.short_description = "Versión Actual"
+    
+    def solicitar_firmas_link(self, obj):
+        """Link para solicitar firmas para este documento"""
+        from django.urls import reverse
+        url = reverse('firmas:solicitar_firmas', args=[obj.pk])
+        return format_html(
+            '<a class="button" href="{}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600;">🖊️ Solicitar Firmas</a>',
+            url
+        )
+    solicitar_firmas_link.short_description = "Firmas"
 
 @admin.register(TipoDocumento)
 class TipoDocumentoAdmin(admin.ModelAdmin):
@@ -80,3 +90,7 @@ class RevisionAdmin(admin.ModelAdmin):
     list_filter = ('fecha_revision', 'creado_por')
     search_fields = ('documento__codigo',)
     date_hierarchy = 'fecha_revision'
+
+# Importar y registrar admins del sistema de firmas
+from . import admin_firmas
+

@@ -1,0 +1,546 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Mi Firma Electrónica{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .firma-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 2rem;
+    }
+
+    .firma-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .firma-header {
+        border-bottom: 3px solid #2c3e50;
+        padding-bottom: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .firma-header h1 {
+        color: #2c3e50;
+        font-size: 2rem;
+        margin: 0;
+    }
+
+    .tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+        border-bottom: 2px solid #ecf0f1;
+    }
+
+    .tab-btn {
+        padding: 1rem 2rem;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #7f8c8d;
+        transition: all 0.3s;
+    }
+
+    .tab-btn.active {
+        color: #3498db;
+        border-bottom-color: #3498db;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    /* Canvas de firma manuscrita */
+    #canvas-firma {
+        border: 2px solid #bdc3c7;
+        border-radius: 8px;
+        cursor: crosshair;
+        background: white;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .canvas-container {
+        text-align: center;
+        margin: 2rem 0;
+    }
+
+    .canvas-controls {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        background: #95a5a6;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #7f8c8d;
+    }
+
+    .btn-danger {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c0392b;
+    }
+
+    /* Upload de imagen */
+    .upload-area {
+        border: 3px dashed #bdc3c7;
+        border-radius: 12px;
+        padding: 3rem;
+        text-align: center;
+        transition: all 0.3s;
+        background: #f8f9fa;
+    }
+
+    .upload-area:hover {
+        border-color: #3498db;
+        background: #ebf5fb;
+    }
+
+    .upload-area.dragover {
+        border-color: #2ecc71;
+        background: #e8f8f5;
+    }
+
+    .upload-icon {
+        font-size: 4rem;
+        color: #3498db;
+        margin-bottom: 1rem;
+    }
+
+    .upload-text {
+        font-size: 1.1rem;
+        color: #34495e;
+        margin-bottom: 1rem;
+    }
+
+    .file-input-label {
+        display: inline-block;
+        padding: 0.75rem 2rem;
+        background: #3498db;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .file-input-label:hover {
+        background: #2980b9;
+        transform: translateY(-2px);
+    }
+
+    #file-input {
+        display: none;
+    }
+
+    /* Vista previa */
+    .preview-container {
+        margin: 2rem 0;
+        padding: 2rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .preview-container img {
+        max-width: 400px;
+        max-height: 200px;
+        border: 2px solid #bdc3c7;
+        border-radius: 8px;
+        background: white;
+        padding: 1rem;
+    }
+
+    .info-box {
+        background: #e8f4f8;
+        border-left: 4px solid #3498db;
+        padding: 1rem;
+        border-radius: 6px;
+        margin: 1rem 0;
+    }
+
+    .info-box h3 {
+        margin-top: 0;
+        color: #2980b9;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #bdc3c7;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #3498db;
+    }
+
+    .success-message {
+        background: #d4edda;
+        color: #155724;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #28a745;
+    }
+
+    .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="firma-container">
+    <div class="firma-card">
+        <div class="firma-header">
+            <h1>🖊️ Mi Firma Electrónica</h1>
+            <p>Configura tu firma para firmar documentos de forma digital y segura</p>
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="{% if message.tags == 'success' %}success-message{% else %}error-message{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="info-box">
+            <h3>📋 Información Personal</h3>
+            <form method="post" id="form-metadatos">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Nombre Completo</label>
+                    <input type="text" value="{{ user.get_full_name }}" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Cargo</label>
+                    <input type="text" name="cargo" id="cargo" value="{{ perfil.cargo }}"
+                        placeholder="Ej: Gerente de Ingeniería">
+                </div>
+                <div class="form-group">
+                    <label>Departamento</label>
+                    <input type="text" name="departamento" id="departamento" value="{{ perfil.departamento }}"
+                        placeholder="Ej: Ingeniería">
+                </div>
+            </form>
+        </div>
+
+        <!-- Vista previa de firma actual -->
+        {% if perfil.firma_imagen %}
+        <div class="preview-container">
+            <h3>Firma Actual</h3>
+            <img src="{{ perfil.firma_imagen.url }}" alt="Mi Firma">
+            <p><small>Última actualización: {{ perfil.actualizada_en|date:"d/m/Y H:i" }}</small></p>
+        </div>
+        {% endif %}
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="manuscrita">
+                ✍️ Firma Manuscrita
+            </button>
+            <button class="tab-btn" data-tab="subir">
+                📤 Subir Imagen PNG
+            </button>
+        </div>
+
+        <!-- Tab 1: Firma Manuscrita -->
+        <div id="tab-manuscrita" class="tab-content active">
+            <h2>Dibuja tu Firma</h2>
+            <p>Usa el mouse o pantalla táctil para dibujar tu firma</p>
+
+            <div class="canvas-container">
+                <canvas id="canvas-firma" width="600" height="200"></canvas>
+            </div>
+
+            <div class="canvas-controls">
+                <button class="btn btn-secondary" id="btn-limpiar">
+                    🗑️ Limpiar
+                </button>
+                <button class="btn btn-primary" id="btn-guardar-manuscrita">
+                    💾 Guardar Firma
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab 2: Subir PNG -->
+        <div id="tab-subir" class="tab-content">
+            <h2>Sube tu Firma en PNG</h2>
+            <p>Sube una imagen de tu firma (PNG con fondo transparente recomendado)</p>
+
+            <form method="post" enctype="multipart/form-data" id="form-upload">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="subir_imagen">
+
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">
+                        Arrastra tu imagen aquí o haz clic para seleccionar
+                    </div>
+                    <label for="file-input" class="file-input-label">
+                        Seleccionar Archivo
+                    </label>
+                    <input type="file" id="file-input" name="firma_imagen" accept="image/png,image/jpeg">
+                </div>
+
+                <div id="preview-upload" class="preview-container" style="display:none;">
+                    <h3>Vista Previa</h3>
+                    <img id="preview-img" src="" alt="Preview">
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem;">
+                    <button type="submit" class="btn btn-primary">
+                        💾 Guardar Firma
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // ===== TABS =====
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+
+                tabBtns.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+
+                btn.classList.add('active');
+                document.getElementById('tab-' + tab).classList.add('active');
+            });
+        });
+
+        // ===== CANVAS FIRMA MANUSCRITA =====
+        const canvas = document.getElementById('canvas-firma');
+        const ctx = canvas.getContext('2d');
+        let dibujando = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        // Configuración del canvas
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        function iniciarDibujo(e) {
+            dibujando = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+        }
+
+        function dibujar(e) {
+            if (!dibujando) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            lastX = x;
+            lastY = y;
+        }
+
+        function terminarDibujo() {
+            dibujando = false;
+        }
+
+        canvas.addEventListener('mousedown', iniciarDibujo);
+        canvas.addEventListener('mousemove', dibujar);
+        canvas.addEventListener('mouseup', terminarDibujo);
+        canvas.addEventListener('mouseout', terminarDibujo);
+
+        // Touch events para móvil
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const mouseEvent = new MouseEvent('mouseup', {});
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        // Limpiar canvas
+        document.getElementById('btn-limpiar').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+
+        // Guardar firma manuscrita
+        document.getElementById('btn-guardar-manuscrita').addEventListener('click', async () => {
+            const firmaData = canvas.toDataURL('image/png');
+
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            formData.append('accion', 'guardar_manuscrita');
+            formData.append('firma_data', firmaData);
+            formData.append('cargo', document.getElementById('cargo').value);
+            formData.append('departamento', document.getElementById('departamento').value);
+
+            try {
+                const response = await fetch('{% url "firmas:perfil_firma" %}', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Firma guardada exitosamente');
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + (data.error || 'No se pudo guardar la firma'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Error de conexión');
+            }
+        });
+
+        // ===== UPLOAD PNG =====
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const previewUpload = document.getElementById('preview-upload');
+        const previewImg = document.getElementById('preview-img');
+
+        // Drag & Drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                mostrarPreview(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                mostrarPreview(e.target.files[0]);
+            }
+        });
+
+        function mostrarPreview(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                previewUpload.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Añadir cargo y departamento al form de upload
+        document.getElementById('form-upload').addEventListener('submit', function (e) {
+            const cargoInput = document.createElement('input');
+            cargoInput.type = 'hidden';
+            cargoInput.name = 'cargo';
+            cargoInput.value = document.getElementById('cargo').value;
+            this.appendChild(cargoInput);
+
+            const deptoInput = document.createElement('input');
+            deptoInput.type = 'hidden';
+            deptoInput.name = 'departamento';
+            deptoInput.value = document.getElementById('departamento').value;
+            this.appendChild(deptoInput);
+        });
+    });
+</script>
+{% endblock %}
