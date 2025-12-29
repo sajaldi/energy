@@ -1,0 +1,224 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Solicitar Firmas{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .solicitud-container {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        margin: 0 0 0.5rem 0;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 2rem;
+    }
+
+    .documento-info {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .firmantes-panel {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .firmante-item {
+        background: #f8f9fa;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #3498db;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #95a5a6;
+        color: white;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-group select,
+    .form-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #dee2e6;
+        border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="solicitud-container">
+    <div class="page-header">
+        <h1>📝 Solicitar Firmas para Documento</h1>
+        <p>Configura quiénes deben firmar este documento</p>
+    </div>
+
+    <div class="content-grid">
+        <div class="documento-info">
+            <h2>📄 Información del Documento</h2>
+            <p><strong>Código:</strong> {{ documento.codigo }}</p>
+            <p><strong>Título:</strong> {{ documento.titulo }}</p>
+            <p><strong>Tipo:</strong> {{ documento.tipo_documento }}</p>
+            {% if documento.ultima_revision %}
+            <p><strong>Revisión:</strong> {{ documento.ultima_revision.revision }}</p>
+            {% endif %}
+
+            <h3 style="margin-top: 2rem;">➕ Agregar Firmante</h3>
+            <div class="form-group">
+                <label>Usuario</label>
+                <select id="usuario-select">
+                    <option value="">Seleccionar usuario...</option>
+                    {% for usuario in usuarios %}
+                    <option value="{{ usuario.id }}">{{ usuario.get_full_name }} ({{ usuario.username }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Rol</label>
+                <input type="text" id="rol-input" placeholder="Ej: Elaboró, Revisó, Aprobó">
+            </div>
+
+            <button class="btn btn-primary" onclick="agregarFirmante()">
+                ➕ Agregar Firmante
+            </button>
+        </div>
+
+        <div class="firmantes-panel">
+            <h3>👥 Firmantes ({{ firmas_requeridas.count }})</h3>
+            <div id="lista-firmantes">
+                {% for firma_req in firmas_requeridas %}
+                <div class="firmante-item">
+                    <strong>{{ firma_req.firmante.get_full_name }}</strong><br>
+                    <small>{{ firma_req.rol }}</small>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="enviarSolicitud()">
+                💾 Guardar y Solicitar Firmas
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let firmantes = [];
+
+    function agregarFirmante() {
+        const selectUsuario = document.getElementById('usuario-select');
+        const rolInput = document.getElementById('rol-input');
+
+        if (!selectUsuario.value) {
+            alert('Selecciona un usuario');
+            return;
+        }
+
+        const firmante = {
+            usuario_id: selectUsuario.value,
+            usuario_nombre: selectUsuario.options[selectUsuario.selectedIndex].text,
+            rol: rolInput.value,
+            x: 10,
+            y: 80,
+            pagina: 1,
+            ancho: 15,
+            alto: 8,
+            obligatoria: true
+        };
+
+        firmantes.push(firmante);
+        actualizarLista();
+
+        selectUsuario.value = '';
+        rolInput.value = '';
+    }
+
+    function actualizarLista() {
+        const lista = document.getElementById('lista-firmantes');
+        lista.innerHTML = firmantes.map((f, idx) => `
+        <div class="firmante-item">
+            <strong>${f.usuario_nombre}</strong><br>
+            <small>${f.rol || 'Sin rol especificado'}</small>
+            <button onclick="eliminarFirmante(${idx})" style="float: right; background: #e74c3c; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer;">❌</button>
+        </div>
+    `).join('');
+    }
+
+    function eliminarFirmante(idx) {
+        firmantes.splice(idx, 1);
+        actualizarLista();
+    }
+
+    async function enviarSolicitud() {
+        if (firmantes.length === 0) {
+            alert('Debes agregar al menos un firmante');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        formData.append('firmantes', JSON.stringify(firmantes));
+
+        try {
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                alert('✅ Solicitud de firmas creada exitosamente');
+                window.location.href = '{% url "firmas:lista_documentos_firmados" %}';
+            } else {
+                alert('❌ Error al crear la solicitud');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('❌ Error de conexión');
+        }
+    }
+</script>
+{% endblock %}

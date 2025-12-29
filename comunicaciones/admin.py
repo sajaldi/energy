@@ -11,7 +11,7 @@ class DestinatarioInline(admin.TabularInline):
 class AdjuntoInline(admin.TabularInline):
     model = AdjuntoComunicado
     extra = 1
-    autocomplete_fields = ['documento_revision']
+    autocomplete_fields = ['documento_revision', 'activo']
 
 @admin.register(TipoComunicado)
 class TipoComunicadoAdmin(admin.ModelAdmin):

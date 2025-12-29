@@ -10,6 +10,10 @@ urlpatterns = [
     path('', include('core.urls', namespace='core')),
     path('activos/', include('activos.urls', namespace='activos')),
     path('mantenimiento/', include('mantenimiento.urls', namespace='mantenimiento')),
+    # Sistema de firmas electrónicas
+    path('firmas/', include('documentos.urls_firmas', namespace='firmas')),
+    # Sistema de comunicaciones (Transmittals)
+    path('comunicaciones/', include('comunicaciones.urls', namespace='comunicaciones')),
 ]
 
 if settings.DEBUG:

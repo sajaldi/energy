@@ -129,3 +129,12 @@ class Revision(models.Model):
         if not self.documento.ultima_revision or self.creado_en >= self.documento.ultima_revision.creado_en:
              self.documento.ultima_revision = self
              self.documento.save()
+
+# Importar modelos del sistema de firmas electrónicas
+from .models_firmas import (
+    PerfilFirma,
+    DocumentoFirmado,
+    FirmaRequerida,
+    Firma,
+    AuditoriaFirmas
+)

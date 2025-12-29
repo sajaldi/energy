@@ -1,0 +1,159 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Transmittals{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .transmittal-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        color: #2c3e50;
+        border-bottom: 2px solid #ecf0f1;
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .transmittal-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border-left: 5px solid #3498db;
+        transition: transform 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .transmittal-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .transmittal-card.recibido {
+        border-left-color: #27ae60;
+    }
+
+    .meta-info {
+        font-size: 0.85rem;
+        color: #7f8c8d;
+        margin-bottom: 0.25rem;
+    }
+
+    .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem 0;
+        color: #2c3e50;
+    }
+
+    .badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+
+    .badge-enviado {
+        background: #e3f2fd;
+        color: #1565c0;
+    }
+
+    .badge-recibido {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .btn-view {
+        background: #f8f9fa;
+        color: #2c3e50;
+        border: 1px solid #dee2e6;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .btn-view:hover {
+        background: #e2e6ea;
+        color: #1a252f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="transmittal-container">
+    <div class="page-header">
+        <div>
+            <h1 style="margin:0;">📨 Transmittals</h1>
+            <p style="margin:0.5rem 0 0; opacity:0.9">Gestión de envíos formales de equipos y documentos</p>
+        </div>
+    </div>
+
+    <!-- Recibidos -->
+    <h3 class="section-title">📥 Recibidos</h3>
+    {% if recibidos %}
+    {% for t in recibidos %}
+    <div class="transmittal-card recibido">
+        <div>
+            <div class="meta-info">
+                <span class="badge badge-recibido">RECIBIDO</span> •
+                {{ t.fecha_envio|date:"d/m/Y H:i" }} •
+                De: <strong>{{ t.remitente.get_full_name|default:t.remitente.username }}</strong>
+            </div>
+            <h4 class="card-title">{{ t.consecutivo }} - {{ t.asunto }}</h4>
+            <div style="font-size: 0.9rem; color: #666;">
+                {{ t.adjuntos.count }} ítems adjuntos
+            </div>
+        </div>
+        <a href="{% url 'comunicaciones:detalle_transmittal' t.id %}" class="btn-view">Ver Detalle →</a>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color: #95a5a6; padding: 1rem; background: #f8f9fa; border-radius: 6px;">No has recibido transmittals.</p>
+    {% endif %}
+
+    <!-- Enviados -->
+    <h3 class="section-title">📤 Enviados</h3>
+    {% if enviados %}
+    {% for t in enviados %}
+    <div class="transmittal-card">
+        <div>
+            <div class="meta-info">
+                <span class="badge badge-enviado">ENVIADO</span> •
+                {{ t.fecha_envio|date:"d/m/Y H:i" }}
+            </div>
+            <h4 class="card-title">{{ t.consecutivo }} - {{ t.asunto }}</h4>
+            <div style="font-size: 0.9rem; color: #666;">
+                {{ t.destinatarios.count }} destinatarios • {{ t.adjuntos.count }} ítems
+            </div>
+        </div>
+        <a href="{% url 'comunicaciones:detalle_transmittal' t.id %}" class="btn-view">Ver Detalle →</a>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color: #95a5a6; padding: 1rem; background: #f8f9fa; border-radius: 6px;">No has enviado transmittals.</p>
+    {% endif %}
+
+</div>
+{% endblock %}

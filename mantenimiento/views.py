@@ -232,11 +232,20 @@ def calendario_mantenimiento(request):
             'celdas_resumen': d_celdas_resumen
         })
 
+    # Manually inject UI Config as fallback
+    try:
+        from core.models import ConfiguracionUI
+        ui_config_obj = ConfiguracionUI.objects.first()
+    except Exception as e:
+        print(f"Error loading UI Config: {e}")
+        ui_config_obj = None
+
     return render(request, 'mantenimiento/calendario.html', {
         'disciplinas': disciplinas_final,
         'year': year,
         'meses': meses_info,
-        'total_colspan': total_weeks + 2
+        'total_colspan': total_weeks + 2,
+        'ui_config': ui_config_obj
     })
 
 
@@ -425,11 +434,18 @@ def calendario_detallado(request):
     count_ubicaciones = len(unique_locations)
     total_ot = ordenes.count()
 
+    try:
+        from core.models import ConfiguracionUI
+        ui_config_obj = ConfiguracionUI.objects.first()
+    except Exception as e:
+        ui_config_obj = None
+
     return render(request, 'mantenimiento/calendario_detallado.html', {
         'disciplinas': disciplinas_final,
         'year': year,
         'meses': meses_info,
         'total_colspan': total_weeks + 1,
+        'ui_config': ui_config_obj,
         'resumen': {
             'disciplinas': count_disciplinas,
             'rutinas': count_rutinas,

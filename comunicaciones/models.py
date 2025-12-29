@@ -87,11 +87,14 @@ class Destinatario(models.Model):
 class AdjuntoComunicado(models.Model):
     comunicado = models.ForeignKey(Comunicado, on_delete=models.CASCADE, related_name='adjuntos')
     
-    # Puede ser una revisión del sistema documental O un archivo suelto
+    # Puede ser una revisión del sistema documental O un archivo suelto O un activo
     documento_revision = models.ForeignKey(Revision, on_delete=models.PROTECT, null=True, blank=True)
     archivo = models.FileField(upload_to='comunicados/adjuntos/', null=True, blank=True)
-    
+    activo = models.ForeignKey('activos.Activo', on_delete=models.PROTECT, null=True, blank=True, related_name='transmittals')
+
     def __str__(self):
+        if self.activo:
+            return f"Activo: {self.activo.nombre} ({self.activo.codigo_interno})"
         if self.documento_revision:
             return str(self.documento_revision)
         return self.archivo.name or "Adjunto"

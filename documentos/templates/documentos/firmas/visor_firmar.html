@@ -1,0 +1,640 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Firmar Documento{% endblock %}
+
+{% block extrastyle %}
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    .viewer-container {
+        display: flex;
+        height: calc(100vh - 100px);
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Panel izquierdo - Documento */
+    .document-panel {
+        flex: 1;
+        background: #2c3e50;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .document-header {
+        background: #34495e;
+        padding: 1rem;
+        color: white;
+    }
+
+    .document-header h2 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.3rem;
+    }
+
+    .document-viewer {
+        flex: 1;
+        overflow: auto;
+        padding: 2rem;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    .document-content {
+        position: relative;
+        background: white;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        min-height: 800px;
+        width: 100%;
+        max-width: 800px;
+    }
+
+    /* Panel derecho - Controles */
+    .controls-panel {
+        width: 350px;
+        background: white;
+        border-left: 1px solid #ecf0f1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .controls-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+    }
+
+    .controls-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+    }
+
+    .controls-content {
+        padding: 1.5rem;
+        flex: 1;
+    }
+
+    .firma-preview {
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .firma-preview img {
+        max-width: 100%;
+        max-height: 120px;
+        background: white;
+        padding: 0.5rem;
+        border-radius: 4px;
+    }
+
+    .firma-info {
+        background: #e8f4f8;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #3498db;
+    }
+
+    .firma-info h4 {
+        margin-top: 0;
+        color: #2980b9;
+    }
+
+    .firma-info p {
+        margin: 0.25rem 0;
+        font-size: 0.9rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+    }
+
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #dee2e6;
+        border-radius: 6px;
+        resize: vertical;
+        min-height: 80px;
+        font-family: inherit;
+    }
+
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #3498db;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 1rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.3s;
+        margin-bottom: 0.75rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-danger {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        background: #c0392b;
+    }
+
+    .btn-secondary {
+        background: #95a5a6;
+        color: white;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Firma arrastrable en el documento */
+    .firma-draggable {
+        position: absolute;
+        cursor: move;
+        border: 2px dashed #3498db;
+        padding: 0.5rem;
+        background: rgba(52, 152, 219, 0.1);
+        border-radius: 4px;
+        transition: all 0.2s;
+        z-index: 100;
+    }
+
+    .firma-draggable:hover {
+        border-color: #2980b9;
+        background: rgba(52, 152, 219, 0.2);
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+    }
+
+    .firma-draggable.dragging {
+        opacity: 0.7;
+    }
+
+    .firma-draggable img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        pointer-events: none;
+    }
+
+    .firma-position-indicator {
+        position: absolute;
+        top: -30px;
+        left: 0;
+        background: #2c3e50;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    .instructions {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+    }
+
+    .instructions h4 {
+        margin-top: 0;
+        color: #856404;
+    }
+
+    .instructions ul {
+        margin: 0;
+        padding-left: 1.5rem;
+    }
+
+    .instructions li {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Firmas existentes en el documento */
+    .firma-existente {
+        position: absolute;
+        border: 2px solid #27ae60;
+        background: rgba(39, 174, 96, 0.1);
+        padding: 0.5rem;
+        border-radius: 4px;
+        pointer-events: none;
+    }
+
+    .firma-existente img {
+        max-width: 100%;
+        display: block;
+    }
+
+    .firma-existente-label {
+        position: absolute;
+        bottom: -25px;
+        left: 0;
+        background: #27ae60;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        white-space: nowrap;
+    }
+
+    .loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .loading.active {
+        display: flex;
+    }
+
+    .loading-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+    }
+
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="viewer-container">
+    <!-- Panel del Documento -->
+    <div class="document-panel">
+        <div class="document-header">
+            <h2>{{ documento_firmado.documento.codigo }}</h2>
+            <p style="margin: 0; opacity: 0.9;">{{ documento_firmado.documento.titulo }}</p>
+        </div>
+
+        <div class="document-viewer" id="document-viewer">
+            <div class="document-content" id="document-content">
+                <!-- Aquí se mostraría el PDF o imagen del documento -->
+                <!-- Por ahora mostramos un placeholder -->
+                <div style="padding: 2rem; color: #7f8c8d;">
+                    <h3>Documento: {{ documento_firmado.documento.codigo }}</h3>
+                    <p><strong>Título:</strong> {{ documento_firmado.documento.titulo }}</p>
+                    <p><strong>Revisión:</strong> {{ documento_firmado.revision.revision }}</p>
+                    <p><strong>Tipo:</strong> {{ documento_firmado.documento.tipo_documento }}</p>
+                    <p><strong>Estado:</strong> {{ documento_firmado.get_estado_display }}</p>
+
+                    {% if documento_firmado.revision.archivo %}
+                    <p><strong>Archivo:</strong> <a href="{{ documento_firmado.revision.archivo.url }}"
+                            target="_blank">Ver documento original</a></p>
+                    {% endif %}
+
+                    <hr>
+                    <p style="color: #3498db; font-weight: 600;">
+                        👈 Arrastra tu firma desde el panel derecho a la posición deseada en este documento
+                    </p>
+                </div>
+
+                <!-- Firma arrastrable del usuario -->
+                <div class="firma-draggable" id="firma-draggable"
+                    style="left: {{ firma_requerida.posicion_x }}%; top: {{ firma_requerida.posicion_y }}%; width: {{ firma_requerida.ancho }}%;">
+                    <div class="firma-position-indicator" id="position-indicator">
+                        X: 0%, Y: 0%
+                    </div>
+                    <img src="{{ perfil_firma.firma_imagen.url }}" alt="Mi Firma">
+                </div>
+
+                <!-- Firmas ya existentes -->
+                {% for firma_exist in firmas_existentes %}
+                <div class="firma-existente"
+                    style="left: {{ firma_exist.posicion_x }}%; top: {{ firma_exist.posicion_y }}%; width: {{ firma_exist.ancho }}%;">
+                    <img src="{{ firma_exist.imagen_firma.url }}" alt="Firma">
+                    <div class="firma-existente-label">
+                        ✓ {{ firma_exist.firmante.get_full_name }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel de Controles -->
+    <div class="controls-panel">
+        <div class="controls-header">
+            <h3>✍️ Tu Firma</h3>
+        </div>
+
+        <div class="controls-content">
+            <!-- Preview de la firma -->
+            <div class="firma-preview">
+                <img src="{{ perfil_firma.firma_imagen.url }}" alt="Mi Firma">
+            </div>
+
+            <!-- Información del firmante -->
+            <div class="firma-info">
+                <h4>Información del Firmante</h4>
+                <p><strong>Nombre:</strong> {{ user.get_full_name }}</p>
+                {% if perfil_firma.cargo %}
+                <p><strong>Cargo:</strong> {{ perfil_firma.cargo }}</p>
+                {% endif %}
+                {% if firma_requerida.rol %}
+                <p><strong>Rol:</strong> {{ firma_requerida.rol }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Instrucciones -->
+            <div class="instructions">
+                <h4>📝 Instrucciones</h4>
+                <ul>
+                    <li>Arrastra tu firma a la posición deseada en el documento</li>
+                    <li>Puedes redimensionar la firma ajustando el % de tamaño</li>
+                    <li>Agrega comentarios si es necesario</li>
+                    <li>Haz clic en "Firmar" para confirmar</li>
+                </ul>
+            </div>
+
+            <!-- Controles de posición -->
+            <div class="form-group">
+                <label>Posición Actual</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <div>
+                        <input type="number" id="pos-x" value="{{ firma_requerida.posicion_x }}" step="0.1" min="0"
+                            max="100" style="width: 100%; padding: 0.5rem;">
+                        <small>X (%)</small>
+                    </div>
+                    <div>
+                        <input type="number" id="pos-y" value="{{ firma_requerida.posicion_y }}" step="0.1" min="0"
+                            max="100" style="width: 100%; padding: 0.5rem;">
+                        <small>Y (%)</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controles de tamaño -->
+            <div class="form-group">
+                <label>📏 Tamaño de Firma</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <div>
+                        <input type="number" id="ancho" value="{{ firma_requerida.ancho }}" step="1" min="5" max="50"
+                            style="width: 100%; padding: 0.5rem;">
+                        <small>Ancho (%)</small>
+                    </div>
+                    <div>
+                        <input type="number" id="alto" value="{{ firma_requerida.alto }}" step="1" min="3" max="30"
+                            style="width: 100%; padding: 0.5rem;">
+                        <small>Alto (%)</small>
+                    </div>
+                </div>
+                <small style="color: #7f8c8d; font-size: 0.8rem;">Ajusta el tamaño de tu firma en el documento</small>
+            </div>
+
+            <!-- Comentarios -->
+            <div class="form-group">
+                <label>Comentarios (Opcional)</label>
+                <textarea id="comentarios" placeholder="Agrega comentarios sobre esta firma..."></textarea>
+            </div>
+
+            <!-- Botones de acción -->
+            <button class="btn btn-primary" id="btn-firmar">
+                ✅ Firmar Documento
+            </button>
+
+            <button class="btn btn-danger" id="btn-rechazar">
+                ❌ Rechazar Documento
+            </button>
+
+            <button class="btn btn-secondary" onclick="window.location.href='{% url 'firmas:lista_por_firmar' %}'">
+                ← Volver
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading" id="loading">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <p>Procesando firma...</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const firmaDraggable = document.getElementById('firma-draggable');
+        const documentContent = document.getElementById('document-content');
+        const posXInput = document.getElementById('pos-x');
+        const posYInput = document.getElementById('pos-y');
+        const positionIndicator = document.getElementById('position-indicator');
+
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        // Hacer la firma arrastrable
+        firmaDraggable.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            firmaDraggable.classList.add('dragging');
+
+            offsetX = e.clientX - firmaDraggable.getBoundingClientRect().left;
+            offsetY = e.clientY - firmaDraggable.getBoundingClientRect().top;
+
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const containerRect = documentContent.getBoundingClientRect();
+
+            let newX = e.clientX - containerRect.left - offsetX;
+            let newY = e.clientY - containerRect.top - offsetY;
+
+            // Limitar a los bordes del documento
+            newX = Math.max(0, Math.min(newX, containerRect.width - firmaDraggable.offsetWidth));
+            newY = Math.max(0, Math.min(newY, containerRect.height - firmaDraggable.offsetHeight));
+
+            // Convertir a porcentaje
+            const percentX = (newX / containerRect.width) * 100;
+            const percentY = (newY / containerRect.height) * 100;
+
+            firmaDraggable.style.left = percentX + '%';
+            firmaDraggable.style.top = percentY + '%';
+
+            // Actualizar inputs
+            posXInput.value = percentX.toFixed(1);
+            posYInput.value = percentY.toFixed(1);
+
+            // Actualizar indicador
+            positionIndicator.textContent = `X: ${percentX.toFixed(1)}%, Y: ${percentY.toFixed(1)}%`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            firmaDraggable.classList.remove('dragging');
+        });
+
+        // Actualizar posición desde inputs
+        posXInput.addEventListener('change', () => {
+            firmaDraggable.style.left = posXInput.value + '%';
+            positionIndicator.textContent = `X: ${posXInput.value}%, Y: ${posYInput.value}%`;
+        });
+
+        posYInput.addEventListener('change', () => {
+            firmaDraggable.style.top = posYInput.value + '%';
+            positionIndicator.textContent = `X: ${posXInput.value}%, Y: ${posYInput.value}%`;
+        });
+
+        // ===== CONTROLES DE TAMAÑO =====
+        const anchoInput = document.getElementById('ancho');
+        const altoInput = document.getElementById('alto');
+
+        anchoInput.addEventListener('input', () => {
+            const ancho = parseFloat(anchoInput.value);
+            if (ancho >= 5 && ancho <= 50) {
+                firmaDraggable.style.width = ancho + '%';
+            }
+        });
+
+        altoInput.addEventListener('input', () => {
+            const alto = parseFloat(altoInput.value);
+            if (alto >= 3 && alto <= 30) {
+                // Calcular altura basada en el contenedor
+                const containerRect = documentContent.getBoundingClientRect();
+                const heightPx = (alto / 100) * containerRect.height;
+                firmaDraggable.style.height = heightPx + 'px';
+            }
+        });
+
+        // ===== FIRMAR DOCUMENTO =====
+        document.getElementById('btn-firmar').addEventListener('click', async () => {
+            if (!confirm('¿Estás seguro de que deseas firmar este documento?')) {
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            loading.classList.add('active');
+
+            try {
+                const response = await fetch('{% url "firmas:aplicar_firma" documento_firmado.id %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        posicion_x: parseFloat(posXInput.value),
+                        posicion_y: parseFloat(posYInput.value),
+                        ancho: parseFloat(anchoInput.value),
+                        alto: parseFloat(altoInput.value),
+                        pagina: 1,
+                        comentarios: document.getElementById('comentarios').value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Documento firmado exitosamente\n\nToken de verificación: ' + data.token_verificacion);
+                    window.location.href = '{% url "firmas:lista_por_firmar" %}';
+                } else {
+                    alert('❌ Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Error de conexión');
+            } finally {
+                loading.classList.remove('active');
+            }
+        });
+
+        // ===== RECHAZAR DOCUMENTO =====
+        document.getElementById('btn-rechazar').addEventListener('click', async () => {
+            const motivo = prompt('Indica el motivo del rechazo:');
+            if (!motivo) return;
+
+            const loading = document.getElementById('loading');
+            loading.classList.add('active');
+
+            try {
+                const response = await fetch('{% url "firmas:rechazar_firma" documento_firmado.id %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ motivo })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Documento rechazado');
+                    window.location.href = '{% url "firmas:lista_por_firmar" %}';
+                } else {
+                    alert('❌ Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ Error de conexión');
+            } finally {
+                loading.classList.remove('active');
+            }
+        });
+    });
+</script>
+{% endblock %}

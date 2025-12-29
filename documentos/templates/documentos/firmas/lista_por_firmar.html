@@ -1,0 +1,333 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Documentos por Firmar{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .lista-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .page-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2rem;
+    }
+
+    .page-header p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .documento-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s;
+        border-left: 5px solid #3498db;
+    }
+
+    .documento-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .documento-card.urgente {
+        border-left-color: #e74c3c;
+    }
+
+    .documento-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1rem;
+    }
+
+    .documento-codigo {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .documento-titulo {
+        color: #7f8c8d;
+        margin: 0;
+    }
+
+    .estado-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .estado-pendiente {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .estado-urgente {
+        background: #f8d7da;
+        color: #721c24;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.7;
+        }
+    }
+
+    .documento-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .info-label {
+        font-size: 0.75rem;
+        color: #7f8c8d;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        color: #2c3e50;
+        font-weight: 500;
+    }
+
+    .firma-rol {
+        background: #e8f4f8;
+        color: #2980b9;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        display: inline-block;
+        margin-bottom: 0.5rem;
+    }
+
+    .documento-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 2px solid #ecf0f1;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s;
+        font-size: 0.95rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        background: #95a5a6;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #7f8c8d;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .empty-icon {
+        font-size: 5rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-state h2 {
+        color: #7f8c8d;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: #95a5a6;
+        margin-bottom: 2rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .stat-icon {
+        font-size: 3rem;
+    }
+
+    .stat-content h3 {
+        margin: 0;
+        font-size: 2rem;
+        color: #2c3e50;
+    }
+
+    .stat-content p {
+        margin: 0;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lista-container">
+    <div class="page-header">
+        <h1>📝 Documentos Pendientes de Firma</h1>
+        <p>Aquí encontrarás todos los documentos que requieren tu firma</p>
+    </div>
+
+    {% if firmas_pendientes %}
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-content">
+                <h3>{{ firmas_pendientes.count }}</h3>
+                <p>Documentos pendientes</p>
+            </div>
+        </div>
+    </div>
+
+    {% for firma_req in firmas_pendientes %}
+    <div class="documento-card {% if firma_req.obligatoria %}urgente{% endif %}">
+        <div class="documento-header">
+            <div>
+                <h2 class="documento-codigo">
+                    {{ firma_req.documento_firmado.documento.codigo }}
+                </h2>
+                <p class="documento-titulo">
+                    {{ firma_req.documento_firmado.documento.titulo }}
+                </p>
+                {% if firma_req.rol %}
+                <div class="firma-rol">
+                    {{ firma_req.rol }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="estado-badge {% if firma_req.obligatoria %}estado-urgente{% else %}estado-pendiente{% endif %}">
+                {% if firma_req.obligatoria %}⚠️ Firma Obligatoria{% else %}📌 Pendiente{% endif %}
+            </div>
+        </div>
+
+        <div class="documento-info">
+            <div class="info-item">
+                <span class="info-label">Tipo de Documento</span>
+                <span class="info-value">{{ firma_req.documento_firmado.documento.tipo_documento }}</span>
+            </div>
+
+            {% if firma_req.documento_firmado.revision %}
+            <div class="info-item">
+                <span class="info-label">Revisión</span>
+                <span class="info-value">{{ firma_req.documento_firmado.revision.revision }}</span>
+            </div>
+            {% endif %}
+
+            <div class="info-item">
+                <span class="info-label">Estado del Documento</span>
+                <span class="info-value">{{ firma_req.documento_firmado.get_estado_display }}</span>
+            </div>
+
+            <div class="info-item">
+                <span class="info-label">Orden de Firma</span>
+                <span class="info-value">
+                    {% if firma_req.orden > 0 %}
+                    #{{ firma_req.orden }}
+                    {% else %}
+                    Sin orden específico
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="documento-actions">
+            <a href="{% url 'firmas:visor_firmar' firma_req.documento_firmado.id %}" class="btn btn-primary">
+                ✍️ Firmar Ahora
+            </a>
+            {% if firma_req.documento_firmado.revision.archivo %}
+            <a href="{{ firma_req.documento_firmado.revision.archivo.url }}" target="_blank" class="btn btn-secondary">
+                👁️ Ver Documento
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <h2>¡Todo al día!</h2>
+        <p>No tienes documentos pendientes de firma en este momento</p>
+        <a href="{% url 'admin:index' %}" class="btn btn-primary">
+            ← Volver al Panel
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

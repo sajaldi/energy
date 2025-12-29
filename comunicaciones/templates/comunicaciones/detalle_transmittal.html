@@ -1,0 +1,221 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Detalle Transmittal {{ transmittal.consecutivo }}{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .transmittal-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .header-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border-top: 5px solid #2c3e50;
+    }
+
+    .consecutivo {
+        font-family: monospace;
+        background: #ecf0f1;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        color: #2c3e50;
+        font-size: 0.9rem;
+    }
+
+    .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #eee;
+    }
+
+    .meta-item label {
+        display: block;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #7f8c8d;
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+
+    .meta-item div {
+        color: #2c3e50;
+        font-size: 1rem;
+    }
+
+    .message-body {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 6px;
+        margin-top: 1.5rem;
+        font-family: inherit;
+        white-space: pre-wrap;
+        color: #34495e;
+    }
+
+    .items-section {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    .section-header {
+        background: #ecf0f1;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .item-row {
+        display: flex;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #eee;
+        align-items: center;
+    }
+
+    .item-row:last-child {
+        border-bottom: none;
+    }
+
+    .item-icon {
+        width: 40px;
+        height: 40px;
+        background: #e8f5e9;
+        color: #2e7d32;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        margin-right: 1rem;
+    }
+
+    .item-details {
+        flex-grow: 1;
+    }
+
+    .item-code {
+        font-weight: bold;
+        color: #2c3e50;
+        font-size: 0.95rem;
+    }
+
+    .item-name {
+        color: #555;
+    }
+
+    .item-location {
+        font-size: 0.8rem;
+        color: #95a5a6;
+        margin-top: 0.2rem;
+    }
+
+    .btn-back {
+        display: inline-block;
+        margin-bottom: 1rem;
+        color: #3498db;
+        text-decoration: none;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="transmittal-container">
+    <a href="{% url 'comunicaciones:lista_transmittals' %}" class="btn-back">← Volver a la lista</a>
+
+    <!-- Encabezado del Transmittal -->
+    <div class="header-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <h1 style="margin:0; font-size: 1.8rem; color: #2c3e50;">{{ transmittal.asunto }}</h1>
+            <span class="consecutivo">{{ transmittal.consecutivo }}</span>
+        </div>
+
+        <div class="meta-grid">
+            <div class="meta-item">
+                <label>Enviado por</label>
+                <div>{{ transmittal.remitente.get_full_name|default:transmittal.remitente.username }}</div>
+            </div>
+            <div class="meta-item">
+                <label>Fecha de Envío</label>
+                <div>{{ transmittal.fecha_envio|date:"d F Y, H:i" }}</div>
+            </div>
+            <div class="meta-item">
+                <label>Para</label>
+                <div>
+                    {% for d in destinatarios %}
+                    <span title="{{ d.usuario.email }}">{{ d.usuario.get_full_name|default:d.usuario.username
+                        }}</span>{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {% if transmittal.cuerpo %}
+        <div class="message-body">{{ transmittal.cuerpo }}</div>
+        {% endif %}
+    </div>
+
+    <!-- Lista de Activos/Ítems -->
+    <h3 style="color: #7f8c8d; margin-bottom: 1rem;">📦 Contenido del Paquete ({{ adjuntos.count }})</h3>
+    <div class="items-section">
+        <div class="section-header">
+            <strong>Descripción</strong>
+            <strong>Estado</strong>
+        </div>
+
+        {% for adjunto in adjuntos %}
+        <div class="item-row">
+            {% if adjunto.activo %}
+            <!-- Ítem tipo Activo -->
+            <div class="item-icon">⚙️</div>
+            <div class="item-details">
+                <div class="item-code">{{ adjunto.activo.codigo_interno|default:"S/C" }}</div>
+                <div class="item-name">{{ adjunto.activo.nombre }}</div>
+                {% if adjunto.activo.ubicacion %}
+                <div class="item-location">📍 {{ adjunto.activo.ubicacion.ruta_completa }}</div>
+                {% endif %}
+            </div>
+            <div>
+                <span style="padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; background: #eee;">
+                    {{ adjunto.activo.get_estado_display }}
+                </span>
+            </div>
+            {% elif adjunto.documento_revision %}
+            <!-- Ítem tipo Documento -->
+            <div class="item-icon">📄</div>
+            <div class="item-details">
+                <div class="item-code">{{ adjunto.documento_revision.documento.codigo }}</div>
+                <div class="item-name">{{ adjunto.documento_revision.documento.titulo }} (Rev {{
+                    adjunto.documento_revision.version }})</div>
+            </div>
+            {% else %}
+            <!-- Archivo suelto -->
+            <div class="item-icon">📎</div>
+            <div class="item-details">
+                <div class="item-name"><a href="{{ adjunto.archivo.url }}" target="_blank">{{ adjunto.archivo.name
+                        }}</a></div>
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div style="padding: 2rem; text-align: center; color: #95a5a6;">
+            Este transmittal no tiene ítems adjuntos.
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}
