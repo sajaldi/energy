@@ -5,7 +5,7 @@ from django.contrib import admin, messages
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
-from .models import Categoria, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual
+from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual
 from activos.models import Categoria as CategoriaActivo
 
 class CategoriaResource(resources.ModelResource):
@@ -27,8 +27,8 @@ class CategoriaResource(resources.ModelResource):
     
     class Meta:
         model = Categoria
-        fields = ('id', 'nombre', 'padre', 'descripcion')
-        export_order = ('id', 'ruta_completa', 'nombre', 'padre', 'descripcion')
+        fields = ('id', 'nombre', 'padre', 'categoria_activo', 'descripcion')
+        export_order = ('id', 'ruta_completa', 'nombre', 'padre', 'categoria_activo', 'descripcion')
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ('id',)
@@ -55,6 +55,7 @@ class SubcategoriaInline(admin.TabularInline):
     extra = 1
     verbose_name = "Subcategoría"
     verbose_name_plural = "Subcategorías"
+    show_change_link = True
     fields = ('nombre', 'descripcion')
     # Forzar que la descripción sea un input de texto en lugar de un textarea para que quepa en la tabla
     formfield_overrides = {
@@ -73,10 +74,10 @@ class CategoriaAdmin(ImportExportModelAdmin):
     Admin para categorías jerárquicas con estructura simple.
     """
     resource_class = CategoriaResource
-    list_display = ('nombre', 'padre', 'descripcion')
+    list_display = ('nombre', 'padre', 'categoria_activo', 'descripcion')
     search_fields = ('nombre',)
-    list_filter = ('padre',)
-    autocomplete_fields = ('padre',)
+    list_filter = ('padre', 'categoria_activo')
+    autocomplete_fields = ('padre', 'categoria_activo')
     inlines = [SubcategoriaInline]
 
 
@@ -93,6 +94,11 @@ class RutinaResource(resources.ModelResource):
     IMPORTACIÓN: nombre, categoria_nombre, frecuencia_nombre, descripcion, tiempo_estimado, cantidad_tecnicos
     EXPORTACIÓN: Incluye todos los campos con nombres legibles + ruta completa de categoría
     """
+    nombre = fields.Field(
+        column_name='nombre',
+        attribute='nombre'
+    )
+    
     categoria_nombre = fields.Field(
         column_name='categoria_nombre',
         attribute='categoria',
@@ -110,22 +116,35 @@ class RutinaResource(resources.ModelResource):
         widget=ForeignKeyWidget(Frecuencia, field='nombre')
     )
     
-    categoria_activo_nombre = fields.Field(
-        column_name='categoria_activo_nombre',
-        attribute='categoria_activo',
-        widget=ForeignKeyWidget(CategoriaActivo, field='nombre')
+    procedimiento_estandar = fields.Field(
+        column_name='procedimiento_estandar',
+        attribute='procedimiento_estandar',
+        widget=ForeignKeyWidget(Procedimiento, field='nombre')
     )
+    
+    tiempo_estimado = fields.Field(
+        column_name='tiempo_estimado',
+        attribute='tiempo_estimado',
+        widget=DurationWidget()
+    )
+    
+    def before_import_row(self, row, **kwargs):
+        """Limpia los valores 'None' que el exportador genera como texto"""
+        for key in list(row.keys()):
+            val = str(row.get(key, '')).strip()
+            if val in ['None', 'nan', 'NULL', '']:
+                row[key] = None
 
     class Meta:
         model = Rutina
-        fields = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 'categoria_activo_nombre', 
-                  'frecuencia_nombre', 'descripcion', 'tiempo_estimado', 'cantidad_tecnicos')
-        export_order = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 'categoria_activo_nombre', 
-                       'frecuencia_nombre', 'tiempo_estimado', 'cantidad_tecnicos', 'descripcion')
+        import_id_fields = ('id',)
+        fields = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 
+                  'frecuencia_nombre', 'procedimiento_estandar', 'descripcion', 'tiempo_estimado', 'cantidad_tecnicos', 'herramientas')
+        export_order = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 
+                       'frecuencia_nombre', 'procedimiento_estandar', 'tiempo_estimado', 'cantidad_tecnicos', 'herramientas', 'descripcion')
         skip_unchanged = True
         report_skipped = True
-        use_bulk = True
-        batch_size = 1000
+        use_bulk = False
     
     def dehydrate_categoria_ruta(self, rutina):
         """Exporta la ruta completa de la categoría"""
@@ -133,19 +152,37 @@ class RutinaResource(resources.ModelResource):
             return rutina.categoria.get_ruta_completa()
         return ''
 
-class PasoRutinaInline(admin.TabularInline):
-    model = PasoRutina
+class PasoProcedimientoInline(admin.TabularInline):
+    model = PasoProcedimiento
     extra = 1
+
+@admin.register(Procedimiento)
+class ProcedimientoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'descripcion', 'creado_en')
+    search_fields = ('nombre',)
+    inlines = [PasoProcedimientoInline]
 
 @admin.register(Rutina)
 class RutinaAdmin(ImportExportModelAdmin):
     resource_class = RutinaResource
-    list_display = ('nombre', 'categoria', 'categoria_activo', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos')
-    list_select_related = ('categoria', 'categoria_activo', 'frecuencia')
-    list_filter = ('categoria', 'categoria_activo', 'frecuencia')
-    search_fields = ('nombre', 'descripcion')
-    autocomplete_fields = ('categoria', 'categoria_activo', 'frecuencia')
-    inlines = [PasoRutinaInline]
+    list_display = ('nombre', 'categoria', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos')
+    list_filter = ('categoria', 'frecuencia')
+    search_fields = ('nombre', 'procedimiento_estandar__nombre', 'herramientas')
+    autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar')
+    readonly_fields = ('nombre', 'creado_en', 'actualizado_en')
+    inlines = [] # Temporalmente vacío hasta que verifiquemos si requiere inlines
+    
+    fieldsets = (
+        ('Identificación', {
+            'fields': ('nombre', 'categoria', 'frecuencia')
+        }),
+        ('Manual de Pasos', {
+            'fields': ('procedimiento_estandar', 'herramientas')
+        }),
+        ('Detalles de Ejecución', {
+            'fields': ('tiempo_estimado', 'cantidad_tecnicos', 'descripcion')
+        }),
+    )
 
 
 class DiaHorarioInline(admin.TabularInline):

@@ -4,16 +4,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Energía | Visor Interactivo - {{ visor.nombre }}</title>
+    <title>SoftCoM-CCG | Visor Interactivo - {{ visor.nombre }}</title>
 
     <!-- Design Foundation -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
+    <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
+        /* Estilos para etiquetas permanentes en modo reporte */
+        .pin-label-permanent {
+            display: none;
+            position: absolute;
+            bottom: 35px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffffff;
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 400;
+            white-space: normal;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--border);
+            z-index: 10;
+            color: var(--text-main);
+            pointer-events: none;
+            box-sizing: border-box;
+
+            /* Flex layout for vertical stacking */
+            display: none;
+            /* Controlled by .show-labels */
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            text-align: left;
+            min-width: 300px;
+            max-width: 450px;
+            height: auto;
+            gap: 6px;
+            line-height: 1.6;
+        }
+
+        body.show-labels .pin-label-permanent {
+            display: flex;
+        }
+
+        body.show-labels .pin {
+            z-index: 5;
+        }
+
+        body.show-labels .pin:hover {
+            z-index: 20;
+        }
+
         :root {
             --primary: #007bff;
             --secondary: #6c757d;
@@ -790,6 +839,183 @@
         #lightbox-close:hover {
             transform: scale(1.1);
         }
+
+        /* Radial Menu - SolidWorks Style */
+        #radial-menu {
+            position: fixed;
+            z-index: 6000;
+            pointer-events: none;
+            display: none;
+        }
+
+        #radial-menu.active {
+            display: block;
+            pointer-events: auto;
+        }
+
+        .radial-center {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .radial-option {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            background: #ffffff;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                box-shadow 0.2s;
+            transform: scale(0);
+            opacity: 0;
+            border: 2px solid transparent;
+        }
+
+        #radial-menu.active .radial-option {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .radial-option:hover {
+            transform: scale(1.15) !important;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .radial-option ion-icon {
+            font-size: 1.4rem;
+        }
+
+        .radial-option span {
+            font-size: 0.55rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-top: 2px;
+            letter-spacing: 0.3px;
+        }
+
+        .radial-option.opt-activo {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+
+        .radial-option.opt-aviso {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .radial-option.opt-actividad {
+            border-color: #10b981;
+            color: #10b981;
+        }
+
+        .radial-option.opt-libre {
+            border-color: #6366f1;
+            color: #6366f1;
+        }
+
+        /* Long press pulse animation */
+        .long-press-indicator {
+            position: fixed;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid var(--primary);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 5500;
+            animation: none;
+        }
+
+        .long-press-indicator.active {
+            opacity: 0.6;
+            animation: pulseGrow 3s linear forwards;
+        }
+
+        @keyframes pulseGrow {
+            0% {
+                transform: translate(-50%, -50%) scale(0.3);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.3;
+            }
+        }
+
+        /* Pin Type Tabs */
+        .pin-type-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 1rem;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .pin-type-tab {
+            flex: 1;
+            padding: 8px 4px;
+            text-align: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            color: #64748b;
+        }
+
+        .pin-type-tab:hover {
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .pin-type-tab.active {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .pin-type-tab.active.tab-activo {
+            color: #3b82f6;
+        }
+
+        .pin-type-tab.active.tab-aviso {
+            color: #ef4444;
+        }
+
+        .pin-type-tab.active.tab-actividad {
+            color: #10b981;
+        }
+
+        .pin-type-tab ion-icon {
+            font-size: 1.2rem;
+        }
+
+        .pin-type-content {
+            display: none;
+        }
+
+        .pin-type-content.active {
+            display: block;
+        }
     </style>
 </head>
 
@@ -803,6 +1029,36 @@
     <div id="toast" class="toast">
         <ion-icon name="checkmark-circle" style="color: var(--success)"></ion-icon>
         <span id="toast-msg">Cambios guardados</span>
+    </div>
+
+    <!-- Long Press Indicator -->
+    <div id="long-press-indicator" class="long-press-indicator"></div>
+
+    <!-- Radial Menu for Pin Creation -->
+    <div id="radial-menu">
+        <div class="radial-center">
+            <ion-icon name="add"></ion-icon>
+        </div>
+        <div class="radial-option opt-activo" style="left: -40px; top: -70px; transition-delay: 0.05s;"
+            onclick="createTypedPin('activo')">
+            <ion-icon name="cube"></ion-icon>
+            <span>Activo</span>
+        </div>
+        <div class="radial-option opt-aviso" style="left: 50px; top: -70px; transition-delay: 0.1s;"
+            onclick="createTypedPin('aviso')">
+            <ion-icon name="warning"></ion-icon>
+            <span>Aviso</span>
+        </div>
+        <div class="radial-option opt-actividad" style="left: 70px; top: 0px; transition-delay: 0.15s;"
+            onclick="createTypedPin('actividad')">
+            <ion-icon name="construct"></ion-icon>
+            <span>Tarea</span>
+        </div>
+        <div class="radial-option opt-libre" style="left: -70px; top: 0px; transition-delay: 0.2s;"
+            onclick="createTypedPin('libre')">
+            <ion-icon name="location"></ion-icon>
+            <span>Libre</span>
+        </div>
     </div>
 
     <!-- Menú Contextual -->
@@ -821,7 +1077,7 @@
     <header>
         <div class="brand">
             <ion-icon name="map"></ion-icon>
-            <h1>Energía | Visor</h1>
+            <h1>SoftCoM-CCG | Visor</h1>
         </div>
 
         <div class="visor-info">
@@ -860,11 +1116,11 @@
 
         <main id="main-canvas">
             <div id="zoom-container">
-                {% if visor.plano.archivo %}
-                {% if '.pdf' in visor.plano.archivo.url|lower %}
+                {% if visor.plano.archivo_actual %}
+                {% if '.pdf' in visor.plano.archivo_actual.url|lower %}
                 <canvas id="plano-canvas"></canvas>
                 {% else %}
-                <img src="{{ visor.plano.archivo.url }}" id="plano-img" alt="Plano">
+                <img src="{{ visor.plano.archivo_actual.url }}" id="plano-img" alt="Plano">
                 {% endif %}
                 {% endif %}
 
@@ -876,15 +1132,54 @@
                     {% for pin in visor.pines.all %}
                     <div class="pin" id="pin-{{ pin.id }}" data-id="{{ pin.id }}"
                         data-activo="{{ pin.activo.id|default:'' }}" data-aviso="{{ pin.aviso.id|default:'' }}"
-                        data-label="{% if pin.activo %}{{ pin.activo.nombre }}{% elif pin.aviso %}AV-{{ pin.aviso.id }}{% else %}Sin asignar{% endif %}"
+                        data-actividad="{{ pin.actividad.id|default:'' }}"
+                        data-pin-type="{% if pin.actividad %}actividad{% elif pin.aviso %}aviso{% elif pin.activo %}activo{% else %}libre{% endif %}"
+                        data-label="{% if pin.actividad %}{{ pin.actividad.nombre }}{% elif pin.activo %}{{ pin.activo.nombre }}{% elif pin.aviso %}AV-{{ pin.aviso.id }}{% else %}[NOTA]{% endif %}"
                         data-color="{{ pin.color }}" data-nota="{{ pin.nota|default:'' }}" data-x="{{ pin.x }}"
                         data-y="{{ pin.y }}"
-                        data-icon="{% if pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"
+                        data-icon="{% if pin.actividad %}construct{% elif pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"
                         data-aviso-meta='{% if pin.aviso %}{"prioridad":"{{ pin.aviso.get_prioridad_display }}","estado":"{{ pin.aviso.get_estado_display }}","solicitante":"{{ pin.aviso.solicitante.username|default:"Anónimo" }}","descripcion":"{{ pin.aviso.descripcion|escapejs }}"}{% else %}{}{% endif %}'
                         data-fotos='[{% for foto in pin.fotos.all %}"{{ foto.imagen.url }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
                         style="left: {{ pin.x }}px; top: {{ pin.y }}px; color: {{ pin.color }}; pointer-events: auto;">
                         <ion-icon
-                            name="{% if pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"></ion-icon>
+                            name="{% if pin.actividad %}construct{% elif pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"></ion-icon>
+
+                        <div class="pin-label-permanent">
+                            <div style="margin-bottom: 4px;">
+                                {% if pin.actividad %}
+                                <span style="color: var(--primary); font-weight: 800;">[TAREA]</span> <span
+                                    class="label-text">{{ pin.actividad.nombre|default:"Nueva Tarea" }}</span>
+                                {% elif pin.activo %}
+                                <span style="color: #28a745; font-weight: 800;">[ACTIVO]</span> <span
+                                    class="label-text">{{ pin.activo.nombre|default:"Activo sin nombre" }}</span>
+                                {% elif pin.aviso %}
+                                <span style="color: #dc3545; font-weight: 800;">[AVISO]</span> <span
+                                    class="label-text">AV-{{ pin.aviso.id }}</span>
+                                {% else %}
+                                <div style="margin-bottom: 2px;">
+                                    <span style="color: #6366f1; font-weight: 800;">[NOTA]</span>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            {% if pin.nota %}
+                            <div
+                                style="font-size: 0.9em; color: #666; margin-bottom: 4px; font-style: italic; font-weight: 400;">
+                                {{ pin.nota }}
+                            </div>
+                            {% endif %}
+
+                            {% if pin.fotos.exists %}
+                            <div
+                                style="display: flex; gap: 4px; overflow-x: auto; max-width: 200px; padding-top: 4px; border-top: 1px solid #eee;">
+                                {% for foto in pin.fotos.all %}
+                                <img src="{{ foto.imagen.url }}"
+                                    style="height: 80px; width: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;"
+                                    draggable="false">
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endfor %}
                     {% endlocalize %}
@@ -897,6 +1192,13 @@
                 </button>
                 <button class="tool-btn" id="tool-add" title="Agregar Pin" onclick="setTool('add')">
                     <ion-icon name="add-circle"></ion-icon>
+                </button>
+                <div style="width: 1px; background: rgba(255,255,255,0.1); margin: 0 5px;"></div>
+                <button class="tool-btn" id="tool-labels" title="Ver Etiquetas" onclick="toggleLabelsMode()">
+                    <ion-icon name="pricetags"></ion-icon>
+                </button>
+                <button class="tool-btn" title="Exportar PDF" onclick="exportPlanToPDF()">
+                    <ion-icon name="download"></ion-icon>
                 </button>
                 <div style="width: 1px; background: rgba(255,255,255,0.1); margin: 0 5px;"></div>
                 <button class="tool-btn" title="Zoom In" onclick="zoomIn()">
@@ -939,58 +1241,141 @@
             </button>
         </div>
 
-        <div class="form-group">
-            <label>Activo Relacionado</label>
-
-            <!-- Buscador de Activos Mejorado -->
-            <div
-                style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border);">
-                <div style="margin-bottom: 8px;">
-                    <input type="text" id="asset-search-text" placeholder="Buscar por nombre o código..."
-                        style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem;"
-                        oninput="filterAssetSelect()">
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <select id="asset-filter-cat"
-                        style="padding: 6px; font-size: 0.75rem; border: 1px solid var(--border); border-radius: 4px;"
-                        onchange="filterAssetSelect()">
-                        <option value="">Todas las Categorías</option>
-                        {% for cat in categorias %}
-                        <option value="{{ cat.id }}">{{ cat.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                    <select id="asset-filter-loc"
-                        style="padding: 6px; font-size: 0.75rem; border: 1px solid var(--border); border-radius: 4px;"
-                        onchange="filterAssetSelect()">
-                        <option value="">Todas las Ubicaciones</option>
-                        {% for loc in ubicaciones %}
-                        <option value="{{ loc.id }}">{{ loc.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+        <!-- Pestañas de Tipo de Pin -->
+        <div class="pin-type-tabs">
+            <div class="pin-type-tab active tab-activo" onclick="switchPinTab('activo')">
+                <ion-icon name="cube"></ion-icon>
+                <span>Activo</span>
             </div>
-
-            <select id="pin-activo">
-                <option value="">Seleccione un activo...</option>
-                {% for activo in activos %}
-                <option value="{{ activo.id }}" data-categoria="{{ activo.modelo.categoria.id|default:'' }}"
-                    data-ubicacion="{{ activo.ubicacion.id|default:'' }}" data-nombre="{{ activo.nombre|lower }}"
-                    data-codigo="{{ activo.codigo_interno|default:''|lower }}">
-                    {{ activo.nombre }} ({{ activo.codigo_interno }})
-                </option>
-                {% endfor %}
-            </select>
+            <div class="pin-type-tab tab-aviso" onclick="switchPinTab('aviso')">
+                <ion-icon name="warning"></ion-icon>
+                <span>Aviso</span>
+            </div>
+            <div class="pin-type-tab tab-actividad" onclick="switchPinTab('actividad')">
+                <ion-icon name="construct"></ion-icon>
+                <span>Tarea</span>
+            </div>
+            <div class="pin-type-tab tab-libre" onclick="switchPinTab('libre')">
+                <ion-icon name="document-text"></ion-icon>
+                <span>Nota</span>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label>Aviso de Mantenimiento</label>
-            <select id="pin-aviso">
-                <option value="">Ningún aviso vinculado...</option>
-                {% for aviso in avisos %}
-                <option value="{{ aviso.id }}">AV-{{ aviso.id }}: {{ aviso.descripcion|truncatechars:50 }} ({{
-                    aviso.prioridad }})</option>
-                {% endfor %}
-            </select>
+        <!-- Contenido: Activo -->
+        <div id="tab-content-activo" class="pin-type-content active">
+            <div class="form-group">
+                <label>Activo Relacionado</label>
+                <!-- Buscador de Activos Mejorado -->
+                <div
+                    style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border);">
+                    <div style="margin-bottom: 8px;">
+                        <input type="text" id="asset-search-text" placeholder="Buscar por nombre o código..."
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem;"
+                            oninput="filterAssetSelect()">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <select id="asset-filter-cat"
+                            style="padding: 6px; font-size: 0.75rem; border: 1px solid var(--border); border-radius: 4px;"
+                            onchange="filterAssetSelect()">
+                            <option value="">Todas las Categorías</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <select id="asset-filter-loc"
+                            style="padding: 6px; font-size: 0.75rem; border: 1px solid var(--border); border-radius: 4px;"
+                            onchange="filterAssetSelect()">
+                            <option value="">Todas las Ubicaciones</option>
+                            {% for loc in ubicaciones %}
+                            <option value="{{ loc.id }}">{{ loc.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <select id="pin-activo">
+                    <option value="">Seleccione un activo...</option>
+                    {% for activo in activos %}
+                    <option value="{{ activo.id }}" data-categoria="{{ activo.modelo.categoria.id|default:'' }}"
+                        data-ubicacion="{{ activo.ubicacion.id|default:'' }}" data-nombre="{{ activo.nombre|lower }}"
+                        data-codigo="{{ activo.codigo_interno|default:''|lower }}">
+                        {{ activo.nombre }} ({{ activo.codigo_interno }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Contenido: Aviso -->
+        <div id="tab-content-aviso" class="pin-type-content">
+            <div class="form-group">
+                <label>Aviso de Mantenimiento</label>
+                <select id="pin-aviso">
+                    <option value="">Ningún aviso vinculado...</option>
+                    {% for aviso in avisos %}
+                    <option value="{{ aviso.id }}">AV-{{ aviso.id }}: {{ aviso.descripcion|truncatechars:50 }} ({{
+                        aviso.prioridad }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Contenido: Actividad -->
+        <div id="tab-content-actividad" class="pin-type-content">
+            <div class="form-group">
+                <label>Actividad de Proyecto</label>
+                <div style="display: flex; gap: 8px;">
+                    <select id="pin-actividad" style="flex: 1;">
+                        <option value="">Ninguna actividad...</option>
+                        {% for act in actividades %}
+                        <option value="{{ act.id }}" data-color="{{ act.color }}"
+                            data-proyecto="{{ act.proyecto.codigo }}">
+                            {{ act.proyecto.codigo }}: {{ act.nombre }} ({{ act.get_estado_display }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn" onclick="toggleCreateActivityMode()"
+                        style="background: var(--primary); width: 40px; padding: 0; display: flex; align-items: center; justify-content: center; border:none; cursor: pointer;">
+                        <ion-icon name="add" style="font-size: 1.2rem; color: white;"></ion-icon>
+                    </button>
+                </div>
+
+                <!-- Formulario Nueva Actividad (Oculto) -->
+                <div id="create-activity-form"
+                    style="display: none; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px dashed #cbd5e1; margin-top: 10px;">
+                    <h4 style="font-size: 0.85rem; margin-top: 0; margin-bottom: 8px; color: var(--text-dark);">Nueva
+                        Tarea</h4>
+
+                    <input type="text" id="new-activity-name" placeholder="Nombre de la tarea..."
+                        style="width: 100%; padding: 6px; margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.8rem;">
+
+                    <select id="new-activity-project"
+                        style="width: 100%; padding: 6px; margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.8rem;">
+                        {% if not proyectos %}
+                        <option value="">No hay proyectos vinculados</option>
+                        {% endif %}
+                        {% for proj in proyectos %}
+                        <option value="{{ proj.id }}">{{ proj.codigo }}: {{ proj.nombre }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn" type="button" onclick="createActivity()"
+                            style="flex: 1; background: var(--success); font-size: 0.75rem; border: none; padding: 6px; color: white;">Crear</button>
+                        <button class="btn" type="button" onclick="toggleCreateActivityMode()"
+                            style="flex: 1; background: #94a3b8; font-size: 0.75rem; border: none; padding: 6px; color: white;">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenido: Libre/Nota -->
+        <div id="tab-content-libre" class="pin-type-content">
+            <div
+                style="background: #e0f2fe; padding: 10px; border-radius: 6px; border: 1px solid #bae6fd; margin-bottom: 10px; font-size: 0.9em; color: #0369a1;">
+                <ion-icon name="information-circle"></ion-icon> Este pin actúa como una nota libre. Utilice el campo
+                "Notas adicionales" de abajo para agregar contenido.
+            </div>
         </div>
 
         <div class="form-group">
@@ -1057,11 +1442,19 @@
         let pz;
         let selectedFiles = []; // Almacenar archivos antes de subir
 
+        // Long press and radial menu
+        let longPressTimer = null;
+        let longPressPos = { x: 0, y: 0, screenX: 0, screenY: 0 };
+        let pendingPinType = null;
+        const radialMenu = document.getElementById('radial-menu');
+        const longPressIndicator = document.getElementById('long-press-indicator');
+        const LONG_PRESS_DURATION = 3000; // 3 seconds
+
         // Flags para controlar carga
         let isPZInitialized = false;
 
         // PDF JS Config
-        const pdfUrl = "{% if visor.plano.archivo %}{{ visor.plano.archivo.url }}{% endif %}";
+        const pdfUrl = "{% if visor.plano.archivo_actual %}{{ visor.plano.archivo_actual.url }}{% endif %}";
         const isPdf = pdfUrl.toLowerCase().endsWith('.pdf');
 
         window.addEventListener('load', async () => {
@@ -1361,7 +1754,7 @@
         }
 
 
-        function createNewPin(x, y) {
+        function createNewPin(x, y, pinType = null) {
             const tempId = 'temp-' + Date.now();
             const pin = document.createElement('div');
             pin.className = 'pin';
@@ -1371,14 +1764,126 @@
             pin.dataset.x = x.toFixed(1);
             pin.dataset.y = y.toFixed(1);
             pin.dataset.fotos = '[]';
-            pin.dataset.icon = 'location';
-            pin.style.color = '#FF0000';
+            pin.dataset.pinType = pinType || 'libre';
+
+            // Set icon and color based on type
+            const typeConfig = {
+                activo: { icon: 'cube', color: '#3b82f6' },
+                aviso: { icon: 'warning', color: '#ef4444' },
+                actividad: { icon: 'construct', color: '#10b981' },
+                libre: { icon: 'location', color: '#6366f1' }
+            };
+            const config = typeConfig[pinType] || typeConfig.libre;
+
+            pin.dataset.icon = config.icon;
+            pin.style.color = config.color;
             pin.style.pointerEvents = 'auto';
-            pin.innerHTML = '<ion-icon name="location"></ion-icon>';
+
+            // Build Label HTML based on type
+            let labelHtml = 'Sin asignar';
+            if (pinType === 'actividad') labelHtml = '<span style="color: var(--primary); font-weight: 800;">[TAREA]</span> ...';
+            else if (pinType === 'activo') labelHtml = '<span style="color: #28a745; font-weight: 800;">[ACTIVO]</span> ...';
+            else if (pinType === 'aviso') labelHtml = '<span style="color: #dc3545; font-weight: 800;">[AVISO]</span> ...';
+
+            pin.innerHTML = `
+                <ion-icon name="${config.icon}"></ion-icon>
+                <div class="pin-label-permanent">${labelHtml}</div>
+            `;
 
             pinesLayer.appendChild(pin);
+            pendingPinType = pinType;
             openPinInfo(pin);
         }
+
+        // ========== Radial Menu Functions ==========
+        function showRadialMenu(screenX, screenY) {
+            radialMenu.style.left = (screenX - 30) + 'px';
+            radialMenu.style.top = (screenY - 30) + 'px';
+            radialMenu.classList.add('active');
+        }
+
+        function hideRadialMenu() {
+            radialMenu.classList.remove('active');
+        }
+
+        function createTypedPin(type) {
+            hideRadialMenu();
+            createNewPin(longPressPos.x, longPressPos.y, type);
+        }
+
+        // ========== Long Press Detection ==========
+        function startLongPress(e) {
+            if (e.target.closest('.pin') || e.target.closest('#pin-panel')) return;
+            if (radialMenu.classList.contains('active')) {
+                hideRadialMenu();
+                return;
+            }
+
+            const rect = zoomContainer.getBoundingClientRect();
+            const scale = pz ? pz.getScale() : 1;
+
+            // Store both screen and canvas coordinates
+            longPressPos.screenX = e.clientX;
+            longPressPos.screenY = e.clientY;
+            longPressPos.x = (e.clientX - rect.left) / scale;
+            longPressPos.y = (e.clientY - rect.top) / scale;
+
+            // Show pulse indicator
+            longPressIndicator.style.left = e.clientX + 'px';
+            longPressIndicator.style.top = e.clientY + 'px';
+            longPressIndicator.classList.add('active');
+
+            longPressTimer = setTimeout(() => {
+                longPressIndicator.classList.remove('active');
+                showRadialMenu(e.clientX, e.clientY);
+            }, LONG_PRESS_DURATION);
+        }
+
+        function cancelLongPress() {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+            longPressIndicator.classList.remove('active');
+        }
+
+        // Attach long press listeners to zoom container
+        zoomContainer.addEventListener('mousedown', startLongPress);
+        zoomContainer.addEventListener('mouseup', cancelLongPress);
+        zoomContainer.addEventListener('mouseleave', cancelLongPress);
+        zoomContainer.addEventListener('mousemove', (e) => {
+            // Cancel if moved more than 10px
+            if (longPressTimer) {
+                const dx = Math.abs(e.clientX - longPressPos.screenX);
+                const dy = Math.abs(e.clientY - longPressPos.screenY);
+                if (dx > 10 || dy > 10) cancelLongPress();
+            }
+        });
+
+        // Touch support
+        zoomContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                startLongPress({ clientX: touch.clientX, clientY: touch.clientY, target: e.target });
+            }
+        });
+        zoomContainer.addEventListener('touchend', cancelLongPress);
+        zoomContainer.addEventListener('touchcancel', cancelLongPress);
+        zoomContainer.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1 && longPressTimer) {
+                const touch = e.touches[0];
+                const dx = Math.abs(touch.clientX - longPressPos.screenX);
+                const dy = Math.abs(touch.clientY - longPressPos.screenY);
+                if (dx > 10 || dy > 10) cancelLongPress();
+            }
+        });
+
+        // Close radial menu on click outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#radial-menu') && radialMenu.classList.contains('active')) {
+                hideRadialMenu();
+            }
+        });
 
         function handleFiles(files) {
             selectedFiles = Array.from(files);
@@ -1411,6 +1916,18 @@
             }
         });
 
+        function switchPinTab(type) {
+            // Update tabs
+            document.querySelectorAll('.pin-type-tab').forEach(t => t.classList.remove('active'));
+            const tab = document.querySelector(`.pin-type-tab.tab-${type}`);
+            if (tab) tab.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.pin-type-content').forEach(c => c.classList.remove('active'));
+            const content = document.getElementById(`tab-content-${type}`);
+            if (content) content.classList.add('active');
+        }
+
         function openPinInfo(pin) {
             activePin = pin;
             pinPanel.classList.add('active');
@@ -1418,11 +1935,32 @@
 
             const activoId = pin.dataset.activo || '';
             const avisoId = pin.dataset.aviso || '';
+            const actividadId = pin.dataset.actividad || '';
+
             document.getElementById('pin-activo').value = activoId;
             document.getElementById('pin-aviso').value = avisoId;
+            document.getElementById('pin-actividad').value = actividadId;
             document.getElementById('pin-color').value = pin.dataset.color || '#FF0000';
             document.getElementById('pin-nota').value = pin.dataset.nota || '';
             document.getElementById('btn-delete').style.display = pin.id.startsWith('temp') ? 'none' : 'flex';
+
+            // Determine and switch to correct tab
+            let type = pin.dataset.pinType;
+            if (!type) {
+                if (actividadId) type = 'actividad';
+                else if (avisoId) type = 'aviso';
+                else if (activoId) type = 'activo';
+                else type = 'libre'; // Default to libre if nothing linked
+            }
+
+            // Map legacy types or defaults
+            if (type === 'activo' && !activoId) {
+                // If it was marked as active but has no ID, let's see if it fits better elsewhere
+                if (actividadId) type = 'actividad';
+                else if (avisoId) type = 'aviso';
+            }
+
+            switchPinTab(type);
 
             // Mostrar/Ocultar botones de detalles
             const detailsBtnContainer = document.getElementById('details-btn-container');
@@ -1473,6 +2011,7 @@
 
             const activoId = document.getElementById('pin-activo').value;
             const avisoId = document.getElementById('pin-aviso').value;
+            const actividadId = document.getElementById('pin-actividad').value;
             const color = document.getElementById('pin-color').value;
             const nota = document.getElementById('pin-nota').value;
 
@@ -1482,6 +2021,7 @@
             formData.append('visor_id', VISOR_ID);
             formData.append('activo_id', activoId);
             formData.append('aviso_id', avisoId);
+            formData.append('actividad_id', actividadId);
             formData.append('x', x);
             formData.append('y', y);
             formData.append('color', color);
@@ -1516,6 +2056,57 @@
 
                 // Actualizar icono visualmente
                 activePin.querySelector('ion-icon').name = result.icono || 'location';
+
+                // Actualizar etiqueta permanente visualmente
+                const labelEl = activePin.querySelector('.pin-label-permanent');
+                if (labelEl) {
+                    // Actividad de proyecto
+                    if (result.actividad_id) {
+                        activePin.dataset.actividad = result.actividad_id;
+                        activePin.dataset.pinType = 'actividad';
+                    } else if (result.aviso_id) {
+                        activePin.dataset.aviso = result.aviso_id;
+                        activePin.dataset.pinType = 'aviso';
+                    } else if (result.activo_id) {
+                        activePin.dataset.activo = result.activo_id;
+                        activePin.dataset.pinType = 'activo';
+                    } else {
+                        // Es un pin libre
+                        activePin.dataset.pinType = 'libre';
+                    }
+
+                    // Actualizar UI del Pin
+                    let labelHtml = '';
+
+                    if (result.nombre_actividad) {
+                        labelHtml = `<span style="color: var(--primary); font-weight: 800;">[TAREA]</span> <span class="label-text">${result.nombre_actividad}</span>`;
+                    } else if (result.nombre_activo && result.nombre_activo !== 'Sin asignar') {
+                        const actNombre = result.nombre_activo || document.querySelector(`#pin-activo option[value="${result.activo_id}"]`)?.text.trim() || 'Activo';
+                        labelHtml = `<span style="color: #28a745; font-weight: 800;">[ACTIVO]</span> <span class="label-text">${actNombre}</span>`;
+                    } else if (result.aviso_id) {
+                        labelHtml = `<span style="color: #dc3545; font-weight: 800;">[AVISO]</span> <span class="label-text">AV-${result.aviso_id}</span>`;
+                    } else {
+                        // Pin Libre / Nota
+                        labelHtml = `<div style="margin-bottom: 2px;"><span style="color: #6366f1; font-weight: 800;">[NOTA]</span></div>`;
+                    }
+
+                    // Agregar fotos si existen
+                    if (result.fotos && result.fotos.length > 0) {
+                        let photosHtml = '<div style="display: flex; gap: 4px; overflow-x: auto; max-width: 200px; padding-top: 4px; border-top: 1px solid #eee;">';
+                        result.fotos.forEach(foto => {
+                            photosHtml += `<img src="${foto}" style="height: 80px; width: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;" draggable="false">`;
+                        });
+                        photosHtml += '</div>';
+                        labelHtml = `${labelHtml}${photosHtml}`;
+                    }
+
+                    // Agregar nota si existe
+                    if (result.nota) {
+                        labelHtml = `${labelHtml}<div style="font-size: 0.9em; color: #666; margin-bottom: 4px; font-style: italic; font-weight: 400;">${result.nota}</div>`;
+                    }
+
+                    labelEl.innerHTML = labelHtml;
+                }
 
                 showToast('Pin guardado (Píxeles)');
 
@@ -1743,11 +2334,152 @@
             });
         }
 
+        function toggleCreateActivityMode() {
+            const form = document.getElementById('create-activity-form');
+            if (form.style.display === 'none') {
+                form.style.display = 'block';
+            } else {
+                form.style.display = 'none';
+                document.getElementById('new-activity-name').value = '';
+            }
+        }
+
+        async function createActivity() {
+            const nombre = document.getElementById('new-activity-name').value;
+            const proyectoId = document.getElementById('new-activity-project').value;
+
+            if (!nombre || !proyectoId) {
+                showToast('Complete todos los campos');
+                return;
+            }
+
+            try {
+                const response = await fetch('/proyectos/api/crear-actividad/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre: nombre, proyecto_id: proyectoId })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    showToast('Tarea creada exitosamente');
+
+                    const select = document.getElementById('pin-actividad');
+                    const option = document.createElement('option');
+                    option.value = data.actividad.id;
+                    option.text = `${data.actividad.proyecto_codigo}: ${data.actividad.nombre} (${data.actividad.estado})`;
+                    option.dataset.color = data.actividad.color;
+                    option.dataset.proyecto = data.actividad.proyecto_codigo;
+
+                    select.appendChild(option);
+                    select.value = data.actividad.id;
+
+                    toggleCreateActivityMode();
+                } else {
+                    showToast(data.message || 'Error al crear actividad');
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('Error de conexión');
+            }
+        }
+
         function openLightbox(src) {
             const lb = document.getElementById('lightbox-modal');
             const img = document.getElementById('lightbox-img');
             img.src = src;
             lb.classList.add('active');
+        }
+
+        // ========== Report Mode & PDF Export ==========
+
+        function toggleLabelsMode() {
+            document.body.classList.toggle('show-labels');
+            const btn = document.getElementById('tool-labels');
+            if (document.body.classList.contains('show-labels')) {
+                btn.classList.add('active');
+                showToast('Modo Reporte: Etiquetas visibles');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+
+        async function exportPlanToPDF() {
+            showToast('Generando PDF... Por favor espere.');
+
+            // 1. Guardar estado actual de zoom/pan
+            const originalTransform = zoomContainer.style.transform;
+            const originalTransition = zoomContainer.style.transition;
+
+            // 2. Resetear para capturar plano completo en alta resolución
+            // Desactivar animaciones
+            zoomContainer.style.transition = 'none';
+            // Escala 1, Posición 0,0
+            zoomContainer.style.transform = 'scale(1) translate(0px, 0px)';
+
+            // Forzar reflow
+            zoomContainer.offsetHeight;
+
+            // Asegurar que las etiquetas se vean si no están activas (opcional, o respetar vista usuario)
+            // Si queremos exportar con etiquetas siempre, descomentar:
+            const wasLabelsActive = document.body.classList.contains('show-labels');
+            if (!wasLabelsActive) document.body.classList.add('show-labels');
+
+            try {
+                // 3. Capturar con html2canvas
+                const canvas = await html2canvas(zoomContainer, {
+                    scale: 1.5, // Mejor calidad
+                    useCORS: true, // Permitir imágenes externas si CORS está config
+                    backgroundColor: '#ffffff',
+                    ignoreElements: (element) => {
+                        // Ignorar elementos temporales si los hubiera
+                        return element.id === 'long-press-indicator';
+                    }
+                });
+
+                // 4. Generar PDF
+                const { jsPDF } = window.jspdf;
+                // Orientación landscape
+                const doc = new jsPDF('l', 'mm', 'a4');
+
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                const props = doc.getImageProperties(imgData);
+                const pdfWidth = doc.internal.pageSize.getWidth();
+                const pdfHeight = (props.height * pdfWidth) / props.width;
+
+                // Centrar verticalmente si sobra espacio, o ajustar a página
+                // Si la altura calculada es mayor que la página, ajustar por altura
+                const pageHeight = doc.internal.pageSize.getHeight();
+
+                let finalW = pdfWidth;
+                let finalH = pdfHeight;
+                let finalX = 0;
+                let finalY = 0;
+
+                if (pdfHeight > pageHeight) {
+                    // Ajustar por altura
+                    finalH = pageHeight;
+                    finalW = (props.width * pageHeight) / props.height;
+                    finalX = (pdfWidth - finalW) / 2; // Centrar horizontalmente
+                } else {
+                    finalY = (pageHeight - pdfHeight) / 2; // Centrar verticalmente
+                }
+
+                doc.addImage(imgData, 'JPEG', finalX, finalY, finalW, finalH);
+                doc.save(`Plano_${VISOR_ID}_${new Date().toISOString().slice(0, 10)}.pdf`);
+
+                showToast('PDF descargado correctamenre');
+
+            } catch (err) {
+                console.error(err);
+                showToast('Error al generar PDF');
+            } finally {
+                // 5. Restaurar estado original
+                zoomContainer.style.transform = originalTransform;
+                zoomContainer.style.transition = originalTransition;
+                if (!wasLabelsActive) document.body.classList.remove('show-labels');
+            }
         }
 
         function closeLightbox() {

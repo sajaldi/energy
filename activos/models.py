@@ -116,7 +116,7 @@ class Activo(models.Model):
     ]
 
     nombre = models.CharField(max_length=200, help_text="Nombre del activo o equipo")
-    codigo_interno = models.CharField(max_length=50, unique=True, blank=True, null=True, help_text="Código de inventario interno")
+    codigo_interno = models.CharField(max_length=50, unique=True, help_text="Código de inventario interno")
     serie = models.CharField(max_length=100, blank=True, null=True, help_text="Número de serie del fabricante", db_index=True)
     
     marca_legacy = models.CharField(max_length=100, blank=True, null=True)
@@ -153,9 +153,36 @@ class Plano(models.Model):
     nombre = models.CharField(max_length=100)
     ubicacion = models.ForeignKey(Ubicacion, on_delete=models.CASCADE, related_name='planos')
     activos = models.ManyToManyField('Activo', blank=True, related_name='planos', help_text="Activos que se visualizan en este plano")
-    archivo = models.FileField(upload_to='planos/', null=True, blank=True, help_text="Subir imagen o PDF del plano")
+    
+    # Vinculación con sistema de documentos para control de versiones
+    documento = models.ForeignKey(
+        'documentos.Documento',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='planos',
+        help_text="Documento que contiene el archivo del plano (usa la última revisión)"
+    )
+    
+    # Campo legacy - mantener para compatibilidad
+    archivo = models.FileField(upload_to='planos/', null=True, blank=True, 
+                               help_text="Archivo directo (usar 'documento' para control de versiones)")
+    
     descripcion = models.TextField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def archivo_actual(self):
+        """Devuelve el archivo de la última revisión del documento vinculado, o el archivo directo."""
+        if self.documento and self.documento.ultima_revision and self.documento.ultima_revision.archivo:
+            return self.documento.ultima_revision.archivo
+        return self.archivo  # Fallback al campo legacy
+    
+    @property
+    def revision_actual(self):
+        """Devuelve el identificador de revisión actual (ej: 'Rev A')"""
+        if self.documento and self.documento.ultima_revision:
+            return f"Rev {self.documento.ultima_revision.revision}"
+        return None
 
     def __str__(self):
         return f"{self.nombre} - {self.ubicacion.nombre}"
@@ -181,6 +208,16 @@ class PinPlano(models.Model):
     visor = models.ForeignKey(VisorPlano, on_delete=models.CASCADE, related_name='pines')
     activo = models.ForeignKey(Activo, on_delete=models.CASCADE, related_name='pines_planos', null=True, blank=True)
     aviso = models.ForeignKey('mantenimiento.Aviso', on_delete=models.SET_NULL, null=True, blank=True, related_name='pines_planos')
+    
+    # Actividad de proyecto ubicada en este punto
+    actividad = models.ForeignKey(
+        'proyectos.Actividad',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='pines_planos',
+        help_text="Actividad de proyecto ubicada en este punto"
+    )
+    
     x = models.FloatField(help_text="Posición X en píxeles absolutos")
     y = models.FloatField(help_text="Posición Y en píxeles absolutos")
     color = ColorField(default='#FF0000')
