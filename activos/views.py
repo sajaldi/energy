@@ -13,19 +13,29 @@ def visor_plano(request, visor_id):
     
     from .models import Categoria, Ubicacion
     from mantenimiento.models import Aviso
+    from proyectos.models import Actividad
     
     categorias = Categoria.objects.all().order_by('nombre')
     ubicaciones = Ubicacion.objects.all().order_by('nombre')
     # Solo avisos abiertos o en proceso
-    avisos = Aviso.objects.filter(estado__in=['ABIERTO', 'PROCESO']).order_by('-fecha_compra' if hasattr(Aviso, 'fecha_compra') else '-creado_en')
+    avisos = Aviso.objects.filter(estado__in=['ABIERTO', 'PROCESO']).order_by('-creado_en')
+    # Actividades de proyectos pendientes o en progreso
+    actividades = Actividad.objects.filter(
+        estado__in=['PENDIENTE', 'EN_PROGRESO']
+    ).select_related('proyecto').order_by('proyecto__codigo', 'orden')
+    proyectos_visor = visor.proyectos.all()
     
-    return render(request, 'activos/visor_plano.html', {
+    context = {
         'visor': visor,
         'activos': activos,
-        'categorias': categorias,
         'ubicaciones': ubicaciones,
+        'categorias': categorias,
         'avisos': avisos,
-    })
+        'actividades': actividades,
+        'proyectos': proyectos_visor,
+    }
+    
+    return render(request, 'activos/visor_plano.html', context)
 
 @csrf_exempt
 @staff_member_required
@@ -68,6 +78,13 @@ def guardar_pin(request):
                 pin.aviso_id = aviso_id
             else:
                 pin.aviso = None
+            
+            # Actividad de proyecto
+            actividad_id = data.get('actividad_id')
+            if actividad_id:
+                pin.actividad_id = actividad_id
+            else:
+                pin.actividad = None
                 
             pin.x = x
             pin.y = y
@@ -88,7 +105,10 @@ def guardar_pin(request):
             icono_label = "location"
             aviso_meta = {}
             
-            if pin.activo:
+            if pin.actividad:
+                nombre_label = pin.actividad.nombre
+                icono_label = "construct"
+            elif pin.activo:
                 nombre_label = pin.activo.nombre
                 cat = pin.activo.modelo.categoria if pin.activo.modelo else None
                 icono_label = cat.icono if cat else 'cube'
@@ -107,7 +127,9 @@ def guardar_pin(request):
                 'pin_id': pin.id,
                 'activo_id': pin.activo.id if pin.activo else None,
                 'aviso_id': pin.aviso.id if pin.aviso else None,
+                'actividad_id': pin.actividad.id if pin.actividad else None,
                 'nombre_activo': nombre_label,
+                'nombre_actividad': pin.actividad.nombre if pin.actividad else None,
                 'codigo_externo': pin.activo.codigo_interno if pin.activo else '',
                 'nota': pin.nota,
                 'fotos': fotos_urls,
@@ -172,8 +194,28 @@ def import_progress(request, task_id):
 @staff_member_required
 def get_import_progress(request):
     """
-    Retorna el porcentaje de avance de la importación para el usuario actual.
+    Retorna información detallada del progreso de importación para el usuario actual.
+    Incluye: porcentaje, item actual, conteo procesado, estadísticas y velocidad.
     """
     from django.core.cache import cache
-    progress = cache.get(f"import_progress_{request.user.id}", 0)
-    return JsonResponse({'progress': progress})
+    uid = request.user.id
+    
+    progress = cache.get(f"import_progress_{uid}", 0)
+    current_item = cache.get(f"import_progress_{uid}_current", '')
+    processed = cache.get(f"import_progress_{uid}_count", 0)
+    stats = cache.get(f"import_progress_{uid}_stats", {'new': 0, 'update': 0, 'skip': 0, 'error': 0})
+    start_time = cache.get(f"import_progress_{uid}_start", 0)
+    
+    # Calcular velocidad (items por segundo)
+    import time
+    elapsed = time.time() - start_time if start_time else 0
+    speed = round(processed / elapsed, 1) if elapsed > 0 else 0
+    
+    return JsonResponse({
+        'progress': progress,
+        'current_item': current_item,
+        'processed': processed,
+        'stats': stats,
+        'speed': speed,  # items/segundo
+        'elapsed': round(elapsed, 1)
+    })

@@ -10,19 +10,39 @@ from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano, VisorPla
 # ... (resto de registros)
 
 from django.utils.html import format_html
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 
 @admin.register(Plano)
 class PlanoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'ubicacion', 'visualizar_archivo', 'creado_en')
+    list_display = ('nombre', 'ubicacion', 'documento_info', 'visualizar_archivo', 'creado_en')
     list_filter = ('ubicacion',)
-    list_select_related = ('ubicacion',)
-    search_fields = ('nombre', 'ubicacion__nombre')
+    list_select_related = ('ubicacion', 'documento__ultima_revision')
+    search_fields = ('nombre', 'ubicacion__nombre', 'documento__codigo')
     filter_horizontal = ('activos',)
+    autocomplete_fields = ('documento',)
     readonly_fields = ('visualizar_archivo',)
+    fieldsets = (
+        (None, {'fields': ('nombre', 'ubicacion', 'descripcion')}),
+        ('Archivo del Plano', {
+            'fields': ('documento', 'archivo'),
+            'description': 'Usa "Documento" para control de versiones, o "Archivo" para carga directa.'
+        }),
+        ('Activos Vinculados', {'fields': ('activos',)}),
+    )
+
+    def documento_info(self, obj):
+        if obj.documento:
+            rev = obj.revision_actual or ''
+            return format_html('<span style="color: #2563eb;">{}</span> <small style="color: #64748b;">{}</small>', 
+                             obj.documento.codigo, rev)
+        return format_html('<span style="color: #94a3b8;">Sin documento</span>')
+    documento_info.short_description = "Documento"
 
     def visualizar_archivo(self, obj):
-        if obj.archivo:
-            return format_html('<a href="{0}" target="_blank">📄 Ver Plano</a>', obj.archivo.url)
+        archivo = obj.archivo_actual
+        if archivo:
+            rev_tag = f' ({obj.revision_actual})' if obj.revision_actual else ''
+            return format_html('<a href="{0}" target="_blank">📄 Ver Plano{1}</a>', archivo.url, rev_tag)
         return "No hay archivo"
     visualizar_archivo.short_description = "Visualizar"
 
@@ -162,8 +182,21 @@ class ModeloAdmin(ImportExportModelAdmin):
         if not obj.categoria:
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
         
+        # Buscar la categoría de mantenimiento vinculada (a través de la relación inversa)
+        m_cat = getattr(obj.categoria, 'mantenimiento_categoria', None)
+        
+        if not m_cat:
+            return format_html('<span style="color: #94a3b8; font-style: italic;">La categoría "{0}" no tiene una categoría de mantenimiento vinculada.</span>', obj.categoria.nombre)
+
         from mantenimiento.models import Rutina
-        rutinas = Rutina.objects.filter(categoria_activo=obj.categoria).select_related('frecuencia', 'categoria')
+        # Obtener ancestros de la categoría de mantenimiento vinculada para incluir rutinas generales
+        m_cats_ids = []
+        curr = m_cat
+        while curr:
+            m_cats_ids.append(curr.id)
+            curr = curr.padre
+            
+        rutinas = Rutina.objects.filter(categoria_id__in=m_cats_ids).select_related('frecuencia', 'categoria')
         
         if not rutinas.exists():
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas de mantenimiento configuradas para la categoría "{0}".</span>', obj.categoria.nombre)
@@ -413,8 +446,8 @@ class SmartUbicacionWidget(ForeignKeyWidget):
                     return cand
         
         # Si llegamos aquí y hay jerarquía pero no se encontró, o no hay jerarquía...
-        # Buscamos por nombre, pero si hay múltiples "Nivel 6", devolvemos el primero 
-        # (aunque avisamos implícitamente que la jerarquía es mejor)
+        # Intentamos buscar en el caché de nombres (ya normalizado a iexact implícitamente por el diccionario si lo hiciéramos así)
+        # Pero como fallback final, si no está en caché, hacemos una sola consulta
         return Ubicacion.objects.filter(nombre__iexact=value_str).first()
 
 class ActivoResource(resources.ModelResource):
@@ -457,7 +490,14 @@ class ActivoResource(resources.ModelResource):
         skip_unchanged = True
         report_skipped = True
         use_bulk = True
-        batch_size = 500
+        batch_size = 1000  # Optimizado: más registros por lote
+        use_transactions = True  # Atomicidad para evitar estados inconsistentes
+
+    def get_queryset(self, request):
+        """Eager loading para que skip_row y exportación sean rápidos"""
+        return super().get_queryset(request).select_related(
+            'modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable'
+        )
 
     def get_bulk_update_fields(self):
         """Mapea nombres de campos del Resource a atributos reales del Modelo para Bulk Update"""
@@ -489,13 +529,13 @@ class ActivoResource(resources.ModelResource):
         # 2. Forzar actualización si cambió el modelo (indirecto)
         excel_model = str(row.get('modelo_nombre') or '').strip().upper()
         current_model = original.modelo.nombre.upper() if original and original.modelo else ''
-        if excel_model != current_model:
+        if excel_model and excel_model != current_model:
             return False
             
         # 3. Forzar actualización si cambió la categoría (indirecto via modelo)
         excel_cat = str(row.get('categoria_nombre') or '').strip().upper()
         current_cat = original.modelo.categoria.nombre.upper() if original and original.modelo and original.modelo.categoria else ''
-        if excel_cat != current_cat:
+        if excel_cat and excel_cat != current_cat:
             return False
             
         return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
@@ -506,11 +546,15 @@ class ActivoResource(resources.ModelResource):
         from .models import Marca, Modelo, Categoria, Ubicacion
         from django.db.models import Count
         
-        # 0. Inicializar progreso
+        # 0. Inicializar progreso detallado
         user = kwargs.get('user')
+        self._import_user = user
         if user:
-            cache.set(f"import_progress_{user.id}", 0, 300)
-            cache.set(f"import_progress_{user.id}_count", 0, 300)
+            cache.set(f"import_progress_{user.id}", 0, 600)
+            cache.set(f"import_progress_{user.id}_count", 0, 600)
+            cache.set(f"import_progress_{user.id}_current", 'Preparando datos...', 600)
+            cache.set(f"import_progress_{user.id}_stats", {'new': 0, 'update': 0, 'skip': 0, 'error': 0}, 600)
+            cache.set(f"import_progress_{user.id}_start", __import__('time').time(), 600)
             self.total_rows = len(dataset)
 
         # 1. Caché Ubicaciones
@@ -535,21 +579,42 @@ class ActivoResource(resources.ModelResource):
         
         self.fields['ubicacion_nombre'].widget.resource = self
 
-        # 2. Caché Marcas/Modelos...
+        # 2. Caché Marcas/Modelos/Categorías
         self.marca_cache = {m.nombre.upper(): m for m in Marca.objects.all()}
-        self.modelo_cache = {m.nombre.upper(): m for m in Modelo.objects.all().select_related('marca')}
+        self.modelo_cache = {m.nombre.upper(): m for m in Modelo.objects.all().select_related('marca', 'categoria')}
+        self.categoria_cache = {c.nombre.upper(): c for c in Categoria.objects.all()}
+
+        # 3. Caché Activos por Código Interno (para get_instance instantáneo)
+        self.activo_cache = {a.codigo_interno: a for a in Activo.objects.all().only('id', 'codigo_interno') if a.codigo_interno}
 
     def after_import_row(self, row, row_result, **kwargs):
-        """Actualizar progreso en caché"""
+        """Actualizar progreso detallado en caché para seguimiento en tiempo real"""
         from django.core.cache import cache
         user = kwargs.get('user')
         if user and hasattr(self, 'total_rows') and self.total_rows > 0:
-            current = cache.get(f"import_progress_{user.id}_count", 0) + 1
-            cache.set(f"import_progress_{user.id}_count", current, 300)
-            percent = int((current / self.total_rows) * 100)
-            # Asegurarse de no pasarnos de 100 si hay headers o filas extra
-            if percent > 100: percent = 100
-            cache.set(f"import_progress_{user.id}", percent, 300)
+            uid = user.id
+            current = cache.get(f"import_progress_{uid}_count", 0) + 1
+            cache.set(f"import_progress_{uid}_count", current, 600)
+            
+            percent = min(int((current / self.total_rows) * 100), 100)
+            cache.set(f"import_progress_{uid}", percent, 600)
+            
+            # Nombre del activo actual para mostrar en UI
+            current_name = row.get('nombre') or row.get('codigo_interno') or f'Fila {current}'
+            cache.set(f"import_progress_{uid}_current", str(current_name)[:50], 600)
+            
+            # Acumular estadísticas por tipo de operación
+            stats = cache.get(f"import_progress_{uid}_stats", {'new': 0, 'update': 0, 'skip': 0, 'error': 0})
+            import_type = getattr(row_result, 'import_type', None)
+            if import_type == 'new':
+                stats['new'] += 1
+            elif import_type == 'update':
+                stats['update'] += 1
+            elif import_type == 'skip':
+                stats['skip'] += 1
+            if row_result.errors:
+                stats['error'] += 1
+            cache.set(f"import_progress_{uid}_stats", stats, 600)
 
     def dehydrate_ubicacion_nombre(self, activo):
         """Exportar la ruta completa para evitar ambigüedad en futuras importaciones"""
@@ -570,44 +635,62 @@ class ActivoResource(resources.ModelResource):
             mar_key = mar_name.upper()
             
             # 1. Garantizar Marca
-            marca_obj = None
-            if mar_name:
-                if mar_key not in self.marca_cache:
-                    marca_obj, _ = Marca.objects.get_or_create(nombre=mar_name)
-                    self.marca_cache[mar_key] = marca_obj
-                else:
-                    marca_obj = self.marca_cache[mar_key]
-            else:
-                marca_obj, _ = Marca.objects.get_or_create(nombre="GENERICO")
+            marca_obj = self.marca_cache.get(mar_key) if mar_name else self.marca_cache.get("GENERICO")
+            if not marca_obj:
+                marca_obj, _ = Marca.objects.get_or_create(nombre=mar_name or "GENERICO")
+                self.marca_cache[mar_key or "GENERICO"] = marca_obj
             
             # 2. Garantizar Categoría
-            cat_obj = None
-            if cat_name:
+            cat_obj = self.categoria_cache.get(cat_name.upper()) if cat_name else None
+            if cat_name and not cat_obj:
                 cat_obj, _ = Categoria.objects.get_or_create(nombre=cat_name)
+                self.categoria_cache[cat_name.upper()] = cat_obj
             
             # 3. Garantizar Modelo
-            if mod_key not in self.modelo_cache:
+            mod_obj = self.modelo_cache.get(mod_key)
+            if not mod_obj:
                 mod_obj, _ = Modelo.objects.get_or_create(
                     nombre=mod_name, 
                     marca=marca_obj,
                     defaults={'categoria': cat_obj}
                 )
-                # Si ya existía pero sin categoría, o con una distinta, actualizamos
-                if cat_obj and mod_obj.categoria != cat_obj:
-                    mod_obj.categoria = cat_obj
-                    mod_obj.save()
                 self.modelo_cache[mod_key] = mod_obj
-            else:
-                mod_obj = self.modelo_cache[mod_key]
-                if cat_obj and mod_obj.categoria != cat_obj:
-                    mod_obj.categoria = cat_obj
-                    mod_obj.save()
+            
+            # Si ya existía pero tenemos categoría nueva/distinta, actualizamos solo si es necesario
+            if cat_obj and mod_obj.categoria != cat_obj:
+                mod_obj.categoria = cat_obj
+                mod_obj.save()
 
     def get_instance(self, instance_loader, row):
         codigo = row.get('codigo_interno')
         if codigo:
+            # Usar caché local en lugar de consultar la DB
+            if hasattr(self, 'activo_cache'):
+                return self.activo_cache.get(codigo)
             return self._meta.model.objects.filter(codigo_interno=codigo).first()
         return None
+
+class UbicacionHierarchyFilter(admin.SimpleListFilter):
+    title = 'Ubicación'
+    parameter_name = 'ubicacion_id'
+
+    def lookups(self, request, model_admin):
+        # Devolvemos todas las ubicaciones ordenadas por nombre
+        from .models import Ubicacion
+        locations = Ubicacion.objects.all().order_by('nombre')
+        return [(loc.id, loc.ruta_completa) for loc in locations]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            from .models import Ubicacion
+            try:
+                ubicacion = Ubicacion.objects.get(id=self.value())
+                # Obtener todos los descendientes incluyendo el actual
+                descendientes_ids = ubicacion.get_descendants(include_self=True).values_list('id', flat=True)
+                return queryset.filter(ubicacion_id__in=descendientes_ids)
+            except (Ubicacion.DoesNotExist, ValueError):
+                return queryset
+        return queryset
 
 @admin.register(Activo)
 class ActivoAdmin(ImportExportModelAdmin):
@@ -620,18 +703,55 @@ class ActivoAdmin(ImportExportModelAdmin):
         return {'user': request.user}
 
     list_display = ('codigo_interno', 'nombre', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'ubicacion', 'responsable')
-    list_filter = ('estado', 'modelo__categoria', 'modelo__marca', 'creado_en', 'ubicacion')
+    list_filter = ('estado', 'modelo__categoria', 'modelo__marca', 'creado_en', UbicacionHierarchyFilter)
     list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable')
     search_fields = ('nombre', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('modelo', 'ubicacion', 'responsable')
     readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables')
+    actions = ['export_selected_assets']
+
+    def export_selected_assets(self, request, queryset):
+        """
+        Acción para exportar solo los activos seleccionados.
+        Redirige a la vista de exportación estándar pero pasando los IDs.
+        """
+        selected = queryset.values_list('pk', flat=True)
+        # django-import-export maneja la exportación via GET usualmente, 
+        # pero para seleccionados podemos usar el queryset ya filtrado
+        # si sobreescribimos get_export_queryset.
+        return self.export_action(request)
+    export_selected_assets.short_description = "Exportar activos seleccionados"
+
+    def get_export_queryset(self, request):
+        """
+        Sobrescribe para filtrar por selección si se viene de la acción de lote.
+        """
+        queryset = super().get_export_queryset(request)
+        # Buscamos si hay IDs seleccionados en la sesión o en el POST
+        selected_ids = request.POST.getlist(ACTION_CHECKBOX_NAME)
+        if selected_ids:
+            return queryset.filter(pk__in=selected_ids)
+        return queryset
 
     def rutinas_aplicables(self, obj):
         if not obj.modelo or not obj.modelo.categoria:
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
         
+        # Buscar la categoría de mantenimiento vinculada
+        m_cat = getattr(obj.modelo.categoria, 'mantenimiento_categoria', None)
+
+        if not m_cat:
+            return format_html('<span style="color: #94a3b8; font-style: italic;">La categoría "{0}" no tiene una categoría de mantenimiento vinculada.</span>', obj.modelo.categoria.nombre)
+
         from mantenimiento.models import Rutina
-        rutinas = Rutina.objects.filter(categoria_activo=obj.modelo.categoria).select_related('frecuencia')
+        # Obtener ancestros de la categoría de mantenimiento vinculada
+        m_cats_ids = []
+        curr = m_cat
+        while curr:
+            m_cats_ids.append(curr.id)
+            curr = curr.padre
+            
+        rutinas = Rutina.objects.filter(categoria_id__in=m_cats_ids).select_related('frecuencia', 'categoria')
         
         if not rutinas.exists():
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas de mantenimiento configuradas para la categoría "{0}".</span>', obj.modelo.categoria.nombre)

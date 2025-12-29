@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'core',  # Mover al inicio para que sus templates (overrides) tengan prioridad
     'documentos', # Nueva gestión documental
     'comunicaciones', # Nuevo sistema de mail/transmittals
+    'proyectos', # Gestión de proyectos y actividades
     'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -247,11 +248,11 @@ LOGGING = {
 }
 
 JAZZMIN_SETTINGS = {
-    "site_title": "Energía Admin",
-    "site_header": "Energía",
-    "site_brand": "Energía",
+    "site_title": "SoftCom-CCG Admin",
+    "site_header": "SoftCom-CCG",
+    "site_brand": "SoftCom-CCG",
     "welcome_sign": "Bienvenido al panel de administración",
-    "copyright": "Energía Ltd",
+    "copyright": "SoftCom-CCG Ltd",
     "search_model": ["auth.User"],
     "user_avatar": None,
     "topmenu_links": [
@@ -281,19 +282,19 @@ JAZZMIN_UI_TWEAKS = {
     "footer_small_text": False,
     "body_small_text": False,
     "brand_small_text": False,
-    "brand_colour": "navbar-primary",
+    "brand_colour": "navbar-navy",
     "accent": "accent-primary",
-    "navbar": "navbar-primary navbar-dark",
+    "navbar": "navbar-navy navbar-dark",
     "no_navbar_border": False,
     "navbar_fixed": False,
     "layout_boxed": False,
     "footer_fixed": False,
     "sidebar_fixed": True,
-    "sidebar": "sidebar-light-primary",
+    "sidebar": "sidebar-dark-primary",
     "sidebar_nav_small_text": False,
     "sidebar_disable_expand": False,
-    "sidebar_collapse": True,
-    "theme": "yeti",
+    "sidebar_collapse": False,
+    "theme": "flatly",
     "dark_mode_theme": None,
     "button_classes": {
         "primary": "btn-primary",

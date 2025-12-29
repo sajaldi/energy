@@ -11,6 +11,7 @@ class Categoria(models.Model):
     """
     nombre = models.CharField(max_length=100)
     padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategorias')
+    categoria_activo = models.OneToOneField('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimiento_categoria', help_text="Vincular con una categoría de activo particular")
     descripcion = models.TextField(blank=True, null=True)
     
     def get_ruta_completa(self, separador=' → '):
@@ -84,22 +85,59 @@ class Frecuencia(models.Model):
         verbose_name_plural = "Frecuencias"
         ordering = ['dias']
 
+class Procedimiento(models.Model):
+    nombre = models.CharField(max_length=200, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Procedimiento"
+        verbose_name_plural = "Procedimientos"
+
+class PasoProcedimiento(models.Model):
+    procedimiento = models.ForeignKey(Procedimiento, on_delete=models.CASCADE, related_name='pasos')
+    orden = models.PositiveIntegerField(default=0)
+    descripcion = models.TextField(help_text="Descripción de la tarea a realizar")
+    verificacion = models.CharField(max_length=100, blank=True, null=True, help_text="¿Qué debe verificar el técnico?")
+    
+    class Meta:
+        verbose_name = "Paso de Procedimiento"
+        verbose_name_plural = "Pasos de Procedimiento"
+        ordering = ['procedimiento', 'orden']
+
+    def __str__(self):
+        return f"{self.orden}. {self.descripcion[:50]}"
+
 class Rutina(models.Model):
     nombre = models.CharField(max_length=200)
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas', 
                                   help_text="Clasificación de mantenimiento (ej: Mecánica, Eléctrica)")
-    categoria_activo = models.ForeignKey('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas',
-                                        help_text="Tipo de equipo al que aplica esta rutina (ej: Motores, Bombas)")
     descripcion = models.TextField(blank=True, null=True)
 
     frecuencia = models.ForeignKey(Frecuencia, on_delete=models.SET_NULL, null=True, related_name='rutinas')
     
     # Tiempo de ejecución
-    tiempo_estimado = models.DurationField(help_text="Tiempo estimado de ejecución (HH:MM:SS)", blank=True, null=True)
-    cantidad_tecnicos = models.PositiveIntegerField(default=1, help_text="Cantidad de técnicos sugerida")
+    tiempo_estimado = models.DurationField(null=True, blank=True, help_text="Tiempo estimado para completar la rutina (ej: 02:00:00)")
+    cantidad_tecnicos = models.IntegerField(default=1, help_text="Número de técnicos requeridos")
+    procedimiento_estandar = models.ForeignKey(Procedimiento, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas',
+                                               help_text="Elija el manual de pasos a seguir")
+    herramientas = models.TextField(blank=True, null=True, help_text="Herramientas y materiales necesarios")
     
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        """
+        Auto-genera el nombre siguiendo el formato:
+        ACTIVIDADES [Frecuencia] - [Categoría]
+        """
+        frec_name = self.frecuencia.nombre if self.frecuencia else "Sin Frecuencia"
+        cat_name = self.categoria.nombre if self.categoria else "General"
+        self.nombre = f"ACTIVIDADES {frec_name} - {cat_name}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nombre
@@ -107,19 +145,6 @@ class Rutina(models.Model):
     class Meta:
         verbose_name = "Rutina"
         verbose_name_plural = "Rutinas"
-
-class PasoRutina(models.Model):
-    rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='pasos')
-    orden = models.PositiveIntegerField(default=0)
-    descripcion = models.TextField(help_text="Descripción detallada del paso a realizar")
-    
-    class Meta:
-        verbose_name = "Paso de Rutina"
-        verbose_name_plural = "Pasos de Rutina"
-        ordering = ['rutina', 'orden']
-
-    def __str__(self):
-        return f"{self.rutina.nombre} - Paso {self.orden}: {self.descripcion[:50]}"
 
 class Horario(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
@@ -271,7 +296,17 @@ class Programacion(models.Model):
             
         frecuencia_dias = self.rutina.frecuencia.dias
         tiempo_rutina = self.rutina.tiempo_estimado or timedelta(hours=1)
-        cat_activo = self.rutina.categoria_activo
+        
+        # 2. Determinar categorías de activos aplicables base a la vinculación 1:1
+        from activos.models import Categoria as CategoriaActivo
+        cat_mantenimiento = self.rutina.categoria
+        asset_cats = CategoriaActivo.objects.none()
+        if cat_mantenimiento:
+            # Buscamos categorías de activos vinculadas a esta categoría de mantenimiento o sus descendientes
+            m_cats = cat_mantenimiento.get_descendants(include_self=True)
+            asset_cats_ids = [c.categoria_activo_id for c in m_cats if c.categoria_activo_id]
+            asset_cats = CategoriaActivo.objects.filter(id__in=asset_cats_ids)
+            
         ordenes_creadas = 0
         
         fecha_ciclo = self.fecha_inicio
@@ -282,12 +317,13 @@ class Programacion(models.Model):
             cursor_dt = None
             
             for area in areas_a_programar:
-                # 2. Buscar activos que coincidan con la categoría
+                # 3. Buscar activos que coincidan con las categorías de activo vinculadas
                 activos_pendientes = []
-                if cat_activo:
-                    activos_pendientes = list(Activo.objects.filter(ubicacion=area, modelo__categoria=cat_activo))
+                if asset_cats.exists():
+                    activos_pendientes = list(Activo.objects.filter(ubicacion=area, modelo__categoria__in=asset_cats))
                 else:
-                    # Si no hay categoría de activo, generamos una orden vacía para el área
+                    # Si no hay categorías vinculadas, generamos una orden vacía para el área 
+                    # si es que la rutina es genérica para el área
                     activos_pendientes = [None]
 
 
