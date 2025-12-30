@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'colorfield',
     'activos',
     'mantenimiento',
+    'presupuestos.apps.PresupuestosConfig',
 ]
 
 
@@ -267,6 +268,8 @@ JAZZMIN_SETTINGS = {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
         "auth.Group": "fas fa-users",
+        "presupuestos": "fas fa-file-invoice-dollar",
+        "presupuestos.presupuesto": "fas fa-file-invoice-dollar",
     },
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",

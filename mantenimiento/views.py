@@ -1,8 +1,9 @@
 
 from django.shortcuts import render
 from django.http import JsonResponse
+from django.contrib.admin.views.decorators import staff_member_required
 from .models import OrdenTrabajo, Rutina, Categoria
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta
 import collections
 
 import calendar
@@ -455,3 +456,166 @@ def calendario_detallado(request):
     })
 
 
+@staff_member_required
+def cronograma_mantenimiento_visual(request):
+    from activos.models import Ubicacion
+    year = int(request.GET.get('year', datetime.now().year))
+    view_mode = request.GET.get('view_mode', 'sistema') # 'sistema' o 'ubicacion'
+    ubicacion_id = request.GET.get('ubicacion_id')
+    
+    # Obtener todas las ubicaciones raíz para el filtro
+    ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
+    
+    # Filtro base para las órdenes
+    filtros = {'inicio_programado__year': year}
+    
+    if ubicacion_id:
+        try:
+            area_sel = Ubicacion.objects.get(id=ubicacion_id)
+            desc_ids = area_sel.get_descendants(include_self=True).values_list('id', flat=True)
+            filtros['ubicacion_id__in'] = desc_ids
+        except Ubicacion.DoesNotExist:
+            pass
+
+    # Obtener todas las órdenes del año filtradas
+    ordenes = OrdenTrabajo.objects.filter(
+        **filtros
+    ).select_related(
+        'ubicacion', 
+        'rutina__categoria', 
+        'rutina__frecuencia',
+        'programacion__horario'
+    ).values(
+        'id', 'rutina__nombre', 'ubicacion__nombre', 
+        'rutina__categoria_id', 'inicio_programado', 'estado',
+        'programacion__horario__color'
+    )
+    
+    # Precargar categorías para encontrar raíces (sistemas)
+    categorias = {c.id: c for c in Categoria.objects.all()}
+    for c in categorias.values():
+        if c.padre_id:
+            c.padre = categorias.get(c.padre_id)
+
+    # Estructura para agrupar: {RootLabel: {SubLabel: {RoutineLabel: {WeekIdx: [ots]}}}}
+    grupos_dict = collections.defaultdict(
+        lambda: collections.defaultdict(
+            lambda: collections.defaultdict(
+                lambda: collections.defaultdict(list)
+            )
+        )
+    )
+    
+    for ot in ordenes:
+        dia_año = ot['inicio_programado'].timetuple().tm_yday
+        semana_idx = (dia_año - 1) // 7
+        if semana_idx > 51: semana_idx = 51
+
+        if view_mode == 'ubicacion':
+            # Para ubicación, podríamos intentar: Padre -> Ubicación -> Rutina
+            group_label = ot['ubicacion__nombre'] or "S/U"
+            sub_label = "General" # Simplificado por ahora o podríamos buscar el padre de la ubicación
+            routine_label = ot['rutina__nombre'] or "General"
+        else: # sistema
+            cat_id = ot['rutina__categoria_id']
+            if cat_id and cat_id in categorias:
+                root = categorias[cat_id].get_root()
+                group_label = root.nombre
+                # La subcategoría es la categoría directa, a menos que sea la misma raíz
+                sub_label = categorias[cat_id].nombre if categorias[cat_id].id != root.id else "General"
+            else:
+                group_label = "General / Otros"
+                sub_label = "Sin Categoría"
+            routine_label = ot['rutina__nombre'] or "General"
+        
+        grupos_dict[group_label][sub_label][routine_label][semana_idx].append(ot)
+
+    # Preparar datos finales
+    datos_finales = []
+    meses_nombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    
+    # Generar 52 semanas
+    semanas = []
+    base_date = datetime(year, 1, 1)
+    if base_date.weekday() != 0:
+        base_date += timedelta(days=(7 - base_date.weekday()))
+    
+    for i in range(52):
+        start_week = base_date + timedelta(weeks=i)
+        semanas.append({'n': i + 1, 'inicio': start_week, 'mes': meses_nombres[start_week.month - 1]})
+
+    for g_label, subs_map in sorted(grupos_dict.items()):
+        # Celdas de resumen del sistema raíz
+        celdas_grupo = []
+        best_color = '#3b82f6'
+        color_found = False
+
+        for i in range(52):
+            any_in_week = False
+            for s_label, routines_map in subs_map.items():
+                if any(routines_map[r][i] for r in routines_map):
+                    any_in_week = True
+                    break
+            celdas_grupo.append({'active': any_in_week})
+        
+        subgrupos_nested = []
+        for s_label, routines_map in sorted(subs_map.items()):
+            # Celdas de resumen de la subcategoría
+            celdas_sub = []
+            for i in range(52):
+                any_in_week = any(routines_map[r][i] for r in routines_map)
+                celdas_sub.append({'active': any_in_week})
+
+            rutinas_nested = []
+            for r_label, weeks_map in sorted(routines_map.items()):
+                celdas_rutina = []
+                routine_color = '#3b82f6'
+                for i in range(52):
+                    ots = weeks_map.get(i, [])
+                    if ots and not color_found:
+                        best_color = ots[0]['programacion__horario__color'] or '#3b82f6'
+                        color_found = True
+                    
+                    if ots:
+                        routine_color = ots[0]['programacion__horario__color'] or '#3b82f6'
+
+                    celdas_rutina.append({
+                        'active': bool(ots),
+                        'count': len(ots),
+                        'info': ", ".join(set([o['rutina__nombre'] if view_mode == 'ubicacion' else o['ubicacion__nombre'] or 'S/U' for o in ots]))
+                    })
+                rutinas_nested.append({
+                    'label': r_label,
+                    'celdas': celdas_rutina,
+                    'color': routine_color
+                })
+            
+            subgrupos_nested.append({
+                'label': s_label,
+                'celdas': celdas_sub,
+                'rutinas': rutinas_nested
+            })
+
+        datos_finales.append({
+            'label': g_label,
+            'celdas': celdas_grupo,
+            'subgrupos': subgrupos_nested,
+            'color': best_color if color_found else ('#c00000' if view_mode == 'sistema' else '#3b82f6')
+        })
+
+    # Agrupar por Mes para el Header
+    meses_header = []
+    for m_name in meses_nombres:
+        count = len([s for s in semanas if s['mes'] == m_name])
+        if count:
+            meses_header.append({'nombre': m_name, 'count': count})
+
+    return render(request, 'mantenimiento/cronograma.html', {
+        'items': datos_finales,
+        'semanas': semanas,
+        'meses_header': meses_header,
+        'year': year,
+        'view_mode': view_mode,
+        'ubicaciones_roots': ubicaciones_roots,
+        'current_ubi': int(ubicacion_id) if ubicacion_id else None,
+    })

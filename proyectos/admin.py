@@ -35,12 +35,11 @@ class ActividadInline(admin.TabularInline):
 
 @admin.register(Proyecto)
 class ProyectoAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'nombre', 'estado_badge', 'responsable', 'avance_bar', 'total_docs', 'abrir_visores', 'creado_en')
+    list_display = ('codigo', 'nombre', 'estado_badge', 'responsable', 'avance_bar', 'ver_cronograma', 'total_docs', 'abrir_visores')
     list_filter = ('estado', 'responsable', 'ubicacion')
-    search_fields = ('codigo', 'nombre', 'descripcion')
-    search_fields = ('nombre', 'codigo', 'visores__nombre')
+    search_fields = ('codigo', 'nombre', 'descripcion', 'visores__nombre')
     autocomplete_fields = ('responsable', 'ubicacion')
-    readonly_fields = ('creado_en', 'actualizado_en', 'resumen_actividades')
+    readonly_fields = ('creado_en', 'actualizado_en', 'resumen_actividades', 'ver_cronograma_btn')
     inlines = [ActividadInline, DocumentoProyectoInline]
     
     # Para M2M usamos filter_horizontal
@@ -48,7 +47,7 @@ class ProyectoAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Información General', {
-            'fields': ('codigo', 'nombre', 'descripcion', 'responsable', 'ubicacion', 'nota')
+            'fields': ('codigo', 'nombre', 'descripcion', 'responsable', 'ubicacion', 'nota', 'ver_cronograma_btn')
         }),
         ('Visualización', {
             'fields': ('visores',),
@@ -59,6 +58,26 @@ class ProyectoAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    def ver_cronograma(self, obj):
+        url = reverse('proyectos:cronograma', args=[obj.id])
+        return format_html(
+            '<a href="{}" target="_blank" style="background: #2563eb; color: white; '
+            'padding: 4px 10px; border-radius: 6px; text-decoration: none; font-weight: 600;">'
+            '📅 Ver Cronograma</a>',
+            url
+        )
+    ver_cronograma.short_description = 'Cronograma'
+
+    def ver_cronograma_btn(self, obj):
+        if not obj.id: return "-"
+        url = reverse('proyectos:cronograma', args=[obj.id])
+        return format_html(
+            '<a href="{}" target="_blank" class="button" style="background: #2563eb; color: white;">'
+            '📅 Abrir Cronograma Semanal (Visual)</a>',
+            url
+        )
+    ver_cronograma_btn.short_description = 'Acción Visual'
     def abrir_visores(self, obj):
         links = []
         if obj.pk:

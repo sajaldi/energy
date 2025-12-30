@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronograma de Mantenimiento {{ year }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #c00000;
+            --primary-dark: #8b0000;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: #e2e8f0;
+            padding: 4px;
+            border-radius: 8px;
+            gap: 4px;
+        }
+
+        .toggle-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            color: var(--text-main);
+        }
+
+        .container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scroll-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+            min-width: 1800px;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            text-align: center;
+            padding: 6px 2px;
+        }
+
+        .cell-week {
+            width: 35px;
+            min-width: 35px;
+            max-width: 35px;
+            height: 35px;
+        }
+
+        .col-fixed {
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 20;
+            width: 450px;
+            /* Ampliado de 320px */
+            text-align: left !important;
+            padding-left: 16px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        thead tr:first-child .col-fixed {
+            z-index: 30;
+            background: #f8fafc;
+        }
+
+        .header-month {
+            background: #1e293b;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        .header-week {
+            background: #f8fafc;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+        }
+
+        .row-group {
+            background-color: #f8fafc;
+            cursor: pointer;
+        }
+
+        .row-middle {
+            background-color: #fcfcfc;
+            cursor: pointer;
+            display: none;
+        }
+
+        .row-middle.visible {
+            display: table-row;
+        }
+
+        .row-middle:hover {
+            background-color: #f1f5f9;
+        }
+
+        .row-sub {
+            background-color: #ffffff;
+            display: none;
+        }
+
+        .row-sub.visible {
+            display: table-row;
+        }
+
+        .item-name {
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+        }
+
+        .middle-name {
+            padding-left: 32px;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sub-name {
+            padding-left: 56px;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            font-style: italic;
+        }
+
+        .cell-mark {
+            padding: 4px;
+        }
+
+        .mark-pill {
+            height: 12px;
+            border-radius: 6px;
+            width: 100%;
+            opacity: 0.8;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .mark-summary {
+            height: 6px;
+            border-radius: 3px;
+            background-color: #cbd5e1;
+        }
+
+        .mark-summary.active {
+            background-color: var(--primary);
+            opacity: 0.4;
+        }
+
+        .mark-summary.middle {
+            height: 4px;
+            opacity: 0.3;
+        }
+
+        .toggle-icon {
+            font-size: 0.6rem;
+            transition: transform 0.2s;
+            width: 12px;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .open>.item-name>.toggle-icon,
+        .open>.middle-name>.toggle-icon {
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div>
+            <h1>Cronograma Anual de Mantenimiento</h1>
+            <div style="font-size: 0.875rem; color: var(--text-muted);">
+                Planificación Operativa {{ year }} | Vista por <strong>{% if view_mode == 'sistema' %}Sistema{% else
+                    %}Ubicación{% endif %}</strong>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="view-toggle">
+                <a href="?year={{ year }}&view_mode=sistema"
+                    class="toggle-btn {% if view_mode == 'sistema' %}active{% endif %}">Sistemas</a>
+                <a href="?year={{ year }}&view_mode=ubicacion"
+                    class="toggle-btn {% if view_mode == 'ubicacion' %}active{% endif %}">Ubicaciones</a>
+            </div>
+            <form method="get" style="display: flex; gap: 8px;">
+                <input type="hidden" name="view_mode" value="{{ view_mode }}">
+                <select name="ubicacion_id"
+                    style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 0.8rem; min-width: 150px;">
+                    <option value="">-- Todas las Ubicaciones --</option>
+                    {% for u in ubicaciones_roots %}
+                    <option value="{{ u.id }}" {% if current_ubi == u.id %}selected{% endif %}>{{ u.nombre }}</option>
+                    {% endfor %}
+                </select>
+                <input type="number" name="year" value="{{ year }}"
+                    style="width: 80px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);">
+                <button type="submit" class="btn">Actualizar</button>
+            </form>
+            <a href="{% url 'mantenimiento:detallado' %}?year={{ year }}" class="btn">
+                <span>📊 Matriz</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="scroll-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-fixed header-month">{% if view_mode == 'sistema' %}Sistema / Disciplina{% else
+                            %}Ubicación / Área{% endif %}</th>
+                        {% for mes in meses_header %}
+                        <th colspan="{{ mes.count }}" class="header-month">{{ mes.nombre }}</th>
+                        {% endfor %}
+                    </tr>
+                    <tr class="header-week">
+                        <th class="col-fixed">Concepto Agrupado (Click para ver rutinas)</th>
+                        {% for s in semanas %}
+                        <th class="cell-week" title="{{ s.inicio|date:'d M' }}">S{{ s.n }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in items %}
+                    <!-- NIVEL 1: SISTEMA RAÍZ -->
+                    <tr class="row-group" onclick="toggleRows('group-{{ forloop.counter }}', this)">
+                        <td class="col-fixed" style="border-left: 4px solid {{ group.color }};">
+                            <span class="item-name">
+                                <span class="toggle-icon">▶</span>
+                                {{ group.label }}
+                            </span>
+                        </td>
+                        {% for celda in group.celdas %}
+                        <td class="cell-mark cell-week">
+                            <div class="mark-summary {% if celda.active %}active{% endif %}" {% if celda.active %}style="background-color: {{ group.color }};" {% endif %}></div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    {% for middle in group.subgrupos %}
+                    <!-- NIVEL 2: SUBCATEGORÍA / ÁREA -->
+                    <tr class="row-middle group-{{ forloop.parentloop.counter }}"
+                        onclick="toggleRows('child-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
+                        <td class="col-fixed">
+                            <span class="middle-name">
+                                <span class="toggle-icon">▶</span>
+                                {{ middle.label }}
+                            </span>
+                        </td>
+                        {% for celda in middle.celdas %}
+                        <td class="cell-mark cell-week">
+                            <div class="mark-summary middle {% if celda.active %}active{% endif %}" {% if celda.active %}style="background-color: {{ group.color }};" {% endif %}></div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    {% for sub in middle.rutinas %}
+                    <!-- NIVEL 3: RUTINA -->
+                    <tr
+                        class="row-sub child-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}">
+                        <td class="col-fixed sub-name">
+                            {{ sub.label }}
+                        </td>
+                        {% for celda in sub.celdas %}
+                        <td class="cell-mark cell-week">
+                            {% if celda.active %}
+                            <div class="mark-pill" style="background-color: {{ sub.color }};"
+                                title="{{ celda.info }} ({{ celda.count }} OTs)"></div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+
+                    {% empty %}
+                    <tr>
+                        <td colspan="53" style="padding: 40px; text-align: center;">No hay información disponible para
+                            este año.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function toggleRows(classTarget, headerCell) {
+            const rows = document.querySelectorAll('.' + classTarget);
+            const isOpen = headerCell.classList.toggle('open');
+
+            rows.forEach(row => {
+                if (isOpen) {
+                    row.classList.add('visible');
+                    // No abrimos hijos de hijos automáticamente
+                } else {
+                    row.classList.remove('visible');
+                    row.classList.remove('open');
+
+                    // Si cerramos un padre, cerramos recursivamente todos sus descendientes
+                    // Buscamos si esta fila que estamos ocultando tiene sus propios toggles
+                    const ownTarget = row.getAttribute('onclick');
+                    if (ownTarget && ownTarget.includes('toggleRows')) {
+                        const subTargetMatch = ownTarget.match(/'([^']+)'/);
+                        if (subTargetMatch) {
+                            const subClass = subTargetMatch[1];
+                            const subRows = document.querySelectorAll('.' + subClass);
+                            subRows.forEach(sr => sr.classList.remove('visible'));
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+
+</body>
+
+</html>

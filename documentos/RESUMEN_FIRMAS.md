@@ -184,7 +184,7 @@ RECHAZADO    ❌  Al menos una firma rechazada
 ### Cambiar Tamaño Por Defecto de Firma
 
 `models_firmas.py` línea ~160:
-```python
+```pythona
 ancho = models.FloatField(default=20)  # Cambiar de 15 a 20%
 alto = models.FloatField(default=10)   # Cambiar de 8 a 10%
 ```
