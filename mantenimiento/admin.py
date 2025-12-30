@@ -195,7 +195,7 @@ from django.urls import reverse
 
 @admin.register(Horario)
 class HorarioAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'descripcion', 'total_horas_semanales', 'ver_calendario_link')
+    list_display = ('nombre', 'descripcion', 'color', 'total_horas_semanales', 'ver_calendario_link')
     search_fields = ('nombre',)
     inlines = [DiaHorarioInline]
 

@@ -1,7 +1,8 @@
 from django.db import models
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.http import HttpResponse
 from django.db.models import Count
-from import_export.admin import ImportExportModelAdmin
+from import_export.admin import ImportExportModelAdmin, ImportExportMixin, ImportExportActionModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
@@ -297,7 +298,6 @@ class ModeloAdmin(ImportExportModelAdmin):
         }),
     )
 
-from import_export.admin import ImportExportModelAdmin, ImportExportMixin
 
 class UbicacionHijaInline(admin.TabularInline):
     model = Ubicacion
@@ -670,21 +670,54 @@ class ActivoResource(resources.ModelResource):
             return self._meta.model.objects.filter(codigo_interno=codigo).first()
         return None
 
+class ActivoFaltantesFilter(admin.SimpleListFilter):
+    title = 'Calidad de Datos'
+    parameter_name = 'faltante'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('serie', '❌ Sin N° Serie'),
+            ('responsable', '👤 Sin Responsable'),
+            ('ubicacion', '📍 Sin Ubicación'),
+            ('codigo', '🆔 Sin Código Interno'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'serie':
+            return queryset.filter(models.Q(serie__isnull=True) | models.Q(serie=''))
+        if self.value() == 'responsable':
+            return queryset.filter(responsable__isnull=True)
+        if self.value() == 'ubicacion':
+            return queryset.filter(ubicacion__isnull=True)
+        if self.value() == 'codigo':
+            return queryset.filter(models.Q(codigo_interno__isnull=True) | models.Q(codigo_interno=''))
+        return queryset
+
 class UbicacionHierarchyFilter(admin.SimpleListFilter):
     title = 'Ubicación'
     parameter_name = 'ubicacion_id'
 
     def lookups(self, request, model_admin):
-        # Devolvemos todas las ubicaciones ordenadas por nombre
+        # 1. Opción para activos sin ubicación
+        lookups = [('none', '📍 Sin Ubicación Asignada')]
+        
+        # 2. Todas las ubicaciones ordenadas
         from .models import Ubicacion
         locations = Ubicacion.objects.all().order_by('nombre')
-        return [(loc.id, loc.ruta_completa) for loc in locations]
+        for loc in locations:
+            lookups.append((loc.id, loc.ruta_completa))
+            
+        return lookups
 
     def queryset(self, request, queryset):
-        if self.value():
+        val = self.value()
+        if val:
+            if val == 'none':
+                return queryset.filter(ubicacion__isnull=True)
+            
             from .models import Ubicacion
             try:
-                ubicacion = Ubicacion.objects.get(id=self.value())
+                ubicacion = Ubicacion.objects.get(id=val)
                 # Obtener todos los descendientes incluyendo el actual
                 descendientes_ids = ubicacion.get_descendants(include_self=True).values_list('id', flat=True)
                 return queryset.filter(ubicacion_id__in=descendientes_ids)
@@ -693,7 +726,7 @@ class UbicacionHierarchyFilter(admin.SimpleListFilter):
         return queryset
 
 @admin.register(Activo)
-class ActivoAdmin(ImportExportModelAdmin):
+class ActivoAdmin(ImportExportActionModelAdmin):
     resource_class = ActivoResource
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
@@ -703,35 +736,37 @@ class ActivoAdmin(ImportExportModelAdmin):
         return {'user': request.user}
 
     list_display = ('codigo_interno', 'nombre', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'ubicacion', 'responsable')
-    list_filter = ('estado', 'modelo__categoria', 'modelo__marca', 'creado_en', UbicacionHierarchyFilter)
+    list_filter = (ActivoFaltantesFilter, 'estado', 'modelo__categoria', 'modelo__marca', 'responsable', 'creado_en', UbicacionHierarchyFilter)
     list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable')
     search_fields = ('nombre', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('modelo', 'ubicacion', 'responsable')
     readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables')
-    actions = ['export_selected_assets']
+    actions = ['export_admin_action', 'export_direct_xlsx']
 
-    def export_selected_assets(self, request, queryset):
-        """
-        Acción para exportar solo los activos seleccionados.
-        Redirige a la vista de exportación estándar pero pasando los IDs.
-        """
-        selected = queryset.values_list('pk', flat=True)
-        # django-import-export maneja la exportación via GET usualmente, 
-        # pero para seleccionados podemos usar el queryset ya filtrado
-        # si sobreescribimos get_export_queryset.
-        return self.export_action(request)
-    export_selected_assets.short_description = "Exportar activos seleccionados"
+    def export_admin_action(self, request, queryset):
+        """Redirección con descripción personalizada (2 pasos)"""
+        return super().export_admin_action(request, queryset)
+    export_admin_action.short_description = "Exportar activos seleccionados"
 
-    def get_export_queryset(self, request):
-        """
-        Sobrescribe para filtrar por selección si se viene de la acción de lote.
-        """
-        queryset = super().get_export_queryset(request)
-        # Buscamos si hay IDs seleccionados en la sesión o en el POST
-        selected_ids = request.POST.getlist(ACTION_CHECKBOX_NAME)
-        if selected_ids:
-            return queryset.filter(pk__in=selected_ids)
-        return queryset
+    @admin.action(description="⬇️ Descarga Directa Excel (Rápido)")
+    def export_direct_xlsx(self, request, queryset):
+        """Exportación en un solo paso (sin preguntar formato)"""
+        try:
+            # Usamos directamente la clase definida en el admin
+            resource_class = self.resource_class
+            resource_kwargs = self.get_export_resource_kwargs(request)
+            resource = resource_class(**resource_kwargs)
+            
+            dataset = resource.export(queryset)
+            response = HttpResponse(
+                dataset.xlsx, 
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="activos_{queryset.count()}_items.xlsx"'
+            return response
+        except Exception as e:
+            self.message_user(request, f"Error en exportación directa: {str(e)}", messages.ERROR)
+            return None
 
     def rutinas_aplicables(self, obj):
         if not obj.modelo or not obj.modelo.categoria:

@@ -83,6 +83,7 @@ class TipoDocumentoAdmin(admin.ModelAdmin):
 @admin.register(Disciplina)
 class DisciplinaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'codigo')
+    search_fields = ('nombre', 'codigo')
 
 @admin.register(Revision)
 class RevisionAdmin(admin.ModelAdmin):

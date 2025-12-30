@@ -1,5 +1,6 @@
 from django.db import models
 from datetime import datetime, date, timedelta
+from colorfield.fields import ColorField
 
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -148,6 +149,7 @@ class Rutina(models.Model):
 
 class Horario(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
+    color = ColorField(default='#3b82f6', help_text="Color para identificar este horario en el cronograma")
     descripcion = models.TextField(blank=True, null=True)
 
     def total_horas_semanales(self):

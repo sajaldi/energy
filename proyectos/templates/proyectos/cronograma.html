@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronograma: {{ proyecto.nombre }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .header-meta {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scroll-wrapper {
+            overflow-x: auto;
+            position: relative;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            min-width: 1800px;
+            /* Asegura espacio para 52 semanas */
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            text-align: center;
+            padding: 6px 2px;
+        }
+
+        /* Sticky Column for Activities */
+        .col-activity {
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 20;
+            width: 300px;
+            text-align: left !important;
+            padding-left: 16px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+        }
+
+        thead tr:first-child .col-activity {
+            z-index: 30;
+            background: #f1f5f9;
+        }
+
+        .header-month {
+            background: #f1f5f9;
+            color: var(--text-main);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .header-week {
+            background: #f8fafc;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .row-item:hover {
+            background-color: #f8fafc;
+        }
+
+        .row-item:hover .col-activity {
+            background-color: #f8fafc;
+        }
+
+        .activity-name {
+            font-weight: 600;
+            color: var(--text-main);
+            display: block;
+        }
+
+        .activity-dates {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        .cell-mark {
+            padding: 3px;
+        }
+
+        .mark-bar {
+            height: 14px;
+            border-radius: 3px;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        .mark-bar:hover {
+            transform: scaleY(1.3);
+            cursor: pointer;
+        }
+
+        .modal-info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            display: none;
+            z-index: 100;
+        }
+
+        .badge-status {
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div>
+            <h1>Cronograma de Actividades</h1>
+            <div class="header-meta">
+                Proyecto: <strong>{{ proyecto.codigo }}</strong> | {{ proyecto.nombre }} | Año {{ year }}
+            </div>
+        </div>
+        <div class="actions">
+            <form method="get" style="display: flex; gap: 8px;">
+                <input type="number" name="year" value="{{ year }}"
+                    style="width: 80px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.875rem;">
+                <button type="submit" class="btn">Actualizar</button>
+            </form>
+            <a href="/admin/proyectos/proyecto/{{ proyecto.id }}/change/" class="btn">
+                <span>⚙️ Editar</span>
+            </a>
+            <button onclick="window.print()" class="btn">
+                <span>🖨️ Imprimir</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="scroll-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-activity header-month">Actividad</th>
+                        {% for mes in meses_header %}
+                        <th colspan="{{ mes.count }}" class="header-month">{{ mes.nombre }}</th>
+                        {% endfor %}
+                    </tr>
+                    <tr class="header-week">
+                        <th class="col-activity">Especialidad / Tarea</th>
+                        {% for s in semanas %}
+                        <th title="{{ s.inicio|date:'d M' }} - {{ s.fin|date:'d M' }}">S{{ s.n }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in actividades %}
+                    <tr class="row-item">
+                        <td class="col-activity" style="border-left: 4px solid {{ act.color }};">
+                            <span class="activity-name">{{ act.nombre }}</span>
+                            <span class="activity-dates">
+                                {{ act.fecha_inicio|date:'d/m' }} - {{ act.fecha_fin|date:'d/m' }}
+                                <span class="badge-status"
+                                    style="background: {{ act.color }}20; color: {{ act.color }};">
+                                    {{ act.get_estado_display }}
+                                </span>
+                            </span>
+                        </td>
+                        {% for is_active in act.celdas %}
+                        <td class="cell-mark">
+                            {% if is_active %}
+                            <div class="mark-bar" style="background-color: {{ act.color }};" title="{{ act.nombre }}">
+                            </div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ semanas|length|add:1 }}"
+                            style="padding: 40px; text-align: center; color: var(--text-muted);">
+                            No hay actividades programadas con fechas para este año.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="infoBox" class="modal-info"></div>
+
+    <script>
+        // Scripts futuros para edición rápida o tooltips interactivos
+    </script>
+</body>
+
+</html>
