@@ -179,10 +179,16 @@ class OrdenTrabajoInline(admin.TabularInline):
     fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'tecnico', 'inicio_programado', 'estado')
     readonly_fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'inicio_programado')
     can_delete = True
+    show_change_link = True
     
     def get_activos_list(self, obj):
+        # Al usar prefetch_related('activos'), esto no genera queries N+1
         return ", ".join([a.nombre for a in obj.activos.all()])
     get_activos_list.short_description = "Activos"
+
+    def get_queryset(self, request):
+        # Optimizamos ubicación profundamente para evitar N+1 en la reconstrucción de la ruta completa
+        return super().get_queryset(request).select_related('rutina', 'ubicacion__padre__padre', 'tecnico').prefetch_related('activos')
 
 @admin.register(Rutina)
 class RutinaAdmin(ImportExportModelAdmin):
@@ -306,7 +312,7 @@ class ProgramacionAdmin(admin.ModelAdmin):
     list_select_related = ('rutina', 'horario')
     search_fields = ('id', 'rutina__nombre')
     fields = ('rutina', 'horario', 'areas', 'activos', 'fecha_inicio', 'fecha_fin', 'procesada')
-    filter_horizontal = ('areas', 'activos')
+    autocomplete_fields = ('rutina', 'horario', 'areas', 'activos')
     actions = ['generar_ordenes_action', 'reset_procesada_action', 'eliminar_ordenes_action']
     inlines = [OrdenTrabajoInline]
 
@@ -321,7 +327,7 @@ class ProgramacionAdmin(admin.ModelAdmin):
     ver_cronograma_visual_link.short_description = 'Cronograma Visual'
 
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related('areas')
+        return super().get_queryset(request).select_related('rutina', 'horario').prefetch_related('areas')
 
     def get_areas(self, obj):
         # Al usar prefetch_related('areas'), esto no genera queries N+1

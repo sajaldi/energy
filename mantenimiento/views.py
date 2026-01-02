@@ -5,9 +5,11 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from .models import OrdenTrabajo, Rutina, Categoria
+from django.utils import timezone
 from datetime import datetime, date, timedelta
 import collections
 import calendar
+import math
 
 def calendario_mantenimiento(request):
     year = int(request.GET.get('year', date.today().year))
@@ -685,6 +687,28 @@ def detalle_mes(request, year, month):
     if programacion_id:
         filtros['programacion_id'] = programacion_id
     
+    # Obtener el horario para identificar días no laborables
+    from .models import Programacion, RestriccionCalendario
+    working_weekdays = set(range(7)) # Por defecto todos
+    if programacion_id:
+        try:
+            prog = Programacion.objects.get(id=programacion_id)
+            if prog.horario:
+                working_weekdays = set(prog.horario.dias.values_list('dia', flat=True))
+        except:
+            pass
+    
+    # Restricciones (feriados) para este mes
+    restricciones_mes = set(RestriccionCalendario.objects.filter(
+        fecha__year=year, fecha__month=month
+    ).values_list('fecha__day', flat=True))
+
+    non_working_days = []
+    for d in days_range:
+        dt = date(year, month, d)
+        if dt.weekday() not in working_weekdays or d in restricciones_mes:
+            non_working_days.append(d)
+
     ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
         'rutina__categoria', 
         'rutina__frecuencia',
@@ -713,33 +737,68 @@ def detalle_mes(request, year, month):
     system_colors = {}
 
     for ot in ordenes:
-        day = ot.inicio_programado.day
+        # Convertimos a local time antes de cualquier cálculo para que el "pintado" coincida con el horario local
+        start_dt = timezone.localtime(ot.inicio_programado)
+        end_dt = timezone.localtime(ot.fin_programado or ot.inicio_programado)
         
-        cat = ot.rutina.categoria if ot.rutina else None
+        # Cada cuadrito representa exactamente 24 horas de trabajo
+        # Calculamos la duración total en segundos y determinamos cuántos bloques de 24h ocupa
+        total_seconds = (end_dt - start_dt).total_seconds()
+        # Usamos math.ceil para que cualquier fracción de 24h cuente como un cuadro adicional (mínimo 1)
+        num_cuadros = max(1, math.ceil(total_seconds / 86400))
         
-        if cat and cat.id in categs:
-            full_cat = categs[cat.id]
-            root = full_cat.get_root()
-            sys_name = root.nombre
-            sub_name = full_cat.nombre if full_cat.id != root.id else "General"
+        start_date = start_dt.date()
+        
+        # Pintamos exactamente 'num_cuadros' empezando desde el día de inicio
+        for i in range(num_cuadros):
+            curr_d = start_date + timedelta(days=i)
             
-            if sys_name not in system_colors:
-                system_colors[sys_name] = ot.programacion.horario.color if ot.programacion and ot.programacion.horario else "#64748b"
-        else:
-            sys_name = "Sin Categoría / Otros"
-            sub_name = "General"
-            if sys_name not in system_colors: system_colors[sys_name] = "#64748b"
+            if curr_d.year == year and curr_d.month == month:
+                day = curr_d.day
+                
+                # Posición para los estilos de la barra
+                duration_pos = 'single'
+                if num_cuadros > 1:
+                    if i == 0: duration_pos = 'start'
+                    elif i == num_cuadros - 1: duration_pos = 'end'
+                    else: duration_pos = 'middle'
+                
+                # Creamos un objeto ligero para el template
+                ot_info = {
+                    'id': ot.id,
+                    'estado': ot.estado,
+                    'inicio_iso': start_dt.strftime('%Y-%m-%d'),
+                    'inicio_hm': start_dt.strftime('%H:%M'),
+                    'fin_full': end_dt.strftime('%d/%m/%Y %H:%M'),
+                    'fin_hm': end_dt.strftime('%H:%M'),
+                    'rutina_nombre': ot.rutina.nombre if ot.rutina else "OT",
+                    'duration_pos': duration_pos
+                }
+                
+                cat = ot.rutina.categoria if ot.rutina else None
+                if cat and cat.id in categs:
+                    full_cat = categs[cat.id]
+                    root = full_cat.get_root()
+                    sys_name = root.nombre
+                    sub_name = full_cat.nombre if full_cat.id != root.id else "General"
+                    if sys_name not in system_colors:
+                        system_colors[sys_name] = ot.programacion.horario.color if ot.programacion and ot.programacion.horario else "#64748b"
+                else:
+                    sys_name = "Sin Categoría / Otros"
+                    sub_name = "General"
+                    if sys_name not in system_colors: system_colors[sys_name] = "#64748b"
+                    
+                rutina_name = ot.rutina.nombre if ot.rutina else "OT Sin Rutina"
+                ubi_name = ot.ubicacion.nombre if ot.ubicacion else "Ubicación No Def."
+                
+                activos = list(ot.activos.all())
+                if not activos:
+                    tree[sys_name][sub_name][rutina_name][ubi_name][(None, "General")][day].append(ot_info)
+                else:
+                    for a in activos:
+                        tree[sys_name][sub_name][rutina_name][ubi_name][(a.id, a.nombre)][day].append(ot_info)
             
-        rutina_name = ot.rutina.nombre if ot.rutina else "OT Sin Rutina"
-        ubi_name = ot.ubicacion.nombre if ot.ubicacion else "Ubicación No Def."
-        
-        # Un OT puede tener múltiples activos.
-        activos = list(ot.activos.all())
-        if not activos:
-            tree[sys_name][sub_name][rutina_name][ubi_name][(None, "General")][day].append(ot)
-        else:
-            for a in activos:
-                tree[sys_name][sub_name][rutina_name][ubi_name][(a.id, a.nombre)][day].append(ot)
+            curr_d += timedelta(days=1)
         
     # Estructura final para el template (Anidada: Sys -> Sub -> Rut -> Ubi -> Asset)
     final_tree = []
@@ -767,6 +826,8 @@ def detalle_mes(request, year, month):
                         for d in days_range:
                             ots = tree[sys][sub][rut][ubi][asset_key].get(d, [])
                             has_data = len(ots) > 0
+                            # Convertimos OTs a diccionarios simples para el template si es necesario, 
+                            # pero aquí mantendremos la lógica de marcado.
                             asset_cells.append({'day': d, 'ots': ots, 'active': has_data})
                             if has_data:
                                 ubi_day_active[d] = True
@@ -775,6 +836,37 @@ def detalle_mes(request, year, month):
                                 sys_day_active[d] = True
                                 
                         ubi_assets.append({'label': asset_label, 'id': asset_id, 'celdas': asset_cells})
+                    
+                    # LOGICA DE AGRUPACION VISUAL (Cajas punteadas para OTs que incluyen varios activos)
+                    for d_idx in range(len(days_range)):
+                        # Mapear OT ID -> Indices de activos que la comparten en este día
+                        ot_asset_map = collections.defaultdict(list)
+                        for a_idx, asset_data in enumerate(ubi_assets):
+                            ots = asset_data['celdas'][d_idx]['ots']
+                            for ot in ots:
+                                ot_id = ot.id if hasattr(ot, 'id') else ot.get('id')
+                                ot_asset_map[ot_id].append(a_idx)
+                        
+                        # Solo marcamos si el OT aparece en más de un activo para este día
+                        for ot_id, asset_indices in ot_asset_map.items():
+                            if len(asset_indices) > 1:
+                                asset_indices.sort()
+                                # Verificamos contigüidad para que el cuadro se vea bien
+                                # (Si no son contiguos, saldrán cuadros separados o rotos, pero usualmente lo son)
+                                for i, a_idx in enumerate(asset_indices):
+                                    cell = ubi_assets[a_idx]['celdas'][d_idx]
+                                    if i == 0:
+                                        cell['group_type'] = 'start'
+                                    elif i == len(asset_indices) - 1:
+                                        cell['group_type'] = 'end'
+                                    else:
+                                        cell['group_type'] = 'middle'
+                                    
+                                    # Agregamos metadata horizontal basada en la OT que genera el grupo
+                                    # Buscamos la OT dentro del cell para extraer su duration_pos
+                                    group_ot = next((o for o in cell['ots'] if (o.id if hasattr(o, 'id') else o.get('id')) == ot_id), None)
+                                    if group_ot:
+                                        cell['horiz_type'] = group_ot.get('duration_pos', 'single')
                     
                     ubi_summary_cells = [{'day': d, 'active': ubi_day_active[d]} for d in days_range]
                     rut_ubis.append({'label': ubi, 'celdas': ubi_summary_cells, 'activos': ubi_assets})
@@ -801,7 +893,8 @@ def detalle_mes(request, year, month):
         'mes_nombre': meses_es[month],
         'days_range': days_range,
         'tree': final_tree,
-        'programacion_id': programacion_id
+        'programacion_id': programacion_id,
+        'non_working_days': non_working_days
     })
 
 @staff_member_required
