@@ -299,115 +299,111 @@ class Programacion(models.Model):
         frecuencia_dias = self.rutina.frecuencia.dias
         tiempo_rutina = self.rutina.tiempo_estimado or timedelta(hours=1)
         
-        # 2. Determinar categorías de activos aplicables base a la vinculación 1:1
-        from activos.models import Categoria as CategoriaActivo
-        cat_mantenimiento = self.rutina.categoria
-        asset_cats = CategoriaActivo.objects.none()
-        if cat_mantenimiento:
-            # Buscamos categorías de activos vinculadas a esta categoría de mantenimiento o sus descendientes
-            m_cats = cat_mantenimiento.get_descendants(include_self=True)
-            asset_cats_ids = [c.categoria_activo_id for c in m_cats if c.categoria_activo_id]
-            asset_cats = CategoriaActivo.objects.filter(id__in=asset_cats_ids)
-            
-        ordenes_creadas = 0
-        
-        fecha_ciclo = self.fecha_inicio
-        while fecha_ciclo <= limite:
-            # Inicializar el cursor global para este ciclo de mantenimiento
-            # Esto serializa el trabajo a través de las áreas
-            fecha_actual = fecha_ciclo
-            cursor_dt = None
+        # 2. Recopilar todos los activos a programar en el ciclo
+        activos_totales = []
+        if self.activos.exists():
+            activos_totales = list(self.activos.all())
+        else:
+            from activos.models import Categoria as CategoriaActivo
+            cat_mantenimiento = self.rutina.categoria
+            asset_cats = CategoriaActivo.objects.none()
+            if cat_mantenimiento:
+                m_cats = cat_mantenimiento.get_descendants(include_self=True)
+                asset_cats_ids = [c.categoria_activo_id for c in m_cats if c.categoria_activo_id]
+                asset_cats = CategoriaActivo.objects.filter(id__in=asset_cats_ids)
             
             for area in areas_a_programar:
-                # 3. Buscar activos que coincidan con las categorías de activo vinculadas
-                activos_pendientes = []
                 if asset_cats.exists():
-                    activos_pendientes = list(Activo.objects.filter(ubicacion=area, modelo__categoria__in=asset_cats))
+                    activos_en_area = list(Activo.objects.filter(ubicacion=area, modelo__categoria__in=asset_cats))
+                    activos_totales.extend(activos_en_area)
                 else:
-                    # Si no hay categorías vinculadas, generamos una orden vacía para el área 
-                    # si es que la rutina es genérica para el área
-                    activos_pendientes = [None]
+                    # Caso genérico por área (si no hay activos, creamos una lista vacía para que cuente como 1 item)
+                    if not activos_totales and not cat_mantenimiento:
+                        pass # Ver lógica abajo
 
-
-                while activos_pendientes:
-                    # 1. Encontrar el siguiente día válido (laboral y sin restricciones)
-                    # Loop de avance de días
-                    while True:
-                        if fecha_actual > limite:
-                            activos_pendientes = [] # Romper loop externo
-                            break
-                            
-                        # Chequear restricciones (feriados, etc)
-                        if fecha_actual in restricciones:
-                            fecha_actual += timedelta(days=1)
-                            cursor_dt = None
-                            continue
-                            
-                        # Chequear si hay horario para este día de la semana
-                        horario_dia = self.horario.dias.filter(dia=fecha_actual.weekday()).first()
-                        if not horario_dia:
-                            fecha_actual += timedelta(days=1)
-                            cursor_dt = None
-                            continue
-                        
-                        # Si pasa todo, es un día válido
-                        break
+        ordenes_creadas = 0
+        fecha_ciclo = self.fecha_inicio
+        
+        while fecha_ciclo <= limite:
+            fecha_actual = fecha_ciclo
+            
+            # --- CÁLCULO DE TIEMPO INTELIGENTE ---
+            # Total de segundos de trabajo a consumir
+            num_items = max(1, len(activos_totales))
+            segundos_pendientes = (tiempo_rutina * num_items).total_seconds()
+            
+            start_dt = None
+            current_dt = None
+            
+            # Buscamos el inicio y calculamos el fin saltando huecos
+            while segundos_pendientes > 0:
+                if fecha_actual > limite: break # No debería pasar
+                
+                # Chequear si es día válido
+                if fecha_actual in restricciones:
+                    fecha_actual += timedelta(days=1)
+                    current_dt = None
+                    continue
                     
-                    if fecha_actual > limite:
-                        break
-
-                    # 2. Configurar tiempos del día (Timezone Aware)
-                    try:
-                        inicio_laboral = timezone.make_aware(datetime.combine(fecha_actual, horario_dia.hora_inicio))
-                        fin_laboral = timezone.make_aware(datetime.combine(fecha_actual, horario_dia.hora_fin))
-                    except ValueError:
-                        inicio_laboral = datetime.combine(fecha_actual, horario_dia.hora_inicio)
-                        fin_laboral = datetime.combine(fecha_actual, horario_dia.hora_fin)
+                horario_dia = self.horario.dias.filter(dia=fecha_actual.weekday()).first()
+                if not horario_dia:
+                    fecha_actual += timedelta(days=1)
+                    current_dt = None
+                    continue
+                
+                # Configurar ventana laboral del día
+                try:
+                    inicio_laboral = timezone.make_aware(datetime.combine(fecha_actual, horario_dia.hora_inicio))
+                    fin_laboral = timezone.make_aware(datetime.combine(fecha_actual, horario_dia.hora_fin))
+                except ValueError:
+                    inicio_laboral = datetime.combine(fecha_actual, horario_dia.hora_inicio)
+                    fin_laboral = datetime.combine(fecha_actual, horario_dia.hora_fin)
+                
+                # Establecer punto de partida para este día
+                point_dt = max(current_dt, inicio_laboral) if current_dt else inicio_laboral
+                
+                if point_dt >= fin_laboral:
+                    fecha_actual += timedelta(days=1)
+                    current_dt = None
+                    continue
+                
+                if not start_dt: start_dt = point_dt
+                
+                # Capacidad de este día
+                segundos_disponibles = (fin_laboral - point_dt).total_seconds()
+                
+                if segundos_pendientes <= segundos_disponibles:
+                    # Cabe todo lo que queda en este día
+                    current_dt = point_dt + timedelta(seconds=segundos_pendientes)
+                    segundos_pendientes = 0
+                else:
+                    # Consumir el día completo y saltar al siguiente
+                    segundos_pendientes -= segundos_disponibles
+                    fecha_actual += timedelta(days=1)
+                    current_dt = None
+            
+            # --- CREACIÓN DE LA ORDEN ÚNICA ---
+            if start_dt and current_dt:
+                # Usamos la primera ubicación disponible
+                # Si no hay activos, usamos la primera área de la programación
+                main_ubi = activos_totales[0].ubicacion if activos_totales else self.areas.first()
+                
+                ot = OrdenTrabajo.objects.create(
+                    programacion=self,
+                    ubicacion=main_ubi,
+                    inicio_programado=start_dt,
+                    fin_programado=current_dt,
+                    rutina=self.rutina,
+                    tipo='PREVENTIVA',
+                    prioridad='MEDIA'
+                )
+                
+                if activos_totales:
+                    ot.activos.set(activos_totales)
                     
-                    # 3. Determinar hora de inicio de trabajo (cursor vs inicio jornada)
-                    ready_dt = max(cursor_dt, inicio_laboral) if cursor_dt else inicio_laboral
-                    
-                    # 4. Calcular capacidad restante
-                    tiempo_disponible = fin_laboral - ready_dt
-                    
-                    # Si ya no queda tiempo (o el cursor se pasó), avanzar al siguiente día
-                    if tiempo_disponible.total_seconds() <= 0:
-                        fecha_actual += timedelta(days=1)
-                        cursor_dt = None
-                        continue
-                        
-                    max_activos = int(tiempo_disponible / tiempo_rutina)
-                    
-                    if max_activos <= 0:
-                        # No cabe ni un activo completo, avanzar al siguiente día
-                        fecha_actual += timedelta(days=1)
-                        cursor_dt = None
-                        continue
-
-                    # 5. Tomar lote y Crear Orden
-                    lote = activos_pendientes[:max_activos]
-                    activos_pendientes = activos_pendientes[max_activos:]
-                    
-                    duracion_total = tiempo_rutina * len([a for a in lote if a is not None])
-                    if duracion_total == timedelta(0): duracion_total = tiempo_rutina # Caso preventivo sin activos
-
-                    ot = OrdenTrabajo.objects.create(
-                        programacion=self,
-                        ubicacion=area,
-                        inicio_programado=ready_dt,
-                        fin_programado=ready_dt + duracion_total,
-                        rutina=self.rutina,
-                        tipo='PREVENTIVA',
-                        prioridad='MEDIA'
-                    )
-                    
-                    activos_reales = [a for a in lote if a is not None]
-                    if activos_reales:
-                        ot.activos.set(activos_reales)
-                    
-                    # Avanzar el cursor intra-día
-                    cursor_dt = ready_dt + duracion_total
-                    ordenes_creadas += 1
+                ordenes_creadas += 1
+            
+            fecha_ciclo += timedelta(days=frecuencia_dias)
             
             fecha_ciclo += timedelta(days=frecuencia_dias)
             

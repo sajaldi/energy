@@ -132,6 +132,16 @@
             font-size: 0.7rem;
         }
 
+        .non-working-day {
+            background-color: #f1f5f9 !important;
+            opacity: 0.7;
+        }
+
+        thead th.non-working-day {
+            background-color: #e2e8f0 !important;
+            color: #94a3b8;
+        }
+
         /* FILAS JERÁRQUICAS */
         .row-sys {
             background-color: #f1f5f9;
@@ -393,6 +403,68 @@
             gap: 8px;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
+        .group-start {
+            border-top: 2px dashed #1e293b !important;
+            border-bottom: none !important;
+        }
+
+        .group-middle {
+            border-top: none !important;
+            border-bottom: none !important;
+        }
+
+        .group-end {
+            border-bottom: 2px dashed #1e293b !important;
+            border-top: none !important;
+        }
+
+        /* LÃneas verticales punteadas solo en los extremos de la duraciÃ³n */
+        [class*="group-"].horiz-start,
+        [class*="group-"].horiz-single {
+            border-left: 2px dashed #1e293b !important;
+        }
+
+        [class*="group-"].horiz-end,
+        [class*="group-"].horiz-single {
+            border-right: 2px dashed #1e293b !important;
+        }
+
+        [class*="group-"].horiz-middle {
+            border-left: none !important;
+            border-right: none !important;
+        }
+
+        [class*="group-"].horiz-start {
+            border-right: none !important;
+        }
+
+        [class*="group-"].horiz-end {
+            border-left: none !important;
+        }
+
+        /* DURACION MULTI-DIA (Barras continuas) */
+        .ot-pill.duration-start,
+        .ot-pill.duration-middle,
+        .ot-pill.duration-end {
+            width: calc(100% + 10px);
+            margin: 0 -5px;
+            height: 10px;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .ot-pill.duration-start {
+            border-radius: 6px 0 0 6px;
+            margin-left: 0;
+            width: calc(100% + 5px);
+        }
+
+        .ot-pill.duration-end {
+            border-radius: 0 6px 6px 0;
+            margin-right: 0;
+            width: calc(100% + 5px);
+        }
     </style>
 </head>
 
@@ -418,7 +490,7 @@
                     <tr>
                         <th class="sticky-col month-header">Estructura de Mantenimiento</th>
                         {% for d in days_range %}
-                        <th class="day-header">{{ d }}</th>
+                        <th class="day-header {% if d in non_working_days %}non-working-day{% endif %}">{{ d }}</th>
                         {% endfor %}
                     </tr>
                 </thead>
@@ -431,7 +503,7 @@
                             <span class="toggle-icon">▶</span> {{ sys.label }}
                         </td>
                         {% for c in sys.celdas %}
-                        <td>
+                        <td class="{% if c.day in non_working_days %}non-working-day{% endif %}">
                             {% if c.active %}
                             <div class="dot active" style="background-color: {{ sys.color }};"></div>
                             {% endif %}
@@ -448,7 +520,7 @@
                             <span class="toggle-icon">▶</span> {{ sub.label }}
                         </td>
                         {% for c in sub.celdas %}
-                        <td>
+                        <td class="{% if c.day in non_working_days %}non-working-day{% endif %}">
                             {% if c.active %}
                             <div class="dot active" style="background-color: {{ sys.color }}; opacity: 0.4;"></div>
                             {% endif %}
@@ -465,7 +537,7 @@
                             <span class="toggle-icon">▶</span> {{ rut.label }}
                         </td>
                         {% for c in rut.celdas %}
-                        <td>
+                        <td class="{% if c.day in non_working_days %}non-working-day{% endif %}">
                             {% if c.active %}
                             <div class="dot active" style="background-color: var(--primary); opacity: 0.6;"></div>
                             {% endif %}
@@ -482,7 +554,7 @@
                             <span class="toggle-icon">▶</span> {{ ubi.label }}
                         </td>
                         {% for c in ubi.celdas %}
-                        <td>
+                        <td class="{% if c.day in non_working_days %}non-working-day{% endif %}">
                             {% if c.active %}
                             <div class="dot active" style="background-color: #475569; opacity: 0.4;"></div>
                             {% endif %}
@@ -499,13 +571,15 @@
                         </td>
                         {% for c in asset.celdas %}
                         <td id="cell-{{ asset.id }}-{{ c.day }}"
+                            class="{% if c.group_type %}group-{{ c.group_type }}{% endif %} {% if c.horiz_type %}horiz-{{ c.horiz_type }}{% endif %} {% if c.day in non_working_days %}non-working-day{% endif %}"
                             onclick="handleCellClick(event, this, {{ c.day|default:0 }})">
                             {% if c.active %}
                             {% for ot in c.ots %}
-                            <div class="ot-pill status-{{ ot.estado }}" data-ot-id="{{ ot.id }}"
-                                data-ot-date="{{ ot.inicio_programado|date:'Y-m-d' }}" data-asset-id="{{ asset.id }}"
-                                onclick="selectOT(event, this)" oncontextmenu="showContextMenu(event, this)"
-                                title="OT #{{ ot.id }}&#10;Estado: {{ ot.estado }}&#10;Rutina: {{ ot.rutina.nombre }}&#10;Inicio: {{ ot.inicio_programado|date:'H:i' }}">
+                            <div class="ot-pill status-{{ ot.estado }} duration-{{ ot.duration_pos }}"
+                                data-ot-id="{{ ot.id }}" data-ot-date="{{ ot.inicio_iso }}"
+                                data-asset-id="{{ asset.id }}" onclick="selectOT(event, this)"
+                                oncontextmenu="showContextMenu(event, this)"
+                                title="OT #{{ ot.id }}&#10;Estado: {{ ot.estado }}&#10;Rutina: {{ ot.rutina_nombre }}&#10;Inicio: {{ ot.inicio_hm }}&#10;Fin: {{ ot.fin_full }}">
                             </div>
                             {% endfor %}
                             {% endif %}
