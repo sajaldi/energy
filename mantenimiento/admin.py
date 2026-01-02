@@ -2,6 +2,7 @@ from datetime import timedelta
 from django.db import models
 from django.db.models import Count
 from django.contrib import admin, messages
+from django.http import HttpResponse
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
@@ -68,6 +69,15 @@ class SubcategoriaInline(admin.TabularInline):
             'all': ('admin/css/forms.css',) # Opcional, pero útil para cargar estilos base
         }
 
+class RutinaInline(admin.TabularInline):
+    model = Rutina
+    extra = 1
+    fields = ('nombre', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos', 'procedimiento_estandar')
+    readonly_fields = ('nombre',)
+    autocomplete_fields = ('frecuencia', 'procedimiento_estandar')
+    show_change_link = True
+    # classes = ('collapse',)  <-- Eliminado para que aparezca abierto por defecto
+
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
     """
@@ -78,7 +88,7 @@ class CategoriaAdmin(ImportExportModelAdmin):
     search_fields = ('nombre',)
     list_filter = ('padre', 'categoria_activo')
     autocomplete_fields = ('padre', 'categoria_activo')
-    inlines = [SubcategoriaInline]
+    inlines = [SubcategoriaInline, RutinaInline]
 
 
 @admin.register(Frecuencia)
@@ -171,6 +181,7 @@ class RutinaAdmin(ImportExportModelAdmin):
     autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar')
     readonly_fields = ('nombre', 'creado_en', 'actualizado_en')
     inlines = [] # Temporalmente vacío hasta que verifiquemos si requiere inlines
+    actions = ['exportar_seleccionadas_action']
     
     fieldsets = (
         ('Identificación', {
@@ -183,6 +194,29 @@ class RutinaAdmin(ImportExportModelAdmin):
             'fields': ('tiempo_estimado', 'cantidad_tecnicos', 'descripcion')
         }),
     )
+    
+    @admin.action(description="📥 Exportar seleccionadas a Excel")
+    def exportar_seleccionadas_action(self, request, queryset):
+        """
+        Exporta solo las rutinas seleccionadas a un archivo Excel
+        utilizando el RutinaResource configurado.
+        """
+        resource = self.resource_class()
+        dataset = resource.export(queryset)
+        
+        response = HttpResponse(
+            dataset.xlsx,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="rutinas_seleccionadas.xlsx"'
+        
+        self.message_user(
+            request,
+            f"Se han exportado {queryset.count()} rutinas seleccionadas.",
+            messages.SUCCESS
+        )
+        
+        return response
 
 
 class DiaHorarioInline(admin.TabularInline):

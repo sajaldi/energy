@@ -107,8 +107,8 @@ class UbicacionResource(resources.ModelResource):
         model = Ubicacion
         # Usamos nombre y padre_nombre como identificadores para evitar duplicados en importación
         import_id_fields = ('nombre', 'padre_nombre')
-        fields = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'padre_nombre', 'orden', 'descripcion')
-        export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'padre_nombre', 'orden', 'descripcion')
+        fields = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'tipo', 'padre_nombre', 'orden', 'descripcion')
+        export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'tipo', 'padre_nombre', 'orden', 'descripcion')
         skip_unchanged = True
         report_skipped = True
         
@@ -310,6 +310,17 @@ class UbicacionHijaInline(admin.TabularInline):
     show_change_link = True
 
     def render_icon(self, obj):
+        icon = "📍"
+        if obj.tipo == 'EDIFICIO': icon = "🏢"
+        elif obj.tipo == 'NIVEL': icon = "layers" # Ionicons name, but here we use emoji for simplicity in inline or maybe check if we can use ion-icon
+        elif obj.tipo == 'ESPACIO': icon = "🚪"
+        
+        # Using ion-icon if supported or emoji
+        if obj.tipo == 'NIVEL':
+            return format_html('<div style="font-size: 1.2rem; display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b;">🔢</div>')
+        elif obj.tipo == 'EDIFICIO':
+            return format_html('<div style="font-size: 1.2rem; display: flex; align-items: center; justify-content: center; height: 100%; color: #1e293b;">🏢</div>')
+        
         return format_html('<div style="font-size: 1.2rem; display: flex; align-items: center; justify-content: center; height: 100%;">📍</div>')
     render_icon.short_description = 'Tipo'
 
@@ -343,11 +354,11 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     Admin para ubicaciones jerárquicas con estructura premium.
     """
     resource_class = UbicacionResource
-    list_display = ('nombre_con_indentacion', 'padre', 'orden', 'total_hijos', 'total_activos')
+    list_display = ('nombre_con_indentacion', 'tipo', 'padre', 'orden', 'total_hijos', 'total_activos')
     list_display_links = ('nombre_con_indentacion',)
-    list_editable = ('orden',)
+    list_editable = ('orden', 'tipo')
     search_fields = ('nombre',)
-    list_filter = ('padre',)
+    list_filter = ('tipo', 'padre',)
     autocomplete_fields = ('padre',)
     inlines = [UbicacionHijaInline]
 
