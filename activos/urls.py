@@ -14,4 +14,11 @@ urlpatterns = [
     
     # Sincronización masiva
     path('api/submit-all/', views_sync.submit_all_activos, name='submit_all_activos'),
+    
+    # Arbol Interactivo
+    path('arbol-ubicaciones/', views.arbol_activos_view, name='arbol_activos'),
+    path('api/ubicaciones-root/', views.api_ubicaciones_root, name='api_ubicaciones_root'),
+    path('api/ubicaciones-children/<int:parent_id>/', views.api_ubicaciones_children, name='api_ubicaciones_children'),
+    path('api/ubicacion-detalle/<int:ubicacion_id>/', views.api_ubicacion_detalle, name='api_ubicacion_detalle'),
+    path('api/activo-detalle/<int:activo_id>/', views.api_activo_detalle, name='api_activo_detalle'),
 ]

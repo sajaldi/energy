@@ -219,3 +219,180 @@ def get_import_progress(request):
         'speed': speed,  # items/segundo
         'elapsed': round(elapsed, 1)
     })
+
+# --- Vistas para Arbol Interactivo ---
+
+@staff_member_required
+def arbol_activos_view(request):
+    """Vista principal que renderiza el template del árbol"""
+    return render(request, 'activos/arbol_activos.html', {
+        'title': 'Explorador de Activos por Ubicación'
+    })
+
+@staff_member_required
+def api_ubicaciones_root(request):
+    from .models import Ubicacion
+    roots = Ubicacion.objects.filter(padre__isnull=True).order_by('orden', 'nombre')
+    data = []
+    for u in roots:
+        data.append({
+            'id': u.id,
+            'nombre': u.nombre,
+            'tipo': u.tipo,
+            'has_children': u.sub_ubicaciones.exists()
+        })
+    return JsonResponse(data, safe=False)
+
+@staff_member_required
+def api_ubicaciones_children(request, parent_id):
+    from .models import Ubicacion
+    children = Ubicacion.objects.filter(padre_id=parent_id).order_by('orden', 'nombre')
+    data = []
+    for u in children:
+        data.append({
+            'id': u.id,
+            'nombre': u.nombre,
+            'tipo': u.tipo,
+            'has_children': u.sub_ubicaciones.exists()
+        })
+    return JsonResponse(data, safe=False)
+
+@staff_member_required
+def api_ubicacion_detalle(request, ubicacion_id):
+    from .models import Ubicacion, Activo
+    from django.db.models import Count, Q
+    
+    try:
+        ubicacion = Ubicacion.objects.get(id=ubicacion_id)
+    except Ubicacion.DoesNotExist:
+        return JsonResponse({'error': 'Ubicación no encontrada'}, status=404)
+        
+    # Obtener activos de esta ubicación y todas sus descendientes
+    descendants = ubicacion.get_descendants(include_self=True)
+    activos = Activo.objects.filter(ubicacion__in=descendants).select_related('modelo__categoria__padre', 'modelo__categoria', 'modelo', 'ubicacion')
+    
+    # Estructura de árbol: Root Name -> { data, subcats: { Sub Name -> [assets] } }
+    groups = {}
+    total_operativos = 0
+    
+    for activo in activos:
+        # Estado
+        if activo.estado == 'OPERATIVO':
+            total_operativos += 1
+
+        # Categorización
+        cat_directa = activo.modelo.categoria if (activo.modelo and activo.modelo.categoria) else None
+        
+        # Agrupador Principal (Padre o Directa si no tiene padre)
+        # Nota: Asumimos jerarquía de 2 niveles para visualización simple. 
+        # Si tiene abuelo, este lógica tomará al padre inmediato como raíz de visualización.
+        # Para ser más robustos en "Sistemas", idealmente buscaríamos la raíz, pero esto funciona para "Tipo -> Subtipo".
+        cat_root = cat_directa.padre if (cat_directa and cat_directa.padre) else cat_directa
+        
+        root_name = cat_root.nombre if cat_root else "Otros"
+        root_icon = cat_root.icono if cat_root else "cube"
+        
+        # Subcategoría (Solo si es diferente a la raíz)
+        sub_name = cat_directa.nombre if (cat_directa and cat_directa != cat_root) else "_general_"
+        
+        if root_name not in groups:
+            groups[root_name] = {
+                'nombre': root_name,
+                'icono': root_icon,
+                'total_assets': 0,
+                'subcats': {} 
+            }
+            
+        groups[root_name]['total_assets'] += 1
+        
+        if sub_name not in groups[root_name]['subcats']:
+            groups[root_name]['subcats'][sub_name] = []
+            
+        # Serializar activo
+        groups[root_name]['subcats'][sub_name].append({
+            'id': activo.id,
+            'nombre': activo.nombre,
+            'codigo': activo.codigo_interno or 'S/C',
+            'serie': activo.serie,
+            'modelo': activo.modelo.nombre if activo.modelo else None,
+            'estado': activo.estado,
+            'estado_display': activo.get_estado_display(),
+            'ubicacion_nombre': activo.ubicacion.nombre if activo.ubicacion else 'Sin Ubicación',
+            'is_child': activo.ubicacion_id != ubicacion.id,
+        })
+
+    # Procesar para JSON (Listas ordenadas)
+    final_list = []
+    for root_key in sorted(groups.keys()):
+        g_data = groups[root_key]
+        
+        # Procesar subcategorías
+        subs_list = []
+        # Ponemos "_general_" al principio si existe
+        if "_general_" in g_data['subcats']:
+            subs_list.append({
+                'nombre': 'General',
+                'is_general': True,
+                'activos': g_data['subcats'].pop("_general_")
+            })
+            
+        # El resto ordenado alfabéticamente
+        for sub_key in sorted(g_data['subcats'].keys()):
+            subs_list.append({
+                'nombre': sub_key,
+                'is_general': False,
+                'activos': g_data['subcats'][sub_key]
+            })
+            
+        final_list.append({
+            'nombre': g_data['nombre'],
+            'icono': g_data['icono'],
+            'total_items': g_data['total_assets'],
+            'subcategorias': subs_list
+        })
+    
+    return JsonResponse({
+        'ubicacion': {
+            'id': ubicacion.id,
+            'nombre': ubicacion.nombre,
+            'tipo': ubicacion.get_tipo_display(),
+            'ruta': ubicacion.get_ruta_completa(),
+            'descripcion': ubicacion.descripcion
+        },
+        'total_activos': activos.count(),
+        'activos_operativos': total_operativos,
+        'categorias': final_list
+    })
+
+@staff_member_required
+def api_activo_detalle(request, activo_id):
+    from .models import Activo
+    
+    try:
+        activo = Activo.objects.select_related(
+            'modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable'
+        ).get(id=activo_id)
+    except Activo.DoesNotExist:
+        return JsonResponse({'error': 'Activo no encontrado'}, status=404)
+        
+    data = {
+        'id': activo.id,
+        'nombre': activo.nombre,
+        'codigo_interno': activo.codigo_interno,
+        'serie': activo.serie,
+        'estado': activo.estado,
+        'estado_display': activo.get_estado_display(),
+        'marca': activo.modelo.marca.nombre if (activo.modelo and activo.modelo.marca) else None,
+        'modelo': activo.modelo.nombre if activo.modelo else None,
+        'categoria': activo.modelo.categoria.nombre if (activo.modelo and activo.modelo.categoria) else None,
+        'ubicacion': activo.ubicacion.ruta_completa if activo.ubicacion else 'Sin Ubicación',
+        'responsable': activo.responsable.get_full_name() or activo.responsable.username if activo.responsable else 'Sin Asignar',
+        'fecha_compra': activo.fecha_compra.strftime('%d/%m/%Y') if activo.fecha_compra else None,
+        'costo': str(activo.costo) if activo.costo else None,
+        'descripcion': activo.descripcion,
+        'foto_url': activo.foto.url if activo.foto else None,
+        'creado_en': activo.creado_en.strftime('%d/%m/%Y'),
+        'legacy_ubicacion': activo.ubicacion_legacy
+    }
+    
+    return JsonResponse(data)

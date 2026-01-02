@@ -1,0 +1,913 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+<style>
+    :root {
+        --primary-color: #2563eb;
+        --secondary-color: #475569;
+        --bg-color: #f8fafc;
+        --card-bg: #ffffff;
+        --border-color: #e2e8f0;
+        --text-main: #1e293b;
+        --text-secondary: #64748b;
+        --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-color);
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* Override admin base styles if needed */
+    #content-main,
+    .content {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    #container {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 0 !important;
+    }
+
+    .main-container {
+        display: flex;
+        height: calc(100vh - 60px);
+        /* Adjust based on admin header height */
+        width: 100vw;
+        /* Force full viewport width */
+        gap: 0;
+    }
+
+    /* Sidebar Tree */
+    .tree-sidebar {
+        width: 320px;
+        background: var(--card-bg);
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        transition: width 0.3s ease;
+        z-index: 10;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.02);
+    }
+
+    .sidebar-header {
+        padding: 20px;
+        border-bottom: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+    }
+
+    .sidebar-header h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .tree-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 0;
+    }
+
+    .tree-node {
+        padding: 8px 12px 8px 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+        position: relative;
+    }
+
+    .tree-node:hover {
+        background-color: #f1f5f9;
+        color: var(--text-main);
+    }
+
+    .tree-node.active {
+        background-color: #eff6ff;
+        color: var(--primary-color);
+        border-left-color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    .node-icon {
+        font-size: 1.1rem;
+        min-width: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .toggle-icon {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        transition: transform 0.2s ease;
+        margin-right: 4px;
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+    }
+
+    .toggle-icon:hover {
+        background: #e2e8f0;
+        color: var(--text-main);
+    }
+
+    .toggle-icon.expanded {
+        transform: rotate(90deg);
+    }
+
+    .nested-group {
+        display: none;
+        padding-left: 20px;
+    }
+
+    .nested-group.show {
+        display: block;
+        animation: slideDown 0.2s ease-out;
+    }
+
+    /* Layout Columns */
+    .content-area {
+        flex: 1;
+        background-color: var(--bg-color);
+        overflow-y: auto;
+        padding: 30px 40px;
+        position: relative;
+        border-right: 1px solid var(--border-color);
+        /* min-width removed to allow better flexibility */
+    }
+
+    .detail-panel {
+        width: 380px;
+        background: white;
+        border-left: 1px solid var(--border-color);
+        height: 100%;
+        overflow-y: auto;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.3s ease;
+        position: relative;
+        z-index: 5;
+    }
+
+    .detail-panel.empty {
+        background: #f8fafc;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px;
+        color: var(--text-secondary);
+    }
+
+    /* Asset Detail Styles */
+    .detail-header {
+        padding: 24px;
+        border-bottom: 1px solid var(--border-color);
+        background: white;
+    }
+
+    .detail-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin: 10px 0 5px 0;
+        line-height: 1.4;
+    }
+
+    .detail-subtitle {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .detail-body {
+        padding: 24px;
+    }
+
+    .info-group {
+        margin-bottom: 20px;
+    }
+
+    .info-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .info-value {
+        font-size: 0.95rem;
+        color: var(--text-main);
+        font-weight: 500;
+    }
+
+    .detail-image {
+        width: 100%;
+        height: 200px;
+        background-color: #f1f5f9;
+        background-size: cover;
+        background-position: center;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid var(--border-color);
+    }
+
+    /* Main Content Area */
+    .location-header {
+        margin-bottom: 30px;
+        animation: fadeIn 0.4s ease-out;
+    }
+
+    .breadcrumb {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .location-title {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text-main);
+        margin: 0 0 10px 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .location-type-badge {
+        font-size: 0.75rem;
+        padding: 4px 12px;
+        background: var(--text-main);
+        color: white;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        vertical-align: middle;
+    }
+
+    .location-desc {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        max-width: 800px;
+        line-height: 1.6;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        border: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--primary-color);
+    }
+
+    .stat-info .value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-main);
+        display: block;
+    }
+
+    .stat-info .label {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    /* Categories Grid */
+    .categories-section {
+        margin-top: 40px;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-main);
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .category-group {
+        margin-bottom: 30px;
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01);
+    }
+
+    .category-header {
+        padding: 15px 20px;
+        background: #f8fafc;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        color: var(--text-main);
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s;
+    }
+
+    .category-header:hover {
+        background-color: #f1f5f9;
+    }
+
+    .toggle-cat-icon {
+        color: #94a3b8;
+        transition: transform 0.3s ease;
+        font-size: 1.1rem;
+    }
+
+    .category-group.collapsed .toggle-cat-icon {
+        transform: rotate(-90deg);
+    }
+
+    .category-group.collapsed .asset-grid {
+        display: none;
+    }
+
+    .category-group.collapsed .category-header {
+        border-bottom: none;
+    }
+
+    .asset-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .asset-card {
+        padding: 15px 20px;
+        border-right: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        transition: all 0.2s;
+        position: relative;
+        background: white;
+        cursor: pointer;
+    }
+
+    .asset-card.selected {
+        background-color: #eff6ff;
+        border-color: #bfdbfe;
+        box-shadow: 0 0 0 1px #bfdbfe;
+    }
+
+    .asset-card:hover {
+        background-color: #fcfdfe;
+        z-index: 1;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .asset-top {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .asset-code {
+        font-family: 'Monaco', 'Consolas', monospace;
+        font-size: 0.75rem;
+        color: #3b82f6;
+        background: #eff6ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        letter-spacing: -0.5px;
+    }
+
+    .asset-status {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #cbd5e1;
+        box-shadow: 0 0 0 2px white;
+    }
+
+    .status-OPERATIVO {
+        background-color: #10b981;
+    }
+
+    .status-MANTENIMIENTO {
+        background-color: #f59e0b;
+    }
+
+    .status-REPARACION {
+        background-color: #ef4444;
+    }
+
+    .asset-name {
+        font-weight: 600;
+        color: var(--text-main);
+        font-size: 0.95rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .asset-meta {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        display: flex;
+        gap: 10px;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: var(--text-main);
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+
+    .action-btn:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    /* Loaders */
+    .loader {
+        border: 3px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 3px solid var(--primary-color);
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        margin: auto;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-secondary);
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        color: #cbd5e1;
+        margin-bottom: 15px;
+        display: block;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="tree-sidebar">
+        <div class="sidebar-header">
+            <h2><ion-icon name="map"></ion-icon> Explorador</h2>
+        </div>
+        <div class="tree-content" id="tree-root">
+            <!-- Tree nodes will be injected here -->
+            <div style="padding: 20px; text-align: center;">
+                <div class="loader"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-area" id="content-panel">
+        <div class="empty-state">
+            <ion-icon name="arrow-back-circle-outline" class="empty-icon"></ion-icon>
+            <h3>Selecciona una ubicación</h3>
+            <p>Navega por el árbol de la izquierda para ver los activos.</p>
+        </div>
+    </div>
+
+    <div class="detail-panel empty" id="detail-panel">
+        <div>
+            <ion-icon name="cube-outline" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 10px;"></ion-icon>
+            <p>Selecciona un activo para ver sus detalles</p>
+        </div>
+    </div>
+</div>
+
+<template id="node-template">
+    <div class="node-wrapper" data-id="">
+        <div class="tree-node" onclick="handleNodeClick(this)">
+            <span class="toggle-icon" onclick="toggleNode(event, this)">
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+            </span>
+            <span class="node-icon">
+                <ion-icon name="location-outline"></ion-icon>
+            </span>
+            <span class="node-label">Nombre Ubicación</span>
+        </div>
+        <div class="nested-group"></div>
+    </div>
+</template>
+
+<script>
+    // State
+    let currentActiveNode = null;
+    let currentSelectedAsset = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadRootLocations();
+    });
+
+    async function loadRootLocations() {
+        try {
+            const response = await fetch('/activos/api/ubicaciones-root/');
+            const data = await response.json();
+            renderTree(data, document.getElementById('tree-root'));
+        } catch (error) {
+            console.error('Error loading roots:', error);
+        }
+    }
+
+    function renderTree(nodes, container) {
+        container.innerHTML = '';
+        nodes.forEach(node => {
+            const tmpl = document.getElementById('node-template').content.cloneNode(true);
+            const wrapper = tmpl.querySelector('.node-wrapper');
+            const treeNode = tmpl.querySelector('.tree-node');
+            const toggle = tmpl.querySelector('.toggle-icon');
+            const icon = tmpl.querySelector('.node-icon ion-icon');
+
+            wrapper.dataset.id = node.id;
+            wrapper.dataset.hasChildren = node.has_children;
+
+            treeNode.querySelector('.node-label').textContent = node.nombre;
+
+            // Set icon based on type
+            if (node.tipo === 'EDIFICIO') icon.setAttribute('name', 'business-outline');
+            else if (node.tipo === 'NIVEL') icon.setAttribute('name', 'layers-outline');
+            else if (node.tipo === 'ESPACIO') icon.setAttribute('name', 'door-open-outline');
+
+            // Handle toggle visibility
+            if (!node.has_children) {
+                toggle.style.visibility = 'hidden';
+            } else {
+                toggle.dataset.loaded = 'false';
+                toggle.dataset.id = node.id;
+            }
+
+            container.appendChild(wrapper);
+        });
+    }
+
+    async function toggleNode(e, element) {
+        e.stopPropagation();
+        const wrapper = element.closest('.node-wrapper');
+        const nestedGroup = wrapper.querySelector('.nested-group');
+        const id = element.dataset.id;
+
+        if (element.classList.contains('expanded')) {
+            // Collapse
+            element.classList.remove('expanded');
+            nestedGroup.classList.remove('show');
+            element.querySelector('ion-icon').setAttribute('name', 'chevron-forward-outline');
+        } else {
+            // Expand
+            element.classList.add('expanded');
+            element.querySelector('ion-icon').setAttribute('name', 'chevron-down-outline');
+            nestedGroup.classList.add('show');
+
+            if (element.dataset.loaded === 'false') {
+                // Load children
+                nestedGroup.innerHTML = '<div style="padding:10px; text-align:center"><div class="loader" style="width:15px; height:15px; border-width:2px;"></div></div>';
+                try {
+                    const response = await fetch(`/activos/api/ubicaciones-children/${id}/`);
+                    const data = await response.json();
+                    renderTree(data, nestedGroup);
+                    element.dataset.loaded = 'true';
+                } catch (err) {
+                    nestedGroup.innerHTML = '<span style="color:red; font-size:0.8rem">Error</span>';
+                }
+            }
+        }
+    }
+
+    async function handleNodeClick(element) {
+        // Highlight active
+        if (currentActiveNode) currentActiveNode.classList.remove('active');
+        element.classList.add('active');
+        currentActiveNode = element;
+
+        const wrapper = element.closest('.node-wrapper');
+        const id = wrapper.dataset.id;
+
+        loadLocationDetails(id);
+
+        // Reset detail panel
+        document.getElementById('detail-panel').classList.add('empty');
+        document.getElementById('detail-panel').innerHTML = `
+            <div>
+                <ion-icon name="cube-outline" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 10px;"></ion-icon>
+                <p>Selecciona un activo para ver sus detalles</p>
+            </div>
+        `;
+    }
+
+    async function loadLocationDetails(id) {
+        const container = document.getElementById('content-panel');
+        // Reset selection state
+        currentSelectedAsset = null;
+
+        container.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100%;"><div class="loader"></div></div>';
+
+        try {
+            const response = await fetch(`/activos/api/ubicacion-detalle/${id}/`);
+            const data = await response.json();
+            renderContent(data, container);
+        } catch (error) {
+            container.innerHTML = '<div class="empty-state"><p>Error cargando detalles</p></div>';
+            console.error(error);
+        }
+    }
+
+    function toggleCategory(header) {
+        const group = header.closest('.category-group');
+        group.classList.toggle('collapsed');
+    }
+
+    function renderContent(data, container) {
+        const location = data.ubicacion;
+        const totalAssets = data.total_activos;
+        const categories = data.categorias;
+
+        let html = `
+            <div class="location-header">
+                <div class="breadcrumb">${location.ruta}</div>
+                <h1 class="location-title">
+                    ${location.nombre} 
+                    <span class="location-type-badge">${location.tipo}</span>
+                </h1>
+                <p class="location-desc">${location.descripcion || 'Sin descripción disponible.'}</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#eff6ff; color:#2563eb;">
+                        <ion-icon name="cube-outline"></ion-icon>
+                    </div>
+                    <div class="stat-info">
+                        <span class="value">${totalAssets}</span>
+                        <span class="label">Total Activos</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#f0fdf4; color:#16a34a;">
+                        <ion-icon name="checkmark-circle-outline"></ion-icon>
+                    </div>
+                    <div class="stat-info">
+                        <span class="value">${data.activos_operativos}</span>
+                        <span class="label">Operativos</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-title">
+                <span>Inventario por Categoría</span>
+            </div>
+        `;
+
+        if (categories.length === 0) {
+            html += `
+                <div class="empty-state" style="background:white; border-radius:12px; border:1px solid #e2e8f0;">
+                    <ion-icon name="file-tray-outline" class="empty-icon"></ion-icon>
+                    <p>No se encontraron activos directamente en esta ubicación.</p>
+                </div>
+            `;
+        } else {
+            categories.forEach(cat => {
+                html += `
+                    <div class="category-group">
+                        <div class="category-header" onclick="toggleCategory(this)">
+                            <ion-icon name="${cat.icono || 'pricetag'}"></ion-icon>
+                            <span>${cat.nombre}</span>
+                            <span style="margin-left:auto; font-size:0.8rem; background:#e2e8f0; padding:2px 8px; border-radius:10px;">${cat.activos.length}</span>
+                            <ion-icon name="chevron-down-outline" class="toggle-cat-icon" style="margin-left: 8px;"></ion-icon>
+                        </div>
+                        <div class="asset-grid">
+                `;
+
+                if (cat.subcategorias) {
+                    cat.subcategorias.forEach(sub => {
+                        // Si hay múltiples subcategorías, mostramos encabezados
+                        if (!sub.is_general) {
+                            html += `
+                                <div style="padding: 10px 20px 5px 20px; font-size:0.85rem; color:#64748b; font-weight:600; text-transform:uppercase; border-bottom:1px solid #f1f5f9; margin-top:5px; display:flex; align-items:center; gap:5px;">
+                                    <ion-icon name="caret-forward-outline" style="font-size:0.75rem"></ion-icon> ${sub.nombre}
+                                </div>
+                            `;
+                        }
+
+                        html += `<div class="asset-grid">`;
+
+                        sub.activos.forEach(asset => {
+                            const locationBadge = asset.is_child
+                                ? `<div style="font-size:0.75rem; color:#64748b; margin-bottom:4px; display:flex; align-items:center; gap:4px;">
+                                     <ion-icon name="arrow-return-right" style="color:#94a3b8"></ion-icon> 
+                                     ${asset.ubicacion_nombre}
+                                   </div>`
+                                : '';
+
+                            html += `
+                                <div class="asset-card" onclick="selectAsset(this, ${asset.id})">
+                                    ${locationBadge}
+                                    <div class="asset-top">
+                                        <span class="asset-code">${asset.codigo}</span>
+                                        <div class="asset-status status-${asset.estado}" title="${asset.estado_display}"></div>
+                                    </div>
+                                    <div class="asset-name" title="${asset.nombre}">${asset.nombre}</div>
+                                    <div class="asset-meta">
+                                        <span>${asset.modelo || 'Sin modelo'}</span>
+                                        ${asset.serie ? `<span>S/N: ${asset.serie}</span>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        });
+
+                        html += `</div>`; // Close grid
+                    });
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        container.innerHTML = html;
+    }
+
+    async function selectAsset(element, id) {
+        // Handle visual selection
+        if (currentSelectedAsset) currentSelectedAsset.classList.remove('selected');
+        element.classList.add('selected');
+        currentSelectedAsset = element;
+
+        const panel = document.getElementById('detail-panel');
+        panel.classList.remove('empty');
+        panel.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100%;"><div class="loader"></div></div>';
+
+        try {
+            const response = await fetch(`/activos/api/activo-detalle/${id}/`);
+            const data = await response.json();
+            renderAssetDetail(data, panel);
+        } catch (error) {
+            panel.innerHTML = '<p style="text-align:center; padding:20px; color:red;">Error cargando detalles</p>';
+        }
+    }
+
+    function renderAssetDetail(data, container) {
+        const imageHtml = data.foto_url
+            ? `<div class="detail-image" style="background-image: url('${data.foto_url}')"></div>`
+            : `<div class="detail-image" style="display:flex; align-items:center; justify-content:center; color:#cbd5e1;"><ion-icon name="image-outline" style="font-size:3rem;"></ion-icon></div>`;
+
+        container.innerHTML = `
+            <div class="detail-header">
+                ${imageHtml}
+                <span class="asset-code" style="font-size:0.85rem">${data.codigo_interno || 'Sin Código'}</span>
+                <h2 class="detail-title">${data.nombre}</h2>
+                <div class="detail-subtitle">${data.marca || 'Marca genérica'} - ${data.modelo || 'Modelo genérico'}</div>
+                <div style="margin-top:10px;">
+                     <span style="font-size:0.75rem; background:#f1f5f9; padding:4px 10px; border-radius:12px; color:#475569; font-weight:600;">${data.estado_display}</span>
+                </div>
+            </div>
+            
+            <div class="detail-body">
+                <div class="info-group">
+                    <div class="info-label">Categoría</div>
+                    <div class="info-value">${data.categoria || '--'}</div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Ubicación</div>
+                    <div class="info-value">${data.ubicacion}</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">Responsable</div>
+                    <div class="info-value" style="display:flex; align-items:center; gap:6px;">
+                        <ion-icon name="person-circle-outline" style="font-size:1.1rem; color:#64748b;"></ion-icon>
+                        ${data.responsable}
+                    </div>
+                </div>
+
+                <div class="info-group">
+                    <div class="info-label">Número de Serie</div>
+                    <div class="info-value" style="font-family:monospace;">${data.serie || 'N/A'}</div>
+                </div>
+
+                ${data.descripcion ? `
+                <div class="info-group">
+                    <div class="info-label">Descripción</div>
+                    <div class="info-value" style="font-size:0.9rem; line-height:1.5;">${data.descripcion}</div>
+                </div>` : ''}
+
+                <div style="margin-top:30px; padding-top:20px; border-top:1px solid #e2e8f0; display:flex; gap:10px;">
+                    <a href="/admin/activos/activo/${data.id}/change/" target="_blank" class="action-btn" style="flex:1; justify-content:center; background:#2563eb; color:white; border:none;">
+                        <ion-icon name="create-outline"></ion-icon> Editar
+                    </a>
+                </div>
+            </div>
+        `;
+    }
+</script>
+{% endblock %}

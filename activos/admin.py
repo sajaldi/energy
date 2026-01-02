@@ -74,8 +74,26 @@ class PinPlanoAdmin(admin.ModelAdmin):
 
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
-    list_display = ('nombre', 'icono', 'descripcion')
+    list_display = ('nombre', 'icono', 'descripcion', 'cantidad_activos')
     search_fields = ('nombre',)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        queryset = queryset.annotate(
+            _activos_count=Count('modelos__activos', distinct=True)
+        )
+        return queryset
+
+    def cantidad_activos(self, obj):
+        count = getattr(obj, '_activos_count', 0)
+        if count == 0:
+            return format_html('<span style="color: #cbd5e1;">0</span>')
+        return format_html(
+            '<span style="background: #eff6ff; color: #2563eb; padding: 2px 10px; border-radius: 12px; font-weight: 700;">{}</span>',
+            count
+        )
+    cantidad_activos.short_description = "Cantidad Activos"
+    cantidad_activos.admin_order_field = '_activos_count'
 
 class SmartParentWidget(ForeignKeyWidget):
     """

@@ -258,8 +258,10 @@
         <div>
             <h1>Cronograma Anual de Mantenimiento</h1>
             <div style="font-size: 0.875rem; color: var(--text-muted);">
-                PlanificaciÃ³n Operativa {{ year }} | Vista por <strong>{% if view_mode == 'sistema' %}Sistema{% else
-                    %}UbicaciÃ³n{% endif %}</strong>
+                Planificación Operativa {{ year }} | Vista por
+                <strong>
+                    {% if view_mode == 'sistema' %}Sistema{% else %}Ubicación{% endif %}
+                </strong>
             </div>
         </div>
         <div class="actions">
@@ -275,14 +277,16 @@
                     style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 0.8rem; min-width: 150px;">
                     <option value="">-- Todas las Ubicaciones --</option>
                     {% for u in ubicaciones_roots %}
-                    <option value="{{ u.id }}" {% if current_ubi == u.id %}selected{% endif %}>{{ u.nombre }}</option>
+                    <option value="{{ u.id }}" {% if u.is_selected %}selected{% endif %}>
+                        {{ u.nombre }}
+                    </option>
                     {% endfor %}
                 </select>
                 <input type="number" name="year" value="{{ year }}"
                     style="width: 80px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);">
                 <button type="submit" class="btn">Actualizar</button>
             </form>
-            <a href="{% url 'mantenimiento:detallado' %}?year={{ year }}" class="btn"><span>ðŸ“Š Matriz</span></a>
+            <a href="{% url 'mantenimiento:detallado' %}?year={{ year }}" class="btn"><span>📊 Matriz</span></a>
         </div>
     </div>
     <div class="container">
@@ -290,8 +294,9 @@
             <table>
                 <thead>
                     <tr>
-                        <th class="col-fixed header-month">{% if view_mode == 'sistema' %}Sistema / Disciplina{% else
-                            %}UbicaciÃ³n / Ãrea{% endif %}</th>
+                        <th class="col-fixed header-month">
+                            {% if view_mode == 'sistema' %}Sistema / Disciplina{% else %}Ubicación / Área{% endif %}
+                        </th>
                         {% for mes in meses_header %}
                         <th colspan="{{ mes.count }}" class="header-month">
                             <a href="{% url 'mantenimiento:detalle_mes' year=year month=mes.num %}{% if programacion_id %}?programacion_id={{ programacion_id }}{% endif %}"
@@ -311,31 +316,40 @@
                     {% for group in items %}
                     <tr class="row-group" onclick="toggleRows('group-{{ forloop.counter }}', this)">
                         <td class="col-fixed" style="border-left: 4px solid {{ group.color }};">
-                            <span class="item-name"><span class="toggle-icon">â–¶</span> {{ group.label }}</span>
+                            <span class="item-name"><span class="toggle-icon">▶</span> {{ group.label }}</span>
                         </td>
                         {% for celda in group.celdas %}
                         <td class="cell-mark cell-week">
-                            <div class="mark-summary {% if celda.active %}active{% endif %}" {% if celda.active
-                                %}style="background-color: {{ group.color }};" {% endif %}></div>
+                            {% if celda.active %}
+                            <div class="mark-summary active" style="background-color: {{ group.color }};"></div>
+                            {% else %}
+                            <div class="mark-summary"></div>
+                            {% endif %}
                         </td>
                         {% endfor %}
                     </tr>
                     {% for middle in group.subgrupos %}
                     <tr class="row-middle group-{{ forloop.parentloop.counter }}"
                         onclick="toggleRows('child-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
-                        <td class="col-fixed"><span class="middle-name"><span class="toggle-icon">â–¶</span> {{
-                                middle.label }}</span></td>
+                        <td class="col-fixed">
+                            <span class="middle-name"><span class="toggle-icon">▶</span> {{ middle.label }}</span>
+                        </td>
                         {% for celda in middle.celdas %}
                         <td class="cell-mark cell-week">
-                            <div class="mark-summary middle {% if celda.active %}active{% endif %}" {% if celda.active
-                                %}style="background-color: {{ group.color }};" {% endif %}></div>
+                            {% if celda.active %}
+                            <div class="mark-summary middle active" style="background-color: {{ group.color }};"></div>
+                            {% else %}
+                            <div class="mark-summary middle"></div>
+                            {% endif %}
                         </td>
                         {% endfor %}
                     </tr>
                     {% for sub in middle.rutinas %}
                     <tr
                         class="row-sub child-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}">
-                        <td class="col-fixed sub-name">{{ sub.label }}</td>
+                        <td class="col-fixed sub-name">
+                            {{ sub.label }}
+                        </td>
                         {% for celda in sub.celdas %}
                         <td class="cell-mark cell-week">
                             {% if celda.active %}
@@ -349,8 +363,8 @@
                     {% endfor %}
                     {% empty %}
                     <tr>
-                        <td colspan="53" style="padding: 40px; text-align: center;">No hay informaciÃ³n disponible para
-                            este aÃ±o.</td>
+                        <td colspan="53" style="padding: 40px; text-align: center;">No hay información disponible para
+                            este año.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

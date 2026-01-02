@@ -1,0 +1,294 @@
+{% load i18n admin_urls static admin_modify %}
+<div class="js-inline-admin-formset inline-group" id="{{ inline_admin_formset.formset.prefix }}-group"
+    data-inline-type="tabular" data-inline-formset="{{ inline_admin_formset.inline_formset_data }}">
+    <div class="tabular inline-related {% if forloop.last %}last-related{% endif %}">
+        {{ inline_admin_formset.formset.management_form }}
+        <fieldset class="module {{ inline_admin_formset.classes }}">
+            <h2 style="background:var(--primary-color, #79aec8); color:white; padding:10px;">
+                {{ inline_admin_formset.opts.verbose_name_plural|capfirst }} - Visualización Anual
+            </h2>
+            {{ inline_admin_formset.formset.non_form_errors }}
+
+            <!-- VISUAL TIMELINE -->
+            <div class="timeline-wrapper"
+                style="margin: 20px 0; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow-x: auto;">
+
+                <!-- Data extraction for JS -->
+                <script type="application/json" id="timeline-data-{{ inline_admin_formset.formset.prefix }}">
+            [
+            {% for inline_admin_form in inline_admin_formset %}
+                {% if inline_admin_form.original %}
+                {
+                    "id": "{{ inline_admin_form.original.id }}",
+                    "ubicacion": "{{ inline_admin_form.original.ubicacion.nombre|default:'Sin Ubicación' }}",
+                    "fecha": "{{ inline_admin_form.original.inicio_programado|date:'Y-m-d H:i' }}",
+                    "estado": "{{ inline_admin_form.original.estado }}",
+                    "tecnico": "{{ inline_admin_form.original.tecnico.get_full_name|default:'-' }}"
+                }{% if not forloop.last %},{% endif %}
+                {% endif %}
+            {% endfor %}
+            ]
+        </script>
+
+                <div id="timeline-chart-{{ inline_admin_formset.formset.prefix }}">
+                    <!-- JS will render rows here -->
+                </div>
+
+                <style>
+                    .timeline-month {
+                        display: inline-block;
+                        width: 80px;
+                        text-align: center;
+                        font-size: 10px;
+                        border-right: 1px solid #eee;
+                        padding: 5px 0;
+                        font-weight: bold;
+                        background: #f8f9fa;
+                    }
+
+                    .timeline-grid {
+                        display: flex;
+                        border: 1px solid #eee;
+                        margin-top: 10px;
+                        position: relative;
+                    }
+
+                    .timeline-row {
+                        display: flex;
+                        border-bottom: 1px solid #f0f0f0;
+                        align-items: center;
+                        padding: 5px 0;
+                        height: 30px;
+                        position: relative;
+                    }
+
+                    .timeline-label {
+                        width: 150px;
+                        font-size: 11px;
+                        padding-left: 10px;
+                        flex-shrink: 0;
+                        font-weight: 600;
+                        color: #444;
+                        border-right: 1px solid #eee;
+                        margin-right: 0;
+                    }
+
+                    .timeline-track {
+                        position: relative;
+                        flex-grow: 1;
+                        height: 100%;
+                        min-width: 960px;
+                        /* 80px * 12 */
+                    }
+
+                    .timeline-marker {
+                        position: absolute;
+                        width: 10px;
+                        height: 10px;
+                        border-radius: 50%;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        cursor: pointer;
+                        transition: transform 0.2s;
+                    }
+
+                    .marker-PROGRAMADA {
+                        background-color: #3498db;
+                    }
+
+                    .marker-PROCESO {
+                        background-color: #f39c12;
+                    }
+
+                    .marker-FINALIZADA {
+                        background-color: #27ae60;
+                    }
+
+                    .marker-CANCELADA {
+                        background-color: #e74c3c;
+                    }
+
+                    .timeline-marker:hover {
+                        transform: translateY(-50%) scale(1.5);
+                        z-index: 10;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                    }
+
+                    .timeline-tooltip {
+                        position: fixed;
+                        background: #333;
+                        color: white;
+                        padding: 5px 10px;
+                        border-radius: 4px;
+                        font-size: 10px;
+                        pointer-events: none;
+                        display: none;
+                        z-index: 1000;
+                    }
+                </style>
+
+                <div id="timeline-tooltip-{{ inline_admin_formset.formset.prefix }}" class="timeline-tooltip"></div>
+
+                <script>
+                    (function () {
+                        const prefix = "{{ inline_admin_formset.formset.prefix }}";
+                        const dataScript = document.getElementById('timeline-data-' + prefix);
+                        const container = document.getElementById('timeline-chart-' + prefix);
+                        const tooltip = document.getElementById('timeline-tooltip-' + prefix);
+
+                        if (!dataScript || !container) return;
+
+                        let data = [];
+                        try {
+                            data = JSON.parse(dataScript.textContent);
+                        } catch (e) { console.error("Error parsing timeline data", e); return; }
+
+                        // Group by Location
+                        const groups = {};
+                        data.forEach(item => {
+                            const loc = item.ubicacion || 'General';
+                            if (!groups[loc]) groups[loc] = [];
+                            groups[loc].push(item);
+                        });
+
+                        // Header (Months)
+                        let html = '<div style="display:flex; margin-left:150px; background:#f1f5f9;">';
+                        const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+                        months.forEach(m => html += `<div class="timeline-month">${m}</div>`);
+                        html += '</div>';
+
+                        // Body
+                        Object.keys(groups).sort().forEach(loc => {
+                            html += `<div class="timeline-row">`;
+                            html += `<div class="timeline-label" title="${loc}">${loc.substring(0, 25)}${loc.length > 25 ? '...' : ''}</div>`;
+                            html += `<div class="timeline-track">`;
+
+                            // Render markers
+                            groups[loc].forEach(item => {
+                                const date = new Date(item.fecha);
+                                if (isNaN(date.getTime())) return;
+
+                                // Calculate position (0 to 100%)
+                                // We assume simplified Linear year (Day of year / 365)
+                                const start = new Date(date.getFullYear(), 0, 0);
+                                const diff = date - start;
+                                const oneDay = 1000 * 60 * 60 * 24;
+                                const dayOfYear = Math.floor(diff / oneDay);
+                                const pct = (dayOfYear / 365) * 100;
+
+                                html += `<div class="timeline-marker marker-${item.estado}" 
+                                      style="left: ${pct}%;"
+                                      data-info="#${item.id} - ${item.fecha} - ${item.estado}"></div>`;
+                            });
+
+                            html += `</div></div>`;
+                        });
+
+                        if (data.length === 0) {
+                            html += '<div style="padding:20px; text-align:center; color:#999;">No hay órdenes programadas visibles.</div>';
+                        }
+
+                        container.innerHTML = html;
+
+                        // Tooltip logic
+                        container.addEventListener('mouseover', function (e) {
+                            if (e.target.classList.contains('timeline-marker')) {
+                                tooltip.textContent = e.target.dataset.info;
+                                tooltip.style.display = 'block';
+                            }
+                        });
+                        container.addEventListener('mousemove', function (e) {
+                            tooltip.style.left = (e.clientX + 10) + 'px';
+                            tooltip.style.top = (e.clientY + 10) + 'px';
+                        });
+                        container.addEventListener('mouseout', function (e) {
+                            if (e.target.classList.contains('timeline-marker')) {
+                                tooltip.style.display = 'none';
+                            }
+                        });
+
+                    })();
+                </script>
+            </div>
+
+            <!-- STANDARD TABLE HEADER -->
+            <table>
+                <thead>
+                    <tr>
+                        {% for field in inline_admin_formset.fields %}
+                        {% if not field.widget.is_hidden %}
+                        <th{% if field.required %} class="required" {% endif %}>{{ field.label|capfirst }}
+                            {% if field.help_text %}&nbsp;<img src="{% static " admin/img/icon-unknown.svg" %}"
+                                class="help help-tooltip" width="10" height="10" alt="({{ field.help_text|striptags }})"
+                                title="{{ field.help_text|striptags }}">{% endif %}
+                            </th>
+                            {% endif %}
+                            {% endfor %}
+                            {% if inline_admin_formset.formset.can_delete %}<th>{% trans "Delete?" %}</th>{% endif %}
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for inline_admin_form in inline_admin_formset %}
+                    {% if inline_admin_form.form.non_field_errors %}
+                    <tr>
+                        <td colspan="{{ inline_admin_form|length }}">{{ inline_admin_form.form.non_field_errors }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr class="form-row {% cycle " row1" "row2" %} {% if inline_admin_form.original or
+                        inline_admin_form.show_url %}has_original{% endif %}{% if forloop.last %} empty-form{% endif %}"
+                        id="{{ inline_admin_formset.formset.prefix }}-{% if not forloop.last %}{{ forloop.counter0 }}{% else %}empty{% endif %}">
+                        <td class="original">
+                            {% if inline_admin_form.original or inline_admin_form.show_url %}<p>
+                                {% if inline_admin_form.original %}
+                                {{ inline_admin_form.original }}
+                                {% if inline_admin_form.model_admin.show_change_link and
+                                inline_admin_form.model_admin.has_registered_model %}
+                                <a href="{% url inline_admin_form.model_admin.opts|admin_urlname:'change' inline_admin_form.original.pk|admin_urlquote %}"
+                                    class="{% if inline_admin_formset.has_change_permission %}inlinechangelink{% else %}inlineviewlink{% endif %}">
+                                    {% if inline_admin_formset.has_change_permission %}{% trans "Change" %}{% else %}{%
+                                    trans "View" %}{% endif %}
+                                </a>
+                                {% endif %}
+                                {% endif %}
+                                {% if inline_admin_form.show_url %}<a href="{{ inline_admin_form.absolute_url }}">{%
+                                    trans "View on site" %}</a>{% endif %}
+                            </p>{% endif %}
+                            {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{%
+                            endif %}
+                            {% if inline_admin_form.fk_field %}{{ inline_admin_form.fk_field.field }}{% endif %}
+                            {% for fieldset in inline_admin_form %}
+                            {% for line in fieldset %}
+                            {% for field in line %}
+                            {% if field.field.is_hidden %} {{ field.field }} {% endif %}
+                            {% endfor %}
+                            {% endfor %}
+                            {% endfor %}
+                        </td>
+                        {% for fieldset in inline_admin_form %}
+                        {% for line in fieldset %}
+                        {% for field in line %}
+                        {% if not field.field.is_hidden %}
+                        <td{% if field.field.name %} class="field-{{ field.field.name }}" {% endif %}>
+                            {% if field.is_readonly %}
+                            <p>{{ field.contents }}</p>
+                            {% else %}
+                            {{ field.field.errors.as_ul }}
+                            {{ field.field }}
+                            {% endif %}
+                            </td>
+                            {% endif %}
+                            {% endfor %}
+                            {% endfor %}
+                            {% endfor %}
+                            {% if inline_admin_formset.formset.can_delete %}
+                            <td class="delete">{% if inline_admin_form.original %}{{
+                                inline_admin_form.deletion_field.field }}{% endif %}</td>
+                            {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </fieldset>
+    </div>
+</div>
