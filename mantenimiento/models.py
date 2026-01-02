@@ -450,6 +450,27 @@ class Aviso(models.Model):
         verbose_name_plural = "Avisos"
         ordering = ['-creado_en']
 
+class NotificacionMantenimiento(models.Model):
+    TIPO_CHOICES = [
+        ('SUCCESS', 'Éxito'),
+        ('ERROR', 'Error'),
+        ('INFO', 'Información'),
+        ('WARNING', 'Advertencia'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notificaciones_mantenimiento')
+    mensaje = models.TextField()
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='INFO')
+    leida = models.BooleanField(default=False, db_index=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Notificación de Mantenimiento"
+        verbose_name_plural = "Notificaciones de Mantenimiento"
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.tipo}: {self.mensaje[:30]}..."
+
 class OrdenTrabajo(models.Model):
     ESTADO_CHOICES = [
         ('PROGRAMADA', 'Programada'),

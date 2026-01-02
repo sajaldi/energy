@@ -172,6 +172,18 @@ class ProcedimientoAdmin(admin.ModelAdmin):
     search_fields = ('nombre',)
     inlines = [PasoProcedimientoInline]
 
+class OrdenTrabajoInline(admin.TabularInline):
+    model = OrdenTrabajo
+    extra = 0
+    raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion')
+    fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'tecnico', 'inicio_programado', 'estado')
+    readonly_fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'inicio_programado')
+    can_delete = True
+    
+    def get_activos_list(self, obj):
+        return ", ".join([a.nombre for a in obj.activos.all()])
+    get_activos_list.short_description = "Activos"
+
 @admin.register(Rutina)
 class RutinaAdmin(ImportExportModelAdmin):
     resource_class = RutinaResource
@@ -245,17 +257,6 @@ class RestriccionCalendarioAdmin(admin.ModelAdmin):
     ordering = ('fecha',)
     search_fields = ('motivo',)
 
-class OrdenTrabajoInline(admin.TabularInline):
-    model = OrdenTrabajo
-    extra = 0
-    raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion')
-    fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'tecnico', 'inicio_programado', 'estado')
-    readonly_fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'inicio_programado')
-    can_delete = True
-    
-    def get_activos_list(self, obj):
-        return ", ".join([a.nombre for a in obj.activos.all()])
-    get_activos_list.short_description = "Activos"
 
 @admin.register(PlanificacionMensual)
 class PlanificacionMensualAdmin(admin.ModelAdmin):
@@ -300,7 +301,7 @@ class PlanificacionMensualAdmin(admin.ModelAdmin):
 
 @admin.register(Programacion)
 class ProgramacionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'rutina', 'get_areas', 'horario', 'procesada')
+    list_display = ('id', 'rutina', 'get_areas', 'horario', 'procesada', 'ver_cronograma_visual_link')
     list_filter = ('rutina__frecuencia', 'procesada')
     list_select_related = ('rutina', 'horario')
     search_fields = ('id', 'rutina__nombre')
@@ -313,6 +314,11 @@ class ProgramacionAdmin(admin.ModelAdmin):
         url = reverse('mantenimiento:calendario')
         return format_html('<a class="button" href="{}" target="_blank">Ver Programación Anual</a>', url)
     ver_calendario_link.short_description = 'Calendario'
+    
+    def ver_cronograma_visual_link(self, obj):
+        url = reverse('mantenimiento:cronograma')
+        return format_html('<a class="button" href="{}?programacion_id={}" target="_blank" style="background:#3b82f6; color:white;">Ver Cronograma</a>', url, obj.id)
+    ver_cronograma_visual_link.short_description = 'Cronograma Visual'
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related('areas')
@@ -324,6 +330,35 @@ class ProgramacionAdmin(admin.ModelAdmin):
 
     @admin.action(description="Generar Órdenes de Trabajo")
     def generar_ordenes_action(self, request, queryset):
+        import threading
+        from .models import NotificacionMantenimiento
+        from django.db import connection
+
+        user_id = request.user.id
+
+        def worker(programacion_id, user_id):
+            # En un hilo nuevo, debemos asegurarnos de cerrar la conexión al final
+            from django.db import connections
+            from .models import Programacion, NotificacionMantenimiento
+            try:
+                p = Programacion.objects.get(id=programacion_id)
+                count = p.generar_ordenes()
+                NotificacionMantenimiento.objects.create(
+                    user_id=user_id,
+                    mensaje=f"Generación completada: Se crearon {count} órdenes para {p.rutina.nombre}.",
+                    tipo='SUCCESS'
+                )
+            except Exception as e:
+                NotificacionMantenimiento.objects.create(
+                    user_id=user_id,
+                    mensaje=f"Error al generar órdenes para {p.rutina.nombre if 'p' in locals() else 'ID '+str(programacion_id)}: {str(e)}",
+                    tipo='ERROR'
+                )
+            finally:
+                # Cerrar conexiones en hilos secundarios para evitar fugas
+                for conn in connections.all():
+                    conn.close()
+
         for programacion in queryset:
             if programacion.procesada:
                 self.message_user(
@@ -332,13 +367,17 @@ class ProgramacionAdmin(admin.ModelAdmin):
                     messages.WARNING
                 )
                 continue
-                
-            count = programacion.generar_ordenes()
-            self.message_user(
-                request, 
-                f"Se han generado/verificado {count} órdenes para {programacion.rutina.nombre} ({programacion.areas.count()} áreas/hijos).",
-                messages.SUCCESS
-            )
+            
+            # Lanzar hilo
+            t = threading.Thread(target=worker, args=(programacion.id, user_id))
+            t.setDaemon(True)
+            t.start()
+
+        self.message_user(
+            request, 
+            "Iniciando generación en segundo plano para las programaciones seleccionadas. Se te notificará al finalizar.",
+            messages.INFO
+        )
 
     @admin.action(description="Resetear estado (Permitir re-generar)")
     def reset_procesada_action(self, request, queryset):

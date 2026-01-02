@@ -1,0 +1,184 @@
+{% if user.is_authenticated %}
+<!-- NOTIFICACIONES GLOBAL SNAPSHOT -->
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+
+<style>
+    /* NOTIFICATIONS / TOASTS */
+    #notification-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 99999;
+        /* Asegurar que esté sobre todo */
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: none;
+        /* Dejar pasar clics si no hay toasts */
+    }
+
+    .toast {
+        min-width: 280px;
+        max-width: 400px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        padding: 16px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        border-left: 4px solid #6366f1;
+        transform: translateX(120%);
+        transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        animation: slideIn 0.3s forwards;
+        pointer-events: auto;
+        /* Reactivar clics para cerrar */
+    }
+
+    @keyframes slideIn {
+        to {
+            transform: translateX(0);
+        }
+    }
+
+    .toast.success {
+        border-left-color: #10b981;
+    }
+
+    .toast.error {
+        border-left-color: #ef4444;
+    }
+
+    .toast.warning {
+        border-left-color: #f59e0b;
+    }
+
+    .toast-icon {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .toast.success .toast-icon {
+        color: #10b981;
+    }
+
+    .toast.error .toast-icon {
+        color: #ef4444;
+    }
+
+    .toast.info .toast-icon {
+        color: #6366f1;
+    }
+
+    .toast-content {
+        flex-grow: 1;
+    }
+
+    .toast-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 2px;
+        color: #1e293b;
+    }
+
+    .toast-msg {
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+
+    .toast-close {
+        cursor: pointer;
+        color: #94a3b8;
+    }
+
+    .toast-close:hover {
+        color: #64748b;
+    }
+</style>
+
+<div id="notification-container"></div>
+
+<script>
+    (function () {
+        const POLLING_INTERVAL = 10000; // 10 segundos
+
+        function startNotificationPolling() {
+            setInterval(checkNotifications, POLLING_INTERVAL);
+            checkNotifications();
+        }
+
+        function checkNotifications() {
+            fetch('{% url "mantenimiento:api_get_notifications" %}', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' && data.notificaciones.length > 0) {
+                        data.notificaciones.forEach(n => {
+                            showToast(n);
+                        });
+                    }
+                })
+                .catch(err => console.debug("Poll failed (expected if logging out or network blip)"));
+        }
+
+        function showToast(n) {
+            const container = document.getElementById('notification-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${n.tipo.toLowerCase()}`;
+
+            let icon = 'information-circle';
+            if (n.tipo === 'SUCCESS') icon = 'checkmark-circle';
+            if (n.tipo === 'ERROR') icon = 'alert-circle';
+            if (n.tipo === 'WARNING') icon = 'warning';
+
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    <ion-icon name="${icon}"></ion-icon>
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${n.tipo === 'SUCCESS' ? 'Completado' : 'Notificación'}</div>
+                    <div class="toast-msg">${n.mensaje}</div>
+                </div>
+                <div class="toast-close">
+                    <ion-icon name="close-outline"></ion-icon>
+                </div>
+            `;
+
+            container.appendChild(toast);
+
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.onclick = () => markAsRead(n.id, toast);
+
+            // Auto-cerrar después de 8 segundos
+            setTimeout(() => {
+                if (toast.parentElement) markAsRead(n.id, toast);
+            }, 8000);
+        }
+
+        function markAsRead(id, element) {
+            fetch('{% url "mantenimiento:api_mark_notification_read" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ notif_id: id })
+            })
+                .then(() => {
+                    element.style.transform = 'translateX(120%)';
+                    setTimeout(() => { if (element.parentElement) element.remove(); }, 300);
+                })
+                .catch(() => {
+                    // Si falla el mark as read, al menos removemos el elemento visual
+                    element.remove();
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', startNotificationPolling);
+    })();
+</script>
+{% endif %}
