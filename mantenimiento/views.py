@@ -463,8 +463,8 @@ def cronograma_mantenimiento_visual(request):
     view_mode = request.GET.get('view_mode', 'sistema') # 'sistema' o 'ubicacion'
     ubicacion_id = request.GET.get('ubicacion_id')
     
-    # Obtener todas las ubicaciones raíz para el filtro
-    ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
+    # Obtener todas las ubicaciones raíz para el filtro (solo Edificios)
+    ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True, tipo='EDIFICIO').order_by('nombre')
     
     # Filtro base para las órdenes
     filtros = {'inicio_programado__year': year}
@@ -486,7 +486,7 @@ def cronograma_mantenimiento_visual(request):
         'rutina__frecuencia',
         'programacion__horario'
     ).values(
-        'id', 'rutina__nombre', 'ubicacion__nombre', 
+        'id', 'rutina__nombre', 'ubicacion__nombre', 'ubicacion_id',
         'rutina__categoria_id', 'inicio_programado', 'estado',
         'programacion__horario__color'
     )
@@ -506,15 +506,45 @@ def cronograma_mantenimiento_visual(request):
         )
     )
     
+    # Mapa de ubicaciones para jerarquía (ID -> Objeto)
+    all_locs = Ubicacion.objects.all()
+    loc_map = {u.id: u for u in all_locs}
+
+    def get_edificio_root(loc_id):
+        curr = loc_map.get(loc_id)
+        while curr:
+            if curr.tipo == 'EDIFICIO':
+                return curr
+            curr = loc_map.get(curr.padre_id)
+        return None
+
     for ot in ordenes:
         dia_año = ot['inicio_programado'].timetuple().tm_yday
         semana_idx = (dia_año - 1) // 7
         if semana_idx > 51: semana_idx = 51
 
         if view_mode == 'ubicacion':
-            # Para ubicación, podríamos intentar: Padre -> Ubicación -> Rutina
-            group_label = ot['ubicacion__nombre'] or "S/U"
-            sub_label = "General" # Simplificado por ahora o podríamos buscar el padre de la ubicación
+            # Buscar el edificio padre
+            root_edificio = get_edificio_root(ot['ubicacion_id'])
+            
+            # Si estamos viendo "Todas" y no tiene edificio, lo descartamos según requerimiento
+            # "quisiera que me mostrara solo las que estan categorizadas como Edificio"
+            if not ubicacion_id and not root_edificio:
+                continue
+
+            if root_edificio:
+                group_label = root_edificio.nombre
+            else:
+                # Fallback para cuando se filtra una ubicación específica que no está en edificio
+                group_label = ot['ubicacion__nombre'] or "S/U"
+
+            # Sub-nivel es la ubicación específica (si es distinta al edificio)
+            loc_nombre = ot['ubicacion__nombre'] or "General"
+            if root_edificio and loc_nombre == root_edificio.nombre:
+                sub_label = "General"
+            else:
+                sub_label = loc_nombre
+
             routine_label = ot['rutina__nombre'] or "General"
         else: # sistema
             cat_id = ot['rutina__categoria_id']

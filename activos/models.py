@@ -17,8 +17,16 @@ class Categoria(models.Model):
 
 
 class Ubicacion(models.Model):
+    TIPO_CHOICES = [
+        ('EDIFICIO', 'Edificio'),
+        ('NIVEL', 'Nivel/Piso'),
+        ('ESPACIO', 'Espacio/Área'),
+        ('OTRO', 'Otro'),
+    ]
+    
     nombre = models.CharField(max_length=100)
     padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_ubicaciones')
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='NIVEL', help_text="Tipo de ubicación")
     descripcion = models.TextField(blank=True, null=True)
     orden = models.PositiveIntegerField(default=0, help_text="Orden de visualización y programación")
 
