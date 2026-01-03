@@ -17,6 +17,13 @@ def mul(value, arg):
         return 0
 
 @register.filter
+def sub(value, arg):
+    try:
+        return float(value) - float(arg)
+    except (ValueError, TypeError):
+        return 0
+
+@register.filter
 def index(sequence, position):
     try:
         return sequence[position]
