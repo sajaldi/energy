@@ -1,18 +1,23 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado
+from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, ItemPresupuesto
 
 class GastoEjecutadoInline(admin.TabularInline):
     model = GastoEjecutado
     extra = 1
     fields = ('fecha', 'descripcion', 'monto', 'referencia')
 
+class ItemPresupuestoInline(admin.TabularInline):
+    model = ItemPresupuesto
+    extra = 1
+    fields = ('concepto', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic')
+
 @admin.register(PartidaPresupuestaria)
 class PartidaPresupuestariaAdmin(admin.ModelAdmin):
     list_display = ('disciplina', 'presupuesto_anual', 'get_proyectado', 'get_ejecutado', 'get_progreso', 'get_saldo')
     list_filter = ('presupuesto_anual', 'disciplina')
     search_fields = ('disciplina__nombre', 'descripcion')
-    inlines = [GastoEjecutadoInline]
+    inlines = [ItemPresupuestoInline, GastoEjecutadoInline]
     autocomplete_fields = ('disciplina', 'presupuesto_anual')
 
     def get_proyectado(self, obj):
@@ -55,7 +60,7 @@ class PartidaInline(admin.TabularInline):
 
 @admin.register(PresupuestoAnual)
 class PresupuestoAnualAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'anio', 'moneda', 'get_total_proyectado', 'get_total_ejecutado', 'get_progreso', 'estado')
+    list_display = ('nombre', 'anio', 'moneda', 'get_total_proyectado', 'get_total_ejecutado', 'get_progreso', 'ver_matriz', 'estado')
     list_filter = ('anio', 'estado', 'moneda')
     search_fields = ('nombre',)
     inlines = [PartidaInline]
@@ -81,7 +86,11 @@ class PresupuestoAnualAdmin(admin.ModelAdmin):
             '</div>',
             min(percent, 100), color, percent
         )
-    get_progreso.short_description = "Avance Global"
+    def ver_matriz(self, obj):
+        from django.urls import reverse
+        url = reverse('presupuestos:matriz_detalle', args=[obj.pk])
+        return format_html('<a class="button" href="{}" target="_blank" style="background: #6366f1; color: white;">📊 Ver Matriz</a>', url)
+    ver_matriz.short_description = "Matriz"
 
     class Media:
         css = {

@@ -637,7 +637,7 @@ def cronograma_mantenimiento_visual(request):
                         'active': bool(ots),
                         'realizada': bool(ots) and all(o['estado'] == 'REALIZADA' for o in ots),
                         'count': len(ots),
-                        'info': ", ".join(set([o['rutina__nombre'] if view_mode == 'ubicacion' else o['ubicacion__nombre'] or 'S/U' for o in ots]))
+                        'info': ", ".join(set([str(o['rutina__nombre'] or 'S/R') if view_mode == 'ubicacion' else str(o['ubicacion__nombre'] or 'S/U') for o in ots]))
                     })
                 rutinas_nested.append({
                     'label': r_label,

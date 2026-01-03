@@ -15,6 +15,7 @@ urlpatterns = [
     # Sistema de comunicaciones (Transmittals)
     path('comunicaciones/', include('comunicaciones.urls', namespace='comunicaciones')),
     path('proyectos/', include('proyectos.urls', namespace='proyectos')),
+    path('presupuestos/', include('presupuestos.urls', namespace='presupuestos')),
 ]
 
 if settings.DEBUG:

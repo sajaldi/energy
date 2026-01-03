@@ -96,13 +96,62 @@ class PartidaPresupuestaria(models.Model):
         return sum(gasto.monto for gasto in self.gastos.all())
 
     @property
+    def monto_proyectado_calculado(self):
+        """Suma de todos los items desglosados."""
+        return sum(item.total_anual for item in self.items.all())
+
+    @property
     def saldo_disponible(self):
-        return self.monto_proyectado - self.total_ejecutado
+        # Usamos el proyectado manual si no hay items, o el calculado si los hay
+        proyectado = self.monto_proyectado_calculado or self.monto_proyectado
+        return proyectado - self.total_ejecutado
 
     class Meta:
         verbose_name = "Partida por Disciplina"
         verbose_name_plural = "Partidas por Disciplinas"
         unique_together = ('presupuesto_anual', 'disciplina')
+
+
+class ItemPresupuesto(models.Model):
+    """
+    Desglose de una partida en conceptos específicos con proyección mensual.
+    Esto permite manejar conceptos que se repiten o que ocurren en meses específicos.
+    """
+    partida = models.ForeignKey(
+        PartidaPresupuestaria,
+        on_delete=models.CASCADE,
+        related_name='items'
+    )
+    concepto = models.CharField(max_length=200, verbose_name="Concepto/Descripción")
+    
+    # Proyeccion mensual
+    ene = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    feb = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    mar = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    abr = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    may = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    jun = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    jul = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    ago = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    sep = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    oct = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    nov = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    dic = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = "Ítem de Presupuesto"
+        verbose_name_plural = "Ítems de Presupuesto"
+
+    def __str__(self):
+        return f"{self.concepto} ({self.partida.disciplina.nombre})"
+
+    @property
+    def total_anual(self):
+        return (
+            self.ene + self.feb + self.mar + self.abr + 
+            self.may + self.jun + self.jul + self.ago + 
+            self.sep + self.oct + self.nov + self.dic
+        )
 
 
 class GastoEjecutado(models.Model):
