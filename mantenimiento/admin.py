@@ -8,6 +8,8 @@ from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
 from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo
 from activos.models import Categoria as CategoriaActivo
+from django.utils.safestring import mark_safe
+from inventarios.models import MovimientoInventario
 
 class CategoriaResource(resources.ModelResource):
     """
@@ -473,18 +475,27 @@ class CierreOrdenTrabajoInline(admin.StackedInline):
     )
     autocomplete_fields = ['tecnico']
 
+class MovimientoInventarioInline(admin.TabularInline):
+    model = MovimientoInventario
+    extra = 1
+    fields = ('material', 'tipo', 'cantidad', 'ubicacion_origen', 'comentarios')
+    autocomplete_fields = ['material']
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(tipo='SALIDA')
+
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
     list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'estado')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico')
     list_select_related = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
-    search_fields = ('rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
+    search_fields = ('id', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
     autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
     date_hierarchy = 'inicio_programado'
     raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
     filter_horizontal = ('activos',)
-    inlines = [CierreOrdenTrabajoInline]
+    inlines = [CierreOrdenTrabajoInline, MovimientoInventarioInline]
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(

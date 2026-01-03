@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'activos',
     'mantenimiento',
     'presupuestos.apps.PresupuestosConfig',
+    'inventarios',
 ]
 
 
