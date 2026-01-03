@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
-from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual
+from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo
 from activos.models import Categoria as CategoriaActivo
 
 class CategoriaResource(resources.ModelResource):
@@ -83,6 +83,7 @@ class CategoriaAdmin(ImportExportModelAdmin):
     """
     Admin para categorías jerárquicas con estructura simple.
     """
+    list_per_page = 50
     resource_class = CategoriaResource
     list_display = ('nombre', 'padre', 'categoria_activo', 'descripcion')
     search_fields = ('nombre',)
@@ -93,6 +94,7 @@ class CategoriaAdmin(ImportExportModelAdmin):
 
 @admin.register(Frecuencia)
 class FrecuenciaAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('nombre', 'dias')
     ordering = ('dias',)
     search_fields = ('nombre',)
@@ -168,6 +170,7 @@ class PasoProcedimientoInline(admin.TabularInline):
 
 @admin.register(Procedimiento)
 class ProcedimientoAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('nombre', 'descripcion', 'creado_en')
     search_fields = ('nombre',)
     inlines = [PasoProcedimientoInline]
@@ -192,6 +195,7 @@ class OrdenTrabajoInline(admin.TabularInline):
 
 @admin.register(Rutina)
 class RutinaAdmin(ImportExportModelAdmin):
+    list_per_page = 50
     resource_class = RutinaResource
     list_display = ('nombre', 'categoria', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos')
     list_filter = ('categoria', 'frecuencia')
@@ -200,6 +204,9 @@ class RutinaAdmin(ImportExportModelAdmin):
     readonly_fields = ('nombre', 'creado_en', 'actualizado_en')
     inlines = [] # Temporalmente vacío hasta que verifiquemos si requiere inlines
     actions = ['exportar_seleccionadas_action']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('categoria', 'frecuencia')
     
     fieldsets = (
         ('Identificación', {
@@ -247,6 +254,7 @@ from django.urls import reverse
 
 @admin.register(Horario)
 class HorarioAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('nombre', 'descripcion', 'color', 'total_horas_semanales', 'ver_calendario_link')
     search_fields = ('nombre',)
     inlines = [DiaHorarioInline]
@@ -259,6 +267,7 @@ class HorarioAdmin(admin.ModelAdmin):
 
 @admin.register(RestriccionCalendario)
 class RestriccionCalendarioAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('fecha', 'motivo')
     ordering = ('fecha',)
     search_fields = ('motivo',)
@@ -266,6 +275,7 @@ class RestriccionCalendarioAdmin(admin.ModelAdmin):
 
 @admin.register(PlanificacionMensual)
 class PlanificacionMensualAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('nombre', 'mes', 'anio', 'estado', 'responsable', 'get_total_ordenes', 'get_total_horas')
     list_filter = ('estado', 'mes', 'anio')
     list_select_related = ('responsable',)
@@ -307,6 +317,7 @@ class PlanificacionMensualAdmin(admin.ModelAdmin):
 
 @admin.register(Programacion)
 class ProgramacionAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('id', 'rutina', 'get_areas', 'horario', 'procesada', 'ver_cronograma_visual_link')
     list_filter = ('rutina__frecuencia', 'procesada')
     list_select_related = ('rutina', 'horario')
@@ -407,13 +418,19 @@ class ProgramacionAdmin(admin.ModelAdmin):
 
 @admin.register(Aviso)
 class AvisoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'prioridad', 'estado', 'ubicacion', 'activo', 'solicitante', 'creado_en')
-    list_filter = ('estado', 'prioridad', 'creado_en')
+    list_per_page = 50
+    list_display = ('id', 'tipo', 'prioridad', 'estado', 'descripcion_corta', 'ubicacion', 'activo', 'solicitante', 'creado_en')
+    list_filter = ('tipo', 'estado', 'prioridad', 'creado_en')
     list_select_related = ('ubicacion', 'activo', 'solicitante')
     search_fields = ('descripcion', 'ubicacion__nombre', 'activo__nombre')
     autocomplete_fields = ('activo', 'ubicacion', 'solicitante')
     actions = ['generar_ot_action']
     raw_id_fields = ('activo', 'ubicacion', 'solicitante')
+
+    @admin.display(description='Descripción')
+    def descripcion_corta(self, obj):
+        if not obj.descripcion: return "-"
+        return obj.descripcion[:50] + "..." if len(obj.descripcion) > 50 else obj.descripcion
 
     @admin.action(description="Generar Orden de Trabajo Correctiva")
     def generar_ot_action(self, request, queryset):
@@ -431,7 +448,7 @@ class AvisoAdmin(admin.ModelAdmin):
                 inicio_programado=aviso.creado_en, 
                 fin_programado=aviso.creado_en + timedelta(hours=2),
                 notas=aviso.descripcion,
-                estado='PROGRAMADA'
+                estado='ESPERA'
             )
             if aviso.activo:
                 ot.activos.add(aviso.activo)
@@ -442,8 +459,23 @@ class AvisoAdmin(admin.ModelAdmin):
         if count:
             self.message_user(request, f"Se han generado {count} Órdenes de Trabajo Correctivas.", messages.SUCCESS)
 
+class CierreOrdenTrabajoInline(admin.StackedInline):
+    model = CierreOrdenTrabajo
+    extra = 0
+    can_delete = False
+    verbose_name = "Cierre Técnico de la Orden"
+    verbose_name_plural = "Información de Cierre Técnico"
+    # Campos organizados de forma premium
+    fieldsets = (
+        (None, {
+            'fields': (('tecnico', 'horas_hombre'), ('fecha_inicio_real', 'fecha_fin_real'), 'comentarios', 'materiales_utilizados')
+        }),
+    )
+    autocomplete_fields = ['tecnico']
+
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'estado')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico')
     list_select_related = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
@@ -452,11 +484,19 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     date_hierarchy = 'inicio_programado'
     raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
     filter_horizontal = ('activos',)
+    inlines = [CierreOrdenTrabajoInline]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion'
+        ).prefetch_related('activos')
 
     def get_activos_format(self, obj):
-        count = obj.activos.count()
+        # Usamos .all() que ya está prefetched en el queryset del admin
+        activos_list = list(obj.activos.all())
+        count = len(activos_list)
         if count == 0: return "-"
-        if count == 1: return obj.activos.first().nombre
+        if count == 1: return activos_list[0].nombre
         return f"{count} activos"
     get_activos_format.short_description = 'Activos'
 

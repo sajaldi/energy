@@ -117,13 +117,6 @@
             padding: 6px 2px;
         }
 
-        .cell-week {
-            width: 35px;
-            min-width: 35px;
-            max-width: 35px;
-            height: 35px;
-        }
-
         .col-fixed {
             position: sticky;
             left: 0;
@@ -132,40 +125,60 @@
             width: 450px;
             text-align: left !important;
             padding-left: 16px;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            border-right: 4px solid #1e293b !important;
         }
 
-        thead tr:first-child .col-fixed {
+        thead .col-fixed {
             z-index: 30;
-            background: #f8fafc;
+            background-color: inherit !important;
+            color: inherit !important;
         }
 
         .header-month {
-            background: #1e293b;
+            background: #0f172a;
+            /* Slate 900 for main header */
             color: white;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             font-size: 0.75rem;
+            letter-spacing: 0.05em;
         }
 
         .header-week {
-            background: #f8fafc;
-            color: var(--text-muted);
+            background: #f1f5f9;
+            color: var(--text-main);
             font-size: 0.65rem;
+            font-weight: 500;
+        }
+
+        .row-group .col-fixed,
+        .row-middle .col-fixed,
+        .row-sub .col-fixed {
+            background-color: inherit !important;
+            color: inherit !important;
         }
 
         .row-group {
-            background-color: #f8fafc;
+            background-color: #1e293b;
+            color: #ffffff !important;
             cursor: pointer;
+            border-bottom: 2px solid #0f172a;
+        }
+
+        .row-group:hover {
+            background-color: #334155;
         }
 
         .row-middle {
-            background-color: #fcfcfc;
+            background-color: #f1f5f9;
             cursor: pointer;
             display: none;
+            color: #1e293b;
+            border-bottom: 1px solid #e2e8f0;
         }
 
         .row-middle.visible {
@@ -173,21 +186,26 @@
         }
 
         .row-middle:hover {
-            background-color: #f1f5f9;
+            background-color: #e2e8f0;
         }
 
         .row-sub {
-            background-color: #ffffff;
+            background-color: #f0fdf4;
             display: none;
+            color: #166534;
         }
 
         .row-sub.visible {
             display: table-row;
         }
 
+        .row-sub:hover {
+            background-color: #f0fdf4;
+        }
+
         .item-name {
             font-weight: 700;
-            color: var(--text-main);
+            color: inherit;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -197,7 +215,7 @@
         .middle-name {
             padding-left: 32px;
             font-weight: 600;
-            color: var(--text-muted);
+            color: inherit;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -205,7 +223,7 @@
 
         .sub-name {
             padding-left: 56px;
-            color: var(--text-muted);
+            color: inherit;
             font-size: 0.65rem;
             font-style: italic;
         }
@@ -233,6 +251,36 @@
             opacity: 0.4;
         }
 
+        .mark-summary.realizada {
+            background-color: #22c55e !important;
+            opacity: 1 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.45rem;
+            font-weight: bold;
+            box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
+        }
+
+        .mark-summary.realizada::after {
+            content: '✓';
+        }
+
+        .mark-pill.realizada {
+            background-color: #22c55e !important;
+            opacity: 1 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .mark-pill.realizada::after {
+            content: '✓';
+        }
+
         .mark-summary.middle {
             height: 4px;
             opacity: 0.3;
@@ -249,6 +297,84 @@
         .open>.item-name>.toggle-icon,
         .open>.middle-name>.toggle-icon {
             transform: rotate(90deg);
+        }
+
+        /* Estilos de Impresión PDF */
+        @media print {
+            @page {
+                size: A3 landscape;
+                margin: 5mm;
+            }
+
+            body {
+                padding: 0;
+                background: white;
+                font-size: 8pt;
+            }
+
+            .header .actions,
+            .view-toggle,
+            form,
+            .btn {
+                display: none !important;
+            }
+
+            .header {
+                box-shadow: none;
+                padding: 10px 0;
+                margin-bottom: 10px;
+                border-bottom: 2px solid var(--primary);
+            }
+
+            .container {
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .scroll-wrapper {
+                overflow: visible !important;
+            }
+
+            table {
+                min-width: 100% !important;
+                width: 100% !important;
+                border: 1px solid #000;
+            }
+
+            .col-fixed {
+                position: static !important;
+                width: 200px !important;
+                min-width: 200px !important;
+                white-space: normal !important;
+                box-shadow: none !important;
+                background: inherit !important;
+                font-size: 7pt !important;
+                border-right: 2px solid #000 !important;
+            }
+
+            th,
+            td {
+                border-color: #000 !important;
+                padding: 2px 1px !important;
+            }
+
+            .mark-pill,
+            .mark-summary,
+            .row-group,
+            .row-middle,
+            .row-sub {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .row-middle,
+            .row-sub {
+                display: table-row !important;
+            }
+
+            .toggle-icon {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -286,6 +412,16 @@
                     style="width: 80px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);">
                 <button type="submit" class="btn">Actualizar</button>
             </form>
+            <button onclick="expandAll()" class="btn" style="display: flex; align-items: center; gap: 8px;">
+                <ion-icon name="expand-outline"></ion-icon> Expandir todo
+            </button>
+            <button onclick="collapseAll()" class="btn" style="display: flex; align-items: center; gap: 8px;">
+                <ion-icon name="contract-outline"></ion-icon> Contraer todo
+            </button>
+            <button onclick="exportToPDF()" class="btn"
+                style="background: #ef4444; color: white; border-color: #dc2626;">
+                <ion-icon name="document-text-outline"></ion-icon> Exportar PDF
+            </button>
             <a href="{% url 'mantenimiento:detallado' %}?year={{ year }}" class="btn"><span>📊 Matriz</span></a>
         </div>
     </div>
@@ -314,14 +450,17 @@
                 </thead>
                 <tbody>
                     {% for group in items %}
-                    <tr class="row-group" onclick="toggleRows('group-{{ forloop.counter }}', this)">
-                        <td class="col-fixed" style="border-left: 4px solid {{ group.color }};">
+                    <tr class="row-group" onclick="toggleRows('group-{{ forloop.counter }}', this)"
+                        style="--this-color: {{ group.color }};">
+                        <td class="col-fixed" style="border-left: 4px solid var(--this-color);">
                             <span class="item-name"><span class="toggle-icon">▶</span> {{ group.label }}</span>
                         </td>
                         {% for celda in group.celdas %}
                         <td class="cell-mark cell-week">
                             {% if celda.active %}
-                            <div class="mark-summary active" style="background-color: {{ group.color }};"></div>
+                            <div class="mark-summary active {% if celda.realizada %}realizada{% endif %}"
+                                style="background-color: var(--this-color);">
+                            </div>
                             {% else %}
                             <div class="mark-summary"></div>
                             {% endif %}
@@ -330,14 +469,17 @@
                     </tr>
                     {% for middle in group.subgrupos %}
                     <tr class="row-middle group-{{ forloop.parentloop.counter }}"
-                        onclick="toggleRows('child-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
+                        onclick="toggleRows('child-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)"
+                        style="--this-color: {{ group.color }};">
                         <td class="col-fixed">
                             <span class="middle-name"><span class="toggle-icon">▶</span> {{ middle.label }}</span>
                         </td>
                         {% for celda in middle.celdas %}
                         <td class="cell-mark cell-week">
                             {% if celda.active %}
-                            <div class="mark-summary middle active" style="background-color: {{ group.color }};"></div>
+                            <div class="mark-summary middle active {% if celda.realizada %}realizada{% endif %}"
+                                style="background-color: var(--this-color);">
+                            </div>
                             {% else %}
                             <div class="mark-summary middle"></div>
                             {% endif %}
@@ -345,16 +487,18 @@
                         {% endfor %}
                     </tr>
                     {% for sub in middle.rutinas %}
-                    <tr
-                        class="row-sub child-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}">
+                    <tr class="row-sub child-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}"
+                        style="--sub-color: {{ sub.color }};">
                         <td class="col-fixed sub-name">
                             {{ sub.label }}
                         </td>
                         {% for celda in sub.celdas %}
                         <td class="cell-mark cell-week">
                             {% if celda.active %}
-                            <div class="mark-pill" style="background-color: {{ sub.color }};"
-                                title="{{ celda.info }} ({{ celda.count }} OTs)"></div>
+                            <div class="mark-pill {% if celda.realizada %}realizada{% endif %}"
+                                style="background-color: var(--sub-color);"
+                                title="{{ celda.info }} ({{ celda.count }} OTs)">
+                            </div>
                             {% endif %}
                         </td>
                         {% endfor %}
@@ -389,6 +533,31 @@
                     }
                 }
             });
+        }
+
+        function expandAll() {
+            document.querySelectorAll('.row-middle, .row-sub').forEach(row => {
+                row.classList.add('visible');
+            });
+            document.querySelectorAll('.row-group, .row-middle').forEach(row => {
+                row.classList.add('open');
+            });
+        }
+
+        function collapseAll() {
+            document.querySelectorAll('.row-middle, .row-sub').forEach(row => {
+                row.classList.remove('visible');
+            });
+            document.querySelectorAll('.row-group, .row-middle').forEach(row => {
+                row.classList.remove('open');
+            });
+        }
+
+        function exportToPDF() {
+            expandAll();
+            setTimeout(() => {
+                window.print();
+            }, 500);
         }
     </script>
     {% include 'mantenimiento/notificaciones_global.html' %}

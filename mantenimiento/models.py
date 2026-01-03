@@ -395,7 +395,8 @@ class Programacion(models.Model):
                     fin_programado=current_dt,
                     rutina=self.rutina,
                     tipo='PREVENTIVA',
-                    prioridad='MEDIA'
+                    prioridad='MEDIA',
+                    estado='ESPERA'
                 )
                 
                 if activos_totales:
@@ -418,6 +419,13 @@ class Aviso(models.Model):
         ('ALTA', 'Alta'),
         ('CRITICA', 'Crítica'),
     ]
+
+    TIPO_CHOICES = [
+        ('AVERIA', 'Avería / Falla (M2)'),
+        ('SOLICITUD', 'Solicitud de Servicio (M1)'),
+        ('MEJORA', 'Mejora / Modificación'),
+        ('LEGAL', 'Requerimiento Legal / Seguridad'),
+    ]
     
     ESTADO_CHOICES = [
         ('ABIERTO', 'Abierto'),
@@ -430,6 +438,7 @@ class Aviso(models.Model):
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='avisos')
     descripcion = models.TextField(help_text="Descripción detallada de la falla o solicitud")
     prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA', db_index=True)
+    tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default='SOLICITUD', db_index=True)
     estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='ABIERTO', db_index=True)
     
     solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='avisos_reportados')
@@ -469,6 +478,7 @@ class NotificacionMantenimiento(models.Model):
 
 class OrdenTrabajo(models.Model):
     ESTADO_CHOICES = [
+        ('ESPERA', 'En Espera de Programación'),
         ('PROGRAMADA', 'Programada'),
         ('EJECUCION', 'En Ejecución'),
         ('REALIZADA', 'Realizada'),
@@ -502,7 +512,7 @@ class OrdenTrabajo(models.Model):
     fin_programado = models.DateTimeField(help_text="Fecha y hora de fin prevista")
     
     fecha_ejecucion = models.DateTimeField(null=True, blank=True)
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PROGRAMADA', db_index=True)
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='ESPERA', db_index=True)
     
     notas = models.TextField(blank=True, null=True)
     
@@ -518,3 +528,33 @@ class OrdenTrabajo(models.Model):
         nombre = self.rutina.nombre if self.rutina else (self.aviso.descripcion[:30] if self.aviso else "OT Correctiva")
         lugar = self.ubicacion.nombre if self.ubicacion else "S/U"
         return f"{self.tipo[:3]} OT-{self.id}: {nombre} - {lugar} ({self.inicio_programado.date()})"
+
+class CierreOrdenTrabajo(models.Model):
+    orden_trabajo = models.OneToOneField(OrdenTrabajo, on_delete=models.CASCADE, related_name='cierre', verbose_name="Orden de Trabajo")
+    tecnico = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='cierres_ot', verbose_name="Técnico Responsable")
+    
+    fecha_inicio_real = models.DateTimeField(verbose_name="Inicio Real")
+    fecha_fin_real = models.DateTimeField(verbose_name="Fin Real")
+    horas_hombre = models.FloatField(default=0, help_text="Total de Horas-Hombre (HH) consumidas", verbose_name="HH Totales")
+    
+    comentarios = models.TextField(blank=True, null=True, verbose_name="Comentarios Técnicos / Hallazgos")
+    
+    materiales_utilizados = models.TextField(blank=True, null=True, help_text="Listado de materiales o repuestos utilizados")
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Cierre de Orden de Trabajo"
+        verbose_name_plural = "Cierres de Órdenes de Trabajo"
+
+    def __str__(self):
+        return f"Cierre OT-{self.orden_trabajo.id}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Al guardar el cierre, la orden debe pasar a REALIZADA
+        if self.orden_trabajo.estado != 'REALIZADA':
+            self.orden_trabajo.estado = 'REALIZADA'
+            self.orden_trabajo.fecha_ejecucion = self.fecha_fin_real
+            self.orden_trabajo.save(update_fields=['estado', 'fecha_ejecucion'])

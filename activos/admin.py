@@ -15,6 +15,7 @@ from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 
 @admin.register(Plano)
 class PlanoAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('nombre', 'ubicacion', 'documento_info', 'visualizar_archivo', 'creado_en')
     list_filter = ('ubicacion',)
     list_select_related = ('ubicacion', 'documento__ultima_revision')
@@ -54,6 +55,7 @@ class PinPlanoInline(admin.TabularInline):
 
 @admin.register(VisorPlano)
 class VisorPlanoAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('nombre', 'plano', 'abrir_visor', 'creado_en')
     list_filter = ('plano',)
     list_select_related = ('plano',)
@@ -66,6 +68,7 @@ class VisorPlanoAdmin(admin.ModelAdmin):
 
 @admin.register(PinPlano)
 class PinPlanoAdmin(admin.ModelAdmin):
+    list_per_page = 50
     list_display = ('visor', 'activo', 'x', 'y', 'color')
     list_filter = ('visor', 'visor__plano')
     list_select_related = ('visor', 'activo')
@@ -74,6 +77,7 @@ class PinPlanoAdmin(admin.ModelAdmin):
 
 @admin.register(Categoria)
 class CategoriaAdmin(ImportExportModelAdmin):
+    list_per_page = 50
     list_display = ('nombre', 'icono', 'descripcion', 'cantidad_activos')
     search_fields = ('nombre',)
 
@@ -146,6 +150,7 @@ class ModeloInline(admin.TabularInline):
 
 @admin.register(Marca)
 class MarcaAdmin(ImportExportModelAdmin):
+    list_per_page = 50
     list_display = ('nombre',)
     search_fields = ('nombre',)
     inlines = [ModeloInline]
@@ -183,6 +188,7 @@ class ModeloResource(resources.ModelResource):
 
 @admin.register(Modelo)
 class ModeloAdmin(ImportExportModelAdmin):
+    list_per_page = 50
     resource_class = ModeloResource
     list_display = ('nombre', 'marca', 'categoria', 'total_activos')
     list_filter = ('marca', 'categoria')
@@ -371,6 +377,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     """
     Admin para ubicaciones jerárquicas con estructura premium.
     """
+    list_per_page = 50
     resource_class = UbicacionResource
     list_display = ('nombre_con_indentacion', 'tipo', 'padre', 'orden', 'total_hijos', 'total_activos')
     list_display_links = ('nombre_con_indentacion',)
@@ -381,7 +388,9 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     inlines = [UbicacionHijaInline]
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('padre')
+        return super().get_queryset(request).select_related('padre').annotate(
+            _hijos_count=Count('sub_ubicaciones')
+        )
 
     class Media:
         css = {
@@ -426,7 +435,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     nombre_con_indentacion.short_description = 'Ubicación'
 
     def total_hijos(self, obj):
-        count = obj.sub_ubicaciones.count()
+        count = getattr(obj, '_hijos_count', obj.sub_ubicaciones.count())
         if count == 0:
             return format_html('<span style="color: #cbd5e1; font-size: 0.8rem;">Vacio</span>')
         return format_html('<span style="background: #f1f5f9; color: #475569; padding: 2px 10px; border-radius: 12px; font-weight: 700; font-size: 0.75rem;">{} sub-niveles</span>', count)
@@ -759,6 +768,7 @@ class UbicacionHierarchyFilter(admin.SimpleListFilter):
 
 @admin.register(Activo)
 class ActivoAdmin(ImportExportActionModelAdmin):
+    list_per_page = 50
     resource_class = ActivoResource
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
@@ -772,7 +782,7 @@ class ActivoAdmin(ImportExportActionModelAdmin):
     list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable')
     search_fields = ('nombre', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('modelo', 'ubicacion', 'responsable')
-    readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables')
+    readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link')
     actions = ['export_admin_action', 'export_direct_xlsx']
 
     def export_admin_action(self, request, queryset):
@@ -856,6 +866,153 @@ class ActivoAdmin(ImportExportActionModelAdmin):
         
         html += '</tbody></table></div>'
         return format_html(html)
+
+    def ordenes_programadas(self, obj):
+        from mantenimiento.models import OrdenTrabajo
+        from django.utils import timezone
+        
+        # Obtener órdenes vigentes (no terminadas ni canceladas)
+        ordenes_all = obj.ordenes_trabajo.filter(
+            estado__in=['ESPERA', 'PROGRAMADA', 'EJECUCION']
+        ).select_related('rutina', 'tecnico', 'programacion').order_by('inicio_programado')
+        
+        count_total = ordenes_all.count()
+        ordenes = ordenes_all[:10]
+
+        if not ordenes.exists():
+            return format_html('<div style="color: #94a3b8; font-style: italic; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay órdenes de trabajo programadas pendientes para este equipo.</div>')
+
+        html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
+        html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
+        html += '<thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">'
+        html += '<tr>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">OT #</th>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">Rutina / Motivo</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Programado</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Estado</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Acción</th>'
+        html += '</tr></thead><tbody>'
+
+        for ot in ordenes:
+            inicio = timezone.localtime(ot.inicio_programado).strftime('%d/%m/%Y %H:%M')
+            fin = timezone.localtime(ot.fin_programado).strftime('%H:%M')
+            
+            # Color según estado
+            color = '#3b82f6' if ot.estado == 'PROGRAMADA' else '#10b981'
+            bg_color = '#eff6ff' if ot.estado == 'PROGRAMADA' else '#ecfdf5'
+            
+            desc = ot.rutina.nombre if ot.rutina else (ot.aviso.descripcion[:50] if ot.aviso else "Sin descripción")
+            tecnico = ot.tecnico.get_full_name() or ot.tecnico.username if ot.tecnico else "Sin asignar"
+
+            html += f'<tr style="border-bottom: 1px solid #f1f5f9;">'
+            html += f'<td style="padding: 12px 15px; font-weight: 700; color: #1e293b;">{ot.id}</td>'
+            html += f'<td style="padding: 12px 15px;">'
+            html += f'<div style="font-weight: 600; color: #1e293b;">{desc}</div>'
+            html += f'<div style="font-size: 0.75rem; color: #64748b;">Asignado a: {tecnico}</div>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center; color: #475569;">'
+            html += f'<div style="font-weight: 600;">{inicio}</div>'
+            html += f'<div style="font-size: 0.7rem; color: #94a3b8;">Finaliza aprox: {fin}</div>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<span style="background: {bg_color}; color: {color}; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 0.75rem; border: 1px solid {color}40;">{ot.get_estado_display()}</span>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<a href="/admin/mantenimiento/ordentrabajo/{ot.id}/change/" target="_blank" style="background: #f1f5f9; color: #475569; padding: 5px; border-radius: 4px; display: inline-flex; align-items: center; border: 1px solid #e2e8f0; text-decoration: none;">'
+            html += f'<ion-icon name="open-outline" style="font-size: 1rem;"></ion-icon>'
+            html += '</a></td></tr>'
+
+        html += '</tbody></table>'
+        
+        if count_total > 10:
+            url = f"/admin/mantenimiento/ordentrabajo/?activos__id__exact={obj.id}&estado__in=ESPERA,PROGRAMADA,EJECUCION"
+            html += f'<div style="padding: 10px; text-align: center; border-top: 1px solid #e2e8f0; background: #f8fafc;">'
+            html += f'<a href="{url}" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: none; font-size: 0.8rem;">Ver las {count_total} órdenes pendientes →</a>'
+            html += '</div>'
+            
+        html += '</div>'
+        return format_html(html)
+    ordenes_programadas.short_description = "Órdenes de Trabajo Pendientes"
+
+    def historial_ordenes(self, obj):
+        from mantenimiento.models import OrdenTrabajo
+        from django.utils import timezone
+        
+        # Obtener órdenes terminadas o canceladas
+        ordenes_all = obj.ordenes_trabajo.filter(
+            estado__in=['REALIZADA', 'CANCELADA']
+        ).select_related('rutina', 'tecnico').order_by('-inicio_programado')
+        
+        count_total = ordenes_all.count()
+        ordenes = ordenes_all[:10]
+
+        if not ordenes.exists():
+            return format_html('<div style="color: #94a3b8; font-style: italic; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay historial de órdenes de trabajo para este equipo.</div>')
+
+        html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
+        html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
+        html += '<thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">'
+        html += '<tr>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">OT #</th>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">Rutina / Motivo</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Fecha</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Estado</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Acción</th>'
+        html += '</tr></thead><tbody>'
+
+        for ot in ordenes:
+            fecha = timezone.localtime(ot.inicio_programado).strftime('%d/%m/%Y')
+            
+            # Color según estado
+            color = '#10b981' if ot.estado == 'REALIZADA' else '#ef4444'
+            bg_color = '#ecfdf5' if ot.estado == 'REALIZADA' else '#fef2f2'
+            
+            desc = ot.rutina.nombre if ot.rutina else (ot.aviso.descripcion[:50] if ot.aviso else "Sin descripción")
+            tecnico = ot.tecnico.get_full_name() or ot.tecnico.username if ot.tecnico else "Sin asignar"
+
+            html += f'<tr style="border-bottom: 1px solid #f1f5f9;">'
+            html += f'<td style="padding: 12px 15px; font-weight: 700; color: #1e293b;">{ot.id}</td>'
+            html += f'<td style="padding: 12px 15px;">'
+            html += f'<div style="font-weight: 600; color: #1e293b;">{desc}</div>'
+            html += f'<div style="font-size: 0.75rem; color: #64748b;">Técnico: {tecnico}</div>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center; color: #475569;">'
+            html += f'<div style="font-weight: 600;">{fecha}</div>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<span style="background: {bg_color}; color: {color}; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 0.75rem; border: 1px solid {color}40;">{ot.get_estado_display()}</span>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<a href="/admin/mantenimiento/ordentrabajo/{ot.id}/change/" target="_blank" style="background: #f1f5f9; color: #475569; padding: 5px; border-radius: 4px; display: inline-flex; align-items: center; border: 1px solid #e2e8f0; text-decoration: none;">'
+            html += f'<ion-icon name="open-outline" style="font-size: 1rem;"></ion-icon>'
+            html += '</a></td></tr>'
+
+        html += '</tbody></table>'
+        
+        if count_total > 10:
+            url = f"/admin/mantenimiento/ordentrabajo/?activos__id__exact={obj.id}&estado__in=REALIZADA,CANCELADA"
+            html += f'<div style="padding: 10px; text-align: center; border-top: 1px solid #e2e8f0; background: #f8fafc;">'
+            html += f'<a href="{url}" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: none; font-size: 0.8rem;">Ver historial completo ({count_total} órdenes) →</a>'
+            html += '</div>'
+            
+        html += '</div>'
+        return format_html(html)
+    historial_ordenes.short_description = "Historial de Órdenes de Trabajo"
+
+    def crear_aviso_link(self, obj):
+        if not obj.id: return "-"
+        url = f"/admin/mantenimiento/aviso/add/?activo={obj.id}"
+        if obj.ubicacion:
+            url += f"&ubicacion={obj.ubicacion.id}"
+            
+        return format_html(
+            '<a href="{0}" class="button" style="background: #ef4444; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; border: none; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);">'
+            '<ion-icon name="alert-circle-outline" style="font-size: 1.2rem;"></ion-icon>'
+            'Reportar Falla / Mal Funcionamiento'
+            '</a>',
+            url
+        )
+    crear_aviso_link.short_description = 'Reporte de Falla'
 
     def changelist_view(self, request, extra_context=None):
         if request.GET.get('_popup'):
@@ -955,11 +1112,11 @@ class ActivoAdmin(ImportExportActionModelAdmin):
             'fields': ('modelo', 'marca_legacy', 'modelo_legacy', 'descripcion', 'foto')
         }),
         ('Estado y Ubicación', {
-            'fields': ('estado', 'ubicacion', 'ubicacion_legacy', 'responsable', 'ver_en_plano')
+            'fields': ('estado', 'ubicacion', 'ubicacion_legacy', 'responsable', 'ver_en_plano', 'crear_aviso_link')
         }),
         ('Mantenimiento Preventivo', {
-            'fields': ('rutinas_aplicables',),
-            'description': 'Rutinas de mantenimiento asociadas automáticamente según la categoría del modelo de este equipo.'
+            'fields': ('rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes'),
+            'description': 'Información sobre rutinas aplicables, órdenes pendientes e historial de mantenimiento.'
         }),
         ('Información Financiera', {
             'fields': ('fecha_compra', 'costo')

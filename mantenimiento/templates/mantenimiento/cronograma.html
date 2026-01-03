@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cronograma de Mantenimiento {{ year }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <style>
         :root {
             --primary: #c00000;
@@ -132,10 +134,11 @@
             width: 450px;
             text-align: left !important;
             padding-left: 16px;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            border-right: 4px solid #1e293b !important;
         }
 
         thead tr:first-child .col-fixed {
@@ -157,15 +160,30 @@
             font-size: 0.65rem;
         }
 
+        .row-group .col-fixed,
+        .row-middle .col-fixed,
+        .row-sub .col-fixed {
+            background-color: inherit !important;
+            color: inherit !important;
+        }
+
         .row-group {
-            background-color: #f8fafc;
+            background-color: #1e293b;
+            /* Nivel 1: Slate Oscuro */
+            color: white !important;
             cursor: pointer;
         }
 
+        .row-group:hover {
+            background-color: #334155;
+        }
+
         .row-middle {
-            background-color: #fcfcfc;
+            background-color: #f1f5f9;
+            /* Nivel 2: Gris Azulado Claro */
             cursor: pointer;
             display: none;
+            color: #1e293b;
         }
 
         .row-middle.visible {
@@ -173,12 +191,14 @@
         }
 
         .row-middle:hover {
-            background-color: #f1f5f9;
+            background-color: #e2e8f0;
         }
 
         .row-sub {
-            background-color: #ffffff;
+            background-color: #f0fdf4;
+            /* Nivel 3: Verde Menta Muy Claro */
             display: none;
+            color: #166534;
         }
 
         .row-sub.visible {
@@ -233,6 +253,20 @@
             opacity: 0.4;
         }
 
+        .mark-summary.realizada {
+            background-color: #22c55e !important;
+            opacity: 1 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.4rem;
+        }
+
+        .mark-summary.realizada::after {
+            content: '✓';
+        }
+
         .mark-summary.middle {
             height: 4px;
             opacity: 0.3;
@@ -250,6 +284,103 @@
         .open>.middle-name>.toggle-icon {
             transform: rotate(90deg);
         }
+
+        /* Estilos de Impresión PDF */
+        @media print {
+            @page {
+                size: A3 landscape;
+                margin: 5mm;
+            }
+
+            body {
+                padding: 0;
+                background: white;
+                font-size: 8pt;
+            }
+
+            .header .actions,
+            .view-toggle,
+            form,
+            .notificaciones-global,
+            .btn {
+                display: none !important;
+            }
+
+            .header {
+                box-shadow: none;
+                padding: 10px 0;
+                margin-bottom: 10px;
+                border-bottom: 2px solid var(--primary);
+            }
+
+            .container {
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .scroll-wrapper {
+                overflow: visible !important;
+            }
+
+            table {
+                min-width: 100% !important;
+                width: 100% !important;
+                border: 1px solid #000;
+            }
+
+            .col-fixed {
+                position: static !important;
+                width: 200px !important;
+                min-width: 200px !important;
+                white-space: normal !important;
+                box-shadow: none !important;
+                background: inherit !important;
+                font-size: 7pt !important;
+                border-right: 2px solid #000 !important;
+            }
+
+            th,
+            td {
+                border-color: #000 !important;
+                padding: 2px 1px !important;
+            }
+
+            .cell-week {
+                width: auto !important;
+                min-width: 0 !important;
+            }
+
+            .mark-pill,
+            .mark-summary,
+            .row-group,
+            .row-middle,
+            .row-sub {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Forzar visualización de filas expandidas */
+            .row-middle,
+            .row-sub {
+                display: table-row !important;
+            }
+
+            .toggle-icon {
+                display: none;
+            }
+
+            .item-name {
+                padding-left: 0;
+            }
+
+            .middle-name {
+                padding-left: 15px;
+            }
+
+            .sub-name {
+                padding-left: 30px;
+            }
+        }
     </style>
 </head>
 
@@ -258,8 +389,8 @@
         <div>
             <h1>Cronograma Anual de Mantenimiento</h1>
             <div style="font-size: 0.875rem; color: var(--text-muted);">
-                PlanificaciÃ³n Operativa {{ year }} | Vista por <strong>{% if view_mode == 'sistema' %}Sistema{% else
-                    %}UbicaciÃ³n{% endif %}</strong>
+                Planificación Operativa {{ year }} | Vista por <strong>{% if view_mode == 'sistema' %}Sistema{% else
+                    %}Ubicación{% endif %}</strong>
             </div>
         </div>
         <div class="actions">
@@ -275,14 +406,24 @@
                     style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 0.8rem; min-width: 150px;">
                     <option value="">-- Todas las Ubicaciones --</option>
                     {% for u in ubicaciones_roots %}
-                    <option value="{{ u.id }}" {% if current_ubi == u.id %}selected{% endif %}>{{ u.nombre }}</option>
+                    <option value="{{ u.id }}" {% if current_ubi==u.id %}selected{% endif %}>{{ u.nombre }}</option>
                     {% endfor %}
                 </select>
                 <input type="number" name="year" value="{{ year }}"
                     style="width: 80px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border);">
                 <button type="submit" class="btn">Actualizar</button>
             </form>
-            <a href="{% url 'mantenimiento:detallado' %}?year={{ year }}" class="btn"><span>ðŸ“Š Matriz</span></a>
+            <button onclick="expandAll()" class="btn" style="display: flex; align-items: center; gap: 8px;">
+                <ion-icon name="expand-outline"></ion-icon> Expandir todo
+            </button>
+            <button onclick="collapseAll()" class="btn" style="display: flex; align-items: center; gap: 8px;">
+                <ion-icon name="contract-outline"></ion-icon> Contraer todo
+            </button>
+            <button onclick="exportToPDF()" class="btn"
+                style="background: #ef4444; color: white; border-color: #dc2626;">
+                <ion-icon name="document-text-outline"></ion-icon> Exportar PDF
+            </button>
+            <a href="{% url 'mantenimiento:detallado' %}?year={{ year }}" class="btn"><span>📊 Matriz</span></a>
         </div>
     </div>
     <div class="container">
@@ -349,8 +490,8 @@
                     {% endfor %}
                     {% empty %}
                     <tr>
-                        <td colspan="53" style="padding: 40px; text-align: center;">No hay informaciÃ³n disponible para
-                            este aÃ±o.</td>
+                        <td colspan="53" style="padding: 40px; text-align: center;">No hay información disponible para
+                            este año.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -375,6 +516,38 @@
                     }
                 }
             });
+        }
+
+        function expandAll() {
+            document.querySelectorAll('.row-middle, .row-sub').forEach(row => {
+                row.classList.add('visible');
+            });
+            document.querySelectorAll('.row-group, .row-middle').forEach(row => {
+                row.classList.add('open');
+            });
+        }
+
+        function collapseAll() {
+            document.querySelectorAll('.row-middle, .row-sub').forEach(row => {
+                row.classList.remove('visible');
+            });
+            document.querySelectorAll('.row-group, .row-middle').forEach(row => {
+                row.classList.remove('open');
+            });
+        }
+
+        function exportToPDF() {
+            // Expandir todas las filas jerárquicas
+            const rows = document.querySelectorAll('.row-middle, .row-sub');
+            rows.forEach(row => row.classList.add('visible'));
+
+            const headers = document.querySelectorAll('.row-group, .row-middle');
+            headers.forEach(header => header.classList.add('open'));
+
+            // Pequeña pausa para asegurar que el navegador procese el cambio de layout
+            setTimeout(() => {
+                window.print();
+            }, 300);
         }
     </script>
     {% include 'mantenimiento/notificaciones_global.html' %}
