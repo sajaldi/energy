@@ -101,7 +101,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
-            border-right: 4px solid #1e293b !important;
+            border-right: 2px solid #cbd5e1 !important;
         }
 
         thead th {
@@ -153,28 +153,30 @@
 
         /* FILAS JERÁRQUICAS */
         .row-sys {
-            background-color: #1e293b;
-            /* Nivel 1: Slate Oscuro */
-            color: white !important;
+            background-color: #f1f5f9;
+            /* Nivel 1: Slate Claro */
+            color: #1e293b !important;
             cursor: pointer;
             font-weight: 700;
+            border-bottom: 2px solid #e2e8f0;
         }
 
         .row-sys:hover {
-            background-color: #334155;
+            background-color: #e2e8f0;
         }
 
         .row-sub {
-            background-color: #f1f5f9;
-            /* Nivel 2: Gris Azulado Claro */
+            background-color: #ffffff;
+            /* Nivel 2: Blanco */
             cursor: pointer;
             display: none;
             font-weight: 600;
-            color: #1e293b;
+            color: #64748b;
+            border-bottom: 1px solid #f1f5f9;
         }
 
         .row-sub:hover {
-            background-color: #e2e8f0;
+            background-color: #f8fafc;
         }
 
         .row-rut {
@@ -638,13 +640,14 @@
                     <!-- NIVEL 1: SISTEMA -->
                     <tr class="row-sys" id="row-sys-{{ forloop.counter }}"
                         onclick="toggleTree('sys-{{ forloop.counter }}', this)">
-                        <td class="sticky-col indent-1" style="border-left: 4px solid {{ sys.color }};">
+                        <td class="sticky-col indent-1"
+                            style="border-left: 4px solid {{ sys.color|default:'#1e293b' }};">
                             <span class="toggle-icon">▶</span> {{ sys.label }}
                         </td>
                         {% for c in sys.celdas %}
                         <td class="{% if c.day in non_working_days %}non-working-day{% endif %}">
                             {% if c.active %}
-                            <div class="dot active" style="background-color: {{ sys.color }};"></div>
+                            <div class="dot active" style="background-color: {{ sys.color|default:'#475569' }};"></div>
                             {% endif %}
                         </td>
                         {% endfor %}
@@ -661,7 +664,8 @@
                         {% for c in sub.celdas %}
                         <td class="{% if c.day in non_working_days %}non-working-day{% endif %}">
                             {% if c.active %}
-                            <div class="dot active" style="background-color: {{ sys.color }}; opacity: 0.4;"></div>
+                            <div class="dot active"
+                                style="background-color: {{ sys.color|default:'#475569' }}; opacity: 0.4;"></div>
                             {% endif %}
                         </td>
                         {% endfor %}
@@ -786,8 +790,8 @@
 
     <script>
         let pendingMoves = null; // {ids, date}
-        const currentYear = {{ year }};
-        const currentMonth = {{ month }};
+        const currentYear = {{ year|default: 2026 }};
+        const currentMonth = {{ month|default: 1 }};
 
         // Persistencia del árbol
         document.addEventListener('DOMContentLoaded', () => {

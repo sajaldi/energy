@@ -12,24 +12,22 @@
 
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-glow: rgba(99, 102, 241, 0.5);
-            --secondary: #a855f7;
-            --accent: #f43f5e;
-            --bg: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --border: rgba(255, 255, 255, 0.1);
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --glass-bg: rgba(15, 23, 42, 0.8);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.2);
+            --secondary: #6366f1;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
             --positive: #10b981;
             --negative: #ef4444;
         }
 
         body {
             font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
-            color: var(--text);
+            background-color: #f1f5f9;
+            color: var(--text-main);
             margin: 0;
             padding: 24px;
             min-height: 100vh;
@@ -52,9 +50,7 @@
             margin: 0;
             font-size: 1.8rem;
             font-weight: 700;
-            background: linear-gradient(to right, #6366f1, #a855f7);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #0f172a;
         }
 
         .header-info {
@@ -126,12 +122,12 @@
         }
 
         th {
-            background: rgba(15, 23, 42, 0.4);
+            background: #f8fafc;
             padding: 16px;
             text-align: center;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--text-muted);
-            border-bottom: 1px solid var(--border);
+            border-bottom: 2px solid var(--border);
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -139,12 +135,18 @@
         .sticky-col {
             position: sticky;
             left: 0;
-            background: #1e293b;
+            background: #ffffff;
             z-index: 10;
-            min-width: 280px;
+            min-width: 320px;
             text-align: left !important;
             padding-left: 24px !important;
-            border-right: 2px solid var(--border);
+            border-right: 2px solid #cbd5e1;
+        }
+
+        .row-partition .sticky-col,
+        .row-item .sticky-col {
+            background-color: inherit !important;
+            color: inherit !important;
         }
 
         td {
@@ -154,18 +156,24 @@
         }
 
         .row-partition {
-            background: rgba(99, 102, 241, 0.1);
-            font-weight: 600;
-            color: var(--primary);
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #1e293b;
+            cursor: pointer;
+        }
+
+        .row-partition:hover {
+            background-color: #e2e8f0;
         }
 
         .row-item {
-            cursor: pointer;
+            background-color: #ffffff;
+            display: none;
             transition: background 0.2s;
         }
 
-        .row-item:hover {
-            background: rgba(255, 255, 255, 0.05);
+        .row-item.visible {
+            display: table-row;
         }
 
         .amount-pair {
@@ -308,7 +316,7 @@
                 <ion-icon name="cash-outline"></ion-icon> SALDO DISPONIBLE
             </div>
             <div class="stat-value" style="color: var(--positive);">
-                {{ total_general_proyectado|add:-total_general_ejecutado|floatformat:2 }}
+                {{ total_general_proyectado|sub:total_general_ejecutado|floatformat:2 }}
             </div>
         </div>
     </div>
@@ -327,9 +335,11 @@
                 </thead>
                 <tbody>
                     {% for pd in partidas_data %}
-                    <tr class="row-partition">
+                    <tr class="row-partition" onclick="toggleRows('items-{{ forloop.counter }}', this)">
                         <td class="sticky-col">
                             <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="toggle-icon"
+                                    style="font-size: 0.7rem; transition: transform 0.2s;">▶</span>
                                 <ion-icon name="folder-outline"></ion-icon>
                                 {{ pd.disciplina }}
                             </div>
@@ -341,7 +351,7 @@
                     </tr>
 
                     {% for item in pd.items %}
-                    <tr class="row-item">
+                    <tr class="row-item group-items-{{ forloop.parentloop.counter }}">
                         <td class="sticky-col" style="padding-left: 48px !important; color: var(--text-muted);">
                             {{ item.concepto }}
                         </td>
@@ -354,8 +364,9 @@
                     </tr>
                     {% endfor %}
 
-                    <!-- Fila de Ejecución Real por Partida (opcional) -->
-                    <tr style="background: rgba(16, 185, 129, 0.03);">
+                    <!-- Fila de Ejecución Real por Partida -->
+                    <tr class="row-item group-items-{{ forloop.counter }}"
+                        style="background: rgba(16, 185, 129, 0.03);">
                         <td class="sticky-col"
                             style="padding-left: 48px !important; color: var(--positive); border-bottom: 2px solid var(--border);">
                             <div style="display: flex; align-items: center; gap: 4px;">
@@ -398,9 +409,20 @@
         </div>
     </div>
 
-    <div style="margin-top: 40px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
-        SISTEMA DE GESTIÓN DE ENERGÍA | MÓDULO DE PRESUPUESTOS V1.0
-    </div>
+    <script>
+        function toggleRows(groupId, headerEl) {
+            const rows = document.querySelectorAll('.group-' + groupId);
+            const icon = headerEl.querySelector('.toggle-icon');
+            const isVisible = rows[0] && rows[0].classList.contains('visible');
+
+            rows.forEach(r => r.classList.toggle('visible'));
+
+            if (icon) {
+                icon.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(90deg)';
+                icon.innerHTML = isVisible ? '▶' : '▼';
+            }
+        }
+    </script>
 </body>
 
 </html>
