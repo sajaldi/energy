@@ -1,0 +1,406 @@
+{% load presupuesto_tags %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matriz de Presupuesto {{ presupuesto.anio }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
+    <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" nomodule></script>
+
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.5);
+            --secondary: #a855f7;
+            --accent: #f43f5e;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-bg: rgba(15, 23, 42, 0.8);
+            --positive: #10b981;
+            --negative: #ef4444;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            color: var(--text);
+            margin: 0;
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            backdrop-filter: blur(10px);
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #6366f1, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .badge-year {
+            background: var(--primary);
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            width: fit-content;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(5px);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .matrix-container {
+            background: var(--card-bg);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.4);
+            padding: 16px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sticky-col {
+            position: sticky;
+            left: 0;
+            background: #1e293b;
+            z-index: 10;
+            min-width: 280px;
+            text-align: left !important;
+            padding-left: 24px !important;
+            border-right: 2px solid var(--border);
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .row-partition {
+            background: rgba(99, 102, 241, 0.1);
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .row-item {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .row-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .amount-pair {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            align-items: center;
+        }
+
+        .projected {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .executed {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .executed.over {
+            color: var(--negative);
+        }
+
+        .executed.under {
+            color: var(--positive);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 2px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.5s ease;
+        }
+
+        .total-row {
+            background: rgba(15, 23, 42, 0.8);
+            font-weight: 700;
+        }
+
+        .total-row td {
+            border-top: 2px solid var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            box-shadow: 0 0 20px var(--primary-glow);
+            transform: scale(1.02);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tag {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .discipline-tag {
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-info">
+            <div class="badge-year">AÑO {{ presupuesto.anio }}</div>
+            <h1>{{ presupuesto.nombre }}</h1>
+            <div style="color: var(--text-muted); font-size: 0.9rem;">
+                Administración de Presupuesto Operativo (OPEX) | Moneda: {{ presupuesto.moneda }}
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px;">
+            <a href="{% url 'admin:presupuestos_presupuestoanual_change' presupuesto.id %}" class="btn btn-outline">
+                <ion-icon name="settings-outline"></ion-icon> Editar Plan
+            </a>
+            <button onclick="window.print()" class="btn">
+                <ion-icon name="print-outline"></ion-icon> Exportar PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">
+                <ion-icon name="wallet-outline"></ion-icon> TOTAL PROYECTADO
+            </div>
+            <div class="stat-value">{{ total_general_proyectado|floatformat:2 }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">
+                <ion-icon name="trending-up-outline"></ion-icon> TOTAL EJECUTADO
+            </div>
+            <div class="stat-value">{{ total_general_ejecutado|floatformat:2 }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">
+                <ion-icon name="pie-chart-outline"></ion-icon> % EJECUCIÓN
+            </div>
+            <div class="stat-value" style="color: var(--primary);">
+                {% if total_general_proyectado > 0 %}
+                {{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%
+                {% else %}0%{% endif %}
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">
+                <ion-icon name="cash-outline"></ion-icon> SALDO DISPONIBLE
+            </div>
+            <div class="stat-value" style="color: var(--positive);">
+                {{ total_general_proyectado|add:-total_general_ejecutado|floatformat:2 }}
+            </div>
+        </div>
+    </div>
+
+    <div class="matrix-container">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sticky-col">Disciplina / Concepto</th>
+                        {% for mes in meses_nombres %}
+                        <th>{{ mes|truncatechars:4 }}</th>
+                        {% endfor %}
+                        <th>TOTAL ANUAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pd in partidas_data %}
+                    <tr class="row-partition">
+                        <td class="sticky-col">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <ion-icon name="folder-outline"></ion-icon>
+                                {{ pd.disciplina }}
+                            </div>
+                        </td>
+                        {% for val in pd.proyeccion_total_mensual %}
+                        <td>{{ val|floatformat:0 }}</td>
+                        {% endfor %}
+                        <td>{{ pd.total_proyectado|floatformat:0 }}</td>
+                    </tr>
+
+                    {% for item in pd.items %}
+                    <tr class="row-item">
+                        <td class="sticky-col" style="padding-left: 48px !important; color: var(--text-muted);">
+                            {{ item.concepto }}
+                        </td>
+                        {% for val in item.proyeccion %}
+                        <td>
+                            <div class="projected">{{ val|floatformat:0 }}</div>
+                        </td>
+                        {% endfor %}
+                        <td style="font-weight: 500;">{{ item.total_anual|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Fila de Ejecución Real por Partida (opcional) -->
+                    <tr style="background: rgba(16, 185, 129, 0.03);">
+                        <td class="sticky-col"
+                            style="padding-left: 48px !important; color: var(--positive); border-bottom: 2px solid var(--border);">
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <ion-icon name="checkmark-circle-outline"></ion-icon> Ejecución Real
+                            </div>
+                        </td>
+                        {% for real in pd.ejecucion_mensual %}
+                        <td style="border-bottom: 2px solid var(--border);">
+                            <span class="executed {% if real > 0 %}under{% endif %}">{{ real|floatformat:0 }}</span>
+                        </td>
+                        {% endfor %}
+                        <td style="color: var(--positive); font-weight: 700; border-bottom: 2px solid var(--border);">
+                            {{ pd.total_ejecutado|floatformat:0 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <tr class="total-row">
+                        <td class="sticky-col" style="background: #0f172a;">TOTALES ACUMULADOS</td>
+                        {% for proj in global_proyectado_mes %}
+                        <td>
+                            <div class="amount-pair">
+                                <span class="projected">{{ proj|floatformat:0 }}</span>
+                                {% with real=global_ejecutado_mes|index:forloop.counter0 %}
+                                <span class="executed">{{ real|floatformat:0 }}</span>
+                                {% endwith %}
+                            </div>
+                        </td>
+                        {% endfor %}
+                        <td>
+                            <div class="amount-pair">
+                                <span class="projected">{{ total_general_proyectado|floatformat:0 }}</span>
+                                <span class="executed" style="font-size: 1rem;">{{ total_general_ejecutado|floatformat:0
+                                    }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div style="margin-top: 40px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
+        SISTEMA DE GESTIÓN DE ENERGÍA | MÓDULO DE PRESUPUESTOS V1.0
+    </div>
+</body>
+
+</html>
