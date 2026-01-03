@@ -12,6 +12,7 @@ from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano, VisorPla
 
 from django.utils.html import format_html
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from inventarios.models import CompatibilidadMaterial
 
 @admin.register(Plano)
 class PlanoAdmin(admin.ModelAdmin):
@@ -144,6 +145,12 @@ class UbicacionResource(resources.ModelResource):
         return obj.ruta_completa
 
 
+class CompatibilidadMaterialInline(admin.TabularInline):
+    from inventarios.models import CompatibilidadMaterial
+    model = CompatibilidadMaterial
+    extra = 1
+    autocomplete_fields = ['material']
+
 class ModeloInline(admin.TabularInline):
     model = Modelo
     extra = 1
@@ -194,6 +201,7 @@ class ModeloAdmin(ImportExportModelAdmin):
     list_filter = ('marca', 'categoria')
     list_select_related = ('marca', 'categoria')
     autocomplete_fields = ('marca', 'categoria')
+    inlines = [CompatibilidadMaterialInline]
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
