@@ -16,7 +16,7 @@ class PartidaPresupuestariaAdmin(admin.ModelAdmin):
     autocomplete_fields = ('disciplina', 'presupuesto_anual')
 
     def get_proyectado(self, obj):
-        return format_html("<b>{:,.2f}</b>", obj.monto_proyectado)
+        return format_html("<b>{}</b>", f"{obj.monto_proyectado:,.2f}")
     get_proyectado.short_description = "Proyectado"
 
     def get_ejecutado(self, obj):
@@ -26,7 +26,7 @@ class PartidaPresupuestariaAdmin(admin.ModelAdmin):
     def get_saldo(self, obj):
         saldo = obj.saldo_disponible
         color = "#10B981" if saldo >= 0 else "#EF4444"
-        return format_html('<span style="color: {}; font-weight: bold;">{:,.2f}</span>', color, saldo)
+        return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, f"{saldo:,.2f}")
     get_saldo.short_description = "Saldo"
 
     def get_progreso(self, obj):
@@ -61,7 +61,7 @@ class PresupuestoAnualAdmin(admin.ModelAdmin):
     inlines = [PartidaInline]
     
     def get_total_proyectado(self, obj):
-        return format_html("<b>{} {:,.2f}</b>", obj.moneda, obj.total_proyectado)
+        return format_html("<b>{} {}</b>", obj.moneda, f"{obj.total_proyectado:,.2f}")
     get_total_proyectado.short_description = "Total Proyectado"
 
     def get_total_ejecutado(self, obj):

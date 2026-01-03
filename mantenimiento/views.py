@@ -589,19 +589,36 @@ def cronograma_mantenimiento_visual(request):
 
         for i in range(52):
             any_in_week = False
+            all_realizada = True
+            found_any = False
             for s_label, routines_map in subs_map.items():
-                if any(routines_map[r][i] for r in routines_map):
-                    any_in_week = True
-                    break
-            celdas_grupo.append({'active': any_in_week})
+                for r_label, weeks_map in routines_map.items():
+                    ots = weeks_map.get(i, [])
+                    if ots:
+                        found_any = True
+                        any_in_week = True
+                        if any(o['estado'] != 'REALIZADA' for o in ots):
+                            all_realizada = False
+            celdas_grupo.append({
+                'active': any_in_week,
+                'realizada': found_any and all_realizada
+            })
         
         subgrupos_nested = []
         for s_label, routines_map in sorted(subs_map.items()):
             # Celdas de resumen de la subcategoría
             celdas_sub = []
             for i in range(52):
-                any_in_week = any(routines_map[r][i] for r in routines_map)
-                celdas_sub.append({'active': any_in_week})
+                ots_in_sub = []
+                for r_label, weeks_map in routines_map.items():
+                    ots_in_sub.extend(weeks_map.get(i, []))
+                
+                any_in_week = len(ots_in_sub) > 0
+                all_realizada = any_in_week and all(o['estado'] == 'REALIZADA' for o in ots_in_sub)
+                celdas_sub.append({
+                    'active': any_in_week,
+                    'realizada': all_realizada
+                })
 
             rutinas_nested = []
             for r_label, weeks_map in sorted(routines_map.items()):
@@ -618,6 +635,7 @@ def cronograma_mantenimiento_visual(request):
 
                     celdas_rutina.append({
                         'active': bool(ots),
+                        'realizada': bool(ots) and all(o['estado'] == 'REALIZADA' for o in ots),
                         'count': len(ots),
                         'info': ", ".join(set([o['rutina__nombre'] if view_mode == 'ubicacion' else o['ubicacion__nombre'] or 'S/U' for o in ots]))
                     })
