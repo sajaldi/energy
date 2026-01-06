@@ -1,0 +1,224 @@
+{% extends "admin/change_list.html" %}
+{% load i18n static admin_urls %}
+
+{% block extrahead %}
+{{ block.super }}
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <!-- Bloque de Filtros Dinámicos -->
+    <div id="dynamic-filter-panel"
+        style="background: #ffffff; padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <h3
+            style="margin-top: 0; color: #0f172a; font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+            <ion-icon name="funnel-outline" style="color: #3b82f6;"></ion-icon>
+            Filtros Avanzados
+        </h3>
+
+        <!-- Constructor de Filtro -->
+        <div
+            style="display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; background: #f8fafc; padding: 16px; border-radius: 8px;">
+            <div style="flex: 1; min-width: 150px;">
+                <label style="display: block; font-size: 0.75rem; color: #64748b; margin-bottom: 4px;">Campo</label>
+                <select id="dtf-field" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;"
+                    onchange="updateInputType()">
+                    {% for f in available_filter_fields %}
+                    <option value="{{ f.name }}" data-type="{{ f.type }}" data-label="{{ f.label }}">{{ f.label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="flex: 1; min-width: 120px;">
+                <label style="display: block; font-size: 0.75rem; color: #64748b; margin-bottom: 4px;">Condición</label>
+                <select id="dtf-operator"
+                    style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                    <option value="contains" selected>Contiene</option>
+                    <option value="equals">Es igual a</option>
+                    <option value="startswith">Empieza con</option>
+                    <option value="endswith">Termina con</option>
+                    <option value="gt">Mayor que (>)</option>
+                    <option value="gte">Mayor o igual (>=)</option>
+                    <option value="lt">Menor que (<)< /option>
+                    <option value="lte">Menor o igual (<=)< /option>
+                </select>
+            </div>
+
+            <div style="flex: 2; min-width: 200px;" id="dtf-value-container">
+                <label style="display: block; font-size: 0.75rem; color: #64748b; margin-bottom: 4px;">Valor</label>
+                <input type="text" id="dtf-value"
+                    style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;"
+                    placeholder="Escribe para buscar...">
+            </div>
+
+            <div style="display: flex; align-items: flex-end; height: 58px;">
+                <button type="button" onclick="addFilter()"
+                    style="background: #3b82f6; color: white; border: none; padding: 9px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                    <ion-icon name="add-circle-outline"></ion-icon> Agregar
+                </button>
+            </div>
+        </div>
+
+        <!-- Lista de Chips Activos -->
+        <div id="active-filters-list"
+            style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; min-height: 10px;">
+            <!-- Chips injected by JS -->
+        </div>
+
+        <div style="margin-top: 16px; display: none;" id="apply-filters-actions">
+            <button onclick="applyFilters()"
+                style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                Aplicar Filtros
+            </button>
+            <button onclick="clearAllFilters()"
+                style="background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 7px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; margin-left: 8px;">
+                Limpiar Todo
+            </button>
+        </div>
+    </div>
+
+    {{ block.super }}
+</div>
+
+<!-- Scripting -->
+<script>
+    let currentFilters = [];
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const dtfParam = urlParams.get('_dtf');
+        if (dtfParam) {
+            try {
+                currentFilters = JSON.parse(dtfParam);
+                renderChips();
+            } catch (e) { console.error("Error parsing filters", e); }
+        }
+        updateInputType();
+    });
+
+    function updateInputType() {
+        const fieldSelect = document.getElementById('dtf-field');
+        const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+        const type = selectedOption.getAttribute('data-type');
+        const container = document.getElementById('dtf-value-container');
+
+        let html = '<label style="display: block; font-size: 0.75rem; color: #64748b; margin-bottom: 4px;">Valor</label>';
+
+        if (type === 'select') {
+            if (selectedOption.value === 'estado') {
+                html += `<select id="dtf-value" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                    <option value="OPERATIVO">Operativo</option>
+                    <option value="MANTENIMIENTO">Mantenimiento</option>
+                    <option value="REPARACION">Reparación</option>
+                    <option value="OBSOLETO">Obsoleto</option>
+                </select>`;
+            } else {
+                html += `<input type="text" id="dtf-value" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">`;
+            }
+        } else if (type === 'date') {
+            html += `<input type="date" id="dtf-value" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">`;
+        } else if (type === 'number') {
+            html += `<input type="number" id="dtf-value" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">`;
+        } else {
+            html += `<input type="text" id="dtf-value" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" placeholder="Escribe para buscar...">`;
+        }
+
+        container.innerHTML = html;
+    }
+
+    function addFilter() {
+        const fieldSelect = document.getElementById('dtf-field');
+        const operatorSelect = document.getElementById('dtf-operator');
+        const valueInput = document.getElementById('dtf-value');
+
+        const field = fieldSelect.value;
+        const fieldLabel = fieldSelect.options[fieldSelect.selectedIndex].getAttribute('data-label');
+        const operator = operatorSelect.value;
+        const operatorLabel = operatorSelect.options[operatorSelect.selectedIndex].text;
+        const value = valueInput.value;
+
+        if (!value) {
+            alert("Por favor ingrese un valor");
+            return;
+        }
+
+        currentFilters.push({
+            field: field,
+            fieldLabel: fieldLabel,
+            operator: operator,
+            operatorLabel: operatorLabel,
+            value: value
+        });
+
+        valueInput.value = '';
+        renderChips();
+    }
+
+    function removeFilter(index) {
+        currentFilters.splice(index, 1);
+        renderChips();
+    }
+
+    function clearAllFilters() {
+        currentFilters = [];
+        renderChips();
+        applyFilters();
+    }
+
+    function renderChips() {
+        const container = document.getElementById('active-filters-list');
+        const actions = document.getElementById('apply-filters-actions');
+
+        container.innerHTML = '';
+
+        if (currentFilters.length > 0) {
+            actions.style.display = 'block';
+            currentFilters.forEach((f, idx) => {
+                const chip = document.createElement('div');
+                chip.style.cssText = "display: inline-flex; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);";
+
+                chip.innerHTML = `
+                    <span style="font-weight: 600; margin-right: 4px;">${f.fieldLabel}</span>
+                    <span style="opacity: 0.7; margin-right: 4px; font-size: 0.8em;">${f.operatorLabel}</span>
+                    <span style="font-weight: 600;">"${f.value}"</span>
+                    <button onclick="removeFilter(${idx})" style="background: none; border: none; color: #3b82f6; margin-left: 8px; cursor: pointer; font-size: 1.1rem; padding: 0; display: flex; align-items: center;">
+                        <ion-icon name="close-circle"></ion-icon>
+                    </button>
+                `;
+                container.appendChild(chip);
+            });
+        } else {
+            actions.style.display = 'none';
+        }
+    }
+
+    function applyFilters() {
+        const urlParams = new URLSearchParams(window.location.search);
+
+        if (currentFilters.length > 0) {
+            urlParams.set('_dtf', JSON.stringify(currentFilters));
+        } else {
+            urlParams.delete('_dtf');
+        }
+
+        window.location.search = urlParams.toString();
+    }
+</script>
+<style>
+    @keyframes popIn {
+        from {
+            transform: scale(0.8);
+            opacity: 0;
+        }
+
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}

@@ -5,51 +5,71 @@ from django.contrib.auth.decorators import login_required
 from datetime import datetime
 
 @login_required
-def presupuesto_matrix(request, pk=None):
+def cronograma_presupuesto(request, pk=None):
     if pk:
         presupuesto = get_object_or_404(PresupuestoAnual, pk=pk)
     else:
-        # Por defecto el presupuesto del año actual o el mas reciente
         presupuesto = PresupuestoAnual.objects.filter(anio=datetime.now().year).first()
         if not presupuesto:
             presupuesto = PresupuestoAnual.objects.order_by('-anio').first()
     
     if not presupuesto:
-        return render(request, 'presupuestos/presupuesto_matrix.html', {'error': 'No hay presupuestos configurados.'})
+        return render(request, 'presupuestos/cronograma.html', {'error': 'No hay presupuestos configurados.'})
 
+    data = _get_cronograma_data(presupuesto)
+    
+    context = {
+        'presupuesto': presupuesto,
+        'partidas_data': data['partidas_data'],
+        'meses_nombres': data['meses_nombres'],
+        'global_proyectado_mes': data['global_proyectado_mes'],
+        'global_ejecutado_mes': data['global_ejecutado_mes'],
+        'total_general_proyectado': data['total_general_proyectado'],
+        'total_general_ejecutado': data['total_general_ejecutado'],
+    }
+
+    return render(request, 'presupuestos/cronograma.html', context)
+
+def _get_cronograma_data(presupuesto):
     partidas_data = []
-    meses_indices = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+    partidas = presupuesto.partidas.select_related('disciplina').prefetch_related(
+        'items', 
+        'items__detalles', 
+        'gastos'
+    ).all()
+    
     meses_nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-
-    partidas = presupuesto.partidas.select_related('disciplina').prefetch_related('items', 'gastos').all()
 
     for p in partidas:
         items_desglose = []
         for item in p.items.all():
-            proyeccion_mensual = [
-                getattr(item, m) for m in meses_indices
-            ]
+            proyeccion_mensual = [0] * 12
+            for detalle in item.detalles.all():
+                if 1 <= detalle.mes <= 12:
+                    proyeccion_mensual[detalle.mes - 1] = float(detalle.monto)
+            
             items_desglose.append({
+                'id': item.id,
                 'concepto': item.concepto,
                 'proyeccion': proyeccion_mensual,
-                'total_anual': item.total_anual
+                'total_anual': sum(proyeccion_mensual)
             })
         
-        # Consolidar ejecucion real por mes
         ejecucion_mensual = [0] * 12
         for gasto in p.gastos.all():
-            m_idx = gasto.fecha.month - 1 # 1-12 to 0-11
+            m_idx = gasto.fecha.month - 1
             ejecucion_mensual[m_idx] += float(gasto.monto)
         
-        # Consolidar proyeccion total de la partida por mes (suma de sus items)
         proyeccion_total_mensual = [0] * 12
-        for item in items_desglose:
+        for item_data in items_desglose:
             for i in range(12):
-                proyeccion_total_mensual[i] += float(item['proyeccion'][i])
+                proyeccion_total_mensual[i] += item_data['proyeccion'][i]
 
+        nombre_display = p.disciplina.nombre if p.disciplina else (p.descripcion or "Sin Definir")
+        
         partidas_data.append({
             'partida': p,
-            'disciplina': p.disciplina.nombre if p.disciplina else "Sin Disciplina",
+            'disciplina': nombre_display,
             'items': items_desglose,
             'ejecucion_mensual': ejecucion_mensual,
             'proyeccion_total_mensual': proyeccion_total_mensual,
@@ -57,7 +77,6 @@ def presupuesto_matrix(request, pk=None):
             'total_ejecutado': sum(ejecucion_mensual)
         })
 
-    # Totales globales por mes
     global_proyectado_mes = [0] * 12
     global_ejecutado_mes = [0] * 12
     for pd in partidas_data:
@@ -65,8 +84,7 @@ def presupuesto_matrix(request, pk=None):
             global_proyectado_mes[i] += pd['proyeccion_total_mensual'][i]
             global_ejecutado_mes[i] += pd['ejecucion_mensual'][i]
 
-    context = {
-        'presupuesto': presupuesto,
+    return {
         'partidas_data': partidas_data,
         'meses_nombres': meses_nombres,
         'global_proyectado_mes': global_proyectado_mes,
@@ -75,4 +93,280 @@ def presupuesto_matrix(request, pk=None):
         'total_general_ejecutado': sum(global_ejecutado_mes),
     }
 
-    return render(request, 'presupuestos/presupuesto_matrix.html', context)
+@login_required
+def exportar_cronograma_excel(request, pk):
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+
+    presupuesto = get_object_or_404(PresupuestoAnual, pk=pk)
+    data = _get_cronograma_data(presupuesto)
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Cronograma {presupuesto.anio}"
+    
+    # Estilos
+    header_font = Font(bold=True, size=12, color="FFFFFF")
+    header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
+    sub_header_font = Font(bold=True, size=11, color="000000")
+    sub_header_fill = PatternFill(start_color="f1f5f9", end_color="f1f5f9", fill_type="solid")
+    
+    # 1. Título General
+    ws['A1'] = f"PRESUPUESTO: {presupuesto.nombre} ({presupuesto.anio})"
+    ws['A1'].font = Font(bold=True, size=14)
+    ws.merge_cells('A1:O1')
+    
+    # 2. Encabezados de Tabla
+    headers = ["Disciplina / Item"] + data['meses_nombres'] + ["TOTAL", "EJECUTADO"]
+    ws.append([]) # Espacio
+    ws.append(headers)
+    
+    # Aplicar estilo al encabezado
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        
+        # Ajustar ancho columnas
+        if col_num == 1:
+            ws.column_dimensions[get_column_letter(col_num)].width = 40
+        else:
+            ws.column_dimensions[get_column_letter(col_num)].width = 15
+
+    # 3. Datos
+    current_row = 4
+    for pd in data['partidas_data']:
+        # Fila Partida
+        ws.cell(row=current_row, column=1, value=pd['disciplina']).font = sub_header_font
+        ws.cell(row=current_row, column=1).fill = sub_header_fill
+        
+        for m_idx, val in enumerate(pd['proyeccion_total_mensual']):
+            c = ws.cell(row=current_row, column=m_idx + 2, value=val)
+            c.number_format = '#,##0'
+            c.font = Font(bold=True)
+            c.fill = sub_header_fill
+            
+        # Total Partida
+        c_total = ws.cell(row=current_row, column=14, value=pd['total_proyectado'])
+        c_total.number_format = '#,##0'
+        c_total.font = Font(bold=True)
+        c_total.fill = sub_header_fill
+        
+        current_row += 1
+        
+        # Filas Items
+        for item in pd['items']:
+            ws.cell(row=current_row, column=1, value=f"   {item['concepto']}")
+            
+            for m_idx, val in enumerate(item['proyeccion']):
+                c = ws.cell(row=current_row, column=m_idx + 2, value=val if val > 0 else "")
+                c.number_format = '#,##0'
+                
+            c_annual = ws.cell(row=current_row, column=14, value=item['total_anual'])
+            c_annual.number_format = '#,##0'
+            
+            current_row += 1
+
+    # 4. Totales Finales
+    current_row += 1
+    ws.cell(row=current_row, column=1, value="TOTAL MENSUAL").font = header_font
+    ws.cell(row=current_row, column=1).fill = header_fill
+    
+    for m_idx, val in enumerate(data['global_proyectado_mes']):
+        c = ws.cell(row=current_row, column=m_idx + 2, value=val)
+        c.font = header_font
+        c.fill = header_fill
+        c.number_format = '#,##0'
+        
+    c_grand = ws.cell(row=current_row, column=14, value=data['total_general_proyectado'])
+    c_grand.font = header_font
+    c_grand.fill = header_fill
+    c_grand.number_format = '#,##0'
+
+    # Response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=Presupuesto_{presupuesto.anio}.xlsx'
+    
+    wb.save(response)
+    return response
+
+@login_required
+def exportar_cronograma_pdf(request, pk):
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+    from django.http import HttpResponse
+
+    presupuesto = get_object_or_404(PresupuestoAnual, pk=pk)
+    data = _get_cronograma_data(presupuesto)
+    
+    context = {
+        'presupuesto': presupuesto,
+        'partidas_data': data['partidas_data'],
+        'meses_nombres': data['meses_nombres'],
+        'global_proyectado_mes': data['global_proyectado_mes'],
+        'global_ejecutado_mes': data['global_ejecutado_mes'],
+        'total_general_proyectado': data['total_general_proyectado'],
+        'total_general_ejecutado': data['total_general_ejecutado'],
+    }
+    
+    template_path = 'presupuestos/cronograma_pdf.html'
+    template = get_template(template_path)
+    html = template.render(context)
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Presupuesto_{presupuesto.anio}.pdf"'
+    
+    pisa_status = pisa.CreatePDF(
+       html, dest=response
+    )
+    
+    if pisa_status.err:
+       return HttpResponse('Error creating PDF', status=500)
+       
+    return response
+
+@login_required
+def api_update_monto_mensual(request):
+    if request.method == "POST":
+        import json
+        from .models import DetallePeriodico, ItemPresupuesto
+        from django.http import JsonResponse
+        
+        try:
+            data = json.loads(request.body)
+            item_id = data.get('item_id')
+            mes = int(data.get('mes'))
+            monto = float(data.get('monto')) # Permitir float
+            
+            # Buscar Item Padre
+            item = ItemPresupuesto.objects.get(pk=item_id)
+            
+            # Buscar o Crear detalle 
+            # (Aunque usualmente ya existe, si el usuario pone monto > 0 en un mes donde no habia, lo creamos)
+            detalle, created = DetallePeriodico.objects.get_or_create(
+                item=item,
+                mes=mes,
+                defaults={'monto': monto}
+            )
+            
+            if not created:
+                detalle.monto = monto
+                detalle.save()
+            
+            # Si el monto es 0, podríamos optar por borrar el detalle para limpiar la BD, 
+            # pero por ahora mantenerlo es más seguro para la integridad histórica.
+            
+            return JsonResponse({'status': 'ok', 'new_total': float(item.total_anual)})
+            
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+@login_required
+def api_create_item(request):
+    if request.method == "POST":
+        import json
+        from .models import ItemPresupuesto, PartidaPresupuestaria
+        from django.http import JsonResponse
+        
+        try:
+            data = json.loads(request.body)
+            partida_id = data.get('partida_id')
+            concepto = data.get('concepto')
+            
+            if not concepto:
+                return JsonResponse({'status': 'error', 'message': 'El concepto es obligatorio'}, status=400)
+                
+            partida = PartidaPresupuestaria.objects.get(pk=partida_id)
+            
+            # Crear Item con defaults manuales
+            item = ItemPresupuesto.objects.create(
+                partida=partida,
+                concepto=concepto,
+                frecuencia='MANUAL',
+                es_recurrente=False
+            )
+            
+            return JsonResponse({'status': 'ok', 'message': 'Item creado'})
+            
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+@login_required
+def api_create_partida(request):
+    if request.method == "POST":
+        import json
+        from .models import PartidaPresupuestaria, PresupuestoAnual
+        from django.http import JsonResponse
+        
+        try:
+            data = json.loads(request.body)
+            presupuesto_id = data.get('presupuesto_id')
+            nombre = data.get('nombre')
+            
+            if not nombre:
+                return JsonResponse({'status': 'error', 'message': 'El nombre es obligatorio'}, status=400)
+                
+            presupuesto = PresupuestoAnual.objects.get(pk=presupuesto_id)
+            
+            # Crear Partida genérica (Sin disciplina vinculada, usando descripcion)
+            PartidaPresupuestaria.objects.create(
+                presupuesto_anual=presupuesto,
+                disciplina=None,
+                descripcion=nombre,
+                monto_proyectado=0 
+            )
+            
+            return JsonResponse({'status': 'ok', 'message': 'Partida creada'})
+            
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+@login_required
+def api_delete_item(request):
+    if request.method == "POST":
+        import json
+        from .models import ItemPresupuesto
+        from django.http import JsonResponse
+        
+        try:
+            data = json.loads(request.body)
+            item_id = data.get('item_id')
+            
+            item = get_object_or_404(ItemPresupuesto, pk=item_id)
+            item.delete()
+            
+            return JsonResponse({'status': 'ok', 'message': 'Item eliminado'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+@login_required
+def api_delete_partida(request):
+    if request.method == "POST":
+        import json
+        from .models import PartidaPresupuestaria
+        from django.http import JsonResponse
+        
+        try:
+            data = json.loads(request.body)
+            partida_id = data.get('partida_id')
+            
+            partida = get_object_or_404(PartidaPresupuestaria, pk=partida_id)
+            
+            # Opcional: Validar si tiene items o gastos antes de borrar
+            # Por ahora permitimos borrar y Django manejará cascadas si las hay
+            partida.delete()
+            
+            return JsonResponse({'status': 'ok', 'message': 'Partida eliminada'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)

@@ -1,0 +1,823 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static presupuesto_tags %}
+
+{% block title %}Cronograma {{ presupuesto.anio }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --primary: #3b82f6;
+        --primary-glow: rgba(59, 130, 246, 0.2);
+        --secondary: #6366f1;
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --border: #e2e8f0;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --positive: #10b981;
+        --negative: #ef4444;
+    }
+
+    /* Override some admin defaults to fit the custom design */
+    #content {
+        padding: 20px !important;
+        background-color: #f1f5f9;
+    }
+
+    .layout-constraint {
+        max-width: 95%;
+        /* Use percentage or fixed like 1800px depending on preference */
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--card-bg);
+        padding: 20px 32px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        margin-bottom: 24px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    /* Dashboard Header Layout */
+    .dashboard-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--card-bg);
+        padding: 20px 32px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        margin-bottom: 24px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .header-identity {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 200px;
+    }
+
+    .header-identity h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        letter-spacing: -0.5px;
+    }
+
+    .badge-year {
+        background: var(--primary);
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 6px;
+        width: fit-content;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .header-stats {
+        display: flex;
+        align-items: center;
+        gap: 40px;
+        padding: 0 40px;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-main);
+        font-feature-settings: "tnum";
+        font-variant-numeric: tabular-nums;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .matrix-container {
+        background: var(--card-bg);
+        border-radius: 24px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    th {
+        background: #1e293b;
+        /* Dark header match admin or sidebar */
+        color: #ffffff;
+        padding: 14px 10px;
+        text-align: center;
+        font-weight: 600;
+        border-bottom: 1px solid #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    .sticky-col {
+        position: sticky;
+        left: 0;
+        background: #ffffff;
+        z-index: 20;
+        /* Higher z-index to stay on top */
+        min-width: 300px;
+        text-align: left !important;
+        padding-left: 16px !important;
+        border-right: 1px solid #cbd5e1;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    }
+
+    th.sticky-col {
+        background: #1e293b;
+        /* Maintain dark background for the sticky header cell */
+        color: #ffffff;
+        z-index: 30;
+        /* Highest z-index for the top-left corner */
+        border-right: 1px solid #334155;
+    }
+
+    .row-partition .sticky-col,
+    .row-item .sticky-col {
+        background-color: inherit !important;
+        color: inherit !important;
+    }
+
+    td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        text-align: center;
+    }
+
+    .row-partition {
+        background-color: #f1f5f9;
+        font-weight: 700;
+        color: #1e293b;
+        cursor: pointer;
+    }
+
+    .row-partition:hover {
+        background-color: #e2e8f0;
+    }
+
+    .row-item {
+        background-color: #ffffff;
+        display: none;
+        transition: background 0.2s;
+    }
+
+    .row-item.visible {
+        display: table-row;
+    }
+
+    .btn {
+        background: var(--primary);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn:hover {
+        box-shadow: 0 0 20px var(--primary-glow);
+        transform: scale(1.02);
+    }
+
+    .btn-outline {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-main);
+    }
+
+    .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.show {
+        display: flex;
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        padding: 24px;
+        border: 1px solid #888;
+        width: 90%;
+        max-width: 400px;
+        border-radius: 16px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .close-button {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+    .close-button:hover,
+    .close-button:focus {
+        color: black;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--text-muted);
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .gantt-cell {
+        position: relative;
+        height: 100%;
+        min-height: 20px;
+    }
+
+    .gantt-bar {
+        background: rgba(59, 130, 246, 0.2);
+        border-radius: 4px;
+        padding: 2px 4px;
+        color: var(--primary);
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+
+    .gantt-bar.has-amount {
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
+
+    .total-row {
+        background: rgba(15, 23, 42, 0.8);
+        color: white;
+        font-weight: 700;
+    }
+
+    .total-row td {
+        border-top: 2px solid var(--primary);
+    }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
+<script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" nomodule></script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='presupuestos' %}">Presupuestos</a>
+    ```
+    &rsaquo; <a href="{% url 'admin:presupuestos_presupuestoanual_changelist' %}">Presupuestos Anuales</a>
+    &rsaquo; {{ presupuesto.nombre }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="layout-constraint">
+    <div class="dashboard-header">
+        <!-- Identity -->
+        <div class="header-identity">
+            <div class="badge-year">Año {{ presupuesto.anio }}</div>
+            <h1>{{ presupuesto.nombre }}</h1>
+            <div style="font-size: 0.85rem; color: var(--text-muted);">
+                Moneda: <strong>{{ presupuesto.moneda }}</strong>
+            </div>
+        </div>
+
+        <!-- KPI Stats -->
+        <div class="header-stats">
+            <div class="stat-item">
+                <span class="stat-label">Proyectado</span>
+                <span class="stat-value">{{ total_general_proyectado|floatformat:0 }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Ejecutado</span>
+                <span class="stat-value">{{ total_general_ejecutado|floatformat:0 }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Ejecución</span>
+                <span class="stat-value"
+                    style="color: {% if total_general_ejecutado > total_general_proyectado %}#ef4444{% else %}#10b981{% endif %};">
+                    {% if total_general_proyectado > 0 %}
+                    {{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%
+                    {% else %}0%{% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="header-actions">
+            <a href="{% url 'presupuestos:exportar_pdf' presupuesto.id %}" class="btn" style="background: #ef4444;">
+                <ion-icon name="document-text-outline"></ion-icon> PDF
+            </a>
+            <a href="{% url 'presupuestos:exportar_excel' presupuesto.id %}" class="btn" style="background: #10b981;">
+                <ion-icon name="document-text-outline"></ion-icon> Excel
+            </a>
+            <button onclick="window.print()" class="btn btn-outline" style="border: 1px solid #cbd5e1; color: #475569;">
+                <ion-icon name="print-outline"></ion-icon> Imprimir
+            </button>
+        </div>
+    </div>
+
+    <div class="matrix-container">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sticky-col">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; padding-right: 8px;">
+                                <span>Disciplina / Item</span>
+                                <button onclick="openPartidaModal()" class="btn"
+                                    style="padding: 6px 12px; font-size: 0.7rem; background: #3b82f6; border: none; color: white; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+                                    <ion-icon name="add-circle-outline"></ion-icon> Nueva Partida
+                                </button>
+                            </div>
+                        </th>
+                        {% for mes in meses_nombres %}
+                        <th>{{ mes|truncatechars:3 }}</th>
+                        {% endfor %}
+                        <th>TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pd in partidas_data %}
+                    <!-- PARTIDA HEADER -->
+                    <tr class="row-partition" onclick="toggleRows('items-{{ forloop.counter }}', this)">
+                        <td class="sticky-col">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="toggle-icon"
+                                    style="font-size: 0.7rem; transition: transform 0.2s;">▶</span>
+                                <ion-icon name="folder-outline"></ion-icon>
+                                {{ pd.disciplina }}
+                                <div style="display: flex; gap: 4px; margin-left: 8px;">
+                                    <button
+                                        onclick="event.stopPropagation(); openModal('{{ pd.partida.id }}', '{{ pd.disciplina }}')"
+                                        style="background: #e2e8f0; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b;"
+                                        title="Agregar Item Nuevo">
+                                        <ion-icon name="add-outline"></ion-icon>
+                                    </button>
+                                    <button
+                                        onclick="event.stopPropagation(); deletePartida('{{ pd.partida.id }}', '{{ pd.disciplina|escapejs }}')"
+                                        style="background: #fee2e2; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ef4444;"
+                                        title="Eliminar Partida">
+                                        <ion-icon name="trash-outline" style="font-size: 0.8rem;"></ion-icon>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                        {% for val in pd.proyeccion_total_mensual %}
+                        <td>
+                            {% if val > 0 %}
+                            <span style="font-weight: bold; color: var(--primary);">{{ val|floatformat:0 }}</span>
+                            {% else %}
+                            <span style="color: #cbd5e1;">-</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td>{{ pd.total_proyectado|floatformat:0 }}</td>
+                    </tr>
+
+                    <!-- ITEMS -->
+                    {% for item in pd.items %}
+                    <tr class="row-item group-items-{{ forloop.parentloop.counter }}">
+                        <td class="sticky-col"
+                            style="padding-left: 48px !important; color: var(--text-muted); font-size: 0.8rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>{{ item.concepto }}</span>
+                                <button onclick="deleteItem('{{ item.id }}')"
+                                    style="background: transparent; border: none; cursor: pointer; color: #cbd5e1; padding: 4px;"
+                                    onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'"
+                                    title="Eliminar Item">
+                                    <ion-icon name="trash-bin-outline"></ion-icon>
+                                </button>
+                            </div>
+                        </td>
+                        {% for val in item.proyeccion %}
+                        <td class="editable-cell" data-item-id="{{ item.id }}" data-month="{{ forloop.counter }}"
+                            contenteditable="true" onblur="saveMonto(this)" onkeydown="handleEnter(event, this)">
+                            {{ val|floatformat:0 }}
+                        </td>
+                        {% endfor %}
+                        <td style="font-weight: 500;" id="total-item-{{ item.id }}">
+                            {{ item.total_anual|floatformat:0 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+
+                    <!-- Totales -->
+                    <tr class="total-row">
+                        <td class="sticky-col" style="background: #0f172a; color: white;">TOTAL MENSUAL</td>
+                        {% for proj in global_proyectado_mes %}
+                        <td id="total-col-{{ forloop.counter }}">
+                            {{ proj|floatformat:0 }}
+                        </td>
+                        {% endfor %}
+                        <td id="total-grand">{{ total_general_proyectado|floatformat:0 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="toast"
+    style="position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; transform: translateY(100px); transition: transform 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;">
+    Guardado correctamente
+</div>
+
+<!-- Modal Nuevo Item -->
+<div id="addItemModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeModal()">&times;</span>
+        <h2 style="margin-top: 0; margin-bottom: 16px;">Nuevo Item</h2>
+        <p style="margin-bottom: 20px; color: var(--text-muted);">En partida: <strong id="modalPartidaName"></strong>
+        </p>
+
+        <form id="addItemForm" onsubmit="submitNewItem(event)">
+            <input type="hidden" id="modalPartidaId" name="partida_id">
+            <div class="form-group">
+                <label for="concepto">Concepto / Descripción</label>
+                <input type="text" id="concepto" name="concepto" required placeholder="Ej. Gastos de Logística"
+                    autocomplete="off">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
+                <button type="button" class="btn btn-outline" onclick="closeModal()"
+                    style="color: var(--text-main);">Cancelar</button>
+                <button type="submit" class="btn">Crear Item</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Nueva Partida -->
+<div id="addPartidaModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closePartidaModal()">&times;</span>
+        <h2 style="margin-top: 0; margin-bottom: 16px;">Nueva Partida / Categoría</h2>
+        <p style="margin-bottom: 20px; color: var(--text-muted);">Crear un nuevo agrupador para presupuesto.</p>
+
+        <form id="addPartidaForm" onsubmit="submitNewPartida(event)">
+            <div class="form-group">
+                <label for="partidaNombre">Nombre de la Partida</label>
+                <input type="text" id="partidaNombre" name="nombre" required placeholder="Ej. Imprevistos, Logística..."
+                    autocomplete="off">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
+                <button type="button" class="btn btn-outline" onclick="closePartidaModal()"
+                    style="color: var(--text-main);">Cancelar</button>
+                <button type="submit" class="btn">Crear Partida</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // --- Modal Item Logic ---
+    const modalItem = document.getElementById("addItemModal");
+
+    function openModal(partidaId, partidaName) {
+        document.getElementById('modalPartidaId').value = partidaId;
+        document.getElementById('modalPartidaName').innerText = partidaName;
+        document.getElementById('concepto').value = '';
+        modalItem.classList.add('show');
+        setTimeout(() => document.getElementById('concepto').focus(), 100);
+    }
+
+    function closeModal() {
+        modalItem.classList.remove('show');
+    }
+
+    // --- Modal Partida Logic ---
+    const modalPartida = document.getElementById("addPartidaModal");
+
+    function openPartidaModal() {
+        document.getElementById('partidaNombre').value = '';
+        modalPartida.classList.add('show');
+        setTimeout(() => document.getElementById('partidaNombre').focus(), 100);
+    }
+
+    function closePartidaModal() {
+        modalPartida.classList.remove('show');
+    }
+
+    // Global Click Outside
+    window.onclick = function (event) {
+        if (event.target == modalItem) closeModal();
+        if (event.target == modalPartida) closePartidaModal();
+    }
+
+    function submitNewItem(e) {
+        e.preventDefault();
+        const partidaId = document.getElementById('modalPartidaId').value;
+        const concepto = document.getElementById('concepto').value;
+        const csrfToken = '{{ csrf_token }}';
+
+        if (!concepto) return;
+
+        fetch('{% url "presupuestos:api_create_item" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                partida_id: partidaId,
+                concepto: concepto
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error de conexión');
+            });
+    }
+
+    function submitNewPartida(e) {
+        e.preventDefault();
+        const nombre = document.getElementById('partidaNombre').value;
+        const presupuestoId = '{{ presupuesto.id }}';
+        const csrfToken = '{{ csrf_token }}';
+
+        if (!nombre) return;
+
+        fetch('{% url "presupuestos:api_create_partida" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                presupuesto_id: presupuestoId,
+                nombre: nombre
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error de conexión');
+            });
+    }
+
+    function recalculateTotals() {
+        let grandTotal = 0;
+        for (let m = 1; m <= 12; m++) {
+            let colSum = 0;
+            const cells = document.querySelectorAll(`td[data-month="${m}"]`);
+            cells.forEach(cell => {
+                let val = parseFloat(cell.innerText.replace(/[^0-9.-]/g, '')) || 0;
+                colSum += val;
+            });
+
+            const totalCell = document.getElementById(`total-col-${m}`);
+            if (totalCell) {
+                totalCell.innerText = colSum.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            }
+            grandTotal += colSum;
+        }
+        const grandTotalCell = document.getElementById('total-grand');
+        if (grandTotalCell) {
+            grandTotalCell.innerText = grandTotal.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        }
+    }
+
+    function toggleRows(groupId, el) {
+        const rows = document.querySelectorAll('.group-' + groupId);
+        const icon = el.querySelector('.toggle-icon');
+
+        let isVisible = false;
+        if (rows.length > 0) {
+            isVisible = rows[0].classList.contains('visible');
+        }
+
+        rows.forEach(r => {
+            if (!isVisible) {
+                r.style.display = 'table-row';
+                r.classList.add('visible');
+            } else {
+                r.style.display = 'none';
+                r.classList.remove('visible');
+            }
+        });
+
+        if (icon) {
+            icon.style.transform = !isVisible ? 'rotate(90deg)' : 'rotate(0deg)';
+            icon.innerHTML = !isVisible ? '▼' : '▶';
+        }
+    }
+
+    function handleEnter(e, el) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            el.blur();
+        }
+    }
+
+    function showToast(msg, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.style.backgroundColor = type === 'success' ? '#10b981' : '#ef4444';
+        toast.style.transform = 'translateY(0)';
+        setTimeout(() => {
+            toast.style.transform = 'translateY(100px)';
+        }, 3000);
+    }
+
+    function saveMonto(el) {
+        const itemId = el.getAttribute('data-item-id');
+        const month = el.getAttribute('data-month');
+        let value = el.innerText.replace(/[^0-9.-]/g, '');
+        if (value === '') value = 0;
+
+        el.innerText = parseFloat(value).toLocaleString('en-US');
+
+        const csrfToken = '{{ csrf_token }}';
+
+        fetch('{% url "presupuestos:api_update_monto" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                item_id: itemId,
+                mes: month,
+                monto: value
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    showToast('Guardado');
+                    const totalEl = document.getElementById('total-item-' + itemId);
+                    if (totalEl) {
+                        totalEl.innerText = parseFloat(data.new_total).toLocaleString('en-US');
+                    }
+                    recalculateTotals();
+                } else {
+                    showToast('Error al guardar', 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Error de conexión', 'error');
+            });
+    }
+
+    function deleteItem(itemId) {
+        if (!confirm('¿Estás seguro de que quieres eliminar este item? Se perderán los montos asociados.')) return;
+
+        const csrfToken = '{{ csrf_token }}';
+        fetch('{% url "presupuestos:api_delete_item" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ item_id: itemId })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    showToast('Item eliminado');
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+    }
+
+    function deletePartida(partidaId, nombre) {
+        console.log("Solicitando eliminar partida:", partidaId, nombre);
+        if (!confirm(`¿Eliminar partida "${nombre}" y todos sus items? Esta acción no se puede deshacer.`)) return;
+
+        const csrfToken = '{{ csrf_token }}';
+        fetch('{% url "presupuestos:api_delete_partida" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ partida_id: partidaId })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    showToast('Partida eliminada');
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => console.error("Error en deletePartida:", err));
+    }
+</script>
+{% endblock %}

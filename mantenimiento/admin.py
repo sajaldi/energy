@@ -9,6 +9,7 @@ from import_export.widgets import ForeignKeyWidget, DurationWidget
 from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo
 from activos.models import Categoria as CategoriaActivo
 from django.utils.safestring import mark_safe
+from django.urls import reverse
 from inventarios.models import MovimientoInventario
 
 class CategoriaResource(resources.ModelResource):
@@ -487,8 +488,9 @@ class MovimientoInventarioInline(admin.TabularInline):
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'estado')
+    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'estado', 'registrar_salida_link')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico')
+    readonly_fields = ('registrar_salida_link',)
     list_select_related = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
     search_fields = ('id', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
     autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
@@ -518,3 +520,10 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             return f"CORR: {obj.aviso.descripcion[:30]}"
         return "OT Sin descripción"
     get_descripcion.short_description = 'Descripción/Rutina'
+
+    def registrar_salida_link(self, obj):
+        if obj.estado in ['PROGRAMADA', 'EJECUCION']:
+            url = reverse('registrar_salida')
+            return mark_safe(f'<a class="button" href="{url}?ot={obj.id}" style="background: #6366f1; color: white; padding: 4px 10px; border-radius: 4px; font-weight: 600; text-decoration: none;">📦 Salida de Material</a>')
+        return "-"
+    registrar_salida_link.short_description = "Acciones"

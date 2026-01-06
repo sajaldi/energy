@@ -12,8 +12,8 @@ class Material(models.Model):
         ('CAJA', 'Caja'),
     ]
 
-    nombre = models.CharField(max_length=200, verbose_name="Nombre del Material")
-    sku = models.CharField(max_length=50, unique=True, verbose_name="SKU / Código Interno")
+    nombre = models.CharField(max_length=200, db_index=True, verbose_name="Nombre del Material")
+    sku = models.CharField(max_length=50, unique=True, db_index=True, verbose_name="SKU / Código Interno")
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
     unidad_medida = models.CharField(max_length=20, choices=UNIDAD_CHOICES, default='UNIDAD')
     precio_estimado = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))])
@@ -21,6 +21,9 @@ class Material(models.Model):
     
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    def get_stock_total(self):
+        return self.existencias.aggregate(total=models.Sum('cantidad'))['total'] or 0
 
     def __str__(self):
         return f"{self.nombre} ({self.sku})"
@@ -65,7 +68,7 @@ class MovimientoInventario(models.Model):
     ]
 
     material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='movimientos')
-    tipo = models.CharField(max_length=15, choices=TIPO_MOVIMIENTO)
+    tipo = models.CharField(max_length=15, choices=TIPO_MOVIMIENTO, db_index=True)
     cantidad = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
     ubicacion_origen = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_salida')
     ubicacion_destino = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_entrada')
@@ -74,26 +77,42 @@ class MovimientoInventario(models.Model):
     usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True)
     
     comentarios = models.TextField(blank=True, null=True)
-    fecha_movimiento = models.DateTimeField(auto_now_add=True)
+    fecha_movimiento = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    def save(self, *args, **kwargs):
-        # Lógica para actualizar StockRecord
-        # Si es SALIDA, resta de ubicacion_origen
-        # Si es ENTRADA, suma a ubicacion_destino
-        # Si es TRASLADO, hace ambos
-        super().save(*args, **kwargs)
+    estado = models.CharField(
+        max_length=20, 
+        choices=[('PENDIENTE', 'Pendiente'), ('APROBADO', 'Aprobado / Liquidado'), ('RECHAZADO', 'Rechazado')],
+        default='PENDIENTE',
+        db_index=True
+    )
+    aprobado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_aprobados')
+    fecha_aprobacion = models.DateTimeField(null=True, blank=True)
+
+    def liquidar(self, usuario_aprobador):
+        """
+        Aprueba el movimiento y actualiza el stock real.
+        """
+        if self.estado == 'APROBADO':
+            return # Ya fue procesado
+            
+        from django.utils import timezone
         
+        # Lógica para actualizar StockRecord (Movida desde save())
         if self.tipo == 'ENTRADA' and self.ubicacion_destino:
             stock, _ = StockRecord.objects.get_or_create(material=self.material, ubicacion=self.ubicacion_destino)
             stock.cantidad += self.cantidad
             stock.save()
         elif self.tipo == 'SALIDA' and self.ubicacion_origen:
             stock, _ = StockRecord.objects.get_or_create(material=self.material, ubicacion=self.ubicacion_origen)
+            if stock.cantidad < self.cantidad:
+                raise ValueError(f"Stock insuficiente para liquidar. Disponible: {stock.cantidad}")
             stock.cantidad -= self.cantidad
             stock.save()
         elif self.tipo == 'TRASLADO' and self.ubicacion_origen and self.ubicacion_destino:
             # Restar de origen
             stock_orig, _ = StockRecord.objects.get_or_create(material=self.material, ubicacion=self.ubicacion_origen)
+            if stock_orig.cantidad < self.cantidad:
+                raise ValueError(f"Stock insuficiente en origen. Disponible: {stock_orig.cantidad}")
             stock_orig.cantidad -= self.cantidad
             stock_orig.save()
             # Sumar a destino
@@ -101,13 +120,24 @@ class MovimientoInventario(models.Model):
             stock_dest.cantidad += self.cantidad
             stock_dest.save()
         elif self.tipo == 'AJUSTE' and self.ubicacion_destino:
-            # En ajuste, la cantidad puede ser el nuevo total o una diferencia
-            # Aquí lo manejaremos como diferencia por simplicidad del historial
             stock, _ = StockRecord.objects.get_or_create(material=self.material, ubicacion=self.ubicacion_destino)
             stock.cantidad += self.cantidad
             stock.save()
+
+        self.estado = 'APROBADO'
+        self.aprobado_por = usuario_aprobador
+        self.fecha_aprobacion = timezone.now()
+        self.save()
+
+    def save(self, *args, **kwargs):
+        # NOTA: Ya no actualizamos stock aquí automáticamente para requerir aprobación.
+        # Solo guardamos el registro.
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Movimiento de Inventario"
         verbose_name_plural = "Movimientos de Inventario"
         ordering = ['-fecha_movimiento']
+        permissions = [
+            ("can_liquidar_movimiento", "Puede liquidar/aprobar movimientos de inventario"),
+        ]
