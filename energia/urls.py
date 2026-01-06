@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.urls import re_path
+from django.views.static import serve
 
 urlpatterns = [
     # La ruta del admin oficial de Django
@@ -16,6 +18,7 @@ urlpatterns = [
     path('comunicaciones/', include('comunicaciones.urls', namespace='comunicaciones')),
     path('proyectos/', include('proyectos.urls', namespace='proyectos')),
     path('presupuestos/', include('presupuestos.urls', namespace='presupuestos')),
+    path('inventarios/', include('inventarios.urls')),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,197 @@
+{% load presupuesto_tags %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Cronograma {{ presupuesto.anio }}</title>
+    <style>
+        @page {
+            size: a4 landscape;
+            margin: 1cm;
+
+            @frame footer_frame {
+                /* Static Frame */
+                -pdf-frame-content: footer_content;
+                bottom: 0cm;
+                height: 1cm;
+                margin-left: 1cm;
+                margin-right: 1cm;
+            }
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 9px;
+            color: #1e293b;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 16px;
+            margin: 0;
+            color: #0f172a;
+            text-transform: uppercase;
+        }
+
+        .header p {
+            font-size: 10px;
+            color: #64748b;
+            margin: 5px 0 15px 0;
+        }
+
+        /* Table Layout */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            /* Force fixed table layout */
+        }
+
+        th {
+            background-color: #1e293b;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 8px;
+            text-align: center;
+            padding: 5px 2px;
+            border: 0.5px solid #475569;
+            vertical-align: middle;
+        }
+
+        td {
+            font-size: 8px;
+            padding: 4px 2px;
+            border: 0.5px solid #cbd5e1;
+            vertical-align: middle;
+            text-align: right;
+            /* Default align numbers right */
+        }
+
+        /* Specific Column Styles */
+        .col-concept {
+            text-align: left;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .col-data {
+            text-align: center;
+        }
+
+        /* Rows */
+        .partida-row {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-weight: bold;
+        }
+
+        .partida-title {
+            text-align: left;
+            padding-left: 5px;
+        }
+
+        .item-row td {
+            background-color: #ffffff;
+        }
+
+        .item-concept {
+            text-align: left;
+            padding-left: 15px;
+            color: #475569;
+        }
+
+        .total-row {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .total-row td {
+            border-top: 1px solid #3b82f6;
+        }
+
+        .stat-box {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 10px;
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>PRESUPUESTO: {{ presupuesto.nombre }} ({{ presupuesto.anio }})</h1>
+        <p>Moneda: {{ presupuesto.moneda }} | Generado: {% now "d/m/Y H:i" %}</p>
+    </div>
+
+    <div class="stat-box">
+        <strong>TOTAL PROYECTADO:</strong> {{ total_general_proyectado|floatformat:2 }} &nbsp;|&nbsp;
+        <strong>TOTAL EJECUTADO:</strong> {{ total_general_ejecutado|floatformat:2 }} &nbsp;|&nbsp;
+        <strong>EJECUCIÓN:</strong>
+        {% if total_general_proyectado > 0 %}
+        {{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%
+        {% else %}
+        0%
+        {% endif %}
+    </div>
+
+    <!-- Define column widths explicitly for xhtml2pdf -->
+    <table>
+        <thead>
+            <tr>
+                <th width="22%">DISCIPLINA / ITEM</th>
+                {% for mes in meses_nombres %}
+                <th width="5.5%">{{ mes|slice:":3"|upper }}</th>
+                {% endfor %}
+                <th width="12%">TOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pd in partidas_data %}
+            <!-- Partida Header -->
+            <tr class="partida-row">
+                <td class="partida-title">{{ pd.disciplina|truncatechars:35 }}</td>
+                {% for val in pd.proyeccion_total_mensual %}
+                <td>{% if val > 0 %}{{ val|floatformat:0 }}{% else %}-{% endif %}</td>
+                {% endfor %}
+                <td>{{ pd.total_proyectado|floatformat:0 }}</td>
+            </tr>
+
+            <!-- Items -->
+            {% for item in pd.items %}
+            <tr class="item-row">
+                <td class="item-concept">{{ item.concepto|truncatechars:40 }}</td>
+                {% for val in item.proyeccion %}
+                <td>{% if val > 0 %}{{ val|floatformat:0 }}{% endif %}</td>
+                {% endfor %}
+                <td>{{ item.total_anual|floatformat:0 }}</td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+
+            <!-- Global Totals -->
+            <tr class="total-row">
+                <td style="text-align: left; padding-left: 5px;">TOTAL MENSUAL</td>
+                {% for val in global_proyectado_mes %}
+                <td>{{ val|floatformat:0 }}</td>
+                {% endfor %}
+                <td>{{ total_general_proyectado|floatformat:0 }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div id="footer_content" style="text-align: right; font-size: 8px; color: #94a3b8;">
+        Página <pdf:pagenumber>
+    </div>
+</body>
+
+</html>

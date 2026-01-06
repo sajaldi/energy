@@ -719,6 +719,55 @@ class ActivoResource(resources.ModelResource):
             return self._meta.model.objects.filter(codigo_interno=codigo).first()
         return None
 
+    def import_row(self, row, instance_loader, **kwargs):
+        """
+        Override optimizado para manejar campos vacíos de manera inteligente.
+        Solo actualiza campos que tienen valores en el Excel.
+        """
+        # Obtener la instancia existente
+        instance = self.get_instance(instance_loader, row)
+        
+        if instance and instance.pk:
+            # Es una actualización - solo aplicar campos no vacíos
+            # Mapeo rápido de columnas a atributos (se hace una sola vez)
+            if not hasattr(self, '_field_map'):
+                self._field_map = {}
+                for rf in self.get_fields():
+                    if rf.column_name and rf.attribute:
+                        self._field_map[rf.column_name] = rf.attribute
+            
+            # Para cada campo vacío, restaurar el valor actual
+            for field_name, value in list(row.items()):
+                # Considerar vacío: None, '', espacios en blanco
+                is_empty = value is None or (isinstance(value, str) and not value.strip())
+                
+                if is_empty and field_name in self._field_map:
+                    attr_name = self._field_map[field_name]
+                    
+                    # Manejar atributos anidados (ej: modelo__marca__nombre)
+                    if '__' in attr_name:
+                        parts = attr_name.split('__')
+                        current_value = instance
+                        for part in parts:
+                            current_value = getattr(current_value, part, None) if current_value else None
+                        
+                        # Convertir a string apropiado
+                        if current_value:
+                            if hasattr(current_value, 'nombre'):
+                                row[field_name] = current_value.nombre
+                            elif hasattr(current_value, 'username'):
+                                row[field_name] = current_value.username
+                            else:
+                                row[field_name] = str(current_value)
+                    else:
+                        # Campo directo del modelo
+                        current_value = getattr(instance, attr_name, None)
+                        if current_value is not None:
+                            row[field_name] = current_value
+        
+        # Llamar al método padre con el row modificado
+        return super().import_row(row, instance_loader, **kwargs)
+
 class ActivoFaltantesFilter(admin.SimpleListFilter):
     title = 'Calidad de Datos'
     parameter_name = 'faltante'
@@ -785,13 +834,86 @@ class ActivoAdmin(ImportExportActionModelAdmin):
     def get_export_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
 
-    list_display = ('codigo_interno', 'nombre', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'ubicacion', 'responsable')
+    list_display = ('codigo_interno', 'nombre', 'descripcion', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'ubicacion', 'responsable')
     list_filter = (ActivoFaltantesFilter, 'estado', 'modelo__categoria', 'modelo__marca', 'responsable', 'creado_en', UbicacionHierarchyFilter)
     list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable')
-    search_fields = ('nombre', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
+    search_fields = ('nombre', 'descripcion', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('modelo', 'ubicacion', 'responsable')
     readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link')
     actions = ['export_admin_action', 'export_direct_xlsx']
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        
+        # --- Lógica de Filtros Dinámicos (Dynamic Table Filters) ---
+        dtf_param = request.GET.get('_dtf')
+        if dtf_param:
+            import json
+            from django.db.models import Q
+            try:
+                filters = json.loads(dtf_param)
+                # filters es una lista de objetos: {field, operator, value}
+                if isinstance(filters, list):
+                    q_object = Q()
+                    for f in filters:
+                        field = f.get('field')
+                        operator = f.get('operator')
+                        value = f.get('value')
+                        
+                        if not field or not operator:
+                            continue
+                            
+                        # Mapeo de operadores a lookups de Django
+                        lookup = ""
+                        if operator == 'contains':
+                            lookup = f"{field}__icontains"
+                        elif operator == 'equals':
+                            lookup = f"{field}__iexact"
+                        elif operator == 'gt':
+                            lookup = f"{field}__gt"
+                        elif operator == 'lt':
+                            lookup = f"{field}__lt"
+                        elif operator == 'gte':
+                            lookup = f"{field}__gte"
+                        elif operator == 'lte':
+                            lookup = f"{field}__lte"
+                        elif operator == 'startswith':
+                            lookup = f"{field}__istartswith"
+                        elif operator == 'endswith':
+                            lookup = f"{field}__iendswith"
+                            
+                        if lookup:
+                            # Manejo especial para fechas o números si es necesario
+                            # Por ahora asumimos que el string value funciona (Django lo casta usualmente)
+                            q_object &= Q(**{lookup: value})
+                    
+                    qs = qs.filter(q_object)
+            except Exception as e:
+                print(f"Error parsing Dynamic Filters: {e}")
+                pass
+                
+        return qs
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        # Pasamos campos disponibles para el filtro dinámico
+        extra_context['available_filter_fields'] = [
+            {'name': 'nombre', 'label': 'Nombre', 'type': 'text'},
+            {'name': 'codigo_interno', 'label': 'Código Interno', 'type': 'text'},
+            {'name': 'serie', 'label': 'N° Serie', 'type': 'text'},
+            {'name': 'modelo__marca__nombre', 'label': 'Marca', 'type': 'text'},
+            {'name': 'modelo__nombre', 'label': 'Modelo', 'type': 'text'},
+            {'name': 'ubicacion__nombre', 'label': 'Ubicación', 'type': 'text'},
+            {'name': 'costo', 'label': 'Costo', 'type': 'number'},
+            {'name': 'fecha_compra', 'label': 'Fecha Compra', 'type': 'date'},
+            {'name': 'estado', 'label': 'Estado', 'type': 'select', 'options': [
+                {'val': 'OPERATIVO', 'label': 'Operativo'},
+                {'val': 'MANTENIMIENTO', 'label': 'Mantenimiento'},
+                {'val': 'REPARACION', 'label': 'Reparación'},
+                {'val': 'OBSOLETO', 'label': 'Obsoleto'},
+            ]},
+        ]
+        return super().changelist_view(request, extra_context=extra_context)
 
     def export_admin_action(self, request, queryset):
         """Redirección con descripción personalizada (2 pasos)"""
