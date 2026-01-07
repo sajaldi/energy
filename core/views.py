@@ -1,16 +1,19 @@
 
 import io
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import connection, transaction, IntegrityError
+from django.db.models import Q
 from django.urls import reverse
-from .models import InterfaceConsumo, Consumo, Medidor # Asegúrate que tus modelos están aquí
+from mantenimiento.models import OrdenTrabajo, Aviso
+from activos.models import Activo, VisorPlano
+from .models import InterfaceConsumo, Consumo, Medidor, PerfilUsuario
 import pandas as pd
 import logging
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone # Para fechas conscientes de zona horaria si es necesario
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 import base64
 import matplotlib
@@ -520,3 +523,85 @@ def finalizar_tutorial(request):
 
 def json_response(data):
     return HttpResponse(json.dumps(data), content_type="application/json")
+
+
+@staff_member_required
+def mobile_dashboard(request):
+    """
+    Dashboard optimizado para dispositivos móviles.
+    """
+    today = timezone.now().date()
+    
+    # OTs del día asignadas al usuario (o todas si no hay asignación específica)
+    ots_hoy = OrdenTrabajo.objects.filter(
+        inicio_programado__date=today
+    ).exclude(estado='REALIZADA').order_by('inicio_programado')
+    
+    # OTs próximas (siguientes 7 días)
+    tomorrow = today + timedelta(days=1)
+    next_week = today + timedelta(days=8)
+    ots_proximas = OrdenTrabajo.objects.filter(
+        inicio_programado__date__range=[tomorrow, next_week]
+    ).exclude(estado='REALIZADA').order_by('inicio_programado')
+
+    # Si el usuario es técnico, filtrar por sus tareas (directas o por equipo)
+    if not request.user.is_superuser:
+        user_groups = request.user.groups.all()
+        ots_hoy = ots_hoy.filter(
+            Q(tecnico=request.user) | Q(equipo__in=user_groups)
+        ).distinct()
+        ots_proximas = ots_proximas.filter(
+            Q(tecnico=request.user) | Q(equipo__in=user_groups)
+        ).distinct()
+
+    # Estadísticas rápidas
+    total_activos = Activo.objects.count()
+    avisos_abiertos = Aviso.objects.filter(estado='ABIERTO').count()
+    
+    # Accesos rápidos a planos
+    planos_recientes = VisorPlano.objects.all().order_by('-creado_en')[:3]
+
+    context = {
+        'ots_hoy': ots_hoy,
+        'ots_proximas': ots_proximas,
+        'total_activos': total_activos,
+        'avisos_abiertos': avisos_abiertos,
+        'planos_recientes': planos_recientes,
+        'today': today,
+    }
+    return render(request, 'core/mobile_dashboard.html', context)
+
+
+@staff_member_required
+def mobile_scanner(request):
+    """
+    Vista del escáner QR.
+    """
+    return render(request, 'core/mobile_scanner.html')
+
+
+@staff_member_required
+def qr_resolver(request):
+    """
+    Resuelve el contenido de un código QR.
+    Redirige si es una URL conocida o busca por código de activo.
+    """
+    code = request.GET.get('code', '').strip()
+    if not code:
+        return JsonResponse({'success': False, 'error': 'No se recibió ningún código'}, status=400)
+
+    # Caso 1: Es una URL de nuestra propia app (mantenimiento/app/ot/...)
+    if '/mantenimiento/app/' in code:
+        return JsonResponse({'success': True, 'redirect': code})
+
+    # Caso 2: Es un código interno de un activo
+    activo = Activo.objects.filter(codigo_interno__iexact=code).first()
+    if activo:
+        # Redirigir a la nueva vista móvil del activo
+        return JsonResponse({
+            'success': True, 
+            'redirect': reverse('activos:mobile_activo_detalle', args=[activo.id]),
+            'message': f'Equipo encontrado: {activo.nombre}'
+        })
+
+    return JsonResponse({'success': False, 'error': 'Código no reconocido en el sistema'}, status=404)

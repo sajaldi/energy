@@ -1,0 +1,585 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SoftCoM App</title>
+    {% include 'core/pwa_tags.html' %}
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+
+    <style>
+        :root {
+            --primary: #007bff;
+            --primary-dark: #0056b3;
+            --secondary: #6c757d;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --bg-body: #f0f2f5;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --header-bg: #ffffff;
+            --tab-bar-bg: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--dark);
+            margin: 0;
+            padding-bottom: 80px;
+            /* Space for bottom nav */
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--header-bg);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .user-greeting h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .user-greeting p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--secondary);
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background-color: var(--primary);
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        /* Dashboard Content */
+        .container {
+            padding: 20px;
+        }
+
+        /* Quick Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .stat-card ion-icon {
+            font-size: 24px;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Quick Actions Overlay (Main Buttons) */
+        .actions-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .btn-action {
+            background: white;
+            padding: 18px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-decoration: none;
+            color: var(--dark);
+            box-shadow: var(--card-shadow);
+            transition: transform 0.2s;
+        }
+
+        .btn-action:active {
+            transform: scale(0.97);
+        }
+
+        .btn-action.primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-action span.icon-wrapper {
+            width: 45px;
+            height: 45px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .btn-action.primary span.icon-wrapper {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-action .text-content h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .btn-action .text-content p {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* Task List Section */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .section-header a {
+            font-size: 13px;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-card {
+            background: white;
+            padding: 15px;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-left: 5px solid var(--primary);
+        }
+
+        .task-card.priority-ALTA,
+        .task-card.priority-CRITICA {
+            border-left-color: var(--danger);
+        }
+
+        .task-card.priority-BAJA {
+            border-left-color: var(--secondary);
+        }
+
+        .task-time {
+            text-align: center;
+            min-width: 50px;
+        }
+
+        .task-time span {
+            display: block;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .task-time small {
+            font-size: 10px;
+            color: var(--secondary);
+        }
+
+        .task-info {
+            flex: 1;
+        }
+
+        .task-info h4 {
+            margin: 0 0 4px 0;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .task-info p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--secondary);
+        }
+
+        .task-status {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            background: var(--light);
+            font-weight: 600;
+        }
+
+        /* Plan Shortcuts Horizontal Scroll */
+        .scroller {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding: 5px;
+            margin: 0 -20px;
+            padding-left: 20px;
+            padding-right: 20px;
+            scrollbar-width: none;
+        }
+
+        .scroller::-webkit-scrollbar {
+            display: none;
+        }
+
+        .plan-item {
+            min-width: 140px;
+            background: white;
+            padding: 12px;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            text-align: center;
+            text-decoration: none;
+            color: var(--dark);
+        }
+
+        .plan-item ion-icon {
+            font-size: 32px;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .plan-item span {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Bottom Tab Bar */
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: var(--tab-bar-bg);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+            padding-bottom: env(safe-area-inset-bottom);
+            z-index: 1000;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+            color: var(--secondary);
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .tab-item.active {
+            color: var(--primary);
+        }
+
+        .tab-item ion-icon {
+            font-size: 24px;
+        }
+
+        .scan-fab {
+            width: 56px;
+            height: 56px;
+            background: var(--primary);
+            color: white;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+            margin-top: -30px;
+        }
+
+        .scan-fab ion-icon {
+            font-size: 30px;
+        }
+
+        /* Search Bar */
+        .search-container {
+            margin-bottom: 25px;
+        }
+
+        .search-box {
+            background: white;
+            border-radius: 14px;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .search-box input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-family: inherit;
+            font-size: 15px;
+        }
+
+        .search-box ion-icon {
+            color: var(--secondary);
+            font-size: 20px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--secondary);
+        }
+
+        .empty-state ion-icon {
+            font-size: 48px;
+            opacity: 0.3;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="user-greeting">
+            <p>Hola de nuevo,</p>
+            <h1>{{ user.username }}</h1>
+        </div>
+        <div class="avatar">
+            {{ user.username|slice:":1"|upper }}
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- Search Section -->
+        <div class="search-container">
+            <div class="search-box">
+                <ion-icon name="search-outline"></ion-icon>
+                <input type="text" placeholder="Buscar equipo o ubicación..." id="mobile-search">
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <ion-icon name="cube-outline"></ion-icon>
+                <span class="value">{{ total_activos }}</span>
+                <span class="label">Equipos</span>
+            </div>
+            <div class="stat-card">
+                <ion-icon name="alert-circle-outline" style="color: var(--danger);"></ion-icon>
+                <span class="value">{{ avisos_abiertos }}</span>
+                <span class="label">Avisos</span>
+            </div>
+        </div>
+
+        <!-- Primary Actions -->
+        <div class="actions-section">
+            <a href="{% url 'core:mobile_scanner' %}" class="btn-action primary" id="btn-scan">
+                <span class="icon-wrapper">
+                    <ion-icon name="qr-code-outline"></ion-icon>
+                </span>
+                <div class="text-content">
+                    <h3>Escanear Código</h3>
+                    <p>Identificar equipo o reporte</p>
+                </div>
+            </a>
+            <a href="{% url 'admin:mantenimiento_aviso_add' %}" class="btn-action">
+                <span class="icon-wrapper" style="color: var(--warning);">
+                    <ion-icon name="add-circle-outline"></ion-icon>
+                </span>
+                <div class="text-content">
+                    <h3>Reportar Avería</h3>
+                    <p>Crear aviso de mantenimiento</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- Task List -->
+        <div class="section-header">
+            <h2>Tareas de Hoy</h2>
+            <a href="#">Ver todas</a>
+        </div>
+
+        <div class="task-list">
+            {% for ot in ots_hoy %}
+            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" style="text-decoration: none; color: inherit;">
+                <div class="task-card priority-{{ ot.prioridad }}">
+                    <div class="task-time">
+                        <span>{{ ot.inicio_programado|date:"H:i" }}</span>
+                        <small>{{ ot.tipo|slice:":3" }}</small>
+                    </div>
+                    <div class="task-info">
+                        <h4>{{ ot.rutina.nombre|default:"OT Correctiva" }}</h4>
+                        <p>{{ ot.ubicacion.nombre }}</p>
+                    </div>
+                    <div class="task-status">
+                        {{ ot.get_estado_display }}
+                    </div>
+                </div>
+            </a>
+            {% empty %}
+            <div class="empty-state">
+                <ion-icon name="checkmark-done-circle-outline"></ion-icon>
+                <p>No tienes tareas programadas para hoy.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Upcoming Tasks -->
+        {% if ots_proximas %}
+        <div class="section-header" style="margin-top: 30px;">
+            <h2>Próximas Tareas</h2>
+            <span style="font-size: 12px; color: var(--secondary);">(Siguientes 7 días)</span>
+        </div>
+        <div class="task-list">
+            {% for ot in ots_proximas %}
+            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" style="text-decoration: none; color: inherit;">
+                <div class="task-card priority-{{ ot.prioridad }}"
+                    style="border-left-width: 4px; border-left-color: #cbd5e1;">
+                    <div class="task-time" style="background: #f8fafc; border-right-color: #e2e8f0;">
+                        <span>{{ ot.inicio_programado|date:"d M" }}</span>
+                        <small>{{ ot.inicio_programado|date:"H:i" }}</small>
+                    </div>
+                    <div class="task-info">
+                        <h4 style="color: #475569;">{{ ot.rutina.nombre|default:"OT Correctiva" }}</h4>
+                        <p>{{ ot.ubicacion.nombre }}</p>
+                    </div>
+                    <div class="task-status" style="opacity: 0.7;">
+                        {{ ot.get_estado_display }}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Plans Section -->
+        <div class="section-header" style="margin-top: 30px;">
+            <h2>Planos Interactivos</h2>
+            <a href="{% url 'activos:arbol_activos' %}">Explorar</a>
+        </div>
+
+        <div class="scroller">
+            {% for visor in planos_recientes %}
+            <a href="{% url 'activos:visor_plano' visor.id %}" class="plan-item">
+                <ion-icon name="map-outline"></ion-icon>
+                <span>{{ visor.nombre }}</span>
+            </a>
+            {% empty %}
+            <div class="empty-state" style="padding: 20px;">
+                <p>Sin planos recientes</p>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="tab-bar">
+        <a href="{% url 'core:mobile_dashboard' %}" class="tab-item active">
+            <ion-icon name="home-outline"></ion-icon>
+            <span>Dashboard</span>
+        </a>
+        <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item">
+            <ion-icon name="calendar-outline"></ion-icon>
+            <span>Cronograma</span>
+        </a>
+
+        <div class="tab-item">
+            <a href="{% url 'core:mobile_scanner' %}" class="scan-fab" id="fab-scan" style="text-decoration: none;">
+                <ion-icon name="qr-code-outline"></ion-icon>
+            </a>
+        </div>
+
+        <a href="{% url 'activos:arbol_activos' %}" class="tab-item">
+            <ion-icon name="business-outline"></ion-icon>
+            <span>Activos</span>
+        </a>
+        <a href="{% url 'admin:index' %}" class="tab-item">
+            <ion-icon name="settings-outline"></ion-icon>
+            <span>Ajustes</span>
+        </a>
+    </nav>
+
+    <script>
+        // Funcionalidad básica para el dashboard móvil
+        document.addEventListener('DOMContentLoaded', () => {
+            // Búsqueda rápida
+            const searchInput = document.getElementById('mobile-search');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        window.location.href = '{% url "activos:mobile_busqueda" %}?q=' + searchInput.value;
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
