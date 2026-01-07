@@ -1,0 +1,645 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --primary: #3b82f6;
+        --primary-dark: #1d4ed8;
+        --primary-light: #eff6ff;
+        --secondary: #6366f1;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --border: #e2e8f0;
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --positive: #10b981;
+        --negative: #ef4444;
+        --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    #content {
+        padding: 0 !important;
+        background-color: var(--bg);
+    }
+
+    .wizard-container {
+        font-family: 'Outfit', sans-serif;
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+
+    /* Stepper Header */
+    .stepper {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 40px;
+        position: relative;
+    }
+
+    .stepper::before {
+        content: '';
+        position: absolute;
+        top: 24px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--border);
+        z-index: 1;
+    }
+
+    .step {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        width: 100px;
+    }
+
+    .step-circle {
+        width: 48px;
+        height: 48px;
+        background: white;
+        border: 2px solid var(--border);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--text-muted);
+        transition: all 0.3s;
+    }
+
+    .step.active .step-circle {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 0 0 4px var(--primary-light);
+    }
+
+    .step.completed .step-circle {
+        border-color: var(--positive);
+        background: var(--positive);
+        color: white;
+    }
+
+    .step-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        text-align: center;
+    }
+
+    .step.active .step-label {
+        color: var(--primary);
+    }
+
+    /* Wizard Cards */
+    .wizard-card {
+        background: white;
+        border-radius: 24px;
+        padding: 40px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+        display: none;
+        animation: slideUp 0.4s ease-out;
+    }
+
+    .wizard-card.active {
+        display: block;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .wizard-header {
+        margin-bottom: 32px;
+        text-align: center;
+    }
+
+    .wizard-header h2 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin: 0 0 8px 0;
+        color: var(--text);
+    }
+
+    .wizard-header p {
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    /* Selection Cards */
+    .selection-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .option-card {
+        border: 2px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .option-card:hover {
+        border-color: var(--primary);
+        background: var(--primary-light);
+    }
+
+    .option-card.selected {
+        border-color: var(--primary);
+        background: var(--primary-light);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+
+    .option-card.selected::after {
+        content: '✓';
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: var(--primary);
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .option-title {
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .option-meta {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        display: block;
+    }
+
+    /* Tree selection (Simplified for UI) */
+    .tree-view {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 20px;
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+    }
+
+    .tree-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: background 0.2s;
+    }
+
+    .tree-item:hover {
+        background: #f1f5f9;
+    }
+
+    .tree-item input {
+        width: 18px;
+        height: 18px;
+    }
+
+    /* Actions Footer */
+    .wizard-footer {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 32px;
+    }
+
+    .btn-wiz {
+        padding: 12px 32px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1rem;
+    }
+
+    .btn-prev {
+        background: white;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+    }
+
+    .btn-next {
+        background: var(--primary);
+        color: white;
+        border: none;
+    }
+
+    .btn-wiz:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Success state */
+    .success-state {
+        text-align: center;
+        display: none;
+    }
+
+    .success-icon {
+        font-size: 5rem;
+        color: var(--positive);
+        margin-bottom: 24px;
+        animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(0);
+        }
+
+        to {
+            transform: scale(1);
+        }
+    }
+
+    /* Search Input */
+    .search-input {
+        width: 100%;
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        font-family: inherit;
+        font-size: 1rem;
+        margin-bottom: 20px;
+        outline: none;
+    }
+
+    .search-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px var(--primary-light);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <div class="stepper">
+        <div class="step active" id="step1">
+            <div class="step-circle">1</div>
+            <div class="step-label">Rutina</div>
+        </div>
+        <div class="step" id="step2">
+            <div class="step-circle">2</div>
+            <div class="step-label">Horario</div>
+        </div>
+        <div class="step" id="step3">
+            <div class="step-circle">3</div>
+            <div class="step-label">Ubicación</div>
+        </div>
+        <div class="step" id="step4">
+            <div class="step-circle">4</div>
+            <div class="step-label">Activos</div>
+        </div>
+        <div class="step" id="step5">
+            <div class="step-circle">5</div>
+            <div class="step-label">Fechas</div>
+        </div>
+    </div>
+
+    <!-- Step 1: Rutina -->
+    <div class="wizard-card active" id="card1">
+        <div class="wizard-header">
+            <h2>Selecciona una Rutina</h2>
+            <p>Elige el conjunto de actividades que deseas programar.</p>
+        </div>
+        <input type="text" class="search-input" id="searchRutina" placeholder="Buscar rutina por nombre...">
+        <div class="selection-grid" id="rutinaGrid">
+            {% for r in rutinas %}
+            <div class="option-card {% if rutina_preselected.id == r.id %}selected{% endif %}" data-id="{{ r.id }}"
+                data-type="rutina" data-name="{{ r.nombre }}">
+                <span class="option-title">{{ r.nombre }}</span>
+                <span class="option-meta">{{ r.categoria.nombre }} | {{ r.frecuencia.nombre }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Step 2: Horario -->
+    <div class="wizard-card" id="card2">
+        <div class="wizard-header">
+            <h2>Horario Laboral</h2>
+            <p>Define en qué franja horaria se realizarán los trabajos.</p>
+        </div>
+        <div class="selection-grid">
+            {% for h in horarios %}
+            <div class="option-card" data-id="{{ h.id }}" data-type="horario">
+                <div style="width: 24px; height: 24px; background: {{ h.color }}; border-radius: 4px; float: right;">
+                </div>
+                <span class="option-title">{{ h.nombre }}</span>
+                <span class="option-meta">{{ h.resumen_corto }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Step 3: Ubicación -->
+    <div class="wizard-card" id="card3">
+        <div class="wizard-header">
+            <h2>Áreas de Trabajo</h2>
+            <p>Selecciona los edificios o áreas donde se encuentran los activos.</p>
+        </div>
+        <div class="tree-view" id="areaTree">
+            {% for u in ubicaciones_roots %}
+            <label class="tree-item">
+                <input type="checkbox" name="area" value="{{ u.id }}">
+                <span><ion-icon name="business-outline"></ion-icon> {{ u.nombre }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        <div style="margin-top: 24px;">
+            <p style="font-size: 0.9rem; font-weight: 700; margin-bottom: 12px;">Categoría de Activos (Opcional)</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                {% for c in categorias_activos %}
+                <label
+                    style="background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 99px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" name="cat" value="{{ c.id }}">
+                    {{ c.nombre }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 4: Activos -->
+    <div class="wizard-card" id="card4">
+        <div class="wizard-header">
+            <h2>Confirmar Activos</h2>
+            <p>Estos son los activos encontrados de acuerdo a tus filtros.</p>
+        </div>
+        <div style="margin-bottom: 12px; display: flex; justify-content: flex-end;">
+            <button class="btn-wiz btn-prev" onclick="toggleAllAssets(true)"
+                style="padding: 4px 12px; font-size: 0.8rem; border-radius: 6px;">Seleccionar Todos</button>
+        </div>
+        <div class="tree-view" id="assetList" style="max-height: 400px;">
+            <p style="text-align: center; color: var(--text-muted); padding: 40px;">Cargando activos...</p>
+        </div>
+    </div>
+
+    <!-- Step 5: Fechas -->
+    <div class="wizard-card" id="card5">
+        <div class="wizard-header">
+            <h2>Ciclo de Programación</h2>
+            <p>Define cuándo inicia y termina este ciclo de mantenimiento.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 24px; max-width: 400px; margin: 0 auto;">
+            <div class="form-group">
+                <label style="font-weight: 700; display: block; margin-bottom: 8px;">Fecha de Inicio</label>
+                <input type="date" id="fechaInicio" class="search-input" style="margin: 0;"
+                    value="{{ today|date:'Y-m-d' }}">
+            </div>
+            <div class="form-group">
+                <label style="font-weight: 700; display: block; margin-bottom: 8px;">Fecha de Fin (Opcional)</label>
+                <input type="date" id="fechaFin" class="search-input" style="margin: 0;">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">Si se deja vacío, se programará
+                    por 1 año.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final Success state -->
+    <div class="wizard-card" id="cardSuccess">
+        <div class="success-state">
+            <ion-icon name="checkmark-circle" class="success-icon"></ion-icon>
+            <h2 id="successTitle">¡Programación Exitosa!</h2>
+            <p id="successMsg" style="margin-bottom: 32px;">Se han generado las órdenes de trabajo correctamente.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <a href="{% url 'mantenimiento:cronograma' %}" class="btn-wiz btn-next">Ver Cronograma</a>
+                <a href="." class="btn-wiz btn-prev">Nueva Programación</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="wizard-footer" id="wizardFooter">
+        <button class="btn-wiz btn-prev" id="btnPrev" disabled>
+            <ion-icon name="arrow-back"></ion-icon> Anterior
+        </button>
+        <button class="btn-wiz btn-next" id="btnNext">
+            Siguiente <ion-icon name="arrow-forward"></ion-icon>
+        </button>
+    </div>
+</div>
+
+<script>
+    let currentStep = 1;
+    const totalSteps = 5;
+    const selections = {
+        rutina: "{{ rutina_preselected.id|default:'' }}",
+        horario: "",
+        areas: [],
+        categorias: [],
+        activos: [],
+        fecha_inicio: "{{ today|date:'Y-m-d' }}",
+        fecha_fin: ""
+    };
+
+    const searchRutina = document.getElementById('searchRutina');
+    const cards = document.querySelectorAll('.wizard-card');
+    const steps = document.querySelectorAll('.step');
+    const btnNext = document.getElementById('btnNext');
+    const btnPrev = document.getElementById('btnPrev');
+    const assetList = document.getElementById('assetList');
+
+    // Selection logic
+    document.querySelectorAll('.option-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const type = card.dataset.type;
+            document.querySelectorAll(`.option-card[data-type="${type}"]`).forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selections[type] = card.dataset.id;
+        });
+    });
+
+    // Search rutinas
+    searchRutina.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        document.querySelectorAll('.option-card[data-type="rutina"]').forEach(card => {
+            const name = card.dataset.name.toLowerCase();
+            card.style.display = name.includes(query) ? 'block' : 'none';
+        });
+    });
+
+    btnNext.addEventListener('click', async () => {
+        if (currentStep === totalSteps) {
+            await finalizeAndGenerate();
+            return;
+        }
+
+        if (!validateStep(currentStep)) return;
+
+        if (currentStep === 3) { // Move to Step 4: Assets
+            await loadAssets();
+        }
+
+        updateStep(currentStep + 1);
+    });
+
+    btnPrev.addEventListener('click', () => {
+        if (currentStep > 1) {
+            updateStep(currentStep - 1);
+        }
+    });
+
+    function validateStep(step) {
+        if (step === 1 && !selections.rutina) {
+            alert("Por favor selecciona una rutina."); return false;
+        }
+        if (step === 2 && !selections.horario) {
+            alert("Por favor selecciona un horario."); return false;
+        }
+        if (step === 3) {
+            selections.areas = Array.from(document.querySelectorAll('input[name="area"]:checked')).map(i => i.value);
+            selections.categorias = Array.from(document.querySelectorAll('input[name="cat"]:checked')).map(i => i.value);
+            if (selections.areas.length === 0) {
+                alert("Selecciona al menos un edificio o área."); return false;
+            }
+        }
+        return true;
+    }
+
+    async function loadAssets() {
+        assetList.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">Buscando activos...</p>';
+
+        const params = new URLSearchParams();
+        selections.areas.forEach(a => params.append('areas[]', a));
+        selections.categorias.forEach(c => params.append('categorias[]', c));
+
+        try {
+            const response = await fetch(`{% url "mantenimiento:api_get_assets_wizard" %}?${params.toString()}`);
+            const data = await response.json();
+
+            if (data.activos.length === 0) {
+                assetList.innerHTML = '<p style="text-align: center; color: var(--negative); padding: 40px;">No se encontraron activos con estos filtros.</p>';
+                return;
+            }
+
+            assetList.innerHTML = data.activos.map(a => `
+                <label class="tree-item">
+                    <input type="checkbox" name="asset_final" value="${a.id}" checked>
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-weight: 700;">${a.nombre}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">${a.codigo} | ${a.ubicacion}</span>
+                    </div>
+                </label>
+            `).join('');
+        } catch (error) {
+            assetList.innerHTML = '<p style="text-align: center; color: var(--negative); padding: 40px;">Error al cargar activos.</p>';
+        }
+    }
+
+    function toggleAllAssets(checked) {
+        document.querySelectorAll('input[name="asset_final"]').forEach(i => i.checked = checked);
+    }
+
+    function updateStep(newStep) {
+        cards.forEach(c => c.classList.remove('active'));
+        steps.forEach(s => s.classList.remove('active', 'completed'));
+
+        currentStep = newStep;
+        document.getElementById(`card${currentStep}`).classList.add('active');
+
+        for (let i = 1; i <= totalSteps; i++) {
+            const stepEl = document.getElementById(`step${i}`);
+            if (i < currentStep) stepEl.classList.add('completed');
+            if (i === currentStep) stepEl.classList.add('active');
+        }
+
+        btnPrev.disabled = (currentStep === 1);
+        btnNext.innerHTML = (currentStep === totalSteps) ?
+            'Finalizar y Generar <ion-icon name="flash"></ion-icon>' :
+            'Siguiente <ion-icon name="arrow-forward"></ion-icon>';
+    }
+
+    async function finalizeAndGenerate() {
+        selections.activos = Array.from(document.querySelectorAll('input[name="asset_final"]:checked')).map(i => i.value);
+        selections.fecha_inicio = document.getElementById('fechaInicio').value;
+        selections.fecha_fin = document.getElementById('fechaFin').value;
+
+        if (!selections.fecha_inicio) {
+            alert("La fecha de inicio es obligatoria."); return;
+        }
+
+        btnNext.disabled = true;
+        btnNext.innerHTML = 'Generando... <ion-icon name="sync" class="rotating"></ion-icon>';
+
+        try {
+            const response = await fetch('.', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    rutina_id: selections.rutina,
+                    horario_id: selections.horario,
+                    areas: selections.areas,
+                    activos: selections.activos,
+                    fecha_inicio: selections.fecha_inicio,
+                    fecha_fin: selections.fecha_fin
+                })
+            });
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                document.getElementById('card5').classList.remove('active');
+                document.getElementById('cardSuccess').classList.add('active');
+                document.getElementById('wizardFooter').style.display = 'none';
+                document.getElementById('successMsg').innerText = data.message;
+            } else {
+                alert("Error: " + data.message);
+                btnNext.disabled = false;
+                btnNext.innerHTML = 'Finalizar y Generar <ion-icon name="flash"></ion-icon>';
+            }
+        } catch (error) {
+            alert("Error crítico en la generación.");
+            btnNext.disabled = false;
+        }
+    }
+
+    // Auto-advance if routine is pre-selected
+    document.addEventListener('DOMContentLoaded', () => {
+        if (selections.rutina) {
+            updateStep(2);
+        }
+    });
+</script>
+{% endblock %}

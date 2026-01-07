@@ -1,281 +1,290 @@
-<!DOCTYPE html>
-<html lang="es">
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cronograma: {{ proyecto.nombre }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --border: #e2e8f0;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-        }
+{% block title %}Cronograma: {{ proyecto.nombre }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
-            margin: 0;
-            padding: 20px;
-            color: var(--text-main);
-        }
+{% block extrastyle %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --border: #e2e8f0;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+    }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
+    #content {
+        padding: 20px !important;
+        background-color: var(--bg);
+    }
 
-        .header h1 {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
 
-        .header-meta {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-        }
+    .header h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
 
-        .actions {
-            display: flex;
-            gap: 12px;
-        }
+    .header-meta {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+    }
 
-        .btn {
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.2s;
-            font-size: 0.875rem;
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+    .actions {
+        display: flex;
+        gap: 12px;
+    }
 
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
+    .btn {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s;
+        font-size: 0.875rem;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: white;
+        color: var(--text-main);
+    }
 
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
 
-        .container {
-            background: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
+    .btn-primary:hover {
+        background: var(--primary-dark);
+    }
 
-        .scroll-wrapper {
-            overflow-x: auto;
-            position: relative;
-        }
+    .container {
+        margin: 0 25px 25px 25px;
+        background: var(--card-bg);
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 180px);
+        /* Llenar el espacio vertical */
+    }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.75rem;
-            min-width: 1800px;
-            /* Asegura espacio para 52 semanas */
-        }
+    .scroll-wrapper {
+        overflow: auto;
+        flex: 1;
+        position: relative;
+    }
 
-        th,
-        td {
-            border: 1px solid var(--border);
-            text-align: center;
-            padding: 6px 2px;
-        }
+    table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 0.75rem;
+    }
 
-        /* Sticky Column for Activities */
-        .col-activity {
-            position: sticky;
-            left: 0;
-            background: white;
-            z-index: 20;
-            width: 300px;
-            text-align: left !important;
-            padding-left: 16px;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-        }
+    th,
+    td {
+        border-right: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        text-align: center;
+        padding: 8px 4px;
+    }
 
-        thead tr:first-child .col-activity {
-            z-index: 30;
-            background: #f1f5f9;
-        }
+    .col-activity {
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 20;
+        width: 320px;
+        min-width: 320px;
+        text-align: left !important;
+        padding-left: 16px;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    }
 
-        .header-month {
-            background: #f1f5f9;
-            color: var(--text-main);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+    thead tr:first-child .col-activity {
+        z-index: 40;
+        background: #f1f5f9;
+        top: 0;
+    }
 
-        .header-week {
-            background: #f8fafc;
-            color: var(--text-muted);
-            font-size: 0.7rem;
-        }
+    thead tr:first-child th {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+    }
 
-        .row-item:hover {
-            background-color: #f8fafc;
-        }
+    thead tr:nth-child(2) th {
+        position: sticky;
+        top: 33px;
+        /* Altura de la primera fila */
+        z-index: 30;
+    }
 
-        .row-item:hover .col-activity {
-            background-color: #f8fafc;
-        }
+    thead tr:nth-child(2) .col-activity {
+        top: 33px;
+        z-index: 40;
+    }
 
-        .activity-name {
-            font-weight: 600;
-            color: var(--text-main);
-            display: block;
-        }
+    .header-month {
+        background: #f1f5f9;
+        color: var(--text-main);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
 
-        .activity-dates {
-            font-size: 0.65rem;
-            color: var(--text-muted);
-        }
+    .header-week {
+        background: #f8fafc;
+        color: var(--text-muted);
+        font-size: 0.7rem;
+    }
 
-        .cell-mark {
-            padding: 3px;
-        }
+    .row-item:hover {
+        background-color: #f8fafc;
+    }
 
-        .mark-bar {
-            height: 14px;
-            border-radius: 3px;
-            width: 100%;
-            transition: transform 0.2s;
-        }
+    .row-item:hover .col-activity {
+        background-color: #f8fafc;
+    }
 
-        .mark-bar:hover {
-            transform: scaleY(1.3);
-            cursor: pointer;
-        }
+    .activity-name {
+        font-weight: 600;
+        color: var(--text-main);
+        display: block;
+    }
 
-        .modal-info {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #1e293b;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            display: none;
-            z-index: 100;
-        }
+    .activity-dates {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+    }
 
-        .badge-status {
-            padding: 2px 6px;
-            border-radius: 10px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            margin-left: 4px;
-        }
-    </style>
-</head>
+    .cell-mark {
+        padding: 3px;
+    }
 
-<body>
+    .mark-bar {
+        height: 14px;
+        border-radius: 3px;
+        width: 100%;
+        transition: transform 0.2s;
+    }
 
-    <div class="header">
-        <div>
-            <h1>Cronograma de Actividades</h1>
-            <div class="header-meta">
-                Proyecto: <strong>{{ proyecto.codigo }}</strong> | {{ proyecto.nombre }} | Año {{ year }}
-            </div>
-        </div>
-        <div class="actions">
-            <form method="get" style="display: flex; gap: 8px;">
-                <input type="number" name="year" value="{{ year }}"
-                    style="width: 80px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.875rem;">
-                <button type="submit" class="btn">Actualizar</button>
-            </form>
-            <a href="/admin/proyectos/proyecto/{{ proyecto.id }}/change/" class="btn">
-                <span>⚙️ Editar</span>
-            </a>
-            <button onclick="window.print()" class="btn">
-                <span>🖨️ Imprimir</span>
-            </button>
+    .mark-bar:hover {
+        transform: scaleY(1.3);
+        cursor: pointer;
+    }
+
+    .badge-status {
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        margin-left: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='proyectos' %}">Proyectos</a>
+    &rsaquo; <a href="{% url 'admin:proyectos_proyecto_changelist' %}">Proyectos</a>
+    &rsaquo; <a href="{% url 'admin:proyectos_proyecto_change' proyecto.id %}">{{ proyecto.codigo }}</a>
+    &rsaquo; Cronograma
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div>
+        <h1>Cronograma de Actividades</h1>
+        <div class="header-meta">
+            Proyecto: <strong>{{ proyecto.codigo }}</strong> | {{ proyecto.nombre }} | Año {{ year }}
         </div>
     </div>
+    <div class="actions">
+        <form method="get" style="display: flex; gap: 8px;">
+            <input type="number" name="year" value="{{ year }}"
+                style="width: 80px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.875rem;">
+            <button type="submit" class="btn">Actualizar</button>
+        </form>
+        <a href="{% url 'admin:proyectos_proyecto_change' proyecto.id %}" class="btn">
+            <span>⚙️ Editar</span>
+        </a>
+        <button onclick="window.print()" class="btn">
+            <span>🖨️ Imprimir</span>
+        </button>
+    </div>
+</div>
 
-    <div class="container">
-        <div class="scroll-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th class="col-activity header-month">Actividad</th>
-                        {% for mes in meses_header %}
-                        <th colspan="{{ mes.count }}" class="header-month">{{ mes.nombre }}</th>
-                        {% endfor %}
-                    </tr>
-                    <tr class="header-week">
-                        <th class="col-activity">Especialidad / Tarea</th>
-                        {% for s in semanas %}
-                        <th title="{{ s.inicio|date:'d M' }} - {{ s.fin|date:'d M' }}">S{{ s.n }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for act in actividades %}
-                    <tr class="row-item">
-                        <td class="col-activity" style="border-left: 4px solid {{ act.color }};">
-                            <span class="activity-name">{{ act.nombre }}</span>
-                            <span class="activity-dates">
-                                {{ act.fecha_inicio|date:'d/m' }} - {{ act.fecha_fin|date:'d/m' }}
-                                <span class="badge-status"
-                                    style="background: {{ act.color }}20; color: {{ act.color }};">
-                                    {{ act.get_estado_display }}
-                                </span>
-                            </span>
-                        </td>
-                        {% for is_active in act.celdas %}
-                        <td class="cell-mark">
-                            {% if is_active %}
-                            <div class="mark-bar" style="background-color: {{ act.color }};" title="{{ act.nombre }}">
-                            </div>
-                            {% endif %}
-                        </td>
-                        {% endfor %}
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="{{ semanas|length|add:1 }}"
-                            style="padding: 40px; text-align: center; color: var(--text-muted);">
-                            No hay actividades programadas con fechas para este año.
-                        </td>
-                    </tr>
+<div class="container">
+    <div class="scroll-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th class="col-activity header-month">Actividad</th>
+                    {% for mes in meses_header %}
+                    <th colspan="{{ mes.count }}" class="header-month">{{ mes.nombre }}</th>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                </tr>
+                <tr class="header-week">
+                    <th class="col-activity">Especialidad / Tarea</th>
+                    {% for s in semanas %}
+                    <th title="{{ s.inicio|date:'d M' }} - {{ s.fin|date:'d M' }}">S{{ s.n }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in actividades %}
+                <tr class="row-item">
+                    <td class="col-activity" style="border-left: 4px solid {{ act.color }};">
+                        <span class="activity-name">{{ act.nombre }}</span>
+                        <span class="activity-dates">
+                            {{ act.fecha_inicio|date:'d/m' }} - {{ act.fecha_fin|date:'d/m' }}
+                            <span class="badge-status" style="background: {{ act.color }}20; color: {{ act.color }};">
+                                {{ act.get_estado_display }}
+                            </span>
+                        </span>
+                    </td>
+                    {% for is_active in act.celdas %}
+                    <td class="cell-mark">
+                        {% if is_active %}
+                        <div class="mark-bar" style="background-color: {{ act.color }};" title="{{ act.nombre }}">
+                        </div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ semanas|length|add:1 }}"
+                        style="padding: 40px; text-align: center; color: var(--text-muted);">
+                        No hay actividades programadas con fechas para este año.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-
-    <div id="infoBox" class="modal-info"></div>
-
-    <script>
-        // Scripts futuros para edición rápida o tooltips interactivos
-    </script>
-</body>
-
-</html>
+</div>
+{% endblock %}

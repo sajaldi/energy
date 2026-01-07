@@ -782,6 +782,9 @@ def detalle_mes(request, year, month):
                     else: duration_pos = 'middle'
                 
                 # Creamos un objeto ligero para el template
+                activos_ot = list(ot.activos.all())
+                activos_nombres = ", ".join([a.nombre for a in activos_ot])
+                
                 ot_info = {
                     'id': ot.id,
                     'estado': ot.estado,
@@ -790,6 +793,7 @@ def detalle_mes(request, year, month):
                     'fin_full': end_dt.strftime('%d/%m/%Y %H:%M'),
                     'fin_hm': end_dt.strftime('%H:%M'),
                     'rutina_nombre': ot.rutina.nombre if ot.rutina else "OT",
+                    'activos_nombres': activos_nombres,
                     'duration_pos': duration_pos
                 }
                 
@@ -1105,6 +1109,39 @@ def api_get_notifications(request):
     return JsonResponse({'status': 'success', 'notificaciones': data})
 
 @staff_member_required
+def api_delete_ots(request):
+    """
+    API para eliminar una o más Órdenes de Trabajo desde el cronograma.
+    Solo permite eliminar OTs que estén en estado 'PROGRAMADA'.
+    """
+    import json
+    from .models import OrdenTrabajo
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            ot_ids = data.get('ot_ids', [])
+            if not ot_ids:
+                return JsonResponse({'status': 'error', 'message': 'No se proporcionaron IDs de OT.'}, status=400)
+            
+            # Filtro de seguridad: Solo ESPERA o PROGRAMADA
+            ots_a_eliminar = OrdenTrabajo.objects.filter(id__in=ot_ids, estado__in=['ESPERA', 'PROGRAMADA'])
+            count = ots_a_eliminar.count()
+            
+            if count == 0:
+                return JsonResponse({'status': 'error', 'message': 'No se encontraron OTs válidas para eliminar (deben estar en estado ESPERA o PROGRAMADA).'}, status=400)
+            
+            ots_a_eliminar.delete()
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Se han eliminado {count} órdenes correctamente.'
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido.'}, status=405)
+
+
+@staff_member_required
 @require_POST
 @csrf_exempt
 def api_mark_notification_read(request):
@@ -1120,3 +1157,111 @@ def api_mark_notification_read(request):
         return JsonResponse({'status': 'success'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@staff_member_required
+def programar_rutina_wizard(request):
+    """
+    Vista premium para la programación visual de rutinas.
+    """
+    from .models import Rutina, Horario, Programacion
+    from activos.models import Ubicacion, Categoria as CategoriaActivo
+    from django.shortcuts import get_object_or_404
+    from datetime import datetime
+    
+    rutina_id = request.GET.get('rutina')
+    rutina = get_object_or_404(Rutina, id=rutina_id) if rutina_id else None
+    
+    today = timezone.now().date()
+    
+    if request.method == 'POST':
+        import json
+        try:
+            data = json.loads(request.body)
+            # 1. Crear Programación
+            prog = Programacion.objects.create(
+                rutina_id=data['rutina_id'],
+                horario_id=data['horario_id'],
+                fecha_inicio=datetime.strptime(data['fecha_inicio'], '%Y-%m-%d').date(),
+                fecha_fin=datetime.strptime(data['fecha_fin'], '%Y-%m-%d').date() if data.get('fecha_fin') else None,
+                procesada=False
+            )
+            
+            # 2. Agregar Áreas y Activos
+            if data.get('areas'):
+                prog.areas.set(data['areas'])
+            if data.get('activos'):
+                prog.activos.set(data['activos'])
+            
+            # 3. Generar Órdenes (Síncrono para respuesta inmediata en wizard)
+            count = prog.generar_ordenes()
+            
+            return JsonResponse({
+                'status': 'success',
+                'prog_id': prog.id,
+                'count': count,
+                'message': f'¡Éxito! Se han generado {count} órdenes de trabajo.'
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    # Datos para el wizard (GET)
+    horarios = Horario.objects.all().prefetch_related('dias')
+    ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
+    categorias_activos = CategoriaActivo.objects.filter(padre__isnull=True).order_by('nombre')
+    
+    # Rutinas para el buscador inicial si no viene por GET
+    rutinas = Rutina.objects.all().select_related('categoria', 'frecuencia')
+
+    return render(request, 'mantenimiento/visual_scheduler.html', {
+        'rutina_preselected': rutina,
+        'rutinas': rutinas,
+        'horarios': horarios,
+        'ubicaciones_roots': ubicaciones_roots,
+        'categorias_activos': categorias_activos,
+        'today': today,
+    })
+
+@staff_member_required
+def api_get_assets_wizard(request):
+    """
+    API para filtrar activos en el wizard de programación.
+    """
+    from activos.models import Activo, Ubicacion
+    area_ids = request.GET.getlist('areas[]')
+    cat_ids = request.GET.getlist('categorias[]')
+    
+    # Expandir áreas
+    all_area_ids = set()
+    for aid in area_ids:
+        try:
+            u = Ubicacion.objects.get(id=aid)
+            all_area_ids.update(u.get_descendants(include_self=True).values_list('id', flat=True))
+        except: continue
+    
+    filtros = {}
+    if all_area_ids:
+        filtros['ubicacion_id__in'] = all_area_ids
+    if cat_ids:
+        # Relacionar Activo -> Modelo -> Categoria (que sea o descienda de las seleccionadas)
+        from activos.models import Categoria as CategoriaActivo
+        all_cat_ids = set()
+        for cid in cat_ids:
+            try:
+                c = CategoriaActivo.objects.get(id=cid)
+                all_cat_ids.update(c.get_descendants(include_self=True).values_list('id', flat=True))
+            except: continue
+        filtros['modelo__categoria_id__in'] = all_cat_ids
+    
+    activos = Activo.objects.filter(**filtros).select_related('ubicacion', 'modelo__categoria')[:200]
+    
+    data = []
+    for a in activos:
+        data.append({
+            'id': a.id,
+            'nombre': a.nombre,
+            'codigo': a.codigo_interno or a.serie or 'S/C',
+            'ubicacion': a.ubicacion.nombre if a.ubicacion else 'S/U',
+            'categoria': a.modelo.categoria.nombre if (a.modelo and a.modelo.categoria) else 'S/C'
+        })
+    
+    return JsonResponse({'status': 'success', 'activos': data})

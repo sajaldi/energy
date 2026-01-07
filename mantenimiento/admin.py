@@ -200,20 +200,26 @@ class OrdenTrabajoInline(admin.TabularInline):
 class RutinaAdmin(ImportExportModelAdmin):
     list_per_page = 50
     resource_class = RutinaResource
-    list_display = ('nombre', 'categoria', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos')
+    list_display = ('nombre', 'categoria', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos', 'programar_rutina_link')
     list_filter = ('categoria', 'frecuencia')
     search_fields = ('nombre', 'procedimiento_estandar__nombre', 'herramientas')
     autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar')
-    readonly_fields = ('nombre', 'creado_en', 'actualizado_en')
+    readonly_fields = ('nombre', 'creado_en', 'actualizado_en', 'programar_rutina_link')
     inlines = [] # Temporalmente vacío hasta que verifiquemos si requiere inlines
     actions = ['exportar_seleccionadas_action']
+
+    def programar_rutina_link(self, obj):
+        if not obj.id: return "-"
+        url = reverse('mantenimiento:programar_rutina_wizard') + f'?rutina={obj.id}'
+        return mark_safe(f'<a class="button" href="{url}" style="background: #10b981; color: white; font-weight: 700; padding: 5px 15px; border-radius: 4px; text-decoration: none;">🗓️ PROGRAMAR ESTA RUTINA</a>')
+    programar_rutina_link.short_description = 'Programación'
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('categoria', 'frecuencia')
     
     fieldsets = (
         ('Identificación', {
-            'fields': ('nombre', 'categoria', 'frecuencia')
+            'fields': (('nombre', 'programar_rutina_link'), 'categoria', 'frecuencia')
         }),
         ('Manual de Pasos', {
             'fields': ('procedimiento_estandar', 'herramientas')
