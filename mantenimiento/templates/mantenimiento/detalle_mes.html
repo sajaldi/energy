@@ -376,8 +376,8 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             background: rgba(0, 0, 0, 0.5);
             z-index: 2000;
             align-items: center;
@@ -720,8 +720,8 @@
                             {% for ot in c.ots %}
                             <div class="ot-pill status-{{ ot.estado }} duration-{{ ot.duration_pos }}"
                                 data-ot-id="{{ ot.id }}" data-ot-date="{{ ot.inicio_iso }}"
-                                data-asset-id="{{ asset.id }}" onclick="selectOT(event, this)"
-                                oncontextmenu="showContextMenu(event, this)"
+                                data-ot-assets="{{ ot.activos_nombres }}" data-asset-id="{{ asset.id }}"
+                                onclick="selectOT(event, this)" oncontextmenu="showContextMenu(event, this)"
                                 title="OT #{{ ot.id }}&#10;Estado: {{ ot.estado }}&#10;Rutina: {{ ot.rutina_nombre }}&#10;Inicio: {{ ot.inicio_hm }}&#10;Fin: {{ ot.fin_full }}">
                                 {% if ot.estado == 'REALIZADA' %}
                                 <ion-icon name="checkmark-sharp" style="pointer-events: none;"></ion-icon>
@@ -773,6 +773,11 @@
             <ion-icon name="eye-outline"></ion-icon>
             Ver Detalle
         </div>
+        <div class="menu-item" onclick="deleteOTs()"
+            style="color: var(--negative); border-top: 1px solid var(--border);">
+            <ion-icon name="trash-outline"></ion-icon>
+            Eliminar Orden(es)
+        </div>
     </div>
 
     <!-- UI: Reschedule Modal (Legacy backup) -->
@@ -790,8 +795,8 @@
 
     <script>
         let pendingMoves = null; // {ids, date}
-        const currentYear = {{ year|default: 2026 }};
-        const currentMonth = {{ month|default: 1 }};
+        const currentYear = {{ year|default:2026 }};
+        const currentMonth = {{ month|default:1 }};
 
         // Persistencia del árbol
         document.addEventListener('DOMContentLoaded', () => {
@@ -929,6 +934,7 @@
                     id: otId,
                     date: element.dataset.otDate,
                     assetId: element.dataset.assetId,
+                    assets: element.dataset.otAssets,
                     element: element
                 });
                 lastSelectedId = otId;
@@ -1021,8 +1027,8 @@
             }
 
             menu.style.display = 'block';
-            menu.style.left = e.pageX + 'px';
-            menu.style.top = e.pageY + 'px';
+            menu.style.left = e.clientX + 'px';
+            menu.style.top = e.clientY + 'px';
 
             document.addEventListener('click', hideContextMenu);
         }
@@ -1165,6 +1171,44 @@
                 .catch(err => {
                     console.error(err);
                     alert('Error de red al intentar fusionar las órdenes.');
+                });
+        }
+
+        function deleteOTs() {
+            if (selectedOTs.size === 0) return;
+
+            let msg = '';
+            if (selectedOTs.size === 1) {
+                const ot = selectedOTs.get(Array.from(selectedOTs.keys())[0]);
+                msg = `¿Estás seguro de que deseas eliminar esta orden de trabajo (OT #${ot.id})?\n\n` +
+                    `Activos asociados: ${ot.assets || 'Ninguno'}`;
+            } else {
+                msg = `¿Estás seguro de que deseas eliminar las ${selectedOTs.size} órdenes seleccionadas?`;
+            }
+
+            if (!confirm(msg)) return;
+
+            const ids = Array.from(selectedOTs.keys());
+
+            fetch('{% url "mantenimiento:api_delete_ots" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ ot_ids: ids })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        location.reload();
+                    } else {
+                        alert('Error al eliminar: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Error de red al intentar eliminar las órdenes.');
                 });
         }
     </script>

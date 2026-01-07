@@ -5,17 +5,20 @@ from django.contrib.admin.views.decorators import staff_member_required
 from .models import Actividad, Proyecto
 import json
 from datetime import datetime, timedelta
+from core.ai_utils import ask_gemini
 
 @csrf_exempt
 @staff_member_required
 def crear_actividad_api(request):
-    # ... (existing code remains same)
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             nombre = data.get('nombre')
             proyecto_id = data.get('proyecto_id')
             prioridad = data.get('prioridad', 'MEDIA')
+            fecha_inicio = data.get('fecha_inicio')
+            fecha_fin = data.get('fecha_fin')
+            predecesora_id = data.get('predecesora_id')
             
             if not nombre or not proyecto_id:
                 return JsonResponse({'status': 'error', 'message': 'Faltan datos obligatorios'}, status=400)
@@ -25,25 +28,61 @@ def crear_actividad_api(request):
             ultimo_orden = Actividad.objects.filter(proyecto=proyecto).order_by('-orden').first()
             orden = (ultimo_orden.orden + 1) if ultimo_orden else 1
             
+            predecesora = None
+            if predecesora_id:
+                predecesora = Actividad.objects.filter(pk=predecesora_id).first()
+
             actividad = Actividad.objects.create(
                 proyecto=proyecto,
                 nombre=nombre,
                 prioridad=prioridad,
                 estado='PENDIENTE',
                 orden=orden,
-                asignado_a=request.user
+                asignado_a=request.user,
+                fecha_inicio=fecha_inicio,
+                fecha_fin=fecha_fin,
+                predecesora=predecesora
             )
+            actividad.refresh_from_db()
             
             return JsonResponse({
                 'status': 'success',
                 'actividad': {
                     'id': actividad.id,
                     'nombre': actividad.nombre,
+                    'fecha_inicio': actividad.fecha_inicio.isoformat() if actividad.fecha_inicio else None,
+                    'fecha_fin': actividad.fecha_fin.isoformat() if actividad.fecha_fin else None,
+                    'dependencies': [str(actividad.predecesora.id)] if actividad.predecesora else [],
                     'color': actividad.color,
                     'estado': actividad.get_estado_display(),
-                    'proyecto_codigo': proyecto.codigo
                 }
             })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+@csrf_exempt
+@staff_member_required
+def actualizar_actividad_api(request, actividad_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            actividad = get_object_or_404(Actividad, pk=actividad_id)
+            
+            if 'fecha_inicio' in data:
+                actividad.fecha_inicio = data.get('fecha_inicio')
+            if 'fecha_fin' in data:
+                actividad.fecha_fin = data.get('fecha_fin')
+            if 'nombre' in data:
+                actividad.nombre = data.get('nombre')
+            if 'estado' in data:
+                actividad.estado = data.get('estado')
+            if 'predecesora_id' in data:
+                pid = data.get('predecesora_id')
+                actividad.predecesora = Actividad.objects.filter(pk=pid).first() if pid else None
+                
+            actividad.save()
+            return JsonResponse({'status': 'success', 'message': 'Actividad actualizada'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
@@ -113,3 +152,43 @@ def cronograma_proyecto(request, proyecto_id):
         'meses_header': meses_header,
         'year': year,
     })
+
+@staff_member_required
+def gantt_proyecto(request, proyecto_id):
+    proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    actividades = proyecto.actividades.all().order_by('orden')
+    
+    tasks = []
+    for act in actividades:
+        tasks.append({
+            'id': str(act.id),
+            'name': act.nombre,
+            'start': act.fecha_inicio.isoformat() if act.fecha_inicio else (act.creado_en.date().isoformat()),
+            'end': act.fecha_fin.isoformat() if act.fecha_fin else ((act.fecha_inicio or act.creado_en.date()) + timedelta(days=1)).isoformat(),
+            'progress': 100 if act.estado == 'COMPLETADA' else 0,
+            'dependencies': [str(act.predecesora.id)] if act.predecesora else [],
+            'custom_class': f'gantt-item-{act.prioridad.lower()}'
+        })
+    
+    return render(request, 'proyectos/gantt_proyecto.html', {
+        'proyecto': proyecto,
+        'tasks_json': json.dumps(tasks),
+        'actividades': actividades,
+    })
+
+@csrf_exempt
+@staff_member_required
+def chatbot_asistente(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            pregunta = data.get('mensaje')
+            if not pregunta:
+                return JsonResponse({'status': 'error', 'message': 'Mensaje vacío'}, status=400)
+            
+            respuesta = ask_gemini(pregunta)
+            return JsonResponse({'status': 'success', 'respuesta': respuesta})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+    return render(request, 'proyectos/chatbot_asistente.html')

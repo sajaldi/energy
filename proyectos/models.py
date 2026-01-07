@@ -16,7 +16,12 @@ class Proyecto(models.Model):
         ('CANCELADO', 'Cancelado'),
     )
     
-    codigo = models.CharField(max_length=50, unique=True, help_text="Código único del proyecto")
+    codigo = models.CharField(
+        max_length=50, 
+        unique=True, 
+        blank=True,
+        help_text="Código único del proyecto (se genera automáticamente si se deja vacío, formato: PROY-YYYY-NNNN)"
+    )
     nombre = models.CharField(max_length=200)
     descripcion = models.TextField(blank=True)
     nota = models.TextField(blank=True, help_text="Notas internas del proyecto")
@@ -49,6 +54,32 @@ class Proyecto(models.Model):
     
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Auto-generar código si está vacío
+        if not self.codigo:
+            from django.utils import timezone
+            # Formato: PROY-YYYY-NNNN (ej: PROY-2026-0001)
+            year = timezone.now().year
+            # Buscar el último proyecto del año
+            last_project = Proyecto.objects.filter(
+                codigo__startswith=f'PROY-{year}-'
+            ).order_by('-codigo').first()
+            
+            if last_project:
+                # Extraer el número del último código
+                try:
+                    last_num = int(last_project.codigo.split('-')[-1])
+                    next_num = last_num + 1
+                except (ValueError, IndexError):
+                    next_num = 1
+            else:
+                next_num = 1
+            
+            # Generar código con padding de 4 dígitos
+            self.codigo = f'PROY-{year}-{next_num:04d}'
+        
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
@@ -139,6 +170,14 @@ class Actividad(models.Model):
         on_delete=models.SET_NULL, 
         null=True, blank=True,
         related_name='actividades_asignadas'
+    )
+    
+    predecesora = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='sucesoras',
+        verbose_name="Actividad Predecesora"
     )
     
     orden = models.PositiveIntegerField(default=0, help_text="Orden de ejecución")

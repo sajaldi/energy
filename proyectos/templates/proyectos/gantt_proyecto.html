@@ -1,0 +1,520 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gantt: {{ proyecto.nombre }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .header-title h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .header-title span {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .view-btn {
+            padding: 6px 16px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .btn-link {
+            background: white;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-link.on {
+            background: #fffbeb;
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+            border: none;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            z-index: 10;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            box-sizing: border-box;
+            background: #f8fafc;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        .activity-list {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .activity-item {
+            padding: 8px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            height: 30px;
+            box-sizing: border-box;
+        }
+
+        .color-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .gantt-target {
+            flex: 1;
+            overflow: auto;
+            background: white;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            width: 450px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header h4 {
+            margin: 0 0 16px 0;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        .status-bar {
+            padding: 8px 24px;
+            font-size: 0.85rem;
+            background: #fffbeb;
+            color: #92400e;
+            border-bottom: 1px solid #fef3c7;
+            display: none;
+        }
+
+        /* Custom Frappe Gantt Styles */
+        .frappe-gantt .bar-progress {
+            fill: var(--primary);
+        }
+
+        .frappe-gantt .bar-label {
+            font-weight: 600;
+            font-size: 11px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="header-title">
+            <h1>{{ proyecto.nombre }}</h1>
+            <span>{{ proyecto.codigo }} - Cronograma Interactivo</span>
+        </div>
+        <div class="controls">
+            <button id="btn-link-mode" onclick="toggleLinkMode()" class="view-btn btn-link">
+                🔗 Modo Vinculación: OFF
+            </button>
+            <button onclick="showCreateModal()" class="view-btn btn-success">
+                + Nueva Actividad
+            </button>
+            <div class="view-buttons"
+                style="border-right: 1px solid var(--border); padding-right: 12px; margin-right: 12px;">
+                <button onclick="changeView('Day', this)" class="view-btn">Día</button>
+                <button onclick="changeView('Week', this)" class="view-btn active">Semana</button>
+                <button onclick="changeView('Month', this)" class="view-btn">Mes</button>
+            </div>
+            <button onclick="window.close()" class="view-btn"
+                style="background: #ef4444; color: white; border-color: #ef4444;">Cerrar</button>
+        </div>
+    </header>
+
+    <div id="link-status" class="status-bar">
+        Seleccione la actividad predecesora...
+    </div>
+
+    <!-- Modal para Nueva Actividad -->
+    <div id="gantt-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4>Nueva Actividad</h4>
+            </div>
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="modal-name" class="form-control">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Inicio</label>
+                    <input type="date" id="modal-start" class="form-control">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Fin</label>
+                    <input type="date" id="modal-end" class="form-control">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Predecesora (Dependencia)</label>
+                <select id="modal-predecesora" class="form-control">
+                    <option value="">(Ninguna)</option>
+                    {% for act in actividades %}
+                    <option value="{{ act.id }}">{{ act.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button onclick="hideModal()" class="view-btn">Cancelar</button>
+                <button onclick="createActivity()" class="view-btn btn-success"
+                    style="background: var(--primary);">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header">Actividades</div>
+            <div class="activity-list">
+                {% for act in actividades %}
+                <div class="activity-item" title="{{ act.nombre }}">
+                    <span class="color-dot" style="background: {{ act.color }}"></span>
+                    {{ act.nombre }}
+                </div>
+                {% empty %}
+                <div style="padding: 20px; text-align: center; color: var(--text-muted);">Sin actividades</div>
+                {% endfor %}
+            </div>
+        </div>
+        <div id="gantt" class="gantt-target"></div>
+    </div>
+
+    <script id="tasks-data" type="application/json">{{ tasks_json|safe }}</script>
+
+    <script>
+        const tasks = JSON.parse(document.getElementById('tasks-data').textContent);
+        let gantt;
+        let isLinkingMode = false;
+        let linkingSourceTask = null;
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            const modalStart = document.getElementById('modal-start');
+            const modalEnd = document.getElementById('modal-end');
+            if (modalStart) modalStart.value = today;
+            if (modalEnd) modalEnd.value = today;
+
+            initGantt();
+        });
+
+        function initGantt() {
+            if (!tasks.length) {
+                document.getElementById('gantt').innerHTML = '<div style="padding: 40px; text-align: center; color: var(--text-muted);">No hay actividades con fechas. Use el botón superior para crear la primera.</div>';
+                return;
+            }
+
+            gantt = new Gantt("#gantt", tasks, {
+                on_date_change: function (task, start, end) {
+                    updateActivity(task.id, {
+                        fecha_inicio: start.toISOString().split('T')[0],
+                        fecha_fin: end.toISOString().split('T')[0]
+                    });
+                },
+                on_click: function (task) {
+                    if (isLinkingMode) {
+                        if (!linkingSourceTask) {
+                            linkingSourceTask = task;
+                            document.getElementById('link-status').innerText = `Predecesora seleccionada: "${task.name}". Ahora haga clic en la actividad siguiente...`;
+                        } else {
+                            if (linkingSourceTask.id === task.id) {
+                                alert("Una actividad no puede ser su propia predecesora.");
+                                return;
+                            }
+                            if (confirm(`¿Vincular "${linkingSourceTask.name}" como predecesora de "${task.name}"?`)) {
+                                updateActivity(task.id, { predecesora_id: linkingSourceTask.id }, true);
+                            }
+                            toggleLinkMode();
+                        }
+                    }
+                },
+                view_mode: 'Week',
+                language: 'es',
+                bar_height: 20,
+                padding: 10
+            });
+
+            // Sync Sidebar Header Height
+            setTimeout(syncHeaderHeight, 100);
+
+            // Implement Drag-to-Scroll
+            const container = document.getElementById('gantt');
+            let isDragging = false;
+            let startX;
+            let scrollLeft;
+
+            container.style.cursor = 'grab';
+
+            container.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('grid-row') || e.target.classList.contains('grid-header') || e.target.tagName === 'svg') {
+                    isDragging = true;
+                    container.style.cursor = 'grabbing';
+                    startX = e.pageX - container.offsetLeft;
+                    scrollLeft = container.scrollLeft;
+                }
+            });
+
+            container.addEventListener('mouseleave', () => {
+                isDragging = false;
+                container.style.cursor = 'grab';
+            });
+
+            container.addEventListener('mouseup', () => {
+                isDragging = false;
+                container.style.cursor = 'grab';
+            });
+
+            container.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const x = e.pageX - container.offsetLeft;
+                const walk = (x - startX) * 2;
+                container.scrollLeft = scrollLeft - walk;
+            });
+
+            // Sidebar and Gantt Scroll Sync
+            const activityList = document.querySelector('.activity-list');
+            const ganttTarget = document.getElementById('gantt');
+
+            // Sync vertical scroll (Gantt -> Sidebar only)
+            ganttTarget.addEventListener('scroll', () => {
+                activityList.scrollTop = ganttTarget.scrollTop;
+            });
+        }
+
+        function syncHeaderHeight() {
+            const ganttHeader = document.querySelector('.grid-header');
+            const sidebarHeader = document.querySelector('.sidebar-header');
+            if (ganttHeader && sidebarHeader) {
+                sidebarHeader.style.height = ganttHeader.getBoundingClientRect().height + 'px';
+            }
+        }
+
+        function toggleLinkMode() {
+            isLinkingMode = !isLinkingMode;
+            const btn = document.getElementById('btn-link-mode');
+            const status = document.getElementById('link-status');
+
+            if (isLinkingMode) {
+                btn.classList.add('on');
+                btn.innerText = '🔗 Modo Vinculación: ON';
+                status.style.display = 'block';
+                status.innerText = 'Seleccione la actividad predecesora...';
+                linkingSourceTask = null;
+            } else {
+                btn.classList.remove('on');
+                btn.innerText = '🔗 Modo Vinculación: OFF';
+                status.style.display = 'none';
+                linkingSourceTask = null;
+            }
+        }
+
+        function showCreateModal() {
+            document.getElementById('gantt-modal').style.display = 'flex';
+        }
+
+        function hideModal() {
+            document.getElementById('gantt-modal').style.display = 'none';
+        }
+
+        function createActivity() {
+            const name = document.getElementById('modal-name').value;
+            const start = document.getElementById('modal-start').value;
+            const end = document.getElementById('modal-end').value;
+            const predecesora_id = document.getElementById('modal-predecesora').value;
+
+            if (!name) return alert('Ingrese un nombre');
+
+            fetch('{% url "proyectos:crear_actividad_api" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    proyecto_id: '{{ proyecto.pk }}',
+                    nombre: name,
+                    fecha_inicio: start,
+                    fecha_fin: end,
+                    predecesora_id: predecesora_id || null
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                });
+        }
+
+        function updateActivity(id, data, reload = false) {
+            let url = '{% url "proyectos:actualizar_actividad_api" 0 %}'.replace('0', id);
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(data)
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (reload) location.reload();
+                        console.log('Actualizado');
+                    } else {
+                        alert('Error al actualizar: ' + data.message);
+                    }
+                });
+        }
+
+        function changeView(mode, btn) {
+            if (gantt) {
+                gantt.change_view_mode(mode);
+                setTimeout(syncHeaderHeight, 10);
+            }
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+    </script>
+</body>
+
+</html>
