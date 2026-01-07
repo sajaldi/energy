@@ -17,4 +17,8 @@ urlpatterns = [
     path('api/notifications/read/', views.api_mark_notification_read, name='api_mark_notification_read'),
     path('programar-rutina/', views.programar_rutina_wizard, name='programar_rutina_wizard'),
     path('api/get-assets-wizard/', views.api_get_assets_wizard, name='api_get_assets_wizard'),
+    path('app/cronograma/', views.mobile_cronograma, name='mobile_cronograma'),
+    path('app/programacion/<int:pk>/', views.mobile_programacion_detalle, name='mobile_programacion_detalle'),
+    path('app/ot/<int:pk>/', views.mobile_ot_detalle, name='mobile_ot_detalle'),
+    path('app/aviso/crear/', views.mobile_crear_aviso, name='mobile_crear_aviso'),
 ]

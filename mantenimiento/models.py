@@ -2,7 +2,7 @@ from django.db import models
 from datetime import datetime, date, timedelta
 from colorfield.fields import ColorField
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.utils import timezone
 
 class Categoria(models.Model):
@@ -501,7 +501,8 @@ class OrdenTrabajo(models.Model):
     prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA', db_index=True)
     rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='ordenes', null=True, blank=True)
     aviso = models.ForeignKey(Aviso, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes')
-    tecnico = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asignadas')
+    tecnico = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asignadas', help_text="Técnico específico asignado")
+    equipo = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_equipo', help_text="Equipo o Grupo de trabajo asignado")
     
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='ordenes_trabajo', null=True, blank=True)
     activos = models.ManyToManyField('activos.Activo', related_name='ordenes_trabajo', blank=True)

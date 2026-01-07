@@ -21,4 +21,6 @@ urlpatterns = [
     path('api/ubicaciones-children/<int:parent_id>/', views.api_ubicaciones_children, name='api_ubicaciones_children'),
     path('api/ubicacion-detalle/<int:ubicacion_id>/', views.api_ubicacion_detalle, name='api_ubicacion_detalle'),
     path('api/activo-detalle/<int:activo_id>/', views.api_activo_detalle, name='api_activo_detalle'),
+    path('app/activo/<int:pk>/', views.mobile_activo_detalle, name='mobile_activo_detalle'),
+    path('app/buscar/', views.mobile_busqueda_activos, name='mobile_busqueda'),
 ]

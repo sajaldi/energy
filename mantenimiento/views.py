@@ -1,15 +1,17 @@
 
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from .models import OrdenTrabajo, Rutina, Categoria
+from .models import OrdenTrabajo, Rutina, Categoria, Programacion, Aviso # NUEVO: Aviso
+from activos.models import Activo # NUEVO: Activo
 from django.utils import timezone
 from datetime import datetime, date, timedelta
 import collections
 import calendar
 import math
+from django.db.models import Count, Q, Min
 
 def calendario_mantenimiento(request):
     year = int(request.GET.get('year', date.today().year))
@@ -1265,3 +1267,152 @@ def api_get_assets_wizard(request):
         })
     
     return JsonResponse({'status': 'success', 'activos': data})
+
+
+@staff_member_required
+def mobile_cronograma(request):
+    """
+    Vista de cronograma por programación optimizada para móviles.
+    Muestra el progreso y próximas fechas de cada rutina programada.
+    """
+    from django.db.models import Count, Q, Min
+    # Filtro base para técnicos
+    user_filter = Q()
+    if not request.user.is_superuser:
+        user_groups = request.user.groups.all()
+        user_filter = Q(ordenes__tecnico=request.user) | Q(ordenes__equipo__in=user_groups)
+
+    # Cargamos las programaciones con sus estadísticas de OTs filtradas si es necesario
+    programaciones_query = Programacion.objects.select_related(
+        'rutina__frecuencia', 
+        'rutina__categoria'
+    )
+    
+    if not request.user.is_superuser:
+        programaciones_query = programaciones_query.filter(user_filter).distinct()
+
+    programaciones = programaciones_query.annotate(
+        total_ots=Count('ordenes', filter=user_filter if not request.user.is_superuser else None),
+        completas_ots=Count('ordenes', filter=(Q(ordenes__estado='REALIZADA') & user_filter) if not request.user.is_superuser else Q(ordenes__estado='REALIZADA')),
+        proxima_ot=Min('ordenes__inicio_programado', filter=(Q(ordenes__inicio_programado__gte=timezone.now()) & user_filter) if not request.user.is_superuser else Q(ordenes__inicio_programado__gte=timezone.now()))
+    ).order_by('rutina__nombre')
+
+    # Calculamos porcentaje manualmente para el template
+    for p in programaciones:
+        if p.total_ots > 0:
+            p.progreso_porcentaje = int((p.completas_ots / p.total_ots) * 100)
+        else:
+            p.progreso_porcentaje = 0
+
+    context = {
+        'programaciones': programaciones,
+    }
+    return render(request, 'mantenimiento/mobile_cronograma.html', context)
+
+
+@staff_member_required
+def mobile_programacion_detalle(request, pk):
+    """
+    Vista detallada de una programación específica para móviles.
+    Muestra todas las OTs agrupadas por mes.
+    """
+    from django.shortcuts import get_object_or_404
+    programacion = get_object_or_404(Programacion, pk=pk)
+    
+    ots_query = programacion.ordenes.all()
+    if not request.user.is_superuser:
+        ots_query = ots_query.filter(
+            Q(tecnico=request.user) | Q(equipo__in=request.user.groups.all())
+        ).distinct()
+        
+    ots = ots_query.order_by('inicio_programado')
+    
+    # Agrupar por mes
+    meses_dict = collections.defaultdict(list)
+    for ot in ots:
+        mes_key = ot.inicio_programado.strftime('%m-%Y')
+        meses_dict[mes_key].append(ot)
+    
+    # Formatear para el template
+    meses_data = []
+    meses_nombres = {
+        '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
+        '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
+        '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+    }
+    
+    # Ordenar las llaves de meses cronológicamente
+    for mes_key in sorted(meses_dict.keys(), key=lambda x: datetime.strptime(x, '%m-%Y')):
+        m_num, y_num = mes_key.split('-')
+        meses_data.append({
+            'nombre': f"{meses_nombres[m_num]} {y_num}",
+            'ots': meses_dict[mes_key]
+        })
+
+    context = {
+        'programacion': programacion,
+        'meses_data': meses_data,
+    }
+    return render(request, 'mantenimiento/mobile_cronograma_detalle.html', context)
+
+
+@staff_member_required
+def mobile_ot_detalle(request, pk):
+    """
+    Vista detallada de una Orden de Trabajo optimizada para móviles.
+    """
+    from django.shortcuts import get_object_or_404
+    ot = get_object_or_404(OrdenTrabajo.objects.select_related(
+        'rutina', 'ubicacion', 'tecnico', 'aviso', 'programacion', 'cierre'
+    ).prefetch_related('activos'), pk=pk)
+    
+    context = {
+        'ot': ot,
+    }
+    return render(request, 'mantenimiento/mobile_ot_detalle.html', context)
+
+
+@staff_member_required
+def mobile_crear_aviso(request):
+    """
+    Crea un Aviso (Solicitud de Mantenimiento) desde el móvil.
+    """
+    activo_id = request.GET.get('activo')
+    activo = None
+    if activo_id:
+        activo = get_object_or_404(Activo, id=activo_id)
+        
+    if request.method == 'POST':
+        descripcion = request.POST.get('descripcion')
+        prioridad = request.POST.get('prioridad', 'MEDIA')
+        tipo = request.POST.get('tipo', 'SOLICITUD')
+        foto = request.FILES.get('foto')
+        
+        # Si viene de un activo, usamos su ubicación.
+        ubicacion = activo.ubicacion if activo else None
+        
+        if not ubicacion:
+            # Fallback a la ubicación del activo si se perdió o no se determinó
+            return JsonResponse({'success': False, 'error': 'No se pudo determinar la ubicación'}, status=400)
+            
+        aviso = Aviso.objects.create(
+            activo=activo,
+            ubicacion=ubicacion,
+            descripcion=descripcion,
+            prioridad=prioridad,
+            tipo=tipo,
+            solicitante=request.user,
+            foto=foto
+        )
+        
+        # Redirigir a la ficha del activo tras crear el aviso
+        if activo:
+            return redirect('activos:mobile_activo_detalle', pk=activo.id)
+        return redirect('core:mobile_dashboard')
+
+    context = {
+        'activo': activo,
+        'prioridades': Aviso.PRIORIDAD_CHOICES,
+        'tipos': Aviso.TIPO_CHOICES,
+    }
+    return render(request, 'mantenimiento/mobile_crear_aviso.html', context)

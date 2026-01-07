@@ -182,7 +182,7 @@ class OrdenTrabajoInline(admin.TabularInline):
     model = OrdenTrabajo
     extra = 0
     raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion')
-    fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'tecnico', 'inicio_programado', 'estado')
+    fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'tecnico', 'equipo', 'inicio_programado', 'estado')
     readonly_fields = ('tipo', 'prioridad', 'rutina', 'ubicacion', 'get_activos_list', 'inicio_programado')
     can_delete = True
     show_change_link = True
@@ -194,7 +194,7 @@ class OrdenTrabajoInline(admin.TabularInline):
 
     def get_queryset(self, request):
         # Optimizamos ubicación profundamente para evitar N+1 en la reconstrucción de la ruta completa
-        return super().get_queryset(request).select_related('rutina', 'ubicacion__padre__padre', 'tecnico').prefetch_related('activos')
+        return super().get_queryset(request).select_related('rutina', 'ubicacion__padre__padre', 'tecnico', 'equipo').prefetch_related('activos')
 
 @admin.register(Rutina)
 class RutinaAdmin(ImportExportModelAdmin):
@@ -494,12 +494,12 @@ class MovimientoInventarioInline(admin.TabularInline):
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'estado', 'registrar_salida_link')
-    list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico')
+    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'equipo', 'estado', 'registrar_salida_link')
+    list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'equipo')
     readonly_fields = ('registrar_salida_link',)
-    list_select_related = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
+    list_select_related = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
     search_fields = ('id', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
-    autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
+    autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
     date_hierarchy = 'inicio_programado'
     raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
     filter_horizontal = ('activos',)
@@ -507,7 +507,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion'
+            'rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion'
         ).prefetch_related('activos')
 
     def get_activos_format(self, obj):

@@ -396,3 +396,45 @@ def api_activo_detalle(request, activo_id):
     }
     
     return JsonResponse(data)
+
+
+@staff_member_required
+def mobile_activo_detalle(request, pk):
+    """
+    Vista detallada de un Activo optimizada para móviles.
+    """
+    activo = get_object_or_404(Activo.objects.select_related('modelo__marca', 'ubicacion', 'responsable'), pk=pk)
+    
+    # Obtener OTs relacionadas recientes
+    ots_recientes = activo.ordenes_trabajo.all().order_by('-inicio_programado')[:5]
+    
+    context = {
+        'activo': activo,
+        'ots_recientes': ots_recientes,
+    }
+    return render(request, 'activos/mobile_activo_detalle.html', context)
+
+
+@staff_member_required
+def mobile_busqueda_activos(request):
+    """
+    Buscador de activos optimizado para móviles.
+    """
+    query = request.GET.get('q', '').strip()
+    activos = []
+    
+    if query:
+        activos = Activo.objects.filter(
+            models.Q(nombre__icontains=query) | 
+            models.Q(codigo_interno__icontains=query) |
+            models.Q(serie__icontains=query)
+        ).select_related('ubicacion')[:20]
+        
+        # Si solo hay uno, redirigir directo
+        if activos.count() == 1:
+            return redirect('activos:mobile_activo_detalle', pk=activos[0].id)
+            
+    return render(request, 'activos/mobile_busqueda.html', {
+        'activos': activos,
+        'query': query
+    })

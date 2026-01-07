@@ -1,0 +1,296 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cronograma Móvil</title>
+    {% include 'core/pwa_tags.html' %}
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+
+    <style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --bg-body: #f0f2f5;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--dark);
+            margin: 0;
+            padding-bottom: 80px;
+        }
+
+        header {
+            background-color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .back-btn {
+            font-size: 24px;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+        }
+
+        .container {
+            padding: 15px;
+        }
+
+        .prog-card {
+            background: white;
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 15px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .prog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .prog-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .badge {
+            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-freq {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .badge-cat {
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .progress-section {
+            margin-bottom: 15px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .progress-bar-container {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s ease;
+        }
+
+        .next-date {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--primary);
+            font-weight: 600;
+            background: #eff6ff;
+            padding: 10px;
+            border-radius: 12px;
+        }
+
+        .next-date ion-icon {
+            font-size: 18px;
+        }
+
+        .status-pill {
+            display: inline-block;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: var(--light);
+            margin-top: 10px;
+        }
+
+        .status-pill.procesada {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        /* Bottom Tab Bar */
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+            padding-bottom: env(safe-area-inset-bottom);
+            z-index: 1000;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .tab-item.active {
+            color: var(--primary);
+        }
+
+        .tab-item ion-icon {
+            font-size: 24px;
+        }
+
+        .scan-fab {
+            width: 56px;
+            height: 56px;
+            background: var(--primary);
+            color: white;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
+            margin-top: -30px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a href="{% url 'core:mobile_dashboard' %}" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </a>
+        <h1>Cronograma de Mantenimiento</h1>
+    </header>
+
+    <div class="container">
+        {% for prog in programaciones %}
+        <a href="{% url 'mantenimiento:mobile_programacion_detalle' prog.id %}"
+            style="text-decoration: none; color: inherit;">
+            <div class="prog-card">
+                <div class="prog-header">
+                    <div class="prog-info">
+                        <h3>{{ prog.rutina.nombre }}</h3>
+                        <span class="badge badge-freq">{{ prog.rutina.frecuencia.nombre }}</span>
+                        <span class="badge badge-cat">{{ prog.rutina.categoria.nombre }}</span>
+                    </div>
+                    <div class="status-indicator">
+                        {% if prog.procesada %}
+                        <span class="status-pill procesada">Activa</span>
+                        {% else %}
+                        <span class="status-pill">Pendiente</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="progress-section">
+                    <div class="progress-label">
+                        <span>Progreso Anual</span>
+                        <span>{{ prog.completas_ots }} / {{ prog.total_ots }}</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: {{ prog.progreso_porcentaje }}%"></div>
+                    </div>
+                </div>
+
+                {% if prog.proxima_ot %}
+                <div class="next-date">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                    <span>Próxima: {{ prog.proxima_ot|date:"d M, Y" }}</span>
+                </div>
+                {% else %}
+                <div class="next-date" style="background: #f1f5f9; color: #64748b;">
+                    <ion-icon name="alert-circle-outline"></ion-icon>
+                    <span>No hay fechas futuras</span>
+                </div>
+                {% endif %}
+            </div>
+        </a>
+        {% empty %}
+        <div style="text-align: center; padding: 50px 20px; color: #64748b;">
+            <ion-icon name="calendar-clear-outline" style="font-size: 48px; opacity: 0.2;"></ion-icon>
+            <p>No hay programaciones configuradas.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="tab-bar">
+        <a href="{% url 'core:mobile_dashboard' %}" class="tab-item">
+            <ion-icon name="home-outline"></ion-icon>
+            <span>Dashboard</span>
+        </a>
+        <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item active">
+            <ion-icon name="calendar-outline"></ion-icon>
+            <span>Cronograma</span>
+        </a>
+
+        <div class="tab-item">
+            <a href="{% url 'core:mobile_scanner' %}" class="scan-fab" style="text-decoration: none;">
+                <ion-icon name="qr-code-outline"></ion-icon>
+            </a>
+        </div>
+
+        <a href="{% url 'activos:arbol_activos' %}" class="tab-item">
+            <ion-icon name="business-outline"></ion-icon>
+            <span>Activos</span>
+        </a>
+        <a href="{% url 'admin:index' %}" class="tab-item">
+            <ion-icon name="settings-outline"></ion-icon>
+            <span>Ajustes</span>
+        </a>
+    </nav>
+
+</body>
+
+</html>

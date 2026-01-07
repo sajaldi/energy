@@ -1,0 +1,299 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Escáner QR - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <style>
+        :root {
+            --primary: #007bff;
+            --dark: #212529;
+            --bg-overlay: rgba(0, 0, 0, 0.6);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            background-color: black;
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            font-size: 28px;
+            color: white;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        #reader {
+            flex: 1;
+            width: 100% !important;
+            height: 100% !important;
+            position: relative;
+        }
+
+        /* Ocultar elementos innecesarios de la librería */
+        #reader__dashboard,
+        #reader__status_span,
+        #reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
+
+        #reader__scan_region {
+            background: none !important;
+        }
+
+        .scanner-controls {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding: 20px;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: background 0.2s;
+        }
+
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 2px solid var(--primary);
+            border-radius: 20px;
+            box-shadow: 0 0 0 2000px var(--bg-overlay);
+            pointer-events: none;
+            z-index: 900;
+        }
+
+        .scanner-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 15px var(--primary);
+            animation: scan-line 2s infinite linear;
+        }
+
+        @keyframes scan-line {
+            0% {
+                top: 0%;
+            }
+
+            50% {
+                top: 100%;
+            }
+
+            100% {
+                top: 0%;
+            }
+        }
+
+        .status-msg {
+            position: absolute;
+            top: 100px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 1000;
+            padding: 10px;
+            pointer-events: none;
+        }
+
+        .status-pill {
+            display: inline-block;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            backdrop-filter: blur(5px);
+        }
+
+        /* Modal simple de error */
+        #error-toast {
+            position: fixed;
+            bottom: 120px;
+            left: 20px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 14px;
+            text-align: center;
+            transform: translateY(200px);
+            transition: transform 0.3s ease;
+            z-index: 2000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <button onclick="window.location.href='{% url 'core:mobile_dashboard' %}'" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+        <h1>Escáner de Equipos</h1>
+    </header>
+
+    <div class="status-msg">
+        <span class="status-pill">Enfoca el código QR del equipo</span>
+    </div>
+
+    <div id="reader"></div>
+    <div class="scanner-overlay"></div>
+
+    <div class="scanner-controls">
+        <button class="control-btn" id="flash-toggle">
+            <ion-icon name="flashlight-outline"></ion-icon>
+        </button>
+        <button class="control-btn" id="camera-switch">
+            <ion-icon name="camera-reverse-outline"></ion-icon>
+        </button>
+    </div>
+
+    <div id="error-toast"></div>
+
+    <script>
+        const html5QrCode = new Html5Qrcode("reader");
+        let isFlashOn = false;
+        let qrPaused = false;
+
+        function showToast(msg) {
+            const toast = document.getElementById('error-toast');
+            toast.innerText = msg;
+            toast.style.transform = 'translateY(0)';
+            setTimeout(() => {
+                toast.style.transform = 'translateY(200px)';
+            }, 3000);
+        }
+
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+
+        const onScanSuccess = (decodedText, decodedResult) => {
+            if (qrPaused) return;
+            qrPaused = true;
+
+            // Vibración si el dispositivo lo soporta
+            if (navigator.vibrate) navigator.vibrate(100);
+
+            // Llamar al backend para resolver
+            fetch(`{% url 'core:qr_resolver' %}?code=${encodeURIComponent(decodedText)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.redirect) {
+                        window.location.href = data.redirect;
+                    } else {
+                        showToast(data.error || 'Código no válido');
+                        setTimeout(() => { qrPaused = false; }, 2000);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showToast('Error de conexión');
+                    setTimeout(() => { qrPaused = false; }, 2000);
+                });
+        };
+
+        // Iniciar con la cámara trasera por defecto
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess
+        ).catch(err => {
+            console.error(err);
+            showToast("No se pudo acceder a la cámara o permisos denegados.");
+        });
+
+        // Toggle Linterna
+        document.getElementById('flash-toggle').addEventListener('click', () => {
+            try {
+                const track = html5QrCode.getRunningTrack();
+                if (track && track.getCapabilities().torch) {
+                    isFlashOn = !isFlashOn;
+                    track.applyConstraints({
+                        advanced: [{ torch: isFlashOn }]
+                    });
+                    document.getElementById('flash-toggle').style.color = isFlashOn ? '#ffc107' : 'white';
+                    document.getElementById('flash-toggle').style.background = isFlashOn ? 'rgba(255,193,7,0.2)' : 'rgba(255,255,255,0.2)';
+                } else {
+                    showToast("Flash no disponible en este navegador/dispositivo");
+                }
+            } catch (e) {
+                showToast("Error al intentar activar el flash");
+            }
+        });
+
+        // Switch Cámara (Simple reload for now)
+        document.getElementById('camera-switch').addEventListener('click', () => {
+            location.reload();
+        });
+    </script>
+</body>
+
+</html>
