@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Sum
-from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, ItemPresupuesto
+from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, ItemPresupuesto, PresupuestoAgrupado
 from django.contrib.auth.decorators import login_required
 from datetime import datetime
 
@@ -16,11 +16,11 @@ def cronograma_presupuesto(request, pk=None):
     if not presupuesto:
         return render(request, 'presupuestos/cronograma.html', {'error': 'No hay presupuestos configurados.'})
 
-    data = _get_cronograma_data(presupuesto)
+    data = _get_cronograma_data([presupuesto])
     
     context = {
         'presupuesto': presupuesto,
-        'partidas_data': data['partidas_data'],
+        'partidas_data': data['presupuestos_data'][0]['partidas'] if data['presupuestos_data'] else [],
         'meses_nombres': data['meses_nombres'],
         'global_proyectado_mes': data['global_proyectado_mes'],
         'global_ejecutado_mes': data['global_ejecutado_mes'],
@@ -30,67 +30,138 @@ def cronograma_presupuesto(request, pk=None):
 
     return render(request, 'presupuestos/cronograma.html', context)
 
-def _get_cronograma_data(presupuesto):
-    partidas_data = []
-    partidas = presupuesto.partidas.select_related('disciplina').prefetch_related(
-        'items', 
-        'items__detalles', 
-        'gastos'
-    ).all()
+@login_required
+def cronograma_grupal(request, pk):
+    grupo = get_object_or_404(PresupuestoAgrupado, pk=pk)
+    presupuestos = grupo.presupuestos.all()
     
-    meses_nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-
-    for p in partidas:
-        items_desglose = []
-        for item in p.items.all():
-            proyeccion_mensual = [0] * 12
-            for detalle in item.detalles.all():
-                if 1 <= detalle.mes <= 12:
-                    proyeccion_mensual[detalle.mes - 1] = float(detalle.monto)
-            
-            items_desglose.append({
-                'id': item.id,
-                'concepto': item.concepto,
-                'proyeccion': proyeccion_mensual,
-                'total_anual': sum(proyeccion_mensual)
-            })
-        
-        ejecucion_mensual = [0] * 12
-        for gasto in p.gastos.all():
-            m_idx = gasto.fecha.month - 1
-            ejecucion_mensual[m_idx] += float(gasto.monto)
-        
-        proyeccion_total_mensual = [0] * 12
-        for item_data in items_desglose:
-            for i in range(12):
-                proyeccion_total_mensual[i] += item_data['proyeccion'][i]
-
-        nombre_display = p.disciplina.nombre if p.disciplina else (p.descripcion or "Sin Definir")
-        
-        partidas_data.append({
-            'partida': p,
-            'disciplina': nombre_display,
-            'items': items_desglose,
-            'ejecucion_mensual': ejecucion_mensual,
-            'proyeccion_total_mensual': proyeccion_total_mensual,
-            'total_proyectado': sum(proyeccion_total_mensual),
-            'total_ejecutado': sum(ejecucion_mensual)
+    if not presupuestos:
+        return render(request, 'presupuestos/cronograma_grupal.html', {
+            'grupo': grupo,
+            'error': 'Este grupo no tiene presupuestos vinculados.'
         })
 
-    global_proyectado_mes = [0] * 12
-    global_ejecutado_mes = [0] * 12
-    for pd in partidas_data:
-        for i in range(12):
-            global_proyectado_mes[i] += pd['proyeccion_total_mensual'][i]
-            global_ejecutado_mes[i] += pd['ejecucion_mensual'][i]
+    data = _get_cronograma_data(presupuestos)
+    
+    context = {
+        'grupo': grupo,
+        'presupuestos_data': data['presupuestos_data'],
+        'meses_nombres': data['meses_nombres'],
+        'global_proyectado_mes': data['global_proyectado_mes'],
+        'global_ejecutado_mes': data['global_ejecutado_mes'],
+        'total_general_proyectado': data['total_general_proyectado'],
+        'total_general_ejecutado': data['total_general_ejecutado'],
+    }
+
+    return render(request, 'presupuestos/cronograma_grupal.html', context)
+
+
+def _get_cronograma_data(presupuestos_list):
+    """
+    Agrega datos de uno o varios presupuestos.
+    Retorna datos estructurados por presupuesto.
+    Incluye soporte para sub-ítems.
+    """
+    meses_nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    global_proyectado_mes = [0.0] * 12
+    global_ejecutado_mes = [0.0] * 12
+    presupuestos_data = []
+
+    for presupuesto in presupuestos_list:
+        partidas = presupuesto.partidas.select_related('disciplina').prefetch_related(
+            'items', 
+            'items__detalles', 
+            'items__subitems',
+            'gastos'
+        ).all()
+
+        partidas_desglose = []
+        p_total_proyectado_mensual = [0.0] * 12
+        p_total_ejecutado_mensual = [0.0] * 12
+
+        for p in partidas:
+            p_disc_nombre = p.disciplina.nombre if p.disciplina else (p.descripcion or "Otros")
+            
+            # Ejecución de la partida
+            ejecucion_partida = [0.0] * 12
+            for gasto in p.gastos.all():
+                m_idx = gasto.fecha.month - 1
+                ejecucion_partida[m_idx] += float(gasto.monto)
+                p_total_ejecutado_mensual[m_idx] += float(gasto.monto)
+                global_ejecutado_mes[m_idx] += float(gasto.monto)
+
+            # Ítems (solo nivel superior)
+            items_tree = []
+            proyeccion_partida = [0.0] * 12
+            
+            # Objetos de items de esta partida
+            partida_items = list(p.items.all())
+            top_items = [i for i in partida_items if not i.parent_id]
+            
+            for item in top_items:
+                item_data = _get_item_recursive_data(item, partida_items)
+                items_tree.append(item_data)
+                
+                for i in range(12):
+                    proyeccion_partida[i] += item_data['proyeccion'][i]
+                    p_total_proyectado_mensual[i] += item_data['proyeccion'][i]
+                    global_proyectado_mes[i] += item_data['proyeccion'][i]
+
+            partidas_desglose.append({
+                'disciplina': p_disc_nombre,
+                'items': items_tree,
+                'ejecucion_mensual': ejecucion_partida,
+                'proyeccion_total_mensual': proyeccion_partida,
+                'total_proyectado': sum(proyeccion_partida),
+                'total_ejecutado': sum(ejecucion_partida)
+            })
+
+        # Ordenar partidas por disciplina
+        partidas_desglose.sort(key=lambda x: x['disciplina'])
+
+        presupuestos_data.append({
+            'presupuesto': presupuesto,
+            'partidas': partidas_desglose,
+            'total_mensual_proyectado': p_total_proyectado_mensual,
+            'total_mensual_ejecutado': p_total_ejecutado_mensual,
+            'total_anual_proyectado': sum(p_total_proyectado_mensual),
+            'total_anual_ejecutado': sum(p_total_ejecutado_mensual)
+        })
 
     return {
-        'partidas_data': partidas_data,
+        'presupuestos_data': presupuestos_data,
         'meses_nombres': meses_nombres,
         'global_proyectado_mes': global_proyectado_mes,
         'global_ejecutado_mes': global_ejecutado_mes,
         'total_general_proyectado': sum(global_proyectado_mes),
         'total_general_ejecutado': sum(global_ejecutado_mes),
+    }
+
+def _get_item_recursive_data(item, all_items):
+    """
+    Obtiene datos de un ítem y sus sub-ítems recursivamente del cache 'all_items'.
+    """
+    proyeccion = [0.0] * 12
+    for detalle in item.detalles.all():
+        if 1 <= detalle.mes <= 12:
+            proyeccion[detalle.mes - 1] += float(detalle.monto)
+    
+    subitems_data = []
+    # Buscar subitems en la lista precargada
+    item_subitems = [i for i in all_items if i.parent_id == item.id]
+    
+    for subitem in item_subitems:
+        sub_data = _get_item_recursive_data(subitem, all_items)
+        subitems_data.append(sub_data)
+        for i in range(12):
+            proyeccion[i] += sub_data['proyeccion'][i]
+
+    return {
+        'id': item.id,
+        'concepto': item.concepto,
+        'proyeccion': proyeccion,
+        'total_anual': sum(proyeccion),
+        'subitems': subitems_data
     }
 
 @login_required
@@ -370,3 +441,45 @@ def api_delete_partida(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+
+@login_required
+def exportar_cronograma_grupal_pdf(request, pk):
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+    from django.http import HttpResponse
+
+    grupo = get_object_or_404(PresupuestoAgrupado, pk=pk)
+    presupuestos = grupo.presupuestos.all()
+    
+    if not presupuestos:
+        return HttpResponse('El grupo no tiene presupuestos.', status=400)
+
+    data = _get_cronograma_data(presupuestos)
+    
+    context = {
+        'grupo': grupo,
+        'presupuestos_data': data['presupuestos_data'],
+        'meses_nombres': data['meses_nombres'],
+        'global_proyectado_mes': data['global_proyectado_mes'],
+        'global_ejecutado_mes': data['global_ejecutado_mes'],
+        'total_general_proyectado': data['total_general_proyectado'],
+        'total_general_ejecutado': data['total_general_ejecutado'],
+    }
+    
+    template_path = 'presupuestos/cronograma_grupal_pdf.html'
+    template = get_template(template_path)
+    html = template.render(context)
+    
+    response = HttpResponse(content_type='application/pdf')
+    filename = f"Analisis_Grupal_{grupo.nombre.replace(' ', '_')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    pisa_status = pisa.CreatePDF(
+       html, dest=response
+    )
+    
+    if pisa_status.err:
+       return HttpResponse('Error creating PDF', status=500)
+       
+    return response

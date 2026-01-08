@@ -283,6 +283,14 @@ class ItemPresupuesto(models.Model):
         on_delete=models.CASCADE,
         related_name='items'
     )
+    parent = models.ForeignKey(
+        'self', 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name='subitems', 
+        verbose_name="Item Padre"
+    )
     concepto = models.CharField(max_length=200, verbose_name="Concepto/Descripción")
     
     # Automatización
@@ -363,3 +371,46 @@ class DetallePeriodico(models.Model):
 
     def __str__(self):
         return f"{self.get_mes_display()} - {self.monto}"
+
+
+class PresupuestoAgrupado(models.Model):
+    """
+    Agrupación de varios presupuestos anuales para visualización gerencial.
+    """
+    nombre = models.CharField(max_length=200, verbose_name="Nombre del Grupo")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción / Notas")
+    presupuestos = models.ManyToManyField(
+        PresupuestoAnual, 
+        related_name='agrupaciones',
+        verbose_name="Presupuestos Incluidos"
+    )
+    anio = models.PositiveIntegerField(
+        verbose_name="Año de Referencia",
+        validators=[MinValueValidator(2020), MaxValueValidator(2100)],
+        default=datetime.now().year
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.nombre
+
+    @property
+    def total_proyectado(self):
+        return sum(p.total_proyectado for p in self.presupuestos.all())
+
+    @property
+    def total_ejecutado(self):
+        return sum(p.total_ejecutado for p in self.presupuestos.all())
+
+    @property
+    def porcentaje_ejecucion(self):
+        total = self.total_proyectado
+        if total == 0:
+            return 0
+        return int((self.total_ejecutado / total) * 100)
+
+    class Meta:
+        verbose_name = "Presupuesto Agrupado"
+        verbose_name_plural = "Presupuestos Agrupados"
+        ordering = ['-anio', 'nombre']
