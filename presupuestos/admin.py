@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
     PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, 
-    ItemPresupuesto, Compromiso, DetalleCompromiso, CambioPresupuesto, DetallePeriodico
+    ItemPresupuesto, Compromiso, DetalleCompromiso, CambioPresupuesto, DetallePeriodico,
+    PresupuestoAgrupado
 )
 
 class GastoEjecutadoInline(admin.TabularInline):
@@ -203,3 +204,39 @@ class GastoEjecutadoAdmin(admin.ModelAdmin):
     list_filter = ('partida__presupuesto_anual', 'fecha')
     search_fields = ('descripcion', 'referencia')
     autocomplete_fields = ['partida', 'compromiso']
+
+
+@admin.register(PresupuestoAgrupado)
+class PresupuestoAgrupadoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'anio', 'get_total_proyectado', 'get_total_ejecutado', 'get_progreso', 'ver_cronograma_btn')
+    list_filter = ('anio',)
+    search_fields = ('nombre',)
+    filter_horizontal = ('presupuestos',)
+
+    def ver_cronograma_btn(self, obj):
+        from django.urls import reverse
+        url = reverse('presupuestos:cronograma_grupal', args=[obj.pk])
+        return format_html('<a class="button" href="{}" target="_blank" style="background: #10b981; color: white;">📊 Ver Análisis Grupal</a>', url)
+    ver_cronograma_btn.short_description = "Vista Gerencial"
+
+    def get_total_proyectado(self, obj):
+        return f"{obj.total_proyectado:,.2f}"
+    get_total_proyectado.short_description = "Total Proyectado"
+
+    def get_total_ejecutado(self, obj):
+        return f"{obj.total_ejecutado:,.2f}"
+    get_total_ejecutado.short_description = "Total Ejecutado"
+
+    def get_progreso(self, obj):
+        percent = obj.porcentaje_ejecucion
+        color = "#10B981"
+        if percent > 80: color = "#F59E0B"
+        if percent > 100: color = "#EF4444"
+        
+        return format_html(
+            '<div style="width: 120px; background: #f1f5f9; border-radius: 10px; height: 18px; border: 1px solid #cbd5e1; overflow: hidden;">'
+            '<div style="width: {}%; background: {}; height: 100%; transition: width 0.5s;"></div>'
+            '<span style="position: absolute; width: 100%; text-align: center; left: 0; top: 0; font-size: 11px; font-weight: bold; color: #1e293b; line-height: 18px;">{}%</span>'
+            '</div>',
+            min(percent, 100), color, percent
+        )

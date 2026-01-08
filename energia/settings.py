@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     'mantenimiento',
     'presupuestos.apps.PresupuestosConfig',
     'inventarios',
+    'django.contrib.humanize',
 ]
 
 

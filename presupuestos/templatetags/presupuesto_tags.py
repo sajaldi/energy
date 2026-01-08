@@ -29,3 +29,8 @@ def index(sequence, position):
         return sequence[position]
     except (IndexError, TypeError):
         return 0
+
+@register.filter
+def addstr(arg1, arg2):
+    """concaterate arg1 & arg2"""
+    return str(arg1) + str(arg2)

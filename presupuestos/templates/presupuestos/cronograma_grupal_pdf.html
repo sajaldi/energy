@@ -1,0 +1,201 @@
+{% load presupuesto_tags humanize %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Análisis Grupal: {{ grupo.nombre }}</title>
+    <style>
+        @page {
+            size: a4 landscape;
+            margin: 1cm;
+
+            @frame footer_frame {
+                -pdf-frame-content: footer_content;
+                bottom: 0cm;
+                height: 1cm;
+                margin-left: 1cm;
+                margin-right: 1cm;
+            }
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 9px;
+            color: #1e293b;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 16px;
+            margin: 0;
+            color: #0f172a;
+            text-transform: uppercase;
+        }
+
+        .header p {
+            font-size: 10px;
+            color: #64748b;
+            margin: 5px 0 15px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th {
+            background-color: #1e293b;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 8px;
+            text-align: center;
+            padding: 5px 2px;
+            border: 0.5px solid #475569;
+        }
+
+        td {
+            font-size: 8px;
+            padding: 4px 2px;
+            border: 0.5px solid #cbd5e1;
+            text-align: right;
+        }
+
+        /* Rows */
+        .budget-row td {
+            background-color: #334155;
+            color: #ffffff;
+            font-weight: bold;
+            text-align: left;
+            padding-left: 5px;
+        }
+
+        .partida-row td {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-weight: bold;
+        }
+
+        .item-row td {
+            background-color: #ffffff;
+            color: #475569;
+        }
+
+        .total-row td {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-weight: bold;
+            border-top: 1px solid #3b82f6;
+        }
+
+        .stat-box {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 10px;
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>ANÁLISIS DE GRUPO: {{ grupo.nombre }}</h1>
+        <p>Generado: {% now "d/m/Y H:i" %}</p>
+    </div>
+
+    <div class="stat-box">
+        <strong>TOTAL PROYECTADO:</strong> {{ total_general_proyectado|floatformat:2|intcomma }} &nbsp;|&nbsp;
+        <strong>TOTAL EJECUTADO:</strong> {{ total_general_ejecutado|floatformat:2|intcomma }} &nbsp;|&nbsp;
+        <strong>EFICIENCIA:</strong>
+        {% if total_general_proyectado > 0 %}
+        {{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%
+        {% else %}
+        0%
+        {% endif %}
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th width="22%">JERARQUÍA / DETALLE</th>
+                {% for mes in meses_nombres %}
+                <th width="5.5%">{{ mes|slice:":3"|upper }}</th>
+                {% endfor %}
+                <th width="12%">TOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bd in presupuestos_data %}
+            <!-- Presupuesto Header -->
+            <tr class="budget-row">
+                <td colspan="14">{{ bd.presupuesto.nombre }} ({{ bd.presupuesto.anio }})</td>
+            </tr>
+
+            {% for pd in bd.partidas %}
+            <!-- Discipline/Partida Header -->
+            <tr class="partida-row">
+                <td style="text-align: left; padding-left: 10px;">{{ pd.disciplina|truncatechars:35 }}</td>
+                {% for val in pd.proyeccion_total_mensual %}
+                <td>{% if val > 0 %}{{ val|floatformat:0|intcomma }}{% endif %}</td>
+                {% endfor %}
+                <td>{{ pd.total_proyectado|floatformat:0|intcomma }}</td>
+            </tr>
+
+            {% for item in pd.items %}
+            <!-- Item -->
+            <tr class="item-row">
+                <td style="text-align: left; padding-left: 20px;">{{ item.concepto|truncatechars:40 }}</td>
+                {% for val in item.proyeccion %}
+                <td>{% if val > 0 %}{{ val|floatformat:0|intcomma }}{% endif %}</td>
+                {% endfor %}
+                <td>{{ item.total_anual|floatformat:0|intcomma }}</td>
+            </tr>
+            <!-- Subitems are flattened in PDF for simplicity or we can recurse if needed. 
+                 The view seems to flatten items into 'items' list for disciplines? 
+                 Actually _get_cronograma_data returns recursive items. 
+                 For simplified PDF, let's just show top level items or we need a recursive snippet.
+                 But looking at views.py line 112: 'items': items_tree.
+                 And items_tree contains 'subitems'.
+                 To keep it simple and safe, we'll only standard items. If recursion is needed, it gets complex in single file.
+            -->
+            {% if item.subitems %}
+            {% for sub in item.subitems %}
+            <tr class="item-row">
+                <td style="text-align: left; padding-left: 30px; font-style: italic;">Reference: {{
+                    sub.concepto|truncatechars:30 }}</td>
+                {% for val in sub.proyeccion %}
+                <td>{% if val > 0 %}{{ val|floatformat:0|intcomma }}{% endif %}</td>
+                {% endfor %}
+                <td>{{ sub.total_anual|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+            {% endfor %}
+            {% endfor %}
+            {% endfor %}
+
+            <!-- Global Totals -->
+            <tr class="total-row">
+                <td style="text-align: left;">TOTAL GENERAL AGRUPADO</td>
+                {% for val in global_proyectado_mes %}
+                <td>{{ val|floatformat:0|intcomma }}</td>
+                {% endfor %}
+                <td>{{ total_general_proyectado|floatformat:0|intcomma }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div id="footer_content" style="text-align: right; font-size: 8px; color: #94a3b8;">
+        Página <pdf:pagenumber>
+    </div>
+</body>
+
+</html>
