@@ -108,6 +108,7 @@ def _get_cronograma_data(presupuestos_list):
                     global_proyectado_mes[i] += item_data['proyeccion'][i]
 
             partidas_desglose.append({
+                'partida': p,
                 'disciplina': p_disc_nombre,
                 'items': items_tree,
                 'ejecucion_mensual': ejecucion_partida,

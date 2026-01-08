@@ -1,4 +1,4 @@
-{% load presupuesto_tags %}
+{% load presupuesto_tags humanize %}
 <!DOCTYPE html>
 <html lang="es">
 
@@ -22,7 +22,7 @@
 
         body {
             font-family: Helvetica, Arial, sans-serif;
-            font-size: 9px;
+            font-size: 8px;
             color: #1e293b;
         }
 
@@ -32,14 +32,14 @@
         }
 
         .header h1 {
-            font-size: 16px;
+            font-size: 14px;
             margin: 0;
             color: #0f172a;
             text-transform: uppercase;
         }
 
         .header p {
-            font-size: 10px;
+            font-size: 9px;
             color: #64748b;
             margin: 5px 0 15px 0;
         }
@@ -56,17 +56,17 @@
             background-color: #1e293b;
             color: #ffffff;
             font-weight: bold;
-            font-size: 8px;
+            font-size: 7px;
             text-align: center;
-            padding: 5px 2px;
-            border: 0.5px solid #475569;
+            padding: 4px 2px;
+            border: 0.2pt solid #475569;
             vertical-align: middle;
         }
 
         td {
-            font-size: 8px;
-            padding: 4px 2px;
-            border: 0.5px solid #cbd5e1;
+            font-size: 7px;
+            padding: 3px 2px;
+            border: 0.2pt solid #cbd5e1;
             vertical-align: middle;
             text-align: right;
             /* Default align numbers right */
@@ -118,7 +118,7 @@
         .stat-box {
             text-align: center;
             margin-bottom: 20px;
-            font-size: 10px;
+            font-size: 9px;
             background-color: #f8fafc;
             border: 1px solid #cbd5e1;
             padding: 8px;
@@ -134,8 +134,8 @@
     </div>
 
     <div class="stat-box">
-        <strong>TOTAL PROYECTADO:</strong> {{ total_general_proyectado|floatformat:2 }} &nbsp;|&nbsp;
-        <strong>TOTAL EJECUTADO:</strong> {{ total_general_ejecutado|floatformat:2 }} &nbsp;|&nbsp;
+        <strong>TOTAL PROYECTADO:</strong> {{ total_general_proyectado|floatformat:2|intcomma }} &nbsp;|&nbsp;
+        <strong>TOTAL EJECUTADO:</strong> {{ total_general_ejecutado|floatformat:2|intcomma }} &nbsp;|&nbsp;
         <strong>EJECUCIÓN:</strong>
         {% if total_general_proyectado > 0 %}
         {{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%
@@ -161,9 +161,9 @@
             <tr class="partida-row">
                 <td class="partida-title">{{ pd.disciplina|truncatechars:35 }}</td>
                 {% for val in pd.proyeccion_total_mensual %}
-                <td>{% if val > 0 %}{{ val|floatformat:0 }}{% else %}-{% endif %}</td>
+                <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
                 {% endfor %}
-                <td>{{ pd.total_proyectado|floatformat:0 }}</td>
+                <td>{{ pd.total_proyectado|floatformat:2|intcomma }}</td>
             </tr>
 
             <!-- Items -->
@@ -171,9 +171,9 @@
             <tr class="item-row">
                 <td class="item-concept">{{ item.concepto|truncatechars:40 }}</td>
                 {% for val in item.proyeccion %}
-                <td>{% if val > 0 %}{{ val|floatformat:0 }}{% endif %}</td>
+                <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% endif %}</td>
                 {% endfor %}
-                <td>{{ item.total_anual|floatformat:0 }}</td>
+                <td>{{ item.total_anual|floatformat:2|intcomma }}</td>
             </tr>
             {% endfor %}
             {% endfor %}
@@ -182,9 +182,9 @@
             <tr class="total-row">
                 <td style="text-align: left; padding-left: 5px;">TOTAL MENSUAL</td>
                 {% for val in global_proyectado_mes %}
-                <td>{{ val|floatformat:0 }}</td>
+                <td>{{ val|floatformat:2|intcomma }}</td>
                 {% endfor %}
-                <td>{{ total_general_proyectado|floatformat:0 }}</td>
+                <td>{{ total_general_proyectado|floatformat:2|intcomma }}</td>
             </tr>
         </tbody>
     </table>

@@ -21,7 +21,7 @@
 
         body {
             font-family: Helvetica, Arial, sans-serif;
-            font-size: 9px;
+            font-size: 8px;
             color: #1e293b;
         }
 
@@ -31,14 +31,14 @@
         }
 
         .header h1 {
-            font-size: 16px;
+            font-size: 14px;
             margin: 0;
             color: #0f172a;
             text-transform: uppercase;
         }
 
         .header p {
-            font-size: 10px;
+            font-size: 9px;
             color: #64748b;
             margin: 5px 0 15px 0;
         }
@@ -53,16 +53,16 @@
             background-color: #1e293b;
             color: #ffffff;
             font-weight: bold;
-            font-size: 8px;
+            font-size: 7px;
             text-align: center;
-            padding: 5px 2px;
-            border: 0.5px solid #475569;
+            padding: 4px 2px;
+            border: 0.2pt solid #475569;
         }
 
         td {
-            font-size: 8px;
-            padding: 4px 2px;
-            border: 0.5px solid #cbd5e1;
+            font-size: 7px;
+            padding: 3px 2px;
+            border: 0.2pt solid #cbd5e1;
             text-align: right;
         }
 
@@ -96,7 +96,7 @@
         .stat-box {
             text-align: center;
             margin-bottom: 20px;
-            font-size: 10px;
+            font-size: 9px;
             background-color: #f8fafc;
             border: 1px solid #cbd5e1;
             padding: 8px;
@@ -144,9 +144,9 @@
             <tr class="partida-row">
                 <td style="text-align: left; padding-left: 10px;">{{ pd.disciplina|truncatechars:35 }}</td>
                 {% for val in pd.proyeccion_total_mensual %}
-                <td>{% if val > 0 %}{{ val|floatformat:0|intcomma }}{% endif %}</td>
+                <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% endif %}</td>
                 {% endfor %}
-                <td>{{ pd.total_proyectado|floatformat:0|intcomma }}</td>
+                <td>{{ pd.total_proyectado|floatformat:2|intcomma }}</td>
             </tr>
 
             {% for item in pd.items %}
@@ -154,27 +154,20 @@
             <tr class="item-row">
                 <td style="text-align: left; padding-left: 20px;">{{ item.concepto|truncatechars:40 }}</td>
                 {% for val in item.proyeccion %}
-                <td>{% if val > 0 %}{{ val|floatformat:0|intcomma }}{% endif %}</td>
+                <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% endif %}</td>
                 {% endfor %}
-                <td>{{ item.total_anual|floatformat:0|intcomma }}</td>
+                <td>{{ item.total_anual|floatformat:2|intcomma }}</td>
             </tr>
-            <!-- Subitems are flattened in PDF for simplicity or we can recurse if needed. 
-                 The view seems to flatten items into 'items' list for disciplines? 
-                 Actually _get_cronograma_data returns recursive items. 
-                 For simplified PDF, let's just show top level items or we need a recursive snippet.
-                 But looking at views.py line 112: 'items': items_tree.
-                 And items_tree contains 'subitems'.
-                 To keep it simple and safe, we'll only standard items. If recursion is needed, it gets complex in single file.
-            -->
+
             {% if item.subitems %}
             {% for sub in item.subitems %}
             <tr class="item-row">
                 <td style="text-align: left; padding-left: 30px; font-style: italic;">Reference: {{
                     sub.concepto|truncatechars:30 }}</td>
                 {% for val in sub.proyeccion %}
-                <td>{% if val > 0 %}{{ val|floatformat:0|intcomma }}{% endif %}</td>
+                <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% endif %}</td>
                 {% endfor %}
-                <td>{{ sub.total_anual|floatformat:0|intcomma }}</td>
+                <td>{{ sub.total_anual|floatformat:2|intcomma }}</td>
             </tr>
             {% endfor %}
             {% endif %}
@@ -186,9 +179,9 @@
             <tr class="total-row">
                 <td style="text-align: left;">TOTAL GENERAL AGRUPADO</td>
                 {% for val in global_proyectado_mes %}
-                <td>{{ val|floatformat:0|intcomma }}</td>
+                <td>{{ val|floatformat:2|intcomma }}</td>
                 {% endfor %}
-                <td>{{ total_general_proyectado|floatformat:0|intcomma }}</td>
+                <td>{{ total_general_proyectado|floatformat:2|intcomma }}</td>
             </tr>
         </tbody>
     </table>
