@@ -2,26 +2,17 @@
 
 <tr class="row-item group-{{ group_id }} {% if level > 2 %}hidden{% endif %}" data-id="item-{{ item.id }}">
     <td class="sticky-col" style="padding-left: {{ level|mul:16|add:16 }}px !important;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            {% if item.subitems %}
-            <span class="toggle-icon"
-                onclick="toggleGroup('item-{{ item.id }}', this.parentElement.parentElement.parentElement)">▼</span>
-            {% else %}
-            <span style="width: 14px; display:inline-block;"></span>
-            {% endif %}
-            {{ item.concepto }}
-        </div>
+        {% if item.subitems %}
+        <span class="toggle-icon" onclick="toggleGroup('item-{{ item.id }}', this.parentElement)">▼</span>
+        {% else %}
+        <span style="width: 14px; display:inline-block;"></span>
+        {% endif %}
+        {{ item.concepto }}
     </td>
     {% for val in item.proyeccion %}
-    <td>
-        {% if val > 0 %}
-        {{ val|floatformat:2|intcomma }}
-        {% else %}
-        -
-        {% endif %}
-    </td>
+    <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
     {% endfor %}
-    <td style="font-weight: 600; color: #0f172a;">{{ item.total_anual|floatformat:2|intcomma }}</td>
+    <td style="font-weight: 600;">{{ item.total_anual|floatformat:2|intcomma }}</td>
 </tr>
 
 {% if item.subitems %}

@@ -114,29 +114,33 @@
     <div class="stat-box">
         <strong>TOTAL PROYECTADO:</strong> {{ total_general_proyectado|floatformat:2|intcomma }} &nbsp;|&nbsp;
         <strong>TOTAL EJECUTADO:</strong> {{ total_general_ejecutado|floatformat:2|intcomma }} &nbsp;|&nbsp;
-        <strong>EFICIENCIA:</strong>
-        {% if total_general_proyectado > 0 %}
-        {{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%
-        {% else %}
-        0%
-        {% endif %}
+        <strong>EFICIENCIA:</strong> {% if total_general_proyectado > 0 %}{{
+        total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%{% else %}0%{% endif %}
     </div>
 
     <table>
         <thead>
             <tr>
                 <th width="22%">JERARQUÍA / DETALLE</th>
-                {% for mes in meses_nombres %}
-                <th width="5.5%">{{ mes|slice:":3"|upper }}</th>
-                {% endfor %}
+                {% for mes in meses_nombres %}<th width="5.5%">{{ mes|slice:":3"|upper }}</th>{% endfor %}
                 <th width="12%">TOTAL</th>
             </tr>
         </thead>
         <tbody>
+            <!-- Global Totals (Top) -->
+            <tr class="total-row">
+                <td style="text-align: left; padding-left: 5px;">TOTAL MENSUAL AGRUPADO</td>
+                {% for val in global_proyectado_mes %}
+                <td style="text-align: right;">{{ val|floatformat:2|intcomma }}</td>
+                {% endfor %}
+                <td style="text-align: right;">{{ total_general_proyectado|floatformat:2|intcomma }}</td>
+            </tr>
+
             {% for bd in presupuestos_data %}
             <!-- Presupuesto Header -->
             <tr class="budget-row">
-                <td colspan="14">{{ bd.presupuesto.nombre }} ({{ bd.presupuesto.anio }})</td>
+                <td colspan="14" style="text-align: left; padding-left: 5px;">{{ bd.presupuesto.nombre }} ({{
+                    bd.presupuesto.anio }})</td>
             </tr>
 
             {% for pd in bd.partidas %}

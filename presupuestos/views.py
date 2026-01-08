@@ -114,7 +114,8 @@ def _get_cronograma_data(presupuestos_list):
                 'ejecucion_mensual': ejecucion_partida,
                 'proyeccion_total_mensual': proyeccion_partida,
                 'total_proyectado': sum(proyeccion_partida),
-                'total_ejecutado': sum(ejecucion_partida)
+                'total_ejecutado': sum(ejecucion_partida),
+                'gid': f"disc-{len(presupuestos_data) + 1}-{len(partidas_desglose) + 1}"
             })
 
         # Ordenar partidas por disciplina
@@ -126,7 +127,8 @@ def _get_cronograma_data(presupuestos_list):
             'total_mensual_proyectado': p_total_proyectado_mensual,
             'total_mensual_ejecutado': p_total_ejecutado_mensual,
             'total_anual_proyectado': sum(p_total_proyectado_mensual),
-            'total_anual_ejecutado': sum(p_total_ejecutado_mensual)
+            'total_anual_ejecutado': sum(p_total_ejecutado_mensual),
+            'gid': f"budget-{len(presupuestos_data) + 1}"
         })
 
     return {

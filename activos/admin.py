@@ -179,8 +179,8 @@ class ModeloResource(resources.ModelResource):
         # Identificamos por nombre y marca para que si el ID está vacío, 
         # actualice si ya existe esa combinación o cree uno nuevo si no.
         import_id_fields = ('nombre', 'marca_nombre')
-        fields = ('id', 'nombre', 'marca_nombre', 'categoria_nombre')
-        export_order = ('id', 'nombre', 'marca_nombre', 'categoria_nombre')
+        fields = ('id', 'nombre', 'marca_nombre', 'categoria_nombre', 'imagen_url')
+        export_order = ('id', 'nombre', 'marca_nombre', 'categoria_nombre', 'imagen_url')
 
     def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
         if not any(row.values()): return True
@@ -197,7 +197,7 @@ class ModeloResource(resources.ModelResource):
 class ModeloAdmin(ImportExportModelAdmin):
     list_per_page = 50
     resource_class = ModeloResource
-    list_display = ('nombre', 'marca', 'categoria', 'total_activos')
+    list_display = ('thumbnail', 'nombre', 'marca', 'categoria', 'total_activos')
     list_filter = ('marca', 'categoria')
     list_select_related = ('marca', 'categoria')
     autocomplete_fields = ('marca', 'categoria')
@@ -209,7 +209,19 @@ class ModeloAdmin(ImportExportModelAdmin):
     def get_export_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
     search_fields = ('nombre', 'marca__nombre')
-    readonly_fields = ('lista_activos_ubicacion', 'rutinas_aplicables')
+    readonly_fields = ('preview_imagen', 'lista_activos_ubicacion', 'rutinas_aplicables')
+
+    def thumbnail(self, obj):
+        if obj.imagen:
+            return format_html('<img src="{}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />', obj.imagen)
+        return format_html('<div style="width: 40px; height: 40px; background: #f1f5f9; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #cbd5e1;"><ion-icon name="image-outline"></ion-icon></div>')
+    thumbnail.short_description = 'Imagen'
+
+    def preview_imagen(self, obj):
+        if obj.imagen:
+            return format_html('<img src="{}" style="max-width: 300px; max-height: 300px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);" />', obj.imagen)
+        return format_html('<span style="color: #94a3b8; font-style: italic;">No hay imagen configurada</span>')
+    preview_imagen.short_description = 'Vista Previa'
 
     def rutinas_aplicables(self, obj):
         if not obj.categoria:
@@ -319,6 +331,10 @@ class ModeloAdmin(ImportExportModelAdmin):
     fieldsets = (
         ('Información General', {
             'fields': ('nombre', 'marca', 'categoria')
+        }),
+        ('Imagen del Modelo', {
+            'fields': (('imagen_archivo', 'imagen_url'), 'preview_imagen'),
+            'description': 'Puedes subir una imagen local o proporcionar una URL externa. Si usas ambas, tendrá prioridad el archivo cargado.'
         }),
         ('Mantenimiento Preventivo Sugerido', {
             'fields': ('rutinas_aplicables',),
@@ -823,6 +839,16 @@ class UbicacionHierarchyFilter(admin.SimpleListFilter):
                 return queryset
         return queryset
 
+class ComponenteActivoInline(admin.TabularInline):
+    model = Activo
+    fk_name = 'padre'
+    extra = 1
+    verbose_name = "Componente / Sub-equipo"
+    verbose_name_plural = "Componentes / Sub-equipos (Hijos)"
+    fields = ('nombre', 'codigo_interno', 'modelo', 'estado', 'ubicacion')
+    autocomplete_fields = ('modelo', 'ubicacion')
+    show_change_link = True
+
 @admin.register(Activo)
 class ActivoAdmin(ImportExportActionModelAdmin):
     list_per_page = 50
@@ -834,12 +860,13 @@ class ActivoAdmin(ImportExportActionModelAdmin):
     def get_export_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
 
-    list_display = ('codigo_interno', 'nombre', 'descripcion', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'ubicacion', 'responsable')
+    list_display = ('codigo_interno', 'nombre', 'get_parent_info', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'ubicacion')
     list_filter = (ActivoFaltantesFilter, 'estado', 'modelo__categoria', 'modelo__marca', 'responsable', 'creado_en', UbicacionHierarchyFilter)
     list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable')
     search_fields = ('nombre', 'descripcion', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
-    autocomplete_fields = ('modelo', 'ubicacion', 'responsable')
-    readonly_fields = ('creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link')
+    autocomplete_fields = ('modelo', 'ubicacion', 'responsable', 'padre')
+    inlines = [ComponenteActivoInline]
+    readonly_fields = ('get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link')
     actions = ['export_admin_action', 'export_direct_xlsx']
 
     def get_queryset(self, request):
@@ -1143,6 +1170,24 @@ class ActivoAdmin(ImportExportActionModelAdmin):
             url
         )
     crear_aviso_link.short_description = 'Reporte de Falla'
+    
+    def get_ubicacion_ruta(self, obj):
+        if obj.ubicacion:
+            return obj.ubicacion.ruta_completa
+        return obj.ubicacion_legacy or "---"
+    get_ubicacion_ruta.short_description = 'Ubicación Jerárquica'
+
+    def get_modelo_img(self, obj):
+        if obj.modelo and obj.modelo.imagen:
+            return format_html('<img src="{}" style="max-width: 300px; max-height: 300px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);" />', obj.modelo.imagen)
+        return format_html('<span style="color: #94a3b8; font-style: italic;">El modelo no tiene imagen asociada</span>')
+    get_modelo_img.short_description = 'Imagen del Modelo'
+
+    def get_parent_info(self, obj):
+        if obj.padre:
+            return format_html('<span style="color: #64748b; font-size: 0.85rem;">↳ {}</span>', obj.padre.nombre)
+        return format_html('<span style="color: #10b981; font-weight: bold; font-size: 0.75rem;">PRINCIPAL</span>')
+    get_parent_info.short_description = 'Jerarquía'
 
     def changelist_view(self, request, extra_context=None):
         if request.GET.get('_popup'):
@@ -1236,10 +1281,10 @@ class ActivoAdmin(ImportExportActionModelAdmin):
 
     fieldsets = (
         ('Identificación', {
-            'fields': ('nombre', 'codigo_interno', 'serie')
+            'fields': ('nombre', 'codigo_interno', ('get_marca', 'modelo'), ('serie', 'padre'), 'get_ubicacion_ruta', 'get_modelo_img')
         }),
         ('Detalles Técnicos', {
-            'fields': ('modelo', 'marca_legacy', 'modelo_legacy', 'descripcion', 'foto')
+            'fields': ('descripcion', 'foto', 'marca_legacy', 'modelo_legacy')
         }),
         ('Estado y Ubicación', {
             'fields': ('estado', 'ubicacion', 'ubicacion_legacy', 'responsable', 'ver_en_plano', 'crear_aviso_link')
