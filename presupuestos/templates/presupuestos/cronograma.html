@@ -348,8 +348,31 @@
     .val-none {
         color: #cbd5e1;
     }
+
+    .editable-text {
+        cursor: text;
+        padding: 2px 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+        min-width: 50px;
+        display: inline-block;
+    }
+
+    .editable-text:hover {
+        background-color: #f1f5f9;
+        color: var(--primary);
+    }
+
+    .editable-text:focus {
+        background-color: #ffffff;
+        outline: 2px solid var(--primary);
+        outline-offset: -1px;
+        color: var(--text-main);
+    }
 </style>
 {% endblock %}
+
+
 
 {% block extrahead %}
 {{ block.super }}
@@ -480,12 +503,20 @@
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span>{{ item.concepto }}</span>
                                 {% if item.id %}
-                                <button onclick="deleteItem('{{ item.id }}')"
-                                    style="background: transparent; border: none; cursor: pointer; color: #cbd5e1; padding: 4px;"
-                                    onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'"
-                                    title="Eliminar Item">
-                                    <ion-icon name="trash-bin-outline"></ion-icon>
-                                </button>
+                                <div style="display: flex; gap: 4px;">
+                                    <button onclick="openEditItemModal('{{ item.id }}', '{{ item.concepto|escapejs }}')"
+                                        style="background: transparent; border: none; cursor: pointer; color: #cbd5e1; padding: 4px;"
+                                        onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#cbd5e1'"
+                                        title="Editar Nombre">
+                                        <ion-icon name="create-outline"></ion-icon>
+                                    </button>
+                                    <button onclick="deleteItem('{{ item.id }}')"
+                                        style="background: transparent; border: none; cursor: pointer; color: #cbd5e1; padding: 4px;"
+                                        onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'"
+                                        title="Eliminar Item">
+                                        <ion-icon name="trash-bin-outline"></ion-icon>
+                                    </button>
+                                </div>
                                 {% endif %}
                             </div>
                         </td>
@@ -495,7 +526,7 @@
                             {{val|stringformat:".2f"}}
                         </td>
                         {% endfor %}
-                        <td class="val-money" style="font-weight: 500;" id="total-item-{{ item.id }}">
+                        <td id="total-item-{{ item.id }}" class="val-money" style="font-weight: 500;">
                             {{ item.total_anual|stringformat:".2f" }}
                         </td>
                     </tr>
@@ -528,13 +559,14 @@
     <div class="modal-content">
         <span class="close-button" onclick="closeModal()">&times;</span>
         <h2 style="margin-top: 0; margin-bottom: 16px;">Nuevo Item</h2>
-        <p style="margin-bottom: 20px; color: var(--text-muted);">En partida: <strong id="modalPartidaName"></strong>
-        </p>
+        <div style="margin-bottom: 20px; color: var(--text-muted);">
+            Agregando a: <strong id="modalPartidaName" style="color: var(--text-main);"></strong>
+        </div>
 
         <form id="addItemForm" onsubmit="submitNewItem(event)">
             <input type="hidden" id="modalPartidaId" name="partida_id">
             <div class="form-group">
-                <label for="concepto">Concepto / Descripción</label>
+                <label for="concepto">Concepto / Nombre del Item</label>
                 <input type="text" id="concepto" name="concepto" required placeholder="Ej. Gastos de Logística"
                     autocomplete="off">
             </div>
@@ -542,6 +574,27 @@
                 <button type="button" class="btn btn-outline" onclick="closeModal()"
                     style="color: var(--text-main);">Cancelar</button>
                 <button type="submit" class="btn">Crear Item</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar Item -->
+<div id="editItemModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeEditItemModal()">&times;</span>
+        <h2 style="margin-top: 0; margin-bottom: 16px;">Editar Item</h2>
+
+        <form id="editItemForm" onsubmit="submitEditItem(event)">
+            <input type="hidden" id="editItemId" name="item_id">
+            <div class="form-group">
+                <label for="editConcepto">Nombre del Item</label>
+                <input type="text" id="editConcepto" name="concepto" required autocomplete="off">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
+                <button type="button" class="btn btn-outline" onclick="closeEditItemModal()"
+                    style="color: var(--text-main);">Cancelar</button>
+                <button type="submit" class="btn">Guardar Cambios</button>
             </div>
         </form>
     </div>
@@ -572,6 +625,7 @@
 <script>
     // --- Modal Item Logic ---
     const modalItem = document.getElementById("addItemModal");
+    const modalEditItem = document.getElementById("editItemModal");
 
     function openModal(partidaId, partidaName) {
         document.getElementById('modalPartidaId').value = partidaId;
@@ -583,6 +637,52 @@
 
     function closeModal() {
         modalItem.classList.remove('show');
+    }
+
+    // --- Modal Edit Item Logic ---
+    function openEditItemModal(itemId, currentName) {
+        document.getElementById('editItemId').value = itemId;
+        document.getElementById('editConcepto').value = currentName;
+        modalEditItem.classList.add('show');
+        setTimeout(() => document.getElementById('editConcepto').focus(), 100);
+    }
+
+    function closeEditItemModal() {
+        modalEditItem.classList.remove('show');
+    }
+
+    function submitEditItem(e) {
+        e.preventDefault();
+        const itemId = document.getElementById('editItemId').value;
+        const concepto = document.getElementById('editConcepto').value;
+        const csrfToken = '{{ csrf_token }}';
+
+        if (!itemId || !concepto) return;
+
+        fetch('{% url "presupuestos:api_update_item" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                item_id: itemId,
+                concepto: concepto
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    showToast('Item actualizado');
+                    window.location.reload();
+                } else {
+                    showToast('Error al actualizar', 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Error de conexión', 'error');
+            });
     }
 
     // --- Modal Partida Logic ---
@@ -602,6 +702,7 @@
     window.onclick = function (event) {
         if (event.target == modalItem) closeModal();
         if (event.target == modalPartida) closePartidaModal();
+        if (event.target == modalEditItem) closeEditItemModal();
     }
 
     function submitNewItem(e) {
@@ -839,6 +940,40 @@
                 }
             })
             .catch(err => console.error("Error en deletePartida:", err));
+    }
+
+    function saveItemConcepto(el) {
+        const itemId = el.getAttribute('data-item-id');
+        const concepto = el.innerText.trim();
+
+        if (!itemId || !concepto) return;
+
+        const csrfToken = '{{ csrf_token }}';
+
+        fetch('{% url "presupuestos:api_update_item" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                item_id: itemId,
+                concepto: concepto
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    showToast('Concepto actualizado');
+                } else {
+                    showToast('Error al actualizar', 'error');
+                    console.error(data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Error de conexión', 'error');
+            });
     }
 
     // Auto-Format on Load

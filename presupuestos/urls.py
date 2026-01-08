@@ -8,6 +8,7 @@ urlpatterns = [
     path('cronograma/<int:pk>/', views.cronograma_presupuesto, name='cronograma_detalle'),
     path('cronograma/grupo/<int:pk>/', views.cronograma_grupal, name='cronograma_grupal'),
     path('api/update_monto/', views.api_update_monto_mensual, name='api_update_monto'),
+    path('api/update_item/', views.api_update_item, name='api_update_item'),
     path('api/update_monto/', views.api_update_monto_mensual, name='api_update_monto'),
     path('api/create_item/', views.api_create_item, name='api_create_item'),
     path('api/create_partida/', views.api_create_partida, name='api_create_partida'),
