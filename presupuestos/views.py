@@ -403,6 +403,33 @@ def api_create_partida(request):
     return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
 
 @login_required
+def api_update_item(request):
+    if request.method == "POST":
+        import json
+        from .models import ItemPresupuesto
+        from django.http import JsonResponse
+        from django.shortcuts import get_object_or_404
+        
+        try:
+            data = json.loads(request.body)
+            item_id = data.get('item_id')
+            concepto = data.get('concepto')
+            
+            if not item_id or not concepto:
+                 return JsonResponse({'status': 'error', 'message': 'Faltan datos'}, status=400)
+
+            item = get_object_or_404(ItemPresupuesto, pk=item_id)
+            item.concepto = concepto
+            item.save()
+            
+            return JsonResponse({'status': 'ok', 'message': 'Item actualizado'})
+            
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+@login_required
 def api_delete_item(request):
     if request.method == "POST":
         import json
