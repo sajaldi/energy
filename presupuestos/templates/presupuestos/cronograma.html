@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static presupuesto_tags %}
+{% load i18n static presupuesto_tags humanize %}
 
 {% block title %}Cronograma {{ presupuesto.anio }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
@@ -20,44 +20,28 @@
         --negative: #ef4444;
     }
 
-    /* Override some admin defaults to fit the custom design */
     #content {
         padding: 20px !important;
         background-color: #f1f5f9;
+        font-family: 'Outfit', sans-serif;
     }
 
     .layout-constraint {
-        max-width: 95%;
-        /* Use percentage or fixed like 1800px depending on preference */
+        max-width: 98%;
         margin: 0 auto;
         width: 100%;
     }
 
-    .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: var(--card-bg);
-        padding: 20px 32px;
-        border-radius: 16px;
-        border: 1px solid var(--border);
-        margin-bottom: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        flex-wrap: wrap;
-        gap: 20px;
-    }
-
-    /* Dashboard Header Layout */
     .dashboard-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         background: var(--card-bg);
-        padding: 20px 32px;
-        border-radius: 16px;
+        padding: 24px 32px;
+        border-radius: 6px;
         border: 1px solid var(--border);
         margin-bottom: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         flex-wrap: wrap;
         gap: 20px;
     }
@@ -65,29 +49,28 @@
     .header-identity {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 6px;
         min-width: 200px;
     }
 
     .header-identity h1 {
         margin: 0;
-        font-size: 1.5rem;
+        font-size: 1.75rem;
         font-weight: 700;
-        color: #0f172a;
+        color: var(--text-main);
         letter-spacing: -0.5px;
     }
 
     .badge-year {
         background: var(--primary);
         color: white;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         font-weight: 700;
-        padding: 2px 8px;
-        border-radius: 6px;
+        padding: 4px 10px;
+        border-radius: 4px;
         width: fit-content;
-        margin-bottom: 4px;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
     }
 
     .header-stats {
@@ -97,27 +80,29 @@
         padding: 0 40px;
         border-left: 1px solid var(--border);
         border-right: 1px solid var(--border);
+        flex-grow: 1;
+        justify-content: center;
     }
 
     .stat-item {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 4px;
+        align-items: flex-start;
     }
 
     .stat-label {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
         color: var(--text-muted);
         font-weight: 600;
     }
 
     .stat-value {
-        font-size: 1.25rem;
+        font-size: 1.5rem;
         font-weight: 700;
         color: var(--text-main);
-        font-feature-settings: "tnum";
         font-variant-numeric: tabular-nums;
     }
 
@@ -128,10 +113,10 @@
 
     .matrix-container {
         background: var(--card-bg);
-        border-radius: 24px;
+        border-radius: 8px;
         border: 1px solid var(--border);
         overflow: hidden;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
     }
 
     .table-responsive {
@@ -146,7 +131,6 @@
 
     th {
         background: #1e293b;
-        /* Dark header match admin or sidebar */
         color: #ffffff;
         padding: 14px 10px;
         text-align: center;
@@ -163,20 +147,17 @@
         left: 0;
         background: #ffffff;
         z-index: 20;
-        /* Higher z-index to stay on top */
-        min-width: 300px;
+        min-width: 320px;
         text-align: left !important;
-        padding-left: 16px !important;
+        padding-left: 24px !important;
         border-right: 1px solid #cbd5e1;
-        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+        box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.05);
     }
 
     th.sticky-col {
         background: #1e293b;
-        /* Maintain dark background for the sticky header cell */
         color: #ffffff;
         z-index: 30;
-        /* Highest z-index for the top-left corner */
         border-right: 1px solid #334155;
     }
 
@@ -190,6 +171,8 @@
         padding: 12px 16px;
         border-bottom: 1px solid var(--border);
         text-align: center;
+        font-feature-settings: "tnum";
+        font-variant-numeric: tabular-nums;
     }
 
     .row-partition {
@@ -197,6 +180,7 @@
         font-weight: 700;
         color: #1e293b;
         cursor: pointer;
+        transition: background-color 0.2s;
     }
 
     .row-partition:hover {
@@ -206,41 +190,46 @@
     .row-item {
         background-color: #ffffff;
         display: none;
-        transition: background 0.2s;
     }
 
     .row-item.visible {
         display: table-row;
     }
 
+    .row-item:hover td {
+        background-color: #f8fafc;
+    }
+
     .btn {
         background: var(--primary);
         color: white;
         padding: 10px 20px;
-        border-radius: 12px;
+        border-radius: 4px;
         text-decoration: none;
         font-weight: 600;
         display: flex;
         align-items: center;
         gap: 8px;
-        transition: all 0.3s;
+        transition: all 0.2s;
         border: none;
         cursor: pointer;
+        font-size: 0.85rem;
     }
 
     .btn:hover {
-        box-shadow: 0 0 20px var(--primary-glow);
-        transform: scale(1.02);
+        opacity: 0.9;
+        transform: translateY(-1px);
     }
 
     .btn-outline {
-        background: transparent;
-        border: 1px solid var(--border);
+        background: white;
+        border: 1px solid #cbd5e1;
         color: var(--text-main);
     }
 
     .btn-outline:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: #f8fafc;
+        border-color: #94a3b8;
     }
 
     /* Modal Styles */
@@ -253,7 +242,7 @@
         width: 100%;
         height: 100%;
         overflow: auto;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: rgba(15, 23, 42, 0.6);
         backdrop-filter: blur(4px);
         align-items: center;
         justify-content: center;
@@ -264,19 +253,18 @@
     }
 
     .modal-content {
-        background-color: #fefefe;
-        padding: 24px;
-        border: 1px solid #888;
+        background-color: #ffffff;
+        padding: 32px;
         width: 90%;
-        max-width: 400px;
-        border-radius: 16px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        animation: slideIn 0.3s ease-out;
+        max-width: 450px;
+        border-radius: 8px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        animation: modalSlideIn 0.3s ease-out;
     }
 
-    @keyframes slideIn {
+    @keyframes modalSlideIn {
         from {
-            transform: translateY(-20px);
+            transform: translateY(20px);
             opacity: 0;
         }
 
@@ -287,23 +275,20 @@
     }
 
     .close-button {
-        color: #aaa;
+        color: #94a3b8;
         float: right;
-        font-size: 28px;
+        font-size: 24px;
         font-weight: bold;
         cursor: pointer;
-        line-height: 1;
+        transition: color 0.2s;
     }
 
-    .close-button:hover,
-    .close-button:focus {
-        color: black;
-        text-decoration: none;
-        cursor: pointer;
+    .close-button:hover {
+        color: #0f172a;
     }
 
     .form-group {
-        margin-bottom: 16px;
+        margin-bottom: 20px;
     }
 
     .form-group label {
@@ -311,46 +296,57 @@
         margin-bottom: 8px;
         font-weight: 500;
         color: var(--text-muted);
+        font-size: 0.9rem;
     }
 
     .form-group input {
         width: 100%;
-        padding: 10px;
+        padding: 12px;
         border: 1px solid var(--border);
-        border-radius: 8px;
-        font-family: inherit;
-        box-sizing: border-box;
-    }
-
-    .gantt-cell {
-        position: relative;
-        height: 100%;
-        min-height: 20px;
-    }
-
-    .gantt-bar {
-        background: rgba(59, 130, 246, 0.2);
         border-radius: 4px;
-        padding: 2px 4px;
-        color: var(--primary);
-        font-weight: 600;
-        font-size: 0.8rem;
+        font-family: inherit;
+        font-size: 1rem;
+        transition: border-color 0.2s;
     }
 
-    .gantt-bar.has-amount {
-        background: var(--primary);
-        color: white;
-        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    .form-group input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-glow);
     }
 
     .total-row {
-        background: rgba(15, 23, 42, 0.8);
+        background: #0f172a;
         color: white;
         font-weight: 700;
     }
 
     .total-row td {
-        border-top: 2px solid var(--primary);
+        border-top: none;
+    }
+
+    .editable-cell {
+        cursor: text;
+        transition: background-color 0.2s;
+    }
+
+    .editable-cell:hover {
+        background-color: #f1f5f9;
+    }
+
+    .editable-cell:focus {
+        background-color: #ffffff;
+        outline: 2px solid var(--primary);
+        outline-offset: -2px;
+    }
+
+    .val-positive {
+        font-weight: bold;
+        color: var(--primary);
+    }
+
+    .val-none {
+        color: #cbd5e1;
     }
 </style>
 {% endblock %}
@@ -365,7 +361,6 @@
 <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
     &rsaquo; <a href="{% url 'admin:app_list' app_label='presupuestos' %}">Presupuestos</a>
-    ```
     &rsaquo; <a href="{% url 'admin:presupuestos_presupuestoanual_changelist' %}">Presupuestos Anuales</a>
     &rsaquo; {{ presupuesto.nombre }}
 </div>
@@ -387,11 +382,11 @@
         <div class="header-stats">
             <div class="stat-item">
                 <span class="stat-label">Proyectado</span>
-                <span class="stat-value">{{ total_general_proyectado|floatformat:0 }}</span>
+                <span class="stat-value val-money">{{ total_general_proyectado|stringformat:".2f" }}</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Ejecutado</span>
-                <span class="stat-value">{{ total_general_ejecutado|floatformat:0 }}</span>
+                <span class="stat-value val-money">{{ total_general_ejecutado|stringformat:".2f" }}</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Ejecución</span>
@@ -412,7 +407,7 @@
             <a href="{% url 'presupuestos:exportar_excel' presupuesto.id %}" class="btn" style="background: #10b981;">
                 <ion-icon name="document-text-outline"></ion-icon> Excel
             </a>
-            <button onclick="window.print()" class="btn btn-outline" style="border: 1px solid #cbd5e1; color: #475569;">
+            <button onclick="window.print()" class="btn btn-outline">
                 <ion-icon name="print-outline"></ion-icon> Imprimir
             </button>
         </div>
@@ -452,13 +447,13 @@
                                 <div style="display: flex; gap: 4px; margin-left: 8px;">
                                     <button
                                         onclick="event.stopPropagation(); openModal('{{ pd.partida.id }}', '{{ pd.disciplina }}')"
-                                        style="background: #e2e8f0; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b;"
+                                        style="background: #e2e8f0; border: none; border-radius: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b;"
                                         title="Agregar Item Nuevo">
                                         <ion-icon name="add-outline"></ion-icon>
                                     </button>
                                     <button
                                         onclick="event.stopPropagation(); deletePartida('{{ pd.partida.id }}', '{{ pd.disciplina|escapejs }}')"
-                                        style="background: #fee2e2; border: none; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ef4444;"
+                                        style="background: #fee2e2; border: none; border-radius: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ef4444;"
                                         title="Eliminar Partida">
                                         <ion-icon name="trash-outline" style="font-size: 0.8rem;"></ion-icon>
                                     </button>
@@ -468,13 +463,13 @@
                         {% for val in pd.proyeccion_total_mensual %}
                         <td>
                             {% if val > 0 %}
-                            <span style="font-weight: bold; color: var(--primary);">{{ val|floatformat:0 }}</span>
+                            <span class="val-positive val-money">{{val|stringformat:".2f"}}</span>
                             {% else %}
-                            <span style="color: #cbd5e1;">-</span>
+                            <span class="val-none">-</span>
                             {% endif %}
                         </td>
                         {% endfor %}
-                        <td>{{ pd.total_proyectado|floatformat:0 }}</td>
+                        <td class="val-money">{{ pd.total_proyectado|stringformat:".2f" }}</td>
                     </tr>
 
                     <!-- ITEMS -->
@@ -484,22 +479,24 @@
                             style="padding-left: 48px !important; color: var(--text-muted); font-size: 0.8rem;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span>{{ item.concepto }}</span>
+                                {% if item.id %}
                                 <button onclick="deleteItem('{{ item.id }}')"
                                     style="background: transparent; border: none; cursor: pointer; color: #cbd5e1; padding: 4px;"
                                     onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'"
                                     title="Eliminar Item">
                                     <ion-icon name="trash-bin-outline"></ion-icon>
                                 </button>
+                                {% endif %}
                             </div>
                         </td>
                         {% for val in item.proyeccion %}
                         <td class="editable-cell" data-item-id="{{ item.id }}" data-month="{{ forloop.counter }}"
                             contenteditable="true" onblur="saveMonto(this)" onkeydown="handleEnter(event, this)">
-                            {{ val|floatformat:0 }}
+                            {{val|stringformat:".2f"}}
                         </td>
                         {% endfor %}
-                        <td style="font-weight: 500;" id="total-item-{{ item.id }}">
-                            {{ item.total_anual|floatformat:0 }}
+                        <td class="val-money" style="font-weight: 500;" id="total-item-{{ item.id }}">
+                            {{ item.total_anual|stringformat:".2f" }}
                         </td>
                     </tr>
                     {% endfor %}
@@ -509,11 +506,11 @@
                     <tr class="total-row">
                         <td class="sticky-col" style="background: #0f172a; color: white;">TOTAL MENSUAL</td>
                         {% for proj in global_proyectado_mes %}
-                        <td id="total-col-{{ forloop.counter }}">
-                            {{ proj|floatformat:0 }}
+                        <td id="total-col-{{ forloop.counter }}" class="val-money">
+                            {{ proj|stringformat:".2f" }}
                         </td>
                         {% endfor %}
-                        <td id="total-grand">{{ total_general_proyectado|floatformat:0 }}</td>
+                        <td id="total-grand" class="val-money">{{ total_general_proyectado|stringformat:".2f" }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -522,7 +519,7 @@
 </div>
 
 <div id="toast"
-    style="position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; transform: translateY(100px); transition: transform 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;">
+    style="position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 12px 24px; border-radius: 4px; transform: translateY(100px); transition: transform 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;">
     Guardado correctamente
 </div>
 
@@ -673,25 +670,37 @@
             });
     }
 
+    function parseLocalFloat(str) {
+        // User wants format: 1,000.00 (Thousands=Comma, Decimal=Point)
+        // We strip commas to parse correctly: 1,000.00 -> 1000.00
+        if (!str) return 0;
+        let clean = str.toString().replace(/,/g, '');
+        return parseFloat(clean) || 0;
+    }
+
+    function formatLocal(num) {
+        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
     function recalculateTotals() {
         let grandTotal = 0;
         for (let m = 1; m <= 12; m++) {
             let colSum = 0;
             const cells = document.querySelectorAll(`td[data-month="${m}"]`);
             cells.forEach(cell => {
-                let val = parseFloat(cell.innerText.replace(/[^0-9.-]/g, '')) || 0;
+                let val = parseLocalFloat(cell.innerText);
                 colSum += val;
             });
 
             const totalCell = document.getElementById(`total-col-${m}`);
             if (totalCell) {
-                totalCell.innerText = colSum.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                totalCell.innerText = formatLocal(colSum);
             }
             grandTotal += colSum;
         }
         const grandTotalCell = document.getElementById('total-grand');
         if (grandTotalCell) {
-            grandTotalCell.innerText = grandTotal.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            grandTotalCell.innerText = formatLocal(grandTotal);
         }
     }
 
@@ -740,10 +749,11 @@
     function saveMonto(el) {
         const itemId = el.getAttribute('data-item-id');
         const month = el.getAttribute('data-month');
-        let value = el.innerText.replace(/[^0-9.-]/g, '');
-        if (value === '') value = 0;
 
-        el.innerText = parseFloat(value).toLocaleString('en-US');
+        let val = parseLocalFloat(el.innerText);
+
+        // Update UI immediately
+        el.innerText = formatLocal(val);
 
         const csrfToken = '{{ csrf_token }}';
 
@@ -756,7 +766,7 @@
             body: JSON.stringify({
                 item_id: itemId,
                 mes: month,
-                monto: value
+                monto: val
             })
         })
             .then(response => response.json())
@@ -765,7 +775,7 @@
                     showToast('Guardado');
                     const totalEl = document.getElementById('total-item-' + itemId);
                     if (totalEl) {
-                        totalEl.innerText = parseFloat(data.new_total).toLocaleString('en-US');
+                        totalEl.innerText = formatLocal(parseFloat(data.new_total));
                     }
                     recalculateTotals();
                 } else {
@@ -779,13 +789,20 @@
     }
 
     function deleteItem(itemId) {
+        console.log('deleteItem called with ID:', itemId, 'Type:', typeof itemId);
+        if (!itemId || itemId === '' || itemId === 'None') {
+            alert('Error: No se puede eliminar el item. ID inválido.');
+            console.error('Invalid item ID:', itemId);
+            return;
+        }
+
         if (!confirm('¿Estás seguro de que quieres eliminar este item? Se perderán los montos asociados.')) return;
 
         const csrfToken = '{{ csrf_token }}';
         fetch('{% url "presupuestos:api_delete_item" %}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ item_id: itemId })
+            body: JSON.stringify({ item_id: parseInt(itemId) })
         })
             .then(res => res.json())
             .then(data => {
@@ -795,6 +812,10 @@
                 } else {
                     alert('Error: ' + data.message);
                 }
+            })
+            .catch(error => {
+                console.error('Error al eliminar:', error);
+                alert('Error al eliminar el item');
             });
     }
 
@@ -819,5 +840,63 @@
             })
             .catch(err => console.error("Error en deletePartida:", err));
     }
+
+    // Auto-Format on Load
+    document.addEventListener('DOMContentLoaded', () => {
+        // Format editable cells
+        document.querySelectorAll('.editable-cell').forEach(el => {
+            // Assume raw float from server (e.g. 1000, 1000.50)
+            let raw = parseFloat(el.innerText);
+            if (!isNaN(raw)) {
+                el.innerText = formatLocal(raw);
+            }
+        });
+
+        // Format ALL elements with 'val-money' class (Partida months, totals, stats)
+        document.querySelectorAll('.val-money').forEach(el => {
+            let text = el.innerText.replace(/,/g, '');
+            // Handle if there's any stray % or other chars, though usually monetary.
+            // If it has %, we skip or handle carefully.
+            if (el.innerText.includes('%')) return;
+
+            let raw = parseFloat(text);
+            if (!isNaN(raw)) {
+                el.innerText = formatLocal(raw);
+            }
+        });
+
+        // Format span values (val-positive)
+        document.querySelectorAll('.val-positive').forEach(el => {
+            let raw = parseFloat(el.innerText.replace(/,/g, '')); // Handle if intcomma leaked or raw
+            // If raw has comma from intcomma (1,000.00), unicode replace might depend.
+            // Best to rely on server output being CLEAN float.
+            // We will assume we updated templates to remove intcomma.
+            // But if not, we try to clean.
+            // Just parsing parseFloat works for "1000.00" and "1000".
+            if (!isNaN(raw)) {
+                el.innerText = formatLocal(raw);
+            }
+        });
+
+        // Format totals in table
+        document.querySelectorAll('[id^="total-col-"], [id^="total-item-"], #total-grand').forEach(el => {
+            // Clean potential commas if intcomma was used
+            let text = el.innerText.replace(/,/g, '');
+            let raw = parseFloat(text);
+            if (!isNaN(raw)) {
+                el.innerText = formatLocal(raw);
+            }
+        });
+
+        // Format Header Stats
+        document.querySelectorAll('.stat-value').forEach(el => {
+            if (el.innerText.includes('%')) return; // Skip percentages
+            let text = el.innerText.replace(/,/g, '');
+            let raw = parseFloat(text);
+            if (!isNaN(raw)) {
+                el.innerText = formatLocal(raw);
+            }
+        });
+    });
 </script>
 {% endblock %}
