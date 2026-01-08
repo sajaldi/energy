@@ -9,15 +9,12 @@
 <style>
     :root {
         --primary: #10b981;
-        --primary-glow: rgba(16, 185, 129, 0.2);
         --secondary: #6366f1;
         --bg: #f8fafc;
         --card-bg: #ffffff;
         --border: #e2e8f0;
         --text-main: #0f172a;
         --text-muted: #64748b;
-        --positive: #10b981;
-        --negative: #ef4444;
         --header-bg: #1e293b;
         --header-text: #ffffff;
     }
@@ -40,19 +37,12 @@
         justify-content: space-between;
         background: var(--card-bg);
         padding: 24px 32px;
-        border-radius: 6px;
+        border-radius: 4px;
         border: 1px solid var(--border);
         margin-bottom: 24px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         flex-wrap: wrap;
         gap: 20px;
-    }
-
-    .header-identity {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 200px;
     }
 
     .header-identity h1 {
@@ -68,11 +58,11 @@
         color: white;
         font-size: 0.75rem;
         font-weight: 700;
-        padding: 4px 10px;
+        padding: 4px 8px;
         border-radius: 4px;
         width: fit-content;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        margin-bottom: 4px;
     }
 
     .header-stats {
@@ -89,14 +79,11 @@
     .stat-item {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        align-items: flex-start;
     }
 
     .stat-label {
         font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 1px;
         color: var(--text-muted);
         font-weight: 600;
     }
@@ -105,13 +92,12 @@
         font-size: 1.5rem;
         font-weight: 700;
         color: var(--text-main);
-        font-variant-numeric: tabular-nums;
     }
 
     .primary-btn {
         background: white;
         border: 1px solid #cbd5e1;
-        padding: 10px 20px;
+        padding: 8px 16px;
         border-radius: 4px;
         cursor: pointer;
         display: flex;
@@ -119,21 +105,14 @@
         gap: 8px;
         font-weight: 500;
         color: var(--text-main);
-        transition: all 0.2s;
         text-decoration: none;
-    }
-
-    .primary-btn:hover {
-        background: #f8fafc;
-        border-color: #94a3b8;
     }
 
     .matrix-container {
         background: var(--card-bg);
-        border-radius: 8px;
+        border-radius: 4px;
         border: 1px solid var(--border);
         overflow: hidden;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
     }
 
     .table-responsive {
@@ -149,14 +128,11 @@
     th {
         background: var(--header-bg);
         color: var(--header-text);
-        padding: 14px 10px;
+        padding: 12px 8px;
         text-align: center;
         font-weight: 600;
-        border-bottom: 1px solid #334155;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-size: 0.75rem;
-        white-space: nowrap;
+        font-size: 0.7rem;
     }
 
     .sticky-col {
@@ -164,56 +140,33 @@
         left: 0;
         background: #ffffff;
         z-index: 20;
-        min-width: 380px;
+        min-width: 320px;
         text-align: left !important;
-        padding-left: 20px !important;
+        padding-left: 16px !important;
         border-right: 1px solid #e2e8f0;
-        box-shadow: 4px 0 6px -1px rgba(0, 0, 0, 0.05);
     }
 
     th.sticky-col {
         background: var(--header-bg);
-        color: var(--header-text);
-        z-index: 30;
     }
 
     td {
-        padding: 12px 10px;
+        padding: 10px 8px;
         border-bottom: 1px solid var(--border);
         text-align: center;
-        color: var(--text-main);
-        font-variant-numeric: tabular-nums;
     }
 
     .row-budget {
         background-color: #334155 !important;
         color: #ffffff !important;
-        font-weight: 700;
         cursor: pointer;
-    }
-
-    .row-budget td {
-        color: #ffffff !important;
-        border-bottom: 1px solid #475569;
+        font-weight: 600;
     }
 
     .row-discipline {
-        background-color: #f1f5f9;
-        font-weight: 700;
-        color: #0f172a;
-        cursor: pointer;
-    }
-
-    .row-discipline:hover {
-        background-color: #e2e8f0;
-    }
-
-    .row-item {
-        background-color: #ffffff;
-    }
-
-    .row-item:hover {
         background-color: #f8fafc;
+        cursor: pointer;
+        font-weight: 600;
     }
 
     .hidden {
@@ -223,18 +176,8 @@
     .toggle-icon {
         display: inline-block;
         transition: transform 0.2s;
-        margin-right: 8px;
-    }
-
-    .total-row {
-        background: #0f172a;
-        color: white;
-        font-weight: 800;
-    }
-
-    .total-row td {
-        color: white !important;
-        border-top: 2px solid #334155;
+        margin-right: 4px;
+        cursor: pointer;
     }
 
     .btn-back {
@@ -242,125 +185,139 @@
         color: var(--text-muted);
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 0.9rem;
-        margin-bottom: 20px;
+        gap: 4px;
+        margin-bottom: 16px;
         font-weight: 500;
     }
-
-    .btn-back:hover {
-        color: var(--primary);
-    }
 </style>
-{% endblock %}
-
-{% block breadcrumbs %}
-<div class="breadcrumbs">
-    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
-    &rsaquo; <a href="{% url 'admin:app_list' app_label='presupuestos' %}">Presupuestos</a>
-    &rsaquo; <a href="{% url 'admin:presupuestos_presupuestoagrupado_changelist' %}">Análisis Grupal</a>
-    &rsaquo; {{ grupo.nombre }}
-</div>
 {% endblock %}
 
 {% block content %}
 <div class="layout-constraint">
     <a href="{% url 'admin:presupuestos_presupuestoagrupado_changelist' %}" class="btn-back">
-        <ion-icon name="arrow-back-outline"></ion-icon> Volver al Listado
+        <ion-icon name="arrow-back-outline"></ion-icon> Volver
     </a>
 
     <div class="dashboard-header">
-        <div class="header-identity">
-            <div class="badge-group">Análisis Jerárquico</div>
+        <div>
+            <div class="badge-group">Análisis Grupal</div>
             <h1>{{ grupo.nombre }}</h1>
-            <div style="font-size: 0.9rem; color: var(--text-muted);">
-                Presupuestos incluidos: <strong>{{ grupo.presupuestos.count }}</strong>
-            </div>
         </div>
 
         <div class="header-stats">
             <div class="stat-item">
-                <span class="stat-label">Total Proyectado</span>
+                <span class="stat-label">Proyectado</span>
                 <span class="stat-value">{{ total_general_proyectado|floatformat:2|intcomma }}</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">Total Ejecutado</span>
-                <span class="stat-value">{{ total_general_ejecutado|floatformat:2|intcomma }}</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Eficiencia Grupal</span>
-                <span class="stat-value" style="color: var(--primary);">{% if total_general_proyectado > 0 %}{{
-                    total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%{% else %}0%{% endif
-                    %}</span>
+                <span class="stat-label">Eficiencia</span>
+                <span class="stat-value" style="color: var(--primary);">
+                    {% if total_general_proyectado > 0 %}
+                    {{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%
+                    {% else %}
+                    0%
+                    {% endif %}
+                </span>
             </div>
         </div>
 
-        <div class="header-actions" style="display: flex; gap: 10px;">
-            <a href="{% url 'presupuestos:exportar_cronograma_grupal_pdf' grupo.id %}" class="primary-btn"><ion-icon
-                    name="document-text-outline"></ion-icon> Exportar PDF</a>
-            <button onclick="window.print()" class="primary-btn"><ion-icon name="print-outline"></ion-icon> Imprimir
-                Pantalla</button>
+        <div class="header-actions">
+            <a href="{% url 'presupuestos:exportar_cronograma_grupal_pdf' grupo.id %}" class="primary-btn">
+                <ion-icon name="document-text-outline"></ion-icon> PDF
+            </a>
         </div>
     </div>
 
-    {% if error %}
-    <div
-        style="background: #fee2e2; color: #b91c1c; padding: 20px; border-radius: 12px; border: 1px solid #fecaca; font-weight: 500;">
-        {{ error }}</div>
-    {% else %}
     <div class="matrix-container">
         <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
-                        <th class="sticky-col">Jerarquía de Costos</th>
+                        <th class="sticky-col">Jerarquía</th>
                         {% for mes in meses_nombres %}<th>{{ mes|truncatechars:3 }}</th>{% endfor %}
                         <th>TOTAL</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for bd in presupuestos_data %}
-                    <tr class="row-budget" onclick="toggleGroup('budget-{{ forloop.counter }}', this)">
-                        <td class="sticky-col" style="background: #334155; color: #ffffff;">
-                            <div style="display: flex; align-items: center; gap: 8px;"><span
-                                    class="toggle-icon">▼</span><ion-icon name="business-outline"></ion-icon>{{
-                                bd.presupuesto.nombre }} ({{ bd.presupuesto.anio }})</div>
+                    <!-- Row for Global Monthly Totals (Top) -->
+                    <tr class="total-row"
+                        style="background: #0f172a; font-weight: 800; border-bottom: 2px solid #334155;">
+                        <td class="sticky-col" style="background: #0f172a; color: white;">TOTAL MENSUAL AGRUPADO</td>
+                        {% for proj in global_proyectado_mes %}
+                        <td style="color: white; font-size: 0.9rem;">
+                            {{ proj|floatformat:2|intcomma }}
                         </td>
-                        {% for val in bd.total_mensual_proyectado %}<td>{% if val > 0 %}{{ val|floatformat:2|intcomma
-                            }}{% else %}-{% endif %}</td>{% endfor %}
+                        {% endfor %}
+                        <td style="color: #10b981; font-size: 1rem;">
+                            {{ total_general_proyectado|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                    {% for bd in presupuestos_data %}
+                    <tr class="row-budget" onclick="toggleGroup('{{ bd.gid }}', this)">
+                        <td class="sticky-col" style="background: #334155; color: #fff;">
+                            <span class="toggle-icon">▼</span> {{ bd.presupuesto.nombre }}
+                        </td>
+                        {% for val in bd.total_mensual_proyectado %}
+                        <td>
+                            {% if val > 0 %}
+                            {{ val|floatformat:2|intcomma }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        {% endfor %}
                         <td>{{ bd.total_anual_proyectado|floatformat:2|intcomma }}</td>
                     </tr>
+
                     {% for pd in bd.partidas %}
-                    <tr class="row-discipline group-budget-{{ forloop.parentloop.counter }}"
-                        onclick="toggleGroup('disc-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
+                    <tr class="row-discipline group-{{ bd.gid }}" onclick="toggleGroup('{{ pd.gid }}', this)">
                         <td class="sticky-col" style="padding-left: 32px !important;">
-                            <div style="display: flex; align-items: center; gap: 8px;"><span
-                                    class="toggle-icon">▼</span><ion-icon name="layers-outline"></ion-icon>{{
-                                pd.disciplina }}</div>
+                            <span class="toggle-icon">▼</span> {{ pd.disciplina }}
                         </td>
-                        {% for val in pd.proyeccion_total_mensual %}<td style="color: var(--primary);">{% if val > 0
-                            %}{{ val|floatformat:2|intcomma }}{% else %}-{% endif %}</td>{% endfor %}
+                        {% for val in pd.proyeccion_total_mensual %}
+                        <td>
+                            {% if val > 0 %}
+                            {{ val|floatformat:2|intcomma }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        {% endfor %}
                         <td style="font-weight: 700;">{{ pd.total_proyectado|floatformat:2|intcomma }}</td>
                     </tr>
-                    {% for item in pd.items %}{% with
-                    gid="disc-"|addstr:forloop.parentloop.parentloop.counter|addstr:"-"|addstr:forloop.parentloop.counter
-                    %}{% include "presupuestos/partial_grouped_item.html" with item=item level=2 group_id=gid %}{%
-                    endwith %}{% endfor %}
-                    {% endfor %}{% endfor %}
-                    <tr class="total-row">
-                        <td class="sticky-col" style="background: #0f172a; color: white;">TOTAL GENERAL AGRUPADO</td>
-                        {% for proj in global_proyectado_mes %}<td>{{ proj|floatformat:2|intcomma }}</td>{% endfor %}
-                        <td>{{ total_general_proyectado|floatformat:2|intcomma }}</td>
-                    </tr>
+
+                    {% for item in pd.items %}
+                    {% include "presupuestos/partial_grouped_item.html" with item=item level=2 group_id=pd.gid %}
+                    {% endfor %}
+
+                    {% endfor %}
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-    {% endif %}
 </div>
 <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
 <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" nomodule></script>
 <script>
-    function toggleGroup(id, el) { const rows = document.querySelectorAll('.group-' + id); const icon = el.querySelector('.toggle-icon'); let isVisible = false; if (rows.length > 0) { isVisible = !rows[0].classList.contains('hidden'); } rows.forEach(r => { if (isVisible) { r.classList.add('hidden'); const childGroups = document.querySelectorAll('[class*="group-' + r.getAttribute('data-id') + '"]'); childGroups.forEach(cg => cg.classList.add('hidden')); } else { r.classList.remove('hidden'); } }); if (icon) { if (icon.style.transform === 'rotate(-90deg)') { icon.style.transform = 'rotate(0deg)'; } else { icon.style.transform = 'rotate(-90deg)'; } } }
+    function toggleGroup(id, el) {
+        const rows = document.querySelectorAll('.group-' + id);
+        const icon = el.querySelector('.toggle-icon');
+        if (!rows.length) return;
+        const isHidden = rows[0].classList.contains('hidden');
+        rows.forEach(r => {
+            if (isHidden) {
+                r.classList.remove('hidden');
+            } else {
+                r.classList.add('hidden');
+                const childId = r.getAttribute('data-id');
+                if (childId) {
+                    const childRows = document.querySelectorAll('.group-' + childId);
+                    childRows.forEach(cr => cr.classList.add('hidden'));
+                }
+            }
+        });
+        if (icon) icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+    }
 </script>
 {% endblock %}
