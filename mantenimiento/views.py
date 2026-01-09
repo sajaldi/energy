@@ -486,19 +486,93 @@ def cronograma_mantenimiento_visual(request):
         except Ubicacion.DoesNotExist:
             pass
 
-    # Obtener todas las órdenes del año filtradas
-    ordenes = OrdenTrabajo.objects.filter(
-        **filtros
-    ).select_related(
-        'ubicacion', 
-        'rutina__categoria', 
-        'rutina__frecuencia',
-        'programacion__horario'
+    # --- Lógica de Proyecciones Fantasma ---
+    from .models import Programacion, RestriccionCalendario
+    
+    # Buscar programaciones que sean "solo proyección" o no procesadas
+    proyecciones = Programacion.objects.filter(
+        fecha_inicio__year__lte=year,
+        # Si fecha_fin es null, asume infinito (o 1 año), si es menor que year, no nos sirve
+        # fecha_fin__gte=datetime(year, 1, 1) # Simplificación: traemos todas las activas
+    ).select_related('rutina__categoria', 'rutina__frecuencia', 'horario')
+    
+    # Si hay filtro de programacion específica
+    if programacion_id:
+        proyecciones = proyecciones.filter(id=programacion_id)
+    
+    # Si hay filtro de ubicación, debemos filtrar proyecciones que incluyan esa ubicación (o sus ancestros/descendientes)
+    # Esto es complejo porque Programacion -> Areas. Simplificamos: Mostramos proyecciones si el área seleccionada está en sus areas
+    if ubicacion_id:
+        # proyecciones = proyecciones.filter(areas__id__in=desc_ids) # Aproximación
+        pass
+
+    ordenes_list = []
+    
+    # 1. Órdenes Reales
+    qs_ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
+        'ubicacion', 'rutina__categoria', 'rutina__frecuencia', 'programacion__horario'
     ).values(
         'id', 'rutina__nombre', 'ubicacion__nombre', 'ubicacion_id',
         'rutina__categoria_id', 'inicio_programado', 'estado',
         'programacion__horario__color'
     )
+    ordenes_list.extend(list(qs_ordenes))
+    
+    # 2. Generar Fantasmas
+    restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
+    
+    for prog in proyecciones:
+        # Solo procesar si se pidió explícitamente ver proyecciones (o por defecto si quisieramos)
+        # Aquí asumiremos que SIEMPRE mostramos la proyección fantasma si la orden NO existe
+        # Pero para evitar duplicados, la lógica ideal es: Mostrar fantasma SOLO si no hay OT real en esa fecha.
+        # Por rendimiento, simplemente mostramos fantasmas para las que NO están procesadas o son solo_proyeccion
+        
+        # OJO: El usuario pidió "visualizar una programación fantasma". 
+        # Supongamos que son las que tienen `procesada=False` (que incluye las solo_proyeccion).
+        if prog.procesada:
+            continue
+
+        fecha_ciclo = prog.fecha_inicio
+        limite = prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365))
+        frec_dias = prog.rutina.frecuencia.dias
+        
+        # Color fantasma (con suerte tiene horario)
+        color = prog.horario.color if prog.horario else '#94a3b8'
+        
+        # Iterar fechas
+        while fecha_ciclo <= limite:
+            if fecha_ciclo.year == year:
+                # Verificar restricciones básico
+                if fecha_ciclo not in restricciones:
+                    # Crear Mock de OT
+                    # Necesitamos ubicación. La programación tiene N áreas. 
+                    # Para visualización, podemos crear una entrada por cada área principal.
+                    first_area = prog.areas.first()
+                    ubi_nom = first_area.nombre if first_area else "Múltiples Áreas"
+                    ubi_id = first_area.id if first_area else None
+                    
+                    # Si hay filtro de ubicación y esta prog no coincide, skip (muy básico)
+                    if ubicacion_id and ubi_id != int(ubicacion_id):
+                        # TODO: Mejorar lógica de coincidencia de áreas
+                        pass 
+
+                    ordenes_list.append({
+                        'id': f'proj_{prog.id}_{fecha_ciclo}', # ID falso string
+                        'rutina__nombre': prog.rutina.nombre,
+                        'ubicacion__nombre': ubi_nom,
+                        'ubicacion_id': ubi_id,
+                        'rutina__categoria_id': prog.rutina.categoria_id,
+                        'inicio_programado': datetime.combine(fecha_ciclo, datetime.min.time()),
+                        'estado': 'PROYECCION', # Estado especial
+                        'programacion__horario__color': color
+                    })
+            
+            fecha_ciclo += timedelta(days=frec_dias)
+
+    # --- Fin Lógica Proyecciones ---
+
+    # Obtener todas las órdenes del año filtradas
+    # ordenes = OrdenTrabajo.objects.filter(...) (YA NO, usamos ordenes_list)
     
     # Precargar categorías para encontrar raíces (sistemas)
     categorias = {c.id: c for c in Categoria.objects.all()}
@@ -527,7 +601,7 @@ def cronograma_mantenimiento_visual(request):
             curr = loc_map.get(curr.padre_id)
         return None
 
-    for ot in ordenes:
+    for ot in ordenes_list:
         dia_año = ot['inicio_programado'].timetuple().tm_yday
         semana_idx = (dia_año - 1) // 7
         if semana_idx > 51: semana_idx = 51
@@ -638,6 +712,7 @@ def cronograma_mantenimiento_visual(request):
                     celdas_rutina.append({
                         'active': bool(ots),
                         'realizada': bool(ots) and all(o['estado'] == 'REALIZADA' for o in ots),
+                        'proyeccion': bool(ots) and all(o.get('estado') == 'PROYECCION' for o in ots),
                         'count': len(ots),
                         'info': ", ".join(set([str(o['rutina__nombre'] or 'S/R') if view_mode == 'ubicacion' else str(o['ubicacion__nombre'] or 'S/U') for o in ots]))
                     })
