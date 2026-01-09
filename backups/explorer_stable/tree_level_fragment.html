@@ -1,0 +1,21 @@
+{% for sub in sub_ubicaciones %}
+{% include "admin/activos/includes/tree_item.html" with node=sub type="ubicacion" lazy=True cat_id=cat_id %}
+{% endfor %}
+
+{% for sub in sub_categorias %}
+{% include "admin/activos/includes/tree_item.html" with node=sub type="categoria" lazy=True %}
+{% endfor %}
+
+{% for activo in activos_directos %}
+{% include "admin/activos/includes/tree_item.html" with node=activo type="activo" lazy=True cat_id=cat_id %}
+{% endfor %}
+
+{% for cat_nombre, activos in categorias_activos.items %}
+<div class="category-header-mini">
+    <ion-icon name="pricetag-outline"></ion-icon>
+    {{ cat_nombre }}
+</div>
+{% for activo in activos %}
+{% include "admin/activos/includes/tree_item.html" with node=activo type="activo" lazy=True %}
+{% endfor %}
+{% endfor %}

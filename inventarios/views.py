@@ -176,3 +176,84 @@ def cart_checkout(request):
             return redirect('cart_detail')
             
     return redirect('cart_detail')
+@login_required
+def api_get_material_by_sku(request):
+    """
+    Busca un material por su SKU y retorna su stock actual.
+    """
+    sku = request.GET.get('sku')
+    if not sku:
+        return JsonResponse({'status': 'error', 'message': 'SKU no proporcionado'}, status=400)
+    
+    material = Material.objects.filter(sku=sku).first()
+    if not material:
+        return JsonResponse({'status': 'error', 'message': 'Material no encontrado'}, status=404)
+    
+    existencias = material.existencias.select_related('ubicacion').values(
+        'ubicacion_id', 'ubicacion__nombre', 'cantidad'
+    )
+    
+    return JsonResponse({
+        'id': material.id,
+        'nombre': material.nombre,
+        'sku': material.sku,
+        'unidad': material.unidad_medida,
+        'descripcion': material.descripcion or '',
+        'precio': float(material.precio_estimado),
+        'existencias': list(existencias)
+    })
+
+@login_required
+def api_registrar_movimiento_rapido(request):
+    """
+    Registra un movimiento de inventario de forma rápida vía AJAX.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            material_id = data.get('material_id')
+            tipo = data.get('tipo') # 'ENTRADA' o 'SALIDA'
+            cantidad = Decimal(str(data.get('cantidad', 0)))
+            ubicacion_id = data.get('ubicacion_id')
+            comentarios = data.get('comentarios', 'Registro desde Escáner')
+
+            if cantidad <= 0:
+                return JsonResponse({'status': 'error', 'message': 'La cantidad debe ser mayor a cero'}, status=400)
+
+            material = get_object_or_404(Material, id=material_id)
+            ubicacion = get_object_or_404(Ubicacion, id=ubicacion_id)
+
+            if tipo == 'SALIDA':
+                stock_record = StockRecord.objects.filter(material=material, ubicacion=ubicacion).first()
+                available = stock_record.cantidad if stock_record else 0
+                if available < cantidad:
+                    return JsonResponse({'status': 'error', 'message': f'Stock insuficiente ({available})'}, status=400)
+
+            mov = MovimientoInventario.objects.create(
+                material=material,
+                tipo=tipo,
+                cantidad=cantidad,
+                ubicacion_origen=ubicacion if tipo == 'SALIDA' else None,
+                ubicacion_destino=ubicacion if tipo == 'ENTRADA' else None,
+                usuario=request.user,
+                comentarios=comentarios
+            )
+
+            return JsonResponse({
+                'status': 'success', 
+                'message': f'Movimiento de {tipo} registrado correctamente. Pendiente de liquidación.',
+                'movimiento_id': mov.id
+            })
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+@login_required
+def scanner_view(request):
+    """Vista principal del escáner de inventario."""
+    ubicaciones = Ubicacion.objects.all()
+    return render(request, 'inventarios/escanear.html', {
+        'ubicaciones': ubicaciones
+    })

@@ -100,6 +100,29 @@ class CategoriaAdmin(ImportExportModelAdmin):
     cantidad_activos.short_description = "Cantidad Activos"
     cantidad_activos.admin_order_field = '_activos_count'
 
+class SmartModeloWidget(ForeignKeyWidget):
+    """Widget que usa el caché del Resource para evitar Modelo.DoesNotExist o consultas N+1."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        
+        val_str = str(value).strip()
+        # Tratamos literales como "None" o "NULL" como vacíos
+        if val_str.upper() in ('NONE', 'NULL', 'N/A', ''):
+            return None
+            
+        val_upper = val_str.upper()
+        resource = kwargs.get('resource')
+        if resource and hasattr(resource, 'modelo_cache'):
+            # Si no está en caché, simplemente devolvemos None (obviar errores)
+            return resource.modelo_cache.get(val_upper)
+            
+        # Fallback seguro que no levanta DoesNotExist si no encuentra
+        try:
+            return super().clean(value, row, **kwargs)
+        except Exception:
+            return None
+
 class SmartParentWidget(ForeignKeyWidget):
     """
     Widget que busca el padre por nombre y devuelve el primero encontrado.
@@ -410,6 +433,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     list_filter = ('tipo', 'padre',)
     autocomplete_fields = ('padre',)
     inlines = [UbicacionHijaInline]
+    change_list_template = 'admin/activos/ubicacion/change_list.html'
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('padre').annotate(
@@ -524,7 +548,7 @@ class ActivoResource(resources.ModelResource):
     modelo_nombre = fields.Field(
         column_name='modelo_nombre',
         attribute='modelo',
-        widget=ForeignKeyWidget(Modelo, field='nombre')
+        widget=SmartModeloWidget(Modelo, field='nombre')
     )
     categoria_nombre = fields.Field(
         column_name='categoria_nombre',
@@ -542,6 +566,11 @@ class ActivoResource(resources.ModelResource):
         attribute='responsable',
         widget=ForeignKeyWidget(User, field='username')
     )
+    padre_codigo = fields.Field(
+        column_name='padre_codigo',
+        attribute='padre',
+        widget=ForeignKeyWidget(Activo, field='codigo_interno')
+    )
 
     class Meta:
         model = Activo
@@ -549,7 +578,7 @@ class ActivoResource(resources.ModelResource):
         fields = (
             'id', 'nombre', 'codigo_interno', 'serie', 'marca_nombre', 'modelo_nombre', 
             'categoria_nombre', 'estado', 'ubicacion_nombre', 'responsable_username',
-            'descripcion', 'fecha_compra', 'costo', 'ubicacion_legacy'
+            'padre_codigo', 'descripcion', 'fecha_compra', 'costo', 'ubicacion_legacy'
         )
         export_order = fields
         skip_unchanged = True
@@ -622,34 +651,93 @@ class ActivoResource(resources.ModelResource):
             cache.set(f"import_progress_{user.id}_start", __import__('time').time(), 600)
             self.total_rows = len(dataset)
 
-        # 1. Caché Ubicaciones
+        # 1. Caché Ubicaciones (Iterativo para evitar RecursionError)
         self.ubicacion_clave_cache = {}
         self.ubicacion_nombre_cache = {}
         
-        # Identificar nombres duplicados para evitar ambigüedad en el caché simple
-        nombres_duplicados = set(
-            Ubicacion.objects.values('nombre')
-            .annotate(count=Count('id'))
-            .filter(count__gt=1)
-            .values_list('nombre', flat=True)
-        )
+        all_locs = {loc.id: loc for loc in Ubicacion.objects.all()}
+        nombres_count = {}
         
-        for loc in Ubicacion.objects.all().select_related('padre'):
-            # Siempre cacheamos la ruta completa (jerarquía)
-            self.ubicacion_clave_cache[loc.get_clave_unica()] = loc
+        for loc_id, loc in all_locs.items():
+            curr_path = []
+            curr = loc
+            visited = set()
+            while curr:
+                if curr.id in visited: break # Ciclo detectado
+                visited.add(curr.id)
+                curr_path.append(curr.nombre)
+                curr = all_locs.get(curr.padre_id)
             
-            # Solo cacheamos el nombre simple si NO es un nombre ambiguo (duplicado)
-            if loc.nombre not in nombres_duplicados:
+            path = "|".join(reversed(curr_path))
+            self.ubicacion_clave_cache[path] = loc
+            nombres_count[loc.nombre] = nombres_count.get(loc.nombre, 0) + 1
+        
+        for loc_id, loc in all_locs.items():
+            if nombres_count.get(loc.nombre) == 1:
                 self.ubicacion_nombre_cache[loc.nombre] = loc
         
         self.fields['ubicacion_nombre'].widget.resource = self
+        self.fields['modelo_nombre'].widget.resource = self
 
         # 2. Caché Marcas/Modelos/Categorías
         self.marca_cache = {m.nombre.upper(): m for m in Marca.objects.all()}
         self.modelo_cache = {m.nombre.upper(): m for m in Modelo.objects.all().select_related('marca', 'categoria')}
         self.categoria_cache = {c.nombre.upper(): c for c in Categoria.objects.all()}
 
-        # 3. Caché Activos por Código Interno (para get_instance instantáneo)
+        # 3. Pre-procesar Dataset para creación masiva de Marcas/Modelos
+        marcas_to_create = set()
+        modelos_data = {} # {mod_name: (mar_name, cat_name)}
+        categorias_to_create = set()
+        
+        def normalize_name(name):
+            if not name: return ""
+            s = str(name).strip()
+            if s.upper() in ('NONE', 'NULL', 'N/A'): return ""
+            return s
+
+        for row in dataset.dict:
+            mod_name = normalize_name(row.get('modelo_nombre'))
+            mar_name = normalize_name(row.get('marca_nombre'))
+            cat_name = normalize_name(row.get('categoria_nombre'))
+            
+            if mod_name:
+                mod_key = mod_name.upper()
+                if mod_key not in self.modelo_cache:
+                    modelos_data[mod_key] = (mod_name, mar_name, cat_name)
+                    if mar_name and mar_name.upper() not in self.marca_cache:
+                        marcas_to_create.add(mar_name)
+                    if cat_name and cat_name.upper() not in self.categoria_cache:
+                        categorias_to_create.add(cat_name)
+
+        # Crear Marcas faltantes
+        if marcas_to_create:
+            Marca.objects.bulk_create([Marca(nombre=m) for m in marcas_to_create], ignore_conflicts=True)
+            self.marca_cache = {m.nombre.upper(): m for m in Marca.objects.all()}
+            
+        # Crear Categorías faltantes
+        if categorias_to_create:
+            Categoria.objects.bulk_create([Categoria(nombre=c) for c in categorias_to_create], ignore_conflicts=True)
+            self.categoria_cache = {c.nombre.upper(): c for c in Categoria.objects.all()}
+
+        # Crear Modelos faltantes
+        if modelos_data:
+            new_models = []
+            # Asegurar que existe GENERICO
+            if "GENERICO" not in self.marca_cache:
+                gen, _ = Marca.objects.get_or_create(nombre="GENERICO")
+                self.marca_cache["GENERICO"] = gen
+
+            for mod_key, (m_name, mar_name, cat_name) in modelos_data.items():
+                marca = self.marca_cache.get(mar_name.upper() if mar_name else "GENERICO")
+                cat = self.categoria_cache.get(cat_name.upper()) if cat_name else None
+                new_models.append(Modelo(nombre=m_name, marca=marca, categoria=cat))
+            
+            if new_models:
+                Modelo.objects.bulk_create(new_models, ignore_conflicts=True)
+                # Recargar memoria con todos los modelos
+                self.modelo_cache = {m.nombre.upper(): m for m in Modelo.objects.all().select_related('marca', 'categoria')}
+
+        # 4. Caché Activos por Código Interno
         self.activo_cache = {a.codigo_interno: a for a in Activo.objects.all().only('id', 'codigo_interno') if a.codigo_interno}
 
     def after_import_row(self, row, row_result, **kwargs):
@@ -688,43 +776,9 @@ class ActivoResource(resources.ModelResource):
         return ""
 
     def before_import_row(self, row, **kwargs):
-        """Auto-creación inteligente de Marcas, Modelos y asignación de Categoría"""
-        from .models import Marca, Modelo, Categoria
-        
-        mod_name = str(row.get('modelo_nombre') or '').strip()
-        mar_name = str(row.get('marca_nombre') or '').strip()
-        cat_name = str(row.get('categoria_nombre') or '').strip()
-        
-        if mod_name:
-            mod_key = mod_name.upper()
-            mar_key = mar_name.upper()
-            
-            # 1. Garantizar Marca
-            marca_obj = self.marca_cache.get(mar_key) if mar_name else self.marca_cache.get("GENERICO")
-            if not marca_obj:
-                marca_obj, _ = Marca.objects.get_or_create(nombre=mar_name or "GENERICO")
-                self.marca_cache[mar_key or "GENERICO"] = marca_obj
-            
-            # 2. Garantizar Categoría
-            cat_obj = self.categoria_cache.get(cat_name.upper()) if cat_name else None
-            if cat_name and not cat_obj:
-                cat_obj, _ = Categoria.objects.get_or_create(nombre=cat_name)
-                self.categoria_cache[cat_name.upper()] = cat_obj
-            
-            # 3. Garantizar Modelo
-            mod_obj = self.modelo_cache.get(mod_key)
-            if not mod_obj:
-                mod_obj, _ = Modelo.objects.get_or_create(
-                    nombre=mod_name, 
-                    marca=marca_obj,
-                    defaults={'categoria': cat_obj}
-                )
-                self.modelo_cache[mod_key] = mod_obj
-            
-            # Si ya existía pero tenemos categoría nueva/distinta, actualizamos solo si es necesario
-            if cat_obj and mod_obj.categoria != cat_obj:
-                mod_obj.categoria = cat_obj
-                mod_obj.save()
+        """Auto-asignación desde caché (pre-creado en before_import)"""
+        # Ya no hacemos get_or_create aquí para evitar N+1
+        pass
 
     def get_instance(self, instance_loader, row):
         codigo = row.get('codigo_interno')
@@ -737,51 +791,42 @@ class ActivoResource(resources.ModelResource):
 
     def import_row(self, row, instance_loader, **kwargs):
         """
-        Override optimizado para manejar campos vacíos de manera inteligente.
-        Solo actualiza campos que tienen valores en el Excel.
+        Override optimizado para manejo de actualizaciones parciales.
+        Si una celda está vacía en el Excel, se preserva el valor actual del Activo.
         """
-        # Obtener la instancia existente
         instance = self.get_instance(instance_loader, row)
         
         if instance and instance.pk:
-            # Es una actualización - solo aplicar campos no vacíos
-            # Mapeo rápido de columnas a atributos (se hace una sola vez)
             if not hasattr(self, '_field_map'):
-                self._field_map = {}
-                for rf in self.get_fields():
-                    if rf.column_name and rf.attribute:
-                        self._field_map[rf.column_name] = rf.attribute
+                self._field_map = {rf.column_name: rf.attribute for rf in self.get_fields() if rf.column_name and rf.attribute}
             
-            # Para cada campo vacío, restaurar el valor actual
-            for field_name, value in list(row.items()):
-                # Considerar vacío: None, '', espacios en blanco
-                is_empty = value is None or (isinstance(value, str) and not value.strip())
+            for field_name, value in row.items():
+                # Detectar si el campo está vacío (incluyendo literales como None/NULL)
+                val_str = str(value).strip() if value is not None else ""
+                is_empty = not val_str or val_str.upper() in ('NONE', 'NULL', 'N/A')
                 
                 if is_empty and field_name in self._field_map:
                     attr_name = self._field_map[field_name]
                     
-                    # Manejar atributos anidados (ej: modelo__marca__nombre)
-                    if '__' in attr_name:
-                        parts = attr_name.split('__')
-                        current_value = instance
-                        for part in parts:
-                            current_value = getattr(current_value, part, None) if current_value else None
-                        
-                        # Convertir a string apropiado
-                        if current_value:
-                            if hasattr(current_value, 'nombre'):
-                                row[field_name] = current_value.nombre
-                            elif hasattr(current_value, 'username'):
-                                row[field_name] = current_value.username
+                    # Manejo de campos directos del modelo
+                    if '__' not in attr_name:
+                        current_val = getattr(instance, attr_name, None)
+                        if current_val is not None:
+                            # Si es un ForeignKey, necesitamos el nombre/código para que el widget no falle
+                            if isinstance(current_val, models.Model):
+                                if attr_name == 'modelo':
+                                    row[field_name] = current_val.nombre
+                                elif attr_name == 'ubicacion':
+                                    row[field_name] = current_val.get_ruta_completa()
+                                elif attr_name == 'responsable':
+                                    row[field_name] = current_val.username
+                                elif attr_name == 'padre':
+                                    row[field_name] = current_val.codigo_interno
+                                else:
+                                    row[field_name] = str(current_val)
                             else:
-                                row[field_name] = str(current_value)
-                    else:
-                        # Campo directo del modelo
-                        current_value = getattr(instance, attr_name, None)
-                        if current_value is not None:
-                            row[field_name] = current_value
+                                row[field_name] = current_val
         
-        # Llamar al método padre con el row modificado
         return super().import_row(row, instance_loader, **kwargs)
 
 class ActivoFaltantesFilter(admin.SimpleListFilter):
@@ -812,14 +857,15 @@ class UbicacionHierarchyFilter(admin.SimpleListFilter):
     parameter_name = 'ubicacion_id'
 
     def lookups(self, request, model_admin):
-        # 1. Opción para activos sin ubicación
+        # Optimización: No cargar miles de ubicaciones con ruta_completa en el sidebar.
+        # Solo mostrar las ubicaciones raíz o usar un límite razonable.
+        from .models import Ubicacion
         lookups = [('none', '📍 Sin Ubicación Asignada')]
         
-        # 2. Todas las ubicaciones ordenadas
-        from .models import Ubicacion
-        locations = Ubicacion.objects.all().order_by('nombre')
+        # Solo mostramos los primeros niveles para evitar bloqueos por volumen
+        locations = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
         for loc in locations:
-            lookups.append((loc.id, loc.ruta_completa))
+            lookups.append((loc.id, f"🏢 {loc.nombre}"))
             
         return lookups
 
@@ -862,7 +908,7 @@ class ActivoAdmin(ImportExportActionModelAdmin):
 
     list_display = ('codigo_interno', 'nombre', 'get_parent_info', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'ubicacion')
     list_filter = (ActivoFaltantesFilter, 'estado', 'modelo__categoria', 'modelo__marca', 'responsable', 'creado_en', UbicacionHierarchyFilter)
-    list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable')
+    list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable', 'padre')
     search_fields = ('nombre', 'descripcion', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('modelo', 'ubicacion', 'responsable', 'padre')
     inlines = [ComponenteActivoInline]
@@ -947,21 +993,22 @@ class ActivoAdmin(ImportExportActionModelAdmin):
         return super().export_admin_action(request, queryset)
     export_admin_action.short_description = "Exportar activos seleccionados"
 
-    @admin.action(description="⬇️ Descarga Directa Excel (Rápido)")
+    @admin.action(description="⬇️ Descarga Directa Excel (Completo y Rápido)")
     def export_direct_xlsx(self, request, queryset):
-        """Exportación en un solo paso (sin preguntar formato)"""
+        """Exportación en un solo paso con todos los campos necesarios para edición masiva"""
         try:
-            # Usamos directamente la clase definida en el admin
-            resource_class = self.resource_class
-            resource_kwargs = self.get_export_resource_kwargs(request)
-            resource = resource_class(**resource_kwargs)
-            
+            from django.utils import timezone
+            # Usar la clase del recurso directamente ya que el método dinámico falló
+            resource_class = self.get_export_resource_class() if hasattr(self, 'get_export_resource_class') else self.resource_class
+            resource = resource_class(**self.get_export_resource_kwargs(request))
             dataset = resource.export(queryset)
+            
+            fecha = timezone.now().strftime('%Y%m%d_%H%M')
             response = HttpResponse(
                 dataset.xlsx, 
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
-            response['Content-Disposition'] = f'attachment; filename="activos_{queryset.count()}_items.xlsx"'
+            response['Content-Disposition'] = f'attachment; filename="export_activos_{fecha}.xlsx"'
             return response
         except Exception as e:
             self.message_user(request, f"Error en exportación directa: {str(e)}", messages.ERROR)
@@ -1241,7 +1288,7 @@ class ActivoAdmin(ImportExportActionModelAdmin):
             
         else:
             # Restaurar la plantilla de importación/exportación si no es popup
-            self.change_list_template = 'admin/import_export/change_list_import_export.html'
+            self.change_list_template = 'admin/activos/activo/change_list.html'
             
         return super().changelist_view(request, extra_context=extra_context)
     

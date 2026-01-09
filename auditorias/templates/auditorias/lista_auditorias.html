@@ -1,0 +1,116 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+    body {
+        background: #f8fafc;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .header {
+        margin-bottom: 25px;
+    }
+
+    .header h1 {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #1e293b;
+        margin: 0;
+    }
+
+    .header p {
+        color: #64748b;
+        margin-top: 5px;
+    }
+
+    .audit-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.2s;
+    }
+
+    .audit-card:active {
+        transform: scale(0.98);
+    }
+
+    .audit-info h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: #1e293b;
+    }
+
+    .audit-info span {
+        font-size: 0.8rem;
+        color: #64748b;
+        display: block;
+        margin-top: 4px;
+    }
+
+    .status-badge {
+        font-size: 0.7rem;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 20px;
+        text-transform: uppercase;
+    }
+
+    .status-badge.en_curso {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .status-badge.borrador {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .status-badge.finalizada {
+        background: #eff6ff;
+        color: #1e40af;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>Auditorías de Inventario</h1>
+        <p>Selecciona una sesión activa para comenzar el escaneo.</p>
+    </div>
+
+    <div class="audit-list">
+        {% for audit in auditorias %}
+        <a href="{% url 'auditorias:ejecutar' audit.id %}" class="audit-card">
+            <div class="audit-info">
+                <h3>{{ audit.nombre }}</h3>
+                <span>Iniciada: {{ audit.fecha_inicio|date:"d M Y" }}</span>
+                <span>Por: {{ audit.creado_por.username }}</span>
+            </div>
+            <span class="status-badge {{ audit.estado|lower }}">{{ audit.get_estado_display }}</span>
+        </a>
+        {% empty %}
+        <div style="text-align: center; padding: 40px; color: #94a3b8;">
+            <p>No hay auditorías registradas.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

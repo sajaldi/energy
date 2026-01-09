@@ -8,4 +8,7 @@ urlpatterns = [
     path('cart/remove/<int:material_id>/', views.cart_remove, name='cart_remove'),
     path('cart/detail/', views.cart_detail_view, name='cart_detail'),
     path('cart/checkout/', views.cart_checkout, name='cart_checkout'),
+    path('escanear/', views.scanner_view, name='scanner'),
+    path('api/sku/', views.api_get_material_by_sku, name='api_get_material_by_sku'),
+    path('api/movimiento-rapido/', views.api_registrar_movimiento_rapido, name='api_registrar_movimiento_rapido'),
 ]

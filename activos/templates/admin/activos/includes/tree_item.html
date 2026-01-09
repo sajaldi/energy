@@ -1,0 +1,61 @@
+{% load static %}
+
+<div class="tree-item {{ type }}-item" data-id="{{ node.id }}" data-type="{{ type }}" data-loaded="false"
+    data-cat-id="{% if cat_id %}{{ cat_id }}{% endif %}">
+    <div class="item-header">
+        {% if node.tiene_hijos %}
+        <span class="tree-toggle" onclick="toggleNode(event, this)">
+            <ion-icon name="chevron-forward-outline"></ion-icon>
+        </span>
+        {% else %}
+        <span class="tree-toggle-empty" style="width: 24px;"></span>
+        {% endif %}
+
+        <div class="item-main-click" onclick="selectItem(this)">
+            <span class="item-icon">
+                {% if type == 'ubicacion' %}
+                {% if node.tipo == 'EDIFICIO' %}<ion-icon name="business-outline" style="color: #1e293b;"></ion-icon>
+                {% elif node.tipo == 'NIVEL' %}<ion-icon name="layers-outline" style="color: #64748b;"></ion-icon>
+                {% else %}<ion-icon name="location-outline" style="color: #94a3b8;"></ion-icon>{% endif %}
+                {% elif type == 'categoria' %}
+                <ion-icon name="bookmarks-outline" style="color: #059669;"></ion-icon>
+                {% else %}
+                <ion-icon name="cube-outline" style="color: #2563eb;"></ion-icon>
+                {% endif %}
+            </span>
+
+            <span class="item-label">
+                {% if type == 'activo' and node.ubicacion %}
+                <span class="item-location-tag"
+                    style="font-size: 0.7rem; color: #94a3b8; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; border: 1px solid #e2e8f0; margin-right: 6px;">
+                    {{ node.ubicacion.nombre }}
+                </span>
+                {% endif %}
+                <span class="item-name">{{ node.nombre }}</span>
+                {% if type == 'activo' and node.descripcion %}
+                <span class="item-description"
+                    style="color: #2563eb; font-size: 0.8rem; font-style: italic; margin-left: 10px; opacity: 0.8;">
+                    {{ node.descripcion }}
+                </span>
+                {% endif %}
+            </span>
+        </div>
+
+        <span class="item-actions">
+            {% if type == 'ubicacion' %}
+            <a href="/admin/activos/ubicacion/{{ node.id }}/change/" target="_blank" title="Editar Ubicación"><ion-icon
+                    name="create-outline"></ion-icon></a>
+            {% elif type == 'categoria' %}
+            <a href="/admin/activos/categoria/{{ node.id }}/change/" target="_blank" title="Editar Categoría"><ion-icon
+                    name="create-outline"></ion-icon></a>
+            {% else %}
+            <a href="/admin/activos/activo/{{ node.id }}/change/" target="_blank" title="Editar Activo"><ion-icon
+                    name="create-outline"></ion-icon></a>
+            {% endif %}
+        </span>
+    </div>
+
+    <div class="item-content" style="display: none;">
+        {# Content will be loaded via AJAX #}
+    </div>
+</div>

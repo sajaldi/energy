@@ -21,4 +21,5 @@ urlpatterns = [
     path('app/programacion/<int:pk>/', views.mobile_programacion_detalle, name='mobile_programacion_detalle'),
     path('app/ot/<int:pk>/', views.mobile_ot_detalle, name='mobile_ot_detalle'),
     path('app/aviso/crear/', views.mobile_crear_aviso, name='mobile_crear_aviso'),
+    path('dashboard-cargas/', views.dashboard_cargas, name='dashboard_cargas'),
 ]

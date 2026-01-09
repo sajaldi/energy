@@ -1,0 +1,502 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Surtido de Inventario - SoftCoM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-800: #1f2937;
+            --dark: #0f172a;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            background-color: var(--gray-100);
+            color: var(--gray-800);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-btn {
+            font-size: 24px;
+            color: var(--gray-800);
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 50%;
+            display: flex;
+        }
+
+        .back-btn:hover {
+            background-color: var(--gray-100);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        #main-container {
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Seccion Escaner */
+        #scanner-section {
+            background-color: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        #reader {
+            width: 100%;
+            border: none !important;
+        }
+
+        .scanner-placeholder {
+            height: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--gray-800);
+            color: white;
+            cursor: pointer;
+        }
+
+        .scanner-placeholder ion-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        /* Manual Input */
+        .search-box {
+            display: flex;
+            gap: 10px;
+            background: white;
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .search-box input {
+            flex: 1;
+            border: none;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .search-box button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0 16px;
+            font-weight: 600;
+        }
+
+        /* Material Card */
+        #result-card {
+            display: none;
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: var(--gray-100);
+        }
+
+        .material-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 10px 0 5px 0;
+        }
+
+        .material-sku {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .stock-list {
+            margin: 15px 0;
+            border-top: 1px solid var(--gray-100);
+            padding-top: 15px;
+        }
+
+        .stock-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+
+        .stock-qty {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        select,
+        input[type="number"] {
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--gray-200);
+            font-family: inherit;
+            font-size: 15px;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: white;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: 20px;
+            right: 20px;
+            background: var(--dark);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            transform: translateY(100px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        #toast.show {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <button onclick="history.back()" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+        <h1>Escáner de Inventario</h1>
+        <div style="width: 40px;"></div>
+    </header>
+
+    <div id="main-container">
+        <div id="scanner-section">
+            <div id="reader" style="display:none"></div>
+            <div id="placeholder" class="scanner-placeholder" onclick="startScanner()">
+                <ion-icon name="camera-outline"></ion-icon>
+                <span>Activar Cámara</span>
+            </div>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="manual-sku" placeholder="Código SKU manual...">
+            <button onclick="lookupSKU(document.getElementById('manual-sku').value)">
+                <ion-icon name="search-outline"></ion-icon>
+            </button>
+        </div>
+
+        <div id="result-card">
+            <div class="badge" id="mat-unit">OLLA</div>
+            <h2 class="material-title" id="mat-name">Nombre del Material</h2>
+            <div class="material-sku" id="mat-sku">SKU: 12345</div>
+
+            <div class="stock-list" id="stock-list">
+                <!-- Stock by location will be injected here -->
+            </div>
+
+            <div class="controls">
+                <div class="form-group">
+                    <label>Ubicación para el movimiento</label>
+                    <select id="ubicacion-sel">
+                        <option value="">Seleccionar Ubicación...</option>
+                        {% for u in ubicaciones %}
+                        <option value="{{ u.id }}">{{ u.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="cantidad-input" value="1" min="1" step="0.01">
+                </div>
+
+                <div class="btn-grid">
+                    <button class="btn btn-success" onclick="registrarMovimiento('ENTRADA')">
+                        <ion-icon name="add-circle-outline"></ion-icon> Entrada
+                    </button>
+                    <button class="btn btn-danger" onclick="registrarMovimiento('SALIDA')">
+                        <ion-icon name="remove-circle-outline"></ion-icon> Salida
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        let scanner = null;
+        let currentMaterial = null;
+
+        function showToast(msg, color = null) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            if (color) toast.style.backgroundColor = color;
+            else toast.style.backgroundColor = 'var(--dark)';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        async function startScanner() {
+            if (!window.isSecureContext && location.hostname !== "localhost") {
+                showToast("El escáner requiere una conexión segura (HTTPS)", "var(--danger)");
+                return;
+            }
+
+            document.getElementById('placeholder').style.display = 'none';
+            document.getElementById('reader').style.display = 'block';
+
+            if (!scanner) {
+                scanner = new Html5Qrcode("reader");
+            }
+
+            try {
+                await scanner.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0
+                    },
+                    (decodedText) => {
+                        if (navigator.vibrate) navigator.vibrate(100);
+                        lookupSKU(decodedText);
+                    },
+                    (error) => { /* Ignorar errores de frame */ }
+                );
+            } catch (err) {
+                console.error("Error al iniciar cámara:", err);
+                showToast("Error al iniciar cámara: " + err, "var(--danger)");
+                document.getElementById('placeholder').style.display = 'flex';
+                document.getElementById('reader').style.display = 'none';
+            }
+        }
+
+        async function lookupSKU(sku) {
+            if (!sku) return;
+            console.log("Buscando SKU:", sku);
+            try {
+                const resp = await fetch(`/inventarios/api/sku/?sku=${encodeURIComponent(sku)}`);
+                const data = await resp.json();
+
+                if (data.status === 'error') {
+                    showToast(data.message, 'var(--danger)');
+                    return;
+                }
+
+                currentMaterial = data;
+                displayMaterial(data);
+
+                // Detener escáner
+                if (scanner) {
+                    try {
+                        await scanner.stop();
+                    } catch (e) { /* Ya estaba detenido */ }
+                }
+
+                document.getElementById('reader').style.display = 'none';
+                document.getElementById('placeholder').style.display = 'flex';
+
+            } catch (e) {
+                console.error("Error en lookup:", e);
+                showToast('Error al buscar material', 'var(--danger)');
+            }
+        }
+
+        function displayMaterial(mat) {
+            document.getElementById('mat-name').innerText = mat.nombre;
+            document.getElementById('mat-sku').innerText = `SKU: ${mat.sku}`;
+            document.getElementById('mat-unit').innerText = mat.unidad || mat.unit;
+
+            const list = document.getElementById('stock-list');
+            list.innerHTML = '<strong>Existencias:</strong>';
+
+            if (!mat.existencias || mat.existencias.length === 0) {
+                list.innerHTML += '<div class="stock-item">Sin stock registrado</div>';
+            } else {
+                mat.existencias.forEach(ex => {
+                    list.innerHTML += `
+                    <div class="stock-item">
+                        <span>${ex.ubicacion__nombre}</span>
+                        <span class="stock-qty">${ex.cantidad} ${mat.unidad}</span>
+                    </div>
+                `;
+                });
+            }
+
+            document.getElementById('result-card').style.display = 'block';
+        }
+
+        async function registrarMovimiento(tipo) {
+            const ubiId = document.getElementById('ubicacion-sel').value;
+            const qty = document.getElementById('cantidad-input').value;
+
+            if (!ubiId) {
+                showToast('Debes seleccionar una ubicación', 'var(--warning)');
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/inventarios/api/movimiento-rapido/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        material_id: currentMaterial.id,
+                        tipo: tipo,
+                        cantidad: qty,
+                        ubicacion_id: ubiId
+                    })
+                });
+
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    showToast(data.message, 'var(--success)');
+                    // Refresh stock display
+                    lookupSKU(currentMaterial.sku);
+                } else {
+                    showToast(data.message, 'var(--danger)');
+                }
+            } catch (e) {
+                showToast('Error en la transacción', 'var(--danger)');
+            }
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+
+</body>
+
+</html>

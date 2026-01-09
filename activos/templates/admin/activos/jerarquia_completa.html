@@ -1,0 +1,675 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+<style>
+    :root {
+        --tree-bg: #ffffff;
+        --tree-hover: #f8fafc;
+        --tree-active: #eff6ff;
+        --tree-border: #e2e8f0;
+        --primary: #2563eb;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif !important;
+        margin: 0;
+        overflow: hidden;
+    }
+
+    #content {
+        padding: 0 !important;
+    }
+
+    /* Hide admin crumbs for more space */
+    .breadcrumbs {
+        display: none !important;
+    }
+
+    .hierarchical-explorer {
+        display: flex;
+        height: calc(100vh - 65px);
+        background: #f1f5f9;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .tree-container {
+        flex: 0 0 650px;
+        padding: 15px;
+        overflow-y: auto;
+        border-right: 1px solid var(--tree-border);
+        background: #f8fafc;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+
+    .hierarchical-explorer.collapsed .tree-container {
+        flex: 0 0 0px;
+        padding-left: 0;
+        padding-right: 0;
+        border-right: none;
+        overflow: hidden;
+        opacity: 0;
+    }
+
+    .detail-container {
+        flex: 1;
+        background: white;
+        overflow-y: auto;
+        position: relative;
+    }
+
+    .detail-content {
+        height: 100%;
+    }
+
+    .iframe-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--text-muted);
+        text-align: center;
+        padding: 40px;
+    }
+
+    .explorer-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--tree-border);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .explorer-header {
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--tree-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+    }
+
+    .tree-root {
+        padding: 10px;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    /* Sidebar Toggle */
+    .sidebar-toggle {
+        position: absolute;
+        top: 20px;
+        left: 635px;
+        /* Superpuesto al borde del árbol de 650px */
+        width: 35px;
+        height: 35px;
+        background: var(--primary);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 2000;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        border: 2px solid white;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .hierarchical-explorer.collapsed .sidebar-toggle {
+        left: 15px;
+    }
+
+    .sidebar-toggle:hover {
+        transform: scale(1.1);
+        background: #1d4ed8;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Items Styles */
+    .tree-item {
+        margin-bottom: 2px;
+    }
+
+    .item-header {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: all 0.2s;
+        gap: 2px;
+        position: relative;
+        border: 1px solid transparent;
+    }
+
+    .item-header:hover {
+        background-color: var(--tree-hover);
+    }
+
+    .item-main-click {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        cursor: pointer;
+        padding: 4px;
+    }
+
+    .item-header.active {
+        background-color: var(--tree-active);
+        border: 1px solid #bfdbfe;
+    }
+
+    .tree-toggle {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        transition: transform 0.2s;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+
+    .tree-toggle:hover {
+        background: #e2e8f0;
+        color: var(--text-main);
+    }
+
+    .tree-toggle.expanded {
+        transform: rotate(90deg);
+    }
+
+    .item-icon {
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .item-label {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .item-name {
+        font-weight: 500;
+        color: var(--text-main);
+        font-size: 0.9rem;
+    }
+
+    .item-content {
+        padding-left: 20px;
+        border-left: 1px dashed #cbd5e1;
+        margin-left: 11px;
+    }
+
+    .category-header-mini {
+        padding: 6px 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: #f8fafc;
+        border-radius: 4px;
+        margin: 4px 0 2px 10px;
+    }
+
+    .loader-mini {
+        border: 2px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 2px solid var(--primary);
+        width: 14px;
+        height: 14px;
+        animation: spin-mini 1s linear infinite;
+    }
+
+    @keyframes spin-mini {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .badge-info {
+        font-size: 0.7rem;
+        background: #e2e8f0;
+        color: #475569;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 700;
+    }
+
+    .view-toggle {
+        display: flex;
+        background: #f1f5f9;
+        padding: 4px;
+        border-radius: 8px;
+        margin-top: 15px;
+    }
+
+    .view-btn {
+        flex: 1;
+        padding: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .view-btn.active {
+        background: white;
+        color: #2563eb;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Search Styles */
+    .search-wrapper {
+        margin: 15px 0 5px 0;
+        position: relative;
+    }
+
+    .search-input-group {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .search-input-group ion-icon {
+        position: absolute;
+        left: 12px;
+        color: #94a3b8;
+        font-size: 1.2rem;
+    }
+
+    .search-input-group input {
+        width: 100%;
+        padding: 10px 10px 10px 40px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        background: white;
+        transition: all 0.2s;
+        outline: none;
+    }
+
+    .search-input-group input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .search-results-container {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        max-height: 400px;
+        overflow-y: auto;
+        margin-top: 8px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .search-result-item {
+        padding: 10px 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: background 0.2s;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+
+    .search-result-item:hover {
+        background: #f8fafc;
+    }
+
+    .search-result-item ion-icon {
+        font-size: 1.3rem;
+        color: #64748b;
+    }
+
+    .result-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .result-name {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #1e293b;
+    }
+
+    .result-meta {
+        font-size: 0.7rem;
+        color: #94a3b8;
+    }
+
+    .no-results {
+        padding: 20px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hierarchical-explorer" id="main-explorer">
+    <div class="sidebar-toggle" onclick="toggleSidebar()" title="Alternar menú lateral">
+        <ion-icon name="chevron-back-outline" id="toggle-icon"></ion-icon>
+    </div>
+
+    <div class="tree-container">
+        <div class="explorer-card">
+            <div class="explorer-header" style="flex-direction: column; align-items: stretch; gap: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h1 style="font-size: 1rem; margin: 0;">
+                        <ion-icon name="list-outline" style="vertical-align: middle;"></ion-icon>
+                        EXPLORADOR
+                    </h1>
+                    <span class="badge-info">PRO</span>
+                </div>
+
+                <div class="search-wrapper">
+                    <div class="search-input-group">
+                        <ion-icon name="search-outline"></ion-icon>
+                        <input type="text" id="explorer-search" placeholder="Buscar activos, ubicaciones..."
+                            autocomplete="off">
+                    </div>
+                    <div id="search-results" class="search-results-container" style="display: none;"></div>
+                </div>
+
+                <div class="view-toggle">
+                    <button id="btn-view-ubi" class="view-btn active" onclick="switchView('ubi')">
+                        <ion-icon name="location-outline"></ion-icon>
+                        UBICACIONES
+                    </button>
+                    <button id="btn-view-cat" class="view-btn" onclick="switchView('cat')">
+                        <ion-icon name="bookmarks-outline"></ion-icon>
+                        CATEGORÍAS
+                    </button>
+                </div>
+            </div>
+
+            <div id="tree-root-ubi" class="tree-root">
+                {% if roots %}
+                {% for root in roots %}
+                {% include "admin/activos/includes/tree_item.html" with node=root type="ubicacion" %}
+                {% endfor %}
+                {% else %}
+                <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                    <p>No se encontraron ubicaciones.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div id="tree-root-cat" class="tree-root" style="display: none;">
+                {% if cat_roots %}
+                {% for root in cat_roots %}
+                {% include "admin/activos/includes/tree_item.html" with node=root type="categoria" %}
+                {% endfor %}
+                {% else %}
+                <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                    <p>No se encontraron categorías raíz.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div id="tree-root-search" class="tree-root" style="display: none;">
+                {# Search results will be injected here #}
+            </div>
+        </div>
+    </div>
+
+    <div class="detail-container">
+        <div id="detail-content" class="detail-content">
+            <div class="iframe-placeholder">
+                <ion-icon name="browsers-outline"
+                    style="font-size: 4rem; opacity: 0.1; margin-bottom: 20px;"></ion-icon>
+                <h3>Detalle del Activo / Ubicación</h3>
+                <p>Selecciona un elemento de la izquierda para editarlo en este panel.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        console.log("Explorer scripts initialized");
+
+        // --- Sidebar Logic ---
+        window.toggleSidebar = function () {
+            const explorer = document.getElementById('main-explorer');
+            const icon = document.getElementById('toggle-icon');
+            explorer.classList.toggle('collapsed');
+
+            if (explorer.classList.contains('collapsed')) {
+                icon.setAttribute('name', 'chevron-forward-outline');
+            } else {
+                icon.setAttribute('name', 'chevron-back-outline');
+            }
+        };
+
+        // --- State Management ---
+        window.activeHeader = null;
+
+        // --- Helpers ---
+        const getEl = (id) => document.getElementById(id);
+        const updateDetail = (html) => {
+            const container = getEl('detail-content');
+            if (container) container.innerHTML = html;
+        };
+
+        const showLoading = (id, type) => {
+            updateDetail(`
+                <div class="iframe-placeholder">
+                    <div class="loader-mini" style="width: 40px; height: 40px; border-width: 4px;"></div>
+                    <p style="margin-top: 20px;">Cargando formulario...</p>
+                    <p style="font-size: 0.75rem; color: #94a3b8;">Elemento: ${type} #${id}</p>
+                </div>
+            `);
+        };
+
+        const showError = (msg, detail) => {
+            updateDetail(`
+                <div class="iframe-placeholder">
+                    <ion-icon name="alert-circle-outline" style="font-size: 3rem; color: #ef4444;"></ion-icon>
+                    <h3>Error al cargar</h3>
+                    <p style="color: #475569;">${msg}</p>
+                    ${detail ? `<pre style="font-size: 0.7rem; color: #94a3b8; background: #f8fafc; padding: 10px; border-radius: 4px; max-width: 100%; overflow: auto;">${detail}</pre>` : ''}
+                </div>
+            `);
+        };
+
+        // --- Public Functions (exposed to window for HTML event handlers) ---
+        window.switchView = function (mode) {
+            const rootUbi = getEl('tree-root-ubi');
+            const rootCat = getEl('tree-root-cat');
+            const rootSearch = getEl('tree-root-search');
+            const btnUbi = getEl('btn-view-ubi');
+            const btnCat = getEl('btn-view-cat');
+            const searchInput = getEl('explorer-search');
+
+            if (!rootUbi || !rootCat || !rootSearch) return;
+
+            if (searchInput) searchInput.value = '';
+            rootSearch.style.display = 'none';
+
+            if (mode === 'ubi') {
+                rootUbi.style.display = 'block';
+                rootCat.style.display = 'none';
+                if (btnUbi) btnUbi.classList.add('active');
+                if (btnCat) btnCat.classList.remove('active');
+            } else {
+                rootUbi.style.display = 'none';
+                rootCat.style.display = 'block';
+                if (btnUbi) btnUbi.classList.remove('active');
+                if (btnCat) btnCat.classList.add('active');
+            }
+        };
+
+        window.toggleNode = async function (event, toggleBtn) {
+            if (event) event.stopPropagation();
+
+            const item = toggleBtn.closest('.tree-item');
+            if (!item) return;
+
+            const content = item.querySelector('.item-content');
+            if (!content) return;
+
+            const id = item.dataset.id;
+            const type = item.dataset.type;
+            const isHidden = content.style.display === 'none';
+
+            if (isHidden) {
+                content.style.display = 'block';
+                toggleBtn.classList.add('expanded');
+
+                if (item.dataset.loaded === 'false') {
+                    content.innerHTML = '<div style="padding: 10px; color: #94a3b8; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;"><div class="loader-mini"></div> Cargando...</div>';
+                    try {
+                        let url = `/activos/api/explorer-level/?id=${id}&type=${type}`;
+                        if (item.dataset.catId) url += `&cat_id=${item.dataset.catId}`;
+                        const response = await fetch(url);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        content.innerHTML = await response.text();
+                        item.dataset.loaded = 'true';
+                    } catch (e) {
+                        content.innerHTML = `<div style="padding: 10px; color: #ef4444; font-size: 0.8rem;">Error: ${e.message}</div>`;
+                    }
+                }
+            } else {
+                content.style.display = 'none';
+                toggleBtn.classList.remove('expanded');
+            }
+        };
+
+        window.loadItemById = async function (id, type, catId) {
+            showLoading(id, type);
+
+            // Highlight in tree if exists
+            const treeItem = document.querySelector(`.tree-item[data-id="${id}"][data-type="${type}"]`);
+            if (treeItem) {
+                const header = treeItem.querySelector('.item-header');
+                if (window.activeHeader) window.activeHeader.classList.remove('active');
+                if (header) {
+                    header.classList.add('active');
+                    window.activeHeader = header;
+                    header.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+
+            try {
+                let url = `/activos/api/item-form/${type}/${id}/`;
+                if (catId) url += `?cat_id=${catId}`;
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Error del servidor (${response.status}): ${text.substring(0, 100)}`);
+                }
+                const html = await response.text();
+                updateDetail(html);
+
+                // Run scripts
+                const container = getEl('detail-content');
+                const scripts = container.getElementsByTagName('script');
+                for (let i = 0; i < scripts.length; i++) {
+                    const script = document.createElement('script');
+                    script.text = scripts[i].text;
+                    document.head.appendChild(script).parentNode.removeChild(script);
+                }
+            } catch (e) {
+                showError("No se pudo cargar el formulario", e.message);
+            }
+        };
+
+        window.selectItem = function (mainClickArea) {
+            const item = mainClickArea.closest('.tree-item');
+            if (!item) return;
+            const { id, type, catId } = item.dataset;
+            window.loadItemById(id, type, catId);
+        };
+
+        // --- Search Logic ---
+        let searchTimeout = null;
+        const searchInput = getEl('explorer-search');
+
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                clearTimeout(searchTimeout);
+
+                if (query.length < 2) {
+                    const rootSearch = getEl('tree-root-search');
+                    if (rootSearch) rootSearch.style.display = 'none';
+
+                    const btnUbi = getEl('btn-view-ubi');
+                    const mode = (btnUbi && btnUbi.classList.contains('active')) ? 'ubi' : 'cat';
+                    const originalTree = getEl('tree-root-' + mode);
+                    if (originalTree) originalTree.style.display = 'block';
+                    return;
+                }
+
+                searchTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/activos/api/explorer-search/?q=${encodeURIComponent(query)}`);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        const html = await response.text();
+
+                        const rootUbi = getEl('tree-root-ubi');
+                        const rootCat = getEl('tree-root-cat');
+                        const rootSearch = getEl('tree-root-search');
+
+                        if (rootUbi) rootUbi.style.display = 'none';
+                        if (rootCat) rootCat.style.display = 'none';
+                        if (rootSearch) {
+                            rootSearch.innerHTML = html;
+                            rootSearch.style.display = 'block';
+                        }
+                    } catch (err) {
+                        console.error('Search error:', err);
+                    }
+                }, 300);
+            });
+        }
+    })();
+</script>
+{% endblock %}
