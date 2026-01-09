@@ -485,6 +485,72 @@ def cronograma_mantenimiento_visual(request):
             filtros['ubicacion_id__in'] = desc_ids
         except Ubicacion.DoesNotExist:
             pass
+
+    # --- Lógica de Simulación Global (Global Simulator) ---
+    from .models import Programacion, RestriccionCalendario
+    
+    # 1. Recuperar Órdenes Reales PRIMERO
+    ordenes_list = []
+    qs_ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
+        'ubicacion', 'rutina__categoria', 'rutina__frecuencia', 'programacion__horario'
+    ).values(
+        'id', 'rutina__nombre', 'ubicacion__nombre', 'ubicacion_id',
+        'rutina__categoria_id', 'inicio_programado', 'estado',
+        'programacion__horario__color', 'programacion_id'
+    )
+    ordenes_list.extend(list(qs_ordenes))
+
+    # 2. Pre-cargar sets de OTs existentes para no duplicar
+    existing_ot_keys = set()
+    for ot in ordenes_list:
+        if ot.get('programacion_id'): 
+            d = ot['inicio_programado'].date()
+            existing_ot_keys.add((ot['programacion_id'], d))
+
+    # 3. Buscar TODAS las programaciones activas en el año
+    proyecciones = Programacion.objects.filter(
+        fecha_inicio__year__lte=year,
+    ).select_related('rutina__categoria', 'rutina__frecuencia', 'horario')
+    
+    if programacion_id:
+        proyecciones = proyecciones.filter(id=programacion_id)
+        
+    restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
+    
+    for prog in proyecciones:
+        fecha_ciclo = prog.fecha_inicio
+        limite = prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365))
+        fin_anio = date(year, 12, 31)
+        if limite > fin_anio: limite = fin_anio
+        
+        frec_dias = prog.rutina.frecuencia.dias
+        color = prog.horario.color if prog.horario else '#94a3b8'
+        
+        first_area = prog.areas.first()
+        ubi_nom = first_area.nombre if first_area else "Múltiples Áreas"
+        ubi_id = first_area.id if first_area else None
+        
+        while fecha_ciclo <= limite:
+            if fecha_ciclo.year == year:
+                if (prog.id, fecha_ciclo) in existing_ot_keys:
+                    fecha_ciclo += timedelta(days=frec_dias)
+                    continue
+                
+                if fecha_ciclo not in restricciones:
+                    ordenes_list.append({
+                        'id': f'proj_{prog.id}_{fecha_ciclo}',
+                        'rutina__nombre': prog.rutina.nombre,
+                        'ubicacion__nombre': ubi_nom,
+                        'ubicacion_id': ubi_id,
+                        'rutina__categoria_id': prog.rutina.categoria_id,
+                        'inicio_programado': datetime.combine(fecha_ciclo, datetime.min.time()),
+                        'estado': 'PROYECCION',
+                        'programacion__horario__color': color,
+                        'programacion_id': prog.id
+                    })
+            
+            fecha_ciclo += timedelta(days=frec_dias)
+    # --- Fin Lógica Proyecciones ---
             
     # Precargar categorías para encontrar raíces (sistemas)
     categorias = {c.id: c for c in Categoria.objects.all()}
