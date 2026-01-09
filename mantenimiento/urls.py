@@ -18,7 +18,11 @@ urlpatterns = [
     path('programar-rutina/', views.programar_rutina_wizard, name='programar_rutina_wizard'),
     path('api/get-assets-wizard/', views.api_get_assets_wizard, name='api_get_assets_wizard'),
     path('app/cronograma/', views.mobile_cronograma, name='mobile_cronograma'),
-    path('app/programacion/<int:pk>/', views.mobile_programacion_detalle, name='mobile_programacion_detalle'),
+    path('api/programacion/<int:pk>/detalle/', views.mobile_programacion_detalle, name='mobile_programacion_detalle'),
+    
+    # Proyecciones
+    path('proyeccion/<int:pk>/', views.visualizador_proyecciones, name='visualizador_proyecciones'),
+    path('proyeccion-generar/<int:pk>/', views.generar_ordenes_programacion, name='generar_ordenes_programacion'),
     path('app/ot/<int:pk>/', views.mobile_ot_detalle, name='mobile_ot_detalle'),
     path('app/aviso/crear/', views.mobile_crear_aviso, name='mobile_crear_aviso'),
     path('dashboard-cargas/', views.dashboard_cargas, name='dashboard_cargas'),

@@ -478,6 +478,18 @@
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">Si se deja vacío, se programará
                     por 1 año.</p>
             </div>
+
+            <div class="form-group"
+                style="background: white; padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                    <input type="checkbox" id="soloProyeccion" style="width: 20px; height: 20px;">
+                    <div>
+                        <span style="font-weight: 700; display: block;">Solo Proyección</span>
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Visualizar fechas antes de generar
+                            órdenes</span>
+                    </div>
+                </label>
+            </div>
         </div>
     </div>
 
@@ -681,13 +693,17 @@
                     areas: selections.areas,
                     activos: selections.activos,
                     fecha_inicio: selections.fecha_inicio,
-                    fecha_fin: selections.fecha_fin
+                    fecha_fin: selections.fecha_fin,
+                    solo_proyeccion: document.getElementById('soloProyeccion').checked
                 })
             });
             const data = await response.json();
 
             if (data.status === 'success') {
                 showMonumentalSuccess(data.message);
+            } else if (data.status === 'projection') {
+                // Redirect to visualizer
+                window.location.href = "{% url 'mantenimiento:visualizador_proyecciones' 0 %}".replace('0', data.prog_id);
             } else {
                 alert("Error: " + data.message);
                 btnNext.disabled = false;
