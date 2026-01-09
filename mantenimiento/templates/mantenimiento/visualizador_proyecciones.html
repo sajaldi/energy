@@ -1,0 +1,230 @@
+﻿{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --primary: #3b82f6;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+    }
+
+    body {
+        font-family: 'Outfit', sans-serif;
+        background-color: var(--bg);
+    }
+
+    .container-proj {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+
+    .header-proj {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .header-proj h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text);
+        margin: 0 0 8px 0;
+    }
+
+    .card-info {
+        background: var(--card);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .dates-list {
+        background: var(--card);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border);
+    }
+
+    .date-row {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: background 0.2s;
+    }
+
+    .date-row:last-child {
+        border-bottom: none;
+    }
+
+    .date-row:hover {
+        background: #f1f5f9;
+    }
+
+    .date-col {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .date-badge {
+        background: #e2e8f0;
+        padding: 4px 12px;
+        border-radius: 99px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .badge-warn {
+        background: #fff7ed;
+        color: #c2410c;
+        border: 1px solid #ffedd5;
+    }
+
+    .actions-footer {
+        margin-top: 32px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 16px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1rem;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+    }
+</style>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-proj">
+    <div class="header-proj">
+        <h1>Proyección de Mantenimiento</h1>
+        <p style="color: var(--text-muted);">Revisa las fechas calculadas antes de generar las órdenes.</p>
+    </div>
+
+    <div class="card-info">
+        <div class="stat-item">
+            <div class="stat-label">Rutina</div>
+            <div class="stat-value" style="font-size: 1.1rem; color: var(--text);">{{ prog.rutina.nombre }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Frecuencia</div>
+            <div class="stat-value">{{ prog.rutina.frecuencia.nombre }}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Total Ciclos</div>
+            <div class="stat-value">{{ fechas|length }}</div>
+        </div>
+    </div>
+
+    <div class="dates-list">
+        {% for f in fechas %}
+        <div class="date-row">
+            <div class="date-col">
+                <ion-icon name="calendar-outline" style="font-size: 1.2rem; color: var(--primary);"></ion-icon>
+                <span style="font-weight: 600; font-size: 1.05rem;">{{ f.fecha|date:"l d F Y" }}</span>
+            </div>
+            <div class="date-col">
+                {% if f.es_fin_semana %}
+                <span class="date-badge badge-warn">Fin de Semana</span>
+                {% endif %}
+                {% if f.es_festivo %}
+                <span class="date-badge badge-warn">Festivo</span>
+                {% endif %}
+                <span class="date-badge">Ciclo regular</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="actions-footer">
+        <a href="{% url 'mantenimiento:programar_rutina' %}" class="btn btn-secondary">
+            Cancelar
+        </a>
+        <button id="btnConfirmar" class="btn btn-primary">
+            Confirmar y Generar Órdenes <ion-icon name="checkmark-circle-outline"></ion-icon>
+        </button>
+    </div>
+</div>
+
+<script>
+    document.getElementById('btnConfirmar').addEventListener('click', async () => {
+        const btn = document.getElementById('btnConfirmar');
+        btn.disabled = true;
+        btn.innerHTML = 'Generando... <ion-icon name="sync" class="rotating"></ion-icon>';
+
+        try {
+            const response = await fetch('{% url "mantenimiento:generar_ordenes_programacion" prog.id %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                alert(data.message);
+                window.location.href = "{% url 'mantenimiento:cronograma' %}";
+            } else {
+                alert('Error: ' + data.message);
+                btn.disabled = false;
+                btn.innerHTML = 'Confirmar y Generar Órdenes';
+            }
+        } catch (error) {
+            alert('Error de conexión');
+            btn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

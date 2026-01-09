@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from .models import OrdenTrabajo, Rutina, Categoria, Programacion, Aviso, PuestoTrabajo, TecnicoPuesto # NUEVO: Puestos
+from .models import OrdenTrabajo, Rutina, Categoria, Programacion, Aviso # NUEVO: Aviso
 from activos.models import Activo # NUEVO: Activo
 from django.utils import timezone
 from datetime import datetime, date, timedelta
@@ -1194,14 +1194,6 @@ def programar_rutina_wizard(request):
             if data.get('activos'):
                 prog.activos.set(data['activos'])
             
-            # 3. Guardar solo proyección o generar
-            if data.get('solo_proyeccion'):
-                return JsonResponse({
-                    'status': 'projection',
-                    'prog_id': prog.id,
-                    'message': 'Programación creada. Redirigiendo a visualizador...'
-                })
-
             # 3. Generar Órdenes (Síncrono para respuesta inmediata en wizard)
             count = prog.generar_ordenes()
             
@@ -1222,18 +1214,12 @@ def programar_rutina_wizard(request):
     # Rutinas para el buscador inicial si no viene por GET
     rutinas = Rutina.objects.all().select_related('categoria', 'frecuencia')
 
-    # Identificar si la rutina ya trae una categoría de activo vinculada
-    preselected_cat_id = None
-    if rutina and rutina.categoria and rutina.categoria.categoria_activo:
-        preselected_cat_id = rutina.categoria.categoria_activo.id
-
     return render(request, 'mantenimiento/visual_scheduler.html', {
         'rutina_preselected': rutina,
         'rutinas': rutinas,
         'horarios': horarios,
         'ubicaciones_roots': ubicaciones_roots,
         'categorias_activos': categorias_activos,
-        'preselected_cat_id': preselected_cat_id,
         'today': today,
     })
 
@@ -1429,176 +1415,4 @@ def mobile_crear_aviso(request):
         'prioridades': Aviso.PRIORIDAD_CHOICES,
         'tipos': Aviso.TIPO_CHOICES,
     }
-@staff_member_required
-def dashboard_cargas(request):
-    """
-    Dashboard visual para ver la carga de trabajo por técnico y por puesto.
-    Muestra una proyección de 4 semanas.
-    """
-    from .models import TecnicoPuesto, PuestoTrabajo, OrdenTrabajo
-    import collections
-
-    # Determinar la semana actual y las siguientes 3
-    now = timezone.now()
-    # Inicio de la semana (Lunes)
-    monday = now - timedelta(days=now.weekday())
-    
-    semanas = []
-    for i in range(4):
-        start = monday + timedelta(weeks=i)
-        end = start + timedelta(days=6)
-        anio, sem, _ = start.isocalendar()
-        semanas.append({
-            'label': f"Semana {sem}",
-            'rango': f"{start.strftime('%d/%m')} - {end.strftime('%d/%m')}",
-            'key': f"{anio}-{sem}",
-            'start': start,
-            'end': end
-        })
-
-    # Obtener técnicos y puestos
-    tecnicos = TecnicoPuesto.objects.select_related('user', 'puesto').filter(disponible=True)
-    puestos = PuestoTrabajo.objects.all()
-
-    # Rango total para la consulta
-    q_start = timezone.make_aware(datetime.combine(semanas[0]['start'], datetime.min.time()))
-    q_end = timezone.make_aware(datetime.combine(semanas[-1]['end'], datetime.max.time()))
-    
-    # Obtener todas las OTs asignadas en este rango con sus detalles
-    ots = OrdenTrabajo.objects.filter(
-        tecnico__isnull=False,
-        inicio_programado__gte=q_start,
-        inicio_programado__lte=q_end
-    ).select_related('rutina', 'aviso', 'ubicacion')
-
-    # Agrupar carga: {(user_id, semana_key): {'horas': total, 'ots': [list]}}
-    carga_map = collections.defaultdict(lambda: {'horas': 0.0, 'ots': []})
-    for ot in ots:
-        anio, sem, _ = ot.inicio_programado.isocalendar()
-        key = f"{anio}-{sem}"
-        duracion = (ot.fin_programado - ot.inicio_programado).total_seconds() / 3600
-        carga_map[(ot.tecnico_id, key)]['horas'] += float(duracion)
-        
-        # Nombre de la OT similar a __str__
-        nombre_ot = ot.rutina.nombre if ot.rutina else (ot.aviso.descripcion[:30] if ot.aviso else "OT Correctiva")
-        carga_map[(ot.tecnico_id, key)]['ots'].append({
-            'id': ot.id,
-            'nombre': nombre_ot,
-            'ubicacion': ot.ubicacion.nombre if ot.ubicacion else "S/U",
-            'inicio': ot.inicio_programado.strftime('%d/%m %H:%M'),
-            'horas': round(duracion, 1),
-            'estado': ot.estado
-        })
-
-    # Procesar datos por técnico
-    tecnicos_data = []
-    for t in tecnicos:
-        semanas_t = []
-        for s in semanas:
-            data = carga_map.get((t.user_id, s['key']), {'horas': 0.0, 'ots': []})
-            hrs = data['horas']
-            cap = float(t.horas_semanales_max)
-            pct = (hrs / cap * 100) if cap > 0 else 0
-            semanas_t.append({
-                'horas': round(hrs, 1),
-                'pct': round(min(pct, 100), 1),
-                'total_pct': round(pct, 1),
-                'capacidad': cap,
-                'is_over': pct > 100,
-                'ots': data['ots']
-            })
-        tecnicos_data.append({
-            'id': t.user_id,
-            'nombre': t.user.get_full_name() or t.user.username,
-            'puesto': t.puesto.nombre,
-            'semanas': semanas_t
-        })
-
-    # Procesar datos por puesto
-    puestos_data = []
-    for p in puestos:
-        p_tecnicos = [t for t in tecnicos if t.puesto_id == p.id]
-        if not p_tecnicos: continue
-        
-        cap_total = sum(float(t.horas_semanales_max) for t in p_tecnicos)
-        semanas_p = []
-        for s in semanas:
-            hrs_p = sum(carga_map.get((t.user_id, s['key']), {'horas': 0.0})['horas'] for t in p_tecnicos)
-            pct = (hrs_p / cap_total * 100) if cap_total > 0 else 0
-            semanas_p.append({
-                'horas': round(hrs_p, 1),
-                'pct': round(min(pct, 100), 1),
-                'total_pct': round(pct, 1),
-                'capacidad': cap_total,
-                'is_over': pct > 100
-            })
-        puestos_data.append({
-            'nombre': p.nombre,
-            'semanas': semanas_p
-        })
-
-    return render(request, 'mantenimiento/dashboard_cargas.html', {
-        'semanas': semanas,
-        'tecnicos': tecnicos_data,
-        'puestos': puestos_data
-    })
-
-@staff_member_required
-def visualizador_proyecciones(request, pk):
-    """
-    Vista para visualizar las fechas proyectadas de una programación
-    antes de confirmar la generación de órdenes.
-    """
-    from .models import Programacion, RestriccionCalendario
-    from django.shortcuts import get_object_or_404
-    
-    prog = get_object_or_404(Programacion, pk=pk)
-    
-    # Calcular fechas proyectadas (Simulación de lo que haría generar_ordenes)
-    fechas_proyectadas = []
-    
-    fecha_ciclo = prog.fecha_inicio
-    limite = prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365))
-    frecuencia_dias = prog.rutina.frecuencia.dias
-    restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
-    
-    while fecha_ciclo <= limite:
-        # Verificar si cae en restricción
-        es_festivo = fecha_ciclo in restricciones
-        es_fin_semana = fecha_ciclo.weekday() >= 5 # 5=Sab, 6=Dom
-        
-        fechas_proyectadas.append({
-            'fecha': fecha_ciclo,
-            'es_festivo': es_festivo,
-            'es_fin_semana': es_fin_semana,
-            'dias_frecuencia': frecuencia_dias
-        })
-        
-        fecha_ciclo += timedelta(days=frecuencia_dias)
-        
-    return render(request, 'mantenimiento/visualizador_proyecciones.html', {
-        'prog': prog,
-        'fechas': fechas_proyectadas
-    })
-
-@staff_member_required
-def generar_ordenes_programacion(request, pk):
-    """
-    Endpoint para confirmar la generación de órdenes desde el visualizador.
-    """
-    from .models import Programacion
-    from django.shortcuts import get_object_or_404
-    
-    if request.method != 'POST':
-        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
-        
-    prog = get_object_or_404(Programacion, pk=pk)
-    try:
-        count = prog.generar_ordenes()
-        return JsonResponse({
-            'status': 'success',
-            'count': count,
-            'message': f'Se generaron {count} órdenes de trabajo.'
-        })
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return render(request, 'mantenimiento/mobile_crear_aviso.html', context)
