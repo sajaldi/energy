@@ -1456,27 +1456,39 @@ def dashboard_cargas(request):
     q_start = timezone.make_aware(datetime.combine(semanas[0]['start'], datetime.min.time()))
     q_end = timezone.make_aware(datetime.combine(semanas[-1]['end'], datetime.max.time()))
     
-    # Obtener todas las OTs asignadas en este rango
+    # Obtener todas las OTs asignadas en este rango con sus detalles
     ots = OrdenTrabajo.objects.filter(
         tecnico__isnull=False,
         inicio_programado__gte=q_start,
         inicio_programado__lte=q_end
-    ).values('tecnico_id', 'inicio_programado', 'fin_programado')
+    ).select_related('rutina', 'aviso', 'ubicacion')
 
-    # Agrupar carga: {(user_id, semana_key): horas}
-    carga_map = collections.defaultdict(float)
+    # Agrupar carga: {(user_id, semana_key): {'horas': total, 'ots': [list]}}
+    carga_map = collections.defaultdict(lambda: {'horas': 0.0, 'ots': []})
     for ot in ots:
-        anio, sem, _ = ot['inicio_programado'].isocalendar()
+        anio, sem, _ = ot.inicio_programado.isocalendar()
         key = f"{anio}-{sem}"
-        duracion = (ot['fin_programado'] - ot['inicio_programado']).total_seconds() / 3600
-        carga_map[(ot['tecnico_id'], key)] += float(duracion)
+        duracion = (ot.fin_programado - ot.inicio_programado).total_seconds() / 3600
+        carga_map[(ot.tecnico_id, key)]['horas'] += float(duracion)
+        
+        # Nombre de la OT similar a __str__
+        nombre_ot = ot.rutina.nombre if ot.rutina else (ot.aviso.descripcion[:30] if ot.aviso else "OT Correctiva")
+        carga_map[(ot.tecnico_id, key)]['ots'].append({
+            'id': ot.id,
+            'nombre': nombre_ot,
+            'ubicacion': ot.ubicacion.nombre if ot.ubicacion else "S/U",
+            'inicio': ot.inicio_programado.strftime('%d/%m %H:%M'),
+            'horas': round(duracion, 1),
+            'estado': ot.estado
+        })
 
     # Procesar datos por técnico
     tecnicos_data = []
     for t in tecnicos:
         semanas_t = []
         for s in semanas:
-            hrs = carga_map.get((t.user_id, s['key']), 0.0)
+            data = carga_map.get((t.user_id, s['key']), {'horas': 0.0, 'ots': []})
+            hrs = data['horas']
             cap = float(t.horas_semanales_max)
             pct = (hrs / cap * 100) if cap > 0 else 0
             semanas_t.append({
@@ -1484,9 +1496,11 @@ def dashboard_cargas(request):
                 'pct': round(min(pct, 100), 1),
                 'total_pct': round(pct, 1),
                 'capacidad': cap,
-                'is_over': pct > 100
+                'is_over': pct > 100,
+                'ots': data['ots']
             })
         tecnicos_data.append({
+            'id': t.user_id,
             'nombre': t.user.get_full_name() or t.user.username,
             'puesto': t.puesto.nombre,
             'semanas': semanas_t
@@ -1501,7 +1515,7 @@ def dashboard_cargas(request):
         cap_total = sum(float(t.horas_semanales_max) for t in p_tecnicos)
         semanas_p = []
         for s in semanas:
-            hrs_p = sum(carga_map.get((t.user_id, s['key']), 0.0) for t in p_tecnicos)
+            hrs_p = sum(carga_map.get((t.user_id, s['key']), {'horas': 0.0})['horas'] for t in p_tecnicos)
             pct = (hrs_p / cap_total * 100) if cap_total > 0 else 0
             semanas_p.append({
                 'horas': round(hrs_p, 1),
