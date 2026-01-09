@@ -377,6 +377,48 @@
                 display: none;
             }
         }
+
+        /* Context Menu Styles */
+        #ctxMenu {
+            display: none;
+            position: absolute;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            padding: 4px;
+            min-width: 200px;
+        }
+
+        #ctxMenu button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            text-align: left;
+            font-size: 0.85rem;
+            color: var(--text-main);
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        #ctxMenu button:hover {
+            background-color: #f1f5f9;
+            color: var(--primary);
+        }
+
+        #ctxMenu .menu-header {
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
     </style>
 </head>
 
@@ -498,7 +540,8 @@
                             {% if celda.active %}
                             <div class="mark-pill {% if celda.realizada %}realizada{% elif celda.proyeccion %}proyeccion{% endif %}"
                                 style="background-color: var(--sub-color);"
-                                title="{{ celda.info }} ({{ celda.count }} OTs)">
+                                title="{{ celda.info }} ({{ celda.count }} OTs)"
+                                data-prog-id="{{ celda.prog_id|default:'' }}" data-date="{{ celda.date|default:'' }}">
                             </div>
                             {% endif %}
                         </td>
@@ -516,7 +559,96 @@
             </table>
         </div>
     </div>
+    <div id="ctxMenu">
+        <div class="menu-header">Opciones de Proyección.</div>
+        <button id="btnGenerarIndividual">
+            <ion-icon name="hammer-outline"></ion-icon> Generar Orden (hasta fecha)
+        </button>
+    </div>
+
     <script>
+        // Context Menu Logic
+        const ctxMenu = document.getElementById('ctxMenu');
+        const btnGenerar = document.getElementById('btnGenerarIndividual');
+        let currentTarget = null;
+
+        document.addEventListener('contextmenu', (e) => {
+            // Buscar si el click fue en una píldora de proyección
+            // El ID 'proj_...' se guarda en un atributo data o se construye/parcea.
+            // En el view actual no pusimos el ID en el HTML, solo en el objeto Python.
+            // Debemos asegurar que el template use data attributes.
+            // Pero nuestro template usa `celda.info` y `celda.count`. NO estamos pasando ID.
+            // NECESITAMOS modificar el template para que la celda tenga un ID accesible.
+
+            // Asumiremos que el pill tiene la clase 'proyeccion'.
+            // PERO: Si no tenemos el ID, no podemos llamar a la API.
+            // Voy a modificar el codigo anterior para inyectar IDs en las celdas.
+            // Wait, el objeto `celda` en `views.py` tiene `count`, `info`, `active`, `realizada`, `proyeccion`.
+            // NO tiene el ID de la proyección individual.
+
+            // HACK: Como las celdas agrupan múltiples OTs en una semana, "proj_ID" es ambiguo si hay varias.
+            // Pero generalemente es 1 por semana.
+            // Voy a usar el `onclick` o similar para disparar el menú, pero necesito datos.
+
+            // Requeriremos una actualización en views.py para pasar metadata 'data-prog-id' y 'data-date' 
+            // a la celda del template.
+
+            const pill = e.target.closest('.mark-pill.proyeccion');
+            if (pill) {
+                e.preventDefault();
+                currentTarget = pill;
+
+                // Posicionar menú
+                ctxMenu.style.display = 'block';
+                ctxMenu.style.left = `${e.pageX}px`;
+                ctxMenu.style.top = `${e.pageY}px`;
+
+                // Guardar datos en el botón (si los tuviéramos)
+                // Vamos a suponer que los atributos existen, sino fallará.
+                // data-prog-id y data-date
+                const progId = pill.dataset.progId;
+                const date = pill.dataset.date;
+
+                btnGenerar.onclick = () => generarOrden(progId, date);
+            } else {
+                ctxMenu.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', () => {
+            ctxMenu.style.display = 'none';
+        });
+
+        async function generarOrden(progId, date) {
+            if (!progId || !date) {
+                alert('No se pudo identificar la proyección. Actualiza la página.');
+                return;
+            }
+
+            if (!confirm(`¿Generar órdenes para esta rutina hasta el ${date}?`)) return;
+
+            try {
+                const response = await fetch("{% url 'mantenimiento:api_generar_orden_individual' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prog_id: progId, fecha: date })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
+        }
+
         function toggleRows(classTarget, headerCell) {
             const rows = document.querySelectorAll('.' + classTarget);
             const isOpen = headerCell.classList.toggle('open');

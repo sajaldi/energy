@@ -296,13 +296,15 @@ class Programacion(models.Model):
     def __str__(self):
         return f"Prog: {self.rutina.nombre}"
 
-    def generar_ordenes(self):
+    def generar_ordenes(self, fecha_corte=None):
         """
         Genera órdenes de trabajo secuenciales expandiendo las áreas seleccionadas
         a todos sus niveles (descendientes) y buscando activos que coincidan con la
         categoría de la rutina. Crea una orden por cada activo encontrado.
+        
+        :param fecha_corte: (date/datetime) Si se especifica, genera solo hasta esta fecha (inclusive).
         """
-        if self.procesada:
+        if self.procesada and not fecha_corte:
             return 0
             
         if self.fecha_inicio.year < 2000:
@@ -311,7 +313,19 @@ class Programacion(models.Model):
             
         from activos.models import Ubicacion, Activo
         
-        limite = self.fecha_fin or (self.fecha_inicio + timedelta(days=365))
+        # Determinar fecha límite
+        limite_natural = self.fecha_fin or (self.fecha_inicio + timedelta(days=365))
+        if fecha_corte:
+            # Asegurar que sea date
+            if isinstance(fecha_corte, datetime):
+                fecha_corte = fecha_corte.date()
+            if isinstance(limite_natural, datetime):
+                limite_natural = limite_natural.date()
+                
+            limite = min(limite_natural, fecha_corte)
+        else:
+            limite = limite_natural
+            
         restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
         
         # 1. Expandir áreas a sus descendientes
