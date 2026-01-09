@@ -13,11 +13,12 @@
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --primary-glow: rgba(79, 70, 229, 0.4);
         }
 
         body {
@@ -41,7 +42,123 @@
             margin: 0;
             background: linear-gradient(135deg, var(--primary), #818cf8);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+
+        /* Interactive Cells */
+        .load-cell {
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .load-cell:hover {
+            background: rgba(79, 70, 229, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .load-cell::after {
+            content: '👁️';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .load-cell:hover::after {
+            opacity: 1;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            width: 90%;
+            max-width: 600px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal-header {
+            padding: 24px;
+            background: linear-gradient(135deg, #4f46e5, #818cf8);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 24px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .ot-list-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .ot-list-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--primary);
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 99px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px) scale(0.95);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
         }
 
         .card {
@@ -203,18 +320,20 @@
                     <tr>
                         <td>
                             <span class="tech-name">{{ t.nombre }}</span>
-                            <span class="tech-puesto">{{ t.puesto }}</span>
+                            <span class="tech-puesto" style="color: var(--text-muted);">{{ t.puesto }}</span>
                         </td>
                         {% for s in t.semanas %}
-                        <td align="center">
+                        <td align="center" class="load-cell"
+                            onclick="showWeekDetails('{{ t.nombre }}', '{{ s.label }}', {{ s.ots|safe }})">
                             <span class="pct-label {% if s.is_over %}over-limit{% endif %}">
                                 {{ s.total_pct }}%
                             </span>
-                            <div class="progress-container">
+                            <div class="progress-container" style="background: #334155;">
                                 <div class="progress-bar 
                                     {% if s.total_pct < 80 %}bg-success
                                     {% elif s.total_pct <= 100 %}bg-warning
-                                    {% else %}bg-danger{% endif %}" style="width: {{ s.pct }}%;">
+                                    {% else %}bg-danger{% endif %}"
+                                    style="width: {{ s.pct }}%; box-shadow: 0 0 10px var(--primary-glow);">
                                 </div>
                             </div>
                             <span class="hours-label">{{ s.horas }}h <small>/ {{ s.capacidad }}h</small></span>
@@ -232,49 +351,74 @@
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">🏗️ Capacidad por Puesto de Trabajo</div>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Puesto de Trabajo</th>
-                        {% for semana in semanas %}
-                        <th class="week-header">{{ semana.label }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in puestos %}
-                    <tr>
-                        <td>
-                            <span class="tech-name">{{ p.nombre }}</span>
-                        </td>
-                        {% for s in p.semanas %}
-                        <td align="center">
-                            <span class="pct-label {% if s.is_over %}over-limit{% endif %}">{{ s.total_pct }}%</span>
-                            <div class="progress-container" style="width: 150px;">
-                                <div class="progress-bar 
-                                    {% if s.total_pct < 80 %}bg-success
-                                    {% elif s.total_pct <= 100 %}bg-warning
-                                    {% else %}bg-danger{% endif %}" style="width: {{ s.pct }}%;">
-                                </div>
-                            </div>
-                            <span class="hours-label">{{ s.horas }}h <small>/ {{ s.capacidad }}h</small></span>
-                        </td>
-                        {% endfor %}
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 40px;">No hay
-                            puestos de trabajo con personal asignado.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Modal Detail -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modalTitle" style="margin: 0; font-size: 1.25rem;">Detalle de Carga</h3>
+                    <p id="modalSub" style="margin: 4px 0 0 0; opacity: 0.8; font-size: 0.85rem; font-weight: normal;">
+                    </p>
+                </div>
+                <button onclick="closeModal()"
+                    style="background: transparent; border: none; color: white; cursor: pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- OTs injected here -->
+            </div>
         </div>
     </div>
 
+    <script src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+    <script>
+        function showWeekDetails(techName, weekLabel, ots) {
+            const modal = document.getElementById('modalOverlay');
+            const title = document.getElementById('modalTitle');
+            const sub = document.getElementById('modalSub');
+            const body = document.getElementById('modalBody');
+
+            title.innerText = techName;
+            sub.innerText = `Órdenes asignadas para la ${weekLabel}`;
+
+            if (!ots || ots.length === 0) {
+                body.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No hay órdenes asignadas en este periodo.</p>';
+            } else {
+                body.innerHTML = ots.map(ot => `
+                    <div class="ot-list-item">
+                        <div>
+                            <div style="font-weight: 700; margin-bottom: 4px;">OT-${ot.id}: ${ot.nombre}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                📍 ${ot.ubicacion} | 🕒 ${ot.inicio} (${ot.horas}h)
+                            </div>
+                        </div>
+                        <div class="status-badge" style="background: ${getStatusColor(ot.estado)}; color: white;">
+                            ${ot.estado}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function getStatusColor(status) {
+            switch (status) {
+                case 'REALIZADA': return '#10b981';
+                case 'EJECUCION': return '#4f46e5';
+                case 'CANCELADA': return '#ef4444';
+                default: return '#f59e0b';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+
+        // Close on Esc
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
 </body>
 
 </html>

@@ -4,6 +4,7 @@
 {% block extrastyle %}
 {{ block.super }}
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <style>
     :root {
         --primary: #3b82f6;
@@ -276,19 +277,49 @@
     }
 
     .success-icon {
-        font-size: 5rem;
+        font-size: 8rem;
         color: var(--positive);
         margin-bottom: 24px;
-        animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.4));
+        animation: monumentalScale 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
     }
 
-    @keyframes scaleIn {
+    @keyframes monumentalScale {
+        0% {
+            transform: scale(0) rotate(-45deg);
+            opacity: 0;
+        }
+
+        70% {
+            transform: scale(1.2) rotate(10deg);
+        }
+
+        100% {
+            transform: scale(1) rotate(0);
+            opacity: 1;
+        }
+    }
+
+    .celebration-title {
+        font-size: 3rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 16px;
+        animation: fadeInUp 0.6s ease-out 0.4s both;
+    }
+
+    @keyframes fadeInUp {
         from {
-            transform: scale(0);
+            opacity: 0;
+            transform: translateY(30px);
         }
 
         to {
-            transform: scale(1);
+            opacity: 1;
+            transform: translateY(0);
         }
     }
 
@@ -307,6 +338,11 @@
     .search-input:focus {
         border-color: var(--primary);
         box-shadow: 0 0 0 4px var(--primary-light);
+    }
+
+    .step.hidden,
+    .wizard-card.hidden {
+        display: none !important;
     }
 </style>
 {% endblock %}
@@ -404,11 +440,20 @@
     <div class="wizard-card" id="card4">
         <div class="wizard-header">
             <h2>Confirmar Activos</h2>
-            <p>Estos son los activos encontrados de acuerdo a tus filtros.</p>
+            <p id="assetStepLead">Estas rutinas se aplicarán a los siguientes activos.</p>
+            <div id="noAssetNotice"
+                style="display: none; background: #fff7ed; border: 1px solid #ffedd5; color: #9a3412; padding: 12px; border-radius: 12px; font-size: 0.9rem; margin-top: 10px; text-align: left;">
+                <ion-icon name="information-circle"></ion-icon> Esta rutina parece ser de inspección u operativa. Puedes
+                omitir la selección de activos individuales si prefieres aplicarla a nivel de área.
+            </div>
         </div>
-        <div style="margin-bottom: 12px; display: flex; justify-content: flex-end;">
+        <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn-wiz btn-prev" id="btnSkipAssets"
+                style="padding: 6px 16px; font-size: 0.85rem; border-radius: 8px; background: #f1f5f9; color: var(--text-muted); border: 1px dashed var(--border);">
+                Omitir Activos (Programar por Área)
+            </button>
             <button class="btn-wiz btn-prev" onclick="toggleAllAssets(true)"
-                style="padding: 4px 12px; font-size: 0.8rem; border-radius: 6px;">Seleccionar Todos</button>
+                style="padding: 6px 16px; font-size: 0.85rem; border-radius: 8px;">Seleccionar Todos</button>
         </div>
         <div class="tree-view" id="assetList" style="max-height: 400px;">
             <p style="text-align: center; color: var(--text-muted); padding: 40px;">Cargando activos...</p>
@@ -437,13 +482,26 @@
     </div>
 
     <!-- Final Success state -->
-    <div class="wizard-card" id="cardSuccess">
+    <div class="wizard-card" id="cardSuccess" style="border: none; background: transparent; box-shadow: none;">
         <div class="success-state">
-            <ion-icon name="checkmark-circle" class="success-icon"></ion-icon>
-            <h2 id="successTitle">¡Programación Exitosa!</h2>
-            <p id="successMsg" style="margin-bottom: 32px;">Se han generado las órdenes de trabajo correctamente.</p>
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <a href="{% url 'mantenimiento:cronograma' %}" class="btn-wiz btn-next">Ver Cronograma</a>
+            <div style="position: relative; display: inline-block;">
+                <ion-icon name="checkmark-circle" class="success-icon"></ion-icon>
+            </div>
+            <h2 id="successTitle" class="celebration-title">¡Misión Cumplida!</h2>
+            <p id="successMsg"
+                style="margin-bottom: 32px; font-size: 1.25rem; color: var(--text-muted); animation: fadeInUp 0.6s ease-out 0.6s both;">
+                La programación se ha completado con éxito.
+            </p>
+            <div id="redirectCounter"
+                style="margin-top: 20px; font-weight: 600; color: var(--primary); animation: fadeInUp 0.6s ease-out 0.8s both;">
+                Redirigiendo al cronograma en <span id="seconds">5</span> segundos...
+            </div>
+            <div
+                style="display: flex; gap: 12px; justify-content: center; margin-top: 40px; animation: fadeInUp 0.6s ease-out 1s both;">
+                <a href="{% url 'mantenimiento:cronograma' %}" class="btn-wiz btn-next"
+                    style="box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);">
+                    Ir Ahora <ion-icon name="rocket-outline"></ion-icon>
+                </a>
                 <a href="." class="btn-wiz btn-prev">Nueva Programación</a>
             </div>
         </div>
@@ -473,6 +531,8 @@
     };
 
     const searchRutina = document.getElementById('searchRutina');
+    const btnSkipAssets = document.getElementById('btnSkipAssets');
+    const noAssetNotice = document.getElementById('noAssetNotice');
     const cards = document.querySelectorAll('.wizard-card');
     const steps = document.querySelectorAll('.step');
     const btnNext = document.getElementById('btnNext');
@@ -487,6 +547,11 @@
             card.classList.add('selected');
             selections[type] = card.dataset.id;
         });
+    });
+
+    btnSkipAssets.addEventListener('click', () => {
+        selections.activos = []; // Limpiar selección
+        updateStep(5); // Ir directo a fechas
     });
 
     // Search rutinas
@@ -538,6 +603,7 @@
 
     async function loadAssets() {
         assetList.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">Buscando activos...</p>';
+        noAssetNotice.style.display = 'none';
 
         const params = new URLSearchParams();
         selections.areas.forEach(a => params.append('areas[]', a));
@@ -548,7 +614,8 @@
             const data = await response.json();
 
             if (data.activos.length === 0) {
-                assetList.innerHTML = '<p style="text-align: center; color: var(--negative); padding: 40px;">No se encontraron activos con estos filtros.</p>';
+                assetList.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No se encontraron activos detallados en estas áreas.<br><br><small>Es normal para rutinas de inspección u operativa. Haz clic en "Omitir" abajo.</small></p>';
+                noAssetNotice.style.display = 'block';
                 return;
             }
 
@@ -620,10 +687,7 @@
             const data = await response.json();
 
             if (data.status === 'success') {
-                document.getElementById('card5').classList.remove('active');
-                document.getElementById('cardSuccess').classList.add('active');
-                document.getElementById('wizardFooter').style.display = 'none';
-                document.getElementById('successMsg').innerText = data.message;
+                showMonumentalSuccess(data.message);
             } else {
                 alert("Error: " + data.message);
                 btnNext.disabled = false;
@@ -633,6 +697,54 @@
             alert("Error crítico en la generación.");
             btnNext.disabled = false;
         }
+    }
+
+    function showMonumentalSuccess(msg) {
+        document.getElementById('card5').classList.remove('active');
+        document.getElementById('cardSuccess').classList.add('active');
+        document.getElementById('wizardFooter').style.display = 'none';
+        document.getElementById('successMsg').innerText = msg;
+
+        // Party time!
+        const duration = 5 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+        function randomInRange(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        const interval = setInterval(function () {
+            const timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+                return clearInterval(interval);
+            }
+
+            const particleCount = 50 * (timeLeft / duration);
+            // since particles fall down, start a bit higher than random
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+            confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+        }, 250);
+
+        // Confetti explosion
+        confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 }
+        });
+
+        // Redirect logic
+        let seconds = 5;
+        const counterEl = document.getElementById('seconds');
+        const redirectInterval = setInterval(() => {
+            seconds--;
+            counterEl.innerText = seconds;
+            if (seconds <= 0) {
+                clearInterval(redirectInterval);
+                window.location.href = "{% url 'mantenimiento:cronograma' %}";
+            }
+        }, 1000);
     }
 
     // Auto-advance if routine is pre-selected
