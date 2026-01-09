@@ -315,6 +315,13 @@
             background-color: #94a3b8;
         }
 
+        .status-PROYECCION {
+            background-color: #fca5a5;
+            border: 2px dashed #dc2626;
+            opacity: 0.6;
+            box-shadow: none;
+        }
+
         .empty-state {
             text-align: center;
             padding: 60px;
@@ -722,6 +729,7 @@
                             <div class="ot-pill status-{{ ot.estado }} duration-{{ ot.duration_pos }}"
                                 data-ot-id="{{ ot.id }}" data-ot-date="{{ ot.inicio_iso }}"
                                 data-ot-assets="{{ ot.activos_nombres }}" data-asset-id="{{ asset.id }}"
+                                data-ot-estado="{{ ot.estado }}" data-prog-id="{{ ot.prog_id|default:'' }}"
                                 onclick="selectOT(event, this)" oncontextmenu="showContextMenu(event, this)"
                                 title="OT #{{ ot.id }}&#10;Estado: {{ ot.estado }}&#10;Rutina: {{ ot.rutina_nombre }}&#10;Inicio: {{ ot.inicio_hm }}&#10;Fin: {{ ot.fin_full }}">
                                 {% if ot.estado == 'REALIZADA' %}
@@ -757,9 +765,13 @@
 
     <!-- UI: Context Menu -->
     <div id="context-menu">
-        <div class="menu-item" onclick="openRescheduleModal()">
+        <div id="menu-move" class="menu-item" onclick="openRescheduleModal()">
             <ion-icon name="calendar-outline"></ion-icon>
             Mover Fecha (Modal)
+        </div>
+        <div id="menu-generate" class="menu-item" onclick="generateGhostOT()" style="display:none; color: #10b981;">
+            <ion-icon name="hammer-outline"></ion-icon>
+            Generar Orden (hasta fecha)
         </div>
         <div class="menu-item" onclick="splitOT()" style="color: #6366f1; border-top: 1px solid var(--border);">
             <ion-icon name="git-branch-outline"></ion-icon>
@@ -1145,6 +1157,90 @@
                     console.error(err);
                     alert('Ocurrió un error al procesar el cambio.');
                 });
+        }
+
+        let ctxData = null; // {progId, date, otId}
+
+        function showContextMenu(e, element) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Si es un element seleccionado, mantener, si no, seleccionar temporalmente
+            // Para simplificar, usamos dataset directo
+            const otId = element.dataset.otId;
+            const status = element.dataset.otEstado;
+            const progId = element.dataset.progId;
+            const otDate = element.dataset.otDate;
+
+            ctxData = { otId, status, progId, date: otDate };
+
+            const menu = document.getElementById('context-menu');
+            const menuMove = document.getElementById('menu-move');
+            const menuGen = document.getElementById('menu-generate');
+            const menuFuse = document.getElementById('btn-fusionar');
+
+            // Si es proyección, mostrar solo Generar
+            if (status === 'PROYECCION') {
+                menuMove.style.display = 'none';
+                menuGen.style.display = 'flex';
+                menuFuse.style.display = 'none';
+            } else {
+                menuMove.style.display = 'flex';
+                menuGen.style.display = 'none';
+                // Mostrar fusionar si corresponde (multiple selection)
+                if (selectedOTs.size > 1) {
+                    menuFuse.style.display = 'flex';
+                } else {
+                    menuFuse.style.display = 'none';
+                }
+            }
+
+            // Posicionar
+            menu.style.display = 'block';
+            let x = e.pageX;
+            let y = e.pageY;
+            if (x + 200 > window.innerWidth) x -= 200;
+            menu.style.left = `${x}px`;
+            menu.style.top = `${y}px`;
+        }
+
+        // Cerrar menú al hacer clic fuera
+        document.addEventListener('click', () => {
+            const m = document.getElementById('context-menu');
+            if (m) m.style.display = 'none';
+        });
+
+        async function generateGhostOT() {
+            if (!ctxData || !ctxData.progId || !ctxData.date) {
+                alert('Datos incompletos para generar la orden.');
+                return;
+            }
+
+            if (!confirm(`¿Generar órdenes hasta el ${ctxData.date}?`)) return;
+
+            try {
+                const response = await fetch("{% url 'mantenimiento:api_generar_orden_individual' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prog_id: ctxData.progId,
+                        fecha: ctxData.date
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
         }
 
         function fusionarOTs() {
