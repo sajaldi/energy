@@ -686,12 +686,25 @@ def cronograma_mantenimiento_visual(request):
                     if ots:
                         routine_color = ots[0]['programacion__horario__color'] or '#3b82f6'
 
+                    prog_id_val = None
+                    date_val = None
+                    if ots:
+                        first = ots[0]
+                        # Si es proyección, necesitamos prog_id y fecha para el context menu
+                        if first.get('estado') == 'PROYECCION':
+                            prog_id_val = first.get('programacion_id')
+                            # first['inicio_programado'] es datetime
+                            if isinstance(first['inicio_programado'], datetime):
+                                date_val = first['inicio_programado'].date().isoformat()
+                    
                     celdas_rutina.append({
                         'active': bool(ots),
                         'realizada': bool(ots) and all(o['estado'] == 'REALIZADA' for o in ots),
                         'proyeccion': bool(ots) and all(o.get('estado') == 'PROYECCION' for o in ots),
                         'count': len(ots),
-                        'info': ", ".join(set([str(o['rutina__nombre'] or 'S/R') if view_mode == 'ubicacion' else str(o['ubicacion__nombre'] or 'S/U') for o in ots]))
+                        'info': ", ".join(set([str(o['rutina__nombre'] or 'S/R') if view_mode == 'ubicacion' else str(o['ubicacion__nombre'] or 'S/U') for o in ots])),
+                        'prog_id': prog_id_val,
+                        'date': date_val
                     })
                 rutinas_nested.append({
                     'label': r_label,
@@ -1652,5 +1665,41 @@ def generar_ordenes_programacion(request, pk):
             'count': count,
             'message': f'Se generaron {count} órdenes de trabajo.'
         })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@staff_member_required
+def api_generar_orden_individual(request):
+    """
+    Endpoint para generar órdenes hasta una fecha específica (desde context menu).
+    Espera JSON: { 'prog_id': int, 'fecha': 'YYYY-MM-DD' }
+    """
+    from .models import Programacion
+    import json
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        prog_id = data.get('prog_id')
+        fecha_str = data.get('fecha') # YYYY-MM-DD
+        
+        if not prog_id or not fecha_str:
+            return JsonResponse({'status': 'error', 'message': 'Faltan parámetros'}, status=400)
+            
+        prog = get_object_or_404(Programacion, pk=prog_id)
+        
+        # Parse fecha
+        fecha_corte = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+        
+        count = prog.generar_ordenes(fecha_corte=fecha_corte)
+        
+        return JsonResponse({
+            'status': 'success',
+            'count': count,
+            'message': f'Se generaron {count} órdenes hasta el {fecha_str}.'
+        })
+        
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
