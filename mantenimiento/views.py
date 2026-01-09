@@ -484,6 +484,44 @@ def cronograma_mantenimiento_visual(request):
             desc_ids = area_sel.get_descendants(include_self=True).values_list('id', flat=True)
             filtros['ubicacion_id__in'] = desc_ids
         except Ubicacion.DoesNotExist:
+            pass
+            
+    # Precargar categorías para encontrar raíces (sistemas)
+    categorias = {c.id: c for c in Categoria.objects.all()}
+    for c in categorias.values():
+        if c.padre_id:
+            c.padre = categorias.get(c.padre_id)
+
+    # Estructura para agrupar
+    grupos_dict = collections.defaultdict(
+        lambda: collections.defaultdict(
+            lambda: collections.defaultdict(
+                lambda: collections.defaultdict(list)
+            )
+        )
+    )
+    
+    # Mapa de ubicaciones para jerarquía
+    all_locs = Ubicacion.objects.all()
+    loc_map = {u.id: u for u in all_locs}
+
+    def get_edificio_root(loc_id):
+        curr = loc_map.get(loc_id)
+        while curr:
+            if curr.tipo == 'EDIFICIO':
+                return curr
+            curr = loc_map.get(curr.padre_id)
+        return None
+
+    for ot in ordenes_list:
+        dia_año = ot['inicio_programado'].timetuple().tm_yday
+        semana_idx = (dia_año - 1) // 7
+        if semana_idx > 51: semana_idx = 51
+
+        if view_mode == 'ubicacion':
+            # Buscar el edificio padre
+            root_edificio = get_edificio_root(ot['ubicacion_id'])
+            
             # "quisiera que me mostrara solo las que estan categorizadas como Edificio"
             if not ubicacion_id and not root_edificio:
                 continue
