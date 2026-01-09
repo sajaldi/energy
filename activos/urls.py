@@ -16,11 +16,15 @@ urlpatterns = [
     path('api/submit-all/', views_sync.submit_all_activos, name='submit_all_activos'),
     
     # Arbol Interactivo
+    path('explorador-jerarquico/', views.explorer_jerarquia_admin, name='explorador_jerarquico'),
+    path('api/explorer-level/', views.api_get_explorer_level, name='api_explorer_level'),
+    path('api/item-form/<str:item_type>/<int:item_id>/', views.api_item_form, name='api_item_form'),
     path('arbol-ubicaciones/', views.arbol_activos_view, name='arbol_activos'),
     path('api/ubicaciones-root/', views.api_ubicaciones_root, name='api_ubicaciones_root'),
     path('api/ubicaciones-children/<int:parent_id>/', views.api_ubicaciones_children, name='api_ubicaciones_children'),
     path('api/ubicacion-detalle/<int:ubicacion_id>/', views.api_ubicacion_detalle, name='api_ubicacion_detalle'),
     path('api/activo-detalle/<int:activo_id>/', views.api_activo_detalle, name='api_activo_detalle'),
+    path('api/explorer-search/', views.api_explorer_search, name='api_explorer_search'),
     path('app/activo/<int:pk>/', views.mobile_activo_detalle, name='mobile_activo_detalle'),
     path('app/buscar/', views.mobile_busqueda_activos, name='mobile_busqueda'),
 ]

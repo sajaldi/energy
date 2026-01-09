@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from .models import OrdenTrabajo, Rutina, Categoria, Programacion, Aviso # NUEVO: Aviso
+from .models import OrdenTrabajo, Rutina, Categoria, Programacion, Aviso, PuestoTrabajo, TecnicoPuesto # NUEVO: Puestos
 from activos.models import Activo # NUEVO: Activo
 from django.utils import timezone
 from datetime import datetime, date, timedelta
@@ -1214,12 +1214,18 @@ def programar_rutina_wizard(request):
     # Rutinas para el buscador inicial si no viene por GET
     rutinas = Rutina.objects.all().select_related('categoria', 'frecuencia')
 
+    # Identificar si la rutina ya trae una categoría de activo vinculada
+    preselected_cat_id = None
+    if rutina and rutina.categoria and rutina.categoria.categoria_activo:
+        preselected_cat_id = rutina.categoria.categoria_activo.id
+
     return render(request, 'mantenimiento/visual_scheduler.html', {
         'rutina_preselected': rutina,
         'rutinas': rutinas,
         'horarios': horarios,
         'ubicaciones_roots': ubicaciones_roots,
         'categorias_activos': categorias_activos,
+        'preselected_cat_id': preselected_cat_id,
         'today': today,
     })
 
@@ -1415,4 +1421,102 @@ def mobile_crear_aviso(request):
         'prioridades': Aviso.PRIORIDAD_CHOICES,
         'tipos': Aviso.TIPO_CHOICES,
     }
-    return render(request, 'mantenimiento/mobile_crear_aviso.html', context)
+@staff_member_required
+def dashboard_cargas(request):
+    """
+    Dashboard visual para ver la carga de trabajo por técnico y por puesto.
+    Muestra una proyección de 4 semanas.
+    """
+    from .models import TecnicoPuesto, PuestoTrabajo, OrdenTrabajo
+    import collections
+
+    # Determinar la semana actual y las siguientes 3
+    now = timezone.now()
+    # Inicio de la semana (Lunes)
+    monday = now - timedelta(days=now.weekday())
+    
+    semanas = []
+    for i in range(4):
+        start = monday + timedelta(weeks=i)
+        end = start + timedelta(days=6)
+        anio, sem, _ = start.isocalendar()
+        semanas.append({
+            'label': f"Semana {sem}",
+            'rango': f"{start.strftime('%d/%m')} - {end.strftime('%d/%m')}",
+            'key': f"{anio}-{sem}",
+            'start': start,
+            'end': end
+        })
+
+    # Obtener técnicos y puestos
+    tecnicos = TecnicoPuesto.objects.select_related('user', 'puesto').filter(disponible=True)
+    puestos = PuestoTrabajo.objects.all()
+
+    # Rango total para la consulta
+    q_start = timezone.make_aware(datetime.combine(semanas[0]['start'], datetime.min.time()))
+    q_end = timezone.make_aware(datetime.combine(semanas[-1]['end'], datetime.max.time()))
+    
+    # Obtener todas las OTs asignadas en este rango
+    ots = OrdenTrabajo.objects.filter(
+        tecnico__isnull=False,
+        inicio_programado__gte=q_start,
+        inicio_programado__lte=q_end
+    ).values('tecnico_id', 'inicio_programado', 'fin_programado')
+
+    # Agrupar carga: {(user_id, semana_key): horas}
+    carga_map = collections.defaultdict(float)
+    for ot in ots:
+        anio, sem, _ = ot['inicio_programado'].isocalendar()
+        key = f"{anio}-{sem}"
+        duracion = (ot['fin_programado'] - ot['inicio_programado']).total_seconds() / 3600
+        carga_map[(ot['tecnico_id'], key)] += float(duracion)
+
+    # Procesar datos por técnico
+    tecnicos_data = []
+    for t in tecnicos:
+        semanas_t = []
+        for s in semanas:
+            hrs = carga_map.get((t.user_id, s['key']), 0.0)
+            cap = float(t.horas_semanales_max)
+            pct = (hrs / cap * 100) if cap > 0 else 0
+            semanas_t.append({
+                'horas': round(hrs, 1),
+                'pct': round(min(pct, 100), 1),
+                'total_pct': round(pct, 1),
+                'capacidad': cap,
+                'is_over': pct > 100
+            })
+        tecnicos_data.append({
+            'nombre': t.user.get_full_name() or t.user.username,
+            'puesto': t.puesto.nombre,
+            'semanas': semanas_t
+        })
+
+    # Procesar datos por puesto
+    puestos_data = []
+    for p in puestos:
+        p_tecnicos = [t for t in tecnicos if t.puesto_id == p.id]
+        if not p_tecnicos: continue
+        
+        cap_total = sum(float(t.horas_semanales_max) for t in p_tecnicos)
+        semanas_p = []
+        for s in semanas:
+            hrs_p = sum(carga_map.get((t.user_id, s['key']), 0.0) for t in p_tecnicos)
+            pct = (hrs_p / cap_total * 100) if cap_total > 0 else 0
+            semanas_p.append({
+                'horas': round(hrs_p, 1),
+                'pct': round(min(pct, 100), 1),
+                'total_pct': round(pct, 1),
+                'capacidad': cap_total,
+                'is_over': pct > 100
+            })
+        puestos_data.append({
+            'nombre': p.nombre,
+            'semanas': semanas_p
+        })
+
+    return render(request, 'mantenimiento/dashboard_cargas.html', {
+        'semanas': semanas,
+        'tecnicos': tecnicos_data,
+        'puestos': puestos_data
+    })

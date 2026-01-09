@@ -70,6 +70,13 @@ class Activo(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
+    @property
+    def tiene_hijos(self):
+        """Devuelve True si este activo tiene componentes (hijos). Optimizado para usar anotaciones."""
+        if hasattr(self, 'num_hijos'):
+            return self.num_hijos > 0
+        return self.componentes.exists()
+
     def __str__(self):
         return f"{self.nombre} ({self.codigo_interno or 'S/C'})"
 

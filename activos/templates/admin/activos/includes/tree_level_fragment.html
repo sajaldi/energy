@@ -1,0 +1,39 @@
+{% for sub in sub_ubicaciones %}
+{% include "admin/activos/includes/tree_item.html" with node=sub type="ubicacion" lazy=True cat_id=cat_id %}
+{% endfor %}
+
+{% for sub in sub_categorias %}
+{% include "admin/activos/includes/tree_item.html" with node=sub type="categoria" lazy=True %}
+{% endfor %}
+
+{% for activo in activos_directos %}
+{% include "admin/activos/includes/tree_item.html" with node=activo type="activo" lazy=True cat_id=cat_id %}
+{% endfor %}
+
+{% for cat_nombre, activos in categorias_activos.items %}
+<div class="tree-item category-group-item" data-loaded="true">
+    <div class="item-header" style="background: #f8fafc; border-bottom: 1px solid #f1f5f9; margin: 4px 0;">
+        <span class="tree-toggle" onclick="toggleNode(event, this)">
+            <ion-icon name="chevron-forward-outline"></ion-icon>
+        </span>
+        <div class="item-main-click" style="cursor: default;">
+            <span class="item-icon">
+                <ion-icon name="pricetag-outline" style="color: #64748b; font-size: 1rem;"></ion-icon>
+            </span>
+            <span class="item-name"
+                style="font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">
+                {{ cat_nombre }}
+            </span>
+            <span class="badge-count"
+                style="font-size: 0.65rem; background: #e2e8f0; color: #475569; padding: 1px 6px; border-radius: 10px; margin-left: 6px;">
+                {{ activos|length }}
+            </span>
+        </div>
+    </div>
+    <div class="item-content" style="display: none; padding-left: 15px; border-left: 1px dashed #e2e8f0;">
+        {% for activo in activos %}
+        {% include "admin/activos/includes/tree_item.html" with node=activo type="activo" lazy=True %}
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}

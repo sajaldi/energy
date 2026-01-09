@@ -86,6 +86,30 @@ class Frecuencia(models.Model):
         verbose_name_plural = "Frecuencias"
         ordering = ['dias']
 
+class PuestoTrabajo(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Puesto de Trabajo"
+        verbose_name_plural = "Puestos de Trabajo"
+
+class TecnicoPuesto(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil_tecnico')
+    puesto = models.ForeignKey(PuestoTrabajo, on_delete=models.PROTECT, related_name='tecnicos')
+    disponible = models.BooleanField(default=True)
+    horas_semanales_max = models.DecimalField(max_length=5, max_digits=5, decimal_places=2, default=40.00, help_text="Capacidad máxima de horas por semana")
+
+    def __str__(self):
+        return f"{self.user.get_full_name() or self.user.username} - {self.puesto}"
+
+    class Meta:
+        verbose_name = "Personal de Mantenimiento"
+        verbose_name_plural = "Personal de Mantenimiento"
+
 class Procedimiento(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
     descripcion = models.TextField(blank=True, null=True)
@@ -119,6 +143,8 @@ class Rutina(models.Model):
     descripcion = models.TextField(blank=True, null=True)
 
     frecuencia = models.ForeignKey(Frecuencia, on_delete=models.SET_NULL, null=True, related_name='rutinas')
+    puesto_trabajo = models.ForeignKey(PuestoTrabajo, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas',
+                                      help_text="Puesto de trabajo responsable de esta rutina")
     
     # Tiempo de ejecución
     tiempo_estimado = models.DurationField(null=True, blank=True, help_text="Tiempo estimado para completar la rutina (ej: 02:00:00)")
@@ -158,6 +184,8 @@ class Horario(models.Model):
             if dia.hora_inicio and dia.hora_fin:
                 start = datetime.combine(date.min, dia.hora_inicio)
                 end = datetime.combine(date.min, dia.hora_fin)
+                if end < start:
+                    end += timedelta(days=1)
                 diff = end - start
                 total_seconds += diff.total_seconds()
         
@@ -277,6 +305,10 @@ class Programacion(models.Model):
         if self.procesada:
             return 0
             
+        if self.fecha_inicio.year < 2000:
+            # Evitar años erróneos como 0026
+            return 0
+            
         from activos.models import Ubicacion, Activo
         
         limite = self.fecha_fin or (self.fecha_inicio + timedelta(days=365))
@@ -321,92 +353,155 @@ class Programacion(models.Model):
                     if not activos_totales and not cat_mantenimiento:
                         pass # Ver lógica abajo
 
+        # 3. Preparación de asignación de técnicos (Round Robin + Capacidad Global)
+        tecnicos_disponibles = []
+        puesto = self.rutina.puesto_trabajo
+        if puesto:
+            tecnicos_disponibles = list(TecnicoPuesto.objects.filter(puesto=puesto, disponible=True).select_related('user'))
+        
+        # Track de carga por técnico y semana: {(perfil_id, anio_semana): horas_decimal}
+        carga_trabajo = {}
+        
+        # Pre-cargar carga desde la DB si hay técnicos
+        if tecnicos_disponibles:
+            user_ids = [t.user_id for t in tecnicos_disponibles]
+            
+            # Convertir fechas a datetimes conscientes para la consulta exacta
+            q_start = timezone.make_aware(datetime.combine(self.fecha_inicio, datetime.min.time()))
+            q_end = timezone.make_aware(datetime.combine(limite, datetime.max.time()))
+
+            # Solo buscamos OTs en el rango de fechas programado
+            historico_ots = OrdenTrabajo.objects.filter(
+                tecnico_id__in=user_ids,
+                inicio_programado__gte=q_start,
+                inicio_programado__lte=q_end
+            ).values('tecnico_id', 'inicio_programado', 'fin_programado')
+            
+            # Mapear perfil a user para consistencia de llaves
+            user_to_perfil = {t.user_id: t.id for t in tecnicos_disponibles}
+            
+            for ot in historico_ots:
+                anio, semana, _ = ot['inicio_programado'].isocalendar()
+                semana_key = f"{anio}-{semana}"
+                duracion = (ot['fin_programado'] - ot['inicio_programado']).total_seconds() / 3600
+                
+                if ot['tecnico_id'] in user_to_perfil:
+                    perfil_id = user_to_perfil[ot['tecnico_id']]
+                    key = (perfil_id, semana_key)
+                    carga_trabajo[key] = carga_trabajo.get(key, 0.0) + float(duracion)
+            
+
+        horas_rutina = self.rutina.tiempo_estimado.total_seconds() / 3600 if self.rutina.tiempo_estimado else 1.0
+
+        tecnico_idx = 0
         ordenes_creadas = 0
         fecha_ciclo = self.fecha_inicio
         
         while fecha_ciclo <= limite:
-            fecha_actual = fecha_ciclo
+            # Para cada ciclo (ej: cada mes), reiniciamos el cursor temporal al inicio del día del ciclo
+            fecha_actual_cursor = fecha_ciclo
+            current_dt_cursor = None # Rastrea el final de la última OT programada en este ciclo
             
-            # --- CÁLCULO DE TIEMPO INTELIGENTE ---
-            # Total de segundos de trabajo a consumir
-            num_items = max(1, len(activos_totales))
-            segundos_pendientes = (tiempo_rutina * num_items).total_seconds()
+            # Si no hay activos pero hay áreas, generamos al menos una orden para el área
+            items_a_procesar = activos_totales if activos_totales else [None]
             
-            start_dt = None
-            current_dt = None
-            
-            # Buscamos el inicio y calculamos el fin saltando huecos
-            while segundos_pendientes > 0:
-                if fecha_actual > limite: break # No debería pasar
+            for activo in items_a_procesar:
+                segundos_pendientes = tiempo_rutina.total_seconds()
                 
-                # Chequear si es día válido
-                if fecha_actual in restricciones:
-                    fecha_actual += timedelta(days=1)
-                    current_dt = None
-                    continue
+                # Buscamos el slot para ESTE activo en particular
+                ot_start_dt = None
+                ot_end_dt = None
+                
+                while segundos_pendientes > 0:
+                    if fecha_actual_cursor > limite: break # Seguridad
                     
-                horario_dia = self.horario.dias.filter(dia=fecha_actual.weekday()).first()
-                if not horario_dia:
-                    fecha_actual += timedelta(days=1)
-                    current_dt = None
-                    continue
-                
-                # Configurar ventana laboral del día
-                try:
-                    inicio_laboral = timezone.make_aware(datetime.combine(fecha_actual, horario_dia.hora_inicio))
-                    fin_laboral = timezone.make_aware(datetime.combine(fecha_actual, horario_dia.hora_fin))
-                except ValueError:
-                    inicio_laboral = datetime.combine(fecha_actual, horario_dia.hora_inicio)
-                    fin_laboral = datetime.combine(fecha_actual, horario_dia.hora_fin)
-                
-                # Establecer punto de partida para este día
-                point_dt = max(current_dt, inicio_laboral) if current_dt else inicio_laboral
-                
-                if point_dt >= fin_laboral:
-                    fecha_actual += timedelta(days=1)
-                    current_dt = None
-                    continue
-                
-                if not start_dt: start_dt = point_dt
-                
-                # Capacidad de este día
-                segundos_disponibles = (fin_laboral - point_dt).total_seconds()
-                
-                if segundos_pendientes <= segundos_disponibles:
-                    # Cabe todo lo que queda en este día
-                    current_dt = point_dt + timedelta(seconds=segundos_pendientes)
-                    segundos_pendientes = 0
-                else:
-                    # Consumir el día completo y saltar al siguiente
-                    segundos_pendientes -= segundos_disponibles
-                    fecha_actual += timedelta(days=1)
-                    current_dt = None
-            
-            # --- CREACIÓN DE LA ORDEN ÚNICA ---
-            if start_dt and current_dt:
-                # Usamos la primera ubicación disponible
-                # Si no hay activos, usamos la primera área de la programación
-                main_ubi = activos_totales[0].ubicacion if activos_totales else self.areas.first()
-                
-                ot = OrdenTrabajo.objects.create(
-                    programacion=self,
-                    ubicacion=main_ubi,
-                    inicio_programado=start_dt,
-                    fin_programado=current_dt,
-                    rutina=self.rutina,
-                    tipo='PREVENTIVA',
-                    prioridad='MEDIA',
-                    estado='ESPERA'
-                )
-                
-                if activos_totales:
-                    ot.activos.set(activos_totales)
+                    # Chequear si es día laborable y no restringido
+                    if fecha_actual_cursor in restricciones:
+                        fecha_actual_cursor += timedelta(days=1)
+                        current_dt_cursor = None
+                        continue
+                        
+                    horario_dia = self.horario.dias.filter(dia=fecha_actual_cursor.weekday()).first()
+                    if not horario_dia:
+                        fecha_actual_cursor += timedelta(days=1)
+                        current_dt_cursor = None
+                        continue
                     
-                ordenes_creadas += 1
-            
+                    # Ventana laboral
+                    try:
+                        inicio_laboral = timezone.make_aware(datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio))
+                        fin_laboral = timezone.make_aware(datetime.combine(fecha_actual_cursor, horario_dia.hora_fin))
+                        if fin_laboral < inicio_laboral:
+                            fin_laboral += timedelta(days=1)
+                    except ValueError:
+                        inicio_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio)
+                        fin_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_fin)
+                        if fin_laboral < inicio_laboral:
+                            fin_laboral += timedelta(days=1)
+                    
+                    # Punto de entrada para este activo
+                    entry_dt = max(current_dt_cursor, inicio_laboral) if current_dt_cursor else inicio_laboral
+                    
+                    if entry_dt >= fin_laboral:
+                        # Si el cursor ya pasó el fin laboral de hoy, saltar a mañana
+                        fecha_actual_cursor += timedelta(days=1)
+                        current_dt_cursor = None
+                        continue
+                    
+                    if not ot_start_dt: ot_start_dt = entry_dt
+                    
+                    segundos_disponibles = (fin_laboral - entry_dt).total_seconds()
+                    
+                    if segundos_pendientes <= segundos_disponibles:
+                        ot_end_dt = entry_dt + timedelta(seconds=segundos_pendientes)
+                        current_dt_cursor = ot_end_dt # El siguiente activo empieza donde termina este
+                        segundos_pendientes = 0
+                    else:
+                        segundos_pendientes -= segundos_disponibles
+                        fecha_actual_cursor += timedelta(days=1)
+                        current_dt_cursor = None
+                
+                # Crear la orden para ESTE activo
+                if ot_start_dt and ot_end_dt:
+                    # Asignar técnico automáticamente respetando capacidad
+                    tecnico_asignado = None
+                    if tecnicos_disponibles:
+                        # Identificar semana de la OT
+                        anio, semana, _ = ot_start_dt.isocalendar()
+                        semana_key = f"{anio}-{semana}"
+                        
+                        # Round Robin con salto por capacidad
+                        for _ in range(len(tecnicos_disponibles)):
+                            perfil = tecnicos_disponibles[tecnico_idx % len(tecnicos_disponibles)]
+                            tecnico_idx += 1
+                            
+                            key = (perfil.id, semana_key)
+                            usado = carga_trabajo.get(key, 0.0)
+                            
+                            if (usado + horas_rutina) <= float(perfil.horas_semanales_max):
+                                tecnico_asignado = perfil.user
+                                carga_trabajo[key] = usado + horas_rutina
+                                break
+                    
+                    main_ubi = activo.ubicacion if (activo and activo.ubicacion) else self.areas.first()
+                    ot = OrdenTrabajo.objects.create(
+                        programacion=self,
+                        ubicacion=main_ubi,
+                        inicio_programado=ot_start_dt,
+                        fin_programado=ot_end_dt,
+                        rutina=self.rutina,
+                        tipo='PREVENTIVA',
+                        prioridad='MEDIA',
+                        estado='ESPERA',
+                        tecnico=tecnico_asignado
+                    )
+                    if activo:
+                        ot.activos.add(activo)
+                    ordenes_creadas += 1
+
             fecha_ciclo += timedelta(days=frecuencia_dias)
             
-            fecha_ciclo += timedelta(days=frecuencia_dias)
+            
             
         self.procesada = True
         self.save()

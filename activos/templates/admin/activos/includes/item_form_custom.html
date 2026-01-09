@@ -1,0 +1,722 @@
+<div class="custom-form-container animated fadeIn">
+    <div class="form-header-modern">
+        <div class="info">
+            <div class="badge-type {{ type }}">{{ type|upper }}</div>
+            <h2>{{ instance.nombre }}</h2>
+            <p class="id-tag">
+                ID: #{{ instance.id }}
+                {% if type == 'activo' %}
+                | {{ instance.codigo_interno|default:"Sin Código" }}
+                {% else %}
+                | {{ instance.tipo }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="actions">
+            <button type="button" class="save-btn" onclick="saveForm(this)">
+                <ion-icon name="cloud-upload-outline"></ion-icon>
+                <span>Guardar Activo</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="form-body">
+        <form id="active-item-form" method="POST">
+            {% csrf_token %}
+            <div class="form-chips">
+                <div class="chip active" onclick="switchTab(this, 'details')">Detalles Generales</div>
+                {% if type == 'ubicacion' %}
+                <div class="chip" onclick="switchTab(this, 'assets')">
+                    Equipos en esta Ubicación
+                    <span class="count-badge">{{ activos|length }}</span>
+                </div>
+                {% elif type == 'activo' %}
+                <div class="chip" onclick="switchTab(this, 'historial')">
+                    Historial de Mant.
+                    <span class="count-badge">{{ historial|length }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div id="details-tab" class="tab-content active">
+                {% if type == 'activo' %}
+                <div class="model-preview-banner">
+                    <div class="image-container" id="model-image-preview">
+                        {% if instance.modelo.imagen %}
+                        <img src="{{ instance.modelo.imagen }}" alt="{{ instance.modelo.nombre }}">
+                        {% else %}
+                        <div class="no-image">
+                            <ion-icon name="image-outline"></ion-icon>
+                            <span>Sin imagen de modelo</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="grid-layout">
+                    {% for field in form %}
+                    <div class="field-item {% if field.name == 'descripcion' %}wide{% endif %}">
+                        <label>{{ field.label }}</label>
+                        <div class="input-wrapper">
+                            {{ field }}
+                            {% if field.errors %}
+                            <div class="error-tip">{{ field.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        {% if field.help_text %}<span class="help-msg">{{ field.help_text }}</span>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if type == 'ubicacion' %}
+            <div id="assets-tab" class="tab-content">
+                {% if activos %}
+                <div class="assets-grid">
+                    {% for activo in activos %}
+                    <div class="asset-card" onclick="loadItemById('{{ activo.id }}', 'activo')">
+                        <div class="asset-thumb">
+                            {% if activo.modelo.imagen %}
+                            <img src="{{ activo.modelo.imagen }}" alt="{{ activo.nombre }}">
+                            {% else %}
+                            <div class="no-thumb"><ion-icon name="cube-outline"></ion-icon></div>
+                            {% endif %}
+                            <div class="status-indicator {{ activo.estado|lower }}"></div>
+                        </div>
+                        <div class="asset-info">
+                            <span class="asset-code">{{ activo.codigo_interno }}</span>
+                            <span class="asset-name">{{ activo.nombre }}</span>
+                            <div class="asset-meta">
+                                <span class="tag cat">
+                                    {{ activo.modelo.categoria.nombre|default:"Sin Cat." }}
+                                </span>
+                                {% if activo.ubicacion_id != instance.id %}
+                                <span class="tag ubi">Sub-área</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <ion-icon name="albums-outline"></ion-icon>
+                    <p>No hay activos registrados en esta ubicación ni en sus descendientes.</p>
+                </div>
+                {% endif %}
+            </div>
+            {% elif type == 'activo' %}
+            <div id="historial-tab" class="tab-content">
+                {% if historial %}
+                <div class="timeline">
+                    {% for item in historial %}
+                    <div class="timeline-item {{ item.color }}">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <span class="timeline-type">{{ item.tipo }} #{{ item.id }}</span>
+                                <span class="timeline-date">{{ item.fecha|date:"d M Y H:i" }}</span>
+                            </div>
+                            <h4 class="timeline-title">{{ item.titulo }}</h4>
+                            <div class="timeline-footer">
+                                <span class="status-badge {{ item.estado_slug }}">{{ item.estado }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <ion-icon name="time-outline"></ion-icon>
+                    <p>No hay registros de mantenimiento para este activo.</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<style>
+    .custom-form-container {
+        padding: 30px;
+        background: white;
+        min-height: 100%;
+    }
+
+    .fadeIn {
+        animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-header-modern {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 25px;
+    }
+
+    .form-header-modern h2 {
+        margin: 5px 0;
+        font-size: 2rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .badge-type {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 900;
+        padding: 3px 10px;
+        border-radius: 50px;
+        background: #e2e8f0;
+        color: #475569;
+        letter-spacing: 1px;
+    }
+
+    .badge-type.activo {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .badge-type.ubicacion {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .id-tag {
+        font-size: 0.9rem;
+        color: #94a3b8;
+        margin: 0;
+    }
+
+    .save-btn {
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+    }
+
+    .save-btn:hover {
+        background: #1d4ed8;
+        transform: translateY(-2px);
+        box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4);
+    }
+
+    .save-btn:active {
+        transform: scale(0.95);
+    }
+
+    .form-chips {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 30px;
+    }
+
+    .chip {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #64748b;
+        background: #f8fafc;
+        cursor: pointer;
+    }
+
+    .chip.active {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .grid-layout {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+    }
+
+    .field-item {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .field-item.wide {
+        grid-column: span 2;
+    }
+
+    .field-item label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .input-wrapper .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.2s;
+        box-sizing: border-box;
+    }
+
+    .input-wrapper .form-control:focus {
+        border-color: #2563eb;
+        background: #f8fafc;
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+
+    .help-msg {
+        font-size: 0.75rem;
+        color: #94a3b8;
+    }
+
+    .error-tip {
+        color: #ef4444;
+        font-size: 0.8rem;
+        margin-top: 4px;
+        font-weight: 600;
+    }
+
+    /* Model Preview */
+    .model-preview-banner {
+        margin-bottom: 30px;
+        background: #f8fafc;
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        border: 1px solid #e2e8f0;
+    }
+
+    .model-preview-banner .image-container {
+        width: 100%;
+        max-width: 300px;
+        aspect-ratio: 16/9;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .model-preview-banner img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .model-preview-banner .no-image {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        color: #94a3b8;
+    }
+
+    .model-preview-banner .no-image ion-icon {
+        font-size: 3rem;
+    }
+
+    /* Tab Management */
+    .tab-content {
+        display: none;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    .count-badge {
+        background: #2563eb;
+        color: white;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: 5px;
+    }
+
+    /* Assets Grid */
+    .assets-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+        padding: 10px 0;
+    }
+
+    .asset-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .asset-card:hover {
+        transform: translateY(-5px);
+        background: white;
+        border-color: #2563eb;
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.15);
+    }
+
+    .asset-thumb {
+        width: 100%;
+        aspect-ratio: 16/10;
+        background: #edf2f7;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .asset-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .asset-thumb .no-thumb {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #cbd5e1;
+    }
+
+    .status-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-indicator.operativo {
+        background: #10b981;
+    }
+
+    .status-indicator.mantenimiento {
+        background: #f59e0b;
+    }
+
+    .status-indicator.reparacion {
+        background: #ef4444;
+    }
+
+    .asset-code {
+        font-family: 'Inter', monospace;
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #2563eb;
+        opacity: 0.8;
+    }
+
+    .asset-name {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        margin-top: -4px;
+        line-height: 1.3;
+        height: 2.6em;
+    }
+
+    .asset-meta {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .tag {
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+        text-transform: uppercase;
+    }
+
+    .tag.cat {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .tag.ubi {
+        background: #fff7ed;
+        color: #9a3412;
+    }
+
+    .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+        color: #94a3b8;
+    }
+
+    .empty-state ion-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+
+    /* Timeline Styles */
+    .timeline {
+        position: relative;
+        padding: 20px 0 20px 30px;
+        margin-left: 10px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 10px;
+        height: 100%;
+        width: 2px;
+        background: #e2e8f0;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+        padding-left: 20px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        top: 0;
+        left: -25px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #cbd5e1;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #e2e8f0;
+        z-index: 1;
+    }
+
+    .timeline-item.blue .timeline-marker {
+        background: #2563eb;
+    }
+
+    .timeline-item.orange .timeline-marker {
+        background: #f59e0b;
+    }
+
+    .timeline-item.red .timeline-marker {
+        background: #ef4444;
+    }
+
+    .timeline-content {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 15px;
+        transition: all 0.2s;
+    }
+
+    .timeline-content:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .timeline-type {
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .timeline-date {
+        font-size: 0.75rem;
+        color: #94a3b8;
+    }
+
+    .timeline-title {
+        margin: 0 0 10px 0;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .status-badge {
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+
+    .status-badge.espera {
+        background: #fff7ed;
+        color: #9a3412;
+    }
+
+    .status-badge.programada {
+        background: #eff6ff;
+        color: #1e40af;
+    }
+
+    .status-badge.ejecucion {
+        background: #fef9c3;
+        color: #854d0e;
+    }
+
+    .status-badge.realizada {
+        background: #f0fdf4;
+        color: #166534;
+    }
+
+    .status-badge.cerrado {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .status-badge.abierto {
+        background: #fef2f2;
+        color: #991b1b;
+    }
+
+    .success-toast {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: #059669;
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+<script>
+    function switchTab(chip, tabId) {
+        // Toggle chips
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+
+        // Toggle content
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId + '-tab').classList.add('active');
+
+        // Hide/Show save button if needed
+        const saveBtn = document.querySelector('.save-btn');
+        if (tabId === 'assets' || tabId === 'historial') {
+            saveBtn.style.display = 'none';
+        } else {
+            saveBtn.style.display = 'flex';
+        }
+    }
+
+    async function saveForm(btn) {
+        const form = document.getElementById('active-item-form');
+        const formData = new FormData(form);
+        const originalContent = btn.innerHTML;
+        const itemId = "{{ instance.id }}";
+        const itemType = "{{ type }}";
+
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loader-mini" style="border-top-color: white;"></div> <span>Guardando...</span>';
+
+        try {
+            const response = await fetch(`/activos/api/item-form/${itemType}/${itemId}/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                showToast(result.message);
+                const activeLabel = document.querySelector('.item-header.active .item-name');
+                if (activeLabel) {
+                    activeLabel.innerText = formData.get('nombre');
+                }
+            } else {
+                alert('Hubo un error al guardar. Revisa los campos.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error crítico de conexión');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+    }
+
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.className = 'success-toast';
+        toast.innerHTML = '<ion-icon name="checkmark-circle-outline" style="font-size: 1.5rem;"></ion-icon> <span>' + msg + '</span>';
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            toast.style.transition = 'all 0.5s ease';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+</script>

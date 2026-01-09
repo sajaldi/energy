@@ -1,0 +1,293 @@
+<div class="custom-form-container animated fadeIn">
+    <div class="form-header-modern">
+        <div class="info">
+            <div class="badge-type {{ type }}">{{ type|upper }}</div>
+            <h2>{{ instance.nombre }}</h2>
+            <p class="id-tag">
+                ID: #{{ instance.id }}
+                {% if type == 'activo' %}
+                | {{ instance.codigo_interno|default:"Sin Código" }}
+                {% else %}
+                | {{ instance.tipo }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="actions">
+            <button type="button" class="save-btn" onclick="saveForm(this)">
+                <ion-icon name="cloud-upload-outline"></ion-icon>
+                <span>Guardar Activo</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="form-body">
+        <form id="active-item-form" method="POST">
+            {% csrf_token %}
+            <div class="form-chips">
+                <div class="chip active">Detalles Generales</div>
+            </div>
+
+            <div class="grid-layout">
+                {% for field in form %}
+                <div class="field-item {% if field.name == 'descripcion' %}wide{% endif %}">
+                    <label>{{ field.label }}</label>
+                    <div class="input-wrapper">
+                        {{ field }}
+                        {% if field.errors %}
+                        <div class="error-tip">{{ field.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    {% if field.help_text %}<span class="help-msg">{{ field.help_text }}</span>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .custom-form-container {
+        padding: 30px 50px;
+        background: white;
+        min-height: 100%;
+    }
+
+    .fadeIn {
+        animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-header-modern {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 25px;
+    }
+
+    .form-header-modern h2 {
+        margin: 5px 0;
+        font-size: 2rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .badge-type {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 900;
+        padding: 3px 10px;
+        border-radius: 50px;
+        background: #e2e8f0;
+        color: #475569;
+        letter-spacing: 1px;
+    }
+
+    .badge-type.activo {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .badge-type.ubicacion {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .id-tag {
+        font-size: 0.9rem;
+        color: #94a3b8;
+        margin: 0;
+    }
+
+    .save-btn {
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+    }
+
+    .save-btn:hover {
+        background: #1d4ed8;
+        transform: translateY(-2px);
+        box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4);
+    }
+
+    .save-btn:active {
+        transform: scale(0.95);
+    }
+
+    .form-chips {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 30px;
+    }
+
+    .chip {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #64748b;
+        background: #f8fafc;
+        cursor: pointer;
+    }
+
+    .chip.active {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .grid-layout {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+    }
+
+    .field-item {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .field-item.wide {
+        grid-column: span 2;
+    }
+
+    .field-item label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .input-wrapper .form-control {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.2s;
+        box-sizing: border-box;
+    }
+
+    .input-wrapper .form-control:focus {
+        border-color: #2563eb;
+        background: #f8fafc;
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+
+    .help-msg {
+        font-size: 0.75rem;
+        color: #94a3b8;
+    }
+
+    .error-tip {
+        color: #ef4444;
+        font-size: 0.8rem;
+        margin-top: 4px;
+        font-weight: 600;
+    }
+
+    .success-toast {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: #059669;
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+<script>
+    async function saveForm(btn) {
+        const form = document.getElementById('active-item-form');
+        const formData = new FormData(form);
+        const originalContent = btn.innerHTML;
+        const itemId = "{{ instance.id }}";
+        const itemType = "{{ type }}";
+
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loader-mini" style="border-top-color: white;"></div> <span>Guardando...</span>';
+
+        try {
+            const response = await fetch(`/activos/api/item-form/${itemType}/${itemId}/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                showToast(result.message);
+                const activeLabel = document.querySelector('.item-header.active .item-name');
+                if (activeLabel) {
+                    activeLabel.innerText = formData.get('nombre');
+                }
+            } else {
+                alert('Hubo un error al guardar. Revisa los campos.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error crítico de conexión');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+    }
+
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.className = 'success-toast';
+        toast.innerHTML = '<ion-icon name="checkmark-circle-outline" style="font-size: 1.5rem;"></ion-icon> <span>' + msg + '</span>';
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            toast.style.transition = 'all 0.5s ease';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+</script>

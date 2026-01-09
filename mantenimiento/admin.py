@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.db import models
 from django.db.models import Count
 from django.contrib import admin, messages
@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
-from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo
+from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto
 from activos.models import Categoria as CategoriaActivo
 from django.utils.safestring import mark_safe
 from django.urls import reverse
@@ -101,6 +101,55 @@ class FrecuenciaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'dias')
     ordering = ('dias',)
     search_fields = ('nombre',)
+
+@admin.register(PuestoTrabajo)
+class PuestoTrabajoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'descripcion', 'ver_dashboard_link')
+    search_fields = ('nombre',)
+
+    def ver_dashboard_link(self, obj):
+        url = reverse('mantenimiento:dashboard_cargas')
+        return mark_safe(f'<a class="button" href="{url}" style="background: #4f46e5; color: white; font-weight: 700;">📊 VER DASHBOARD DE CARGAS</a>')
+    ver_dashboard_link.short_description = 'Dashboard'
+
+@admin.register(TecnicoPuesto)
+class TecnicoPuestoAdmin(admin.ModelAdmin):
+    list_display = ('user', 'puesto', 'get_carga_semanal', 'disponible', 'horas_semanales_max')
+    list_filter = ('puesto', 'disponible')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'puesto__nombre')
+    autocomplete_fields = ('user', 'puesto')
+
+    def get_carga_semanal(self, obj):
+        from .models import OrdenTrabajo
+        from django.utils import timezone
+        
+        now = timezone.now()
+        monday = now - timedelta(days=now.weekday())
+        sunday = monday + timedelta(days=6)
+        
+        # Convertir fechas a datetimes conscientes
+        q_start = timezone.make_aware(datetime.combine(monday, datetime.min.time()))
+        q_end = timezone.make_aware(datetime.combine(sunday, datetime.max.time()))
+        
+        ots = OrdenTrabajo.objects.filter(
+            tecnico=obj.user,
+            inicio_programado__gte=q_start,
+            inicio_programado__lte=q_end
+        )
+        
+        total_horas = 0
+        for ot in ots:
+            if ot.inicio_programado and ot.fin_programado:
+                total_horas += (ot.fin_programado - ot.inicio_programado).total_seconds() / 3600
+        
+        pct = (total_horas / float(obj.horas_semanales_max) * 100) if obj.horas_semanales_max > 0 else 0
+        
+        color = '#10b981' # Success green
+        if pct > 100: color = '#ef4444' # Danger red
+        elif pct > 80: color = '#f59e0b' # Warning orange
+        
+        return mark_safe(f'<b style="color: {color}; font-size: 13px;">{pct:.1f}%</b> <small style="color: #64748b;">({total_horas:.1f}h / {obj.horas_semanales_max}h)</small>')
+    get_carga_semanal.short_description = 'Carga esta Semana'
 
 class RutinaResource(resources.ModelResource):
     """
@@ -200,10 +249,10 @@ class OrdenTrabajoInline(admin.TabularInline):
 class RutinaAdmin(ImportExportModelAdmin):
     list_per_page = 50
     resource_class = RutinaResource
-    list_display = ('nombre', 'categoria', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos', 'programar_rutina_link')
-    list_filter = ('categoria', 'frecuencia')
+    list_display = ('nombre', 'categoria', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'programar_rutina_link')
+    list_filter = ('categoria', 'frecuencia', 'puesto_trabajo')
     search_fields = ('nombre', 'procedimiento_estandar__nombre', 'herramientas')
-    autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar')
+    autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
     readonly_fields = ('nombre', 'creado_en', 'actualizado_en', 'programar_rutina_link')
     inlines = [] # Temporalmente vacío hasta que verifiquemos si requiere inlines
     actions = ['exportar_seleccionadas_action']
@@ -219,7 +268,7 @@ class RutinaAdmin(ImportExportModelAdmin):
     
     fieldsets = (
         ('Identificación', {
-            'fields': (('nombre', 'programar_rutina_link'), 'categoria', 'frecuencia')
+            'fields': (('nombre', 'programar_rutina_link'), 'categoria', 'frecuencia', 'puesto_trabajo')
         }),
         ('Manual de Pasos', {
             'fields': ('procedimiento_estandar', 'herramientas')
@@ -391,6 +440,14 @@ class ProgramacionAdmin(admin.ModelAdmin):
                     request,
                     f"La programación {programacion.rutina.nombre} ya fue procesada anteriormente.",
                     messages.WARNING
+                )
+                continue
+            
+            if programacion.fecha_inicio.year < 2000:
+                self.message_user(
+                    request,
+                    f"La programación {programacion.id} tiene una fecha de inicio inválida ({programacion.fecha_inicio}). Por favor corrígala.",
+                    messages.ERROR
                 )
                 continue
             

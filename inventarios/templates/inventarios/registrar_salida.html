@@ -17,7 +17,6 @@
         --negative: #ef4444;
     }
 
-    /* Reset admin container padding if needed for full custom look */
     #content {
         padding: 20px !important;
         background-color: var(--bg);
@@ -75,20 +74,6 @@
         box-sizing: border-box;
     }
 
-    .search-box input:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px var(--primary-shadow);
-    }
-
-    .search-box ion-icon {
-        position: absolute;
-        left: 16px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--text-muted);
-        font-size: 1.2rem;
-    }
-
     .materials-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -112,7 +97,6 @@
     .material-item:hover {
         border-color: var(--primary);
         background: rgba(59, 130, 246, 0.03);
-        transform: translateY(-2px);
     }
 
     .material-item.selected {
@@ -152,8 +136,7 @@
     }
 
     .form-group input,
-    .form-group select,
-    .form-group textarea {
+    .form-group select {
         width: 100%;
         padding: 12px;
         border-radius: 12px;
@@ -171,33 +154,11 @@
         background: var(--primary);
         color: white;
         font-weight: 700;
-        font-family: inherit;
         cursor: pointer;
-        transition: all 0.3s;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
-    }
-
-    .btn:hover {
-        opacity: 0.9;
-        transform: scale(0.98);
-    }
-
-    .btn:disabled {
-        background: var(--text-muted);
-        cursor: not-allowed;
-    }
-
-    .stock-info {
-        background: #f8fafc;
-        border-radius: 12px;
-        padding: 12px;
-        font-size: 0.85rem;
-        margin-top: 12px;
-        display: none;
-        border: 1px solid #e2e8f0;
     }
 
     .alert {
@@ -211,12 +172,6 @@
         background: #dcfce7;
         color: #166534;
         border: 1px solid #bbf7d0;
-    }
-
-    .alert-error {
-        background: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #fecaca;
     }
 
     @media (max-width: 768px) {
@@ -247,6 +202,11 @@
             <h1>Registrar Salida de Material</h1>
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
+            <a href="{% url 'scanner' %}"
+                style="text-decoration: none; color: var(--text); background: white; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                <ion-icon name="scan-outline" style="font-size: 1.5rem; color: var(--secondary)"></ion-icon>
+                <span style="font-weight: 600;">Surtido por Escáner</span>
+            </a>
             <a href="{% url 'cart_detail' %}"
                 style="position: relative; text-decoration: none; color: var(--text); background: white; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                 <ion-icon name="cart-outline" style="font-size: 1.5rem; color: var(--primary)"></ion-icon>
@@ -260,16 +220,15 @@
 
     {% if messages %}
     {% for message in messages %}
-    <div class="alert alert-{{ message.tags }}">
-        {{ message }}
-    </div>
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
     {% endfor %}
     {% endif %}
 
     <div class="grid">
         <div class="card">
             <div class="search-box">
-                <ion-icon name="search-outline"></ion-icon>
+                <ion-icon name="search-outline"
+                    style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></ion-icon>
                 <input type="text" id="materialSearch" placeholder="Buscar material por nombre o SKU...">
             </div>
 
@@ -288,13 +247,11 @@
         <div class="card">
             <div id="cartForm">
                 <input type="hidden" name="material" id="selectedMaterialId" required>
-
                 <div class="form-group">
                     <label>Material Seleccionado</label>
                     <div id="selectionLabel" style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">Ninguno
                         seleccionado</div>
                 </div>
-
                 <div class="form-group">
                     <label>Cantidad a Retirar</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -304,28 +261,21 @@
                             style="font-size: 0.8rem; color: var(--text-muted); min-width: 50px;">---</span>
                     </div>
                 </div>
-
                 <button type="button" class="btn" id="addToCartBtn" disabled>
                     <ion-icon name="add-circle-outline"></ion-icon> Agregar al Carrito
                 </button>
-
                 <div id="statusMessage"
                     style="margin-top: 15px; font-size: 0.85rem; display: none; text-align: center; color: var(--positive);">
-                    ¡Agregado con éxito!
-                </div>
+                    ¡Agregado con éxito!</div>
             </div>
-
             <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
-
-            <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">
-                Selecciona varios materiales y agrégalos al carrito para procesar una sola orden.
-            </p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">Selecciona varios materiales y
+                agrégalos al carrito para procesar una sola orden.</p>
         </div>
     </div>
 </div>
 
 <script>
-    const materialsGrid = document.getElementById('materialsGrid');
     const searchInput = document.getElementById('materialSearch');
     const selectedMaterialId = document.getElementById('selectedMaterialId');
     const selectionLabel = document.getElementById('selectionLabel');
@@ -335,7 +285,6 @@
     const cartCountBadge = document.getElementById('cartCountBadge');
     const statusMessage = document.getElementById('statusMessage');
 
-    // Filtrado de materiales
     searchInput.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase();
         document.querySelectorAll('.material-item').forEach(item => {
@@ -345,17 +294,13 @@
         });
     });
 
-    // Selección de material
     document.querySelectorAll('.material-item').forEach(item => {
         item.addEventListener('click', () => {
             document.querySelectorAll('.material-item').forEach(i => i.classList.remove('selected'));
             item.classList.add('selected');
-
-            const id = item.dataset.id;
-            selectedMaterialId.value = id;
+            selectedMaterialId.value = item.dataset.id;
             selectionLabel.innerText = item.dataset.name;
             unitLabel.innerText = item.dataset.unit;
-
             cantidadInput.disabled = false;
             cantidadInput.value = 1;
             addToCartBtn.disabled = false;
@@ -365,35 +310,23 @@
     addToCartBtn.addEventListener('click', async () => {
         const matId = selectedMaterialId.value;
         const qty = cantidadInput.value;
-
         if (!matId || !qty) return;
-
         addToCartBtn.disabled = true;
-
         try {
             const response = await fetch('{% url "cart_add" %}', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                 body: JSON.stringify({ material_id: matId, cantidad: qty })
             });
             const data = await response.json();
-
             if (data.status === 'success') {
                 cartCountBadge.innerText = data.cart_count;
                 statusMessage.style.display = 'block';
                 setTimeout(() => statusMessage.style.display = 'none', 2000);
             }
-        } catch (error) {
-            console.error('Error adding to cart:', error);
-        } finally {
-            addToCartBtn.disabled = false;
-        }
+        } catch (error) { console.error('Error adding to cart:', error); }
+        finally { addToCartBtn.disabled = false; }
     });
-
-    // Initial cart count (optional, can be passed from context)
     cartCountBadge.innerText = "{{ request.session.inventory_cart|length }}";
 </script>
 {% endblock %}

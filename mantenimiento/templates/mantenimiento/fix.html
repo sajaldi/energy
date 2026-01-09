@@ -392,7 +392,8 @@
                 {% for c in categorias_activos %}
                 <label
                     style="background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 99px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                    <input type="checkbox" name="cat" value="{{ c.id }}">
+                    <input type="checkbox" name="cat" value="{{ c.id }}" {% if preselected_cat_id == c.id %}checked{%
+                        endif %}>
                     {{ c.nombre }}
                 </label>
                 {% endfor %}
@@ -639,13 +640,6 @@
     document.addEventListener('DOMContentLoaded', () => {
         if (selections.rutina) {
             updateStep(2);
-        }
-        // Marcar categorías preseleccionadas
-        if (selections.categorias.length > 0) {
-            selections.categorias.forEach(catId => {
-                const cb = document.querySelector(`input[name="cat"][value="${catId}"]`);
-                if (cb) cb.checked = true;
-            });
         }
     });
 </script>

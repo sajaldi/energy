@@ -20,8 +20,13 @@ class Ubicacion(models.Model):
         Ej: 'Campus Principal → Edificio A → Nivel 1'
         """
         path = [self.nombre]
+        visited = {self.id}
         curr = self.padre
         while curr:
+            if curr.id in visited:
+                path.append(f"[BUCLE DETECTADO: {curr.nombre}]")
+                break
+            visited.add(curr.id)
             path.append(curr.nombre)
             curr = curr.padre
         return separador.join(reversed(path))
@@ -39,16 +44,24 @@ class Ubicacion(models.Model):
     def level(self):
         """Calcula el nivel de profundidad (0 para raíz)."""
         count = 0
+        visited = {self.id}
         curr = self.padre
         while curr:
+            if curr.id in visited:
+                break
+            visited.add(curr.id)
             count += 1
             curr = curr.padre
         return count
 
     def get_root(self):
         """Devuelve el nodo raíz de la jerarquía (Campus/Sede)."""
+        visited = {self.id}
         curr = self
         while curr.padre:
+            if curr.padre.id in visited:
+                break
+            visited.add(curr.padre.id)
             curr = curr.padre
         return curr
 
@@ -68,6 +81,13 @@ class Ubicacion(models.Model):
         
         _get_children(self)
         return Ubicacion.objects.filter(id__in=descendants_ids)
+
+    @property
+    def tiene_hijos(self):
+        """Devuelve True si tiene sub-ubicaciones o activos asociados. Optimizado para usar anotaciones."""
+        if hasattr(self, 'has_sub_ubicaciones') and hasattr(self, 'has_activos'):
+            return self.has_sub_ubicaciones or self.has_activos
+        return self.sub_ubicaciones.exists() or self.activos.exists()
 
     def __str__(self):
         return self.get_ruta_completa()

@@ -230,6 +230,331 @@ def arbol_activos_view(request):
     })
 
 @staff_member_required
+def explorer_jerarquia_admin(request):
+    """Vista de jerarquía completa para el admin"""
+    from .models import Ubicacion, Activo, Categoria
+    
+    roots = Ubicacion.objects.filter(padre__isnull=True).order_by('orden', 'nombre')
+    cat_roots = Categoria.objects.filter(padre__isnull=True).order_by('nombre')
+    
+    context = {
+        'title': 'Explorador Jerárquico de Activos',
+        'roots': roots,
+        'cat_roots': cat_roots,
+        'app_label': 'activos',
+    }
+    return render(request, 'admin/activos/jerarquia_completa.html', context)
+
+@staff_member_required
+def api_get_explorer_level(request):
+    """Retorna un fragmento HTML con los hijos de una ubicación o activo optimizado para rendimiento"""
+    from .models import Ubicacion, Activo, Categoria
+    from collections import defaultdict
+    from django.db.models import Count, Q, Exists, OuterRef
+    
+    parent_id = request.GET.get('id')
+    parent_type = request.GET.get('type') # 'ubicacion' o 'activo' o 'categoria'
+    cat_id = request.GET.get('cat_id') # Contexto de categoría si existe
+    
+    sub_ubicaciones = []
+    sub_categorias = []
+    activos_directos = []
+    categorias_activos = defaultdict(list)
+
+    # Definimos sub-query de existencia de hijos para anotar y evitar N+1 en plantilla
+    hijos_ubi_exists = Ubicacion.objects.filter(padre=OuterRef('pk'))
+    activos_ubi_exists = Activo.objects.filter(ubicacion=OuterRef('pk'))
+    hijos_activo_exists = Activo.objects.filter(padre=OuterRef('pk'))
+    
+    if parent_type == 'ubicacion':
+        ubicacion = get_object_or_404(Ubicacion, id=parent_id)
+        
+        if cat_id:
+            categoria = get_object_or_404(Categoria, id=cat_id)
+            descendant_cats = categoria.get_descendants(include_self=True)
+            
+            # Filtramos todos los activos de esta categoría que están bajo esta ubicación (en cualquier nivel)
+            # Esto nos servirá para identificar qué sub-ubicaciones tienen contenido válido de forma masiva
+            all_valid_assets = Activo.objects.filter(
+                ubicacion__in=ubicacion.get_descendants(include_self=True),
+                modelo__categoria__in=descendant_cats
+            ).values_list('ubicacion_id', flat=True).distinct()
+            
+            # Sub-ubicaciones directas: Solo las que tienen descendientes con activos válidos.
+            # En lugar de un loop con recursión, usamos la lista all_valid_assets.
+            valid_subs = []
+            for sub in ubicacion.sub_ubicaciones.all():
+                # Una sub-ubicación es válida si ella misma o alguno de sus descendientes está en la lista de activos
+                if sub.id in all_valid_assets or any(d_id in all_valid_assets for d_id in sub.get_descendants().values_list('id', flat=True)):
+                    valid_subs.append(sub.id)
+            
+            sub_ubicaciones = Ubicacion.objects.filter(id__in=valid_subs).annotate(
+                has_sub_ubicaciones=Exists(hijos_ubi_exists),
+                has_activos=Exists(activos_ubi_exists)
+            ).order_by('orden', 'nombre')
+            
+            # 2. Mostrar activos directos de esta categoría en esta ubicación
+            activos_directos = Activo.objects.filter(
+                ubicacion=ubicacion, 
+                modelo__categoria__in=descendant_cats, 
+                padre__isnull=True
+            ).annotate(num_hijos=Count('componentes')).select_related('modelo__categoria', 'ubicacion').order_by('nombre')
+            
+        else:
+            # Vista normal por ubicación
+            sub_ubicaciones = ubicacion.sub_ubicaciones.annotate(
+                has_sub_ubicaciones=Exists(hijos_ubi_exists),
+                has_activos=Exists(activos_ubi_exists)
+            ).order_by('orden', 'nombre')
+            
+            activos = ubicacion.activos.filter(padre__isnull=True).annotate(
+                num_hijos=Count('componentes')
+            ).select_related('modelo__categoria', 'ubicacion').order_by('nombre')
+            
+            for a in activos:
+                cat_nombre = a.modelo.categoria.nombre if (a.modelo and a.modelo.categoria) else "Sin Categoría"
+                categorias_activos[cat_nombre].append(a)
+            
+    elif parent_type == 'activo':
+        activo_padre = get_object_or_404(Activo, id=parent_id)
+        hijos = activo_padre.componentes.annotate(
+            num_hijos=Count('componentes')
+        ).select_related('modelo__categoria', 'ubicacion').order_by('nombre')
+        
+        categoria_filt = None
+        descendant_cats = []
+        if cat_id:
+            categoria_filt = get_object_or_404(Categoria, id=cat_id)
+            descendant_cats = list(categoria_filt.get_descendants(include_self=True).values_list('id', flat=True))
+            
+        for a in hijos:
+            show = True
+            if cat_id:
+                show = a.modelo and a.modelo.categoria_id in descendant_cats
+            
+            if show:
+                cat_nombre = a.modelo.categoria.nombre if (a.modelo and a.modelo.categoria) else "Sin Categoría"
+                categorias_activos[cat_nombre].append(a)
+
+    elif parent_type == 'categoria':
+        categoria = get_object_or_404(Categoria, id=parent_id)
+        sub_categorias = categoria.subcategorias.all().order_by('nombre')
+        
+        # En lugar de listar activos directo, listamos las ubicaciones raíz que tienen activos de esta categoría (o subcategorías)
+        descendant_cats = categoria.get_descendants(include_self=True)
+        
+        # Identificamos TODAS las ubicaciones que tienen activos de esta categoría de forma global
+        ubicaciones_con_activos = set(Activo.objects.filter(
+            modelo__categoria__in=descendant_cats
+        ).values_list('ubicacion_id', flat=True).distinct())
+        
+        # Obtenemos las ubicaciones raíz
+        roots = Ubicacion.objects.filter(padre__isnull=True)
+        valid_roots = []
+        
+        for r in roots:
+            # Una raíz es válida si ella o cualquiera de sus descendientes tiene activos
+            r_all_ids = set(r.get_descendants(include_self=True).values_list('id', flat=True))
+            if not r_all_ids.isdisjoint(ubicaciones_con_activos):
+                valid_roots.append(r.id)
+        
+        sub_ubicaciones = Ubicacion.objects.filter(id__in=valid_roots).annotate(
+            has_sub_ubicaciones=Exists(hijos_ubi_exists),
+            has_activos=Exists(activos_ubi_exists)
+        ).order_by('orden', 'nombre')
+            
+    context = {
+        'sub_ubicaciones': sub_ubicaciones,
+        'sub_categorias': sub_categorias,
+        'activos_directos': activos_directos,
+        'categorias_activos': dict(sorted(categorias_activos.items())),
+        'cat_id': cat_id or (parent_id if parent_type == 'categoria' else None),
+    }
+    
+    return render(request, 'admin/activos/includes/tree_level_fragment.html', context)
+
+@staff_member_required
+def api_explorer_search(request):
+    """Buscador global para el explorador jerárquico"""
+    from django.db import models
+    from .models import Activo, Ubicacion, Categoria
+    query = request.GET.get('q', '').strip()
+    
+    if not query or len(query) < 2:
+        return HttpResponse("")
+        
+    # Buscar Activos
+    activos = Activo.objects.filter(
+        models.Q(nombre__icontains=query) | 
+        models.Q(codigo_interno__icontains=query) |
+        models.Q(serie__icontains=query)
+    ).select_related('ubicacion')[:15]
+    
+    # Buscar Ubicaciones
+    ubicaciones = Ubicacion.objects.filter(nombre__icontains=query)[:10]
+    
+    # Buscar Categorías
+    categorias = Categoria.objects.filter(nombre__icontains=query)[:10]
+    
+    from django.template.loader import render_to_string
+    html = ""
+    
+    if categorias.exists():
+        html += '<div class="category-header-mini" style="margin-left:0; background:#f1f5f9;">Categorías</div>'
+        for c in categorias:
+            html += render_to_string('admin/activos/includes/tree_item.html', {'node': c, 'type': 'categoria'}, request=request)
+            
+    if ubicaciones.exists():
+        html += '<div class="category-header-mini" style="margin-left:0; background:#f1f5f9;">Ubicaciones</div>'
+        for u in ubicaciones:
+            html += render_to_string('admin/activos/includes/tree_item.html', {'node': u, 'type': 'ubicacion'}, request=request)
+            
+    if activos.exists():
+        html += '<div class="category-header-mini" style="margin-left:0; background:#f1f5f9;">Activos</div>'
+        for a in activos:
+            html += render_to_string('admin/activos/includes/tree_item.html', {'node': a, 'type': 'activo'}, request=request)
+            
+    if not html:
+        html = '<div style="padding: 20px; text-align: center; color: #94a3b8;">No se encontraron resultados</div>'
+        
+    from django.http import HttpResponse
+    return HttpResponse(html)
+
+@staff_member_required
+def api_item_form(request, item_type, item_id):
+    """Retorna un formulario HTML personalizado para editar un elemento y procesa su guardado"""
+    from .models import Activo, Ubicacion, Categoria
+    from django import forms
+    
+    if item_type == 'activo':
+        instance = get_object_or_404(Activo, id=item_id)
+        class CustomForm(forms.ModelForm):
+            class Meta:
+                model = Activo
+                fields = ['nombre', 'codigo_interno', 'serie', 'descripcion', 'estado', 'ubicacion', 'padre', 'modelo']
+                widgets = {
+                    'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+                    'codigo_interno': forms.TextInput(attrs={'class': 'form-control'}),
+                    'serie': forms.TextInput(attrs={'class': 'form-control'}),
+                    'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+                    'estado': forms.Select(attrs={'class': 'form-control'}),
+                    'ubicacion': forms.Select(attrs={'class': 'form-control'}),
+                    'padre': forms.Select(attrs={'class': 'form-control'}),
+                    'modelo': forms.Select(attrs={'class': 'form-control'}),
+                }
+    elif item_type == 'categoria':
+        instance = get_object_or_404(Categoria, id=item_id)
+        class CustomForm(forms.ModelForm):
+            class Meta:
+                model = Categoria
+                fields = ['nombre', 'padre', 'icono', 'descripcion']
+                widgets = {
+                    'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+                    'padre': forms.Select(attrs={'class': 'form-control'}),
+                    'icono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ej: flash, water...'}),
+                    'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+                }
+    else:
+        instance = get_object_or_404(Ubicacion, id=item_id)
+        class CustomForm(forms.ModelForm):
+            class Meta:
+                model = Ubicacion
+                fields = ['nombre', 'tipo', 'padre', 'orden', 'descripcion']
+                widgets = {
+                    'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+                    'tipo': forms.Select(attrs={'class': 'form-control'}),
+                    'padre': forms.Select(attrs={'class': 'form-control'}),
+                    'orden': forms.NumberInput(attrs={'class': 'form-control'}),
+                    'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+                }
+
+    if request.method == 'POST':
+        form = CustomForm(request.POST, instance=instance)
+        if form.is_valid():
+            form.save()
+            return JsonResponse({'status': 'success', 'message': 'Cambios guardados correctamente.'})
+        return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+    
+    form = CustomForm(instance=instance)
+    
+    # Optimización: No cargar miles de opciones en los select si no es necesario.
+    # Para el formulario rápido, limitamos a la opción actual o vacía para evitar bloqueos por volumen.
+    activos = []
+    historial = []
+    
+    if item_type == 'activo':
+        # Optimización de campos del formulario
+        if hasattr(form.fields.get('modelo'), 'queryset'):
+            from .models import Modelo
+            form.fields['modelo'].queryset = Modelo.objects.all().select_related('marca').order_by('marca__nombre', 'nombre')
+            form.fields['modelo'].required = False
+        if hasattr(form.fields.get('ubicacion'), 'queryset'):
+            form.fields['ubicacion'].queryset = instance.ubicacion._meta.model.objects.filter(id=instance.ubicacion.id) if instance.ubicacion else instance._meta.model.objects.none()
+        if hasattr(form.fields.get('padre'), 'queryset'):
+            form.fields['padre'].queryset = instance.__class__.objects.filter(id=instance.padre.id) if instance.padre else instance.__class__.objects.none()
+
+        from mantenimiento.models import OrdenTrabajo, Aviso
+        # OTs relacionadas directamente o por el campo ManyToMany
+        ots = OrdenTrabajo.objects.filter(activos=instance).select_related('rutina', 'ubicacion').order_by('-inicio_programado')
+        avisos = Aviso.objects.filter(activo=instance).select_related('ubicacion').order_by('-creado_en')
+        
+        # Combinar y convertir a lista para unificar cronología si fuera necesario, 
+        # pero por ahora los pasamos por separado para mejor control en el template.
+        historial_items = []
+        for ot in ots:
+            historial_items.append({
+                'tipo': 'OT',
+                'id': ot.id,
+                'titulo': ot.rutina.nombre if ot.rutina else "Correctiva",
+                'fecha': ot.inicio_programado,
+                'estado': ot.get_estado_display(),
+                'estado_slug': ot.estado.lower(),
+                'color': 'blue' if ot.tipo == 'PREVENTIVA' else 'orange'
+            })
+        for av in avisos:
+            historial_items.append({
+                'tipo': 'AVISO',
+                'id': av.id,
+                'titulo': av.descripcion[:50],
+                'fecha': av.creado_en,
+                'estado': av.get_estado_display(),
+                'estado_slug': av.estado.lower(),
+                'color': 'red'
+            })
+        
+        historial = sorted(historial_items, key=lambda x: x['fecha'], reverse=True)
+
+    elif item_type == 'ubicacion':
+        if hasattr(form.fields.get('padre'), 'queryset'):
+            form.fields['padre'].queryset = instance.__class__.objects.filter(id=instance.padre.id) if instance.padre else instance.__class__.objects.none()
+    elif item_type == 'categoria':
+        if hasattr(form.fields.get('padre'), 'queryset'):
+            form.fields['padre'].queryset = instance.__class__.objects.filter(id=instance.padre.id) if instance.padre else instance.__class__.objects.none()
+
+    if item_type == 'ubicacion':
+        # Obtener activos de esta ubicación y todas sus descendientes para la cuadrícula
+        descendants = instance.get_descendants(include_self=True)
+        queryset = Activo.objects.filter(ubicacion__in=descendants)
+        
+        cat_id = request.GET.get('cat_id')
+        if cat_id:
+            categoria = get_object_or_404(Categoria, id=cat_id)
+            queryset = queryset.filter(modelo__categoria__in=categoria.get_descendants(include_self=True))
+
+        activos = queryset.select_related(
+            'modelo__marca', 'modelo__categoria', 'ubicacion'
+        ).order_by('nombre')
+
+    context = {
+        'form': form,
+        'instance': instance,
+        'type': item_type,
+        'activos': activos,
+        'historial': historial,
+    }
+    return render(request, 'admin/activos/includes/item_form_custom.html', context)
+
+@staff_member_required
 def api_ubicaciones_root(request):
     from .models import Ubicacion
     roots = Ubicacion.objects.filter(padre__isnull=True).order_by('orden', 'nombre')

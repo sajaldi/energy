@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Cargas de Trabajo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, var(--primary), #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .card-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 12px;
+            border-bottom: 2px solid var(--border);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 16px 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .tech-name {
+            font-weight: 600;
+            display: block;
+        }
+
+        .tech-puesto {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .progress-container {
+            width: 120px;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .bg-success {
+            background-color: var(--success);
+        }
+
+        .bg-warning {
+            background-color: var(--warning);
+        }
+
+        .bg-danger {
+            background-color: var(--danger);
+        }
+
+        .pct-label {
+            font-size: 13px;
+            font-weight: 700;
+            display: block;
+        }
+
+        .hours-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .week-header {
+            text-align: center;
+            background: #f1f5f9;
+        }
+
+        .week-rango {
+            font-size: 10px;
+            color: var(--text-muted);
+            display: block;
+            font-weight: normal;
+        }
+
+        .over-limit {
+            color: var(--danger);
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            body {
+                padding: 16px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div>
+            <h1>Dashboard de Cargas de Trabajo</h1>
+            <p style="color: var(--text-muted); margin: 4px 0 0 0;">Visualiza el balance de horas asignadas vs capacidad
+                semanal</p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+            <a href="{% url 'mantenimiento:calendario' %}"
+                style="padding: 10px 20px; text-decoration: none; font-size: 14px; background: white; border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); font-weight: 600; transition: all 0.2s;">Ir
+                al Calendario</a>
+            <button onclick="window.print()"
+                style="padding: 10px 20px; cursor: pointer; border-radius: 8px; background: var(--primary); color: white; border: none; font-weight: 600;">Imprimir
+                Reporte</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">👥 Carga por Técnico (Round Robin Balance)</div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Técnico / Puesto</th>
+                        {% for semana in semanas %}
+                        <th class="week-header">
+                            {{ semana.label }}
+                            <span class="week-rango">{{ semana.rango }}</span>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tecnicos %}
+                    <tr>
+                        <td>
+                            <span class="tech-name">{{ t.nombre }}</span>
+                            <span class="tech-puesto">{{ t.puesto }}</span>
+                        </td>
+                        {% for s in t.semanas %}
+                        <td align="center">
+                            <span class="pct-label {% if s.is_over %}over-limit{% endif %}">
+                                {{ s.total_pct }}%
+                            </span>
+                            <div class="progress-container">
+                                <div class="progress-bar 
+                                    {% if s.total_pct < 80 %}bg-success
+                                    {% elif s.total_pct <= 100 %}bg-warning
+                                    {% else %}bg-danger{% endif %}" style="width: {{ s.pct }}%;">
+                                </div>
+                            </div>
+                            <span class="hours-label">{{ s.horas }}h <small>/ {{ s.capacidad }}h</small></span>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 40px;">No hay
+                            personal disponible registrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">🏗️ Capacidad por Puesto de Trabajo</div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Puesto de Trabajo</th>
+                        {% for semana in semanas %}
+                        <th class="week-header">{{ semana.label }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in puestos %}
+                    <tr>
+                        <td>
+                            <span class="tech-name">{{ p.nombre }}</span>
+                        </td>
+                        {% for s in p.semanas %}
+                        <td align="center">
+                            <span class="pct-label {% if s.is_over %}over-limit{% endif %}">{{ s.total_pct }}%</span>
+                            <div class="progress-container" style="width: 150px;">
+                                <div class="progress-bar 
+                                    {% if s.total_pct < 80 %}bg-success
+                                    {% elif s.total_pct <= 100 %}bg-warning
+                                    {% else %}bg-danger{% endif %}" style="width: {{ s.pct }}%;">
+                                </div>
+                            </div>
+                            <span class="hours-label">{{ s.horas }}h <small>/ {{ s.capacidad }}h</small></span>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 40px;">No hay
+                            puestos de trabajo con personal asignado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</body>
+
+</html>
