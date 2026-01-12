@@ -123,10 +123,32 @@ class Procedimiento(models.Model):
         verbose_name_plural = "Procedimientos"
 
 class PasoProcedimiento(models.Model):
+    TIPO_RESPUESTA_CHOICES = [
+        ('INSTRUCCION', 'Instrucción (Solo lectura)'),
+        ('CHECK', 'Check (Si/No/NA)'),
+        ('NUMERICO', 'Valor Numérico'),
+        ('TEXTO', 'Texto Libre'),
+        ('MEDICION', 'Punto de Medición (SAP)'),
+    ]
+    
     procedimiento = models.ForeignKey(Procedimiento, on_delete=models.CASCADE, related_name='pasos')
     orden = models.PositiveIntegerField(default=0)
     descripcion = models.TextField(help_text="Descripción de la tarea a realizar")
+    
+    tipo_respuesta = models.CharField(max_length=20, choices=TIPO_RESPUESTA_CHOICES, default='INSTRUCCION')
     verificacion = models.CharField(max_length=100, blank=True, null=True, help_text="¿Qué debe verificar el técnico?")
+    
+    # Metadata para validación
+    unidad_medida = models.CharField(max_length=20, blank=True, null=True, help_text="Ej: Bar, °C, Amperios")
+    valor_objetivo = models.FloatField(blank=True, null=True, help_text="Valor ideal esperado")
+    rango_min = models.FloatField(blank=True, null=True)
+    rango_max = models.FloatField(blank=True, null=True)
+
+    # Vinculación con Puntos de Medición
+    punto_medicion_exacto = models.ForeignKey('activos.PuntoMedicion', on_delete=models.SET_NULL, null=True, blank=True, 
+                                               related_name='pasos_procedimiento', help_text="Vincular a un punto específico (procedimientos detallados)")
+    punto_medicion_codigo = models.CharField(max_length=50, blank=True, null=True, 
+                                             help_text="Vincular por código (ej: 'NIVEL_ACEITE') para procedimientos genéricos")
     
     class Meta:
         verbose_name = "Paso de Procedimiento"
@@ -134,10 +156,10 @@ class PasoProcedimiento(models.Model):
         ordering = ['procedimiento', 'orden']
 
     def __str__(self):
-        return f"{self.orden}. {self.descripcion[:50]}"
+        return f"{self.orden}. {self.descripcion[:50]} ({self.get_tipo_respuesta_display()})"
 
 class Rutina(models.Model):
-    nombre = models.CharField(max_length=200)
+    nombre = models.CharField(max_length=200, blank=True, help_text="Deje vacío para generar un nombre automático basado en frecuencia y categoría")
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas', 
                                   help_text="Clasificación de mantenimiento (ej: Mecánica, Eléctrica)")
     descripcion = models.TextField(blank=True, null=True)
@@ -158,12 +180,13 @@ class Rutina(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Auto-genera el nombre siguiendo el formato:
-        ACTIVIDADES [Frecuencia] - [Categoría]
+        Auto-genera el nombre solo si está vacío.
+        Formato: ACTIVIDADES [Frecuencia] - [Categoría]
         """
-        frec_name = self.frecuencia.nombre if self.frecuencia else "Sin Frecuencia"
-        cat_name = self.categoria.nombre if self.categoria else "General"
-        self.nombre = f"ACTIVIDADES {frec_name} - {cat_name}"
+        if not self.nombre:
+            frec_name = self.frecuencia.nombre if self.frecuencia else "Sin Frecuencia"
+            cat_name = self.categoria.nombre if self.categoria else "General"
+            self.nombre = f"ACTIVIDADES {frec_name} - {cat_name}"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -668,3 +691,26 @@ class CierreOrdenTrabajo(models.Model):
             self.orden_trabajo.estado = 'REALIZADA'
             self.orden_trabajo.fecha_ejecucion = self.fecha_fin_real
             self.orden_trabajo.save(update_fields=['estado', 'fecha_ejecucion'])
+class ValorPasoOrden(models.Model):
+    """
+    Almacena el resultado/valor capturado para un paso específico de una OT.
+    """
+    orden_trabajo = models.ForeignKey(OrdenTrabajo, on_delete=models.CASCADE, related_name='resultados_checklist')
+    paso = models.ForeignKey(PasoProcedimiento, on_delete=models.CASCADE)
+    
+    valor_texto = models.TextField(blank=True, null=True)
+    valor_numerico = models.FloatField(blank=True, null=True)
+    valor_bool = models.BooleanField(null=True, blank=True, help_text="Para tipos CHECK")
+    no_aplica = models.BooleanField(default=False)
+    
+    comentarios = models.TextField(blank=True, null=True, help_text="Comentarios adicionales del técnico para este paso")
+    capturado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Valor de Checklist"
+        verbose_name_plural = "Valores de Checklist"
+        unique_together = ('orden_trabajo', 'paso')
+
+    def __str__(self):
+        return f"OT-{self.orden_trabajo_id} - {self.paso}"

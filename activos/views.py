@@ -733,9 +733,13 @@ def mobile_activo_detalle(request, pk):
     # Obtener OTs relacionadas recientes
     ots_recientes = activo.ordenes_trabajo.all().order_by('-inicio_programado')[:5]
     
+    # Obtener puntos de medición
+    puntos = activo.puntos_medicion.all().prefetch_related('lecturas')
+    
     context = {
         'activo': activo,
         'ots_recientes': ots_recientes,
+        'puntos_medicion': puntos,
     }
     return render(request, 'activos/mobile_activo_detalle.html', context)
 

@@ -369,10 +369,54 @@
         outline-offset: -1px;
         color: var(--text-main);
     }
+
+    /* Context Menu Styles */
+    .custom-context-menu {
+        display: none;
+        position: fixed;
+        background: white;
+        border: 1px solid var(--border);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        z-index: 10000;
+        min-width: 150px;
+        border-radius: 6px;
+        overflow: hidden;
+        padding: 4px 0;
+    }
+
+    .context-menu-item {
+        padding: 8px 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: var(--text-main);
+        transition: background 0.2s;
+    }
+
+    .context-menu-item:hover {
+        background: #f1f5f9;
+        color: var(--primary);
+    }
+
+    .context-menu-item.danger {
+        color: #ef4444;
+    }
+
+    .context-menu-item.danger:hover {
+        background: #fee2e2;
+    }
+
+    /* Excluded Cell Styles */
+    .excluded-cell {
+        background-color: #fee2e2 !important;
+        color: #b91c1c !important;
+        text-decoration: line-through;
+        opacity: 0.6;
+    }
 </style>
 {% endblock %}
-
-
 
 {% block extrahead %}
 {{ block.super }}
@@ -392,7 +436,6 @@
 {% block content %}
 <div class="layout-constraint">
     <div class="dashboard-header">
-        <!-- Identity -->
         <div class="header-identity">
             <div class="badge-year">Año {{ presupuesto.anio }}</div>
             <h1>{{ presupuesto.nombre }}</h1>
@@ -401,7 +444,6 @@
             </div>
         </div>
 
-        <!-- KPI Stats -->
         <div class="header-stats">
             <div class="stat-item">
                 <span class="stat-label">Proyectado</span>
@@ -422,7 +464,6 @@
             </div>
         </div>
 
-        <!-- Actions -->
         <div class="header-actions">
             <a href="{% url 'presupuestos:exportar_pdf' presupuesto.id %}" class="btn" style="background: #ef4444;">
                 <ion-icon name="document-text-outline"></ion-icon> PDF
@@ -459,7 +500,6 @@
                 </thead>
                 <tbody>
                     {% for pd in partidas_data %}
-                    <!-- PARTIDA HEADER -->
                     <tr class="row-partition" onclick="toggleRows('items-{{ forloop.counter }}', this)">
                         <td class="sticky-col">
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -484,7 +524,7 @@
                             </div>
                         </td>
                         {% for val in pd.proyeccion_total_mensual %}
-                        <td>
+                        <td class="val-month-pd" data-month="{{ forloop.counter }}">
                             {% if val > 0 %}
                             <span class="val-positive val-money">{{val|stringformat:".2f"}}</span>
                             {% else %}
@@ -492,10 +532,9 @@
                             {% endif %}
                         </td>
                         {% endfor %}
-                        <td class="val-money">{{ pd.total_proyectado|stringformat:".2f" }}</td>
+                        <td class="val-money total-annual-pd">{{ pd.total_proyectado|stringformat:".2f" }}</td>
                     </tr>
 
-                    <!-- ITEMS -->
                     {% for item in pd.items %}
                     <tr class="row-item group-items-{{ forloop.parentloop.counter }}">
                         <td class="sticky-col"
@@ -533,7 +572,6 @@
                     {% endfor %}
                     {% endfor %}
 
-                    <!-- Totales -->
                     <tr class="total-row">
                         <td class="sticky-col" style="background: #0f172a; color: white;">TOTAL MENSUAL</td>
                         {% for proj in global_proyectado_mes %}
@@ -554,7 +592,6 @@
     Guardado correctamente
 </div>
 
-<!-- Modal Nuevo Item -->
 <div id="addItemModal" class="modal">
     <div class="modal-content">
         <span class="close-button" onclick="closeModal()">&times;</span>
@@ -562,7 +599,6 @@
         <div style="margin-bottom: 20px; color: var(--text-muted);">
             Agregando a: <strong id="modalPartidaName" style="color: var(--text-main);"></strong>
         </div>
-
         <form id="addItemForm" onsubmit="submitNewItem(event)">
             <input type="hidden" id="modalPartidaId" name="partida_id">
             <div class="form-group">
@@ -579,12 +615,10 @@
     </div>
 </div>
 
-<!-- Modal Editar Item -->
 <div id="editItemModal" class="modal">
     <div class="modal-content">
         <span class="close-button" onclick="closeEditItemModal()">&times;</span>
         <h2 style="margin-top: 0; margin-bottom: 16px;">Editar Item</h2>
-
         <form id="editItemForm" onsubmit="submitEditItem(event)">
             <input type="hidden" id="editItemId" name="item_id">
             <div class="form-group">
@@ -600,13 +634,11 @@
     </div>
 </div>
 
-<!-- Modal Nueva Partida -->
 <div id="addPartidaModal" class="modal">
     <div class="modal-content">
         <span class="close-button" onclick="closePartidaModal()">&times;</span>
         <h2 style="margin-top: 0; margin-bottom: 16px;">Nueva Partida / Categoría</h2>
         <p style="margin-bottom: 20px; color: var(--text-muted);">Crear un nuevo agrupador para presupuesto.</p>
-
         <form id="addPartidaForm" onsubmit="submitNewPartida(event)">
             <div class="form-group">
                 <label for="partidaNombre">Nombre de la Partida</label>
@@ -622,8 +654,14 @@
     </div>
 </div>
 
+<div id="customContextMenu" class="custom-context-menu">
+    <div class="context-menu-item danger" onclick="toggleExclusion()">
+        <ion-icon name="close-circle-outline"></ion-icon>
+        <span id="labelExcluir">EXCLUIR</span>
+    </div>
+</div>
+
 <script>
-    // --- Modal Item Logic ---
     const modalItem = document.getElementById("addItemModal");
     const modalEditItem = document.getElementById("editItemModal");
 
@@ -639,7 +677,6 @@
         modalItem.classList.remove('show');
     }
 
-    // --- Modal Edit Item Logic ---
     function openEditItemModal(itemId, currentName) {
         document.getElementById('editItemId').value = itemId;
         document.getElementById('editConcepto').value = currentName;
@@ -665,10 +702,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({
-                item_id: itemId,
-                concepto: concepto
-            })
+            body: JSON.stringify({ item_id: itemId, concepto: concepto })
         })
             .then(response => response.json())
             .then(data => {
@@ -685,7 +719,6 @@
             });
     }
 
-    // --- Modal Partida Logic ---
     const modalPartida = document.getElementById("addPartidaModal");
 
     function openPartidaModal() {
@@ -698,7 +731,6 @@
         modalPartida.classList.remove('show');
     }
 
-    // Global Click Outside
     window.onclick = function (event) {
         if (event.target == modalItem) closeModal();
         if (event.target == modalPartida) closePartidaModal();
@@ -719,10 +751,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({
-                partida_id: partidaId,
-                concepto: concepto
-            })
+            body: JSON.stringify({ partida_id: partidaId, concepto: concepto })
         })
             .then(response => response.json())
             .then(data => {
@@ -752,10 +781,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({
-                presupuesto_id: presupuestoId,
-                nombre: nombre
-            })
+            body: JSON.stringify({ presupuesto_id: presupuestoId, nombre: nombre })
         })
             .then(response => response.json())
             .then(data => {
@@ -772,10 +798,8 @@
     }
 
     function parseLocalFloat(str) {
-        // User wants format: 1,000.00 (Thousands=Comma, Decimal=Point)
-        // We strip commas to parse correctly: 1,000.00 -> 1000.00
-        if (!str) return 0;
-        let clean = str.toString().replace(/,/g, '');
+        if (!str || str.trim() === '-' || str.trim() === '') return 0;
+        let clean = str.toString().replace(/,/g, '').trim();
         return parseFloat(clean) || 0;
     }
 
@@ -783,26 +807,98 @@
         return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    let activeCell = null;
+    const contextMenu = document.getElementById('customContextMenu');
+
+    document.addEventListener('contextmenu', function (e) {
+        const cell = e.target.closest('td');
+        if (cell && (cell.classList.contains('editable-cell') || cell.classList.contains('val-month-pd'))) {
+            e.preventDefault();
+            activeCell = cell;
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = e.pageX + 'px';
+            contextMenu.style.top = e.pageY + 'px';
+
+            const label = document.getElementById('labelExcluir');
+            if (cell.classList.contains('excluded-cell')) {
+                label.innerText = 'REINCLUIR';
+            } else {
+                label.innerText = 'EXCLUIR';
+            }
+        } else {
+            contextMenu.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function () {
+        contextMenu.style.display = 'none';
+    });
+
+    function toggleExclusion() {
+        if (!activeCell) return;
+        activeCell.classList.toggle('excluded-cell');
+        recalculateTotals();
+        contextMenu.style.display = 'none';
+    }
+
     function recalculateTotals() {
+        let globalMonthly = new Array(12).fill(0);
         let grandTotal = 0;
-        for (let m = 1; m <= 12; m++) {
-            let colSum = 0;
-            const cells = document.querySelectorAll(`td[data-month="${m}"]`);
-            cells.forEach(cell => {
-                let val = parseLocalFloat(cell.innerText);
-                colSum += val;
+
+        const partitions = document.querySelectorAll('.row-partition');
+        partitions.forEach(part => {
+            let partMonthly = new Array(12).fill(0);
+            let partAnnual = 0;
+            const onclickText = part.getAttribute('onclick');
+            const groupId = onclickText.match(/'([^']+)'/)[1];
+            const items = document.querySelectorAll('.group-' + groupId);
+
+            items.forEach(itemRow => {
+                let itemAnnual = 0;
+                const cells = itemRow.querySelectorAll('.editable-cell');
+                cells.forEach(cell => {
+                    const val = parseLocalFloat(cell.innerText);
+                    if (!cell.classList.contains('excluded-cell')) {
+                        const m = parseInt(cell.getAttribute('data-month')) - 1;
+                        partMonthly[m] += val;
+                        itemAnnual += val;
+                    }
+                });
+                const totalItemCell = itemRow.querySelector('[id^="total-item-"]');
+                if (totalItemCell) totalItemCell.innerText = formatLocal(itemAnnual);
             });
 
-            const totalCell = document.getElementById(`total-col-${m}`);
-            if (totalCell) {
-                totalCell.innerText = formatLocal(colSum);
-            }
-            grandTotal += colSum;
+            const partCells = part.querySelectorAll('.val-month-pd');
+            partCells.forEach((cell, i) => {
+                const valSpan = cell.querySelector('.val-positive, .val-none');
+                if (valSpan) {
+                    if (partMonthly[i] > 0) {
+                        valSpan.className = 'val-positive val-money';
+                        valSpan.innerText = formatLocal(partMonthly[i]);
+                    } else {
+                        valSpan.className = 'val-none';
+                        valSpan.innerText = '-';
+                    }
+                }
+                if (!cell.classList.contains('excluded-cell')) {
+                    partAnnual += partMonthly[i];
+                    globalMonthly[i] += partMonthly[i];
+                }
+            });
+            const partTotalCell = part.querySelector('.total-annual-pd');
+            if (partTotalCell) partTotalCell.innerText = formatLocal(partAnnual);
+        });
+
+        for (let m = 1; m <= 12; m++) {
+            const totalCol = document.getElementById('total-col-' + m);
+            if (totalCol) totalCol.innerText = formatLocal(globalMonthly[m - 1]);
+            grandTotal += globalMonthly[m - 1];
         }
         const grandTotalCell = document.getElementById('total-grand');
-        if (grandTotalCell) {
-            grandTotalCell.innerText = formatLocal(grandTotal);
-        }
+        if (grandTotalCell) grandTotalCell.innerText = formatLocal(grandTotal);
+
+        const dashProyectado = document.querySelector('.header-stats .stat-item:nth-child(1) .stat-value');
+        if (dashProyectado) dashProyectado.innerText = formatLocal(grandTotal);
     }
 
     function toggleRows(groupId, el) {
@@ -850,34 +946,20 @@
     function saveMonto(el) {
         const itemId = el.getAttribute('data-item-id');
         const month = el.getAttribute('data-month');
-
         let val = parseLocalFloat(el.innerText);
-
-        // Update UI immediately
         el.innerText = formatLocal(val);
-
-        const csrfToken = '{{ csrf_token }}';
 
         fetch('{% url "presupuestos:api_update_monto" %}', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                item_id: itemId,
-                mes: month,
-                monto: val
-            })
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ item_id: itemId, mes: month, monto: val })
         })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'ok') {
                     showToast('Guardado');
                     const totalEl = document.getElementById('total-item-' + itemId);
-                    if (totalEl) {
-                        totalEl.innerText = formatLocal(parseFloat(data.new_total));
-                    }
+                    if (totalEl) totalEl.innerText = formatLocal(parseFloat(data.new_total));
                     recalculateTotals();
                 } else {
                     showToast('Error al guardar', 'error');
@@ -890,19 +972,15 @@
     }
 
     function deleteItem(itemId) {
-        console.log('deleteItem called with ID:', itemId, 'Type:', typeof itemId);
         if (!itemId || itemId === '' || itemId === 'None') {
-            alert('Error: No se puede eliminar el item. ID inválido.');
-            console.error('Invalid item ID:', itemId);
+            alert('Error: ID inválido.');
             return;
         }
+        if (!confirm('¿Eliminar este item?')) return;
 
-        if (!confirm('¿Estás seguro de que quieres eliminar este item? Se perderán los montos asociados.')) return;
-
-        const csrfToken = '{{ csrf_token }}';
         fetch('{% url "presupuestos:api_delete_item" %}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
             body: JSON.stringify({ item_id: parseInt(itemId) })
         })
             .then(res => res.json())
@@ -911,23 +989,18 @@
                     showToast('Item eliminado');
                     setTimeout(() => window.location.reload(), 500);
                 } else {
-                    alert('Error: ' + data.message);
+                    alert('Error:' + data.message);
                 }
             })
-            .catch(error => {
-                console.error('Error al eliminar:', error);
-                alert('Error al eliminar el item');
-            });
+            .catch(err => alert('Error al eliminar'));
     }
 
     function deletePartida(partidaId, nombre) {
-        console.log("Solicitando eliminar partida:", partidaId, nombre);
-        if (!confirm(`¿Eliminar partida "${nombre}" y todos sus items? Esta acción no se puede deshacer.`)) return;
+        if (!confirm(`¿Eliminar partida "${nombre}"?`)) return;
 
-        const csrfToken = '{{ csrf_token }}';
         fetch('{% url "presupuestos:api_delete_partida" %}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
             body: JSON.stringify({ partida_id: partidaId })
         })
             .then(res => res.json())
@@ -936,101 +1009,33 @@
                     showToast('Partida eliminada');
                     setTimeout(() => window.location.reload(), 500);
                 } else {
-                    alert('Error: ' + data.message);
+                    alert('Error:' + data.message);
                 }
             })
-            .catch(err => console.error("Error en deletePartida:", err));
+            .catch(err => console.error(err));
     }
 
-    function saveItemConcepto(el) {
-        const itemId = el.getAttribute('data-item-id');
-        const concepto = el.innerText.trim();
-
-        if (!itemId || !concepto) return;
-
-        const csrfToken = '{{ csrf_token }}';
-
-        fetch('{% url "presupuestos:api_update_item" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                item_id: itemId,
-                concepto: concepto
-            })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    showToast('Concepto actualizado');
-                } else {
-                    showToast('Error al actualizar', 'error');
-                    console.error(data.message);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                showToast('Error de conexión', 'error');
-            });
-    }
-
-    // Auto-Format on Load
     document.addEventListener('DOMContentLoaded', () => {
-        // Format editable cells
         document.querySelectorAll('.editable-cell').forEach(el => {
-            // Assume raw float from server (e.g. 1000, 1000.50)
             let raw = parseFloat(el.innerText);
-            if (!isNaN(raw)) {
-                el.innerText = formatLocal(raw);
-            }
+            if (!isNaN(raw)) el.innerText = formatLocal(raw);
         });
 
-        // Format ALL elements with 'val-money' class (Partida months, totals, stats)
         document.querySelectorAll('.val-money').forEach(el => {
-            let text = el.innerText.replace(/,/g, '');
-            // Handle if there's any stray % or other chars, though usually monetary.
-            // If it has %, we skip or handle carefully.
             if (el.innerText.includes('%')) return;
-
-            let raw = parseFloat(text);
-            if (!isNaN(raw)) {
-                el.innerText = formatLocal(raw);
-            }
+            let raw = parseFloat(el.innerText.replace(/,/g, ''));
+            if (!isNaN(raw)) el.innerText = formatLocal(raw);
         });
 
-        // Format span values (val-positive)
         document.querySelectorAll('.val-positive').forEach(el => {
-            let raw = parseFloat(el.innerText.replace(/,/g, '')); // Handle if intcomma leaked or raw
-            // If raw has comma from intcomma (1,000.00), unicode replace might depend.
-            // Best to rely on server output being CLEAN float.
-            // We will assume we updated templates to remove intcomma.
-            // But if not, we try to clean.
-            // Just parsing parseFloat works for "1000.00" and "1000".
-            if (!isNaN(raw)) {
-                el.innerText = formatLocal(raw);
-            }
+            let raw = parseFloat(el.innerText.replace(/,/g, ''));
+            if (!isNaN(raw)) el.innerText = formatLocal(raw);
         });
 
-        // Format totals in table
-        document.querySelectorAll('[id^="total-col-"], [id^="total-item-"], #total-grand').forEach(el => {
-            // Clean potential commas if intcomma was used
-            let text = el.innerText.replace(/,/g, '');
-            let raw = parseFloat(text);
-            if (!isNaN(raw)) {
-                el.innerText = formatLocal(raw);
-            }
-        });
-
-        // Format Header Stats
-        document.querySelectorAll('.stat-value').forEach(el => {
-            if (el.innerText.includes('%')) return; // Skip percentages
-            let text = el.innerText.replace(/,/g, '');
-            let raw = parseFloat(text);
-            if (!isNaN(raw)) {
-                el.innerText = formatLocal(raw);
-            }
+        document.querySelectorAll('[id^="total-col-"], [id^="total-item-"], #total-grand, .stat-value').forEach(el => {
+            if (el.innerText.includes('%')) return;
+            let raw = parseFloat(el.innerText.replace(/,/g, ''));
+            if (!isNaN(raw)) el.innerText = formatLocal(raw);
         });
     });
 </script>

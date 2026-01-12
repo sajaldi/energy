@@ -1,0 +1,371 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Finalizar OT #{{ ot.id }}</title>
+    {% include 'core/pwa_tags.html' %}
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+
+    <style>
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --bg-body: #f4f7f6;
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-body);
+            margin: 0;
+            padding-bottom: 50px;
+            color: #334155;
+        }
+
+        header {
+            background: white;
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .back-btn {
+            font-size: 24px;
+            color: var(--dark);
+            display: flex;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .container {
+            padding: 15px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid #eef2f6;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin: 0 0 15px 0;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-item {
+            padding: 15px;
+            background: #fcfdfe;
+            border: 1px solid #f1f5f9;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .step-order {
+            background: #e0f2fe;
+            color: #0369a1;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .step-type {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .step-instruction {
+            padding: 10px;
+            background: #fffbeb;
+            border-left: 3px solid #fbbf24;
+            font-size: 13px;
+            color: #92400e;
+            border-radius: 4px 8px 8px 4px;
+        }
+
+        .input-group {
+            margin-top: 10px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #64748b;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 14px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: none;
+            height: 80px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+        }
+
+        .checkbox-group input {
+            width: 20px;
+            height: 20px;
+        }
+
+        .medicion-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .medicion-info {
+            flex: 1;
+        }
+
+        .medicion-info span {
+            display: block;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .medicion-input {
+            width: 80px;
+            text-align: center;
+            padding: 8px !important;
+        }
+
+        .unit {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: #10b981;
+            color: white;
+            padding: 16px;
+            border: none;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+            transition: all 0.2s;
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+        }
+
+        .range-info {
+            font-size: 11px;
+            margin-top: 5px;
+            color: #ef4444;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a href="javascript:history.back()" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </a>
+        <h1>Reportar Cierre de OT #{{ ot.id }}</h1>
+    </header>
+
+    <div class="container">
+        <form method="POST">
+            {% csrf_token %}
+
+            {% if pasos %}
+            <div class="card">
+                <h2 class="section-title">
+                    <ion-icon name="list-outline"></ion-icon> Checklist de Procedimiento
+                </h2>
+
+                {% for paso in pasos %}
+                <div class="step-item">
+                    <div class="step-header">
+                        <div class="step-order">{{ paso.orden }}</div>
+                        <span class="step-type">{{ paso.get_tipo_respuesta_display }}</span>
+                    </div>
+
+                    <p style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0;">{{ paso.descripcion }}</p>
+
+                    {% if paso.tipo_respuesta == 'INSTRUCCION' %}
+                    <div class="step-instruction">
+                        Siga las indicaciones especificadas. No requiere captura de datos.
+                    </div>
+                    {% elif paso.tipo_respuesta == 'CHECK' %}
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="paso_{{ paso.id }}_bool" id="p_{{ paso.id }}">
+                        <label for="p_{{ paso.id }}" style="margin: 0; font-size: 14px; color: var(--dark);">Completado
+                            / Conforme</label>
+                    </div>
+                    {% elif paso.tipo_respuesta == 'NUMERICO' %}
+                    <div class="input-group">
+                        <label>Valor numérico ({{ paso.unidad_medida|default:"---" }})</label>
+                        <input type="number" step="any" name="paso_{{ paso.id }}_num" {% if paso.rango_min is not None %}min="{{ paso.rango_min }}" {% endif %} {% if paso.rango_max is not None %}max="{{ paso.rango_max }}" {% endif %} placeholder="Ingrese medición...">
+                        {% if paso.rango_min is not None or paso.rango_max is not None %}
+                        <div class="range-info">
+                            Rango: [{% if paso.rango_min is not None %}{{ paso.rango_min }}{% else %}min{% endif %} -
+                            {% if paso.rango_max is not None %}{{ paso.rango_max }}{% else %}max{% endif %}]
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% elif paso.tipo_respuesta == 'TEXTO' %}
+                    <div class="input-group">
+                        <label>Hallazgo / Resultado</label>
+                        <textarea name="paso_{{ paso.id }}_text" placeholder="Escriba aquí..."></textarea>
+                    </div>
+                    {% elif paso.tipo_respuesta == 'MEDICION' %}
+                    <div class="input-group">
+                        {% if paso.punto_vinculado %}
+                        <label>Lectura para: <b>{{ paso.punto_vinculado.nombre }}</b> ({{ paso.punto_vinculado.unidad }})</label>
+                        <input type="number" step="any" name="paso_{{ paso.id }}_num" {% if paso.punto_vinculado.valor_objetivo is not None %}placeholder="Objetivo: {{ paso.punto_vinculado.valor_objetivo }}" {% endif %}>
+                        <div class="range-info" style="color: var(--primary);">
+                            <ion-icon name="information-circle"></ion-icon> Se registrará automáticamente en la ficha
+                            del equipo.
+                        </div>
+                        {% else %}
+                        <div class="step-instruction"
+                            style="background: #fee2e2; border-color: #ef4444; color: #991b1b;">
+                            <ion-icon name="alert-circle"></ion-icon> Error: No se encontró el punto de medición ({{ paso.punto_medicion_codigo|default:"Sin código" }}) en este activo.
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if paso.tipo_respuesta != 'INSTRUCCION' %}
+                    <div class="input-group"
+                        style="margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                        <div class="checkbox-group">
+                            <input type="checkbox" name="paso_{{ paso.id }}_na" id="na_{{ paso.id }}">
+                            <label for="na_{{ paso.id }}" style="margin: 0;">No aplica</label>
+                        </div>
+                        <label style="margin-top: 5px;">Comentarios adicionales</label>
+                        <input type="text" name="paso_{{ paso.id }}_com" placeholder="Opcional..."
+                            style="font-size: 12px; padding: 8px;">
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if puntos_medicion %}
+            <div class="card">
+                <h2 class="section-title">
+                    <ion-icon name="speedometer-outline"></ion-icon> Puntos de Medición (SAP)
+                </h2>
+                <p style="font-size: 12px; color: #94a3b8; margin-bottom: 15px;">Registre las lecturas de los
+                    instrumentos asociados a los equipos.</p>
+
+                {% for punto in puntos_medicion %}
+                <div class="medicion-item">
+                    <div class="medicion-info">
+                        <p style="margin: 0; font-size: 13px; font-weight: 600;">{{ punto.nombre }}</p>
+                        <span>Equipo: {{ punto.activo_nombre }}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="number" step="any" name="punto_{{ punto.id }}" class="medicion-input"
+                            placeholder="0.0">
+                        <span class="unit">{{ punto.unidad }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="card" style="background: #f8fafc;">
+                <h2 class="section-title"><ion-icon name="checkmark-circle-outline"></ion-icon> Confirmación de Cierre
+                </h2>
+                <div class="input-group">
+                    <label>Comentarios Generales de la Orden</label>
+                    <textarea name="comentarios_cierre" placeholder="Breve resumen del trabajo realizado..."></textarea>
+                </div>
+                <p style="font-size: 11px; color: #64748b; margin: 15px 0;">Al finalizar, la orden se marcará como
+                    <b>REALIZADA</b> y se registrarán los datos capturados.
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <button type="submit" name="action" value="save" class="btn-submit"
+                        style="background: white; border: 2px solid var(--primary); color: var(--primary);">
+                        <ion-icon name="save-outline"></ion-icon>
+                        Guardar
+                    </button>
+                    <button type="submit" name="action" value="finalize" class="btn-submit">
+                        <ion-icon name="cloud-upload-outline"></ion-icon>
+                        Finalizar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+</body>
+
+</html>

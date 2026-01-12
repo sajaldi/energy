@@ -282,6 +282,43 @@
         .btn ion-icon {
             font-size: 18px;
         }
+
+        /* Measuring Points Styles */
+        .medicion-card {
+            background: white;
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .medicion-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .medicion-row:last-child {
+            border-bottom: none;
+        }
+
+        .medicion-label {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .medicion-value {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--primary);
+        }
+
+        .medicion-date {
+            font-size: 11px;
+            color: var(--gray-600);
+            display: block;
+        }
     </style>
 </head>
 
@@ -353,6 +390,46 @@
             </div>
             {% endif %}
         </div>
+
+        <!-- Puntos de Medición -->
+        {% if puntos_medicion %}
+        <div class="section-title">
+            <ion-icon name="speedometer-outline"></ion-icon> Puntos de Medición
+        </div>
+        <div class="medicion-card"
+            style="background: white; border-radius: 18px; padding: 20px; box-shadow: var(--card-shadow); margin-bottom: 20px;">
+            {% for punto in puntos_medicion %}
+            <div class="medicion-row"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9;">
+                <div>
+                    <span class="medicion-label" style="font-weight: 600; font-size: 14px;">{{ punto.nombre }}</span>
+                    {% with ultima=punto.lecturas.first %}
+                    {% if ultima %}
+                    <span class="medicion-date"
+                        style="font-size: 11px; color: var(--gray-600); display: block;">Lectura: {{
+                        ultima.fecha_lectura|date:"d M, H:i" }}</span>
+                    {% else %}
+                    <span class="medicion-date" style="font-size: 11px; color: var(--gray-600); display: block;">Sin
+                        lecturas previas</span>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+                <div style="text-align: right;">
+                    <span class="medicion-value" style="font-weight: 700; font-size: 15px; color: var(--primary);">
+                        {% with ultima=punto.lecturas.first %}
+                        {% if ultima %}{{ ultima.valor }}{% else %}---{% endif %}
+                        {% endwith %}
+                        <small style="font-size: 10px; color: #64748b;">{{ punto.unidad }}</small>
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+            <a href="{% url 'mantenimiento:mobile_ot_finalizar' 0 %}" class="btn btn-outline"
+                style="margin-top: 15px; width: 100%; font-size: 12px; height: 40px; border-style: dashed; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--gray-200); border-radius: 12px; color: var(--gray-600); text-decoration: none;">
+                <ion-icon name="add-circle-outline"></ion-icon> Nueva Lectura
+            </a>
+        </div>
+        {% endif %}
 
         <!-- Historial de Mantenimiento -->
         <div class="section-title">

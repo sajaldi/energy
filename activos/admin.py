@@ -6,7 +6,7 @@ from import_export.admin import ImportExportModelAdmin, ImportExportMixin, Impor
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano
+from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion
 
 # ... (resto de registros)
 
@@ -333,6 +333,7 @@ class ModeloAdmin(ImportExportModelAdmin):
                 'OPERATIVO': '#10b981',
                 'MANTENIMIENTO': '#f59e0b',
                 'REPARACION': '#ef4444',
+                'FUERA_SERVICIO': '#4b5563',
                 'OBSOLETO': '#64748b'
             }.get(activo.estado, '#000')
 
@@ -895,6 +896,35 @@ class ComponenteActivoInline(admin.TabularInline):
     autocomplete_fields = ('modelo', 'ubicacion')
     show_change_link = True
 
+class PuntoMedicionInline(admin.TabularInline):
+    model = PuntoMedicion
+    extra = 1
+    fields = ('nombre', 'codigo', 'unidad', 'es_acumulativo', 'valor_objetivo', 'get_valor_actual')
+    readonly_fields = ('get_valor_actual',)
+
+    @admin.display(description="Valor Actual")
+    def get_valor_actual(self, obj):
+        val = obj.valor_actual
+        if val is not None:
+            return f"{val} {obj.unidad}"
+        return "---"
+
+class DocumentoMedicionInline(admin.TabularInline):
+    model = DocumentoMedicion
+    extra = 1
+    fields = ('punto', 'valor', 'fecha_lectura', 'tecnico', 'observaciones')
+    autocomplete_fields = ('punto', 'tecnico')
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "punto":
+            # Si estamos en la vista de cambio de un activo (pk presente en URL)
+            import re
+            match = re.search(r'activo/(\d+)/change', request.path)
+            if match:
+                activo_id = match.group(1)
+                kwargs["queryset"] = PuntoMedicion.objects.filter(activo_id=activo_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 @admin.register(Activo)
 class ActivoAdmin(ImportExportActionModelAdmin):
     list_per_page = 50
@@ -911,8 +941,8 @@ class ActivoAdmin(ImportExportActionModelAdmin):
     list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable', 'padre')
     search_fields = ('nombre', 'descripcion', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('modelo', 'ubicacion', 'responsable', 'padre')
-    inlines = [ComponenteActivoInline]
-    readonly_fields = ('get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link')
+    inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline]
+    readonly_fields = ('get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link', 'get_puntos_medicion_summary')
     actions = ['export_admin_action', 'export_direct_xlsx']
 
     def get_queryset(self, request):
@@ -1340,6 +1370,10 @@ class ActivoAdmin(ImportExportActionModelAdmin):
             'fields': ('rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes'),
             'description': 'Información sobre rutinas aplicables, órdenes pendientes e historial de mantenimiento.'
         }),
+        ('Puntos de Medición (SAP Style)', {
+            'fields': ('get_puntos_medicion_summary',),
+            'description': 'Variables de estado y contadores acumulativos asociados a este equipo.'
+        }),
         ('Información Financiera', {
             'fields': ('fecha_compra', 'costo')
         }),
@@ -1348,3 +1382,52 @@ class ActivoAdmin(ImportExportActionModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    @admin.display(description="Resumen de Mediciones")
+    def get_puntos_medicion_summary(self, obj):
+        puntos = obj.puntos_medicion.all().prefetch_related('lecturas')
+        if not puntos:
+            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay puntos de medición configurados para este equipo.</span>')
+        
+        html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
+        html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
+        html += '<thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">'
+        html += '<tr>'
+        html += '<th style="text-align: left; padding: 12px 15px;">Punto de Medición</th>'
+        html += '<th style="text-align: center; padding: 12px 15px;">Último Valor</th>'
+        html += '<th style="text-align: center; padding: 12px 15px;">Fecha Lectura</th>'
+        html += '<th style="text-align: center; padding: 12px 15px;">Acción</th>'
+        html += '</tr></thead><tbody>'
+        
+        for p in puntos:
+            ultima = p.lecturas.first()
+            valor = f"{ultima.valor} {p.unidad}" if ultima else "---"
+            fecha = ultima.fecha_lectura.strftime('%d/%m/%Y %H:%M') if ultima else "---"
+            
+            html += f'<tr style="border-bottom: 1px solid #f1f5f9;">'
+            html += f'<td style="padding: 12px 15px;">'
+            html += f'<div style="font-weight: 600;">{p.nombre}</div>'
+            html += f'<div style="font-size: 0.75rem; color: #64748b;">Cód: {p.codigo or "N/A"} | { "Acumulativo" if p.es_acumulativo else "Variable" }</div>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center; font-weight: bold; color: #2563eb;">{valor}</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">{fecha}</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<a href="/admin/activos/puntomedicion/{p.id}/change/" class="button" style="padding: 4px 8px; font-size: 0.75rem;">Configurar</a>'
+            html += '</td></tr>'
+        
+        html += '</tbody></table></div>'
+        return format_html(html)
+
+@admin.register(PuntoMedicion)
+class PuntoMedicionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'activo', 'codigo', 'unidad', 'es_acumulativo', 'valor_objetivo')
+    list_filter = ('es_acumulativo', 'unidad')
+    search_fields = ('nombre', 'codigo', 'activo__nombre', 'activo__codigo_interno')
+    autocomplete_fields = ('activo',)
+
+@admin.register(DocumentoMedicion)
+class DocumentoMedicionAdmin(admin.ModelAdmin):
+    list_display = ('punto', 'valor', 'fecha_lectura', 'tecnico', 'orden_trabajo')
+    list_filter = ('fecha_lectura', 'tecnico')
+    search_fields = ('punto__nombre', 'punto__activo__nombre', 'observaciones')
+    autocomplete_fields = ('punto', 'tecnico', 'orden_trabajo')

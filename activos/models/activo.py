@@ -40,6 +40,7 @@ class Activo(models.Model):
         ('OPERATIVO', 'Operativo'),
         ('MANTENIMIENTO', 'En Mantenimiento'),
         ('REPARACION', 'En Reparación'),
+        ('FUERA_SERVICIO', 'Fuera de Servicio'),
         ('OBSOLETO', 'Obsoleto/De Baja'),
     ]
 
