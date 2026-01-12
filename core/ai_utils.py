@@ -3,13 +3,10 @@ import requests
 import json
 from .ai_data_utils import get_dynamic_context
 
-API_KEY = "AIzaSyD6NlcfSsDPTxNzefz6M8z_mEpEsJVaGkE"
-MODEL = "gemini-1.5-flash" # Defaulting to 1.5-flash as it's stable, though user mentioned "gemini-3-flash-preview"
-# NOTE: "gemini-3-flash-preview" is likely a future-looking request or typo for 2.0. 
-# I will use a flexible approach or a robust model. 
-# Actually, I'll try the exact string requested by the user first.
-MODEL_REQUESTED = "gemini-3-flash-preview"
-FALLBACK_MODEL = "gemini-flash-latest" # Verified as available in list_models
+API_KEY = "AIzaSyAUEPk5NmIUWdgTHKcPo9BtDj8sjBSS0_0"
+MODEL = "gemini-flash-latest" 
+MODEL_REQUESTED = "gemini-flash-latest"
+FALLBACK_MODEL = "gemini-flash-latest"
 
 KNOWLEDGE_BASE_PATH = os.path.join(os.path.dirname(__file__), 'ai_knowledge', 'knowledge.txt')
 

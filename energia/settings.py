@@ -262,6 +262,7 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
         {"model": "auth.User"},
+        {"name": "Asistente AI", "url": "/admin/chatbot_trigger/", "new_window": False},
     ],
     "show_sidebar": True,
     "navigation_expanded": False,

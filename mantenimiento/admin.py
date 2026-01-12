@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
-from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto
+from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden
 from activos.models import Categoria as CategoriaActivo
 from django.utils.safestring import mark_safe
 from django.urls import reverse
@@ -219,6 +219,7 @@ class RutinaResource(resources.ModelResource):
 class PasoProcedimientoInline(admin.TabularInline):
     model = PasoProcedimiento
     extra = 1
+    fields = ('orden', 'descripcion', 'tipo_respuesta', 'unidad_medida', 'valor_objetivo', 'rango_min', 'rango_max', 'punto_medicion_exacto', 'punto_medicion_codigo')
 
 @admin.register(Procedimiento)
 class ProcedimientoAdmin(admin.ModelAdmin):
@@ -253,7 +254,7 @@ class RutinaAdmin(ImportExportModelAdmin):
     list_filter = ('categoria', 'frecuencia', 'puesto_trabajo')
     search_fields = ('nombre', 'procedimiento_estandar__nombre', 'herramientas')
     autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
-    readonly_fields = ('nombre', 'creado_en', 'actualizado_en', 'programar_rutina_link')
+    readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link')
     inlines = [] # Temporalmente vacío hasta que verifiquemos si requiere inlines
     actions = ['exportar_seleccionadas_action']
 
@@ -548,6 +549,13 @@ class MovimientoInventarioInline(admin.TabularInline):
     def get_queryset(self, request):
         return super().get_queryset(request).filter(tipo='SALIDA')
 
+class ValorPasoOrdenInline(admin.TabularInline):
+    model = ValorPasoOrden
+    extra = 0
+    raw_id_fields = ('paso', 'capturado_por')
+    fields = ('paso', 'valor_texto', 'valor_numerico', 'valor_bool', 'no_aplica', 'comentarios')
+    readonly_fields = ('paso', 'capturado_por', 'creado_en')
+
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
@@ -560,7 +568,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     date_hierarchy = 'inicio_programado'
     raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
     filter_horizontal = ('activos',)
-    inlines = [CierreOrdenTrabajoInline, MovimientoInventarioInline]
+    inlines = [CierreOrdenTrabajoInline, MovimientoInventarioInline, ValorPasoOrdenInline]
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
