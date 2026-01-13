@@ -326,17 +326,12 @@
                 radial-gradient(#e2e8f0 1px, transparent 1px);
             background-size: 20px 20px;
             background-position: 0 0, 10px 10px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
         }
 
         #zoom-container {
             position: relative;
             cursor: grab;
             display: block;
-            margin: 0 auto;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
             line-height: 0;
             padding: 0;
@@ -1194,6 +1189,9 @@
                 <button class="tool-btn" id="tool-add" title="Agregar Pin" onclick="setTool('add')">
                     <ion-icon name="add-circle"></ion-icon>
                 </button>
+                <button class="tool-btn" id="tool-area" title="Dibujar Zona" onclick="setTool('area')">
+                    <ion-icon name="scan-outline"></ion-icon>
+                </button>
                 <div style="width: 1px; background: rgba(255,255,255,0.1); margin: 0 5px;"></div>
                 <button class="tool-btn" id="tool-labels" title="Ver Etiquetas" onclick="toggleLabelsMode()">
                     <ion-icon name="pricetags"></ion-icon>
@@ -1260,10 +1258,15 @@
                 <ion-icon name="document-text"></ion-icon>
                 <span>Nota</span>
             </div>
+            <div class="pin-type-tab tab-ubicacion" onclick="switchPinTab('ubicacion')">
+                <ion-icon name="scan-outline"></ion-icon>
+                <span>Zona</span>
+            </div>
         </div>
 
         <!-- Contenido: Activo -->
         <div id="tab-content-activo" class="pin-type-content active">
+            <!-- (Activo content) -->
             <div class="form-group">
                 <label>Activo Relacionado</label>
                 <!-- Buscador de Activos Mejorado -->
@@ -1294,16 +1297,44 @@
                     </div>
                 </div>
 
-                <select id="pin-activo">
-                    <option value="">Seleccione un activo...</option>
-                    {% for activo in activos %}
-                    <option value="{{ activo.id }}" data-categoria="{{ activo.modelo.categoria.id|default:'' }}"
-                        data-ubicacion="{{ activo.ubicacion.id|default:'' }}" data-nombre="{{ activo.nombre|lower }}"
-                        data-codigo="{{ activo.codigo_interno|default:''|lower }}">
-                        {{ activo.nombre }} ({{ activo.codigo_interno }})
-                    </option>
+                <select id="pin-activo" onchange="checkPinSelection()">
+                    <option value="">Buscar activo arriba...</option>
+                </select>
+                <small style="color: #64748b; font-size: 0.7rem; margin-top: 4px; display: block;">
+                    Escriba en el buscador para encontrar resultados.
+                </small>
+            </div>
+        </div>
+
+        <!-- Contenido: Ubicación -->
+        <div id="tab-content-ubicacion" class="pin-type-content">
+            <div class="form-group">
+                <label>Ubicación Vinculada (Zona)</label>
+                <div
+                    style="background: #f0fdf4; padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid #dcfce7; font-size: 0.9em; color: #166534;">
+                    <ion-icon name="information-circle"></ion-icon> Seleccione una ubicación hija para definir esta zona
+                    interactiva.
+                </div>
+                <select id="pin-ubicacion">
+                    <option value="">Seleccione ubicación...</option>
+                    {% for u in ubicaciones %}
+                    <option value="{{ u.id }}">{{ u.nombre_completo|default:u.nombre }}</option>
                     {% endfor %}
                 </select>
+            </div>
+
+            <div class="form-group">
+                <label>Dimensiones del Área (px)</label>
+                <div style="display:flex; gap: 10px;">
+                    <div>
+                        <small>Ancho</small>
+                        <input type="number" id="pin-ancho" readonly>
+                    </div>
+                    <div>
+                        <small>Alto</small>
+                        <input type="number" id="pin-alto" readonly>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1516,38 +1547,232 @@
                 zoomContainer.style.height = canvas.height + 'px';
             }
 
+            // Calcular centro para startX/startY
+            const parentRect = mainView.getBoundingClientRect();
+            // Usamos width/height del estilo que acabamos de setear
+            const elemWidth = parseFloat(zoomContainer.style.width) || parentRect.width;
+            const elemHeight = parseFloat(zoomContainer.style.height) || parentRect.height;
+
+            const startX = (parentRect.width - elemWidth) / 2;
+            const startY = (parentRect.height - elemHeight) / 2;
+
             pz = Panzoom(zoomContainer, {
                 maxScale: 15,
                 minScale: 0.05,
                 canvas: false,
-                cursor: null
+                cursor: null,
+                startX: startX,
+                startY: startY
             });
 
-            zoomContainer.addEventListener('wheel', pz.zoomWithWheel);
-
-            // Centrado inicial forzado
-            setTimeout(() => {
-                pz.pan(0, 0);
-            }, 100);
+            mainView.addEventListener('wheel', pz.zoomWithWheel);
         }
+
+        // Helper to get coordinates relative to the zoomed container
+        function getRelativeCoords(clientX, clientY) {
+            const rect = zoomContainer.getBoundingClientRect();
+            const scale = pz.getScale();
+
+            // Calculate relative to the CURRENT VISUAL position (rect.left/top)
+            // This works regardless of transform-origin because rect tracks the visual boundaries
+            return {
+                x: (clientX - rect.left) / scale,
+                y: (clientY - rect.top) / scale
+            };
+        }
+
+        // Area drawing variables
+        let isDrawingArea = false;
+        let areaStartX = 0;
+        let areaStartY = 0;
+        let tempAreaRect = null;
 
         function setTool(tool) {
             currentTool = tool;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`tool-${tool}`).classList.add('active');
+            // Check if tool is 'add' (created as 'pin' but ID is tool-pin) or 'pan' or 'area'
+            const btn = document.getElementById(`tool-${tool}`) || document.getElementById('tool-pin'); // fallback
+            if (btn) btn.classList.add('active');
+
+            // Reset Pz options
+            pz.setOptions({ disablePan: false });
+            zoomContainer.style.cursor = 'grab';
+            pinesLayer.style.pointerEvents = 'auto'; // Default interactive
 
             if (tool === 'add') {
                 zoomContainer.style.cursor = 'crosshair';
                 pz.setOptions({ disablePan: true });
+            } else if (tool === 'area') {
+                zoomContainer.style.cursor = 'crosshair';
+                pz.setOptions({ disablePan: true });
+                pinesLayer.style.pointerEvents = 'auto'; // Need events on layer to draw
             } else {
-                zoomContainer.style.cursor = 'grab';
-                pz.setOptions({ disablePan: false });
+                // Pan
+                pinesLayer.style.pointerEvents = 'none'; // Pass through to zoomContainer
             }
         }
 
-        // Hover dynamic info
+        // --- Area Drawing Logic (Click-Move-Click) ---
+        // Switch to click event for starting/stopping
+        pinesLayer.addEventListener('click', handleAreaClick);
+        // pinesLayer.addEventListener('touchstart', (e) => handleAreaClick(e.touches[0])); // Touch might need specific handling, keep simple for now
+
+        function handleAreaClick(e) {
+            if (currentTool !== 'area') return;
+
+            try {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const clientX = e.clientX || (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientX : 0);
+                const clientY = e.clientY || (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientY : 0);
+
+                if (!clientX && !clientY) {
+                    console.warn("No coordinates found in event");
+                    return;
+                }
+
+                const coords = getRelativeCoords(clientX, clientY);
+                if (isNaN(coords.x) || isNaN(coords.y)) {
+                    console.error("Invalid coords:", coords);
+                    return;
+                }
+
+                const clickX = coords.x;
+                const clickY = coords.y;
+
+                if (!isDrawingArea) {
+                    // START DRAWING
+                    isDrawingArea = true;
+                    areaStartX = clickX;
+                    areaStartY = clickY;
+
+                    // Create temp visual
+                    if (tempAreaRect) tempAreaRect.remove(); // Cleanup if exists
+
+                    tempAreaRect = document.createElement('div');
+                    tempAreaRect.style.position = 'absolute';
+                    tempAreaRect.style.border = '2px dashed #2563eb';
+                    tempAreaRect.style.backgroundColor = 'rgba(37, 99, 235, 0.2)';
+                    tempAreaRect.style.left = areaStartX + 'px';
+                    tempAreaRect.style.top = areaStartY + 'px';
+                    tempAreaRect.style.width = '0px';
+                    tempAreaRect.style.height = '0px';
+                    tempAreaRect.style.pointerEvents = 'none';
+                    pinesLayer.appendChild(tempAreaRect);
+
+                    showToast("Mueve el cursor y haz clic para terminar", "info");
+
+                } else {
+                    // FINISH DRAWING
+                    finishAreaDraw();
+                }
+            } catch (err) {
+                console.error("Error handling area click:", err);
+                isDrawingArea = false;
+                if (tempAreaRect) { tempAreaRect.remove(); tempAreaRect = null; }
+            }
+        }
+
+        function finishAreaDraw() {
+            isDrawingArea = false;
+            if (!tempAreaRect) return;
+
+            const width = parseFloat(tempAreaRect.style.width);
+            const height = parseFloat(tempAreaRect.style.height);
+            const left = parseFloat(tempAreaRect.style.left);
+            const top = parseFloat(tempAreaRect.style.top);
+
+            tempAreaRect.remove();
+            tempAreaRect = null;
+
+            if (width < 20 || height < 20) {
+                showToast("Área demasiado pequeña", "warning");
+                return;
+            }
+
+            createAreaAt(left, top, width, height);
+
+            // Optional: Switch back to pan tool after drawing?
+            // setTool('pan'); 
+        }
+
+        // Mouse move to update rect size
+        document.addEventListener('mousemove', moveAreaDraw);
+        // document.addEventListener('touchmove', ...) // Touch move handling
+
+        function moveAreaDraw(e) {
+            if (!isDrawingArea || !tempAreaRect) return;
+
+            try {
+                const clientX = e.clientX || (e.touches && e.touches.length > 0 ? e.touches[0].clientX : 0);
+                const clientY = e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0);
+
+                if (!clientX && !clientY) return;
+
+                const coords = getRelativeCoords(clientX, clientY);
+                if (isNaN(coords.x) || isNaN(coords.y)) return;
+
+                const currentX = coords.x;
+                const currentY = coords.y;
+
+                const width = Math.abs(currentX - areaStartX);
+                const height = Math.abs(currentY - areaStartY);
+                const left = Math.min(areaStartX, currentX);
+                const top = Math.min(areaStartY, currentY);
+
+                tempAreaRect.style.width = width + 'px';
+                tempAreaRect.style.height = height + 'px';
+                tempAreaRect.style.left = left + 'px';
+                tempAreaRect.style.top = top + 'px';
+            } catch (err) {
+                console.error("Error moving area:", err);
+            }
+        }
+
+        // Remove old mouseup/touchend listeners for endAreaDraw as we use click now
+        // document.removeEventListener('mouseup', endAreaDraw); 
+
+        function createAreaAt(x, y, w, h) {
+            const pinId = 'temp-' + Date.now();
+            const pin = document.createElement('div');
+            pin.className = 'pin pin-area';
+            pin.id = pinId;
+            pin.dataset.id = '';
+
+            // Style directly here or class
+            pin.style.position = 'absolute';
+            pin.style.left = x + 'px';
+            pin.style.top = y + 'px';
+            pin.style.width = w + 'px';
+            pin.style.height = h + 'px';
+            pin.style.border = '2px solid #16a34a';
+            pin.style.backgroundColor = 'rgba(22, 163, 74, 0.2)';
+            pin.style.cursor = 'pointer';
+            pin.style.zIndex = 10;
+
+            pin.dataset.x = x;
+            pin.dataset.y = y;
+            pin.dataset.ancho = w;
+            pin.dataset.alto = h;
+            pin.dataset.pinType = 'ubicacion';
+            pin.dataset.label = 'Nueva Zona';
+
+            pin.innerHTML = '<span class="pin-area-label" style="position: absolute; top: 0; left: 0; background: #16a34a; color: white; padding: 2px 4px; font-size: 10px;">Nueva Zona</span>';
+
+            pinesLayer.appendChild(pin);
+            openPinInfo(pin);
+
+            document.getElementById('pin-ancho').value = Math.round(w);
+            document.getElementById('pin-alto').value = Math.round(h);
+        }
+
+        // Hover dynamic info for simple pins (points)
         pinesLayer.addEventListener('mousemove', (e) => {
+            if (isDrawingArea) return; // Don't hover while drawing
+
             const pin = e.target.closest('.pin');
+            // If it's an area, maybe show different info or nothing for now to keep it simple
             if (pin && currentTool === 'pan') {
                 hoverActivo.innerText = pin.dataset.label;
                 hoverNota.innerText = pin.dataset.nota || '';
@@ -1627,12 +1852,11 @@
             }
 
             const rect = zoomContainer.getBoundingClientRect();
-            const scale = pz.getScale();
             if (rect.width === 0) return;
 
-            // X_natural = (X_pantalla - rect.left) / escala
-            const x = (e.clientX - rect.left) / scale;
-            const y = (e.clientY - rect.top) / scale;
+            const coords = getRelativeCoords(e.clientX, e.clientY);
+            const x = coords.x;
+            const y = coords.y;
 
             if (x >= 0 && x <= parseFloat(zoomContainer.style.width) && y >= 0 && y <= parseFloat(zoomContainer.style.height)) {
                 coordsDisplay.classList.add('active');
@@ -1654,13 +1878,12 @@
             if (e.target.closest('.pin')) return;
 
             const rect = zoomContainer.getBoundingClientRect();
-            const scale = pz.getScale();
-
             if (rect.width === 0) return;
 
             // Cálculo en píxeles ABSOLUTOS del documento
-            const x = (e.clientX - rect.left) / scale;
-            const y = (e.clientY - rect.top) / scale;
+            const coords = getRelativeCoords(e.clientX, e.clientY);
+            const x = coords.x;
+            const y = coords.y;
 
             console.log(`[PIXEL DEBUG] Click at: ${x.toFixed(1)}px, ${y.toFixed(1)}px (Scale: ${scale.toFixed(2)})`);
 
@@ -1726,11 +1949,11 @@
 
         function relocatePinAt(e) {
             const rect = zoomContainer.getBoundingClientRect();
-            const scale = pz.getScale();
             if (rect.width === 0) return;
 
-            const x = (e.clientX - rect.left) / scale;
-            const y = (e.clientY - rect.top) / scale;
+            const coords = getRelativeCoords(e.clientX, e.clientY);
+            const x = coords.x;
+            const y = coords.y;
 
             if (x >= 0 && x <= parseFloat(zoomContainer.style.width) && y >= 0 && y <= parseFloat(zoomContainer.style.height)) {
                 activePin = pinToRelocate;
@@ -1820,14 +2043,13 @@
                 return;
             }
 
-            const rect = zoomContainer.getBoundingClientRect();
-            const scale = pz ? pz.getScale() : 1;
-
             // Store both screen and canvas coordinates
             longPressPos.screenX = e.clientX;
             longPressPos.screenY = e.clientY;
-            longPressPos.x = (e.clientX - rect.left) / scale;
-            longPressPos.y = (e.clientY - rect.top) / scale;
+
+            const coords = getRelativeCoords(e.clientX, e.clientY);
+            longPressPos.x = coords.x;
+            longPressPos.y = coords.y;
 
             // Show pulse indicator
             longPressIndicator.style.left = e.clientX + 'px';
@@ -1934,21 +2156,40 @@
             pinPanel.classList.add('active');
             selectedFiles = [];
 
+            const selectActivo = document.getElementById('pin-activo');
             const activoId = pin.dataset.activo || '';
             const avisoId = pin.dataset.aviso || '';
             const actividadId = pin.dataset.actividad || '';
 
-            document.getElementById('pin-activo').value = activoId;
+            // Ensure the asset option exists in the select
+            if (activoId && !selectActivo.querySelector(`option[value="${activoId}"]`)) {
+                // Determine name from label or fallback
+                let assetName = pin.dataset.label;
+                // Clean up label if it has prefixes like [ACTIVO] (though data-label usually is just the name based on template)
+                // In template: data-label="{{ pin.activo.nombre }}"
+
+                const opt = document.createElement('option');
+                opt.value = activoId;
+                opt.text = assetName;
+                selectActivo.appendChild(opt);
+            }
+
+            selectActivo.value = activoId;
             document.getElementById('pin-aviso').value = avisoId;
             document.getElementById('pin-actividad').value = actividadId;
             document.getElementById('pin-color').value = pin.dataset.color || '#FF0000';
             document.getElementById('pin-nota').value = pin.dataset.nota || '';
             document.getElementById('btn-delete').style.display = pin.id.startsWith('temp') ? 'none' : 'flex';
 
+            document.getElementById('pin-ubicacion').value = pin.dataset.ubicacion || '';
+            document.getElementById('pin-ancho').value = pin.dataset.ancho ? Math.round(pin.dataset.ancho) : '';
+            document.getElementById('pin-alto').value = pin.dataset.alto ? Math.round(pin.dataset.alto) : '';
+
             // Determine and switch to correct tab
             let type = pin.dataset.pinType;
             if (!type) {
-                if (actividadId) type = 'actividad';
+                if (pin.dataset.ancho) type = 'ubicacion'; // It's a zone
+                else if (actividadId) type = 'actividad';
                 else if (avisoId) type = 'aviso';
                 else if (activoId) type = 'activo';
                 else type = 'libre'; // Default to libre if nothing linked
@@ -2013,6 +2254,7 @@
             const activoId = document.getElementById('pin-activo').value;
             const avisoId = document.getElementById('pin-aviso').value;
             const actividadId = document.getElementById('pin-actividad').value;
+            const ubicacionId = document.getElementById('pin-ubicacion').value;
             const color = document.getElementById('pin-color').value;
             const nota = document.getElementById('pin-nota').value;
 
@@ -2023,6 +2265,14 @@
             formData.append('activo_id', activoId);
             formData.append('aviso_id', avisoId);
             formData.append('actividad_id', actividadId);
+            formData.append('ubicacion_id', ubicacionId);
+
+            // Dimensiones para Zonas
+            if (activePin.dataset.pinType === 'ubicacion') {
+                formData.append('ancho', activePin.dataset.ancho);
+                formData.append('alto', activePin.dataset.alto);
+            }
+
             formData.append('x', x);
             formData.append('y', y);
             formData.append('color', color);
@@ -2045,6 +2295,7 @@
                 activePin.id = 'pin-' + result.pin_id;
                 activePin.dataset.activo = result.activo_id || '';
                 activePin.dataset.aviso = result.aviso_id || '';
+                activePin.dataset.ubicacion = result.ubicacion_id || '';
                 activePin.dataset.label = result.nombre_activo;
                 activePin.dataset.color = color;
                 activePin.dataset.nota = result.nota;
@@ -2053,15 +2304,27 @@
                 activePin.dataset.x = x.toFixed(1);
                 activePin.dataset.y = y.toFixed(1);
                 activePin.dataset.icon = result.icono || 'location';
-                activePin.style.color = color;
 
-                // Actualizar icono visualmente
-                activePin.querySelector('ion-icon').name = result.icono || 'location';
+                // Actualizar dimensiones si es Zona
+                if (result.ancho && result.alto) {
+                    activePin.style.width = result.ancho + 'px';
+                    activePin.style.height = result.alto + 'px';
+                    activePin.dataset.ancho = result.ancho;
+                    activePin.dataset.alto = result.alto;
+                    activePin.style.border = `2px solid ${color}`;
+                    // Fondo con opacidad
+                    activePin.style.backgroundColor = color + '33'; // ~20% opacity hex
+                } else {
+                    activePin.style.color = color;
+                    // Actualizar icono visualmente
+                    activePin.querySelector('ion-icon').name = result.icono || 'location';
+                }
 
                 // Actualizar etiqueta permanente visualmente
-                const labelEl = activePin.querySelector('.pin-label-permanent');
+                const labelEl = activePin.querySelector(result.ancho ? '.pin-area-label' : '.pin-label-permanent');
+
                 if (labelEl) {
-                    // Actividad de proyecto
+                    // Update dataset types
                     if (result.actividad_id) {
                         activePin.dataset.actividad = result.actividad_id;
                         activePin.dataset.pinType = 'actividad';
@@ -2071,8 +2334,10 @@
                     } else if (result.activo_id) {
                         activePin.dataset.activo = result.activo_id;
                         activePin.dataset.pinType = 'activo';
+                    } else if (result.ubicacion_id) {
+                        activePin.dataset.ubicacion = result.ubicacion_id;
+                        activePin.dataset.pinType = 'ubicacion';
                     } else {
-                        // Es un pin libre
                         activePin.dataset.pinType = 'libre';
                     }
 
@@ -2086,27 +2351,37 @@
                         labelHtml = `<span style="color: #28a745; font-weight: 800;">[ACTIVO]</span> <span class="label-text">${actNombre}</span>`;
                     } else if (result.aviso_id) {
                         labelHtml = `<span style="color: #dc3545; font-weight: 800;">[AVISO]</span> <span class="label-text">AV-${result.aviso_id}</span>`;
+                    } else if (result.nombre_ubicacion) {
+                        labelHtml = `${result.nombre_ubicacion}`; // Simple label for zones
+                        // Update background color of label to match pin
+                        labelEl.style.background = color;
                     } else {
                         // Pin Libre / Nota
                         labelHtml = `<div style="margin-bottom: 2px;"><span style="color: #6366f1; font-weight: 800;">[NOTA]</span></div>`;
                     }
 
-                    // Agregar fotos si existen
-                    if (result.fotos && result.fotos.length > 0) {
-                        let photosHtml = '<div style="display: flex; gap: 4px; overflow-x: auto; max-width: 200px; padding-top: 4px; border-top: 1px solid #eee;">';
-                        result.fotos.forEach(foto => {
-                            photosHtml += `<img src="${foto}" style="height: 80px; width: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;" draggable="false">`;
-                        });
-                        photosHtml += '</div>';
-                        labelHtml = `${labelHtml}${photosHtml}`;
-                    }
+                    // Si es zona, el innerHTML es simple
+                    if (result.ancho) {
+                        labelEl.innerHTML = labelHtml;
+                    } else {
+                        // ... logic for photos/notes for normal pins ...
+                        // Agregar fotos si existen
+                        if (result.fotos && result.fotos.length > 0) {
+                            let photosHtml = '<div style="display: flex; gap: 4px; overflow-x: auto; max-width: 200px; padding-top: 4px; border-top: 1px solid #eee;">';
+                            result.fotos.forEach(foto => {
+                                photosHtml += `<img src="${foto}" style="height: 80px; width: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;" draggable="false">`;
+                            });
+                            photosHtml += '</div>';
+                            labelHtml = `${labelHtml}${photosHtml}`;
+                        }
 
-                    // Agregar nota si existe
-                    if (result.nota) {
-                        labelHtml = `${labelHtml}<div style="font-size: 0.9em; color: #666; margin-bottom: 4px; font-style: italic; font-weight: 400;">${result.nota}</div>`;
-                    }
+                        // Agregar nota si existe
+                        if (result.nota) {
+                            labelHtml = `${labelHtml}<div style="font-size: 0.9em; color: #666; margin-bottom: 4px; font-style: italic; font-weight: 400;">${result.nota}</div>`;
+                        }
 
-                    labelEl.innerHTML = labelHtml;
+                        labelEl.innerHTML = labelHtml;
+                    }
                 }
 
                 showToast('Pin guardado (Píxeles)');
@@ -2260,31 +2535,65 @@
         function zoomIn() { pz.zoomIn(); }
         function zoomOut() { pz.zoomOut(); }
 
-        function filterAssetSelect() {
-            const text = document.getElementById('asset-search-text').value.toLowerCase();
+        let searchTimeout = null;
+        async function filterAssetSelect() {
+            const text = document.getElementById('asset-search-text').value;
             const cat = document.getElementById('asset-filter-cat').value;
             const loc = document.getElementById('asset-filter-loc').value;
             const select = document.getElementById('pin-activo');
-            const options = select.querySelectorAll('option');
 
-            options.forEach(opt => {
-                if (!opt.value) return; // Saltar el "Seleccione un activo..."
+            // Debounce
+            if (searchTimeout) clearTimeout(searchTimeout);
 
-                const matchesText = !text || opt.dataset.nombre.includes(text) || opt.dataset.codigo.includes(text);
-                const matchesCat = !cat || opt.dataset.categoria === cat;
-                const matchesLoc = !loc || opt.dataset.ubicacion === loc;
+            searchTimeout = setTimeout(async () => {
+                select.innerHTML = '<option value="">Cargando...</option>';
 
-                if (matchesText && matchesCat && matchesLoc) {
-                    opt.style.display = 'block';
-                } else {
-                    opt.style.display = 'none';
+                try {
+                    const params = new URLSearchParams({
+                        q: text,
+                        cat_id: cat,
+                        loc_id: loc
+                    });
+
+                    const response = await fetch(`/activos/api/buscar-activos-json/?${params.toString()}`);
+                    const data = await response.json();
+
+                    select.innerHTML = '<option value="">Seleccione un activo...</option>';
+
+                    if (data.results.length === 0) {
+                        const opt = document.createElement('option');
+                        opt.disabled = true;
+                        opt.text = "No se encontraron resultados";
+                        select.appendChild(opt);
+                    }
+
+                    data.results.forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.text = `${item.nombre} (${item.codigo})`;
+                        opt.dataset.categoria = item.categoria_id;
+                        opt.dataset.ubicacion = item.ubicacion_id;
+                        opt.dataset.nombre = item.data_nombre;
+                        opt.dataset.codigo = item.data_codigo;
+                        select.appendChild(opt);
+                    });
+
+                } catch (error) {
+                    console.error("Error buscando activos:", error);
+                    select.innerHTML = '<option value="">Error al buscar</option>';
+                    showToast('Error al buscar activos', 'danger');
                 }
-            });
+            }, 300); // 300ms delay
+        }
 
-            // Si la opción seleccionada actualmente está oculta, deseleccionarla
-            if (select.selectedOptions[0] && select.selectedOptions[0].style.display === 'none') {
-                select.value = '';
-            }
+        // Initialize with default suggestions on open
+        // document.getElementById('pin-panel').addEventListener('transitionend', () => {
+        //    if(document.getElementById('pin-panel').classList.contains('active')) filterAssetSelect();
+        // });
+
+        // Helper function for select change
+        function checkPinSelection() {
+            // Optional: logic specific when user picks an item
         }
 
         setTool('pan');
