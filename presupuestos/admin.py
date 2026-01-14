@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from .models import (
     PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, 
     ItemPresupuesto, Compromiso, DetalleCompromiso, CambioPresupuesto, DetallePeriodico,
-    PresupuestoAgrupado
+    PresupuestoAgrupado, Requisicion, ArticuloRequisicion
 )
 
 class GastoEjecutadoInline(admin.TabularInline):
@@ -240,3 +240,48 @@ class PresupuestoAgrupadoAdmin(admin.ModelAdmin):
             '</div>',
             min(percent, 100), color, percent
         )
+
+class ArticuloRequisicionInline(admin.TabularInline):
+    model = ArticuloRequisicion
+    extra = 0
+    fields = ('material', 'cr8ca_articulo', 'cr8ca_cantidad', 'cr8ca_costoaproximado', 'cr8ca_tipo')
+    autocomplete_fields = ['material']
+
+@admin.register(Requisicion)
+class RequisicionAdmin(admin.ModelAdmin):
+    list_display = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'createdon')
+    list_filter = ('cr8ca_prioridad', 'cr8ca_tipodedocumento', 'createdon')
+    search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
+    inlines = [ArticuloRequisicionInline]
+    readonly_fields = ('cr8ca_requisicionid', 'createdon', 'modifiedon')
+    
+    fieldsets = (
+        ('Identificación', {
+            'fields': ('cr8ca_requisicionid', 'cr8ca_requisicion', 'cr8ca_asunto', 'versionnumber')
+        }),
+        ('Detalles y Estado', {
+            'fields': ('cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'cr8ca_prioridad', 'cr8ca_tipodedocumento', 'cr8ca_estatusorden', 'cr8ca_accion')
+        }),
+        ('Flags y Control', {
+            'fields': ('cr8ca_ejecutado', 'cr8ca_cerrar', 'cr8ca_cajachica', 'cr8ca_solicituddetabladepago', 'cr8ca_seleccionar', 'statecode', 'statuscode')
+        }),
+        ('Fechas', {
+            'fields': ('cr8ca_fechadegasto', 'createdon', 'modifiedon')
+        }),
+        ('Lookups Dynamics (IDs)', {
+            'classes': ('collapse',),
+            'fields': (
+                '_cr8ca_presupuesto_value', '_cr8ca_proyecto_value', '_cr8ca_area_value', 
+                '_cr8ca_categoria_value', '_cr8ca_departamento_value', '_cr8ca_proveedorasignado_value',
+                '_cr8ca_solicita_value', '_cr8ca_autoriza_value', '_cr8ca_reviso_value', '_ownerid_value'
+            )
+        }),
+    )
+
+@admin.register(ArticuloRequisicion)
+class ArticuloRequisicionAdmin(admin.ModelAdmin):
+    list_display = ('cr8ca_articulo', 'requisicion', 'material', 'cr8ca_cantidad', 'cr8ca_costoaproximado', 'createdon')
+    list_filter = ('createdon', 'cr8ca_tipo', 'material')
+    search_fields = ('cr8ca_articulo', 'requisicion__cr8ca_requisicion', 'material__nombre')
+    autocomplete_fields = ['requisicion', 'material']
+    readonly_fields = ('cr8ca_itemderequisicionid', 'createdon', 'modifiedon')

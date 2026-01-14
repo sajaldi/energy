@@ -1,0 +1,212 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pedidos de Material - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-body: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.82);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, #e2e8f0 0%, #f8fafc 40%);
+            color: var(--text-main);
+            margin: 0;
+            padding-bottom: 30px;
+        }
+
+        header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            font-size: 22px;
+            text-decoration: none;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .pedido-card {
+            background: white;
+            border-radius: 22px;
+            padding: 18px;
+            margin-bottom: 15px;
+            border: 1px solid #f1f5f9;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+        }
+
+        .pedido-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pedido-id {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge {
+            font-size: 10px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .status-PENDIENTE {
+            background: #fff7ed;
+            color: #9a3412;
+        }
+
+        .status-ENTREGADO {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .status-RECHAZADO {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .pedido-info h2 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.4;
+            color: #334155;
+        }
+
+        .pedido-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .pedido-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .pedido-footer {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #f8fafc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .date {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .items-count {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--primary);
+            background: #eff6ff;
+            padding: 3px 8px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <a href="{% url 'core:mobile_dashboard' %}" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
+        <h1>Materiales Solicitados</h1>
+    </header>
+    <div class="container">
+        {% for pedido in pedidos %}
+        <a href="{% url 'inventarios:mobile_detalle_pedido' pedido.id %}" class="pedido-card">
+            <div class="pedido-header">
+                <span class="pedido-id">Orden #{{ pedido.id }}</span>
+                <span class="status-badge status-{{ pedido.estado }}">{{ pedido.get_estado_display }}</span>
+            </div>
+            <div class="pedido-info">
+                <h2>{{ pedido.comentarios_solicitud|default:"Sin descripción"|truncatechars:50 }}</h2>
+                <div class="pedido-meta">
+                    <span><ion-icon name="calendar-outline"></ion-icon> {{ pedido.fecha_solicitud|date:"d M, Y"
+                        }}</span>
+                    <span><ion-icon name="location-outline"></ion-icon> {{ pedido.ubicacion_origen.nombre }}</span>
+                </div>
+            </div>
+            <div class="pedido-footer">
+                <span class="date">{{ pedido.fecha_solicitud|time:"H:i" }}</span>
+                <span class="items-count">{{ pedido.movimientos.count }} materiales</span>
+            </div>
+        </a>
+        {% empty %}
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+            <ion-icon name="cube-outline" style="font-size: 60px; opacity: 0.2; margin-bottom: 20px;"></ion-icon>
+            <p style="font-weight: 600;">No has realizado solicitudes de material aún.</p>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+
+</html>

@@ -7,27 +7,34 @@ from celery.result import AsyncResult
 from django.contrib.admin.views.decorators import staff_member_required
 
 def visor_plano(request, visor_id):
-    visor = get_object_or_404(VisorPlano, pk=visor_id)
-    # Prefetch activos for performance in the modal
-    activos = Activo.objects.all().select_related('modelo__categoria', 'ubicacion').order_by('nombre')
+    visor = get_object_or_404(
+        VisorPlano.objects.select_related('plano__ubicacion').prefetch_related(
+            'pines__activo__modelo__categoria',
+            'pines__aviso',
+            'pines__actividad',
+            'pines__fotos',
+            'proyectos'
+        ), 
+        pk=visor_id
+    )
     
     from .models import Categoria, Ubicacion
     from mantenimiento.models import Aviso
     from proyectos.models import Actividad
     
+    # Optimización para móvil: Solo traer los datos necesarios o limitar
     categorias = Categoria.objects.all().order_by('nombre')
     ubicaciones = Ubicacion.objects.all().order_by('nombre')
     # Solo avisos abiertos o en proceso
-    avisos = Aviso.objects.filter(estado__in=['ABIERTO', 'PROCESO']).order_by('-creado_en')
+    avisos = Aviso.objects.filter(estado__in=['ABIERTO', 'PROCESO']).order_by('-creado_en')[:100]
     # Actividades de proyectos pendientes o en progreso
     actividades = Actividad.objects.filter(
         estado__in=['PENDIENTE', 'EN_PROGRESO']
-    ).select_related('proyecto').order_by('proyecto__codigo', 'orden')
+    ).select_related('proyecto').order_by('proyecto__codigo', 'orden')[:100]
     proyectos_visor = visor.proyectos.all()
     
     context = {
         'visor': visor,
-        'activos': activos,
         'ubicaciones': ubicaciones,
         'categorias': categorias,
         'avisos': avisos,
@@ -36,6 +43,46 @@ def visor_plano(request, visor_id):
     }
     
     return render(request, 'activos/visor_plano.html', context)
+
+@staff_member_required
+def api_buscar_activos_json(request):
+    """API para búsqueda dinámica de activos en el visor"""
+    from django.db import models
+    query = request.GET.get('q', '').strip()
+    cat_id = request.GET.get('cat_id')
+    loc_id = request.GET.get('loc_id')
+    
+    qs = Activo.objects.all().select_related('modelo__categoria', 'ubicacion').order_by('nombre')
+    
+    if query:
+        qs = qs.filter(
+            models.Q(nombre__icontains=query) | 
+            models.Q(codigo_interno__icontains=query)
+        )
+    
+    if cat_id:
+        qs = qs.filter(modelo__categoria_id=cat_id)
+        
+    if loc_id:
+        qs = qs.filter(ubicacion_id=loc_id)
+        
+    # Limitar resultados para evitar sobrecarga
+    qs = qs[:50]
+    
+    data = []
+    for a in qs:
+        data.append({
+            'id': a.id,
+            'nombre': a.nombre,
+            'codigo': a.codigo_interno or '',
+            'categoria_id': a.modelo.categoria.id if a.modelo and a.modelo.categoria else '',
+            'ubicacion_id': a.ubicacion.id if a.ubicacion else '',
+            # Metadata extra para el select
+            'data_nombre': a.nombre.lower(),
+            'data_codigo': (a.codigo_interno or '').lower()
+        })
+        
+    return JsonResponse({'results': data})
 
 @csrf_exempt
 @staff_member_required
@@ -86,11 +133,36 @@ def guardar_pin(request):
             else:
                 pin.actividad = None
                 
+            # Ubicación (Zonas/Áreas)
+            ubicacion_id = data.get('ubicacion_id')
+            if ubicacion_id:
+                pin.ubicacion_id = ubicacion_id
+            else:
+                pin.ubicacion = None
+
+            # Dimensiones (para áreas)
+            ancho = float(data.get('ancho') or 0)
+            alto = float(data.get('alto') or 0)
+            pin.ancho = ancho
+            pin.alto = alto
+                
             pin.x = x
             pin.y = y
             pin.color = color
             pin.nota = nota
             pin.save()
+
+            # Devolver los nuevos campos en la respuesta
+            aviso_meta = {}
+            if pin.aviso:
+                aviso_meta = {
+                    "prioridad": pin.aviso.get_prioridad_display(),
+                    "estado": pin.aviso.get_estado_display(),
+                    "solicitante": pin.aviso.solicitante.username if pin.aviso.solicitante else "Anónimo",
+                    "descripcion": pin.aviso.descripcion
+                }
+
+            fotos_urls = [foto.imagen.url for foto in pin.fotos.all()]
 
             # Guardar fotos si vienen en la petición
             if 'fotos' in request.FILES:
@@ -128,13 +200,17 @@ def guardar_pin(request):
                 'activo_id': pin.activo.id if pin.activo else None,
                 'aviso_id': pin.aviso.id if pin.aviso else None,
                 'actividad_id': pin.actividad.id if pin.actividad else None,
+                'ubicacion_id': pin.ubicacion_id,
                 'nombre_activo': nombre_label,
                 'nombre_actividad': pin.actividad.nombre if pin.actividad else None,
+                'nombre_ubicacion': pin.ubicacion.nombre if pin.ubicacion else None,
                 'codigo_externo': pin.activo.codigo_interno if pin.activo else '',
                 'nota': pin.nota,
                 'fotos': fotos_urls,
                 'icono': icono_label,
-                'aviso_meta': aviso_meta
+                'aviso_meta': aviso_meta,
+                'ancho': pin.ancho,
+                'alto': pin.alto
             })
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
@@ -362,6 +438,13 @@ def api_get_explorer_level(request):
             has_sub_ubicaciones=Exists(hijos_ubi_exists),
             has_activos=Exists(activos_ubi_exists)
         ).order_by('orden', 'nombre')
+        
+        # También listamos activos que pertenezcan a esta categoría pero NO tengan ubicación asignada
+        activos_directos = Activo.objects.filter(
+            modelo__categoria__in=descendant_cats, 
+            ubicacion__isnull=True,
+            padre__isnull=True
+        ).select_related('modelo__categoria', 'ubicacion').order_by('nombre')
             
     context = {
         'sub_ubicaciones': sub_ubicaciones,
@@ -542,6 +625,12 @@ def api_item_form(request, item_type, item_id):
             queryset = queryset.filter(modelo__categoria__in=categoria.get_descendants(include_self=True))
 
         activos = queryset.select_related(
+            'modelo__marca', 'modelo__categoria', 'ubicacion'
+        ).order_by('nombre')
+    elif item_type == 'categoria':
+        # Listamos todos los activos de esta categoría (y descendientes)
+        descendants = instance.get_descendants(include_self=True)
+        activos = Activo.objects.filter(modelo__categoria__in=descendants).select_related(
             'modelo__marca', 'modelo__categoria', 'ubicacion'
         ).order_by('nombre')
 
@@ -766,4 +855,56 @@ def mobile_busqueda_activos(request):
     return render(request, 'activos/mobile_busqueda.html', {
         'activos': activos,
         'query': query
+    })
+@staff_member_required
+def mobile_ubicaciones(request, parent_id=None):
+    """
+    Explorador jerárquico de ubicaciones para la App (OPTIMIZADO).
+    """
+    from .models.ubicacion import Ubicacion
+    from .models.plano import VisorPlano
+    from mantenimiento.models import Rutina, Categoria as M_Categoria
+    from django.db.models import Count
+    
+    parent = None
+    if parent_id:
+        parent = get_object_or_404(Ubicacion, pk=parent_id)
+        ubicaciones_qs = Ubicacion.objects.filter(padre=parent)
+    else:
+        ubicaciones_qs = Ubicacion.objects.filter(padre__isnull=True)
+    
+    # Anotar conteos en una sola query para evitar crash por N+1
+    ubicaciones = ubicaciones_qs.annotate(
+        num_sub=Count('sub_ubicaciones', distinct=True),
+        num_activos=Count('activos', distinct=True)
+    ).select_related('categoria__mantenimiento_categoria').order_by('orden', 'nombre')
+    
+    # Mapear visores de forma masiva
+    visores = {v.plano.ubicacion_id: v for v in VisorPlano.objects.select_related('plano').filter(plano__ubicacion__in=ubicaciones)}
+    
+    # Optimización para rutinas: Obtener todas las categorías de mantenimiento que tienen rutinas
+    # y construir un set de IDs que incluyen sus descendientes (porque una rutina en padre aplica a hijos)
+    # En realidad es al revés: para una ubicación (hijo), buscamos rutinas en sus padres.
+    m_cats_with_rutinas = set(Rutina.objects.values_list('categoria_id', flat=True))
+    
+    for u in ubicaciones:
+        u.has_sub = u.num_sub > 0
+        u.has_activos = u.num_activos > 0
+        u.visor = visores.get(u.id)
+        
+        # Verificar si tiene rutinas asociadas vía categoría
+        u.has_rutinas = False
+        if u.categoria and hasattr(u.categoria, 'mantenimiento_categoria'):
+            m_cat = u.categoria.mantenimiento_categoria
+            # Verificar si m_cat o algún ancestro tiene rutinas
+            curr = m_cat
+            while curr:
+                if curr.id in m_cats_with_rutinas:
+                    u.has_rutinas = True
+                    break
+                curr = curr.padre
+        
+    return render(request, 'activos/mobile_ubicaciones.html', {
+        'ubicaciones': ubicaciones,
+        'parent': parent,
     })

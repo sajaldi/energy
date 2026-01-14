@@ -1,0 +1,360 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mis Avisos - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --accent: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-body: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding-bottom: 100px;
+            background: radial-gradient(circle at top right, #e2e8f0 0%, #f8fafc 40%);
+        }
+
+        /* Header */
+        header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            flex-grow: 1;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        /* Filter Pills */
+        .puesto-info {
+            background: white;
+            padding: 12px 18px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            border: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .puesto-info .icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: #eff6ff;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .puesto-info div p {
+            margin: 0;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .puesto-info div h3 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        /* Aviso Card */
+        .aviso-card {
+            background: white;
+            border-radius: 22px;
+            padding: 18px;
+            margin-bottom: 15px;
+            border: 1px solid #f1f5f9;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .aviso-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+        }
+
+        .aviso-card.prioridad-ALTA::before,
+        .aviso-card.prioridad-CRITICA::before {
+            background: var(--danger);
+        }
+
+        .aviso-card.prioridad-MEDIA::before {
+            background: var(--warning);
+        }
+
+        .aviso-card.prioridad-BAJA::before {
+            background: var(--success);
+        }
+
+        .aviso-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .aviso-id {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .status-badge {
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .status-ABIERTO {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .status-PROCESO {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .status-REALIZADO {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .aviso-body h2 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .aviso-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .aviso-meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .aviso-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #f8fafc;
+            padding-top: 12px;
+            margin-top: 5px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .user-info .mini-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .creado-hace {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* FAB */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: var(--primary);
+            color: white;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+            z-index: 1000;
+            text-decoration: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 40px;
+            color: var(--text-muted);
+        }
+
+        .empty-state ion-icon {
+            font-size: 64px;
+            opacity: 0.2;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a href="{% url 'core:mobile_dashboard' %}" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </a>
+        <h1>Mis Avisos</h1>
+    </header>
+
+    <div class="container">
+
+        {% if puesto %}
+        <div class="puesto-info fade-in">
+            <div class="icon">
+                <ion-icon name="briefcase-outline"></ion-icon>
+            </div>
+            <div>
+                <p>Centro de Trabajo</p>
+                <h3>{{ puesto.nombre }}</h3>
+            </div>
+        </div>
+        {% endif %}
+
+        {% for aviso in avisos %}
+        <a href="{% url 'mantenimiento:mobile_aviso_detalle' aviso.id %}"
+            class="aviso-card prioridad-{{ aviso.prioridad }} fade-in"
+            style="animation-delay: {{ forloop.counter0|add:1 }}00ms">
+            <div class="aviso-header">
+                <span class="aviso-id">AV-{{ aviso.id }}</span>
+                <span class="status-badge status-{{ aviso.estado }}">{{ aviso.get_estado_display }}</span>
+            </div>
+
+            <div class="aviso-body">
+                <h2>{{ aviso.descripcion|truncatechars:60 }}</h2>
+                <div class="aviso-meta">
+                    {% if aviso.falla %}
+                    <span><ion-icon name="alert-circle-outline"></ion-icon> {{ aviso.falla.nombre }}</span>
+                    {% endif %}
+                </div>
+                <div class="aviso-meta">
+                    {% if aviso.activo %}
+                    <span><ion-icon name="cube-outline"></ion-icon> {{ aviso.activo.nombre }}</span>
+                    {% elif aviso.ubicacion %}
+                    <span><ion-icon name="location-outline"></ion-icon> {{ aviso.ubicacion.nombre }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="aviso-footer">
+                <div class="user-info">
+                    <div class="mini-avatar">{{ aviso.solicitante.username|slice:":1"|upper }}</div>
+                    <span>{{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}</span>
+                    {% if aviso.solicitante == request.user %}
+                    <span style="color: var(--primary); font-size: 10px;">(Tú)</span>
+                    {% endif %}
+                </div>
+                <span class="creado-hace">{{ aviso.creado_en|date:"d M, H:i" }}</span>
+        </a>
+        {% empty %}
+        <div class="empty-state">
+            <ion-icon name="document-text-outline"></ion-icon>
+            <p>No hay avisos reportados en tu puesto de trabajo.</p>
+        </div>
+        {% endfor %}
+
+    </div>
+
+    <a href="{% url 'mantenimiento:mobile_crear_aviso' %}" class="fab">
+        <ion-icon name="add-outline"></ion-icon>
+    </a>
+
+</body>
+
+</html>

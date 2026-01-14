@@ -7,6 +7,7 @@ from django.db import connection, transaction, IntegrityError
 from django.db.models import Q
 from django.urls import reverse
 from mantenimiento.models import OrdenTrabajo, Aviso
+from inventarios.models import Material, StockRecord, MovimientoInventario, SolicitudMaterial
 from activos.models import Activo, VisorPlano
 from .models import InterfaceConsumo, Consumo, Medidor, PerfilUsuario
 import pandas as pd
@@ -532,17 +533,17 @@ def mobile_dashboard(request):
     """
     today = timezone.now().date()
     
-    # OTs del día asignadas al usuario (o todas si no hay asignación específica)
+    # OTs del día
     ots_hoy = OrdenTrabajo.objects.filter(
         inicio_programado__date=today
-    ).exclude(estado='REALIZADA').order_by('inicio_programado')
+    ).exclude(estado='REALIZADA').select_related('rutina', 'ubicacion').order_by('inicio_programado')
     
-    # OTs próximas (siguientes 7 días)
+    # OTs próximas (Siguientes 7 días)
     tomorrow = today + timedelta(days=1)
     next_week = today + timedelta(days=8)
     ots_proximas = OrdenTrabajo.objects.filter(
         inicio_programado__date__range=[tomorrow, next_week]
-    ).exclude(estado='REALIZADA').order_by('inicio_programado')
+    ).exclude(estado='REALIZADA').select_related('rutina', 'ubicacion').order_by('inicio_programado')
 
     # Si el usuario es técnico, filtrar por sus tareas (directas o por equipo)
     if not request.user.is_superuser:
@@ -554,6 +555,10 @@ def mobile_dashboard(request):
             Q(tecnico=request.user) | Q(equipo__in=user_groups)
         ).distinct()
 
+    # Aplicar el recorte de seguridad al final para evitar crashes de memoria en móvil
+    ots_hoy = ots_hoy[:10]
+    ots_proximas = ots_proximas[:10]
+
     # Estadísticas rápidas
     total_activos = Activo.objects.count()
     avisos_abiertos = Aviso.objects.filter(estado='ABIERTO').count()
@@ -561,12 +566,20 @@ def mobile_dashboard(request):
     # Accesos rápidos a planos
     planos_recientes = VisorPlano.objects.all().order_by('-creado_en')[:3]
 
+    from activos.models.ubicacion import Ubicacion
+    ubicaciones_raiz = Ubicacion.objects.filter(padre__isnull=True).order_by('orden', 'nombre')[:4]
+
+    # Pedidos de material (NUEVO)
+    pedidos_pendientes_count = SolicitudMaterial.objects.filter(usuario=request.user, estado='PENDIENTE').count()
+
     context = {
         'ots_hoy': ots_hoy,
         'ots_proximas': ots_proximas,
         'total_activos': total_activos,
         'avisos_abiertos': avisos_abiertos,
         'planos_recientes': planos_recientes,
+        'ubicaciones_raiz': ubicaciones_raiz,
+        'pedidos_pendientes_count': pedidos_pendientes_count,
         'today': today,
     }
     return render(request, 'core/mobile_dashboard.html', context)

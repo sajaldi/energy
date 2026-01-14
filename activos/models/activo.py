@@ -47,6 +47,7 @@ class Activo(models.Model):
     nombre = models.CharField(max_length=200, help_text="Nombre del activo o equipo")
     codigo_interno = models.CharField(max_length=50, unique=True, help_text="Código de inventario interno")
     serie = models.CharField(max_length=100, blank=True, null=True, help_text="Número de serie del fabricante", db_index=True)
+    referencia = models.CharField(max_length=100, blank=True, null=True, help_text="Referencia adicional")
     
     marca_legacy = models.CharField(max_length=100, blank=True, null=True)
     modelo_legacy = models.CharField(max_length=100, blank=True, null=True)
@@ -61,10 +62,12 @@ class Activo(models.Model):
     
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='activos_asignados', help_text="Persona responsable del activo")
     
+    familia = models.ForeignKey('activos.Familia', on_delete=models.SET_NULL, null=True, blank=True, related_name='activos', help_text="Clasificación por familia de equipo")
     padre = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='componentes', help_text="Activo principal del cual este forma parte")
 
     ubicacion_legacy = models.CharField(max_length=255, blank=True, null=True, help_text="Ubicación física del activo (Texto libre - Deprecado)")
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='activos', help_text="Ubicación jerárquica")
+    plano = models.ForeignKey('activos.Plano', on_delete=models.SET_NULL, null=True, blank=True, related_name='activos_principales', help_text="Plano principal donde se ubica este activo")
     
     foto = models.ImageField(upload_to='activos_fotos/', blank=True, null=True)
     

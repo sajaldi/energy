@@ -12,7 +12,6 @@
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
-    <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -349,7 +348,6 @@
             border-radius: 2px;
             width: auto;
             height: auto;
-            pointer-events: auto;
         }
 
         /* Pines Style */
@@ -397,6 +395,18 @@
         .pin.blink {
             animation: pin-blink 0.8s ease-in-out infinite;
             z-index: 2000;
+        }
+
+        /* Area / Zone Pin Override */
+        .pin.pin-area {
+            transform: none !important;
+            display: block;
+            /* Remove flex center */
+        }
+
+        .pin.pin-area:hover {
+            transform: scale(1.02) !important;
+            z-index: 150;
         }
 
         /* Pin Info Card (Hover) */
@@ -1057,18 +1067,7 @@
         </div>
     </div>
 
-    <!-- Menú Contextual -->
-    <div id="context-menu">
-        <div class="menu-item" onclick="startRelocation()">
-            <ion-icon name="move-outline"></ion-icon> Relocalizar
-        </div>
-        <div class="menu-item" onclick="editActivePin()">
-            <ion-icon name="create-outline"></ion-icon> Editar Datos
-        </div>
-        <div class="menu-item danger" onclick="deletePin()">
-            <ion-icon name="trash-outline"></ion-icon> Eliminar
-        </div>
-    </div>
+
 
     <header>
         <div class="brand">
@@ -1126,20 +1125,29 @@
                     {% load l10n %}
                     {% localize off %}
                     {% for pin in visor.pines.all %}
-                    <div class="pin" id="pin-{{ pin.id }}" data-id="{{ pin.id }}"
-                        data-activo="{{ pin.activo.id|default:'' }}" data-aviso="{{ pin.aviso.id|default:'' }}"
-                        data-actividad="{{ pin.actividad.id|default:'' }}"
-                        data-pin-type="{% if pin.actividad %}actividad{% elif pin.aviso %}aviso{% elif pin.activo %}activo{% else %}libre{% endif %}"
-                        data-label="{% if pin.actividad %}{{ pin.actividad.nombre }}{% elif pin.activo %}{{ pin.activo.nombre }}{% elif pin.aviso %}AV-{{ pin.aviso.id }}{% else %}[NOTA]{% endif %}"
+                    <div class="pin {% if pin.ancho > 0 %}pin-area{% endif %}" id="pin-{{ pin.id }}"
+                        data-id="{{ pin.id }}" data-activo="{{ pin.activo.id|default:'' }}"
+                        data-aviso="{{ pin.aviso.id|default:'' }}" data-actividad="{{ pin.actividad.id|default:'' }}"
+                        data-ubicacion="{{ pin.ubicacion.id|default:'' }}"
+                        data-pin-type="{% if pin.ancho > 0 %}ubicacion{% elif pin.actividad %}actividad{% elif pin.aviso %}aviso{% elif pin.activo %}activo{% else %}libre{% endif %}"
+                        data-label="{% if pin.ancho > 0 %}{{ pin.ubicacion.nombre|default:'Nueva Zona' }}{% elif pin.actividad %}{{ pin.actividad.nombre }}{% elif pin.activo %}{{ pin.activo.nombre }}{% elif pin.aviso %}AV-{{ pin.aviso.id }}{% else %}[NOTA]{% endif %}"
                         data-color="{{ pin.color }}" data-nota="{{ pin.nota|default:'' }}" data-x="{{ pin.x }}"
-                        data-y="{{ pin.y }}"
-                        data-icon="{% if pin.actividad %}construct{% elif pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"
+                        data-y="{{ pin.y }}" data-ancho="{{ pin.ancho|default:0 }}" data-alto="{{ pin.alto|default:0 }}"
+                        data-icon="{% if pin.ancho > 0 %}scan-outline{% elif pin.actividad %}construct{% elif pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"
                         data-aviso-meta='{% if pin.aviso %}{"prioridad":"{{ pin.aviso.get_prioridad_display }}","estado":"{{ pin.aviso.get_estado_display }}","solicitante":"{{ pin.aviso.solicitante.username|default:"Anónimo" }}","descripcion":"{{ pin.aviso.descripcion|escapejs }}"}{% else %}{}{% endif %}'
                         data-fotos='[{% for foto in pin.fotos.all %}"{{ foto.imagen.url }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
-                        style="left: {{ pin.x }}px; top: {{ pin.y }}px; color: {{ pin.color }}; pointer-events: auto;">
+                        style="left: {{ pin.x }}px; top: {{ pin.y }}px; color: {{ pin.color }}; pointer-events: auto; {% if pin.ancho > 0 %}width: {{ pin.ancho }}px; height: {{ pin.alto }}px; border: 2px solid {{ pin.color }}; background-color: {{ pin.color }}33;{% endif %}">
+
+                        {% if not pin.ancho %}
                         <ion-icon
                             name="{% if pin.actividad %}construct{% elif pin.activo %}{{ pin.activo.modelo.categoria.icono|default:'location' }}{% elif pin.aviso %}warning{% else %}location{% endif %}"></ion-icon>
+                        {% endif %}
 
+                        {% if pin.ancho > 0 %}
+                        <span class="pin-area-label"
+                            style="position: absolute; top: 0; left: 0; background: {{ pin.color }}; color: white; padding: 2px 4px; font-size: 10px;">{{
+                            pin.ubicacion.nombre|default:"Nueva Zona" }}</span>
+                        {% else %}
                         <div class="pin-label-permanent">
                             <div style="margin-bottom: 4px;">
                                 {% if pin.actividad %}
@@ -1176,6 +1184,7 @@
                             </div>
                             {% endif %}
                         </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                     {% endlocalize %}
@@ -1205,6 +1214,10 @@
                 </button>
                 <button class="tool-btn" title="Zoom Out" onclick="zoomOut()">
                     <ion-icon name="remove"></ion-icon>
+                </button>
+                <div style="width: 1px; background: rgba(255,255,255,0.1); margin: 0 5px;"></div>
+                <button class="tool-btn" title="Centrar Plano" onclick="centerView()">
+                    <ion-icon name="locate"></ion-icon>
                 </button>
             </div>
 
@@ -1452,345 +1465,405 @@
                 <ion-icon name="trash"></ion-icon>
             </button>
         </div>
-    </div>
+        <div id="context-menu"
+            style="display: none; position: fixed; z-index: 1000; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); overflow: hidden; min-width: 160px; border: 1px solid #e2e8f0;">
+            <div onclick="startRelocation()"
+                style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #475569; transition: background 0.2s;"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                <ion-icon name="move" style="color: #3b82f6;"></ion-icon> Relocalizar
+            </div>
+            <div onclick="editActivePin()"
+                style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #475569; transition: background 0.2s;"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                <ion-icon name="create" style="color: #10b981;"></ion-icon> Editar Datos
+            </div>
+            <div id="ctx-btn-routines" onclick="showAreaRoutines()"
+                style="display: none; padding: 10px 15px; cursor: pointer; border-top: 1px solid #f1f5f9; align-items: center; gap: 8px; color: #475569; transition: background 0.2s;"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                <ion-icon name="list" style="color: #f59e0b;"></ion-icon> Ver Rutinas
+            </div>
+            <div id="ctx-btn-open-loc" onclick="openLocationCheck()"
+                style="display: none; padding: 10px 15px; cursor: pointer; border-top: 1px solid #f1f5f9; align-items: center; gap: 8px; color: #475569; transition: background 0.2s;"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                <ion-icon name="open" style="color: #6366f1;"></ion-icon> Abrir Ubicación
+            </div>
+            <div onclick="if(confirm('¿Eliminar este pin?')) deletePin()"
+                style="padding: 10px 15px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #ef4444; border-top: 1px solid #f1f5f9; transition: background 0.2s;"
+                onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='white'">
+                <ion-icon name="trash"></ion-icon> Eliminar
+            </div>
+        </div>
 
-    <script>
-        const VISOR_ID = Number("{{ visor.id }}");
-        const mainView = document.getElementById('main-canvas');
-        const zoomContainer = document.getElementById('zoom-container');
-        const pinesLayer = document.getElementById('pines-layer');
-        const pinPanel = document.getElementById('pin-panel');
-        const hoverCard = document.getElementById('pin-hover-card');
-        const hoverActivo = document.getElementById('hover-activo');
-        const hoverNota = document.getElementById('hover-nota');
-        const hoverGallery = document.getElementById('hover-gallery');
-        const panelGallery = document.getElementById('panel-gallery');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarPinList = document.getElementById('sidebar-pin-list');
+        <!-- Info Side Panel (Replaces Modal) -->
+        <div id="info-panel"
+            style="position: fixed; top: 0; right: -400px; width: 350px; height: 100vh; background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.1); z-index: 1050; transition: right 0.3s ease; display: flex; flex-direction: column;">
+            <div class="panel-header"
+                style="padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <h3 style="margin:0; font-size: 1.1rem; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                    <ion-icon name="list" style="color: var(--primary);"></ion-icon> Detalles del Área
+                </h3>
+                <button onclick="closeInfoPanel()"
+                    style="background:none; border:none; cursor:pointer; font-size:1.5rem; color: #64748b; display: flex; align-items: center;">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div id="info-panel-content" style="flex: 1; overflow-y: auto; padding: 0;">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
 
-        let currentTool = 'pan';
-        let activePin = null;
-        let pinToRelocate = null;
-        let pz;
-        let selectedFiles = []; // Almacenar archivos antes de subir
 
-        // Long press and radial menu
-        let longPressTimer = null;
-        let longPressPos = { x: 0, y: 0, screenX: 0, screenY: 0 };
-        let pendingPinType = null;
-        const radialMenu = document.getElementById('radial-menu');
-        const longPressIndicator = document.getElementById('long-press-indicator');
-        const LONG_PRESS_DURATION = 3000; // 3 seconds
 
-        // Flags para controlar carga
-        let isPZInitialized = false;
+        <script>
+            const VISOR_ID = Number("{{ visor.id }}");
+            const mainView = document.getElementById('main-canvas');
+            const zoomContainer = document.getElementById('zoom-container');
+            const pinesLayer = document.getElementById('pines-layer');
+            const pinPanel = document.getElementById('pin-panel');
+            const hoverCard = document.getElementById('pin-hover-card');
+            const hoverActivo = document.getElementById('hover-activo');
+            const hoverNota = document.getElementById('hover-nota');
+            const hoverGallery = document.getElementById('hover-gallery');
+            const panelGallery = document.getElementById('panel-gallery');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarPinList = document.getElementById('sidebar-pin-list');
 
-        // PDF JS Config
-        const pdfUrl = "{% if visor.plano.archivo_actual %}{{ visor.plano.archivo_actual.url }}{% endif %}";
-        const isPdf = pdfUrl.toLowerCase().endsWith('.pdf');
+            let currentTool = 'pan';
+            let activePin = null;
+            let pinToRelocate = null;
+            let pz;
+            let selectedFiles = []; // Almacenar archivos antes de subir
 
-        window.addEventListener('load', async () => {
-            if (isPdf) {
-                await initPdf();
-            } else {
-                const img = document.getElementById('plano-img');
-                if (img) {
-                    if (img.complete) {
+            // Long press and radial menu
+            let longPressTimer = null;
+            let longPressPos = { x: 0, y: 0, screenX: 0, screenY: 0 };
+            let pendingPinType = null;
+            const radialMenu = document.getElementById('radial-menu');
+            const longPressIndicator = document.getElementById('long-press-indicator');
+            const LONG_PRESS_DURATION = 3000; // 3 seconds
+
+            // Flags para controlar carga
+            let isPZInitialized = false;
+
+            // PDF JS Config
+            const pdfUrl = "{% if visor.plano.archivo_actual %}{{ visor.plano.archivo_actual.url }}{% endif %}";
+            const isPdf = pdfUrl.toLowerCase().endsWith('.pdf');
+
+            window.addEventListener('load', async () => {
+                if (isPdf) {
+                    await initPdf();
+                } else {
+                    const img = document.getElementById('plano-img');
+                    if (img) {
+                        if (img.complete) {
+                            initPanzoom();
+                            renderSidebarList();
+                        }
+                        else img.onload = () => {
+                            initPanzoom();
+                            renderSidebarList();
+                        };
+                    } else {
                         initPanzoom();
                         renderSidebarList();
                     }
-                    else img.onload = () => {
-                        initPanzoom();
-                        renderSidebarList();
-                    };
-                } else {
-                    initPanzoom();
-                    renderSidebarList();
                 }
-            }
 
-            setTimeout(() => {
-                document.getElementById('loader').style.opacity = '0';
-                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
-            }, 800);
-        });
-
-        async function initPdf() {
-            const loadingTask = pdfjsLib.getDocument(pdfUrl);
-            const pdf = await loadingTask.promise;
-            const page = await pdf.getPage(1);
-
-            const viewport = page.getViewport({ scale: 4 });
-            const canvas = document.getElementById('plano-canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
-            initPanzoom();
-            renderSidebarList();
-        }
-
-        function initPanzoom() {
-            if (isPZInitialized) return;
-            isPZInitialized = true;
-
-            // Ajustar contenedor al tamaño natural antes de Panzoom
-            const img = document.getElementById('plano-img');
-            const canvas = document.getElementById('plano-canvas');
-
-            if (img) {
-                zoomContainer.style.width = img.naturalWidth + 'px';
-                zoomContainer.style.height = img.naturalHeight + 'px';
-            } else if (canvas) {
-                zoomContainer.style.width = canvas.width + 'px';
-                zoomContainer.style.height = canvas.height + 'px';
-            }
-
-            // Calcular centro para startX/startY
-            const parentRect = mainView.getBoundingClientRect();
-            // Usamos width/height del estilo que acabamos de setear
-            const elemWidth = parseFloat(zoomContainer.style.width) || parentRect.width;
-            const elemHeight = parseFloat(zoomContainer.style.height) || parentRect.height;
-
-            const startX = (parentRect.width - elemWidth) / 2;
-            const startY = (parentRect.height - elemHeight) / 2;
-
-            pz = Panzoom(zoomContainer, {
-                maxScale: 15,
-                minScale: 0.05,
-                canvas: false,
-                cursor: null,
-                startX: startX,
-                startY: startY
+                setTimeout(() => {
+                    document.getElementById('loader').style.opacity = '0';
+                    setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                }, 800);
             });
 
-            mainView.addEventListener('wheel', pz.zoomWithWheel);
-        }
+            async function initPdf() {
+                try {
+                    const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                    const pdf = await loadingTask.promise;
+                    const page = await pdf.getPage(1);
 
-        // Helper to get coordinates relative to the zoomed container
-        function getRelativeCoords(clientX, clientY) {
-            const rect = zoomContainer.getBoundingClientRect();
-            const scale = pz.getScale();
+                    const scale = 4.0;
+                    const viewport = page.getViewport({ scale: scale });
+                    const canvas = document.getElementById('plano-canvas');
+                    if (!canvas) return;
 
-            // Calculate relative to the CURRENT VISUAL position (rect.left/top)
-            // This works regardless of transform-origin because rect tracks the visual boundaries
-            return {
-                x: (clientX - rect.left) / scale,
-                y: (clientY - rect.top) / scale
-            };
-        }
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
 
-        // Area drawing variables
-        let isDrawingArea = false;
-        let areaStartX = 0;
-        let areaStartY = 0;
-        let tempAreaRect = null;
+                    const context = canvas.getContext('2d');
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
 
-        function setTool(tool) {
-            currentTool = tool;
-            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            // Check if tool is 'add' (created as 'pin' but ID is tool-pin) or 'pan' or 'area'
-            const btn = document.getElementById(`tool-${tool}`) || document.getElementById('tool-pin'); // fallback
-            if (btn) btn.classList.add('active');
+                    zoomContainer.style.width = viewport.width + 'px';
+                    zoomContainer.style.height = viewport.height + 'px';
 
-            // Reset Pz options
-            pz.setOptions({ disablePan: false });
-            zoomContainer.style.cursor = 'grab';
-            pinesLayer.style.pointerEvents = 'auto'; // Default interactive
-
-            if (tool === 'add') {
-                zoomContainer.style.cursor = 'crosshair';
-                pz.setOptions({ disablePan: true });
-            } else if (tool === 'area') {
-                zoomContainer.style.cursor = 'crosshair';
-                pz.setOptions({ disablePan: true });
-                pinesLayer.style.pointerEvents = 'auto'; // Need events on layer to draw
-            } else {
-                // Pan
-                pinesLayer.style.pointerEvents = 'none'; // Pass through to zoomContainer
+                    initPanzoom();
+                    renderSidebarList();
+                    setTimeout(centerView, 200);
+                } catch (err) {
+                    console.error("PDF Load Error:", err);
+                    initPanzoom();
+                }
             }
-        }
 
-        // --- Area Drawing Logic (Click-Move-Click) ---
-        // Switch to click event for starting/stopping
-        pinesLayer.addEventListener('click', handleAreaClick);
-        // pinesLayer.addEventListener('touchstart', (e) => handleAreaClick(e.touches[0])); // Touch might need specific handling, keep simple for now
+            function initPanzoom() {
+                if (isPZInitialized) return;
 
-        function handleAreaClick(e) {
-            if (currentTool !== 'area') return;
+                const img = document.getElementById('plano-img');
+                const canvas = document.getElementById('plano-canvas');
 
-            try {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const clientX = e.clientX || (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientX : 0);
-                const clientY = e.clientY || (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientY : 0);
-
-                if (!clientX && !clientY) {
-                    console.warn("No coordinates found in event");
-                    return;
+                if (!zoomContainer.style.width) {
+                    if (img) {
+                        zoomContainer.style.width = img.naturalWidth + 'px';
+                        zoomContainer.style.height = img.naturalHeight + 'px';
+                    } else if (canvas) {
+                        zoomContainer.style.width = canvas.width + 'px';
+                        zoomContainer.style.height = canvas.height + 'px';
+                    }
                 }
 
-                const coords = getRelativeCoords(clientX, clientY);
-                if (isNaN(coords.x) || isNaN(coords.y)) {
-                    console.error("Invalid coords:", coords);
-                    return;
+                isPZInitialized = true;
+                const parentRect = mainView.getBoundingClientRect();
+                const elemWidth = parseFloat(zoomContainer.style.width) || parentRect.width;
+                const elemHeight = parseFloat(zoomContainer.style.height) || parentRect.height;
+                const startX = (parentRect.width - elemWidth) / 2;
+                const startY = (parentRect.height - elemHeight) / 2;
+
+                pz = Panzoom(zoomContainer, {
+                    maxScale: 15,
+                    minScale: 0.05,
+                    canvas: false,
+                    cursor: null,
+                    startX: startX,
+                    startY: startY
+                });
+
+                mainView.addEventListener('wheel', pz.zoomWithWheel);
+            }
+
+            function centerView() {
+                if (!pz) return;
+                const parentRect = mainView.getBoundingClientRect();
+                const contentWidth = parseFloat(zoomContainer.style.width) || 0;
+                const contentHeight = parseFloat(zoomContainer.style.height) || 0;
+
+                if (contentWidth && contentHeight) {
+                    const scaleX = parentRect.width / contentWidth;
+                    const scaleY = parentRect.height / contentHeight;
+                    const minScale = Math.min(scaleX, scaleY) * 0.95;
+
+                    pz.zoom(minScale, { animate: true });
+                    const targetX = (parentRect.width - contentWidth * minScale) / 2;
+                    const targetY = (parentRect.height - contentHeight * minScale) / 2;
+                    pz.pan(targetX, targetY, { animate: true });
                 }
+            }
 
-                const clickX = coords.x;
-                const clickY = coords.y;
+            function getRelativeCoords(clientX, clientY) {
+                const rect = zoomContainer.getBoundingClientRect();
+                const scale = pz.getScale();
+                return {
+                    x: (clientX - rect.left) / scale,
+                    y: (clientY - rect.top) / scale
+                };
+            }
 
-                if (!isDrawingArea) {
-                    // START DRAWING
-                    isDrawingArea = true;
-                    areaStartX = clickX;
-                    areaStartY = clickY;
+            function setTool(tool) {
+                currentTool = tool;
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                const btn = document.getElementById(`tool-${tool}`) || document.getElementById('tool-pin');
+                if (btn) btn.classList.add('active');
 
-                    // Create temp visual
-                    if (tempAreaRect) tempAreaRect.remove(); // Cleanup if exists
+                pz.setOptions({ disablePan: false });
+                zoomContainer.style.cursor = 'grab';
+                pinesLayer.style.pointerEvents = 'auto';
 
-                    tempAreaRect = document.createElement('div');
-                    tempAreaRect.style.position = 'absolute';
-                    tempAreaRect.style.border = '2px dashed #2563eb';
-                    tempAreaRect.style.backgroundColor = 'rgba(37, 99, 235, 0.2)';
-                    tempAreaRect.style.left = areaStartX + 'px';
-                    tempAreaRect.style.top = areaStartY + 'px';
-                    tempAreaRect.style.width = '0px';
-                    tempAreaRect.style.height = '0px';
-                    tempAreaRect.style.pointerEvents = 'none';
-                    pinesLayer.appendChild(tempAreaRect);
-
-                    showToast("Mueve el cursor y haz clic para terminar", "info");
-
+                if (tool === 'add' || tool === 'area') {
+                    zoomContainer.style.cursor = 'crosshair';
+                    pz.setOptions({ disablePan: true });
                 } else {
-                    // FINISH DRAWING
-                    finishAreaDraw();
+                    pinesLayer.style.pointerEvents = 'none';
                 }
-            } catch (err) {
-                console.error("Error handling area click:", err);
+            }
+
+            // --- Area Drawing Logic (Click-Move-Click) ---
+            // Switch to click event for starting/stopping
+            pinesLayer.addEventListener('click', handleAreaClick);
+            // pinesLayer.addEventListener('touchstart', (e) => handleAreaClick(e.touches[0])); // Touch might need specific handling, keep simple for now
+
+            function handleAreaClick(e) {
+                if (currentTool !== 'area') return;
+
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const clientX = e.clientX || (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientX : 0);
+                    const clientY = e.clientY || (e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches[0].clientY : 0);
+
+                    if (!clientX && !clientY) {
+                        console.warn("No coordinates found in event");
+                        return;
+                    }
+
+                    const coords = getRelativeCoords(clientX, clientY);
+                    if (isNaN(coords.x) || isNaN(coords.y)) {
+                        console.error("Invalid coords:", coords);
+                        return;
+                    }
+
+                    const clickX = coords.x;
+                    const clickY = coords.y;
+
+                    if (!isDrawingArea) {
+                        // START DRAWING
+                        isDrawingArea = true;
+                        areaStartX = clickX;
+                        areaStartY = clickY;
+
+                        // Create temp visual
+                        if (tempAreaRect) tempAreaRect.remove(); // Cleanup if exists
+
+                        tempAreaRect = document.createElement('div');
+                        tempAreaRect.style.position = 'absolute';
+                        tempAreaRect.style.border = '2px dashed #2563eb';
+                        tempAreaRect.style.backgroundColor = 'rgba(37, 99, 235, 0.2)';
+                        tempAreaRect.style.left = areaStartX + 'px';
+                        tempAreaRect.style.top = areaStartY + 'px';
+                        tempAreaRect.style.width = '0px';
+                        tempAreaRect.style.height = '0px';
+                        tempAreaRect.style.pointerEvents = 'none';
+                        pinesLayer.appendChild(tempAreaRect);
+
+                        showToast("Mueve el cursor y haz clic para terminar", "info");
+
+                    } else {
+                        // FINISH DRAWING
+                        finishAreaDraw();
+                    }
+                } catch (err) {
+                    console.error("Error handling area click:", err);
+                    isDrawingArea = false;
+                    if (tempAreaRect) { tempAreaRect.remove(); tempAreaRect = null; }
+                }
+            }
+
+            function finishAreaDraw() {
                 isDrawingArea = false;
-                if (tempAreaRect) { tempAreaRect.remove(); tempAreaRect = null; }
+                if (!tempAreaRect) return;
+
+                const width = parseFloat(tempAreaRect.style.width);
+                const height = parseFloat(tempAreaRect.style.height);
+                const left = parseFloat(tempAreaRect.style.left);
+                const top = parseFloat(tempAreaRect.style.top);
+
+                tempAreaRect.remove();
+                tempAreaRect = null;
+
+                if (width < 20 || height < 20) {
+                    showToast("Área demasiado pequeña", "warning");
+                    return;
+                }
+
+                createAreaAt(left, top, width, height);
+
+                // Optional: Switch back to pan tool after drawing?
+                // setTool('pan'); 
             }
-        }
 
-        function finishAreaDraw() {
-            isDrawingArea = false;
-            if (!tempAreaRect) return;
+            // Mouse move to update rect size
+            document.addEventListener('mousemove', moveAreaDraw);
+            // document.addEventListener('touchmove', ...) // Touch move handling
 
-            const width = parseFloat(tempAreaRect.style.width);
-            const height = parseFloat(tempAreaRect.style.height);
-            const left = parseFloat(tempAreaRect.style.left);
-            const top = parseFloat(tempAreaRect.style.top);
+            function moveAreaDraw(e) {
+                if (!isDrawingArea || !tempAreaRect) return;
 
-            tempAreaRect.remove();
-            tempAreaRect = null;
+                try {
+                    const clientX = e.clientX || (e.touches && e.touches.length > 0 ? e.touches[0].clientX : 0);
+                    const clientY = e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0);
 
-            if (width < 20 || height < 20) {
-                showToast("Área demasiado pequeña", "warning");
-                return;
+                    if (!clientX && !clientY) return;
+
+                    const coords = getRelativeCoords(clientX, clientY);
+                    if (isNaN(coords.x) || isNaN(coords.y)) return;
+
+                    const currentX = coords.x;
+                    const currentY = coords.y;
+
+                    const width = Math.abs(currentX - areaStartX);
+                    const height = Math.abs(currentY - areaStartY);
+                    const left = Math.min(areaStartX, currentX);
+                    const top = Math.min(areaStartY, currentY);
+
+                    tempAreaRect.style.width = width + 'px';
+                    tempAreaRect.style.height = height + 'px';
+                    tempAreaRect.style.left = left + 'px';
+                    tempAreaRect.style.top = top + 'px';
+                } catch (err) {
+                    console.error("Error moving area:", err);
+                }
             }
 
-            createAreaAt(left, top, width, height);
+            // Remove old mouseup/touchend listeners for endAreaDraw as we use click now
+            // document.removeEventListener('mouseup', endAreaDraw); 
 
-            // Optional: Switch back to pan tool after drawing?
-            // setTool('pan'); 
-        }
+            function createAreaAt(x, y, w, h) {
+                const pinId = 'temp-' + Date.now();
+                const pin = document.createElement('div');
+                pin.className = 'pin pin-area';
+                pin.id = pinId;
+                pin.dataset.id = '';
 
-        // Mouse move to update rect size
-        document.addEventListener('mousemove', moveAreaDraw);
-        // document.addEventListener('touchmove', ...) // Touch move handling
+                // Style directly here or class
+                pin.style.position = 'absolute';
+                pin.style.left = x + 'px';
+                pin.style.top = y + 'px';
+                pin.style.width = w + 'px';
+                pin.style.height = h + 'px';
+                pin.style.border = '2px solid #16a34a';
+                pin.style.backgroundColor = 'rgba(22, 163, 74, 0.2)';
+                pin.style.cursor = 'pointer';
+                pin.style.zIndex = 10;
+                pin.style.pointerEvents = 'auto';
 
-        function moveAreaDraw(e) {
-            if (!isDrawingArea || !tempAreaRect) return;
+                pin.dataset.x = x;
+                pin.dataset.y = y;
+                pin.dataset.ancho = w;
+                pin.dataset.alto = h;
+                pin.dataset.pinType = 'ubicacion';
+                pin.dataset.label = 'Nueva Zona';
 
-            try {
-                const clientX = e.clientX || (e.touches && e.touches.length > 0 ? e.touches[0].clientX : 0);
-                const clientY = e.clientY || (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0);
+                pin.innerHTML = '<span class="pin-area-label" style="position: absolute; top: 0; left: 0; background: #16a34a; color: white; padding: 2px 4px; font-size: 10px;">Nueva Zona</span>';
 
-                if (!clientX && !clientY) return;
+                pinesLayer.appendChild(pin);
+                openPinInfo(pin);
 
-                const coords = getRelativeCoords(clientX, clientY);
-                if (isNaN(coords.x) || isNaN(coords.y)) return;
-
-                const currentX = coords.x;
-                const currentY = coords.y;
-
-                const width = Math.abs(currentX - areaStartX);
-                const height = Math.abs(currentY - areaStartY);
-                const left = Math.min(areaStartX, currentX);
-                const top = Math.min(areaStartY, currentY);
-
-                tempAreaRect.style.width = width + 'px';
-                tempAreaRect.style.height = height + 'px';
-                tempAreaRect.style.left = left + 'px';
-                tempAreaRect.style.top = top + 'px';
-            } catch (err) {
-                console.error("Error moving area:", err);
+                document.getElementById('pin-ancho').value = Math.round(w);
+                document.getElementById('pin-alto').value = Math.round(h);
             }
-        }
 
-        // Remove old mouseup/touchend listeners for endAreaDraw as we use click now
-        // document.removeEventListener('mouseup', endAreaDraw); 
+            // Hover dynamic info for simple pins (points)
+            pinesLayer.addEventListener('mousemove', (e) => {
+                if (isDrawingArea) return; // Don't hover while drawing
 
-        function createAreaAt(x, y, w, h) {
-            const pinId = 'temp-' + Date.now();
-            const pin = document.createElement('div');
-            pin.className = 'pin pin-area';
-            pin.id = pinId;
-            pin.dataset.id = '';
+                const pin = e.target.closest('.pin');
+                // If it's an area, maybe show different info or nothing for now to keep it simple
+                if (pin && currentTool === 'pan') {
+                    hoverActivo.innerText = pin.dataset.label;
+                    hoverNota.innerText = pin.dataset.nota || '';
 
-            // Style directly here or class
-            pin.style.position = 'absolute';
-            pin.style.left = x + 'px';
-            pin.style.top = y + 'px';
-            pin.style.width = w + 'px';
-            pin.style.height = h + 'px';
-            pin.style.border = '2px solid #16a34a';
-            pin.style.backgroundColor = 'rgba(22, 163, 74, 0.2)';
-            pin.style.cursor = 'pointer';
-            pin.style.zIndex = 10;
+                    const avisoMeta = document.getElementById('hover-aviso-info');
+                    const avisoDetail = document.getElementById('hover-aviso-detail');
+                    const badge = document.getElementById('hover-badge');
 
-            pin.dataset.x = x;
-            pin.dataset.y = y;
-            pin.dataset.ancho = w;
-            pin.dataset.alto = h;
-            pin.dataset.pinType = 'ubicacion';
-            pin.dataset.label = 'Nueva Zona';
+                    if (pin.dataset.aviso) {
+                        avisoMeta.style.display = 'block';
+                        badge.style.display = 'inline-block';
+                        badge.innerText = 'AVISO';
+                        badge.style.background = '#fee2e2';
+                        badge.style.color = '#991b1b';
 
-            pin.innerHTML = '<span class="pin-area-label" style="position: absolute; top: 0; left: 0; background: #16a34a; color: white; padding: 2px 4px; font-size: 10px;">Nueva Zona</span>';
-
-            pinesLayer.appendChild(pin);
-            openPinInfo(pin);
-
-            document.getElementById('pin-ancho').value = Math.round(w);
-            document.getElementById('pin-alto').value = Math.round(h);
-        }
-
-        // Hover dynamic info for simple pins (points)
-        pinesLayer.addEventListener('mousemove', (e) => {
-            if (isDrawingArea) return; // Don't hover while drawing
-
-            const pin = e.target.closest('.pin');
-            // If it's an area, maybe show different info or nothing for now to keep it simple
-            if (pin && currentTool === 'pan') {
-                hoverActivo.innerText = pin.dataset.label;
-                hoverNota.innerText = pin.dataset.nota || '';
-
-                const avisoMeta = document.getElementById('hover-aviso-info');
-                const avisoDetail = document.getElementById('hover-aviso-detail');
-                const badge = document.getElementById('hover-badge');
-
-                if (pin.dataset.aviso) {
-                    avisoMeta.style.display = 'block';
-                    badge.style.display = 'inline-block';
-                    badge.innerText = 'AVISO';
-                    badge.style.background = '#fee2e2';
-                    badge.style.color = '#991b1b';
-
-                    try {
-                        const meta = JSON.parse(pin.dataset.avisoMeta || '{}');
-                        avisoDetail.innerHTML = `
+                        try {
+                            const meta = JSON.parse(pin.dataset.avisoMeta || '{}');
+                            avisoDetail.innerHTML = `
                             <strong>Prioridad:</strong> ${meta.prioridad || '-'}<br>
                             <strong>Estado:</strong> ${meta.estado || '-'}<br>
                             <strong>Reportado por:</strong> ${meta.solicitante || '-'}<br>
@@ -1798,692 +1871,841 @@
                                 ${meta.descripcion || ''}
                             </div>
                         `;
-                    } catch (e) { avisoDetail.innerText = 'Error cargando datos del aviso'; }
+                        } catch (e) { avisoDetail.innerText = 'Error cargando datos del aviso'; }
+                    } else {
+                        avisoMeta.style.display = 'none';
+                        badge.style.display = 'none';
+                    }
+
+                    // Cargar mini galería
+                    hoverGallery.innerHTML = '';
+                    try {
+                        const fotos = JSON.parse(pin.dataset.fotos || '[]');
+                        fotos.slice(0, 3).forEach(src => {
+                            const img = document.createElement('img');
+                            img.src = src;
+                            img.style.cursor = 'pointer';
+                            img.onclick = (e) => {
+                                e.stopPropagation();
+                                openLightbox(src);
+                            };
+                            hoverGallery.appendChild(img);
+                        });
+                    } catch (e) { }
+
+                    hoverCard.classList.add('active');
+
+                    // Posicionar cerca del mouse
+                    const cardWidth = 250;
+                    let x = e.clientX + 20;
+                    let y = e.clientY + 20;
+
+                    if (x + cardWidth > window.innerWidth) x = e.clientX - cardWidth - 20;
+
+                    hoverCard.style.left = x + 'px';
+                    hoverCard.style.top = y + 'px';
                 } else {
-                    avisoMeta.style.display = 'none';
-                    badge.style.display = 'none';
+                    hoverCard.classList.remove('active');
+                }
+            });
+
+            pinesLayer.addEventListener('mouseleave', () => {
+                hoverCard.classList.remove('active');
+            }, true);
+
+            // Coords Display Logic
+            const coordsDisplay = document.getElementById('coords-display');
+            const valX = document.getElementById('val-x');
+            const valY = document.getElementById('val-y');
+
+            zoomContainer.addEventListener('mousemove', (e) => {
+                if (currentTool !== 'add' && !pinToRelocate) {
+                    coordsDisplay.classList.remove('active');
+                    return;
                 }
 
-                // Cargar mini galería
-                hoverGallery.innerHTML = '';
+                const rect = zoomContainer.getBoundingClientRect();
+                if (rect.width === 0) return;
+
+                const coords = getRelativeCoords(e.clientX, e.clientY);
+                const x = coords.x;
+                const y = coords.y;
+
+                if (x >= 0 && x <= parseFloat(zoomContainer.style.width) && y >= 0 && y <= parseFloat(zoomContainer.style.height)) {
+                    coordsDisplay.classList.add('active');
+                    valX.innerText = x.toFixed(1) + 'px';
+                    valY.innerText = y.toFixed(1) + 'px';
+                } else {
+                    coordsDisplay.classList.remove('active');
+                }
+            });
+
+            // Click on plano
+            zoomContainer.addEventListener('click', (e) => {
+                if (pinToRelocate) {
+                    relocatePinAt(e);
+                    return;
+                }
+
+                if (currentTool !== 'add') return;
+                if (e.target.closest('.pin')) return;
+
+                const rect = zoomContainer.getBoundingClientRect();
+                if (rect.width === 0) return;
+
+                // Cálculo en píxeles ABSOLUTOS del documento
+                const coords = getRelativeCoords(e.clientX, e.clientY);
+                const x = coords.x;
+                const y = coords.y;
+
+                console.log(`[PIXEL DEBUG] Click at: ${x.toFixed(1)}px, ${y.toFixed(1)}px (Scale: ${scale.toFixed(2)})`);
+
+                if (x >= 0 && x <= parseFloat(zoomContainer.style.width) && y >= 0 && y <= parseFloat(zoomContainer.style.height)) {
+                    createNewPin(x, y);
+                    setTool('pan');
+                }
+            });
+
+
+            // Context Menu handling
+            pinesLayer.addEventListener('contextmenu', (e) => {
+                const pin = e.target.closest('.pin');
+                if (pin) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    activePin = pin;
+                    showContextMenu(e.clientX, e.clientY);
+                }
+            });
+
+            document.addEventListener('click', () => hideContextMenu());
+
+            function showContextMenu(x, y) {
+                const menu = document.getElementById('context-menu');
+                menu.style.display = 'block';
+
+                // Ajustar posición para que no se salga de pantalla
+                const menuWidth = 180;
+                const menuHeight = 120;
+
+                let posX = x;
+                let posY = y;
+
+                if (x + menuWidth > window.innerWidth) posX = x - menuWidth;
+                if (y + menuHeight > window.innerHeight) posY = y - menuHeight;
+
+                menu.style.left = posX + 'px';
+                menu.style.top = posY + 'px';
+
+                // Show/Hide "View Routines" based on pin type
+                const btnRoutines = document.getElementById('ctx-btn-routines');
+                const btnOpenLoc = document.getElementById('ctx-btn-open-loc');
+                const isUbi = activePin && (activePin.dataset.pinType === 'ubicacion' || activePin.classList.contains('pin-area'));
+
+                if (isUbi) {
+                    btnRoutines.style.display = 'flex';
+                    btnOpenLoc.style.display = 'flex';
+                } else {
+                    btnRoutines.style.display = 'none';
+                    btnOpenLoc.style.display = 'none';
+                }
+            }
+
+            function openLocationCheck() {
+                if (!activePin) return;
+
+                const ubiId = activePin.dataset.ubicacion;
+                if (ubiId) {
+                    // Open admin or specific detail view
+                    window.open(`/admin/activos/ubicacion/${ubiId}/change/`, '_blank');
+                } else {
+                    showToast('Esta área no tiene ID de ubicación asignado.', 'warning');
+                }
+                hideContextMenu();
+            }
+
+            function hideContextMenu() {
+                document.getElementById('context-menu').style.display = 'none';
+            }
+
+            // Panel Control Functions
+            function openInfoPanel() {
+                // Close edit panel if open
+                const pinPanel = document.getElementById('pin-panel');
+                if (pinPanel) pinPanel.classList.remove('active');
+
+                document.getElementById('info-panel').style.right = '0';
+            }
+
+            function closeInfoPanel() {
+                document.getElementById('info-panel').style.right = '-400px';
+            }
+
+            // Updated Show Routines Logic
+            async function showAreaRoutines() {
+                hideContextMenu();
+                const content = document.getElementById('info-panel-content');
+
+                if (!activePin || !activePin.dataset.ubicacion) {
+                    showToast('Error: No hay ubicación vinculada a este pin', 'error');
+                    return;
+                }
+
+                openInfoPanel();
+
+                content.innerHTML = `
+                     <div style="text-align: center; color: #64748b; padding: 40px 20px;">
+                         <div class="spinner" style="border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 15px;"></div>
+                         <p style="font-size:0.9rem;">Consultando rutinas de mantenimiento...</p>
+                         <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+                     </div>
+                 `;
+
                 try {
-                    const fotos = JSON.parse(pin.dataset.fotos || '[]');
-                    fotos.slice(0, 3).forEach(src => {
-                        const img = document.createElement('img');
-                        img.src = src;
-                        img.style.cursor = 'pointer';
-                        img.onclick = (e) => {
-                            e.stopPropagation();
-                            openLightbox(src);
-                        };
-                        hoverGallery.appendChild(img);
-                    });
-                } catch (e) { }
+                    const ubiId = activePin.dataset.ubicacion;
+                    const response = await fetch(`/activos/api/get_rutinas_ubicacion/?id=${ubiId}`);
 
-                hoverCard.classList.add('active');
+                    if (!response.ok) throw new Error("Error en la conexión");
 
-                // Posicionar cerca del mouse
-                const cardWidth = 250;
-                let x = e.clientX + 20;
-                let y = e.clientY + 20;
+                    const data = await response.json();
 
-                if (x + cardWidth > window.innerWidth) x = e.clientX - cardWidth - 20;
+                    let html = '';
 
-                hoverCard.style.left = x + 'px';
-                hoverCard.style.top = y + 'px';
-            } else {
-                hoverCard.classList.remove('active');
+                    // Header info
+                    html += `
+                        <div style="padding: 20px; border-bottom: 1px solid #f1f5f9;">
+                            <small style="color: #64748b; text-transform: uppercase; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px;">Ubicación</small>
+                            <div style="font-size: 1.1rem; font-weight: 600; color: #0f172a; margin-top: 4px;">${activePin.dataset.label || 'Zona Seleccionada'}</div>
+                        </div>
+                     `;
+
+                    if (data.rutinas && data.rutinas.length > 0) {
+                        html += '<div style="padding: 20px;">';
+                        html += '<h4 style="margin: 0 0 15px 0; font-size: 0.9rem; color: #334155;">Rutinas Programadas</h4>';
+
+                        html += '<ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">';
+                        data.rutinas.forEach(r => {
+                            html += `
+                                <li style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white; transition: box-shadow 0.2s;">
+                                    <div style="padding: 12px; border-left: 4px solid var(--primary);">
+                                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${r.nombre}</div>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.75rem;">
+                                            <span style="background: #eff6ff; color: #2563eb; padding: 2px 8px; border-radius: 4px;">${r.frecuencia}</span>
+                                            <span style="background: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 4px;">${r.categoria}</span>
+                                            <span style="background: #f0fdf4; color: #166534; padding: 2px 8px; border-radius: 4px;">⏱ ${r.tiempo}</span>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; border-top: 1px solid #f1f5f9;">
+                                        <a href="/admin/mantenimiento/rutina/${r.id}/change/" target="_blank" 
+                                           style="flex: 1; background: #f8fafc; padding: 10px; text-align: center; color: #64748b; font-size: 0.8rem; text-decoration: none; font-weight: 500; border-right: 1px solid #e2e8f0;">
+                                           Detalles
+                                        </a>
+                                        <a href="/mantenimiento/app/crear-ot-rutina/${r.id}/?ubicacion_id=${ubiId}" 
+                                           style="flex: 1; background: #f0fdf4; padding: 10px; text-align: center; color: #15803d; font-size: 0.8rem; text-decoration: none; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                                           <ion-icon name="add-circle"></ion-icon> Crear OT
+                                        </a>
+                                    </div>
+                                </li>
+                             `;
+                        });
+                        html += '</ul></div>';
+                    } else {
+                        html += `
+                            <div style="text-align: center; padding: 40px 20px; color: #94a3b8;">
+                                <div style="background: #f1f5f9; height: 60px; width: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;">
+                                    <ion-icon name="checkmark-done-outline" style="font-size: 1.8rem; opacity: 0.5;"></ion-icon>
+                                </div>
+                                <p style="margin: 0; font-weight: 500; color: #64748b;">Sin rutinas asignadas</p>
+                                <p style="font-size: 0.85rem; margin-top: 5px;">No hay mantenimiento programado para la categoría de esta ubicación.</p>
+                            </div>
+                         `;
+                    }
+
+                    content.innerHTML = html;
+
+                } catch (e) {
+                    console.error(e);
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 40px 20px;">
+                            <ion-icon name="alert-circle-outline" style="font-size: 3rem; color: #ef4444; margin-bottom: 10px;"></ion-icon>
+                            <p style="color: #ef4444; font-weight: 600;">Error de conexión</p>
+                            <small style="color: #64748b;">No se pudo obtener la información. Intente nuevamente.</small>
+                        </div>
+                     `;
+                }
             }
-        });
 
-        pinesLayer.addEventListener('mouseleave', () => {
-            hoverCard.classList.remove('active');
-        }, true);
+            function startRelocation() {
+                if (!activePin) return;
+                pinToRelocate = activePin;
 
-        // Coords Display Logic
-        const coordsDisplay = document.getElementById('coords-display');
-        const valX = document.getElementById('val-x');
-        const valY = document.getElementById('val-y');
+                // Cargar datos actuales en campos para no perderlos al guardar
+                document.getElementById('pin-activo').value = activePin.dataset.activo || '';
+                document.getElementById('pin-aviso').value = activePin.dataset.aviso || '';
+                document.getElementById('pin-color').value = activePin.dataset.color || '#FF0000';
+                document.getElementById('pin-nota').value = activePin.dataset.nota || '';
 
-        zoomContainer.addEventListener('mousemove', (e) => {
-            if (currentTool !== 'add' && !pinToRelocate) {
-                coordsDisplay.classList.remove('active');
-                return;
+                hideContextMenu();
+                showToast('Modo Relocalización: Haga clic donde desea mover el pin');
+                zoomContainer.style.cursor = 'crosshair';
+                // Resaltar pin que se está moviendo
+                pinToRelocate.style.opacity = '0.5';
+
+                if (pinToRelocate.classList.contains('pin-area') || pinToRelocate.dataset.pinType === 'ubicacion') {
+                    // For areas, scale from top-left (0,0) as they are positioned by top/left corner
+                    pinToRelocate.style.transformOrigin = '0 0';
+                    pinToRelocate.style.transform = 'scale(1.05)';
+                } else {
+                    // For pins, scale from bottom-center
+                    pinToRelocate.style.transform = 'translate(-50%, -100%) scale(1.5)';
+                }
             }
 
-            const rect = zoomContainer.getBoundingClientRect();
-            if (rect.width === 0) return;
+            function relocatePinAt(e) {
+                const rect = zoomContainer.getBoundingClientRect();
+                if (rect.width === 0) return;
 
-            const coords = getRelativeCoords(e.clientX, e.clientY);
-            const x = coords.x;
-            const y = coords.y;
+                const coords = getRelativeCoords(e.clientX, e.clientY);
+                const x = coords.x;
+                const y = coords.y;
 
-            if (x >= 0 && x <= parseFloat(zoomContainer.style.width) && y >= 0 && y <= parseFloat(zoomContainer.style.height)) {
-                coordsDisplay.classList.add('active');
-                valX.innerText = x.toFixed(1) + 'px';
-                valY.innerText = y.toFixed(1) + 'px';
-            } else {
-                coordsDisplay.classList.remove('active');
+                if (x >= 0 && x <= parseFloat(zoomContainer.style.width) && y >= 0 && y <= parseFloat(zoomContainer.style.height)) {
+                    activePin = pinToRelocate;
+                    activePin.style.left = x.toFixed(1) + 'px';
+                    activePin.style.top = y.toFixed(1) + 'px';
+                    activePin.dataset.x = x.toFixed(1);
+                    activePin.dataset.y = y.toFixed(1);
+                    activePin.style.opacity = '1';
+                    activePin.style.transform = ''; // Clear inline transform to revert to CSS hover/default
+
+                    savePin();
+                    pinToRelocate = null;
+                    zoomContainer.style.cursor = 'grab';
+                    showToast("Ubicación actualizada (Píxeles)");
+                }
             }
-        });
 
-        // Click on plano
-        zoomContainer.addEventListener('click', (e) => {
-            if (pinToRelocate) {
-                relocatePinAt(e);
-                return;
+            function editActivePin() {
+                if (!activePin) return;
+                hideContextMenu();
+                openPinInfo(activePin);
             }
 
-            if (currentTool !== 'add') return;
-            if (e.target.closest('.pin')) return;
 
-            const rect = zoomContainer.getBoundingClientRect();
-            if (rect.width === 0) return;
+            function createNewPin(x, y, pinType = null) {
+                const tempId = 'temp-' + Date.now();
+                const pin = document.createElement('div');
+                pin.className = 'pin';
+                pin.id = tempId;
+                pin.style.left = x + 'px';
+                pin.style.top = y + 'px';
+                pin.dataset.x = x.toFixed(1);
+                pin.dataset.y = y.toFixed(1);
+                pin.dataset.fotos = '[]';
+                pin.dataset.pinType = pinType || 'libre';
 
-            // Cálculo en píxeles ABSOLUTOS del documento
-            const coords = getRelativeCoords(e.clientX, e.clientY);
-            const x = coords.x;
-            const y = coords.y;
+                // Set icon and color based on type
+                const typeConfig = {
+                    activo: { icon: 'cube', color: '#3b82f6' },
+                    aviso: { icon: 'warning', color: '#ef4444' },
+                    actividad: { icon: 'construct', color: '#10b981' },
+                    libre: { icon: 'location', color: '#6366f1' }
+                };
+                const config = typeConfig[pinType] || typeConfig.libre;
 
-            console.log(`[PIXEL DEBUG] Click at: ${x.toFixed(1)}px, ${y.toFixed(1)}px (Scale: ${scale.toFixed(2)})`);
+                pin.dataset.icon = config.icon;
+                pin.style.color = config.color;
+                pin.style.pointerEvents = 'auto';
 
-            if (x >= 0 && x <= parseFloat(zoomContainer.style.width) && y >= 0 && y <= parseFloat(zoomContainer.style.height)) {
-                createNewPin(x, y);
-                setTool('pan');
-            }
-        });
+                // Build Label HTML based on type
+                let labelHtml = 'Sin asignar';
+                if (pinType === 'actividad') labelHtml = '<span style="color: var(--primary); font-weight: 800;">[TAREA]</span> ...';
+                else if (pinType === 'activo') labelHtml = '<span style="color: #28a745; font-weight: 800;">[ACTIVO]</span> ...';
+                else if (pinType === 'aviso') labelHtml = '<span style="color: #dc3545; font-weight: 800;">[AVISO]</span> ...';
 
-
-        // Context Menu handling
-        pinesLayer.addEventListener('contextmenu', (e) => {
-            const pin = e.target.closest('.pin');
-            if (pin) {
-                e.preventDefault();
-                e.stopPropagation();
-                activePin = pin;
-                showContextMenu(e.clientX, e.clientY);
-            }
-        });
-
-        document.addEventListener('click', () => hideContextMenu());
-
-        function showContextMenu(x, y) {
-            const menu = document.getElementById('context-menu');
-            menu.style.display = 'block';
-
-            // Ajustar posición para que no se salga de pantalla
-            const menuWidth = 180;
-            const menuHeight = 120;
-
-            let posX = x;
-            let posY = y;
-
-            if (x + menuWidth > window.innerWidth) posX = x - menuWidth;
-            if (y + menuHeight > window.innerHeight) posY = y - menuHeight;
-
-            menu.style.left = posX + 'px';
-            menu.style.top = posY + 'px';
-        }
-
-        function hideContextMenu() {
-            document.getElementById('context-menu').style.display = 'none';
-        }
-
-        function startRelocation() {
-            if (!activePin) return;
-            pinToRelocate = activePin;
-
-            // Cargar datos actuales en campos para no perderlos al guardar
-            document.getElementById('pin-activo').value = activePin.dataset.activo || '';
-            document.getElementById('pin-aviso').value = activePin.dataset.aviso || '';
-            document.getElementById('pin-color').value = activePin.dataset.color || '#FF0000';
-            document.getElementById('pin-nota').value = activePin.dataset.nota || '';
-
-            hideContextMenu();
-            showToast('Modo Relocalización: Haga clic donde desea mover el pin');
-            zoomContainer.style.cursor = 'crosshair';
-            // Resaltar pin que se está moviendo
-            pinToRelocate.style.opacity = '0.5';
-            pinToRelocate.style.transform = 'translate(-50%, -100%) scale(1.5)';
-        }
-
-        function relocatePinAt(e) {
-            const rect = zoomContainer.getBoundingClientRect();
-            if (rect.width === 0) return;
-
-            const coords = getRelativeCoords(e.clientX, e.clientY);
-            const x = coords.x;
-            const y = coords.y;
-
-            if (x >= 0 && x <= parseFloat(zoomContainer.style.width) && y >= 0 && y <= parseFloat(zoomContainer.style.height)) {
-                activePin = pinToRelocate;
-                activePin.style.left = x.toFixed(1) + 'px';
-                activePin.style.top = y.toFixed(1) + 'px';
-                activePin.dataset.x = x.toFixed(1);
-                activePin.dataset.y = y.toFixed(1);
-                activePin.style.opacity = '1';
-                activePin.style.transform = '';
-
-                savePin();
-                pinToRelocate = null;
-                zoomContainer.style.cursor = 'grab';
-                showToast("Ubicación actualizada (Píxeles)");
-            }
-        }
-
-        function editActivePin() {
-            if (!activePin) return;
-            hideContextMenu();
-            openPinInfo(activePin);
-        }
-
-
-        function createNewPin(x, y, pinType = null) {
-            const tempId = 'temp-' + Date.now();
-            const pin = document.createElement('div');
-            pin.className = 'pin';
-            pin.id = tempId;
-            pin.style.left = x + 'px';
-            pin.style.top = y + 'px';
-            pin.dataset.x = x.toFixed(1);
-            pin.dataset.y = y.toFixed(1);
-            pin.dataset.fotos = '[]';
-            pin.dataset.pinType = pinType || 'libre';
-
-            // Set icon and color based on type
-            const typeConfig = {
-                activo: { icon: 'cube', color: '#3b82f6' },
-                aviso: { icon: 'warning', color: '#ef4444' },
-                actividad: { icon: 'construct', color: '#10b981' },
-                libre: { icon: 'location', color: '#6366f1' }
-            };
-            const config = typeConfig[pinType] || typeConfig.libre;
-
-            pin.dataset.icon = config.icon;
-            pin.style.color = config.color;
-            pin.style.pointerEvents = 'auto';
-
-            // Build Label HTML based on type
-            let labelHtml = 'Sin asignar';
-            if (pinType === 'actividad') labelHtml = '<span style="color: var(--primary); font-weight: 800;">[TAREA]</span> ...';
-            else if (pinType === 'activo') labelHtml = '<span style="color: #28a745; font-weight: 800;">[ACTIVO]</span> ...';
-            else if (pinType === 'aviso') labelHtml = '<span style="color: #dc3545; font-weight: 800;">[AVISO]</span> ...';
-
-            pin.innerHTML = `
+                pin.innerHTML = `
                 <ion-icon name="${config.icon}"></ion-icon>
                 <div class="pin-label-permanent">${labelHtml}</div>
             `;
 
-            pinesLayer.appendChild(pin);
-            pendingPinType = pinType;
-            openPinInfo(pin);
-        }
-
-        // ========== Radial Menu Functions ==========
-        function showRadialMenu(screenX, screenY) {
-            radialMenu.style.left = (screenX - 30) + 'px';
-            radialMenu.style.top = (screenY - 30) + 'px';
-            radialMenu.classList.add('active');
-        }
-
-        function hideRadialMenu() {
-            radialMenu.classList.remove('active');
-        }
-
-        function createTypedPin(type) {
-            hideRadialMenu();
-            createNewPin(longPressPos.x, longPressPos.y, type);
-        }
-
-        // ========== Long Press Detection ==========
-        function startLongPress(e) {
-            if (e.target.closest('.pin') || e.target.closest('#pin-panel')) return;
-            if (radialMenu.classList.contains('active')) {
-                hideRadialMenu();
-                return;
-            }
-
-            // Store both screen and canvas coordinates
-            longPressPos.screenX = e.clientX;
-            longPressPos.screenY = e.clientY;
-
-            const coords = getRelativeCoords(e.clientX, e.clientY);
-            longPressPos.x = coords.x;
-            longPressPos.y = coords.y;
-
-            // Show pulse indicator
-            longPressIndicator.style.left = e.clientX + 'px';
-            longPressIndicator.style.top = e.clientY + 'px';
-            longPressIndicator.classList.add('active');
-
-            longPressTimer = setTimeout(() => {
-                longPressIndicator.classList.remove('active');
-                showRadialMenu(e.clientX, e.clientY);
-            }, LONG_PRESS_DURATION);
-        }
-
-        function cancelLongPress() {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-            longPressIndicator.classList.remove('active');
-        }
-
-        // Attach long press listeners to zoom container
-        zoomContainer.addEventListener('mousedown', startLongPress);
-        zoomContainer.addEventListener('mouseup', cancelLongPress);
-        zoomContainer.addEventListener('mouseleave', cancelLongPress);
-        zoomContainer.addEventListener('mousemove', (e) => {
-            // Cancel if moved more than 10px
-            if (longPressTimer) {
-                const dx = Math.abs(e.clientX - longPressPos.screenX);
-                const dy = Math.abs(e.clientY - longPressPos.screenY);
-                if (dx > 10 || dy > 10) cancelLongPress();
-            }
-        });
-
-        // Touch support
-        zoomContainer.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                const touch = e.touches[0];
-                startLongPress({ clientX: touch.clientX, clientY: touch.clientY, target: e.target });
-            }
-        });
-        zoomContainer.addEventListener('touchend', cancelLongPress);
-        zoomContainer.addEventListener('touchcancel', cancelLongPress);
-        zoomContainer.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 1 && longPressTimer) {
-                const touch = e.touches[0];
-                const dx = Math.abs(touch.clientX - longPressPos.screenX);
-                const dy = Math.abs(touch.clientY - longPressPos.screenY);
-                if (dx > 10 || dy > 10) cancelLongPress();
-            }
-        });
-
-        // Close radial menu on click outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('#radial-menu') && radialMenu.classList.contains('active')) {
-                hideRadialMenu();
-            }
-        });
-
-        function handleFiles(files) {
-            selectedFiles = Array.from(files);
-            renderPanelGallery();
-        }
-
-        function renderPanelGallery() {
-            panelGallery.innerHTML = '';
-
-            // Mostrar archivos seleccionados
-            selectedFiles.forEach((file, index) => {
-                const item = document.createElement('div');
-                item.className = 'photo-item';
-                const img = document.createElement('img');
-                const url = URL.createObjectURL(file);
-                img.src = url;
-                img.style.cursor = 'pointer';
-                img.onclick = () => openLightbox(url);
-                item.appendChild(img);
-                panelGallery.appendChild(item);
-            });
-        }
-
-        // Delegation for pin clicks
-        pinesLayer.addEventListener('click', (e) => {
-            const pin = e.target.closest('.pin');
-            if (pin) {
-                e.stopPropagation();
+                pinesLayer.appendChild(pin);
+                pendingPinType = pinType;
                 openPinInfo(pin);
             }
-        });
 
-        function switchPinTab(type) {
-            // Update tabs
-            document.querySelectorAll('.pin-type-tab').forEach(t => t.classList.remove('active'));
-            const tab = document.querySelector(`.pin-type-tab.tab-${type}`);
-            if (tab) tab.classList.add('active');
-
-            // Update content
-            document.querySelectorAll('.pin-type-content').forEach(c => c.classList.remove('active'));
-            const content = document.getElementById(`tab-content-${type}`);
-            if (content) content.classList.add('active');
-        }
-
-        function openPinInfo(pin) {
-            activePin = pin;
-            pinPanel.classList.add('active');
-            selectedFiles = [];
-
-            const selectActivo = document.getElementById('pin-activo');
-            const activoId = pin.dataset.activo || '';
-            const avisoId = pin.dataset.aviso || '';
-            const actividadId = pin.dataset.actividad || '';
-
-            // Ensure the asset option exists in the select
-            if (activoId && !selectActivo.querySelector(`option[value="${activoId}"]`)) {
-                // Determine name from label or fallback
-                let assetName = pin.dataset.label;
-                // Clean up label if it has prefixes like [ACTIVO] (though data-label usually is just the name based on template)
-                // In template: data-label="{{ pin.activo.nombre }}"
-
-                const opt = document.createElement('option');
-                opt.value = activoId;
-                opt.text = assetName;
-                selectActivo.appendChild(opt);
+            // ========== Radial Menu Functions ==========
+            function showRadialMenu(screenX, screenY) {
+                radialMenu.style.left = (screenX - 30) + 'px';
+                radialMenu.style.top = (screenY - 30) + 'px';
+                radialMenu.classList.add('active');
             }
 
-            selectActivo.value = activoId;
-            document.getElementById('pin-aviso').value = avisoId;
-            document.getElementById('pin-actividad').value = actividadId;
-            document.getElementById('pin-color').value = pin.dataset.color || '#FF0000';
-            document.getElementById('pin-nota').value = pin.dataset.nota || '';
-            document.getElementById('btn-delete').style.display = pin.id.startsWith('temp') ? 'none' : 'flex';
-
-            document.getElementById('pin-ubicacion').value = pin.dataset.ubicacion || '';
-            document.getElementById('pin-ancho').value = pin.dataset.ancho ? Math.round(pin.dataset.ancho) : '';
-            document.getElementById('pin-alto').value = pin.dataset.alto ? Math.round(pin.dataset.alto) : '';
-
-            // Determine and switch to correct tab
-            let type = pin.dataset.pinType;
-            if (!type) {
-                if (pin.dataset.ancho) type = 'ubicacion'; // It's a zone
-                else if (actividadId) type = 'actividad';
-                else if (avisoId) type = 'aviso';
-                else if (activoId) type = 'activo';
-                else type = 'libre'; // Default to libre if nothing linked
+            function hideRadialMenu() {
+                radialMenu.classList.remove('active');
             }
 
-            // Map legacy types or defaults
-            if (type === 'activo' && !activoId) {
-                // If it was marked as active but has no ID, let's see if it fits better elsewhere
-                if (actividadId) type = 'actividad';
-                else if (avisoId) type = 'aviso';
+            function createTypedPin(type) {
+                hideRadialMenu();
+                createNewPin(longPressPos.x, longPressPos.y, type);
             }
 
-            switchPinTab(type);
+            // ========== Long Press Detection ==========
+            function startLongPress(e) {
+                if (e.target.closest('.pin') || e.target.closest('#pin-panel')) return;
+                if (radialMenu.classList.contains('active')) {
+                    hideRadialMenu();
+                    return;
+                }
 
-            // Mostrar/Ocultar botones de detalles
-            const detailsBtnContainer = document.getElementById('details-btn-container');
-            const assetDetailsBtn = document.getElementById('btn-asset-details');
-            const noticeDetailsBtn = document.getElementById('btn-notice-details');
+                // Store both screen and canvas coordinates
+                longPressPos.screenX = e.clientX;
+                longPressPos.screenY = e.clientY;
 
-            if (activoId || avisoId) {
-                detailsBtnContainer.style.display = 'block';
-                assetDetailsBtn.style.display = activoId ? 'flex' : 'none';
-                noticeDetailsBtn.style.display = avisoId ? 'flex' : 'none';
-            } else {
-                detailsBtnContainer.style.display = 'none';
+                const coords = getRelativeCoords(e.clientX, e.clientY);
+                longPressPos.x = coords.x;
+                longPressPos.y = coords.y;
+
+                // Show pulse indicator
+                longPressIndicator.style.left = e.clientX + 'px';
+                longPressIndicator.style.top = e.clientY + 'px';
+                longPressIndicator.classList.add('active');
+
+                longPressTimer = setTimeout(() => {
+                    longPressIndicator.classList.remove('active');
+                    showRadialMenu(e.clientX, e.clientY);
+                }, LONG_PRESS_DURATION);
             }
 
-            // Mostrar fotos existentes
-            panelGallery.innerHTML = '';
-            try {
-                const fotos = JSON.parse(pin.dataset.fotos || '[]');
-                fotos.forEach(src => {
+            function cancelLongPress() {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+                longPressIndicator.classList.remove('active');
+            }
+
+            // Attach long press listeners to zoom container
+            zoomContainer.addEventListener('mousedown', startLongPress);
+            zoomContainer.addEventListener('mouseup', cancelLongPress);
+            zoomContainer.addEventListener('mouseleave', cancelLongPress);
+            zoomContainer.addEventListener('mousemove', (e) => {
+                // Cancel if moved more than 10px
+                if (longPressTimer) {
+                    const dx = Math.abs(e.clientX - longPressPos.screenX);
+                    const dy = Math.abs(e.clientY - longPressPos.screenY);
+                    if (dx > 10 || dy > 10) cancelLongPress();
+                }
+            });
+
+            // Touch support
+            zoomContainer.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    startLongPress({ clientX: touch.clientX, clientY: touch.clientY, target: e.target });
+                }
+            });
+            zoomContainer.addEventListener('touchend', cancelLongPress);
+            zoomContainer.addEventListener('touchcancel', cancelLongPress);
+            zoomContainer.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 1 && longPressTimer) {
+                    const touch = e.touches[0];
+                    const dx = Math.abs(touch.clientX - longPressPos.screenX);
+                    const dy = Math.abs(touch.clientY - longPressPos.screenY);
+                    if (dx > 10 || dy > 10) cancelLongPress();
+                }
+            });
+
+            // Close radial menu on click outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#radial-menu') && radialMenu.classList.contains('active')) {
+                    hideRadialMenu();
+                }
+            });
+
+            function handleFiles(files) {
+                selectedFiles = Array.from(files);
+                renderPanelGallery();
+            }
+
+            function renderPanelGallery() {
+                panelGallery.innerHTML = '';
+
+                // Mostrar archivos seleccionados
+                selectedFiles.forEach((file, index) => {
                     const item = document.createElement('div');
                     item.className = 'photo-item';
-                    item.innerHTML = `<img src="${src}" style="cursor: pointer;" onclick="openLightbox('${src}')">`;
+                    const img = document.createElement('img');
+                    const url = URL.createObjectURL(file);
+                    img.src = url;
+                    img.style.cursor = 'pointer';
+                    img.onclick = () => openLightbox(url);
+                    item.appendChild(img);
                     panelGallery.appendChild(item);
                 });
-            } catch (e) { }
-        }
-
-        function closePanel() {
-            if (activePin && activePin.id.startsWith('temp') && !activePin.dataset.id) {
-                activePin.remove();
-            }
-            pinPanel.classList.remove('active');
-            activePin = null;
-        }
-
-        async function savePin() {
-            if (!activePin) return;
-
-            // Leer coordenadas desde dataset para evitar errores de locale o sufijos px
-            const x = parseFloat(activePin.dataset.x);
-            const y = parseFloat(activePin.dataset.y);
-
-            if (isNaN(x) || isNaN(y)) {
-                console.error("Error: Coordenadas NaN detectadas.", activePin.dataset);
-                showToast("Error: Coordenadas inválidas", "danger");
-                return;
             }
 
-            const activoId = document.getElementById('pin-activo').value;
-            const avisoId = document.getElementById('pin-aviso').value;
-            const actividadId = document.getElementById('pin-actividad').value;
-            const ubicacionId = document.getElementById('pin-ubicacion').value;
-            const color = document.getElementById('pin-color').value;
-            const nota = document.getElementById('pin-nota').value;
+            // Delegation for pin clicks
+            pinesLayer.addEventListener('click', (e) => {
+                const pin = e.target.closest('.pin');
+                if (pin) {
+                    e.preventDefault();
+                    e.stopPropagation();
 
-            // Usar FormData para enviar archivos
-            const formData = new FormData();
-            formData.append('id', activePin.dataset.id || '');
-            formData.append('visor_id', VISOR_ID);
-            formData.append('activo_id', activoId);
-            formData.append('aviso_id', avisoId);
-            formData.append('actividad_id', actividadId);
-            formData.append('ubicacion_id', ubicacionId);
-
-            // Dimensiones para Zonas
-            if (activePin.dataset.pinType === 'ubicacion') {
-                formData.append('ancho', activePin.dataset.ancho);
-                formData.append('alto', activePin.dataset.alto);
-            }
-
-            formData.append('x', x);
-            formData.append('y', y);
-            formData.append('color', color);
-            formData.append('nota', nota);
-
-            selectedFiles.forEach(file => {
-                formData.append('fotos', file);
-            });
-
-            console.log("[SAVE DEBUG] Enviando Píxeles con fotos:", formData);
-
-            const response = await fetch('/activos/api/guardar-pin/', {
-                method: 'POST',
-                body: formData // No poner headers para que el navegador ponga el boundary
-            });
-
-            const result = await response.json();
-            if (result.status === 'success') {
-                activePin.dataset.id = result.pin_id;
-                activePin.id = 'pin-' + result.pin_id;
-                activePin.dataset.activo = result.activo_id || '';
-                activePin.dataset.aviso = result.aviso_id || '';
-                activePin.dataset.ubicacion = result.ubicacion_id || '';
-                activePin.dataset.label = result.nombre_activo;
-                activePin.dataset.color = color;
-                activePin.dataset.nota = result.nota;
-                activePin.dataset.fotos = JSON.stringify(result.fotos);
-                activePin.dataset.avisoMeta = JSON.stringify(result.aviso_meta || {});
-                activePin.dataset.x = x.toFixed(1);
-                activePin.dataset.y = y.toFixed(1);
-                activePin.dataset.icon = result.icono || 'location';
-
-                // Actualizar dimensiones si es Zona
-                if (result.ancho && result.alto) {
-                    activePin.style.width = result.ancho + 'px';
-                    activePin.style.height = result.alto + 'px';
-                    activePin.dataset.ancho = result.ancho;
-                    activePin.dataset.alto = result.alto;
-                    activePin.style.border = `2px solid ${color}`;
-                    // Fondo con opacidad
-                    activePin.style.backgroundColor = color + '33'; // ~20% opacity hex
-                } else {
-                    activePin.style.color = color;
-                    // Actualizar icono visualmente
-                    activePin.querySelector('ion-icon').name = result.icono || 'location';
-                }
-
-                // Actualizar etiqueta permanente visualmente
-                const labelEl = activePin.querySelector(result.ancho ? '.pin-area-label' : '.pin-label-permanent');
-
-                if (labelEl) {
-                    // Update dataset types
-                    if (result.actividad_id) {
-                        activePin.dataset.actividad = result.actividad_id;
-                        activePin.dataset.pinType = 'actividad';
-                    } else if (result.aviso_id) {
-                        activePin.dataset.aviso = result.aviso_id;
-                        activePin.dataset.pinType = 'aviso';
-                    } else if (result.activo_id) {
-                        activePin.dataset.activo = result.activo_id;
-                        activePin.dataset.pinType = 'activo';
-                    } else if (result.ubicacion_id) {
-                        activePin.dataset.ubicacion = result.ubicacion_id;
-                        activePin.dataset.pinType = 'ubicacion';
+                    // If currently panning and clicked on a Zone (Area), show context menu instead of panel
+                    if (currentTool === 'pan' && (pin.classList.contains('pin-area') || pin.dataset.pinType === 'ubicacion')) {
+                        activePin = pin;
+                        showContextMenu(e.clientX, e.clientY);
                     } else {
-                        activePin.dataset.pinType = 'libre';
-                    }
-
-                    // Actualizar UI del Pin
-                    let labelHtml = '';
-
-                    if (result.nombre_actividad) {
-                        labelHtml = `<span style="color: var(--primary); font-weight: 800;">[TAREA]</span> <span class="label-text">${result.nombre_actividad}</span>`;
-                    } else if (result.nombre_activo && result.nombre_activo !== 'Sin asignar') {
-                        const actNombre = result.nombre_activo || document.querySelector(`#pin-activo option[value="${result.activo_id}"]`)?.text.trim() || 'Activo';
-                        labelHtml = `<span style="color: #28a745; font-weight: 800;">[ACTIVO]</span> <span class="label-text">${actNombre}</span>`;
-                    } else if (result.aviso_id) {
-                        labelHtml = `<span style="color: #dc3545; font-weight: 800;">[AVISO]</span> <span class="label-text">AV-${result.aviso_id}</span>`;
-                    } else if (result.nombre_ubicacion) {
-                        labelHtml = `${result.nombre_ubicacion}`; // Simple label for zones
-                        // Update background color of label to match pin
-                        labelEl.style.background = color;
-                    } else {
-                        // Pin Libre / Nota
-                        labelHtml = `<div style="margin-bottom: 2px;"><span style="color: #6366f1; font-weight: 800;">[NOTA]</span></div>`;
-                    }
-
-                    // Si es zona, el innerHTML es simple
-                    if (result.ancho) {
-                        labelEl.innerHTML = labelHtml;
-                    } else {
-                        // ... logic for photos/notes for normal pins ...
-                        // Agregar fotos si existen
-                        if (result.fotos && result.fotos.length > 0) {
-                            let photosHtml = '<div style="display: flex; gap: 4px; overflow-x: auto; max-width: 200px; padding-top: 4px; border-top: 1px solid #eee;">';
-                            result.fotos.forEach(foto => {
-                                photosHtml += `<img src="${foto}" style="height: 80px; width: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;" draggable="false">`;
-                            });
-                            photosHtml += '</div>';
-                            labelHtml = `${labelHtml}${photosHtml}`;
-                        }
-
-                        // Agregar nota si existe
-                        if (result.nota) {
-                            labelHtml = `${labelHtml}<div style="font-size: 0.9em; color: #666; margin-bottom: 4px; font-style: italic; font-weight: 400;">${result.nota}</div>`;
-                        }
-
-                        labelEl.innerHTML = labelHtml;
+                        openPinInfo(pin);
                     }
                 }
+            });
 
-                showToast('Pin guardado (Píxeles)');
+            function switchPinTab(type) {
+                // Update tabs
+                document.querySelectorAll('.pin-type-tab').forEach(t => t.classList.remove('active'));
+                const tab = document.querySelector(`.pin-type-tab.tab-${type}`);
+                if (tab) tab.classList.add('active');
 
-                // Actualizar visibilidad de botones de detalles en el panel si sigue abierto
+                // Update content
+                document.querySelectorAll('.pin-type-content').forEach(c => c.classList.remove('active'));
+                const content = document.getElementById(`tab-content-${type}`);
+                if (content) content.classList.add('active');
+            }
+
+            function openPinInfo(pin) {
+                activePin = pin;
+                pinPanel.classList.add('active');
+                selectedFiles = [];
+
+                const selectActivo = document.getElementById('pin-activo');
+                const activoId = pin.dataset.activo || '';
+                const avisoId = pin.dataset.aviso || '';
+                const actividadId = pin.dataset.actividad || '';
+
+                // Ensure the asset option exists in the select
+                if (activoId && !selectActivo.querySelector(`option[value="${activoId}"]`)) {
+                    // Determine name from label or fallback
+                    let assetName = pin.dataset.label;
+                    // Clean up label if it has prefixes like [ACTIVO] (though data-label usually is just the name based on template)
+                    // In template: data-label="{{ pin.activo.nombre }}"
+
+                    const opt = document.createElement('option');
+                    opt.value = activoId;
+                    opt.text = assetName;
+                    selectActivo.appendChild(opt);
+                }
+
+                selectActivo.value = activoId;
+                document.getElementById('pin-aviso').value = avisoId;
+                document.getElementById('pin-actividad').value = actividadId;
+                document.getElementById('pin-color').value = pin.dataset.color || '#FF0000';
+                document.getElementById('pin-nota').value = pin.dataset.nota || '';
+                document.getElementById('btn-delete').style.display = pin.id.startsWith('temp') ? 'none' : 'flex';
+
+                document.getElementById('pin-ubicacion').value = pin.dataset.ubicacion || '';
+                document.getElementById('pin-ancho').value = pin.dataset.ancho ? Math.round(pin.dataset.ancho) : '';
+                document.getElementById('pin-alto').value = pin.dataset.alto ? Math.round(pin.dataset.alto) : '';
+
+                // Determine and switch to correct tab
+                let type = pin.dataset.pinType;
+                if (!type) {
+                    if (pin.dataset.ancho) type = 'ubicacion'; // It's a zone
+                    else if (actividadId) type = 'actividad';
+                    else if (avisoId) type = 'aviso';
+                    else if (activoId) type = 'activo';
+                    else type = 'libre'; // Default to libre if nothing linked
+                }
+
+                // Map legacy types or defaults
+                if (type === 'activo' && !activoId) {
+                    // If it was marked as active but has no ID, let's see if it fits better elsewhere
+                    if (actividadId) type = 'actividad';
+                    else if (avisoId) type = 'aviso';
+                }
+
+                switchPinTab(type);
+
+                // Mostrar/Ocultar botones de detalles
                 const detailsBtnContainer = document.getElementById('details-btn-container');
                 const assetDetailsBtn = document.getElementById('btn-asset-details');
                 const noticeDetailsBtn = document.getElementById('btn-notice-details');
 
-                if (result.activo_id || result.aviso_id) {
+                if (activoId || avisoId) {
                     detailsBtnContainer.style.display = 'block';
-                    assetDetailsBtn.style.display = result.activo_id ? 'flex' : 'none';
-                    noticeDetailsBtn.style.display = result.aviso_id ? 'flex' : 'none';
+                    assetDetailsBtn.style.display = activoId ? 'flex' : 'none';
+                    noticeDetailsBtn.style.display = avisoId ? 'flex' : 'none';
                 } else {
                     detailsBtnContainer.style.display = 'none';
                 }
 
+                // Mostrar fotos existentes
+                panelGallery.innerHTML = '';
+                try {
+                    const fotos = JSON.parse(pin.dataset.fotos || '[]');
+                    fotos.forEach(src => {
+                        const item = document.createElement('div');
+                        item.className = 'photo-item';
+                        item.innerHTML = `<img src="${src}" style="cursor: pointer;" onclick="openLightbox('${src}')">`;
+                        panelGallery.appendChild(item);
+                    });
+                } catch (e) { }
+            }
+
+            function closePanel() {
+                if (activePin && activePin.id.startsWith('temp') && !activePin.dataset.id) {
+                    activePin.remove();
+                }
                 pinPanel.classList.remove('active');
                 activePin = null;
-                renderSidebarList(); // Actualizar lista
-            } else {
-                showToast(result.message || 'Error al guardar el pin', 'danger');
-            }
-        }
-
-        async function deletePin() {
-            if (!activePin || activePin.id.startsWith('temp')) return;
-
-            if (confirm('¿Estás seguro de eliminar este marcador?')) {
-                const response = await fetch(`/activos/api/eliminar-pin/${activePin.dataset.id}/`, {
-                    method: 'POST'
-                });
-
-                if ((await response.json()).status === 'success') {
-                    activePin.remove();
-                    showToast('Pin eliminado');
-                    renderSidebarList(); // Actualizar lista
-                    closePanel();
-                }
-            }
-        }
-
-        function showToast(msg, type = 'success') {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-msg').innerText = msg;
-
-            if (type === 'danger') {
-                toast.style.borderLeftColor = 'var(--danger)';
-                toast.style.color = 'var(--danger)';
-            } else {
-                toast.style.borderLeftColor = 'var(--primary)';
-                toast.style.color = 'var(--text-main)';
             }
 
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
+            async function savePin() {
+                if (!activePin) return;
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (pinToRelocate) {
-                    cancelRelocation();
-                }
-                if (pinPanel.classList.contains('active')) {
-                    closePanel();
-                }
-                hideContextMenu();
-            }
-        });
+                // Leer coordenadas desde dataset para evitar errores de locale o sufijos px
+                const x = parseFloat(activePin.dataset.x);
+                const y = parseFloat(activePin.dataset.y);
 
-        function cancelRelocation() {
-            if (pinToRelocate) {
-                pinToRelocate.style.opacity = '1';
-                pinToRelocate.style.transform = '';
-                pinToRelocate = null;
-                zoomContainer.style.cursor = 'grab';
-                showToast('Relocalización cancelada');
-            }
-        }
-
-        function toggleSidebar() {
-            sidebar.classList.toggle('collapsed');
-        }
-
-        function renderSidebarList(filter = '') {
-            sidebarPinList.innerHTML = '';
-            const pines = document.querySelectorAll('.pin');
-
-            pines.forEach(pin => {
-                const label = pin.dataset.label;
-                const nota = pin.dataset.nota || '';
-                const icono = pin.dataset.icon || 'location';
-
-                if (filter && !label.toLowerCase().includes(filter.toLowerCase()) && !nota.toLowerCase().includes(filter.toLowerCase())) {
+                if (isNaN(x) || isNaN(y)) {
+                    console.error("Error: Coordenadas NaN detectadas.", activePin.dataset);
+                    showToast("Error: Coordenadas inválidas", "danger");
                     return;
                 }
 
-                const item = document.createElement('div');
-                item.className = 'pin-item';
-                item.onclick = () => focusPin(pin.id);
+                const activoId = document.getElementById('pin-activo').value;
+                const avisoId = document.getElementById('pin-aviso').value;
+                const actividadId = document.getElementById('pin-actividad').value;
+                const ubicacionId = document.getElementById('pin-ubicacion').value;
+                const color = document.getElementById('pin-color').value;
+                const nota = document.getElementById('pin-nota').value;
 
-                item.innerHTML = `
+                // Usar FormData para enviar archivos
+                const formData = new FormData();
+                formData.append('id', activePin.dataset.id || '');
+                formData.append('visor_id', VISOR_ID);
+                formData.append('activo_id', activoId);
+                formData.append('aviso_id', avisoId);
+                formData.append('actividad_id', actividadId);
+                formData.append('ubicacion_id', ubicacionId);
+
+                // Dimensiones para Zonas
+                if (activePin.dataset.pinType === 'ubicacion') {
+                    formData.append('ancho', activePin.dataset.ancho);
+                    formData.append('alto', activePin.dataset.alto);
+                }
+
+                formData.append('x', x);
+                formData.append('y', y);
+                formData.append('color', color);
+                formData.append('nota', nota);
+
+                selectedFiles.forEach(file => {
+                    formData.append('fotos', file);
+                });
+
+                console.log("[SAVE DEBUG] Enviando Píxeles con fotos:", formData);
+
+                const response = await fetch('/activos/api/guardar-pin/', {
+                    method: 'POST',
+                    body: formData // No poner headers para que el navegador ponga el boundary
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    activePin.dataset.id = result.pin_id;
+                    activePin.id = 'pin-' + result.pin_id;
+                    activePin.dataset.activo = result.activo_id || '';
+                    activePin.dataset.aviso = result.aviso_id || '';
+                    activePin.dataset.ubicacion = result.ubicacion_id || '';
+                    activePin.dataset.label = result.nombre_activo;
+                    activePin.dataset.color = color;
+                    activePin.dataset.nota = result.nota;
+                    activePin.dataset.fotos = JSON.stringify(result.fotos);
+                    activePin.dataset.avisoMeta = JSON.stringify(result.aviso_meta || {});
+                    activePin.dataset.x = x.toFixed(1);
+                    activePin.dataset.y = y.toFixed(1);
+                    activePin.dataset.icon = result.icono || 'location';
+
+                    // Actualizar dimensiones si es Zona
+                    if (result.ancho && result.alto) {
+                        activePin.style.width = result.ancho + 'px';
+                        activePin.style.height = result.alto + 'px';
+                        activePin.dataset.ancho = result.ancho;
+                        activePin.dataset.alto = result.alto;
+                        activePin.style.border = `2px solid ${color}`;
+                        // Fondo con opacidad
+                        activePin.style.backgroundColor = color + '33'; // ~20% opacity hex
+                    } else {
+                        activePin.style.color = color;
+                        // Actualizar icono visualmente
+                        activePin.querySelector('ion-icon').name = result.icono || 'location';
+                    }
+
+                    // Actualizar etiqueta permanente visualmente
+                    const labelEl = activePin.querySelector(result.ancho ? '.pin-area-label' : '.pin-label-permanent');
+
+                    if (labelEl) {
+                        // Update dataset types
+                        if (result.actividad_id) {
+                            activePin.dataset.actividad = result.actividad_id;
+                            activePin.dataset.pinType = 'actividad';
+                        } else if (result.aviso_id) {
+                            activePin.dataset.aviso = result.aviso_id;
+                            activePin.dataset.pinType = 'aviso';
+                        } else if (result.activo_id) {
+                            activePin.dataset.activo = result.activo_id;
+                            activePin.dataset.pinType = 'activo';
+                        } else if (result.ubicacion_id) {
+                            activePin.dataset.ubicacion = result.ubicacion_id;
+                            activePin.dataset.pinType = 'ubicacion';
+                        } else {
+                            activePin.dataset.pinType = 'libre';
+                        }
+
+                        // Actualizar UI del Pin
+                        let labelHtml = '';
+
+                        if (result.nombre_actividad) {
+                            labelHtml = `<span style="color: var(--primary); font-weight: 800;">[TAREA]</span> <span class="label-text">${result.nombre_actividad}</span>`;
+                        } else if (result.nombre_activo && result.nombre_activo !== 'Sin asignar') {
+                            const actNombre = result.nombre_activo || document.querySelector(`#pin-activo option[value="${result.activo_id}"]`)?.text.trim() || 'Activo';
+                            labelHtml = `<span style="color: #28a745; font-weight: 800;">[ACTIVO]</span> <span class="label-text">${actNombre}</span>`;
+                        } else if (result.aviso_id) {
+                            labelHtml = `<span style="color: #dc3545; font-weight: 800;">[AVISO]</span> <span class="label-text">AV-${result.aviso_id}</span>`;
+                        } else if (result.nombre_ubicacion) {
+                            labelHtml = `${result.nombre_ubicacion}`; // Simple label for zones
+                            // Update background color of label to match pin
+                            labelEl.style.background = color;
+                        } else {
+                            // Pin Libre / Nota
+                            labelHtml = `<div style="margin-bottom: 2px;"><span style="color: #6366f1; font-weight: 800;">[NOTA]</span></div>`;
+                        }
+
+                        // Si es zona, el innerHTML es simple
+                        if (result.ancho) {
+                            labelEl.innerHTML = labelHtml;
+                        } else {
+                            // ... logic for photos/notes for normal pins ...
+                            // Agregar fotos si existen
+                            if (result.fotos && result.fotos.length > 0) {
+                                let photosHtml = '<div style="display: flex; gap: 4px; overflow-x: auto; max-width: 200px; padding-top: 4px; border-top: 1px solid #eee;">';
+                                result.fotos.forEach(foto => {
+                                    photosHtml += `<img src="${foto}" style="height: 80px; width: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;" draggable="false">`;
+                                });
+                                photosHtml += '</div>';
+                                labelHtml = `${labelHtml}${photosHtml}`;
+                            }
+
+                            // Agregar nota si existe
+                            if (result.nota) {
+                                labelHtml = `${labelHtml}<div style="font-size: 0.9em; color: #666; margin-bottom: 4px; font-style: italic; font-weight: 400;">${result.nota}</div>`;
+                            }
+
+                            labelEl.innerHTML = labelHtml;
+                        }
+                    }
+
+                    showToast('Pin guardado (Píxeles)');
+
+                    // Actualizar visibilidad de botones de detalles en el panel si sigue abierto
+                    const detailsBtnContainer = document.getElementById('details-btn-container');
+                    const assetDetailsBtn = document.getElementById('btn-asset-details');
+                    const noticeDetailsBtn = document.getElementById('btn-notice-details');
+
+                    if (result.activo_id || result.aviso_id) {
+                        detailsBtnContainer.style.display = 'block';
+                        assetDetailsBtn.style.display = result.activo_id ? 'flex' : 'none';
+                        noticeDetailsBtn.style.display = result.aviso_id ? 'flex' : 'none';
+                    } else {
+                        detailsBtnContainer.style.display = 'none';
+                    }
+
+                    pinPanel.classList.remove('active');
+                    activePin = null;
+                    renderSidebarList(); // Actualizar lista
+                } else {
+                    showToast(result.message || 'Error al guardar el pin', 'danger');
+                }
+            }
+
+            async function deletePin() {
+                if (!activePin || activePin.id.startsWith('temp')) return;
+
+                if (confirm('¿Estás seguro de eliminar este marcador?')) {
+                    const response = await fetch(`/activos/api/eliminar-pin/${activePin.dataset.id}/`, {
+                        method: 'POST'
+                    });
+
+                    if ((await response.json()).status === 'success') {
+                        activePin.remove();
+                        showToast('Pin eliminado');
+                        renderSidebarList(); // Actualizar lista
+                        closePanel();
+                    }
+                }
+            }
+
+            function showToast(msg, type = 'success') {
+                const toast = document.getElementById('toast');
+                document.getElementById('toast-msg').innerText = msg;
+
+                if (type === 'danger') {
+                    toast.style.borderLeftColor = 'var(--danger)';
+                    toast.style.color = 'var(--danger)';
+                } else {
+                    toast.style.borderLeftColor = 'var(--primary)';
+                    toast.style.color = 'var(--text-main)';
+                }
+
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (pinToRelocate) {
+                        cancelRelocation();
+                    }
+                    if (pinPanel.classList.contains('active')) {
+                        closePanel();
+                    }
+                    hideContextMenu();
+                }
+            });
+
+            function cancelRelocation() {
+                if (pinToRelocate) {
+                    pinToRelocate.style.opacity = '1';
+                    pinToRelocate.style.transform = '';
+                    pinToRelocate = null;
+                    zoomContainer.style.cursor = 'grab';
+                    showToast('Relocalización cancelada');
+                }
+            }
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('collapsed');
+            }
+
+            function renderSidebarList(filter = '') {
+                sidebarPinList.innerHTML = '';
+                const pines = document.querySelectorAll('.pin');
+
+                pines.forEach(pin => {
+                    const label = pin.dataset.label;
+                    const nota = pin.dataset.nota || '';
+                    const icono = pin.dataset.icon || 'location';
+
+                    if (filter && !label.toLowerCase().includes(filter.toLowerCase()) && !nota.toLowerCase().includes(filter.toLowerCase())) {
+                        return;
+                    }
+
+                    const item = document.createElement('div');
+                    item.className = 'pin-item';
+                    item.onclick = () => focusPin(pin.id);
+
+                    item.innerHTML = `
                     <div class="pin-icon" style="color: ${pin.style.color}">
                         <ion-icon name="${icono}"></ion-icon>
                     </div>
@@ -2492,331 +2714,378 @@
                         <p>${nota}</p>
                     </div>
                 `;
-                sidebarPinList.appendChild(item);
-            });
-        }
+                    sidebarPinList.appendChild(item);
+                });
+            }
 
-        function filterPins(query) {
-            renderSidebarList(query);
-        }
+            function filterPins(query) {
+                renderSidebarList(query);
+            }
 
-        function focusPin(pinId) {
-            const pin = document.getElementById(pinId);
-            if (!pin) return;
+            function focusPin(pinId) {
+                const pin = document.getElementById(pinId);
+                if (!pin) return;
 
-            const px = parseFloat(pin.dataset.x);
-            const py = parseFloat(pin.dataset.y);
-            const W = parseFloat(zoomContainer.style.width);
-            const H = parseFloat(zoomContainer.style.height);
+                const px = parseFloat(pin.dataset.x);
+                const py = parseFloat(pin.dataset.y);
+                const W = parseFloat(zoomContainer.style.width);
+                const H = parseFloat(zoomContainer.style.height);
 
-            // Mantener el zoom actual del usuario o usar 1.0 si es muy bajo
-            const currentScale = pz.getScale();
-            const targetScale = Math.max(currentScale, 1.0);
+                // Mantener el zoom actual del usuario o usar 1.0 si es muy bajo
+                const currentScale = pz.getScale();
+                const targetScale = Math.max(currentScale, 1.0);
 
-            const dX = (W / 2 - px) * targetScale;
-            const dY = (H / 2 - py) * targetScale;
+                const dX = (W / 2 - px) * targetScale;
+                const dY = (H / 2 - py) * targetScale;
 
-            // Pan suave al centro sin forzar zoom alto
-            pz.pan(dX, dY, { animate: true });
+                // Pan suave al centro sin forzar zoom alto
+                pz.pan(dX, dY, { animate: true });
 
-            // Efecto de parpadeo
-            pin.classList.add('blink');
+                // Efecto de parpadeo
+                pin.classList.add('blink');
 
-            // Quitar parpadeo después de unos segundos
-            setTimeout(() => {
-                pin.classList.remove('blink');
-            }, 3000);
+                // Quitar parpadeo después de unos segundos
+                setTimeout(() => {
+                    pin.classList.remove('blink');
+                }, 3000);
 
-            // Cerrar sidebar en móviles
-            if (window.innerWidth < 768) toggleSidebar();
-        }
+                // Cerrar sidebar en móviles
+                if (window.innerWidth < 768) toggleSidebar();
+            }
 
-        function resetZoom() { pz.reset(); }
-        function zoomIn() { pz.zoomIn(); }
-        function zoomOut() { pz.zoomOut(); }
+            function resetZoom() { pz.reset(); }
+            function zoomIn() { pz.zoomIn(); }
+            function zoomOut() { pz.zoomOut(); }
 
-        let searchTimeout = null;
-        async function filterAssetSelect() {
-            const text = document.getElementById('asset-search-text').value;
-            const cat = document.getElementById('asset-filter-cat').value;
-            const loc = document.getElementById('asset-filter-loc').value;
-            const select = document.getElementById('pin-activo');
+            let searchTimeout = null;
+            async function filterAssetSelect() {
+                const text = document.getElementById('asset-search-text').value;
+                const cat = document.getElementById('asset-filter-cat').value;
+                const loc = document.getElementById('asset-filter-loc').value;
+                const select = document.getElementById('pin-activo');
 
-            // Debounce
-            if (searchTimeout) clearTimeout(searchTimeout);
+                // Debounce
+                if (searchTimeout) clearTimeout(searchTimeout);
 
-            searchTimeout = setTimeout(async () => {
-                select.innerHTML = '<option value="">Cargando...</option>';
+                searchTimeout = setTimeout(async () => {
+                    select.innerHTML = '<option value="">Cargando...</option>';
+
+                    try {
+                        const params = new URLSearchParams({
+                            q: text,
+                            cat_id: cat,
+                            loc_id: loc
+                        });
+
+                        const response = await fetch(`/activos/api/buscar-activos-json/?${params.toString()}`);
+                        const data = await response.json();
+
+                        select.innerHTML = '<option value="">Seleccione un activo...</option>';
+
+                        if (data.results.length === 0) {
+                            const opt = document.createElement('option');
+                            opt.disabled = true;
+                            opt.text = "No se encontraron resultados";
+                            select.appendChild(opt);
+                        }
+
+                        data.results.forEach(item => {
+                            const opt = document.createElement('option');
+                            opt.value = item.id;
+                            opt.text = `${item.nombre} (${item.codigo})`;
+                            opt.dataset.categoria = item.categoria_id;
+                            opt.dataset.ubicacion = item.ubicacion_id;
+                            opt.dataset.nombre = item.data_nombre;
+                            opt.dataset.codigo = item.data_codigo;
+                            select.appendChild(opt);
+                        });
+
+                    } catch (error) {
+                        console.error("Error buscando activos:", error);
+                        select.innerHTML = '<option value="">Error al buscar</option>';
+                        showToast('Error al buscar activos', 'danger');
+                    }
+                }, 300); // 300ms delay
+            }
+
+            // Initialize with default suggestions on open
+            // document.getElementById('pin-panel').addEventListener('transitionend', () => {
+            //    if(document.getElementById('pin-panel').classList.contains('active')) filterAssetSelect();
+            // });
+
+            // Helper function for select change
+            function checkPinSelection() {
+                // Optional: logic specific when user picks an item
+            }
+
+            setTool('pan');
+        </script>
+        <script>
+            function openAssetModal() {
+                const activoId = document.getElementById('pin-activo').value;
+                if (!activoId) return;
+
+                const modal = document.getElementById('asset-modal');
+                const iframe = document.getElementById('asset-iframe');
+                if (modal && iframe) {
+                    const url = `/admin/activos/activo/${activoId}/change/?_popup=1`;
+                    iframe.src = url;
+                    document.getElementById('modal-title-text').innerText = 'Ficha del Activo';
+                    modal.classList.add('active');
+                }
+            }
+
+            function openNoticeModal() {
+                const avisoId = document.getElementById('pin-aviso').value;
+                if (!avisoId) return;
+
+                const modal = document.getElementById('asset-modal');
+                const iframe = document.getElementById('asset-iframe');
+                if (modal && iframe) {
+                    const url = `/admin/mantenimiento/aviso/${avisoId}/change/?_popup=1`;
+                    iframe.src = url;
+                    document.getElementById('modal-title-text').innerText = 'Aviso de Mantenimiento';
+                    modal.classList.add('active');
+                }
+            }
+
+            function closeAssetModal() {
+                const modal = document.getElementById('asset-modal');
+                const iframe = document.getElementById('asset-iframe');
+                if (modal && iframe) {
+                    modal.classList.remove('active');
+                    iframe.src = 'about:blank';
+                }
+            }
+
+            // Cerrar modal al hacer clic fuera
+            const assetModal = document.getElementById('asset-modal');
+            if (assetModal) {
+                assetModal.addEventListener('click', (e) => {
+                    if (e.target.id === 'asset-modal') closeAssetModal();
+                });
+            }
+
+            function toggleCreateActivityMode() {
+                const form = document.getElementById('create-activity-form');
+                if (form.style.display === 'none') {
+                    form.style.display = 'block';
+                } else {
+                    form.style.display = 'none';
+                    document.getElementById('new-activity-name').value = '';
+                }
+            }
+
+            async function createActivity() {
+                const nombre = document.getElementById('new-activity-name').value;
+                const proyectoId = document.getElementById('new-activity-project').value;
+
+                if (!nombre || !proyectoId) {
+                    showToast('Complete todos los campos');
+                    return;
+                }
 
                 try {
-                    const params = new URLSearchParams({
-                        q: text,
-                        cat_id: cat,
-                        loc_id: loc
+                    const response = await fetch('/proyectos/api/crear-actividad/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nombre: nombre, proyecto_id: proyectoId })
                     });
 
-                    const response = await fetch(`/activos/api/buscar-activos-json/?${params.toString()}`);
                     const data = await response.json();
 
-                    select.innerHTML = '<option value="">Seleccione un activo...</option>';
+                    if (data.status === 'success') {
+                        showToast('Tarea creada exitosamente');
 
-                    if (data.results.length === 0) {
-                        const opt = document.createElement('option');
-                        opt.disabled = true;
-                        opt.text = "No se encontraron resultados";
-                        select.appendChild(opt);
+                        const select = document.getElementById('pin-actividad');
+                        const option = document.createElement('option');
+                        option.value = data.actividad.id;
+                        option.text = `${data.actividad.proyecto_codigo}: ${data.actividad.nombre} (${data.actividad.estado})`;
+                        option.dataset.color = data.actividad.color;
+                        option.dataset.proyecto = data.actividad.proyecto_codigo;
+
+                        select.appendChild(option);
+                        select.value = data.actividad.id;
+
+                        toggleCreateActivityMode();
+                    } else {
+                        showToast(data.message || 'Error al crear actividad');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    showToast('Error de conexión');
+                }
+            }
+
+            function openLightbox(src) {
+                const lb = document.getElementById('lightbox-modal');
+                const img = document.getElementById('lightbox-img');
+                img.src = src;
+                lb.classList.add('active');
+            }
+
+            // ========== Report Mode & PDF Export ==========
+
+            function toggleLabelsMode() {
+                const isActive = document.body.classList.toggle('show-labels');
+                const btn = document.getElementById('tool-labels');
+
+                if (isActive) {
+                    btn.classList.add('active');
+                    ensurePinLabels();
+                    showToast('Modo Reporte: Etiquetas visibles');
+                } else {
+                    btn.classList.remove('active');
+                }
+            }
+
+            function ensurePinLabels() {
+                // Generar las etiquetas permanentes solo cuando se activan (ahorro de memoria)
+                const pins = document.querySelectorAll('.pin:not(.pin-area)');
+                pins.forEach(pin => {
+                    if (pin.querySelector('.pin-label-permanent')) return;
+
+                    const labelContent = document.createElement('div');
+                    labelContent.className = 'pin-label-permanent';
+
+                    const labelText = pin.dataset.label || 'S/A';
+                    const pinType = pin.dataset.pinType;
+                    const nota = pin.dataset.nota;
+                    const fotos = JSON.parse(pin.dataset.fotos || '[]');
+
+                    let typeLabel = '';
+                    let typeColor = '#666';
+                    if (pinType === 'actividad') { typeLabel = '[TAREA]'; typeColor = 'var(--primary)'; }
+                    else if (pinType === 'activo') { typeLabel = '[ACTIVO]'; typeColor = '#28a745'; }
+                    else if (pinType === 'aviso') { typeLabel = '[AVISO]'; typeColor = '#dc3545'; }
+                    else { typeLabel = '[NOTA]'; typeColor = '#6366f1'; }
+
+                    let html = `
+                        <div style="margin-bottom: 4px;">
+                            <span style="color: ${typeColor}; font-weight: 800;">${typeLabel}</span>
+                            <span class="label-text">${labelText}</span>
+                        </div>
+                    `;
+
+                    if (nota) {
+                        html += `<div style="font-size: 0.9em; color: #666; margin-bottom: 4px; font-style: italic; font-weight: 400;">${nota}</div>`;
                     }
 
-                    data.results.forEach(item => {
-                        const opt = document.createElement('option');
-                        opt.value = item.id;
-                        opt.text = `${item.nombre} (${item.codigo})`;
-                        opt.dataset.categoria = item.categoria_id;
-                        opt.dataset.ubicacion = item.ubicacion_id;
-                        opt.dataset.nombre = item.data_nombre;
-                        opt.dataset.codigo = item.data_codigo;
-                        select.appendChild(opt);
+                    if (fotos && fotos.length > 0) {
+                        html += `<div style="display: flex; gap: 4px; overflow-x: auto; max-width: 200px; padding-top: 4px; border-top: 1px solid #eee;">`;
+                        fotos.forEach(f => {
+                            html += `<img src="${f}" style="height: 80px; width: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;" draggable="false">`;
+                        });
+                        html += `</div>`;
+                    }
+
+                    labelContent.innerHTML = html;
+                    pin.appendChild(labelContent);
+                });
+            }
+
+            async function exportPlanToPDF() {
+                showToast('Generando PDF... Por favor espere.');
+
+                // 1. Guardar estado actual de zoom/pan
+                const originalTransform = zoomContainer.style.transform;
+                const originalTransition = zoomContainer.style.transition;
+
+                // 2. Resetear para capturar plano completo en alta resolución
+                // Desactivar animaciones
+                zoomContainer.style.transition = 'none';
+                // Escala 1, Posición 0,0
+                zoomContainer.style.transform = 'scale(1) translate(0px, 0px)';
+
+                // Forzar reflow
+                zoomContainer.offsetHeight;
+
+                // Asegurar que las etiquetas se vean si no están activas (opcional, o respetar vista usuario)
+                // Si queremos exportar con etiquetas siempre, descomentar:
+                const wasLabelsActive = document.body.classList.contains('show-labels');
+                if (!wasLabelsActive) document.body.classList.add('show-labels');
+
+                try {
+                    // 3. Capturar con html2canvas
+                    const canvas = await html2canvas(zoomContainer, {
+                        scale: 1.5, // Mejor calidad
+                        useCORS: true, // Permitir imágenes externas si CORS está config
+                        backgroundColor: '#ffffff',
+                        ignoreElements: (element) => {
+                            // Ignorar elementos temporales si los hubiera
+                            return element.id === 'long-press-indicator';
+                        }
                     });
 
-                } catch (error) {
-                    console.error("Error buscando activos:", error);
-                    select.innerHTML = '<option value="">Error al buscar</option>';
-                    showToast('Error al buscar activos', 'danger');
-                }
-            }, 300); // 300ms delay
-        }
+                    // 4. Generar PDF
+                    const { jsPDF } = window.jspdf;
+                    // Orientación landscape
+                    const doc = new jsPDF('l', 'mm', 'a4');
 
-        // Initialize with default suggestions on open
-        // document.getElementById('pin-panel').addEventListener('transitionend', () => {
-        //    if(document.getElementById('pin-panel').classList.contains('active')) filterAssetSelect();
-        // });
+                    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                    const props = doc.getImageProperties(imgData);
+                    const pdfWidth = doc.internal.pageSize.getWidth();
+                    const pdfHeight = (props.height * pdfWidth) / props.width;
 
-        // Helper function for select change
-        function checkPinSelection() {
-            // Optional: logic specific when user picks an item
-        }
+                    // Centrar verticalmente si sobra espacio, o ajustar a página
+                    // Si la altura calculada es mayor que la página, ajustar por altura
+                    const pageHeight = doc.internal.pageSize.getHeight();
 
-        setTool('pan');
-    </script>
-    <script>
-        function openAssetModal() {
-            const activoId = document.getElementById('pin-activo').value;
-            if (!activoId) return;
+                    let finalW = pdfWidth;
+                    let finalH = pdfHeight;
+                    let finalX = 0;
+                    let finalY = 0;
 
-            const modal = document.getElementById('asset-modal');
-            const iframe = document.getElementById('asset-iframe');
-            if (modal && iframe) {
-                const url = `/admin/activos/activo/${activoId}/change/?_popup=1`;
-                iframe.src = url;
-                document.getElementById('modal-title-text').innerText = 'Ficha del Activo';
-                modal.classList.add('active');
-            }
-        }
-
-        function openNoticeModal() {
-            const avisoId = document.getElementById('pin-aviso').value;
-            if (!avisoId) return;
-
-            const modal = document.getElementById('asset-modal');
-            const iframe = document.getElementById('asset-iframe');
-            if (modal && iframe) {
-                const url = `/admin/mantenimiento/aviso/${avisoId}/change/?_popup=1`;
-                iframe.src = url;
-                document.getElementById('modal-title-text').innerText = 'Aviso de Mantenimiento';
-                modal.classList.add('active');
-            }
-        }
-
-        function closeAssetModal() {
-            const modal = document.getElementById('asset-modal');
-            const iframe = document.getElementById('asset-iframe');
-            if (modal && iframe) {
-                modal.classList.remove('active');
-                iframe.src = 'about:blank';
-            }
-        }
-
-        // Cerrar modal al hacer clic fuera
-        const assetModal = document.getElementById('asset-modal');
-        if (assetModal) {
-            assetModal.addEventListener('click', (e) => {
-                if (e.target.id === 'asset-modal') closeAssetModal();
-            });
-        }
-
-        function toggleCreateActivityMode() {
-            const form = document.getElementById('create-activity-form');
-            if (form.style.display === 'none') {
-                form.style.display = 'block';
-            } else {
-                form.style.display = 'none';
-                document.getElementById('new-activity-name').value = '';
-            }
-        }
-
-        async function createActivity() {
-            const nombre = document.getElementById('new-activity-name').value;
-            const proyectoId = document.getElementById('new-activity-project').value;
-
-            if (!nombre || !proyectoId) {
-                showToast('Complete todos los campos');
-                return;
-            }
-
-            try {
-                const response = await fetch('/proyectos/api/crear-actividad/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre: nombre, proyecto_id: proyectoId })
-                });
-
-                const data = await response.json();
-
-                if (data.status === 'success') {
-                    showToast('Tarea creada exitosamente');
-
-                    const select = document.getElementById('pin-actividad');
-                    const option = document.createElement('option');
-                    option.value = data.actividad.id;
-                    option.text = `${data.actividad.proyecto_codigo}: ${data.actividad.nombre} (${data.actividad.estado})`;
-                    option.dataset.color = data.actividad.color;
-                    option.dataset.proyecto = data.actividad.proyecto_codigo;
-
-                    select.appendChild(option);
-                    select.value = data.actividad.id;
-
-                    toggleCreateActivityMode();
-                } else {
-                    showToast(data.message || 'Error al crear actividad');
-                }
-            } catch (e) {
-                console.error(e);
-                showToast('Error de conexión');
-            }
-        }
-
-        function openLightbox(src) {
-            const lb = document.getElementById('lightbox-modal');
-            const img = document.getElementById('lightbox-img');
-            img.src = src;
-            lb.classList.add('active');
-        }
-
-        // ========== Report Mode & PDF Export ==========
-
-        function toggleLabelsMode() {
-            document.body.classList.toggle('show-labels');
-            const btn = document.getElementById('tool-labels');
-            if (document.body.classList.contains('show-labels')) {
-                btn.classList.add('active');
-                showToast('Modo Reporte: Etiquetas visibles');
-            } else {
-                btn.classList.remove('active');
-            }
-        }
-
-        async function exportPlanToPDF() {
-            showToast('Generando PDF... Por favor espere.');
-
-            // 1. Guardar estado actual de zoom/pan
-            const originalTransform = zoomContainer.style.transform;
-            const originalTransition = zoomContainer.style.transition;
-
-            // 2. Resetear para capturar plano completo en alta resolución
-            // Desactivar animaciones
-            zoomContainer.style.transition = 'none';
-            // Escala 1, Posición 0,0
-            zoomContainer.style.transform = 'scale(1) translate(0px, 0px)';
-
-            // Forzar reflow
-            zoomContainer.offsetHeight;
-
-            // Asegurar que las etiquetas se vean si no están activas (opcional, o respetar vista usuario)
-            // Si queremos exportar con etiquetas siempre, descomentar:
-            const wasLabelsActive = document.body.classList.contains('show-labels');
-            if (!wasLabelsActive) document.body.classList.add('show-labels');
-
-            try {
-                // 3. Capturar con html2canvas
-                const canvas = await html2canvas(zoomContainer, {
-                    scale: 1.5, // Mejor calidad
-                    useCORS: true, // Permitir imágenes externas si CORS está config
-                    backgroundColor: '#ffffff',
-                    ignoreElements: (element) => {
-                        // Ignorar elementos temporales si los hubiera
-                        return element.id === 'long-press-indicator';
+                    if (pdfHeight > pageHeight) {
+                        // Ajustar por altura
+                        finalH = pageHeight;
+                        finalW = (props.width * pageHeight) / props.height;
+                        finalX = (pdfWidth - finalW) / 2; // Centrar horizontalmente
+                    } else {
+                        finalY = (pageHeight - pdfHeight) / 2; // Centrar verticalmente
                     }
-                });
 
-                // 4. Generar PDF
-                const { jsPDF } = window.jspdf;
-                // Orientación landscape
-                const doc = new jsPDF('l', 'mm', 'a4');
+                    doc.addImage(imgData, 'JPEG', finalX, finalY, finalW, finalH);
+                    doc.save(`Plano_${VISOR_ID}_${new Date().toISOString().slice(0, 10)}.pdf`);
 
-                const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                const props = doc.getImageProperties(imgData);
-                const pdfWidth = doc.internal.pageSize.getWidth();
-                const pdfHeight = (props.height * pdfWidth) / props.width;
+                    showToast('PDF descargado correctamenre');
 
-                // Centrar verticalmente si sobra espacio, o ajustar a página
-                // Si la altura calculada es mayor que la página, ajustar por altura
-                const pageHeight = doc.internal.pageSize.getHeight();
-
-                let finalW = pdfWidth;
-                let finalH = pdfHeight;
-                let finalX = 0;
-                let finalY = 0;
-
-                if (pdfHeight > pageHeight) {
-                    // Ajustar por altura
-                    finalH = pageHeight;
-                    finalW = (props.width * pageHeight) / props.height;
-                    finalX = (pdfWidth - finalW) / 2; // Centrar horizontalmente
-                } else {
-                    finalY = (pageHeight - pdfHeight) / 2; // Centrar verticalmente
+                } catch (err) {
+                    console.error(err);
+                    showToast('Error al generar PDF');
+                } finally {
+                    // 5. Restaurar estado original
+                    zoomContainer.style.transform = originalTransform;
+                    zoomContainer.style.transition = originalTransition;
+                    if (!wasLabelsActive) document.body.classList.remove('show-labels');
                 }
-
-                doc.addImage(imgData, 'JPEG', finalX, finalY, finalW, finalH);
-                doc.save(`Plano_${VISOR_ID}_${new Date().toISOString().slice(0, 10)}.pdf`);
-
-                showToast('PDF descargado correctamenre');
-
-            } catch (err) {
-                console.error(err);
-                showToast('Error al generar PDF');
-            } finally {
-                // 5. Restaurar estado original
-                zoomContainer.style.transform = originalTransform;
-                zoomContainer.style.transition = originalTransition;
-                if (!wasLabelsActive) document.body.classList.remove('show-labels');
             }
-        }
 
-        function closeLightbox() {
-            document.getElementById('lightbox-modal').classList.remove('active');
-        }
-    </script>
+            function closeLightbox() {
+                document.getElementById('lightbox-modal').classList.remove('active');
+            }
+        </script>
 
-    <!-- Asset/Notice Detail Modal -->
-    <div id="asset-modal">
-        <div class="modal-content" style="max-height: 95vh; height: 95vh;">
-            <div class="modal-header">
-                <h3><ion-icon name="information-circle-outline" style="color: var(--primary)"></ion-icon> <span
-                        id="modal-title-text">Ficha</span></h3>
-                <button class="btn btn-sm" onclick="closeAssetModal()">
-                    <ion-icon name="close"></ion-icon>
-                </button>
-            </div>
-            <div class="modal-body" style="height: calc(95vh - 60px);">
-                <iframe id="asset-iframe" src="about:blank"></iframe>
+        <!-- Asset/Notice Detail Modal -->
+        <div id="asset-modal">
+            <div class="modal-content" style="max-height: 95vh; height: 95vh;">
+                <div class="modal-header">
+                    <h3><ion-icon name="information-circle-outline" style="color: var(--primary)"></ion-icon> <span
+                            id="modal-title-text">Ficha</span></h3>
+                    <button class="btn btn-sm" onclick="closeAssetModal()">
+                        <ion-icon name="close"></ion-icon>
+                    </button>
+                </div>
+                <div class="modal-body" style="height: calc(95vh - 60px);">
+                    <iframe id="asset-iframe" src="about:blank"></iframe>
+                </div>
             </div>
         </div>
-    </div>
-    <!-- Lightbox Modal -->
-    <div id="lightbox-modal" onclick="closeLightbox()">
-        <ion-icon name="close" id="lightbox-close" onclick="closeLightbox()"></ion-icon>
-        <img id="lightbox-img" src="" onclick="event.stopPropagation()">
-    </div>
+        <!-- Lightbox Modal -->
+        <div id="lightbox-modal" onclick="closeLightbox()">
+            <ion-icon name="close" id="lightbox-close" onclick="closeLightbox()"></ion-icon>
+            <img id="lightbox-img" src="" onclick="event.stopPropagation()">
+        </div>
 </body>
 
 </html>

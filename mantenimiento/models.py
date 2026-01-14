@@ -544,6 +544,28 @@ class Programacion(models.Model):
         self.save()
         return ordenes_creadas
 
+class Falla(models.Model):
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True, null=True)
+    padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='hijos')
+    puesto_trabajo = models.ForeignKey(PuestoTrabajo, on_delete=models.SET_NULL, null=True, blank=True, related_name='catalogo_fallas', help_text="Vincular a un puesto si es el nodo raíz")
+
+    def get_ruta_completa(self, separador=' → '):
+        path = [self.nombre]
+        curr = self.padre
+        while curr:
+            path.append(curr.nombre)
+            curr = curr.padre
+        return separador.join(reversed(path))
+
+    def __str__(self):
+        return self.get_ruta_completa()
+
+    class Meta:
+        verbose_name = "Falla"
+        verbose_name_plural = "Catálogo de Fallas"
+        unique_together = ('nombre', 'padre')
+
 class Aviso(models.Model):
     PRIORIDAD_CHOICES = [
         ('BAJA', 'Baja'),
@@ -568,6 +590,7 @@ class Aviso(models.Model):
 
     activo = models.ForeignKey('activos.Activo', on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos')
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='avisos')
+    falla = models.ForeignKey(Falla, on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos')
     descripcion = models.TextField(help_text="Descripción detallada de la falla o solicitud")
     prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA', db_index=True)
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default='SOLICITUD', db_index=True)
@@ -586,6 +609,15 @@ class Aviso(models.Model):
         verbose_name = "Aviso"
         verbose_name_plural = "Avisos"
         ordering = ['-creado_en']
+
+class FotoAviso(models.Model):
+    aviso = models.ForeignKey(Aviso, on_delete=models.CASCADE, related_name='fotos')
+    foto = models.ImageField(upload_to='avisos/fotos/')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Foto de Aviso"
+        verbose_name_plural = "Fotos de Aviso"
 
 class NotificacionMantenimiento(models.Model):
     TIPO_CHOICES = [
@@ -639,6 +671,7 @@ class OrdenTrabajo(models.Model):
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='ordenes_trabajo', null=True, blank=True)
     activos = models.ManyToManyField('activos.Activo', related_name='ordenes_trabajo', blank=True)
     programacion = models.ForeignKey(Programacion, on_delete=models.CASCADE, null=True, blank=True, related_name='ordenes')
+    falla = models.ForeignKey(Falla, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_trabajo')
     planificacion = models.ForeignKey(PlanificacionMensual, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes', verbose_name="Plan Mensual")
     
     inicio_programado = models.DateTimeField(help_text="Fecha y hora de inicio prevista", db_index=True)

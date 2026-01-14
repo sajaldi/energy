@@ -35,6 +35,11 @@
                     Historial de Mant.
                     <span class="count-badge">{{ historial|length }}</span>
                 </div>
+                {% elif type == 'categoria' %}
+                <div class="chip" onclick="switchTab(this, 'assets')">
+                    Equipos en esta Categoría
+                    <span class="count-badge">{{ activos|length }}</span>
+                </div>
                 {% endif %}
             </div>
 
@@ -70,7 +75,7 @@
                 </div>
             </div>
 
-            {% if type == 'ubicacion' %}
+            {% if type == 'ubicacion' or type == 'categoria' %}
             <div id="assets-tab" class="tab-content">
                 {% if activos %}
                 <div class="assets-grid">
@@ -102,7 +107,8 @@
                 {% else %}
                 <div class="empty-state">
                     <ion-icon name="albums-outline"></ion-icon>
-                    <p>No hay activos registrados en esta ubicación ni en sus descendientes.</p>
+                    <p>No hay activos registrados en esta {% if type == 'categoria' %}categoría{% else %}ubicación{%
+                        endif %} ni en sus descendientes.</p>
                 </div>
                 {% endif %}
             </div>
@@ -252,7 +258,7 @@
 
     .grid-layout {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 25px;
     }
 

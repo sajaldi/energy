@@ -9,23 +9,25 @@
     {% include 'core/pwa_tags.html' %}
 
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 
     <style>
         :root {
-            --primary: #007bff;
-            --primary-dark: #0056b3;
-            --secondary: #6c757d;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --bg-body: #f0f2f5;
-            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            --header-bg: #ffffff;
-            --tab-bar-bg: #ffffff;
+            --primary: #2563eb;
+            --primary-light: #60a5fa;
+            --primary-dark: #1e40af;
+            --accent: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-body: #f8fafc;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
         }
 
         * {
@@ -36,240 +38,261 @@
         body {
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg-body);
-            color: var(--dark);
+            color: var(--text-main);
             margin: 0;
-            padding-bottom: 80px;
-            /* Space for bottom nav */
+            padding-bottom: 90px;
             overflow-x: hidden;
+            background: radial-gradient(circle at top right, #e2e8f0 0%, #f8fafc 40%);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
         }
 
         /* Header */
         header {
-            background-color: var(--header-bg);
-            padding: 20px;
+            padding: 25px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             position: sticky;
             top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-
-        .user-greeting h1 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 700;
+            z-index: 1000;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
         }
 
         .user-greeting p {
             margin: 0;
-            font-size: 13px;
-            color: var(--secondary);
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .user-greeting h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-dark), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .avatar {
-            width: 40px;
-            height: 40px;
-            background-color: var(--primary);
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
             color: white;
-            border-radius: 12px;
+            border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 600;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
         }
 
-        /* Dashboard Content */
         .container {
             padding: 20px;
         }
 
-        /* Quick Stats Grid */
+        /* Search Section */
+        .search-box {
+            background: white;
+            border-radius: 20px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 25px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .search-box input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-family: inherit;
+            font-size: 16px;
+            background: transparent;
+        }
+
+        .search-box ion-icon {
+            color: var(--primary);
+            font-size: 22px;
+        }
+
+        /* Stats Grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
         }
 
         .stat-card {
             background: white;
-            padding: 15px;
-            border-radius: 16px;
+            padding: 20px;
+            border-radius: 24px;
             box-shadow: var(--card-shadow);
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #f1f5f9;
         }
 
-        .stat-card ion-icon {
-            font-size: 24px;
-            color: var(--primary);
-            margin-bottom: 5px;
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100px;
+            height: 100px;
+            background: var(--primary);
+            opacity: 0.03;
+            border-radius: 50%;
         }
 
-        .stat-card .value {
-            font-size: 22px;
-            font-weight: 700;
-        }
-
-        .stat-card .label {
-            font-size: 12px;
-            color: var(--secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Quick Actions Overlay (Main Buttons) */
-        .actions-section {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .btn-action {
-            background: white;
-            padding: 18px;
-            border-radius: 18px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            text-decoration: none;
-            color: var(--dark);
-            box-shadow: var(--card-shadow);
-            transition: transform 0.2s;
-        }
-
-        .btn-action:active {
-            transform: scale(0.97);
-        }
-
-        .btn-action.primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-        }
-
-        .btn-action span.icon-wrapper {
-            width: 45px;
-            height: 45px;
-            background: rgba(0, 0, 0, 0.05);
+        .stat-card .icon-circle {
+            width: 40px;
+            height: 40px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            margin-bottom: 12px;
+            font-size: 20px;
         }
 
-        .btn-action.primary span.icon-wrapper {
-            background: rgba(255, 255, 255, 0.2);
+        .stat-card .value {
+            font-size: 26px;
+            font-weight: 800;
+            display: block;
         }
 
-        .btn-action .text-content h3 {
-            margin: 0;
-            font-size: 16px;
+        .stat-card .label {
+            font-size: 13px;
             font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .btn-action .text-content p {
-            margin: 0;
-            font-size: 12px;
-            opacity: 0.8;
-        }
-
-        /* Task List Section */
+        /* Actions Section */
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
+            padding: 0 5px;
         }
 
         .section-header h2 {
             margin: 0;
-            font-size: 18px;
+            font-size: 19px;
             font-weight: 700;
+            color: var(--text-main);
         }
 
         .section-header a {
-            font-size: 13px;
+            font-size: 14px;
             color: var(--primary);
+            font-weight: 600;
             text-decoration: none;
         }
 
-        .task-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+        .actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
         }
 
-        .task-card {
+        .action-card {
             background: white;
-            padding: 15px;
-            border-radius: 16px;
+            padding: 18px;
+            border-radius: 24px;
+            text-decoration: none;
+            color: var(--text-main);
             box-shadow: var(--card-shadow);
             display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid #f1f5f9;
+            transition: all 0.2s ease;
+        }
+
+        .action-card:active {
+            transform: scale(0.96);
+            background: #f8fafc;
+        }
+
+        .action-card.featured {
+            grid-column: span 2;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            flex-direction: row;
             align-items: center;
-            gap: 15px;
-            border-left: 5px solid var(--primary);
+            padding: 22px;
         }
 
-        .task-card.priority-ALTA,
-        .task-card.priority-CRITICA {
-            border-left-color: var(--danger);
+        .action-card .icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            background: #eff6ff;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
         }
 
-        .task-card.priority-BAJA {
-            border-left-color: var(--secondary);
+        .action-card.featured .icon-box {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 56px;
+            height: 56px;
+            font-size: 28px;
         }
 
-        .task-time {
-            text-align: center;
-            min-width: 50px;
-        }
-
-        .task-time span {
-            display: block;
-            font-weight: 700;
-            font-size: 14px;
-        }
-
-        .task-time small {
-            font-size: 10px;
-            color: var(--secondary);
-        }
-
-        .task-info {
-            flex: 1;
-        }
-
-        .task-info h4 {
-            margin: 0 0 4px 0;
+        .action-card h3 {
+            margin: 0;
             font-size: 15px;
-            font-weight: 600;
+            font-weight: 700;
         }
 
-        .task-info p {
+        .action-card p {
             margin: 0;
             font-size: 12px;
-            color: var(--secondary);
+            color: var(--text-muted);
+            line-height: 1.4;
         }
 
-        .task-status {
-            font-size: 11px;
-            padding: 4px 8px;
-            border-radius: 8px;
-            background: var(--light);
-            font-weight: 600;
+        .action-card.featured p {
+            color: rgba(255, 255, 255, 0.82);
         }
 
-        /* Plan Shortcuts Horizontal Scroll */
+        /* Finanzas Scroller */
         .scroller {
             display: flex;
             gap: 15px;
             overflow-x: auto;
-            padding: 5px;
+            padding: 10px 5px 20px 5px;
             margin: 0 -20px;
             padding-left: 20px;
             padding-right: 20px;
@@ -280,30 +303,128 @@
             display: none;
         }
 
-        .plan-item {
-            min-width: 140px;
+        .finance-card {
+            min-width: 200px;
             background: white;
-            padding: 12px;
-            border-radius: 16px;
+            padding: 20px;
+            border-radius: 24px;
             box-shadow: var(--card-shadow);
-            text-align: center;
+            border: 1px solid #f1f5f9;
             text-decoration: none;
-            color: var(--dark);
+            color: var(--text-main);
         }
 
-        .plan-item ion-icon {
-            font-size: 32px;
-            color: var(--primary);
-            margin-bottom: 8px;
+        .finance-card .header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
         }
 
-        .plan-item span {
-            display: block;
-            font-size: 12px;
+        .finance-card .header .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .finance-card h4 {
+            margin: 0;
+            font-size: 14px;
             font-weight: 600;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            color: var(--text-muted);
+        }
+
+        .finance-card .amount {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .finance-card .footer {
+            font-size: 12px;
+            color: var(--primary);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Task List */
+        .task-card {
+            background: white;
+            padding: 18px;
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 12px;
+            border-left: 6px solid var(--primary);
+            transition: all 0.2s;
+        }
+
+        .task-card:active {
+            transform: translateX(5px);
+        }
+
+        .task-card.priority-ALTA,
+        .task-card.priority-CRITICA {
+            border-left-color: var(--danger);
+        }
+
+        .task-card.priority-BAJA {
+            border-left-color: var(--success);
+        }
+
+        .task-date-box {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 12px;
+            text-align: center;
+            min-width: 55px;
+        }
+
+        .task-date-box .day {
+            font-weight: 800;
+            font-size: 16px;
+            display: block;
+        }
+
+        .task-date-box .month {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .task-info {
+            flex: 1;
+        }
+
+        .task-info h4 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .task-info p {
+            margin: 0;
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .task-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: var(--text-muted);
         }
 
         /* Bottom Tab Bar */
@@ -312,13 +433,15 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 70px;
-            background: var(--tab-bar-bg);
+            height: 80px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             display: flex;
             justify-content: space-around;
-            align-items: center;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-            padding-bottom: env(safe-area-inset-bottom);
+            align-items: flex-start;
+            padding-top: 12px;
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.05);
             z-index: 1000;
         }
 
@@ -326,11 +449,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
             text-decoration: none;
-            color: var(--secondary);
-            font-size: 10px;
-            font-weight: 600;
+            color: var(--text-muted);
+            width: 20%;
         }
 
         .tab-item.active {
@@ -338,65 +460,73 @@
         }
 
         .tab-item ion-icon {
-            font-size: 24px;
+            font-size: 26px;
         }
 
-        .scan-fab {
-            width: 56px;
-            height: 56px;
-            background: var(--primary);
-            color: white;
+        .tab-item span {
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .scan-btn {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
-            margin-top: -30px;
-        }
-
-        .scan-fab ion-icon {
+            color: white;
             font-size: 30px;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+            margin-top: -35px;
+            border: 4px solid white;
         }
 
-        /* Search Bar */
-        .search-container {
-            margin-bottom: 25px;
-        }
-
-        .search-box {
-            background: white;
-            border-radius: 14px;
-            padding: 12px 15px;
+        /* Infrastructure list */
+        .infra-grid {
             display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding: 10px 0 20px 0;
+            scrollbar-width: none;
+        }
+
+        .infra-grid::-webkit-scrollbar {
+            display: none;
+        }
+
+        .infra-item {
+            min-width: 140px;
+            background: white;
+            padding: 15px;
+            border-radius: 22px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
             align-items: center;
             gap: 10px;
-            box-shadow: var(--card-shadow);
+            text-decoration: none;
+            color: var(--text-main);
+            border: 1px solid #f1f5f9;
         }
 
-        .search-box input {
-            border: none;
-            outline: none;
-            width: 100%;
-            font-family: inherit;
-            font-size: 15px;
+        .infra-item .icon-circle {
+            width: 45px;
+            height: 45px;
+            border-radius: 14px;
+            background: #f1f5f9;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
         }
 
-        .search-box ion-icon {
-            color: var(--secondary);
-            font-size: 20px;
-        }
-
-        /* Empty State */
-        .empty-state {
+        .infra-item span {
+            font-size: 13px;
+            font-weight: 700;
             text-align: center;
-            padding: 40px 20px;
-            color: var(--secondary);
-        }
-
-        .empty-state ion-icon {
-            font-size: 48px;
-            opacity: 0.3;
-            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -405,8 +535,8 @@
 
     <header>
         <div class="user-greeting">
-            <p>Hola de nuevo,</p>
-            <h1>{{ user.username }}</h1>
+            <p>¡Bienvenido!</p>
+            <h1>{{ user.username|capfirst }}</h1>
         </div>
         <div class="avatar">
             {{ user.username|slice:":1"|upper }}
@@ -415,170 +545,206 @@
 
     <div class="container">
 
-        <!-- Search Section -->
-        <div class="search-container">
-            <div class="search-box">
-                <ion-icon name="search-outline"></ion-icon>
-                <input type="text" placeholder="Buscar equipo o ubicación..." id="mobile-search">
-            </div>
+        <!-- Search -->
+        <div class="search-box fade-in">
+            <ion-icon name="search-outline"></ion-icon>
+            <input type="text" placeholder="Buscar equipo o ubicación..." id="mobile-search">
         </div>
 
         <!-- Quick Stats -->
-        <div class="stats-grid">
+        <div class="stats-grid fade-in" style="animation-delay: 0.1s;">
             <div class="stat-card">
-                <ion-icon name="cube-outline"></ion-icon>
+                <div class="icon-circle" style="background: #eff6ff; color: var(--primary);">
+                    <ion-icon name="cube-outline"></ion-icon>
+                </div>
                 <span class="value">{{ total_activos }}</span>
-                <span class="label">Equipos</span>
+                <span class="label">Activos</span>
             </div>
             <div class="stat-card">
-                <ion-icon name="alert-circle-outline" style="color: var(--danger);"></ion-icon>
+                <div class="icon-circle" style="background: #fef2f2; color: var(--danger);">
+                    <ion-icon name="notifications-outline"></ion-icon>
+                </div>
                 <span class="value">{{ avisos_abiertos }}</span>
                 <span class="label">Avisos</span>
             </div>
         </div>
 
-        <!-- Primary Actions -->
-        <div class="actions-section">
-            <a href="{% url 'core:mobile_scanner' %}" class="btn-action primary" id="btn-scan">
-                <span class="icon-wrapper">
+        <!-- Main Actions -->
+        <div class="section-header fade-in" style="animation-delay: 0.2s;">
+            <h2>Acceso Rápido</h2>
+        </div>
+        <div class="actions-grid fade-in" style="animation-delay: 0.2s;">
+            <a href="{% url 'core:mobile_scanner' %}" class="action-card featured">
+                <div class="icon-box">
                     <ion-icon name="qr-code-outline"></ion-icon>
-                </span>
-                <div class="text-content">
+                </div>
+                <div style="margin-left: 15px;">
                     <h3>Escanear Código</h3>
-                    <p>Identificar equipo o reporte</p>
+                    <p>Identificar equipo al instante</p>
+                </div>
+                <ion-icon name="chevron-forward-outline"
+                    style="margin-left: auto; font-size: 20px; opacity: 0.7;"></ion-icon>
+            </a>
+
+            <a href="{% url 'mantenimiento:mobile_mis_avisos' %}" class="action-card">
+                <div class="icon-box" style="background: #eef2ff; color: var(--primary);">
+                    <ion-icon name="list-outline"></ion-icon>
+                </div>
+                <h3>Mis Avisos</h3>
+                <p>Ver mis reportes</p>
+            </a>
+
+            <a href="{% url 'mantenimiento:mobile_crear_aviso' %}" class="action-card">
+                <div class="icon-box" style="background: #fff7ed; color: var(--warning);">
+                    <ion-icon name="megaphone-outline"></ion-icon>
+                </div>
+                <h3>Crear Aviso</h3>
+                <p>Reportar falla</p>
+            </a>
+
+            <a href="{% url 'auditorias:lista_auditorias' %}" class="action-card">
+                <div class="icon-box" style="background: #ecfdf5; color: var(--success);">
+                    <ion-icon name="checkbox-outline"></ion-icon>
+                </div>
+                <h3>Auditoría</h3>
+                <p>Equipos IA</p>
+            </a>
+        </div>
+
+        <!-- Logística & Inventario -->
+        <div class="section-header fade-in" style="animation-delay: 0.25s;">
+            <h2>Logística e Inventario</h2>
+        </div>
+        <div class="actions-grid fade-in" style="animation-delay: 0.25s;">
+            <a href="{% url 'inventarios:registrar_salida' %}" class="action-card">
+                <div class="icon-box" style="background: #eff6ff; color: var(--primary);">
+                    <ion-icon name="cart-outline"></ion-icon>
+                </div>
+                <h3>Solicitar Material</h3>
+                <p>Crear nuevo pedido</p>
+            </a>
+
+            <a href="{% url 'inventarios:mobile_lista_pedidos' %}" class="action-card">
+                <div class="icon-box" style="background: #f0fdf4; color: var(--success);">
+                    <ion-icon name="receipt-outline"></ion-icon>
+                </div>
+                <h3>Mis Pedidos</h3>
+                <p>Ver mis solicitudes {% if pedidos_pendientes_count %}<b style="color:var(--danger)">({{
+                        pedidos_pendientes_count }})</b>{% endif %}</p>
+            </a>
+        </div>
+
+        <!-- Financial Section (NEW) -->
+        <div class="section-header fade-in" style="animation-delay: 0.3s;">
+            <h2>Gestión Financiera</h2>
+            <a href="{% url 'admin:presupuestos_requisicion_changelist' %}">Admin</a>
+        </div>
+        <div class="scroller fade-in" style="animation-delay: 0.3s;">
+            <a href="{% url 'presupuestos:cronograma' %}" class="finance-card">
+                <div class="header">
+                    <div class="dot"></div>
+                    <h4>Presupuesto Anual</h4>
+                </div>
+                <span class="amount">L. {{ total_presupuesto|default:"2.4M" }}</span>
+                <div class="footer">
+                    Ver ejecución <ion-icon name="arrow-forward-outline"></ion-icon>
                 </div>
             </a>
-            <a href="{% url 'auditorias:lista_auditorias' %}" class="btn-action">
-                <span class="icon-wrapper" style="color: var(--success);">
-                    <ion-icon name="list-circle-outline"></ion-icon>
-                </span>
-                <div class="text-content">
-                    <h3>Auditoría de Inventario</h3>
-                    <p>Verificar activos y existencias</p>
+            <a href="{% url 'admin:presupuestos_requisicion_changelist' %}" class="finance-card">
+                <div class="header">
+                    <div class="dot" style="background: var(--warning);"></div>
+                    <h4>Requisiciones</h4>
                 </div>
-            </a>
-            <a href="{% url 'admin:mantenimiento_aviso_add' %}" class="btn-action">
-                <span class="icon-wrapper" style="color: var(--warning);">
-                    <ion-icon name="add-circle-outline"></ion-icon>
-                </span>
-                <div class="text-content">
-                    <h3>Reportar Avería</h3>
-                    <p>Crear aviso de mantenimiento</p>
+                <span class="amount">{{ total_requisiciones|default:"12" }}</span>
+                <div class="footer">
+                    Pendientes <ion-icon name="arrow-forward-outline"></ion-icon>
                 </div>
             </a>
         </div>
 
-        <!-- Task List -->
-        <div class="section-header">
+        <!-- Infrastructure -->
+        <div class="section-header fade-in" style="animation-delay: 0.4s;">
+            <h2>Mi Planta</h2>
+            <a href="{% url 'activos:mobile_ubicaciones' %}">Ver todo</a>
+        </div>
+        <div class="infra-grid fade-in" style="animation-delay: 0.4s;">
+            {% for u in ubicaciones_raiz %}
+            <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}" class="infra-item">
+                <div class="icon-circle">
+                    <ion-icon name="business-outline"></ion-icon>
+                </div>
+                <span>{{ u.nombre }}</span>
+            </a>
+            {% endfor %}
+            <a href="{% url 'activos:arbol_activos' %}" class="infra-item"
+                style="background: #f1f5f9; border-style: dashed;">
+                <div class="icon-circle" style="background: white;">
+                    <ion-icon name="map-outline"></ion-icon>
+                </div>
+                <span>Mapa Visual</span>
+            </a>
+        </div>
+
+        <!-- Today's Tasks -->
+        <div class="section-header fade-in" style="animation-delay: 0.5s;">
             <h2>Tareas de Hoy</h2>
-            <a href="#">Ver todas</a>
+            <a href="{% url 'mantenimiento:mobile_cronograma' %}">Calendario</a>
         </div>
-
-        <div class="task-list">
+        <div class="fade-in" style="animation-delay: 0.5s;">
             {% for ot in ots_hoy %}
             <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" style="text-decoration: none; color: inherit;">
                 <div class="task-card priority-{{ ot.prioridad }}">
-                    <div class="task-time">
-                        <span>{{ ot.inicio_programado|date:"H:i" }}</span>
-                        <small>{{ ot.tipo|slice:":3" }}</small>
+                    <div class="task-date-box">
+                        <span class="day">{{ ot.inicio_programado|date:"d" }}</span>
+                        <span class="month">{{ ot.inicio_programado|date:"M" }}</span>
                     </div>
                     <div class="task-info">
                         <h4>{{ ot.rutina.nombre|default:"OT Correctiva" }}</h4>
-                        <p>{{ ot.ubicacion.nombre }}</p>
+                        <p><ion-icon name="location-outline"></ion-icon> {{ ot.ubicacion.nombre|truncatechars:20 }}</p>
                     </div>
-                    <div class="task-status">
+                    <div class="task-badge">
                         {{ ot.get_estado_display }}
                     </div>
                 </div>
             </a>
             {% empty %}
-            <div class="empty-state">
-                <ion-icon name="checkmark-done-circle-outline"></ion-icon>
-                <p>No tienes tareas programadas para hoy.</p>
-            </div>
-            {% endfor %}
-        </div>
-
-        <!-- Upcoming Tasks -->
-        {% if ots_proximas %}
-        <div class="section-header" style="margin-top: 30px;">
-            <h2>Próximas Tareas</h2>
-            <span style="font-size: 12px; color: var(--secondary);">(Siguientes 7 días)</span>
-        </div>
-        <div class="task-list">
-            {% for ot in ots_proximas %}
-            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" style="text-decoration: none; color: inherit;">
-                <div class="task-card priority-{{ ot.prioridad }}"
-                    style="border-left-width: 4px; border-left-color: #cbd5e1;">
-                    <div class="task-time" style="background: #f8fafc; border-right-color: #e2e8f0;">
-                        <span>{{ ot.inicio_programado|date:"d M" }}</span>
-                        <small>{{ ot.inicio_programado|date:"H:i" }}</small>
-                    </div>
-                    <div class="task-info">
-                        <h4 style="color: #475569;">{{ ot.rutina.nombre|default:"OT Correctiva" }}</h4>
-                        <p>{{ ot.ubicacion.nombre }}</p>
-                    </div>
-                    <div class="task-status" style="opacity: 0.7;">
-                        {{ ot.get_estado_display }}
-                    </div>
-                </div>
-            </a>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- Plans Section -->
-        <div class="section-header" style="margin-top: 30px;">
-            <h2>Planos Interactivos</h2>
-            <a href="{% url 'activos:arbol_activos' %}">Explorar</a>
-        </div>
-
-        <div class="scroller">
-            {% for visor in planos_recientes %}
-            <a href="{% url 'activos:visor_plano' visor.id %}" class="plan-item">
-                <ion-icon name="map-outline"></ion-icon>
-                <span>{{ visor.nombre }}</span>
-            </a>
-            {% empty %}
-            <div class="empty-state" style="padding: 20px;">
-                <p>Sin planos recientes</p>
+            <div
+                style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: white; border-radius: 24px;">
+                <ion-icon name="happy-outline" style="font-size: 40px; margin-bottom: 10px; opacity: 0.4;"></ion-icon>
+                <p style="margin: 0; font-weight: 600;">¡Todo al día! No hay tareas para hoy.</p>
             </div>
             {% endfor %}
         </div>
 
     </div>
 
-    <!-- Bottom Navigation -->
+    <!-- Tab Bar -->
     <nav class="tab-bar">
         <a href="{% url 'core:mobile_dashboard' %}" class="tab-item active">
-            <ion-icon name="home-outline"></ion-icon>
-            <span>Dashboard</span>
+            <ion-icon name="grid-outline"></ion-icon>
+            <span>Inicio</span>
         </a>
         <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item">
-            <ion-icon name="calendar-outline"></ion-icon>
-            <span>Cronograma</span>
+            <ion-icon name="calendar-clear-outline"></ion-icon>
+            <span>Agenda</span>
         </a>
 
-        <div class="tab-item">
-            <a href="{% url 'core:mobile_scanner' %}" class="scan-fab" id="fab-scan" style="text-decoration: none;">
-                <ion-icon name="qr-code-outline"></ion-icon>
-            </a>
-        </div>
+        <a href="{% url 'core:mobile_scanner' %}" class="scan-btn">
+            <ion-icon name="scan-outline"></ion-icon>
+        </a>
 
         <a href="{% url 'activos:arbol_activos' %}" class="tab-item">
-            <ion-icon name="business-outline"></ion-icon>
+            <ion-icon name="cube-outline"></ion-icon>
             <span>Activos</span>
         </a>
         <a href="{% url 'admin:index' %}" class="tab-item">
-            <ion-icon name="settings-outline"></ion-icon>
-            <span>Ajustes</span>
+            <ion-icon name="person-outline"></ion-icon>
+            <span>Perfil</span>
         </a>
     </nav>
 
     <script>
-        // Funcionalidad básica para el dashboard móvil
         document.addEventListener('DOMContentLoaded', () => {
-            // Búsqueda rápida
             const searchInput = document.getElementById('mobile-search');
             if (searchInput) {
                 searchInput.addEventListener('keypress', (e) => {

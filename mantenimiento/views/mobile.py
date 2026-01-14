@@ -1,11 +1,11 @@
 import collections
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from django.db.models import Count, Q, Min
-from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoProcedimiento
+from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoProcedimiento, Falla, FotoAviso
 from activos.models import Activo, Ubicacion, DocumentoMedicion
 
 @staff_member_required
@@ -40,12 +40,67 @@ def mobile_ot_detalle(request, pk):
 
 @staff_member_required
 def mobile_crear_aviso(request):
-    aid = request.GET.get('activo'); activo = get_object_or_404(Activo, id=aid) if aid else None
+    aid = request.GET.get('activo')
+    activo = get_object_or_404(Activo, id=aid) if aid else None
+    
+    # Obtener ubicación por defecto del perfil
+    perfil = getattr(request.user, 'perfil', None)
+    ubi_defecto = perfil.ubicacion_defecto if perfil else None
+    
+    # Obtener catálogo de fallas relevante al puesto del usuario
+    puesto_tecnico = getattr(request.user, 'perfil_tecnico', None)
+    if puesto_tecnico:
+        # Buscamos todas las fallas que cuelgan de un root asociado al puesto
+        roots = Falla.objects.filter(puesto_trabajo=puesto_tecnico.puesto)
+        fallas_ids = []
+        for r in roots:
+            # Simple recursion for small catalogs
+            def get_ids(node):
+                fallas_ids.append(node.id)
+                for h in node.hijos.all(): get_ids(h)
+            get_ids(r)
+        fallas = Falla.objects.filter(id__in=fallas_ids)
+    else:
+        fallas = Falla.objects.all()
+
     if request.method == 'POST':
-        aviso = Aviso.objects.create(activo=activo, ubicacion=activo.ubicacion if activo else None, descripcion=request.POST.get('descripcion'), prioridad=request.POST.get('prioridad', 'MEDIA'), tipo=request.POST.get('tipo', 'SOLICITUD'), solicitante=request.user, foto=request.FILES.get('foto'))
+        # Determinamos la ubicación final (Activo > Perfil)
+        ubicacion = activo.ubicacion if activo else ubi_defecto
+        
+        # Guardar el aviso
+        aviso = Aviso.objects.create(
+            activo=activo, 
+            ubicacion=ubicacion,
+            falla_id=request.POST.get('falla'),
+            descripcion=request.POST.get('descripcion'), 
+            prioridad=request.POST.get('prioridad', 'MEDIA'), 
+            tipo=request.POST.get('tipo', 'SOLICITUD'), 
+            solicitante=request.user, 
+        )
+        
+        # Guardar múltiples fotos
+        fotos = request.FILES.getlist('fotos')
+        if fotos:
+            # Guardamos la primera en el campo principal por compatibilidad
+            aviso.foto = fotos[0]
+            aviso.save()
+            # Guardamos todas en el nuevo modelo
+            for f in fotos:
+                FotoAviso.objects.create(aviso=aviso, foto=f)
+        
         if activo: return redirect('activos:mobile_activo_detalle', pk=activo.id)
-        return redirect('core:mobile_dashboard')
-    return render(request, 'mantenimiento/mobile_crear_aviso.html', {'activo': activo, 'prioridades': Aviso.PRIORIDAD_CHOICES, 'tipos': Aviso.TIPO_CHOICES})
+        return redirect('mantenimiento:mobile_mis_avisos')
+    
+    tipos = [(v, l, v == 'SOLICITUD') for v, l in Aviso.TIPO_CHOICES]
+    prioridades = [(v, l, v == 'MEDIA') for v, l in Aviso.PRIORIDAD_CHOICES]
+    
+    return render(request, 'mantenimiento/mobile_crear_aviso.html', {
+        'activo': activo, 
+        'prioridades': prioridades, 
+        'tipos': tipos,
+        'ubicacion_defecto': ubi_defecto,
+        'fallas': fallas
+    })
 
 @staff_member_required
 def mobile_ot_iniciar(request, pk):
@@ -153,4 +208,78 @@ def mobile_ot_finalizar(request, pk):
         'ot': ot,
         'pasos': pasos,
         'puntos_medicion': puntos_medicion_extra
+    })
+
+@staff_member_required
+def mobile_crear_ot_rutina(request, rutina_id):
+    """
+    Crea una OT inmediata basada en una rutina y ubicación específica.
+    Usado desde el Visor de Planos (Modo App).
+    """
+    from ..models import Rutina
+    rutina = get_object_or_404(Rutina, pk=rutina_id)
+    ubicacion_id = request.GET.get('ubicacion_id')
+    ubicacion = get_object_or_404(Ubicacion, pk=ubicacion_id) if ubicacion_id else None
+    
+    now = timezone.now()
+    duracion = rutina.tiempo_estimado or timedelta(hours=1)
+    
+    ot = OrdenTrabajo.objects.create(
+        rutina=rutina,
+        ubicacion=ubicacion,
+        tecnico=request.user,
+        estado='PROGRAMADA',
+        inicio_programado=now,
+        fin_programado=now + duracion,
+        notas=f"Generada desde Visor: {rutina.nombre}"
+    )
+    
+    # Intento de vincular activos de esa ubicación que coincidan con la categoría
+    if ubicacion and rutina.categoria:
+        # Buscar activos en esta ubicación que sean de la categoría de la rutina
+        cat_activo = rutina.categoria.categoria_activo
+        if cat_activo:
+            activos_candidatos = Activo.objects.filter(ubicacion=ubicacion, modelo__categoria=cat_activo)
+            for a in activos_candidatos:
+                ot.activos.add(a)
+    
+    return redirect('mantenimiento:mobile_ot_detalle', pk=ot.id)
+
+@staff_member_required
+def mobile_mis_avisos(request):
+    """
+    Muestra los avisos del usuario y de sus compañeros de puesto.
+    """
+    # 1. Filtro base: Mis avisos
+    query = Q(solicitante=request.user)
+    
+    # 2. Extensión: Avisos de compañeros del mismo puesto
+    puesto_tecnico = getattr(request.user, 'perfil_tecnico', None)
+    if puesto_tecnico:
+        puesto = puesto_tecnico.puesto
+        query |= Q(solicitante__perfil_tecnico__puesto=puesto)
+    
+    avisos = Aviso.objects.filter(query).select_related('activo', 'ubicacion', 'falla', 'solicitante').order_by('-creado_en')
+    
+    return render(request, 'mantenimiento/mobile_mis_avisos.html', {
+        'avisos': avisos,
+        'puesto': puesto_tecnico.puesto if puesto_tecnico else None
+    })
+
+@staff_member_required
+def mobile_aviso_detalle(request, pk):
+    """
+    Muestra el detalle expandido de un aviso con sus fotos.
+    """
+    aviso = get_object_or_404(Aviso, pk=pk)
+    # Verificar acceso (mismo puesto o solicitante)
+    # Por ahora permitimos visualización si es del mismo puesto o solicitante
+    puesto_tecnico = getattr(request.user, 'perfil_tecnico', None)
+    puede_ver = aviso.solicitante == request.user or (puesto_tecnico and aviso.solicitante.perfil_tecnico.puesto == puesto_tecnico.puesto)
+    
+    if not puede_ver and not request.user.is_superuser:
+        return redirect('mantenimiento:mobile_mis_avisos')
+
+    return render(request, 'mantenimiento/mobile_aviso_detalle.html', {
+        'aviso': aviso,
     })

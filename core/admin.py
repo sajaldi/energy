@@ -39,11 +39,27 @@ class ConfiguracionUIAdmin(admin.ModelAdmin):
         # Only allow adding if there is no config yet
         return not ConfiguracionUI.objects.exists()
 
+from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+
+class PerfilUsuarioInline(admin.StackedInline):
+    model = PerfilUsuario
+    can_delete = False
+    verbose_name_plural = 'Perfil de Usuario / Configuración'
+    raw_id_fields = ('ubicacion_defecto',)
+
 @admin.register(PerfilUsuario)
 class PerfilUsuarioAdmin(admin.ModelAdmin):
-    list_display = ('usuario', 'visto_tutorial')
-    list_filter = ('visto_tutorial',)
+    list_display = ('usuario', 'visto_tutorial', 'ubicacion_defecto')
+    list_filter = ('visto_tutorial', 'ubicacion_defecto')
     search_fields = ('usuario__username', 'usuario__email')
+    raw_id_fields = ('ubicacion_defecto',)
+
+# Unregister standard User and Register with Profile Inline
+admin.site.unregister(User)
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    inlines = (PerfilUsuarioInline,)
 
 
 from . import views

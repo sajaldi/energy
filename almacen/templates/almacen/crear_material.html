@@ -1,0 +1,80 @@
+{% extends 'almacen/base.html' %}
+{% block title %}Nuevo Material | Almacén{% endblock %}
+{% block extra_css %}
+<script src="https://unpkg.com/html5-qrcode"></script>
+{% endblock %}
+{% block header %}
+<div class="flex-row">
+    <a href="{% url 'almacen:dashboard' %}" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
+    <h1>Alta de Material</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="card">
+        <form method="POST">{% csrf_token %}
+            <div class="form-group"><label>Nombre</label>
+                <input type="text" name="nombre" class="form-control" placeholder="Ej: Cable 10AWG" required>
+            </div>
+            <div class="form-group"><label>SKU</label>
+                <div class="flex-row" style="gap:10px;">
+                    <input type="text" name="sku" id="id_sku" class="form-control" placeholder="Ej: CB-010" required>
+                    <button type="button" onclick="openScanner()" class="btn btn-primary"
+                        style="padding:14px;"><ion-icon name="camera-outline"
+                            style="font-size:20px;"></ion-icon></button>
+                </div>
+            </div>
+            <div class="form-group"><label>Categoría</label>
+                <select name="categoria" class="form-control">
+                    <option value="">Sin Categoría</option>
+                    {% for cat in categorias %}<option value="{{ cat.id }}">{{ cat }}</option>{% endfor %}
+                </select>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                <div class="form-group"><label>Unidad</label>
+                    <select name="unidad_medida" class="form-control">{% for k,v in unidades_medida %}<option
+                            value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+                </div>
+                <div class="form-group"><label>Mínimo</label><input type="number" step="0.01" name="stock_minimo"
+                        class="form-control" value="0"></div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px; padding:16px;"><ion-icon
+                    name="save-outline"></ion-icon>Guardar</button>
+        </form>
+    </div>
+    <h2 class="item-title" style="margin:25px 0 15px 5px;">Recientes</h2>
+    {% for mat in ultimos_materiales %}
+    <div class="card flex-row" style="padding:15px; margin-bottom:12px;">
+        <div class="icon-box bg-gray-light text-primary" style="width:40px; height:40px; font-size:20px;"><ion-icon
+                name="cube-outline"></ion-icon></div>
+        <div style="flex:1;">
+            <div class="item-title">{{ mat.nombre }}</div>
+            <div class="item-subtitle">{{ mat.sku }} • {{ mat.categoria|default:"S/C" }}</div>
+        </div>
+        <div class="item-subtitle font-bold">{{ mat.get_unidad_medida_display|slice:":1"|upper }}</div>
+    </div>
+    {% endfor %}
+</div>
+<div id="scanner-modal">
+    <div id="reader"></div>
+    <div class="scanner-overlay"></div><button class="scan-close" onclick="closeScanner()"><ion-icon
+            name="close-outline"></ion-icon></button>
+</div>
+<script>
+    let qrReader = null;
+    function openScanner() {
+        const modal = document.getElementById('scanner-modal');
+        modal.style.display = 'flex';
+        if (!qrReader) qrReader = new Html5Qrcode("reader");
+        qrReader.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 }, (text) => {
+            document.getElementById('id_sku').value = text;
+            if (navigator.vibrate) navigator.vibrate(100);
+            closeScanner();
+        }, (err) => { }).catch(e => alert("Error cámara: " + e));
+    }
+    function closeScanner() {
+        if (qrReader) qrReader.stop().then(() => { }).catch(() => { });
+        document.getElementById('scanner-modal').style.display = 'none';
+    }
+</script>
+{% endblock %}

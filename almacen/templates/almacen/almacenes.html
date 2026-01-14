@@ -1,0 +1,41 @@
+{% extends 'almacen/base.html' %}
+{% block title %}Almacenes | Almacén{% endblock %}
+
+{% block header %}
+<h1 style="font-size:24px; font-weight:800; color:#1e293b;">Nuestros Almacenes</h1>
+<p style="color:#64748b; font-size:14px;">Explora el inventario por ubicación física</p>
+{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:15px;">
+        {% for alm in almacenes %}
+        <a href="{% url 'almacen:detalle_almacen' alm.id %}" class="card"
+            style="padding:20px 15px; text-decoration:none; color:inherit; display:flex; flex-direction:column; align-items:center; text-align:center; transition:transform 0.2s;">
+            <div class="icon-box bg-primary-light text-primary"
+                style="width:55px; height:55px; font-size:28px; margin-bottom:12px;">
+                <ion-icon name="business-outline"></ion-icon>
+            </div>
+            <div style="font-weight:700; color:#1e293b; font-size:12px;">{{ alm.get_ruta_completa }}</div>
+            <div
+                style="font-size:11px; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">
+                {{ alm.total_items }} MATERIALES</div>
+        </a>
+        {% empty %}
+        <div style="grid-column: span 2;" class="card text-center">
+            <div style="padding:40px 20px;">
+                <ion-icon name="alert-circle-outline"
+                    style="font-size:48px; color:#cbd5e1; margin-bottom:10px;"></ion-icon>
+                <p style="color:#64748b;">No se han detectado ubicaciones con existencias.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .card:active {
+        transform: scale(0.96);
+    }
+</style>
+{% endblock %}

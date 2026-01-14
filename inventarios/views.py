@@ -3,7 +3,8 @@ from django.contrib import messages
 from django.http import JsonResponse
 from decimal import Decimal
 from django.contrib.auth.decorators import login_required
-from .models import Material, StockRecord, MovimientoInventario
+from .models import Material, StockRecord, MovimientoInventario, SolicitudMaterial
+from django.db import transaction
 from mantenimiento.models import OrdenTrabajo
 from activos.models import Ubicacion, Categoria
 from .cart_utils import Cart
@@ -48,7 +49,7 @@ def registrar_salida_view(request):
             
             if available < dc_cantidad:
                 messages.error(request, f"Error: Stock insuficiente en {ubicacion.nombre}. Disponible: {available} {material.unidad_medida}.")
-                return redirect('registrar_salida')
+                return redirect('inventarios:registrar_salida')
 
             # Crear movimiento de salida
             MovimientoInventario.objects.create(
@@ -77,16 +78,23 @@ def registrar_salida_view(request):
 @login_required
 def api_get_material_stock(request, material_id):
     """
-    Retorna los niveles de stock por ubicación para un material dado.
+    Retorna los niveles de stock por ubicación para un material dado,
+    incluyendo detalles completos del material.
     """
     material = get_object_or_404(Material, id=material_id)
     existencias = material.existencias.select_related('ubicacion').values(
-        'ubicacion_id', 'ubicacion__nombre', 'cantidad'
+        'ubicacion__nombre', 'ubicacion_especifica', 'cantidad'
     )
     return JsonResponse({
-        'material': material.nombre,
-        'unidad': material.unidad_medida,
-        'existencias': list(existencias)
+        'id': material.id,
+        'nombre': material.nombre,
+        'sku': material.sku,
+        'marca': material.marca.nombre if material.marca else "Sin marca",
+        'categoria': str(material.categoria) if material.categoria else "Sin categoría",
+        'descripcion': material.descripcion or "Sin descripción",
+        'unidad': material.get_unidad_medida_display(),
+        'existencias': list(existencias),
+        'total': float(material.get_stock_total())
     })
 
 @login_required
@@ -125,7 +133,7 @@ def cart_detail_view(request):
 
 @login_required
 def cart_checkout(request):
-    """Procesa el carrito y crea los movimientos de inventario."""
+    """Procesa el carrito y crea una orden de salida con sus movimientos."""
     if request.method == 'POST':
         cart = Cart(request)
         items = cart.get_items()
@@ -136,46 +144,48 @@ def cart_checkout(request):
         
         if not items:
             messages.error(request, "El carrito está vacío.")
-            return redirect('cart_detail')
+            return redirect('inventarios:cart_detail')
             
         if not ubicacion_id:
             messages.error(request, "Debes seleccionar una ubicación de origen.")
-            return redirect('cart_detail')
+            return redirect('inventarios:cart_detail')
 
         try:
             ubicacion = get_object_or_404(Ubicacion, id=ubicacion_id)
             ot = OrdenTrabajo.objects.filter(id=ot_id).first() if ot_id else None
             
-            # Validar stock para todos los items
-            for item in items:
-                material = item['material']
-                qty = Decimal(str(item['quantity']))
-                stock_record = StockRecord.objects.filter(material=material, ubicacion=ubicacion).first()
-                available = stock_record.cantidad if stock_record else 0
-                if available < qty:
-                    raise ValueError(f"Stock insuficiente para {material.nombre}. Disponible: {available}")
-
-            # Crear movimientos
-            for item in items:
-                MovimientoInventario.objects.create(
-                    material=item['material'],
-                    tipo='SALIDA',
-                    cantidad=Decimal(str(item['quantity'])),
-                    ubicacion_origen=ubicacion,
-                    orden_trabajo=ot,
+            with transaction.atomic():
+                # Crear la cabecera de la orden
+                solicitud = SolicitudMaterial.objects.create(
                     usuario=request.user,
-                    comentarios=comentarios
+                    orden_trabajo=ot,
+                    ubicacion_origen=ubicacion,
+                    comentarios_solicitud=comentarios
                 )
+
+                # Crear los movimientos asociados
+                for item in items:
+                    MovimientoInventario.objects.create(
+                        solicitud=solicitud,
+                        material=item['material'],
+                        tipo='SALIDA',
+                        cantidad=Decimal(str(item['quantity'])),
+                        ubicacion_origen=ubicacion, # Mantener para consistencia con el modelo MovimientoInventario
+                        orden_trabajo=ot, # Mantener para consistencia con el modelo MovimientoInventario
+                        usuario=request.user, # Mantener para consistencia con el modelo MovimientoInventario
+                        comentarios=comentarios # Mantener para consistencia con el modelo MovimientoInventario
+                    )
             
             cart.clear()
-            messages.success(request, f"Se han registrado {len(items)} solicitudes de salida correctamente.")
-            return redirect('registrar_salida')
+            messages.success(request, f"Orden #{solicitud.id} registrada correctamente con {len(items)} ítems.")
+            return redirect('inventarios:registrar_salida')
             
         except Exception as e:
-            messages.error(request, f"Error en checkout: {str(e)}")
-            return redirect('cart_detail')
+            messages.error(request, f"Error en el proceso: {str(e)}")
+            return redirect('inventarios:cart_detail')
             
-    return redirect('cart_detail')
+    return redirect('inventarios:cart_detail')
+
 @login_required
 def api_get_material_by_sku(request):
     """
@@ -256,4 +266,20 @@ def scanner_view(request):
     ubicaciones = Ubicacion.objects.all()
     return render(request, 'inventarios/escanear.html', {
         'ubicaciones': ubicaciones
+    })
+
+@login_required
+def mobile_lista_pedidos(request):
+    """Listado móvil de solicitudes de material para el usuario actual."""
+    pedidos = SolicitudMaterial.objects.filter(usuario=request.user).order_by('-fecha_solicitud')
+    return render(request, 'inventarios/mobile_lista_pedidos.html', {'pedidos': pedidos})
+
+@login_required
+def mobile_detalle_pedido(request, pk):
+    """Detalle móvil de una solicitud de material."""
+    pedido = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
+    items = pedido.movimientos.select_related('material').all()
+    return render(request, 'inventarios/mobile_detalle_pedido.html', {
+        'pedido': pedido,
+        'items': items
     })

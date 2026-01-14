@@ -27,6 +27,9 @@ urlpatterns = [
     path('app/ot/<int:pk>/iniciar/', views.mobile_ot_iniciar, name='mobile_ot_iniciar'),
     path('app/ot/<int:pk>/finalizar/', views.mobile_ot_finalizar, name='mobile_ot_finalizar'),
     path('app/aviso/crear/', views.mobile_crear_aviso, name='mobile_crear_aviso'),
+    path('app/aviso/<int:pk>/', views.mobile_aviso_detalle, name='mobile_aviso_detalle'),
+    path('app/avisos/', views.mobile_mis_avisos, name='mobile_mis_avisos'),
+    path('app/crear-ot-rutina/<int:rutina_id>/', views.mobile_crear_ot_rutina, name='mobile_crear_ot_rutina'),
     path('dashboard-cargas/', views.dashboard_cargas, name='dashboard_cargas'),
     path('proyeccion-generar/api/', views.api_generar_orden_individual, name='api_generar_orden_individual'),
 ]

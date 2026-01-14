@@ -24,6 +24,9 @@ from .mobile import (
     mobile_ot_detalle,
     mobile_crear_aviso,
     mobile_ot_iniciar,
-    mobile_ot_finalizar
+    mobile_ot_finalizar,
+    mobile_crear_ot_rutina,
+    mobile_mis_avisos,
+    mobile_aviso_detalle
 )
 from .dashboard import dashboard_cargas

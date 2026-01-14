@@ -1,0 +1,173 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    .import-container {
+        max-width: 800px;
+        margin: 20px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .file-drop-area {
+        border: 2px dashed #e2e8f0;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        transition: all 0.3s;
+        cursor: pointer;
+        background: #f8fafc;
+    }
+
+    .file-drop-area:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .progress-wrapper {
+        display: none;
+        margin-top: 30px;
+    }
+
+    .progress-bar {
+        height: 20px;
+        background: #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: #3b82f6;
+        width: 0%;
+        transition: width 0.3s;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <h2>Importación de Activos en Segundo Plano (Recomendado > 1000 filas)</h2>
+    <p style="color: #64748b;">Este proceso permite cargar archivos grandes sin que la web se bloquee. Recibirás una
+        notificación cuando termine.</p>
+
+    <form id="import-form" method="post" enctype="multipart/form-data"
+        action="{% url 'admin:activos_activo_import_process' %}">
+        {% csrf_token %}
+        <div class="file-drop-area" id="drop-area">
+            <ion-icon name="cloud-upload-outline" style="font-size: 3rem; color: #3b82f6;"></ion-icon>
+            <p>Arrastra tu archivo aquí o <strong>haz clic para seleccionar</strong></p>
+            <input type="file" name="file" id="file-input" style="display: none;" accept=".xlsx, .xls, .csv">
+            <div id="file-name" style="margin-top: 10px; font-weight: bold; color: #1e293b;"></div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="button"
+                style="background: #3b82f6; color: white; width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                Iniciar Importación Masiva
+            </button>
+        </div>
+    </form>
+
+    <div class="progress-wrapper" id="progress-wrapper">
+        <h3 id="progress-status">Procesando archivo...</h3>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <p id="progress-text" style="text-align: center; margin-top: 10px;">0% (0 / 0)</p>
+    </div>
+</div>
+
+<script>
+    const dropArea = document.getElementById('drop-area');
+    const fileInput = document.getElementById('file-input');
+    const fileName = document.getElementById('file-name');
+    const form = document.getElementById('import-form');
+    const progressWrapper = document.getElementById('progress-wrapper');
+    const progressFill = document.getElementById('progress-fill');
+    const progressStatus = document.getElementById('progress-status');
+    const progressText = document.getElementById('progress-text');
+
+    dropArea.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+            fileName.innerText = e.target.files[0].name;
+        }
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+
+        form.style.display = 'none';
+        progressWrapper.style.display = 'block';
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (data.status === 'started') {
+                processChunks(data.import_id, data.total, data.file_format);
+            } else {
+                Swal.fire('Error', data.message || 'Error al iniciar', 'error');
+                form.style.display = 'block';
+            }
+        } catch (err) {
+            Swal.fire('Error', 'Error de conexión', 'error');
+            form.style.display = 'block';
+        }
+    });
+
+    let totals = { new: 0, updated: 0, skipped: 0, errors: 0 };
+
+    async function processChunks(importId, totalRows, format, start = 0) {
+        const chunkSize = 100; // Procesar de 100 en 100 (más eficiente)
+        console.log(`IMPORT: Iniciando chunk desde ${start} (Tamaño: ${chunkSize})`);
+
+        try {
+            const url = `{% url 'admin:activos_activo_import_progress' %}?import_id=${importId}&start=${start}&size=${chunkSize}&format=${format}`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.status === 'PROGRESS') {
+                // Acumular resultados
+                totals.new += data.new;
+                totals.updated += data.updated;
+                totals.skipped += data.skipped;
+                totals.errors += data.errors;
+
+                const percent = Math.round((data.current / data.total) * 100);
+                progressFill.style.width = `${percent}%`;
+                progressText.innerText = `${percent}% (Procesados ${data.current} de ${data.total})`;
+
+                if (data.is_last || data.current >= data.total) {
+                    Swal.fire({
+                        title: '¡Importación Finalizada!',
+                        html: `<b>Resumen:</b><br>Nuevos: ${totals.new}<br>Actualizados: ${totals.updated}<br>Omitidos: ${totals.skipped}<br>Errores: ${totals.errors}`,
+                        icon: 'success'
+                    }).then(() => window.location.href = "{% url 'admin:activos_activo_changelist' %}");
+                } else {
+                    // Siguiente chunk
+                    processChunks(importId, totalRows, format, data.current);
+                }
+            } else {
+                Swal.fire('Error', data.message || 'Error durante el proceso', 'error');
+                form.style.display = 'block';
+            }
+        } catch (err) {
+            console.error(err);
+            Swal.fire('Error', 'Error de comunicación con el servidor', 'error');
+            form.style.display = 'block';
+        }
+    }
+</script>
+{% endblock %}

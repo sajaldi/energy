@@ -1,17 +1,35 @@
 from django.contrib import admin
 from django.contrib import messages
-from .models import Material, StockRecord, MovimientoInventario
+from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial
 
 class StockRecordInline(admin.TabularInline):
     model = StockRecord
     extra = 0
     readonly_fields = ('actualizado_en',)
 
+@admin.register(CategoriaMaterial)
+class CategoriaMaterialAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'padre')
+    search_fields = ('nombre',)
+    list_filter = ('padre',)
+
+class MovimientoInventarioInline(admin.TabularInline):
+    model = MovimientoInventario
+    extra = 0
+    raw_id_fields = ('material', 'ubicacion_origen', 'ubicacion_destino')
+
+@admin.register(SolicitudMaterial)
+class SolicitudMaterialAdmin(admin.ModelAdmin):
+    list_display = ('id', 'usuario', 'fecha_solicitud', 'estado', 'ubicacion_origen')
+    list_filter = ('estado', 'fecha_solicitud')
+    search_fields = ('usuario__username', 'items__material__nombre')
+    inlines = [MovimientoInventarioInline]
+
 @admin.register(Material)
 class MaterialAdmin(admin.ModelAdmin):
-    list_display = ('sku', 'nombre', 'unidad_medida', 'get_stock_total', 'precio_estimado')
+    list_display = ('sku', 'nombre', 'categoria', 'unidad_medida', 'get_stock_total')
     search_fields = ('nombre', 'sku', 'descripcion')
-    list_filter = ('unidad_medida',)
+    list_filter = ('categoria', 'unidad_medida')
     inlines = [StockRecordInline]
 
     def get_queryset(self, request):

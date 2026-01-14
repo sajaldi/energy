@@ -7,29 +7,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Nuevo Aviso - SoftCoM</title>
     {% include 'core/pwa_tags.html' %}
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 
     <style>
         :root {
-            --primary: #007bff;
-            --dark: #212529;
-            --gray-100: #f8f9fa;
-            --gray-200: #e9ecef;
-            --gray-600: #6c757d;
-            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --accent: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-body: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             font-family: 'Outfit', sans-serif;
-            background-color: #f0f2f5;
+            background-color: var(--bg-body);
+            color: var(--text-main);
             margin: 0;
-            color: var(--dark);
-            padding-bottom: 30px;
+            padding-bottom: 40px;
+            background: radial-gradient(circle at top right, #e2e8f0 0%, #f8fafc 40%);
         }
 
+        /* Animations */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: slideUp 0.4s ease-out forwards;
+        }
+
+        /* Header */
         header {
-            background-color: white;
             padding: 20px;
             display: flex;
             align-items: center;
@@ -37,71 +68,85 @@
             position: sticky;
             top: 0;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
         }
 
         .back-btn {
-            font-size: 28px;
-            color: var(--dark);
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: white;
+            border: 1px solid #e2e8f0;
             display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            font-size: 22px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
         }
 
         header h1 {
             margin: 0;
             font-size: 20px;
             font-weight: 700;
+            color: var(--text-main);
         }
 
         .container {
-            padding: 16px;
+            padding: 20px;
         }
 
-        .asset-mini-card {
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
+        /* Asset Context Card */
+        .asset-context {
+            background: linear-gradient(135deg, white, #f8fafc);
+            border-radius: 24px;
+            padding: 18px;
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 15px;
+            margin-bottom: 25px;
             box-shadow: var(--card-shadow);
+            border: 1px solid #f1f5f9;
         }
 
         .asset-icon {
-            font-size: 24px;
+            width: 54px;
+            height: 54px;
+            background: #eff6ff;
             color: var(--primary);
-            background: var(--gray-100);
-            width: 45px;
-            height: 45px;
-            border-radius: 12px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 28px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
         }
 
-        .asset-details h3 {
+        .asset-info h3 {
             margin: 0;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 700;
         }
 
-        .asset-details p {
-            margin: 2px 0 0 0;
-            font-size: 12px;
-            color: var(--gray-600);
+        .asset-info p {
+            margin: 3px 0 0 0;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
         }
 
+        /* Form Styling */
         form {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 22px;
         }
 
-        .field-group {
+        .form-group {
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -109,57 +154,97 @@
 
         label {
             font-size: 14px;
-            font-weight: 600;
-            color: var(--gray-600);
-            padding-left: 5px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-left: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        textarea,
-        select,
-        input {
-            font-family: 'Outfit', sans-serif;
+        .input-wrapper {
+            position: relative;
             background: white;
-            border: 1px solid var(--gray-200);
-            border-radius: 12px;
-            padding: 12px 15px;
-            font-size: 15px;
-            outline: none;
+            border-radius: 18px;
             box-shadow: var(--card-shadow);
+            border: 1px solid #f1f5f9;
+            transition: all 0.3s ease;
+            overflow: hidden;
         }
 
-        textarea:focus,
-        select:focus {
+        .input-wrapper:focus-within {
             border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            transform: translateY(-1px);
+        }
+
+        select,
+        textarea {
+            width: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            padding: 16px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            color: var(--text-main);
+            display: block;
         }
 
         textarea {
-            height: 120px;
+            height: 140px;
+            line-height: 1.5;
             resize: none;
         }
 
-        .photo-upload {
+        /* Photo Upload Section */
+        .photo-section {
             background: white;
-            border: 2px dashed var(--gray-200);
-            border-radius: 15px;
-            padding: 25px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 24px;
+            padding: 30px 20px;
             text-align: center;
-            cursor: pointer;
+            transition: all 0.3s ease;
             position: relative;
+            cursor: pointer;
         }
 
-        .photo-upload ion-icon {
-            font-size: 32px;
-            color: var(--gray-600);
-            margin-bottom: 8px;
+        .photo-section:active {
+            transform: scale(0.98);
         }
 
-        .photo-upload p {
+        .photo-section.has-file {
+            border-style: solid;
+            border-color: var(--success);
+            background: #f0fdf4;
+        }
+
+        .upload-icon {
+            width: 56px;
+            height: 56px;
+            background: #f1f5f9;
+            color: var(--text-muted);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 24px;
+            transition: all 0.3s;
+        }
+
+        .has-file .upload-icon {
+            background: var(--success);
+            color: white;
+        }
+
+        .photo-section p {
             margin: 0;
             font-size: 14px;
-            color: var(--gray-600);
+            font-weight: 600;
+            color: var(--text-muted);
         }
 
-        .photo-upload input[type="file"] {
+        .photo-section input[type="file"] {
             position: absolute;
             top: 0;
             left: 0;
@@ -169,40 +254,101 @@
             cursor: pointer;
         }
 
-        .preview-container {
+        .image-preview {
             display: none;
-            margin-top: 10px;
-            border-radius: 12px;
+            margin-top: 15px;
+            border-radius: 16px;
             overflow: hidden;
-            border: 1px solid var(--gray-200);
+            border: 1px solid #e2e8f0;
+            max-height: 250px;
         }
 
-        .preview-container img {
+        .image-preview img {
             width: 100%;
-            height: auto;
-            display: block;
+            height: 100%;
+            object-fit: cover;
         }
 
-        .submit-btn {
-            background: var(--primary);
+        .multiple-preview {
+            display: none;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .preview-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+        }
+
+        .preview-wrapper img {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 2px solid white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .remove-photo-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+
+        /* Submit Button */
+        .btn-submit {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
             border: none;
-            border-radius: 12px;
-            padding: 16px;
+            border-radius: 20px;
+            padding: 18px;
             font-family: 'Outfit', sans-serif;
+            font-size: 17px;
             font-weight: 700;
-            font-size: 16px;
-            margin-top: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+            margin-top: 10px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+            transition: all 0.2s;
         }
 
-        .submit-btn:active {
-            transform: scale(0.98);
+        .btn-submit:active {
+            transform: scale(0.97);
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-submit ion-icon {
+            font-size: 20px;
+        }
+
+        /* Spinning animation for loading */
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-icon {
+            animation: spin 1s linear infinite;
         }
     </style>
 </head>
@@ -211,113 +357,188 @@
 
     <header>
         <button onclick="window.history.back()" class="back-btn">
-            <ion-icon name="arrow-back-outline"></ion-icon>
+            <ion-icon name="chevron-back-outline"></ion-icon>
         </button>
-        <h1>Nuevo Aviso</h1>
+        <h1>Crear Nuevo Aviso</h1>
     </header>
 
-    <div class="container">
+    <div class="container fade-in">
 
         {% if activo %}
-        <div class="asset-mini-card">
+        <div class="asset-context">
             <div class="asset-icon">
-                <ion-icon name="hardware-chip-outline"></ion-icon>
+                <ion-icon name="cube-outline"></ion-icon>
             </div>
-            <div class="asset-details">
+            <div class="asset-info">
                 <h3>{{ activo.nombre }}</h3>
                 <p>{{ activo.codigo_interno }} • {{ activo.ubicacion.nombre }}</p>
             </div>
         </div>
+        {% elif ubicacion_defecto %}
+        <div class="asset-context">
+            <div class="asset-icon">
+                <ion-icon name="location-outline"></ion-icon>
+            </div>
+            <div class="asset-info">
+                <h3>Ubicación Reportada</h3>
+                <p>{{ ubicacion_defecto.nombre }} (Por defecto)</p>
+            </div>
+        </div>
         {% endif %}
 
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" id="order-form">
             {% csrf_token %}
 
-            <div class="field-group">
-                <label>Tipo de Requerimiento</label>
-                <select name="tipo">
-                    {% for val, label in tipos %}
-                    <option value="{{ val }}" {% if val=='SOLICITUD' %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
+            <div class="form-group">
+                <label>Naturaleza del Reporte</label>
+                <div class="input-wrapper">
+                    <select name="tipo">
+                        {% for val, label, is_selected in tipos %}
+                        <option value="{{ val }}" {% if is_selected %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
 
-            <div class="field-group">
-                <label>Prioridad</label>
-                <select name="prioridad">
-                    {% for val, label in prioridades %}
-                    <option value="{{ val }}" {% if val=='MEDIA' %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
+            <div class="form-group">
+                <label>Prioridad / Urgencia</label>
+                <div class="input-wrapper">
+                    <select name="prioridad">
+                        {% for val, label, is_selected in prioridades %}
+                        <option value="{{ val }}" {% if is_selected %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
 
-            <div class="field-group">
-                <label>Descripción del Problema</label>
-                <textarea name="descripcion" placeholder="Explica detalladamente qué sucede..." required></textarea>
+            <div class="form-group">
+                <label>Falla Detectada / Síntoma</label>
+                <div class="input-wrapper">
+                    <select name="falla">
+                        <option value="" disabled selected>Selecciona el tipo de falla...</option>
+                        {% for f in fallas %}
+                        <option value="{{ f.id }}">{{ f.get_ruta_completa }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
 
-            <div class="field-group">
-                <label>Evidencia Fotográfica (Opcional)</label>
-                <div class="photo-upload" id="drop-area">
-                    <ion-icon name="camera-outline"></ion-icon>
-                    <p id="photo-text">Toca para tomar foto o subir</p>
-                    <input type="file" name="foto" id="file-input" accept="image/*" capture="environment">
-                    <div class="preview-container" id="preview-container">
-                        <img id="preview-img" src="" alt="Vista previa">
+            <div class="form-group">
+                <label>Detalle del Evento</label>
+                <div class="input-wrapper">
+                    <textarea name="descripcion"
+                        placeholder="Describe lo que sucede de la forma más detallada posible..." required></textarea>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Evidencia Visual</label>
+                <div class="photo-section" id="photo-box">
+                    <div class="upload-icon">
+                        <ion-icon name="camera-outline"></ion-icon>
+                    </div>
+                    <p id="upload-status">Toca para capturar o subir evidencias</p>
+                    <input type="file" name="fotos" id="foto-input" accept="image/*" multiple>
+
+                    <div class="multiple-preview" id="photo-preview-container">
+                        <!-- Previews will be injected here -->
                     </div>
                 </div>
             </div>
 
-            <button type="submit" class="submit-btn" id="submit-btn">
-                <ion-icon name="send-outline"></ion-icon> Crear Aviso
+            <button type="submit" class="btn-submit" id="submit-trigger">
+                <ion-icon name="paper-plane-outline"></ion-icon>
+                <span>Enviar Reporte</span>
             </button>
         </form>
 
     </div>
 
     <script>
-        const fileInput = document.getElementById('file-input');
-        const previewContainer = document.getElementById('preview-container');
-        const previewImg = document.getElementById('preview-img');
-        const photoText = document.getElementById('photo-text');
-        const submitBtn = document.getElementById('submit-btn');
+        const input = document.getElementById('foto-input');
+        const previewContainer = document.getElementById('photo-preview-container');
+        const statusText = document.getElementById('upload-status');
+        const photoBox = document.getElementById('photo-box');
+        const form = document.querySelector('form');
+        const submitBtn = document.getElementById('submit-trigger');
 
-        fileInput.addEventListener('change', function () {
-            const file = this.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    previewImg.src = e.target.result;
-                    previewContainer.style.display = 'block';
-                    photoText.textContent = "Foto seleccionada: " + file.name;
+        // Contenedor para acumular archivos
+        let allFiles = new DataTransfer();
+
+        function renderPreviews() {
+            previewContainer.innerHTML = '';
+            const files = allFiles.files;
+
+            if (files.length > 0) {
+                previewContainer.style.display = 'grid';
+                photoBox.classList.add('has-file');
+                statusText.innerText = `${files.length} evidencias listas para enviar`;
+
+                Array.from(files).forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'preview-wrapper';
+
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+
+                        const removeBtn = document.createElement('div');
+                        removeBtn.className = 'remove-photo-btn';
+                        removeBtn.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
+                        removeBtn.onclick = function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removePhoto(index);
+                        };
+
+                        wrapper.appendChild(img);
+                        wrapper.appendChild(removeBtn);
+                        previewContainer.appendChild(wrapper);
+                    }
+                    reader.readAsDataURL(file);
+                });
+            } else {
+                previewContainer.style.display = 'none';
+                photoBox.classList.remove('has-file');
+                statusText.innerText = "Toca para capturar o subir evidencias";
+            }
+        }
+
+        function removePhoto(index) {
+            const dt = new DataTransfer();
+            const { files } = allFiles;
+            for (let i = 0; i < files.length; i++) {
+                if (i !== index) dt.items.add(files[i]);
+            }
+            allFiles = dt;
+            input.files = allFiles.files;
+            renderPreviews();
+        }
+
+        input.addEventListener('change', function () {
+            const newFiles = this.files;
+            if (newFiles.length > 0) {
+                // Acumular archivos
+                for (let i = 0; i < newFiles.length; i++) {
+                    allFiles.items.add(newFiles[i]);
                 }
-                reader.readAsDataURL(file);
+                // Actualizar input con la lista completa
+                input.files = allFiles.files;
+                renderPreviews();
             }
         });
 
-        // Feedback al enviar
-        document.querySelector('form').addEventListener('submit', function () {
-            submitBtn.innerHTML = '<ion-icon name="sync-outline" class="spin"></ion-icon> Enviando...';
+        form.addEventListener('submit', function () {
             submitBtn.disabled = true;
             submitBtn.style.opacity = '0.7';
+            if (submitBtn.querySelector('span')) submitBtn.querySelector('span').innerText = 'Procesando...';
+            if (submitBtn.querySelector('ion-icon')) {
+                submitBtn.querySelector('ion-icon').name = 'sync-outline';
+                submitBtn.querySelector('ion-icon').classList.add('loading-icon');
+            }
         });
     </script>
-
-    <style>
-        @keyframes spin {
-            from {
-                transform: rotate(0deg);
-            }
-
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .spin {
-            animation: spin 1s linear infinite;
-        }
-    </style>
 
 </body>
 
