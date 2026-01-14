@@ -1,7 +1,7 @@
 from celery import shared_task
 from import_export import resources
-from .models import Ubicacion
-from .admin import UbicacionResource
+from .models import Ubicacion, Activo
+from .admin import UbicacionResource, ActivoResource
 import time
 
 @shared_task(bind=True)
@@ -99,3 +99,72 @@ def import_ubicaciones_task(self, file_path, file_format):
         'errors': len(result.base_errors) + len(result.row_errors()),
         'error_messages': [str(e.error) for e in result.base_errors[:10]]  # Primeros 10 errores
     }
+@shared_task(bind=True)
+def import_activos_task(self, file_path, file_format, user_id=None):
+    """
+    Tarea Celery para importar activos con seguimiento de progreso.
+    """
+    from tablib import Dataset
+    import os
+    from django.contrib.auth.models import User
+    from django.core.cache import cache
+    
+    user = User.objects.get(id=user_id) if user_id else None
+    resource = ActivoResource()
+    
+    # Leer el archivo
+    with open(file_path, 'rb') as f:
+        file_content = f.read()
+        if file_format == 'csv':
+            dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')
+        elif file_format in ['xls', 'xlsx']:
+            dataset = Dataset().load(file_content, format=file_format)
+        else:
+            raise ValueError(f"Formato no soportado: {file_format}")
+    
+    total_rows = len(dataset)
+    
+    # Marcador de progreso en caché para la UI
+    cache_key = f"import_progress_{user_id}" if user_id else "import_progress_system"
+    cache.set(cache_key, {'current': 0, 'total': total_rows, 'status': 'Iniciando...'}, 3600)
+
+    self.update_state(
+        state='PROGRESS',
+        meta={'current': 0, 'total': total_rows, 'status': 'Cargando datos...'}
+    )
+    
+    result = resources.Result()
+    for i, row in enumerate(dataset.dict, start=1):
+        try:
+            # Actualizar progreso cada 10 filas o al final para no saturar
+            if i % 10 == 0 or i == total_rows:
+                progress_info = {
+                    'current': i,
+                    'total': total_rows,
+                    'status': f'Procesando {i}/{total_rows}',
+                    'percent': int((i / total_rows) * 100)
+                }
+                self.update_state(state='PROGRESS', meta=progress_info)
+                cache.set(cache_key, progress_info, 3600)
+            
+            instance_loader = resources.InstanceLoader(resource, dataset)
+            row_result = resource.import_row(row, instance_loader, dry_run=False)
+            result.append_row_result(row_result)
+            
+        except Exception as e:
+            result.append_base_error(resources.Error(error=e, traceback=str(e), row=row))
+    
+    # Limpiar
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    
+    final_res = {
+        'status': 'completed',
+        'total': total_rows,
+        'new': result.totals.get('new', 0),
+        'updated': result.totals.get('update', 0),
+        'skipped': result.totals.get('skip', 0),
+        'errors': len(result.base_errors) + len(result.row_errors()),
+    }
+    cache.set(cache_key, final_res, 3600)
+    return final_res

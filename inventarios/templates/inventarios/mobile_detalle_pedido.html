@@ -1,0 +1,236 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Detalle de Pedido - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-body: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding-bottom: 30px;
+        }
+
+        header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            font-size: 22px;
+            text-decoration: none;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .status-banner {
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 25px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .status-PENDIENTE {
+            background: linear-gradient(135deg, var(--warning), #d97706);
+        }
+
+        .status-ENTREGADO {
+            background: linear-gradient(135deg, var(--success), #059669);
+        }
+
+        .status-RECHAZADO {
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+        }
+
+        .status-banner h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .status-banner p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin: 25px 0 15px 5px;
+            letter-spacing: 1px;
+        }
+
+        .item-card {
+            background: white;
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+
+        .item-info h3 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .item-info p {
+            margin: 0;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .item-qty {
+            font-weight: 900;
+            font-size: 18px;
+            color: var(--primary);
+            text-align: right;
+        }
+
+        .item-qty span {
+            font-size: 10px;
+            display: block;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .meta-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .meta-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .meta-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .meta-value {
+            font-size: 13px;
+            font-weight: 700;
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <a href="{% url 'inventarios:mobile_lista_pedidos' %}" class="back-btn"><ion-icon
+                name="arrow-back-outline"></ion-icon></a>
+        <h1>Detalle de Pedido</h1>
+    </header>
+    <div class="container">
+        <div class="status-banner status-{{ pedido.estado }}">
+            <p>Estado del Pedido #{{ pedido.id }}</p>
+            <h2>{{ pedido.get_estado_display }}</h2>
+            <p><ion-icon name="calendar-outline"></ion-icon> Solicitado el {{ pedido.fecha_solicitud|date:"d M, Y" }} a
+                las
+                {{ pedido.fecha_solicitud|time:"H:i" }}</p>
+        </div>
+
+        <div class="section-title">Materiales Solicitados</div>
+        {% for item in items %}
+        <div class="item-card">
+            <div class="item-info">
+                <h3>{{ item.material.nombre }}</h3>
+                <p>SKU: {{ item.material.sku }}</p>
+            </div>
+            <div class="item-qty">
+                {{ item.cantidad }}
+                <span>{{ item.material.get_unidad_medida_display }}</span>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="section-title">Información Adicional</div>
+        <div class="meta-card">
+            <div class="meta-row"><span class="meta-label">Ubicación Origen:</span><span class="meta-value">{{
+                    pedido.ubicacion_origen.nombre }}</span></div>
+            {% if pedido.orden_trabajo %}
+            <div class="meta-row"><span class="meta-label">Orden de Trabajo:</span><span class="meta-value">OT-{{
+                    pedido.orden_trabajo.id }}</span></div>
+            {% endif %}
+            <div class="meta-row"><span class="meta-label">Solicitante:</span><span class="meta-value">{{
+                    pedido.usuario.get_full_name|default:pedido.usuario.username }}</span></div>
+            <div style="margin-top:15px; padding-top:15px; border-top:1px solid #f8fafc;">
+                <span class="meta-label">Comentarios:</span>
+                <p style="font-size:13px; margin:5px 0 0 0; color:#334155;">{{ pedido.comentarios_solicitud|default:"Sin
+                    comentarios" }}</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

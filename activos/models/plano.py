@@ -69,11 +69,23 @@ class PinPlano(models.Model):
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='pines_planos',
-        help_text="Actividad de proyecto ubicada en este punto"
+    help_text="Actividad de proyecto ubicada en este punto"
     )
     
-    x = models.FloatField(help_text="Posición X en píxeles absolutos")
-    y = models.FloatField(help_text="Posición Y en píxeles absolutos")
+    # Vinculación con Ubicación (para áreas/zonas)
+    ubicacion = models.ForeignKey(
+        'activos.Ubicacion',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='pines_planos',
+        help_text="Ubicación vinculada a esta zona del plano"
+    )
+
+    x = models.FloatField(help_text="Posición X (o Left) en píxeles absolutos")
+    y = models.FloatField(help_text="Posición Y (o Top) en píxeles absolutos")
+    ancho = models.FloatField(default=0, help_text="Ancho del área en píxeles (0 para puntos)")
+    alto = models.FloatField(default=0, help_text="Alto del área en píxeles (0 para puntos)")
+    
     color = ColorField(default='#FF0000')
     nota = models.TextField(blank=True, null=True)
 

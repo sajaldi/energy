@@ -1,0 +1,98 @@
+{% extends 'almacen/base.html' %}
+{% load l10n %}
+{% block title %}Despacho #{{orden.id}}{% endblock %}
+{% block header %}
+<div class="flex-row">
+    <a href="{% url 'almacen:solicitudes_pendientes' %}" class="back-btn"><ion-icon
+            name="arrow-back-outline"></ion-icon></a>
+    <h1>Despacho #{{orden.id}}</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="card" style="padding:15px; margin-bottom:20px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div><label
+                    style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Solicitante</label>
+                <div style="font-weight:600;">{{orden.solicitante_nombre}}</div>
+            </div>
+            <div><label style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Origen</label>
+                <div style="font-weight:600;">{{orden.ubicacion_origen.nombre}}</div>
+            </div>
+        </div>
+        {% if orden.comentarios_solicitud %}<div
+            style="margin-top:15px; padding:10px; background:#fefce8; border-radius:8px; border:1px solid #fef08a;">
+            <label style="font-size:10px; color:#854d0e; font-weight:700;">NOTA DEL TÉCNICO:</label>
+            <p style="font-size:13px; color:#713f12; margin:0;">{{orden.comentarios_solicitud}}</p>
+        </div>{% endif %}
+    </div>
+    <h2 class="item-title" style="margin-bottom:15px;">Materiales a Despachar</h2>
+    {% for info in items_info %}
+    <div class="card" style="padding:15px; margin-bottom:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+            <div style="flex:1; cursor:pointer;" onclick="openMaterialModal({{info.item.material.id}})">
+                <div style="font-weight:700; color:#1e293b;">{{info.item.material.nombre}}</div>
+                <div style="font-size:12px; color:#64748b;">SKU: {{info.item.material.sku}}</div>
+            </div>
+            <div class="text-right" style="font-size:12px; color:#64748b;">STOCK: <span
+                    style="font-weight:800; color:{% if info.stock_disponible < info.item.cantidad %}#ef4444{% else %}#10b981{% endif %};">{{info.stock_disponible}}</span>
+            </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; align-items:center; margin-top:10px;">
+            <div style="background:#f8fafc; padding:10px; border-radius:8px;">
+                <label style="display:block; font-size:10px; color:#64748b; font-weight:700;">PEDIDO</label>
+                <div style="font-size:16px; font-weight:800; color:#475569;">{{info.item.cantidad}}
+                    <small>{{info.item.material.get_unidad_medida_display|slice:":1"|upper}}</small>
+                </div>
+            </div>
+            <div>
+                <label style="display:block; font-size:10px; color:var(--primary); font-weight:700;">A ENTREGAR</label>
+                <input type="number" step="0.01" class="form-control qty-input" data-id="{{info.item.id}}"
+                    value="{{info.item.cantidad|unlocalize}}" max="{{info.stock_disponible|unlocalize}}"
+                    style="height:44px; font-weight:800;">
+            </div>
+        </div>
+        <div style="margin-top:12px;">
+            <label style="display:block; font-size:10px; color:#64748b; font-weight:700; margin-bottom:5px;">RETIRAR
+                DE:</label>
+            <select class="form-control loc-select" data-id="{{info.item.id}}"
+                style="height:40px; font-size:13px; font-weight:600; border-radius:8px;">
+                <option value="">-- AUTO-DESCONTAR (Basado en Pedido) --</option>
+                {% for loc in info.ubicaciones_disponibles %}
+                <option value="{{loc.ubicacion_id}}|{{loc.especifica}}" {% if info.ubicaciones_disponibles|length < 2
+                    %}selected{% endif %}>
+                    {{loc.almacen}} > {{loc.especifica_display}} ({{loc.cantidad|unlocalize}}
+                    {{info.item.material.get_unidad_medida_display|slice:":3"|upper}})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    {% endfor %}
+    <div class="form-group" style="margin-top:25px;"><label>Comentarios del Almacén</label><textarea
+            id="comentarios_finales" class="form-control" placeholder="Notas sobre el despacho..." rows="3"></textarea>
+    </div>
+    <button type="button" onclick="confirmarDespacho()" class="btn btn-primary"
+        style="width:100%; padding:18px; font-weight:800; margin-top:10px; box-shadow:0 10px 15px -3px rgba(37,99,235,0.4);"><ion-icon
+            name="checkmark-circle-outline" style="font-size:22px; margin-right:8px;"></ion-icon>CONFIRMAR
+        ENTREGA</button>
+</div>
+<script>
+    function confirmarDespacho() {
+        const cantidades = {};
+        const ubicaciones = {};
+        document.querySelectorAll('.qty-input').forEach(input => { cantidades[input.dataset.id] = input.value; });
+        document.querySelectorAll('.loc-select').forEach(select => { ubicaciones[select.dataset.id] = select.value; });
+        const comentarios = document.getElementById('comentarios_finales').value;
+        if (!confirm("¿Confirmar el despacho de todos estos materiales?")) return;
+        fetch("{% url 'almacen:procesar_despacho' orden.id %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ cantidades, ubicaciones, comentarios })
+        }).then(r => r.json()).then(data => {
+            if (data.success) { alert("Orden despachada exitosamente"); window.location.href = "{% url 'almacen:solicitudes_pendientes' %}"; }
+            else { alert("Error: " + data.error); }
+        });
+    }
+</script>
+{% endblock %}

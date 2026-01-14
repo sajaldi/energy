@@ -18,8 +18,9 @@ urlpatterns = [
     path('comunicaciones/', include('comunicaciones.urls', namespace='comunicaciones')),
     path('proyectos/', include('proyectos.urls', namespace='proyectos')),
     path('presupuestos/', include('presupuestos.urls', namespace='presupuestos')),
-    path('inventarios/', include('inventarios.urls')),
+    path('inventarios/', include('inventarios.urls', namespace='inventarios')),
     path('auditorias/', include('auditorias.urls', namespace='auditorias')),
+    path('almacen/', include('almacen.urls', namespace='almacen')),
     # PWA Support
     path('manifest.json', serve, {'document_root': settings.STATICFILES_DIRS[0], 'path': 'core/manifest.json'}),
     path('sw.js', serve, {'document_root': settings.STATICFILES_DIRS[0], 'path': 'core/sw.js'}),

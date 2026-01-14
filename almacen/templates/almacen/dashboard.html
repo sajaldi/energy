@@ -1,0 +1,53 @@
+{% extends 'almacen/base.html' %}
+{% block title %}Dashboard | Almacén{% endblock %}
+{% block header %}
+<h1 style="font-size:24px; font-weight:800;">Hola, {{user.first_name|default:user.username}}</h1>
+<p style="color:#64748b; font-size:14px; margin-top:2px;">Gestión de Almacén e Inventarios</p>
+{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:25px;">
+        <div class="card" style="padding:15px; border-left:4px solid var(--primary);">
+            <div style="font-size:28px; font-weight:800; color:var(--primary);">{{solicitudes_pendientes}}</div>
+            <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase;">Órdenes Pendientes
+            </div>
+        </div>
+        <div class="card" style="padding:15px; border-left:4px solid #10b981;">
+            <div style="font-size:28px; font-weight:800; color:#10b981;">{{solicitudes_hoy}}</div>
+            <div style="font-size:12px; color:#64748b; font-weight:600; text-transform:uppercase;">Nuevas Hoy</div>
+        </div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:30px;">
+        <a href="{% url 'almacen:solicitudes_pendientes' %}" class="btn btn-primary"
+            style="padding:12px 5px; font-size:11px; display:flex; flex-direction:column; align-items:center; gap:4px; height:auto;"><ion-icon
+                name="list-outline" style="font-size:20px;"></ion-icon>Órdenes</a>
+        <a href="{% url 'almacen:lista_almacenes' %}" class="btn btn-primary"
+            style="background:#f8fafc; color:#1e293b; border:1px solid #e2e8f0; padding:12px 5px; font-size:11px; display:flex; flex-direction:column; align-items:center; gap:4px; height:auto;"><ion-icon
+                name="archive-outline" style="font-size:20px;"></ion-icon>Inventarios</a>
+        <a href="{% url 'almacen:asignar_materiales' %}" class="btn btn-primary"
+            style="background:#f0f9ff; color:#0369a1; border:1px solid #bae6fd; padding:12px 5px; font-size:11px; display:flex; flex-direction:column; align-items:center; gap:4px; height:auto;"><ion-icon
+                name="cloud-upload-outline" style="font-size:20px;"></ion-icon>Cargar</a>
+    </div>
+    <div class="flex-row" style="margin-bottom:15px;">
+        <h2 class="item-title" style="font-size:18px;">Órdenes Recientes</h2>
+        <a href="{% url 'almacen:solicitudes_pendientes' %}"
+            style="font-size:13px; color:var(--primary); font-weight:600; text-decoration:none;">Ver todo</a>
+    </div>
+    {% for orden in ultimas_solicitudes %}
+    <a href="{% url 'almacen:detalle_orden' orden.id %}" class="card"
+        style="padding:15px; margin-bottom:12px; text-decoration:none; color:inherit; display:block;">
+        <div class="flex-row">
+            <div class="icon-box bg-primary-light text-primary" style="width:40px; height:40px; font-size:20px;">
+                <ion-icon name="document-text-outline"></ion-icon></div>
+            <div style="flex:1; margin-left:12px;">
+                <div class="item-title" style="font-size:15px;">#{{orden.id}} - {{orden.solicitante_nombre}}</div>
+                <div class="item-subtitle">{{orden.items_count}} ítems • {{orden.ubicacion_origen.nombre}}</div>
+            </div>
+            <div class="badge badge-pending">PENDIENTE</div>
+        </div>
+    </a>
+    {% empty %}
+    <div class="card text-center" style="padding:30px; color:#64748b;">No hay órdenes pendientes.</div>
+    {% endfor %}
+</div>
+{% endblock %}

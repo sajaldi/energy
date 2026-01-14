@@ -393,7 +393,7 @@
             if (!sku) return;
             console.log("Buscando SKU:", sku);
             try {
-                const resp = await fetch(`/inventarios/api/sku/?sku=${encodeURIComponent(sku)}`);
+                const resp = await fetch('{% url "inventarios:api_get_material_by_sku" %}?sku=' + encodeURIComponent(sku));
                 const data = await resp.json();
 
                 if (data.status === 'error') {
@@ -454,7 +454,7 @@
             }
 
             try {
-                const resp = await fetch(`/inventarios/api/movimiento-rapido/`, {
+                const resp = await fetch('{% url "inventarios:api_registrar_movimiento_rapido" %}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

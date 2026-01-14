@@ -189,7 +189,7 @@
                 <div class="empty-state">
                     <ion-icon name="bag-handle-outline" style="font-size: 3rem;"></ion-icon>
                     <p>El carrito está vacío</p>
-                    <a href="{% url 'registrar_salida' %}" class="btn"
+                    <a href="{% url 'inventarios:registrar_salida' %}" class="btn"
                         style="color: var(--primary); text-decoration: underline;">Volver a la lista</a>
                 </div>
                 {% endfor %}
@@ -199,7 +199,7 @@
         <div>
             <div class="card">
                 <h3>Finalizar Pedido</h3>
-                <form action="{% url 'cart_checkout' %}" method="POST">
+                <form action="{% url 'inventarios:cart_checkout' %}" method="POST">
                     {% csrf_token %}
                     <div class="form-group">
                         <label>Ubicación de Origen</label>
@@ -232,7 +232,7 @@
                     </button>
                 </form>
             </div>
-            <a href="{% url 'registrar_salida' %}"
+            <a href="{% url 'inventarios:registrar_salida' %}"
                 style="display: block; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
                 + Agregar más materiales
             </a>
@@ -243,7 +243,7 @@
 <script>
     async function updateQty(id, qty) {
         try {
-            await fetch('{% url "cart_add" %}', {
+            await fetch('{% url "inventarios:cart_add" %}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

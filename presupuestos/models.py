@@ -414,3 +414,103 @@ class PresupuestoAgrupado(models.Model):
         verbose_name = "Presupuesto Agrupado"
         verbose_name_plural = "Presupuestos Agrupados"
         ordering = ['-anio', 'nombre']
+
+class Requisicion(models.Model):
+    """
+    Modelo para sincronización de Requisiciones desde Dynamics 365.
+    Mapea campos de la entidad cr8ca_requisicion.
+    """
+    cr8ca_requisicionid = models.UUIDField(primary_key=True, verbose_name="ID de Requisición (Dynamics)")
+    cr8ca_requisicion = models.CharField(max_length=100, verbose_name="N° Requisición (REQ-#####-AAAA)")
+    cr8ca_asunto = models.CharField(max_length=500, verbose_name="Asunto")
+    cr8ca_motivo = models.TextField(null=True, blank=True, verbose_name="Motivo")
+    cr8ca_comentarios = models.TextField(null=True, blank=True, verbose_name="Comentarios")
+    
+    # Totales y Estado
+    cr8ca_totalenarticulos = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Total en Artículos")
+    cr8ca_prioridad = models.IntegerField(null=True, blank=True, verbose_name="Prioridad (Code)")
+    cr8ca_tipodedocumento = models.IntegerField(null=True, blank=True, verbose_name="Tipo de Documento")
+    cr8ca_estatusorden = models.IntegerField(null=True, blank=True, verbose_name="Estatus Orden")
+    cr8ca_accion = models.IntegerField(null=True, blank=True, verbose_name="Acción")
+    
+    # Flags
+    cr8ca_ejecutado = models.BooleanField(default=False)
+    cr8ca_cerrar = models.BooleanField(default=False)
+    cr8ca_cajachica = models.BooleanField(default=False)
+    cr8ca_solicituddetabladepago = models.BooleanField(default=False)
+    cr8ca_seleccionar = models.BooleanField(default=True)
+    
+    # Lookups (IDs Externos)
+    _cr8ca_presupuesto_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_proyecto_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_area_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_categoria_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_departamento_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_proveedorasignado_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_solicita_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_autoriza_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_reviso_value = models.UUIDField(null=True, blank=True)
+    _ownerid_value = models.UUIDField(null=True, blank=True)
+    
+    # Fechas y Metadatos
+    cr8ca_fechadegasto = models.DateTimeField(null=True, blank=True)
+    createdon = models.DateTimeField(null=True, blank=True, verbose_name="Creado en Dynamics")
+    modifiedon = models.DateTimeField(null=True, blank=True, verbose_name="Modificado en Dynamics")
+    versionnumber = models.BigIntegerField(null=True, blank=True)
+    statecode = models.IntegerField(null=True, blank=True)
+    statuscode = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.cr8ca_requisicion} - {self.cr8ca_asunto[:50]}"
+
+    class Meta:
+        verbose_name = "Requisición"
+        verbose_name_plural = "Requisiciones"
+        ordering = ['-createdon']
+
+
+class ArticuloRequisicion(models.Model):
+    """
+    Artículos individuales dentro de una Requisición.
+    Mapea campos de cr8ca_itemderequisicions.
+    """
+    cr8ca_itemderequisicionid = models.UUIDField(primary_key=True)
+    requisicion = models.ForeignKey(
+        Requisicion, 
+        on_delete=models.CASCADE, 
+        related_name='articulos',
+        verbose_name="Requisición"
+    )
+    material = models.ForeignKey(
+        'inventarios.Material',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisiciones',
+        verbose_name="Material vinculado"
+    )
+    
+    cr8ca_articulo = models.CharField(max_length=500, verbose_name="Descripción del Artículo")
+    cr8ca_cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cr8ca_costoaproximado = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    cr8ca_costoaproximado_base = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    cr8ca_tipo = models.IntegerField(null=True, blank=True)
+    
+    # Lookups
+    _cr8ca_edificiozona_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_activo_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_catalogo_value = models.UUIDField(null=True, blank=True)
+    _cr8ca_unidad_value = models.UUIDField(null=True, blank=True)
+    
+    # Metadatos
+    versionnumber = models.BigIntegerField(null=True, blank=True)
+    createdon = models.DateTimeField(null=True, blank=True)
+    modifiedon = models.DateTimeField(null=True, blank=True)
+    exchangerate = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.cr8ca_articulo} ({self.cr8ca_cantidad})"
+
+    class Meta:
+        verbose_name = "Artículo de Requisición"
+        verbose_name_plural = "Artículos de Requisición"

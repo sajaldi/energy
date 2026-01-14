@@ -1,0 +1,220 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+<style>
+    :root {
+        --tree-bg: #ffffff;
+        --tree-hover: #f8fafc;
+        --tree-active: #eff6ff;
+        --tree-border: #e2e8f0;
+        --primary: #2563eb;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif !important;
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    #content {
+        padding: 0 !important;
+    }
+
+    .breadcrumbs {
+        display: none !important;
+    }
+
+    .explorer-container {
+        display: flex;
+        height: 100vh;
+        width: 100%;
+        overflow-y: hidden;
+        overflow-x: hidden;
+    }
+
+    .tree-panel {
+        flex: 1;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        background: #fdfdfe;
+    }
+
+    .tree-header {
+        padding: 15px 20px;
+        background: white;
+        border-bottom: 1px solid var(--tree-border);
+    }
+
+    .tree-body {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
+
+    .tree-body::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .tree-body::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+
+
+    /* Tree Styles (copied from jerarquia_completa) */
+    .tree-item {
+        margin-bottom: 2px;
+    }
+
+    .item-header {
+        display: flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        gap: 8px;
+    }
+
+    .item-header:hover {
+        background: var(--tree-hover);
+    }
+
+    .item-header.active {
+        background: var(--tree-active);
+        border: 1px solid #bfdbfe;
+    }
+
+    .tree-toggle {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s;
+        border-radius: 4px;
+    }
+
+    .tree-toggle.expanded {
+        transform: rotate(90deg);
+    }
+
+    .item-content {
+        padding-left: 20px;
+        border-left: 1px dashed #cbd5e1;
+        margin-left: 10px;
+    }
+
+    .loader-mini {
+        border: 2px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 2px solid var(--primary);
+        width: 14px;
+        height: 14px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Ocultar chatbot en el iframe */
+    .chatbot-widget-container,
+    #admin-chatbot-widget {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="explorer-container">
+    <div class="tree-panel">
+        <div class="tree-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h5 class="m-0" style="display: flex; align-items: center; gap: 10px;">
+                    <span><i class="fas fa-filter text-primary"></i> Activos en {{ object.nombre }}</span>
+                    <span class="badge badge-primary"
+                        style="font-size: 0.75rem; background-color: #e0f2fe; color: #0284c7; padding: 4px 8px; border-radius: 6px;">{{
+                        total_activos }} items</span>
+                </h5>
+                <small class="text-muted">Mostrando jerarquía filtrada</small>
+            </div>
+        </div>
+        <div class="tree-body">
+            <div id="tree-root">
+                {% include "admin/activos/includes/tree_item.html" with node=object type="categoria" %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Configuración global para el explorador parcial
+    window.catIdContext = "{{ cat_id }}";
+
+    window.toggleNode = async function (event, toggleBtn) {
+        if (event) event.stopPropagation();
+        const item = toggleBtn.closest('.tree-item');
+        const content = item.querySelector('.item-content');
+        const id = item.dataset.id;
+        const type = item.dataset.type;
+
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            toggleBtn.classList.add('expanded');
+            if (item.dataset.loaded === 'false') {
+                content.innerHTML = '<div class="p-2 text-muted small"><div class="loader-mini d-inline-block"></div> Cargando...</div>';
+                try {
+                    const response = await fetch(`/activos/api/explorer-level/?id=${id}&type=${type}&cat_id=${window.catIdContext}`);
+                    content.innerHTML = await response.text();
+                    item.dataset.loaded = 'true';
+                } catch (e) {
+                    content.innerHTML = '<div class="p-2 text-danger small">Error.</div>';
+                }
+            }
+        } else {
+            content.style.display = 'none';
+            toggleBtn.classList.remove('expanded');
+        }
+    };
+
+    window.selectItem = async function (clickArea) {
+        // Highlight active
+        document.querySelectorAll('.item-header').forEach(h => h.classList.remove('active'));
+        clickArea.closest('.item-header').classList.add('active');
+
+        // Since detail pane is removed, we could toggle the node if it has children
+        const item = clickArea.closest('.tree-item');
+        const toggleBtn = item.querySelector('.tree-toggle');
+        if (toggleBtn) {
+            toggleNode(null, toggleBtn);
+        }
+    };
+
+    // Auto-seleccionar la categoría al cargar
+    document.addEventListener('DOMContentLoaded', () => {
+        const rootItem = document.querySelector('.tree-item[data-type="categoria"] .item-main-click');
+        if (rootItem) rootItem.click();
+    });
+
+</script>
+{% endblock %}

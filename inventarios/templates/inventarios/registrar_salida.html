@@ -202,12 +202,12 @@
             <h1>Registrar Salida de Material</h1>
         </div>
         <div style="display: flex; align-items: center; gap: 20px;">
-            <a href="{% url 'scanner' %}"
+            <a href="{% url 'inventarios:scanner' %}"
                 style="text-decoration: none; color: var(--text); background: white; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                 <ion-icon name="scan-outline" style="font-size: 1.5rem; color: var(--secondary)"></ion-icon>
                 <span style="font-weight: 600;">Surtido por Escáner</span>
             </a>
-            <a href="{% url 'cart_detail' %}"
+            <a href="{% url 'inventarios:cart_detail' %}"
                 style="position: relative; text-decoration: none; color: var(--text); background: white; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                 <ion-icon name="cart-outline" style="font-size: 1.5rem; color: var(--primary)"></ion-icon>
                 <span style="font-weight: 600;">Ver Carrito</span>
@@ -251,6 +251,13 @@
                     <label>Material Seleccionado</label>
                     <div id="selectionLabel" style="font-weight: 700; color: var(--primary); font-size: 1.1rem;">Ninguno
                         seleccionado</div>
+                    <div id="stockInfo"
+                        style="margin-top: 10px; font-size: 0.85rem; padding: 10px; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border); display: none;">
+                        <label
+                            style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-bottom: 5px;">DISPONIBILIDAD
+                            POR ALMACÉN:</label>
+                        <div id="stockBreakdown" style="display: flex; flex-direction: column; gap: 4px;"></div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Cantidad a Retirar</label>
@@ -295,7 +302,7 @@
     });
 
     document.querySelectorAll('.material-item').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
             document.querySelectorAll('.material-item').forEach(i => i.classList.remove('selected'));
             item.classList.add('selected');
             selectedMaterialId.value = item.dataset.id;
@@ -304,6 +311,31 @@
             cantidadInput.disabled = false;
             cantidadInput.value = 1;
             addToCartBtn.disabled = false;
+
+            // Fetch and show stock breakdown
+            const stockInfo = document.getElementById('stockInfo');
+            const stockBreakdown = document.getElementById('stockBreakdown');
+            stockInfo.style.display = 'block';
+            stockBreakdown.innerHTML = '<span style="color: var(--text-muted)">Cargando disponibilidad...</span>';
+
+            try {
+                const response = await fetch(`/inventarios/api/material/${item.dataset.id}/stock/`);
+                const data = await response.json();
+                if (data.existencias && data.existencias.length > 0) {
+                    let html = '';
+                    data.existencias.forEach(ex => {
+                        html += `<div style="display: flex; justify-content: space-between; font-weight: 500;">
+                                    <span>${ex.ubicacion__nombre}</span>
+                                    <span style="color: var(--primary)">${ex.cantidad} ${data.unidad.slice(0, 3).toUpperCase()}</span>
+                                 </div>`;
+                    });
+                    stockBreakdown.innerHTML = html;
+                } else {
+                    stockBreakdown.innerHTML = '<span style="color: var(--negative)">Sin stock disponible</span>';
+                }
+            } catch (e) {
+                stockBreakdown.innerHTML = '<span style="color: var(--negative)">Error al cargar stock</span>';
+            }
         });
     });
 
@@ -313,7 +345,7 @@
         if (!matId || !qty) return;
         addToCartBtn.disabled = true;
         try {
-            const response = await fetch('{% url "cart_add" %}', {
+            const response = await fetch('{% url "inventarios:cart_add" %}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                 body: JSON.stringify({ material_id: matId, cantidad: qty })

@@ -1,0 +1,633 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}Almacén | SoftCoM{% endblock %}</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #60a5fa;
+            --primary-dark: #1e40af;
+            --accent: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-body: #f8fafc;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, #e2e8f0 0%, #f8fafc 40%);
+            color: var(--text-main);
+            margin: 0;
+            padding-bottom: 90px;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .header-title h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-dark), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-btn {
+            color: var(--primary);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 20px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 20px;
+            border-radius: 15px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 15px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
+            display: flex;
+            justify-content: space-around;
+            padding-top: 12px;
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: var(--text-muted);
+            width: 33.3%;
+        }
+
+        .tab-item.active {
+            color: var(--primary);
+        }
+
+        .tab-item ion-icon {
+            font-size: 24px;
+        }
+
+        .tab-item span {
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .messages {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            right: 20px;
+            z-index: 1001;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .alert-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .alert-error {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Utils */
+        .text-primary {
+            color: var(--primary) !important;
+        }
+
+        .text-success {
+            color: var(--success) !important;
+        }
+
+        .text-danger {
+            color: var(--danger) !important;
+        }
+
+        .text-warning {
+            color: var(--warning) !important;
+        }
+
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+
+        .font-bold {
+            font-weight: 700;
+        }
+
+        .font-black {
+            font-weight: 900;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            margin-top: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .item-title {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .item-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .text-xs {
+            font-size: 10px;
+        }
+
+        .text-upper {
+            text-transform: uppercase;
+        }
+
+        .flex-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .flex-col {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .icon-box {
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bg-success-light {
+            background: #ecfdf5 !important;
+        }
+
+        .bg-danger-light {
+            background: #fff1f2 !important;
+        }
+
+        .bg-primary-light {
+            background: #eff6ff !important;
+        }
+
+        .bg-gray-light {
+            background: #f1f5f9 !important;
+        }
+
+        /* Scanner Modal */
+        #scanner-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: black;
+            z-index: 5000;
+            flex-direction: column;
+        }
+
+        #reader {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        #reader video {
+            object-fit: cover !important;
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 2px solid var(--primary);
+            border-radius: 20px;
+            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .scanner-overlay::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 15px var(--primary);
+            animation: scan 2s infinite linear;
+        }
+
+        @keyframes scan {
+            0% {
+                top: 0%
+            }
+
+            50% {
+                top: 100%
+            }
+
+            100% {
+                top: 0%
+            }
+        }
+
+        .scan-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 45px;
+            height: 45px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            z-index: 20;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 450px;
+            border-radius: 24px;
+            overflow: hidden;
+            transform: translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            padding: 20px 20px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .modal-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 800;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .modal-text {
+            font-size: 15px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <header>
+        {% block header %}<div class="header-title">
+            <h1>{% block header_title %}Almacén{% endblock %}</h1>
+        </div>
+        <div class="header-action">
+            <div
+                style="width:35px; height:35px; background:#e2e8f0; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--primary);">
+                {{ user.username|slice:":1"|upper }}</div>
+        </div>{% endblock %}
+    </header>
+    {% if messages %}<div class="messages">{% for message in messages %}<div class="alert alert-{{ message.tags }}">{{
+            message }}</div>{% endfor %}</div>{% endif %}
+
+    <!-- Material Detail Modal -->
+    <div id="materialModal" class="modal-overlay" onclick="closeMaterialModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="modalMaterialName" style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">Cargando...
+                </h2>
+                <button onclick="document.getElementById('materialModal').classList.remove('active')"
+                    style="background:none; border:none; font-size:24px; color:#94a3b8; cursor:pointer;"><ion-icon
+                        name="close-outline"></ion-icon></button>
+            </div>
+            <div class="modal-body">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                    <div><label class="modal-label">MARCA</label>
+                        <div id="modalMaterialBrand" class="modal-text">--</div>
+                    </div>
+                    <div><label class="modal-label">SKU</label>
+                        <div id="modalMaterialSKU" class="modal-text">--</div>
+                    </div>
+                </div>
+                <div style="margin-bottom:15px;"><label class="modal-label">CATEGORÍA</label>
+                    <div id="modalMaterialCategory" class="modal-text">--</div>
+                </div>
+                <div style="margin-bottom:20px;"><label class="modal-label">DESCRIPCIÓN</label>
+                    <div id="modalMaterialDesc" class="modal-text" style="font-size:13px; color:#64748b;">--</div>
+                </div>
+
+                <h3
+                    style="font-size:13px; font-weight:800; color:#1e293b; margin:0 0 10px 0; border-bottom:2px solid #f1f5f9; padding-bottom:5px;">
+                    STOCK POR ALMACÉN</h3>
+                <div id="modalStockList" style="display:flex; flex-direction:column; gap:8px;">
+                    <!-- Stock items will be injected here -->
+                </div>
+                <div style="margin-top:15px; padding:10px; background:#f8fafc; border-radius:10px; text-align:right;">
+                    <span style="font-size:11px; color:#64748b; font-weight:700;">TOTAL GLOBAL:</span>
+                    <span id="modalTotalStock"
+                        style="font-size:18px; font-weight:900; color:var(--primary); margin-left:5px;">0</span>
+                    <span id="modalUnit" style="font-size:11px; color:#94a3b8; font-weight:700;">UND</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container fade-in">{% block content %}{% endblock %}</div>
+    <nav class="tab-bar">
+        <a href="{% url 'almacen:dashboard' %}"
+            class="tab-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><ion-icon
+                name="grid-outline"></ion-icon><span>Dashboard</span></a>
+        <a href="{% url 'almacen:solicitudes_pendientes' %}"
+            class="tab-item {% if '/solicitudes/' in request.path %}active{% endif %}"><ion-icon
+                name="list-outline"></ion-icon><span>Solicitudes</span></a>
+        <a href="{% url 'almacen:lista_almacenes' %}"
+            class="tab-item {% if '/almacenes/' in request.path %}active{% endif %}"><ion-icon
+                name="archive-outline"></ion-icon><span>Almacenes</span></a>
+        <a href="{% url 'almacen:crear_material' %}"
+            class="tab-item {% if '/materiales/' in request.path %}active{% endif %}"><ion-icon
+                name="add-circle-outline"></ion-icon><span>Nuevo</span></a>
+    </nav>
+    <script>
+        function openMaterialModal(materialId) {
+            const modal = document.getElementById('materialModal');
+            modal.classList.add('active');
+
+            // Reset modal state
+            document.getElementById('modalMaterialName').innerText = "Cargando...";
+            document.getElementById('modalStockList').innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8;"><ion-icon name="sync-outline" class="spin"></ion-icon></div>';
+
+            fetch(`/inventarios/api/material/${materialId}/stock/`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('modalMaterialName').innerText = data.nombre;
+                    document.getElementById('modalMaterialBrand').innerText = data.marca;
+                    document.getElementById('modalMaterialSKU').innerText = data.sku;
+                    document.getElementById('modalMaterialCategory').innerText = data.categoria;
+                    document.getElementById('modalMaterialDesc').innerText = data.descripcion;
+                    document.getElementById('modalTotalStock').innerText = data.total;
+                    document.getElementById('modalUnit').innerText = data.unidad.slice(0, 3).toUpperCase();
+
+                    let stockHtml = '';
+                    if (data.existencias.length === 0) {
+                        stockHtml = '<div style="font-size:13px; color:#94a3b8; text-align:center; padding:10px;">Sin existencias en sistema</div>';
+                    } else {
+                        data.existencias.forEach(ex => {
+                            stockHtml += `
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px; border-radius:8px; border:1px solid #f1f5f9;">
+                                    <div>
+                                        <div style="font-size:13px; font-weight:700; color:#475569;">${ex.ubicacion__nombre}</div>
+                                        <div style="font-size:11px; color:#94a3b8;">${ex.ubicacion_especifica || 'General'}</div>
+                                    </div>
+                                    <div style="font-size:16px; font-weight:900; color:var(--primary);">${ex.cantidad}</div>
+                                </div>
+                            `;
+                        });
+                    }
+                    document.getElementById('modalStockList').innerHTML = stockHtml;
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('modalMaterialName').innerText = "Error al cargar";
+                });
+        }
+
+        function closeMaterialModal(e) {
+            if (e.target.id === 'materialModal') {
+                document.getElementById('materialModal').classList.remove('active');
+            }
+        }
+
+        setTimeout(() => { document.querySelectorAll('.alert').forEach(a => { a.style.transition = 'opacity 0.5s'; a.style.opacity = '0'; setTimeout(() => a.remove(), 500); }); }, 5000);
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

@@ -1,0 +1,57 @@
+{% extends 'almacen/base.html' %}
+{% block title %}Solicitudes Pendientes | Almacén{% endblock %}
+{% block header %}
+<div class="flex-row">
+    <a href="{% url 'almacen:dashboard' %}" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
+    <h1>Solicitudes Pendientes</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="card" style="padding:15px; margin-bottom:20px;">
+        <form method="GET" class="flex-row" style="overflow-x:auto; padding-bottom:5px;">
+            <select name="tipo" class="form-control" style="width:auto; padding:8px; font-size:13px;" onchange="this.form.submit()">
+                <option value="">Todos</option>
+                {% for key, val in tipos_movimiento %}<option value="{{ key }}" {% if tipo_filtro == key %}selected{% endif %}>{{ val|truncatechars:10 }}</option>{% endfor %}
+            </select>
+            <input type="text" name="material" class="form-control" style="width:auto; padding:8px; font-size:13px;" placeholder="Buscar..." value="{{ material_filtro }}">
+            <button type="submit" class="btn btn-primary" style="padding:8px 15px;"><ion-icon name="search-outline"></ion-icon></button>
+        </form>
+    </div>
+    {% for mov in solicitudes %}
+    <a href="{% url 'almacen:detalle_solicitud' mov.id %}" style="text-decoration:none; color:inherit;">
+        <div class="card" style="padding:15px; margin-bottom:15px; position:relative; overflow:hidden;">
+            <div style="position:absolute; left:0; top:0; bottom:0; width:6px; background:{% if mov.tipo == 'ENTRADA' %}var(--success){% elif mov.tipo == 'SALIDA' %}var(--danger){% else %}var(--primary){% endif %};"></div>
+            <div class="flex-between" style="margin-bottom:10px;">
+                <div class="flex-col">
+                    <span class="badge {% if mov.tipo == 'ENTRADA' %}badge-success{% elif mov.tipo == 'SALIDA' %}badge-danger{% else %}badge-pending{% endif %}" style="margin-bottom:5px;">{{ mov.get_tipo_display }}</span>
+                    <div class="font-black" style="font-size:16px;">{{ mov.material.nombre }}</div>
+                    <div class="item-subtitle">SKU: {{ mov.material.sku }}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="font-black" style="font-size:20px;">{{ mov.cantidad|floatformat:0 }}</div>
+                    <div class="item-subtitle text-upper" style="font-weight:700;">{{ mov.material.unidad_medida }}</div>
+                </div>
+            </div>
+            <div class="flex-row" style="font-size:13px; background:#f8fafc; padding:8px 12px; border-radius:10px;">
+                <ion-icon name="person-circle-outline" style="font-size:18px; color:var(--primary);"></ion-icon>
+                <span>Por <strong>{{ mov.usuario.username }}</strong></span>
+                <span style="margin-left:auto; font-size:11px;" class="text-muted">{{ mov.fecha_movimiento|timesince }}</span>
+            </div>
+            {% if mov.ubicacion_origen or mov.ubicacion_destino %}
+            <div class="flex-row" style="margin-top:10px; font-size:12px;">
+                {% if mov.ubicacion_origen %}<div class="flex-row"><ion-icon name="log-out-outline" class="text-danger"></ion-icon>{{ mov.ubicacion_origen.nombre|truncatechars:15 }}</div>{% endif %}
+                {% if mov.tipo == 'TRASLADO' %}<ion-icon name="arrow-forward-outline" style="opacity:0.3;"></ion-icon>{% endif %}
+                {% if mov.ubicacion_destino %}<div class="flex-row"><ion-icon name="log-in-outline" class="text-success"></ion-icon>{{ mov.ubicacion_destino.nombre|truncatechars:15 }}</div>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </a>
+    {% empty %}
+    <div class="card" style="text-align:center; padding:50px 20px; color:var(--text-muted);">
+        <ion-icon name="sparkles-outline" style="font-size:50px; opacity:0.3;"></ion-icon>
+        <p class="font-bold">No hay solicitudes pendientes.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

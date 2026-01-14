@@ -1,0 +1,109 @@
+{% extends 'almacen/base.html' %}
+{% block title %}{{ almacen.nombre }}{% endblock %}
+{% block extra_css %}
+<style>
+    .loc-title {
+        font-size: 14px;
+        text-transform: uppercase;
+        color: #475569;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .item-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .item-card {
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        border-left: 4px solid #2563eb;
+    }
+
+    .item-name {
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 2px;
+    }
+
+    .item-brand {
+        font-size: 10px;
+        font-weight: 800;
+        color: #2563eb;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+    }
+
+    .item-sku {
+        font-size: 10px;
+        color: #94a3b8;
+    }
+
+    .item-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-top: 1px solid #f1f5f9;
+        margin-top: 8px;
+        padding-top: 8px;
+    }
+
+    .unit-text {
+        font-size: 9px;
+        color: #cbd5e1;
+        font-weight: 700;
+    }
+
+    .item-qty {
+        font-size: 16px;
+        font-weight: 900;
+        color: #2563eb;
+    }
+</style>
+{% endblock %}
+{% block header %}
+<div class="flex-row">
+    <a href="{% url 'almacen:lista_almacenes' %}" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
+    <h1 style="font-size:14px;">{{ almacen.get_ruta_completa }}</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="card" style="margin-bottom:20px; padding:12px;">
+        <form method="GET" class="flex-row" style="gap:8px;">
+            <input type="text" name="q" class="form-control" placeholder="Buscar..." value="{{q}}"
+                style="margin:0; flex:1;">
+            <button type="submit" class="btn btn-primary" style="padding:10px;"><ion-icon
+                    name="search-outline"></ion-icon></button>
+        </form>
+    </div>
+    {% for grupo in existencias_agrupadas %}
+    <div class="flex-row" style="margin:15px 0 8px 5px; gap:8px;">
+        <ion-icon name="location-outline" style="color:#64748b;"></ion-icon>
+        <h2 class="loc-title">{{ grupo.ubicacion }}</h2>
+    </div>
+    <div class="item-grid">
+        {% for ex in grupo.items %}
+        <div class="card item-card" onclick="openMaterialModal({{ ex.material.id }})" style="cursor:pointer;">
+            {% if ex.material.marca %}<div class="item-brand">{{ ex.material.marca.nombre }}</div>{% endif %}
+            <div class="item-name">{{ ex.material.nombre }}</div>
+            <div class="item-sku">SKU: {{ ex.material.sku }}</div>
+            <div class="item-footer">
+                <div class="unit-text">{{ ex.material.get_unidad_medida_display|upper }}</div>
+                <div class="item-qty">{{ ex.cantidad }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% empty %}
+    <div class="card text-center" style="padding:40px 20px;">
+        <p style="color:#64748b;">No hay materiales.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

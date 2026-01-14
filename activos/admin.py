@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from django.db import models
 from django.contrib import admin, messages
 from django.http import HttpResponse
@@ -6,7 +7,7 @@ from import_export.admin import ImportExportModelAdmin, ImportExportMixin, Impor
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion
 
 # ... (resto de registros)
 
@@ -81,6 +82,31 @@ class CategoriaAdmin(ImportExportModelAdmin):
     list_per_page = 50
     list_display = ('nombre', 'icono', 'descripcion', 'cantidad_activos')
     search_fields = ('nombre',)
+    change_form_template = 'admin/activos/categoria/change_form.html'
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('<path:object_id>/explorer/', self.admin_site.admin_view(self.explorer_view), name='activos_categoria_explorer'),
+        ]
+        return custom_urls + urls
+
+    def explorer_view(self, request, object_id):
+        obj = self.get_object(request, object_id)
+        # Calculate total assets (including descendants)
+        descendants = obj.get_descendants(include_self=True)
+        total_activos = Activo.objects.filter(modelo__categoria__in=descendants).count()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'object': obj,
+            'cat_id': obj.id,
+            'total_activos': total_activos,
+            'is_popup': True, # To hide some admin elements if template supports it
+            'hide_chatbot': True,
+        }
+        return render(request, 'admin/activos/categoria/explorer_tab.html', context)
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
@@ -99,6 +125,74 @@ class CategoriaAdmin(ImportExportModelAdmin):
         )
     cantidad_activos.short_description = "Cantidad Activos"
     cantidad_activos.admin_order_field = '_activos_count'
+
+class SubFamiliaInline(admin.TabularInline):
+    model = Familia
+    fk_name = 'padre'
+    extra = 1
+    verbose_name = "Sub-Familia"
+    verbose_name_plural = "Sub-Familias"
+    formfield_overrides = {
+        models.TextField: {'widget': admin.widgets.AdminTextInputWidget(attrs={'style': 'width: 100%;'})},
+    }
+
+class ActivoFamiliaInline(admin.TabularInline):
+    from .models import Activo
+    model = Activo
+    extra = 0
+    fields = ('nombre', 'codigo_interno', 'modelo', 'estado', 'ubicacion')
+    autocomplete_fields = ('modelo', 'ubicacion')
+    readonly_fields = ('nombre', 'codigo_interno', 'modelo', 'estado', 'ubicacion')
+    can_delete = False
+    show_change_link = True
+    verbose_name = "Activo en esta Familia"
+    verbose_name_plural = "Activos vinculados a esta Familia"
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+class FamiliaResource(resources.ModelResource):
+    padre_nombre = fields.Field(
+        column_name='padre_nombre',
+        attribute='padre',
+        widget=ForeignKeyWidget(Familia, field='nombre')
+    )
+
+    class Meta:
+        model = Familia
+        import_id_fields = ('nombre', 'padre_nombre')
+        fields = ('id', 'nombre', 'padre_nombre', 'descripcion')
+        export_order = ('id', 'nombre', 'padre_nombre', 'descripcion')
+
+@admin.register(Familia)
+class FamiliaAdmin(ImportExportModelAdmin):
+    list_per_page = 50
+    resource_class = FamiliaResource
+    list_display = ('nombre_con_indentacion', 'descripcion')
+    list_display_links = ('nombre_con_indentacion',)
+    search_fields = ('nombre',)
+    autocomplete_fields = ('padre',)
+    inlines = [SubFamiliaInline, ActivoFamiliaInline]
+
+    def nombre_con_indentacion(self, obj):
+        # Usar lógica similar a Ubicacion si queremos niveles
+        # Por ahora simple o calcular profundidad
+        depth = 0
+        curr = obj.padre
+        while curr:
+            depth += 1
+            curr = curr.padre
+        
+        indent = depth * 20
+        icon = "📁" if depth == 0 else "↳"
+        return format_html(
+            '<div style="text-indent: {0}px; display: flex; align-items: center;">'
+            '<span style="margin-right: 8px; opacity: 0.6;">{1}</span> {2}'
+            '</div>',
+            indent, icon, obj.nombre
+        )
+    nombre_con_indentacion.short_description = 'Familia'
+
 
 class SmartModeloWidget(ForeignKeyWidget):
     """Widget que usa el caché del Resource para evitar Modelo.DoesNotExist o consultas N+1."""
@@ -123,6 +217,35 @@ class SmartModeloWidget(ForeignKeyWidget):
         except Exception:
             return None
 
+class SmartUserWidget(ForeignKeyWidget):
+    """Widget que busca el usuario por username y devuelve None si no existe instead of crashing."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        val_str = str(value).strip()
+        if val_str.upper() in ('NONE', 'NULL', 'N/A', ''):
+            return None
+        from django.contrib.auth.models import User
+        return User.objects.filter(username=val_str).first()
+
+class SmartActivoWidget(ForeignKeyWidget):
+    """Widget que busca el activo por código interno y devuelve None si no existe."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        val_str = str(value).strip()
+        from .models import Activo
+        return Activo.objects.filter(codigo_interno=val_str).first()
+
+class SmartFamiliaWidget(ForeignKeyWidget):
+    """Widget que busca la familia por nombre y devuelve None si no existe."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        val_str = str(value).strip()
+        from .models import Familia
+        return Familia.objects.filter(nombre__iexact=val_str).first()
+
 class SmartParentWidget(ForeignKeyWidget):
     """
     Widget que busca el padre por nombre y devuelve el primero encontrado.
@@ -132,6 +255,34 @@ class SmartParentWidget(ForeignKeyWidget):
         if not value:
             return None
         return Ubicacion.objects.filter(nombre=value).first()
+
+class SmartPlanoWidget(ForeignKeyWidget):
+    """Widget que busca el plano por nombre. Si no existe lo crea."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        val_str = str(value).strip()
+        if val_str.upper() in ('NONE', 'NULL', 'N/A', ''):
+            return None
+            
+        from .models import Plano, Ubicacion
+        plano = Plano.objects.filter(nombre__iexact=val_str).first()
+        if not plano:
+            # Si no existe, lo creamos. Intentamos obtener la ubicación del row.
+            # En ActivoResource, el campo de ubicación se llama 'ubicacion_nombre'
+            ubicacion_val = row.get('ubicacion_nombre')
+            ubicacion = None
+            if ubicacion_val:
+                # Buscamos la ubicación usando la lógica simplificada (o la misma del widget de ubicacion)
+                ubicacion = Ubicacion.objects.filter(nombre__iexact=str(ubicacion_val).strip()).first()
+            
+            if not ubicacion:
+                # Si no hay ubicación, no podemos crear el Plano (es REQUIRED)
+                return None
+                
+            plano = Plano.objects.create(nombre=val_str, ubicacion=ubicacion)
+            
+        return plano
 
 class UbicacionResource(resources.ModelResource):
     """
@@ -148,13 +299,18 @@ class UbicacionResource(resources.ModelResource):
     id = fields.Field(column_name='id', attribute='id', readonly=True)
     clave_unica = fields.Field(column_name='clave_unica', readonly=True)
     ruta_completa = fields.Field(column_name='ruta_completa', readonly=True)
+    categoria_nombre = fields.Field(
+        column_name='categoria_nombre',
+        attribute='categoria',
+        widget=ForeignKeyWidget(Categoria, field='nombre')
+    )
 
     class Meta:
         model = Ubicacion
         # Usamos nombre y padre_nombre como identificadores para evitar duplicados en importación
         import_id_fields = ('nombre', 'padre_nombre')
-        fields = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'tipo', 'padre_nombre', 'orden', 'descripcion')
-        export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'tipo', 'padre_nombre', 'orden', 'descripcion')
+        fields = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'tipo', 'padre_nombre', 'categoria_nombre', 'orden', 'descripcion')
+        export_order = ('id', 'clave_unica', 'ruta_completa', 'nombre', 'tipo', 'padre_nombre', 'categoria_nombre', 'orden', 'descripcion')
         skip_unchanged = True
         report_skipped = True
         
@@ -377,7 +533,8 @@ class UbicacionHijaInline(admin.TabularInline):
     extra = 1
     verbose_name = "Sub-Ubicación"
     verbose_name_plural = "Sub-Ubicaciones (Niveles Hijos)"
-    fields = ('render_icon', 'nombre', 'orden', 'total_count', 'descripcion')
+    fields = ('render_icon', 'nombre', 'orden', 'categoria', 'total_count', 'descripcion')
+    autocomplete_fields = ['categoria']
     readonly_fields = ('render_icon', 'total_count')
     show_change_link = True
 
@@ -420,6 +577,71 @@ class UbicacionHijaInline(admin.TabularInline):
             formfield.widget = TextInput(attrs={'style': 'width: 100%; min-width: 300px;', 'placeholder': 'Opcional...'})
         return formfield
 
+class PlanoInline(admin.StackedInline):
+    model = Plano
+    extra = 0
+    show_change_link = True
+    fields = ('nombre', 'documento', 'archivo', 'descripcion', 'ver_visores')
+    readonly_fields = ('ver_visores',)
+    autocomplete_fields = ['documento']
+
+    def ver_visores(self, obj):
+        if obj.pk:
+            visores = obj.visores.all()
+            if visores.exists():
+                html = '<div style="display: flex; gap: 5px; flex-wrap: wrap;">'
+                for v in visores:
+                     html += f'<a href="/activos/visor/{v.pk}/" target="_blank" class="button" style="background-color: #447e9b; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 0.8rem;">👁️ {v.nombre}</a>'
+                html += '</div>'
+                return format_html(html)
+            return format_html('<span style="color: #64748b; font-style: italic;">No hay visores configurados. Guarde el plano y agregue uno desde la administración de planos.</span>')
+        return "-"
+    ver_visores.short_description = "Visores Interactivos"
+
+class UbicacionEnPlanosInline(admin.TabularInline):
+    """
+    Muestra los planos donde esta ubicación ha sido dibujada/marcada (como zona hijo).
+    """
+    model = PinPlano
+    fk_name = 'ubicacion'
+    extra = 0
+    verbose_name = "Aparición en Plano"
+    verbose_name_plural = "Planos donde aparece esta ubicación (Zonas/Pines)"
+    fields = ('link_plano', 'visor', 'preview_zona', 'abrir_visor')
+    readonly_fields = ('link_plano', 'visor', 'preview_zona', 'abrir_visor')
+    can_delete = False
+    max_num = 0
+
+    def link_plano(self, obj):
+        if obj.visor and obj.visor.plano:
+            return format_html(
+                '<a href="/admin/activos/plano/{0}/change/" target="_blank" style="font-weight:bold;">📄 {1}</a>'
+                '<br><span style="color:#64748b; font-size:0.8em;">Ubicación Padre: {2}</span>',
+                obj.visor.plano.id,
+                obj.visor.plano.nombre,
+                obj.visor.plano.ubicacion.nombre if obj.visor.plano.ubicacion else "N/A"
+            )
+        return "-"
+    link_plano.short_description = "Plano Contenedor"
+
+    def preview_zona(self, obj):
+        if obj.ancho > 0:
+            return format_html(f'<span style="color:var(--primary); font-weight:600;">⬚ Zona ({int(obj.ancho)}x{int(obj.alto)}px)</span>')
+        return "📍 Punto (Pin)"
+    preview_zona.short_description = "Tipo Marcador"
+
+    def abrir_visor(self, obj):
+        return format_html(
+            '<a href="/activos/visor/{0}/" target="_blank" class="button" style="background:#447e9b; color:white; padding:4px 10px; border-radius:4px; text-decoration:none;">'
+            '👁️ Ver en Plano'
+            '</a>',
+            obj.visor.id
+        )
+    abrir_visor.short_description = "Acción"
+    
+    def has_add_permission(self, request, obj=None):
+        return False
+
 @admin.register(Ubicacion)
 class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     """
@@ -433,7 +655,98 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     search_fields = ('nombre',)
     list_filter = ('tipo', 'padre',)
     autocomplete_fields = ('padre',)
-    inlines = [UbicacionHijaInline]
+    autocomplete_fields = ('padre', 'categoria')
+    inlines = [UbicacionHijaInline, PlanoInline, UbicacionEnPlanosInline]
+    change_list_template = 'admin/activos/ubicacion/change_list.html'
+    readonly_fields = ('rutinas_mantenimiento',)
+
+    fieldsets = (
+        ('Datos Principales', {
+            'fields': (('nombre', 'tipo'), ('padre', 'orden'), 'categoria')
+        }),
+        ('Detalles', {
+            'fields': ('descripcion',)
+        }),
+        ('Mantenimiento Programado', {
+            'fields': ('rutinas_mantenimiento',),
+            'description': 'Rutinas de mantenimiento asociadas a la categoría de esta ubicación.'
+        }),
+    )
+
+    def rutinas_mantenimiento(self, obj):
+        if not obj.categoria:
+            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay categoría asignada. Asigne una categoría (ej: "Quirófano", "Subestación") para ver las rutinas.</span>')
+        
+        # Buscar la categoría de mantenimiento vinculada
+        m_cat = getattr(obj.categoria, 'mantenimiento_categoria', None)
+        
+        if not m_cat:
+            return format_html(
+                '<div style="background: #fff1f2; color: #be123c; padding: 10px; border-radius: 6px; border: 1px solid #fecaca;">'
+                '<strong style="display:block; margin-bottom:4px;">Sin vinculación de Mantenimiento</strong>'
+                'La categoría de activo <em>"{}"</em> no está vinculada a ninguna categoría de mantenimiento. '
+                '<a href="/admin/mantenimiento/categoria/" target="_blank">Configure esto aquí</a>.'
+                '</div>', 
+                obj.categoria.nombre
+            )
+
+        from mantenimiento.models import Rutina
+        # Obtener ancestros de la categoría de mantenimiento para herencia de rutinas
+        m_cats_ids = []
+        curr = m_cat
+        while curr:
+            m_cats_ids.append(curr.id)
+            curr = curr.padre
+            
+        rutinas = Rutina.objects.filter(categoria_id__in=m_cats_ids).select_related('frecuencia', 'categoria', 'puesto_trabajo')
+        
+        if not rutinas.exists():
+            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas definidas para la categoría "{}" ni sus superiores.</span>', m_cat.nombre)
+            
+        html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 5px;">'
+        html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
+        html += '<thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">'
+        html += '<tr>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">Rutina</th>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">Frecuencia / Puesto</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Estimado</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Acción</th>'
+        html += '</tr></thead><tbody>'
+        
+        for r in rutinas:
+            frec_nombre = r.frecuencia.nombre if r.frecuencia else "N/A"
+            puesto = r.puesto_trabajo.nombre if r.puesto_trabajo else "Cualquiera"
+            tiempo = f"{int(r.tiempo_estimado.total_seconds() // 60)} min" if r.tiempo_estimado else "---"
+            is_inherited = r.categoria.id != m_cat.id
+            
+            row_style = 'background: #fdfdfd;' if is_inherited else 'background: white;'
+            
+            html += f'<tr style="border-bottom: 1px solid #f1f5f9; {row_style}">'
+            html += f'<td style="padding: 12px 15px;">'
+            html += f'<div style="font-weight: 600; color: #1e293b;">{r.nombre}</div>'
+            if is_inherited:
+                html += f'<div style="font-size: 0.70rem; color: #94a3b8;">Heredada de: {r.categoria.nombre}</div>'
+            else:
+                html += f'<div style="font-size: 0.70rem; color: #10b981;">Específica del sitio</div>'
+            html += f'</td>'
+            
+            html += f'<td style="padding: 12px 15px;">'
+            html += f'<span style="background: #eff6ff; color: #2563eb; padding: 3px 8px; border-radius: 4px; font-weight: 600; font-size: 0.75rem; margin-right:5px;">{frec_nombre}</span>'
+            html += f'<span style="color: #64748b; font-size: 0.8rem;">{puesto}</span>'
+            html += f'</td>'
+            
+            html += f'<td style="padding: 12px 15px; text-align: center; color: #475569;">'
+            html += f'<ion-icon name="time-outline" style="vertical-align:middle;"></ion-icon> {tiempo}'
+            html += f'</td>'
+            
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<a href="/admin/mantenimiento/rutina/{r.id}/change/" target="_blank" title="Ver Detalles" style="color: #64748b; padding: 5px; text-decoration: none;">'
+            html += f'<ion-icon name="open-outline" style="font-size: 1.2rem;"></ion-icon>'
+            html += '</a></td></tr>'
+        
+        html += '</tbody></table></div>'
+        return format_html(html)
+    rutinas_mantenimiento.short_description = "Rutinas Aplicables"
     change_list_template = 'admin/activos/ubicacion/change_list.html'
 
     def get_queryset(self, request):
@@ -565,20 +878,43 @@ class ActivoResource(resources.ModelResource):
     responsable_username = fields.Field(
         column_name='responsable_username',
         attribute='responsable',
-        widget=ForeignKeyWidget(User, field='username')
+        widget=SmartUserWidget(User, field='username')
     )
     padre_codigo = fields.Field(
         column_name='padre_codigo',
         attribute='padre',
-        widget=ForeignKeyWidget(Activo, field='codigo_interno')
+        widget=SmartActivoWidget(Activo, field='codigo_interno')
     )
+    familia_nombre = fields.Field(
+        column_name='familia_nombre',
+        attribute='familia',
+        widget=SmartFamiliaWidget(Familia, field='nombre')
+    )
+    plano_nombre = fields.Field(
+        column_name='plano_nombre',
+        attribute='plano',
+        widget=SmartPlanoWidget(Plano, field='nombre')
+    )
+
+    def import_field(self, field, obj, row, is_m2m=False, **kwargs):
+        """
+        Solo actualiza el campo si la celda NO está vacía.
+        Evita que celdas en blanco en el Excel borren datos que ya existen en la DB.
+        """
+        if field.attribute and field.column_name in row:
+            value = row.get(field.column_name)
+            # Si el valor es nulo o un string vacío (ignorando espacios), no actualizamos este campo
+            if value is None or str(value).strip() == '':
+                return
+        
+        super().import_field(field, obj, row, is_m2m=False, **kwargs)
 
     class Meta:
         model = Activo
         import_id_fields = ('codigo_interno',)
         fields = (
-            'id', 'nombre', 'codigo_interno', 'serie', 'marca_nombre', 'modelo_nombre', 
-            'categoria_nombre', 'estado', 'ubicacion_nombre', 'responsable_username',
+            'id', 'nombre', 'codigo_interno', 'serie', 'referencia', 'marca_nombre', 'modelo_nombre', 
+            'categoria_nombre', 'familia_nombre', 'plano_nombre', 'estado', 'ubicacion_nombre', 'responsable_username',
             'padre_codigo', 'descripcion', 'fecha_compra', 'costo', 'ubicacion_legacy'
         )
         export_order = fields
@@ -591,7 +927,7 @@ class ActivoResource(resources.ModelResource):
     def get_queryset(self, request):
         """Eager loading para que skip_row y exportación sean rápidos"""
         return super().get_queryset(request).select_related(
-            'modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable'
+            'modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable', 'familia', 'plano'
         )
 
     def get_bulk_update_fields(self):
@@ -823,6 +1159,8 @@ class ActivoResource(resources.ModelResource):
                                     row[field_name] = current_val.username
                                 elif attr_name == 'padre':
                                     row[field_name] = current_val.codigo_interno
+                                elif attr_name == 'plano':
+                                    row[field_name] = current_val.nombre
                                 else:
                                     row[field_name] = str(current_val)
                             else:
@@ -936,11 +1274,11 @@ class ActivoAdmin(ImportExportActionModelAdmin):
     def get_export_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
 
-    list_display = ('codigo_interno', 'nombre', 'get_parent_info', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'ubicacion')
-    list_filter = (ActivoFaltantesFilter, 'estado', 'modelo__categoria', 'modelo__marca', 'responsable', 'creado_en', UbicacionHierarchyFilter)
-    list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable', 'padre')
-    search_fields = ('nombre', 'descripcion', 'codigo_interno', 'serie', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
-    autocomplete_fields = ('modelo', 'ubicacion', 'responsable', 'padre')
+    list_display = ('codigo_interno', 'nombre', 'referencia', 'descripcion', 'familia', 'get_parent_info', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'plano', 'ubicacion')
+    list_filter = (ActivoFaltantesFilter, 'estado', 'familia', 'modelo__categoria', 'modelo__marca', 'responsable', 'creado_en', UbicacionHierarchyFilter)
+    list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable', 'padre', 'familia')
+    search_fields = ('nombre', 'descripcion', 'codigo_interno', 'serie', 'referencia', 'familia__nombre', 'plano__nombre', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
+    autocomplete_fields = ('familia', 'modelo', 'ubicacion', 'responsable', 'padre', 'plano')
     inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline]
     readonly_fields = ('get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link', 'get_puntos_medicion_summary')
     actions = ['export_admin_action', 'export_direct_xlsx']
@@ -1358,13 +1696,13 @@ class ActivoAdmin(ImportExportActionModelAdmin):
 
     fieldsets = (
         ('Identificación', {
-            'fields': ('nombre', 'codigo_interno', ('get_marca', 'modelo'), ('serie', 'padre'), 'get_ubicacion_ruta', 'get_modelo_img')
+            'fields': ('nombre', 'codigo_interno', 'referencia', 'familia', ('get_marca', 'modelo'), ('serie', 'padre'), 'get_ubicacion_ruta', 'get_modelo_img')
         }),
         ('Detalles Técnicos', {
             'fields': ('descripcion', 'foto', 'marca_legacy', 'modelo_legacy')
         }),
         ('Estado y Ubicación', {
-            'fields': ('estado', 'ubicacion', 'ubicacion_legacy', 'responsable', 'ver_en_plano', 'crear_aviso_link')
+            'fields': ('estado', 'ubicacion', 'plano', 'ubicacion_legacy', 'responsable', 'ver_en_plano', 'crear_aviso_link')
         }),
         ('Mantenimiento Preventivo', {
             'fields': ('rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes'),
@@ -1382,6 +1720,170 @@ class ActivoAdmin(ImportExportActionModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    change_form_template = 'admin/activos/activo/change_form.html'
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('<path:object_id>/explorer/', self.admin_site.admin_view(self.explorer_view), name='activos_activo_explorer'),
+            path('import-background/', self.admin_site.admin_view(self.import_background), name='activos_activo_import_background'),
+            path('import-process/', self.admin_site.admin_view(self.import_process), name='activos_activo_import_process'),
+            path('import-progress/', self.admin_site.admin_view(self.import_progress), name='activos_activo_import_progress'),
+        ]
+        return custom_urls + urls
+
+    def explorer_view(self, request, object_id):
+        obj = self.get_object(request, object_id)
+        # Calculate total components (direct and indirect)
+        # Note: 'componentes' is reverse generic relation or FK? model says 'padre' with related_name='componentes'.
+        # Since Activo 'padre' is self-referential, we can use standard recursion.
+        # But standard Django managers don't do deep recursion easily without MPTT or CT.
+        # However, for simply counting, let's try to get components.
+        # If user wants "toda la jerarquía", it implies seeing this asset's children.
+        
+        # Let's count direct children for now, or if possible recursive.
+        # Since we don't have MPTT on Activo (only on Ubicacion/Categoria usually),
+        # we might just count direct components or implement a recursive count helper.
+        # For now, let's just count direct components to be safe, or 2 levels deep if cheap.
+        # Actually, let's just count all descendants if possible.
+        
+        # Recursive function to get all descendants IDs
+        def get_descendant_ids(activo):
+            ids = []
+            children = activo.componentes.all()
+            for child in children:
+                ids.append(child.id)
+                ids.extend(get_descendant_ids(child))
+            return ids
+            
+        descendant_ids = get_descendant_ids(obj)
+        total_componentes = len(descendant_ids)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'object': obj,
+            'cat_id': None, # Not strictly filter by category context here
+            'total_activos': total_componentes,
+            'is_popup': True,
+            'hide_chatbot': True,
+        }
+        return render(request, 'admin/activos/activo/explorer_tab.html', context)
+
+    def import_background(self, request):
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Importación masiva en segundo plano',
+        }
+        return render(request, 'admin/activos/activo/background_import.html', context)
+
+    def import_process(self, request):
+        if request.method == 'POST' and request.FILES.get('file'):
+            import os
+            import uuid
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            from django.http import JsonResponse
+            from tablib import Dataset
+            
+            myfile = request.FILES['file']
+            file_name = myfile.name
+            file_format = file_name.split('.')[-1].lower()
+            
+            # Crear ID de sesión único
+            import_id = str(uuid.uuid4())
+            temp_path = f'tmp/imp_{import_id}.{file_format}'
+            
+            # Guardar archivo temporal
+            path = default_storage.save(temp_path, ContentFile(myfile.read()))
+            full_path = default_storage.path(path)
+            
+            # Obtener conteo total para informar al front
+            try:
+                with open(full_path, 'rb') as f:
+                    file_content = f.read()
+                    if file_format == 'csv':
+                        dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')
+                    else:
+                        dataset = Dataset().load(file_content, format=file_format)
+                
+                return JsonResponse({
+                    'status': 'started',
+                    'import_id': import_id,
+                    'total': len(dataset),
+                    'file_format': file_format
+                })
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}, status=400)
+                
+        return JsonResponse({'status': 'error', 'message': 'No se recibió archivo'}, status=400)
+
+    def import_progress(self, request):
+        """Ahora funciona como procesador de CHUNKS secuenciales"""
+        from django.http import JsonResponse
+        from django.core.files.storage import default_storage
+        from tablib import Dataset
+        from import_export import resources
+        import os
+
+        import_id = request.GET.get('import_id')
+        start = int(request.GET.get('start', 0))
+        chunk_size = int(request.GET.get('size', 50))
+        file_format = request.GET.get('format', 'xlsx')
+
+        if not import_id:
+            return JsonResponse({'status': 'error', 'message': 'Falta import_id'}, status=400)
+
+        temp_path = f'tmp/imp_{import_id}.{file_format}'
+        if not default_storage.exists(temp_path):
+            return JsonResponse({'status': 'error', 'message': 'Sesión expirada o archivo no encontrado'}, status=404)
+
+        full_path = default_storage.path(temp_path)
+        resource = ActivoResource()
+        
+        try:
+            with open(full_path, 'rb') as f:
+                file_content = f.read()
+                if file_format == 'csv':
+                    dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')
+                else:
+                    dataset = Dataset().load(file_content, format=file_format)
+            
+            total = len(dataset)
+            end = min(start + chunk_size, total)
+            
+            # Log de progreso en consola para depuración
+            print(f"IMPORT: Procesando lote {start} - {end} de {total} (ID: {import_id})")
+            
+            # Crear un mini-dataset para el chunk actual
+            mini_dataset = Dataset()
+            mini_dataset.headers = dataset.headers
+            for row in dataset[start:end]:
+                mini_dataset.append(row)
+            
+            # Procesar el lote usando el método estándar (más robusto)
+            result = resource.import_data(mini_dataset, dry_run=False, raise_errors=False)
+
+            # Si es el último chunk, borrar archivo
+            if end >= total:
+                try:
+                    default_storage.delete(temp_path)
+                except:
+                    pass
+
+            return JsonResponse({
+                'status': 'PROGRESS',
+                'current': end,
+                'total': total,
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0) + result.totals.get('updated', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(result.base_errors) + len(result.row_errors()),
+                'is_last': end >= total
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     @admin.display(description="Resumen de Mediciones")
     def get_puntos_medicion_summary(self, obj):

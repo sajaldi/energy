@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     'presupuestos.apps.PresupuestosConfig',
     'inventarios',
     'auditorias',
+    'almacen',
     'django.contrib.humanize',
 ]
 

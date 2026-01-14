@@ -7,6 +7,7 @@
 
 {% block extrajs %}
 {{ block.super }}
+{% if not hide_chatbot %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Interceptar clicks en el enlace del top menu de Jazzmin
@@ -22,10 +23,13 @@
         });
     });
 </script>
+{% endif %}
 {% endblock %}
 
 {% block footer %}
 {{ block.super }}
 {% include 'mantenimiento/notificaciones_global.html' %}
+{% if not hide_chatbot %}
 {% include 'admin/includes/chatbot_widget.html' %}
+{% endif %}
 {% endblock %}

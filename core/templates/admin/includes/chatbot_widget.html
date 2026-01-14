@@ -20,7 +20,15 @@
                     <span>En línea</span>
                 </div>
             </div>
-            <button id="close-chatbot" class="close-btn">&times;</button>
+            <div class="chatbot-actions">
+                <button id="clear-chatbot" class="action-btn" title="Limpiar chat">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </button>
+                <button id="close-chatbot" class="close-btn">&times;</button>
+            </div>
         </div>
 
         <div id="chatbot-messages" class="chatbot-messages">
@@ -29,6 +37,57 @@
                     Hola, soy tu asistente administrativo. ¿En qué puedo ayudarte hoy?
                 </div>
             </div>
+        </div>
+
+        <!-- Quick Menu -->
+        <div class="chatbot-quick-menu">
+            <button class="quick-action-btn" data-action="crear_aviso">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Crear Aviso
+            </button>
+            <button class="quick-action-btn" data-action="crear_orden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Crear Orden
+            </button>
+            <button class="quick-action-btn" data-action="consultar_estado">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                Estado Activos
+            </button>
+            <button class="quick-action-btn" data-action="ver_calendario">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                Calendario
+            </button>
+            <button class="quick-action-btn" data-action="mis_tareas">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                Mis Tareas
+            </button>
         </div>
 
         <div class="chatbot-input-area">
@@ -146,6 +205,30 @@
         opacity: 0.8;
     }
 
+    .chatbot-actions {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .action-btn {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.8;
+        transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .action-btn:hover {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
     .close-btn {
         background: none;
         border: none;
@@ -255,6 +338,55 @@
         background: #94a3b8;
         cursor: not-allowed;
     }
+
+    /* Quick Menu */
+    .chatbot-quick-menu {
+        padding: 8px 12px;
+        background: #f1f5f9;
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        white-space: nowrap;
+        border-top: 1px solid #e2e8f0;
+        scrollbar-width: none;
+        /* Firefox */
+    }
+
+    .chatbot-quick-menu::-webkit-scrollbar {
+        display: none;
+        /* Safari/Chrome */
+    }
+
+    .quick-action-btn {
+        background: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 16px;
+        padding: 6px 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .quick-action-btn:hover {
+        background: #2563eb;
+        color: white;
+        border-color: #2563eb;
+        transform: translateY(-1px);
+    }
+
+    .quick-action-btn svg {
+        transition: stroke 0.2s;
+    }
+
+    .quick-action-btn:hover svg {
+        stroke: white;
+    }
 </style>
 
 <script>
@@ -266,9 +398,13 @@
         const sendBtn = document.getElementById('chatbot-send-btn');
         const messagesContainer = document.getElementById('chatbot-messages');
 
-        // Toggle Window
+        // Persistence Configuration
+        const STORAGE_KEY = 'chatbot_history_{{ request.user.id|default:"anon" }}';
+        const INACTIVITY_LIMIT = 10 * 60 * 1000; // 10 minutes in ms
+
         trigger.addEventListener('click', () => {
             window.classList.toggle('hidden');
+            saveChatState();
             if (!window.classList.contains('hidden')) {
                 input.focus();
             }
@@ -276,6 +412,49 @@
 
         closeBtn.addEventListener('click', () => {
             window.classList.add('hidden');
+            saveChatState();
+        });
+
+        // Clear Chat
+        const clearBtn = document.getElementById('clear-chatbot');
+        clearBtn.addEventListener('click', () => {
+            if (confirm('¿Estás seguro de que deseas limpiar el historial del chat?')) {
+                messagesContainer.innerHTML = `
+                    <div class="message bot">
+                        <div class="message-content">
+                            Hola, soy tu asistente administrativo. ¿En qué puedo ayudarte hoy?
+                        </div>
+                    </div>
+                `;
+                localStorage.removeItem(STORAGE_KEY);
+                // Reset state in case it was open
+                saveChatState();
+            }
+        });
+
+        // Quick Actions
+        document.querySelectorAll('.quick-action-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.getAttribute('data-action');
+                let message = "";
+
+                if (action === 'crear_aviso') {
+                    message = "Quiero crear un nuevo aviso de falla";
+                } else if (action === 'crear_orden') {
+                    message = "Necesito crear una nueva orden de trabajo";
+                } else if (action === 'consultar_estado') {
+                    message = "¿Cuál es el estado actual de los equipos?";
+                } else if (action === 'ver_calendario') {
+                    message = "Muéstrame el calendario de mantenimiento";
+                } else if (action === 'mis_tareas') {
+                    message = "¿Cuáles son mis tareas pendientes para hoy?";
+                }
+
+                if (message) {
+                    input.value = message;
+                    sendMessage();
+                }
+            });
         });
 
         // Send Message
@@ -336,8 +515,89 @@
             messagesContainer.appendChild(msgDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+            if (!isLoading) {
+                saveChatHistory();
+            }
+
             return id;
         }
+
+        // Persistence Logic
+
+        function saveChatHistory() {
+            const messages = [];
+            // Skip the first hardcoded message if we want, or just save all
+            document.querySelectorAll('#chatbot-messages .message:not(.loading)').forEach(msg => {
+                messages.push({
+                    text: msg.querySelector('.message-content').innerHTML,
+                    type: msg.classList.contains('user') ? 'user' : 'bot'
+                });
+            });
+
+            const data = {
+                lastActive: Date.now(),
+                messages: messages,
+                isOpen: !window.classList.contains('hidden')
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function saveChatState() {
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            data.isOpen = !window.classList.contains('hidden');
+            data.lastActive = Date.now();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function loadChatHistory() {
+            const rawData = localStorage.getItem(STORAGE_KEY);
+            if (!rawData) return;
+
+            try {
+                const data = JSON.parse(rawData);
+                const now = Date.now();
+
+                // Check inactivity
+                if (now - data.lastActive > INACTIVITY_LIMIT) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return;
+                }
+
+                // Restore messages
+                if (data.messages && data.messages.length > 0) {
+                    // Clear current (the hardcoded one is already there, 
+                    // if the first saved is identical, we might want to skip it)
+                    const savedMessages = data.messages;
+
+                    // Identify if the first saved is the welcome message to avoid duplication
+                    const welcomeText = "Hola, soy tu asistente administrativo. ¿En qué puedo ayudarte hoy?";
+
+                    messagesContainer.innerHTML = ''; // Clear everything
+
+                    savedMessages.forEach(msg => {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = `message ${msg.type}`;
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'message-content';
+                        contentDiv.innerHTML = msg.text;
+                        msgDiv.appendChild(contentDiv);
+                        messagesContainer.appendChild(msgDiv);
+                    });
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+                // Restore window state
+                if (data.isOpen) {
+                    window.classList.remove('hidden');
+                }
+
+            } catch (e) {
+                console.error("Error restoring chat history", e);
+            }
+        }
+
+        // Initialize history
+        loadChatHistory();
 
         sendBtn.addEventListener('click', sendMessage);
         input.addEventListener('keypress', (e) => {

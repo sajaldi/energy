@@ -4,6 +4,7 @@ from . import views
 app_name = 'activos'
 
 from . import views_sync
+from . import views_rutinas
 
 urlpatterns = [
     path('visor/<int:visor_id>/', views.visor_plano, name='visor_plano'),
@@ -27,4 +28,8 @@ urlpatterns = [
     path('api/explorer-search/', views.api_explorer_search, name='api_explorer_search'),
     path('app/activo/<int:pk>/', views.mobile_activo_detalle, name='mobile_activo_detalle'),
     path('app/buscar/', views.mobile_busqueda_activos, name='mobile_busqueda'),
+    path('api/buscar-activos-json/', views.api_buscar_activos_json, name='api_buscar_activos_json'),
+    path('api/get_rutinas_ubicacion/', views_rutinas.get_rutinas_ubicacion, name='get_rutinas_ubicacion'),
+    path('app/ubicaciones/', views.mobile_ubicaciones, name='mobile_ubicaciones'),
+    path('app/ubicaciones/<int:parent_id>/', views.mobile_ubicaciones, name='mobile_ubicaciones_child'),
 ]

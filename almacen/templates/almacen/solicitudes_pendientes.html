@@ -1,0 +1,53 @@
+{% extends 'almacen/base.html' %}
+{% block title %}Órdenes Pendientes | Almacén{% endblock %}
+{% block header %}
+<a href="{% url 'almacen:dashboard' %}" class="back-btn" style="position:static; margin-right:15px;"><ion-icon
+        name="arrow-back-outline"></ion-icon></a>
+<h1 style="font-size:20px;">Órdenes de Salida</h1>
+{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="card" style="margin-bottom:20px; padding:15px;">
+        <form method="GET" style="display:grid; grid-template-columns:1fr auto; gap:10px;">
+            <input type="text" name="usuario" class="form-control" placeholder="Buscar por usuario..."
+                value="{{ usuario_filtro }}" style="margin:0;">
+            <button type="submit" class="btn btn-primary" style="padding:12px;"><ion-icon
+                    name="search-outline"></ion-icon></button>
+        </form>
+    </div>
+    {% for orden in ordenes %}
+    <a href="{% url 'almacen:detalle_orden' orden.id %}" class="card"
+        style="padding:18px; margin-bottom:15px; text-decoration:none; color:inherit; display:block;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+            <div>
+                <div style="font-size:16px; font-weight:800; color:#1e293b;">Orden #{{ orden.id }}</div>
+                <div style="font-size:13px; color:#64748b; margin-top:2px;">{{ orden.fecha_solicitud|date:"d M, H:i" }}
+                </div>
+            </div>
+            <div class="badge badge-pending" style="padding:6px 12px; font-size:11px;">PENDIENTE</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+            <div class="icon-box" style="width:28px; height:28px; font-size:14px; background:#f1f5f9; color:#475569;">
+                <ion-icon name="person-outline"></ion-icon></div>
+            <div style="font-size:14px; color:#334155; font-weight:600;">{{orden.solicitante_nombre}}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:15px;">
+            <div class="icon-box" style="width:28px; height:28px; font-size:14px; background:#f1f5f9; color:#475569;">
+                <ion-icon name="location-outline"></ion-icon></div>
+            <div style="font-size:14px; color:#334155;">{{orden.ubicacion_origen.nombre}}</div>
+        </div>
+        <div
+            style="background:#f8fafc; padding:12px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:13px; color:#64748b;"><span
+                    style="font-weight:700; color:#1e293b;">{{orden.items_count}}</span> materiales solicitados</div>
+            <ion-icon name="chevron-forward-outline" style="color:#94a3b8;"></ion-icon>
+        </div>
+    </a>
+    {% empty %}
+    <div class="card text-center" style="padding:50px 20px;">
+        <ion-icon name="document-text-outline" style="font-size:48px; color:#e2e8f0; margin-bottom:15px;"></ion-icon>
+        <p style="color:#64748b;">No hay órdenes de salida pendientes.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

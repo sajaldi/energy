@@ -1,0 +1,188 @@
+{% extends 'almacen/base.html' %}
+{% block title %}Cargar Stock | Almacén{% endblock %}
+{% block extra_css %}
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        max-height: 250px;
+        overflow-y: auto;
+        display: none;
+        margin-top: 5px;
+    }
+
+    .search-item {
+        padding: 12px 15px;
+        border-bottom: 1px solid #f1f5f9;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .search-item:last-child {
+        border-bottom: none;
+    }
+
+    .search-item:hover {
+        background: #f8fafc;
+    }
+
+    .search-item .name {
+        font-weight: 700;
+        color: #1e293b;
+        display: block;
+    }
+
+    .search-item .sku {
+        font-size: 11px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+{% block header %}
+<div class="flex-row">
+    <a href="{% url 'almacen:dashboard' %}" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
+    <h1>Asignar Materiales</h1>
+</div>
+{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div class="card" style="padding:15px; margin-bottom:20px;">
+        <label class="item-subtitle" style="font-weight:700; color:#475569; margin-bottom:8px; display:block;">ALMACÉN
+            DESTINO</label>
+        <select id="almacen_id" class="form-control" style="font-weight:700; font-size:16px;">
+            <option value="">Seleccionar Almacén...</option>
+            {% for u in ubicaciones %}<option value="{{ u.id }}">{{ u.get_ruta_completa }}</option>{% endfor %}
+        </select>
+    </div>
+
+    <div class="card" style="padding:15px; margin-bottom:20px; position:relative;">
+        <label class="item-subtitle" style="font-weight:700; color:#475569; margin-bottom:8px; display:block;">BUSCAR
+            MATERIAL (NOMBRE O SKU)</label>
+        <div class="flex-row" style="gap:10px;">
+            <div style="position:relative; flex:1;">
+                <input type="text" id="material_search" class="form-control" placeholder="Escribe para buscar..."
+                    autocomplete="off" style="margin:0;">
+                <div id="search_results" class="search-results"></div>
+            </div>
+            <button type="button" onclick="openScanner()" class="btn btn-primary" style="padding:14px;"><ion-icon
+                    name="camera-outline" style="font-size:22px;"></ion-icon></button>
+        </div>
+    </div>
+
+    <h2 class="item-title" style="margin-bottom:15px;">Lista de Carga</h2>
+    <div id="items_list"></div>
+    <div id="empty_msg" class="card text-center"
+        style="padding:30px; color:#94a3b8; border:2px dashed #e2e8f0; background:none;">No has añadido materiales
+        todavía.</div>
+
+    <button id="save_btn" type="button" onclick="guardarAsignacion()" class="btn btn-primary"
+        style="width:100%; padding:18px; font-weight:800; margin-top:20px; display:none; box-shadow:0 10px 15px -3px rgba(37,99,235,0.4);">
+        <ion-icon name="save-outline" style="margin-right:8px;"></ion-icon>GUARDAR ENTRADA
+    </button>
+</div>
+
+<div id="scanner-modal">
+    <div id="reader"></div>
+    <div class="scanner-overlay"></div><button class="scan-close" onclick="closeScanner()"><ion-icon
+            name="close-outline"></ion-icon></button>
+</div>
+
+<script>
+    const materiales = [
+        {% for m in materiales %}{ id: "{{ m.id }}", name: "{{ m.nombre|escapejs }}", sku: "{{ m.sku|escapejs }}" } {% if not forloop.last %}, {% endif %} {% endfor %}
+    ];
+    let selectedItems = [];
+    let qrReader = null;
+
+    const searchInput = document.getElementById('material_search');
+    const resultsDiv = document.getElementById('search_results');
+
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        if (query.length < 2) { resultsDiv.style.display = 'none'; return; }
+        const filtered = materiales.filter(m => m.name.toLowerCase().includes(query) || m.sku.toLowerCase().includes(query)).slice(0, 10);
+        if (filtered.length > 0) {
+            resultsDiv.innerHTML = filtered.map(m => `
+                <div class="search-item" onclick="selectMaterial('${m.id}', '${m.name.replace(/'/g, "\\'")}')">
+                    <span class="name">${m.name}</span> <span class="sku">SKU: ${m.sku}</span>
+                </div>
+            `).join('');
+            resultsDiv.style.display = 'block';
+        } else { resultsDiv.style.display = 'none'; }
+    });
+
+    document.addEventListener('click', (e) => { if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) resultsDiv.style.display = 'none'; });
+
+    function openScanner() {
+        const modal = document.getElementById('scanner-modal'); modal.style.display = 'flex';
+        if (!qrReader) qrReader = new Html5Qrcode("reader");
+        qrReader.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 }, (text) => {
+            searchInput.value = text;
+            const match = materiales.find(m => m.sku.toLowerCase() === text.toLowerCase());
+            if (match) selectMaterial(match.id, match.name);
+            else alert("Material no encontrado con SKU: " + text);
+            if (navigator.vibrate) navigator.vibrate(100);
+            closeScanner();
+        }, (err) => { }).catch(e => alert("Error cámara: " + e));
+    }
+
+    function closeScanner() { if (qrReader) qrReader.stop().then(() => { }).catch(() => { }); document.getElementById('scanner-modal').style.display = 'none'; }
+
+    function selectMaterial(id, name) {
+        if (selectedItems.find(i => i.id === id)) return alert("El material ya está en la lista");
+        selectedItems.push({ id, name, qty: 1, note: '', loc: '' });
+        renderList();
+        searchInput.value = ''; resultsDiv.style.display = 'none';
+    }
+
+    function removeItem(id) { selectedItems = selectedItems.filter(i => i.id !== id); renderList(); }
+    function updateItem(id, field, value) { const item = selectedItems.find(i => i.id === id); if (item) item[field] = value; }
+
+    function renderList() {
+        const container = document.getElementById('items_list'); const empty = document.getElementById('empty_msg'); const btn = document.getElementById('save_btn');
+        container.innerHTML = '';
+        if (selectedItems.length === 0) { empty.style.display = 'block'; btn.style.display = 'none'; return; }
+        empty.style.display = 'none'; btn.style.display = 'block';
+        selectedItems.forEach(i => {
+            const div = document.createElement('div');
+            div.className = 'card fade-in'; div.style.padding = '15px'; div.style.marginBottom = '12px';
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <strong style="color:#1e293b;">${i.name}</strong>
+                    <button onclick="removeItem('${i.id}')" style="background:none; border:none; color:#ef4444;"><ion-icon name="trash-outline"></ion-icon></button>
+                </div>
+                <div style="display:grid; grid-template-columns:80px 1fr 1fr; gap:8px;">
+                    <input type="number" step="0.01" value="${i.qty}" class="form-control" style="margin:0; font-weight:700;" onchange="updateItem('${i.id}', 'qty', this.value)" placeholder="Cant.">
+                    <input type="text" value="${i.loc}" class="form-control" style="margin:0; text-transform:uppercase;" onchange="updateItem('${i.id}', 'loc', this.value)" placeholder="PASILLO/ESTANTE">
+                    <input type="text" value="${i.note}" class="form-control" style="margin:0; font-size:12px;" onchange="updateItem('${i.id}', 'note', this.value)" placeholder="Nota...">
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function guardarAsignacion() {
+        const uId = document.getElementById('almacen_id').value;
+        if (!uId) return alert("Selecciona un almacén");
+        if (selectedItems.length === 0) return;
+        fetch("{% url 'almacen:asignar_materiales' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ ubicacion_id: uId, items: selectedItems.map(i => ({ material_id: i.id, cantidad: i.qty, comentarios: i.note, ubicacion_especifica: i.loc })) })
+        }).then(r => r.json()).then(data => {
+            if (data.success) window.location.href = "{% url 'almacen:dashboard' %}";
+            else alert("Error: " + data.error);
+        });
+    }
+</script>
+{% endblock %}
