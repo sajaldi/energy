@@ -14,12 +14,134 @@ from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano,
 from django.utils.html import format_html
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from inventarios.models import CompatibilidadMaterial
+from documentos.models import Documento
+
+class SmartModeloWidget(ForeignKeyWidget):
+    """Widget que usa el caché del Resource para evitar Modelo.DoesNotExist o consultas N+1."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        
+        val_str = str(value).strip()
+        # Tratamos literales como "None" o "NULL" como vacíos
+        if val_str.upper() in ('NONE', 'NULL', 'N/A', ''):
+            return None
+            
+        val_upper = val_str.upper()
+        resource = kwargs.get('resource')
+        if resource and hasattr(resource, 'modelo_cache'):
+            # Si no está en caché, simplemente devolvemos None (obviar errores)
+            return resource.modelo_cache.get(val_upper)
+            
+        # Fallback seguro que no levanta DoesNotExist si no encuentra
+        try:
+            return super().clean(value, row, **kwargs)
+        except Exception:
+            return None
+
+class SmartUserWidget(ForeignKeyWidget):
+    """Widget que busca el usuario por username y devuelve None si no existe instead of crashing."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        val_str = str(value).strip()
+        if val_str.upper() in ('NONE', 'NULL', 'N/A', ''):
+            return None
+        from django.contrib.auth.models import User
+        return User.objects.filter(username=val_str).first()
+
+class SmartActivoWidget(ForeignKeyWidget):
+    """Widget que busca el activo por código interno y devuelve None si no existe."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        val_str = str(value).strip()
+        from .models import Activo
+        return Activo.objects.filter(codigo_interno=val_str).first()
+
+class SmartFamiliaWidget(ForeignKeyWidget):
+    """Widget que busca la familia por nombre y devuelve None si no existe."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        val_str = str(value).strip()
+        from .models import Familia
+        return Familia.objects.filter(nombre__iexact=val_str).first()
+
+class SmartParentWidget(ForeignKeyWidget):
+    """
+    Widget que busca el padre por nombre y devuelve el primero encontrado.
+    Evita MultipleObjectsReturned en jerarquías con nombres repetidos en distintos niveles.
+    """
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        return Ubicacion.objects.filter(nombre=value).first()
+
+class PlanoResource(resources.ModelResource):
+    ubicacion_nombre = fields.Field(
+        column_name='ubicacion_nombre',
+        attribute='ubicacion',
+        widget=SmartParentWidget(Ubicacion, field='nombre')
+    )
+    documento_codigo = fields.Field(
+        column_name='documento_codigo',
+        attribute='documento',
+        widget=ForeignKeyWidget(Documento, field='codigo'), 
+    )
+
+    class Meta:
+        model = Plano
+        import_id_fields = ('nombre', 'ubicacion_nombre')
+        fields = ('id', 'nombre', 'ubicacion_nombre', 'descripcion', 'documento_codigo')
+        export_order = fields
+        skip_unchanged = True
+        report_skipped = True
+    
+    def before_import_row(self, row, **kwargs):
+        # Limpieza básica
+        if 'ubicacion_nombre' in row:
+            row['ubicacion_nombre'] = str(row['ubicacion_nombre']).strip()
+
+
+class SmartPlanoWidget(ForeignKeyWidget):
+    """Widget que busca el plano por nombre. Si no existe lo crea."""
+    def clean(self, value, row=None, **kwargs):
+        if not value:
+            return None
+        val_str = str(value).strip()
+        if val_str.upper() in ('NONE', 'NULL', 'N/A', ''):
+            return None
+            
+        from .models import Plano, Ubicacion
+        plano = Plano.objects.filter(nombre__iexact=val_str).first()
+        if not plano:
+            # Si no existe, lo creamos. Intentamos obtener la ubicación del row.
+            # En ActivoResource, el campo de ubicación se llama 'ubicacion_nombre'
+            ubicacion_val = row.get('ubicacion_nombre')
+            ubicacion = None
+            if ubicacion_val:
+                # Buscamos la ubicación usando la lógica simplificada (o la misma del widget de ubicacion)
+                ubicacion = Ubicacion.objects.filter(nombre__iexact=str(ubicacion_val).strip()).first()
+            
+            if not ubicacion:
+                # Si no hay ubicación, no podemos crear el Plano (es REQUIRED)
+                return None
+                
+            plano = Plano.objects.create(nombre=val_str, ubicacion=ubicacion)
+            
+        return plano
+
 
 @admin.register(Plano)
-class PlanoAdmin(admin.ModelAdmin):
+class PlanoAdmin(ImportExportModelAdmin):
     list_per_page = 50
     list_display = ('nombre', 'ubicacion', 'documento_info', 'visualizar_archivo', 'creado_en')
     list_filter = ('ubicacion',)
+
+    def has_import_permission(self, request):
+        """Deshabilitar la importación estándar para obligar a usar la de Redis"""
+        return False
     list_select_related = ('ubicacion', 'documento__ultima_revision')
     search_fields = ('nombre', 'ubicacion__nombre', 'documento__codigo')
     filter_horizontal = ('activos',)
@@ -49,6 +171,81 @@ class PlanoAdmin(admin.ModelAdmin):
             return format_html('<a href="{0}" target="_blank">📄 Ver Plano{1}</a>', archivo.url, rev_tag)
         return "No hay archivo"
     visualizar_archivo.short_description = "Visualizar"
+
+    # change_list_template = 'admin/activos/plano/change_list.html'
+    resource_class = PlanoResource
+
+    def get_changelist_template(self, request):
+        return 'admin/activos/plano/change_list.html'
+    resource_class = PlanoResource
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-bg-celery/', self.admin_site.admin_view(self.import_background_celery), name='activos_plano_import_background_celery'),
+            path('import-process-celery/', self.admin_site.admin_view(self.import_process_celery), name='activos_plano_import_process_celery'),
+            path('import-progress-celery/', self.admin_site.admin_view(self.import_progress_celery), name='activos_plano_import_progress_celery'),
+        ]
+        return custom_urls + urls
+
+    def import_background_celery(self, request):
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Importación Asíncrona de Planos (Redis)',
+        }
+        return render(request, 'admin/activos/plano/background_import_planos.html', context)
+
+    def import_process_celery(self, request):
+        """Recibe el archivo y lanza la tarea Celery"""
+        if request.method == 'POST' and request.FILES.get('import_file'):
+            import_file = request.FILES['import_file']
+            
+            # Guardar archivo temporalmente
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            import os
+            
+            path = default_storage.save(f'tmp/planos_import_{request.user.id}_{import_file.name}', ContentFile(import_file.read()))
+            full_path = default_storage.path(path)
+            
+            # Determinar formato
+            file_format = 'csv' if import_file.name.endswith('.csv') else 'xlsx'
+            
+            # Lanzar tarea Celery
+            from .tasks import import_planos_task
+            task = import_planos_task.delay(full_path, file_format)
+            
+            return JsonResponse({'task_id': task.id})
+            
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
+
+    def import_progress_celery(self, request):
+        """Consulta el estado de la tarea usando AsyncResult"""
+        task_id = request.GET.get('task_id')
+        if not task_id:
+            return JsonResponse({'error': 'No task_id provided'}, status=400)
+            
+        from celery.result import AsyncResult
+        result = AsyncResult(task_id)
+        
+        response = {
+            'state': result.state,
+            'status': 'Procesando...',
+            'percent': 0
+        }
+        
+        if result.state == 'PROGRESS':
+            response.update(result.info)
+        elif result.state == 'SUCCESS' or result.state == 'COMPLETED':
+            # Nota: A veces Celery marca SUCCESS y devuelve el return de la función en result.result
+            response.update(result.result if isinstance(result.result, dict) else {})
+            response['state'] = 'COMPLETED'
+            response['percent'] = 100
+        elif result.state == 'FAILURE':
+            response['error'] = str(result.result)
+            
+        return JsonResponse(response)
 
 class PinPlanoInline(admin.TabularInline):
     model = PinPlano
@@ -194,95 +391,6 @@ class FamiliaAdmin(ImportExportModelAdmin):
     nombre_con_indentacion.short_description = 'Familia'
 
 
-class SmartModeloWidget(ForeignKeyWidget):
-    """Widget que usa el caché del Resource para evitar Modelo.DoesNotExist o consultas N+1."""
-    def clean(self, value, row=None, **kwargs):
-        if not value:
-            return None
-        
-        val_str = str(value).strip()
-        # Tratamos literales como "None" o "NULL" como vacíos
-        if val_str.upper() in ('NONE', 'NULL', 'N/A', ''):
-            return None
-            
-        val_upper = val_str.upper()
-        resource = kwargs.get('resource')
-        if resource and hasattr(resource, 'modelo_cache'):
-            # Si no está en caché, simplemente devolvemos None (obviar errores)
-            return resource.modelo_cache.get(val_upper)
-            
-        # Fallback seguro que no levanta DoesNotExist si no encuentra
-        try:
-            return super().clean(value, row, **kwargs)
-        except Exception:
-            return None
-
-class SmartUserWidget(ForeignKeyWidget):
-    """Widget que busca el usuario por username y devuelve None si no existe instead of crashing."""
-    def clean(self, value, row=None, **kwargs):
-        if not value:
-            return None
-        val_str = str(value).strip()
-        if val_str.upper() in ('NONE', 'NULL', 'N/A', ''):
-            return None
-        from django.contrib.auth.models import User
-        return User.objects.filter(username=val_str).first()
-
-class SmartActivoWidget(ForeignKeyWidget):
-    """Widget que busca el activo por código interno y devuelve None si no existe."""
-    def clean(self, value, row=None, **kwargs):
-        if not value:
-            return None
-        val_str = str(value).strip()
-        from .models import Activo
-        return Activo.objects.filter(codigo_interno=val_str).first()
-
-class SmartFamiliaWidget(ForeignKeyWidget):
-    """Widget que busca la familia por nombre y devuelve None si no existe."""
-    def clean(self, value, row=None, **kwargs):
-        if not value:
-            return None
-        val_str = str(value).strip()
-        from .models import Familia
-        return Familia.objects.filter(nombre__iexact=val_str).first()
-
-class SmartParentWidget(ForeignKeyWidget):
-    """
-    Widget que busca el padre por nombre y devuelve el primero encontrado.
-    Evita MultipleObjectsReturned en jerarquías con nombres repetidos en distintos niveles.
-    """
-    def clean(self, value, row=None, **kwargs):
-        if not value:
-            return None
-        return Ubicacion.objects.filter(nombre=value).first()
-
-class SmartPlanoWidget(ForeignKeyWidget):
-    """Widget que busca el plano por nombre. Si no existe lo crea."""
-    def clean(self, value, row=None, **kwargs):
-        if not value:
-            return None
-        val_str = str(value).strip()
-        if val_str.upper() in ('NONE', 'NULL', 'N/A', ''):
-            return None
-            
-        from .models import Plano, Ubicacion
-        plano = Plano.objects.filter(nombre__iexact=val_str).first()
-        if not plano:
-            # Si no existe, lo creamos. Intentamos obtener la ubicación del row.
-            # En ActivoResource, el campo de ubicación se llama 'ubicacion_nombre'
-            ubicacion_val = row.get('ubicacion_nombre')
-            ubicacion = None
-            if ubicacion_val:
-                # Buscamos la ubicación usando la lógica simplificada (o la misma del widget de ubicacion)
-                ubicacion = Ubicacion.objects.filter(nombre__iexact=str(ubicacion_val).strip()).first()
-            
-            if not ubicacion:
-                # Si no hay ubicación, no podemos crear el Plano (es REQUIRED)
-                return None
-                
-            plano = Plano.objects.create(nombre=val_str, ubicacion=ubicacion)
-            
-        return plano
 
 class UbicacionResource(resources.ModelResource):
     """
