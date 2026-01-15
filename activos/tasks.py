@@ -1,6 +1,6 @@
 from celery import shared_task
 from import_export import resources
-from .models import Ubicacion, Activo
+from .models import Ubicacion, Activo, Plano
 from .admin import UbicacionResource, ActivoResource
 import time
 
@@ -99,6 +99,7 @@ def import_ubicaciones_task(self, file_path, file_format):
         'errors': len(result.base_errors) + len(result.row_errors()),
         'error_messages': [str(e.error) for e in result.base_errors[:10]]  # Primeros 10 errores
     }
+
 @shared_task(bind=True)
 def import_activos_task(self, file_path, file_format, user_id=None):
     """
@@ -168,3 +169,75 @@ def import_activos_task(self, file_path, file_format, user_id=None):
     }
     cache.set(cache_key, final_res, 3600)
     return final_res
+
+@shared_task(bind=True)
+def import_planos_task(self, file_path, file_format):
+    """
+    Tarea Celery para importar PLANOS con seguimiento de progreso real.
+    """
+    from tablib import Dataset
+    import os
+    from .admin import PlanoResource
+    
+    # Inicializar resource
+    resource = PlanoResource()
+    
+    # Leer archivo
+    try:
+        with open(file_path, 'rb') as f:
+            if file_format == 'csv':
+                dataset = Dataset().load(f.read().decode('utf-8', errors='ignore'), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(f.read(), format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except FileNotFoundError:
+        return {'status': 'error', 'message': 'Archivo temporal no encontrado'}
+
+    total_rows = len(dataset)
+    
+    # Estado inicial
+    self.update_state(
+        state='PROGRESS',
+        meta={'current': 0, 'total': total_rows, 'status': 'Iniciando importación...', 'percent': 0}
+    )
+    
+    result = resources.Result()
+    
+    for i, row in enumerate(dataset.dict, start=1):
+        try:
+            # Feedback en Redis cada 5 filas para que la barra se mueva fluido
+            if i % 5 == 0 or i == total_rows:
+                self.update_state(
+                    state='PROGRESS',
+                    meta={
+                        'current': i, 
+                        'total': total_rows, 
+                        'status': f'Procesando plano {i}/{total_rows}: {row.get("nombre", "")}', 
+                        'percent': int((i / total_rows) * 100)
+                    }
+                )
+            
+            # Importar fila
+            instance_loader = resources.InstanceLoader(resource, dataset)
+            row_result = resource.import_row(row, instance_loader, dry_run=False)
+            result.append_row_result(row_result)
+            
+        except Exception as e:
+            result.append_base_error(resources.Error(error=e, traceback=str(e), row=row))
+            
+    # Limpiar archivo
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except:
+        pass
+        
+    return {
+        'status': 'completed',
+        'total': total_rows,
+        'new': result.totals.get('new', 0),
+        'updated': result.totals.get('update', 0),
+        'skipped': result.totals.get('skip', 0),
+        'errors': len(result.base_errors) + len(result.row_errors()),
+    }

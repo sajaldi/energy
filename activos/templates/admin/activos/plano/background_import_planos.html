@@ -1,0 +1,216 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    .import-container {
+        max-width: 800px;
+        margin: 40px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-wrapper {
+        margin-top: 30px;
+        display: none;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 25px;
+        background-color: #f0f0f0;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+        width: 0%;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .status-text {
+        margin-top: 10px;
+        text-align: center;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .file-upload-zone {
+        border: 2px dashed #cbd5e1;
+        padding: 40px;
+        text-align: center;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .file-upload-zone:hover {
+        border-color: #3b82f6;
+        background-color: #eff6ff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <h2 style="margin-bottom: 20px; color: #1e293b;">
+        <span style="color: #ea580c">⚡</span> Importación de Planos (Motor Asíncrono)
+    </h2>
+
+    <div style="background: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin-bottom: 25px;">
+        <p style="margin: 0; color: #9a3412;">
+            <strong>Modo Redis Activado:</strong> Los archivos se procesarán en segundo plano. Puedes cerrar esta
+            ventana una vez iniciada la carga.
+        </p>
+    </div>
+
+    <form id="importForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" name="import_file" style="display: none;" accept=".xlsx, .xls, .csv">
+            <div style="font-size: 3rem; color: #94a3b8; margin-bottom: 15px;">📂</div>
+            <h3 style="color: #475569; margin: 0;">Selecciona tu archivo de Planos</h3>
+            <p style="color: #94a3b8; margin-top: 5px;">Soporta Excel (.xlsx) y CSV</p>
+            <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #3b82f6;"></div>
+        </div>
+
+        <div style="margin-top: 25px; text-align: right;">
+            <a href="../" class="button"
+                style="background-color: #cbd5e1; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px;">Cancelar</a>
+            <button type="submit" class="button"
+                style="background-color: #ea580c; color: white; padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem;">
+                🚀 Iniciar Importación Background
+            </button>
+        </div>
+    </form>
+
+    <!-- Barra de Progreso -->
+    <div class="progress-wrapper" id="progressWrapper">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill">0%</div>
+        </div>
+        <div class="status-text" id="statusText">Iniciando motor de colas...</div>
+        <div style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: #94a3b8;">
+            Task ID: <span id="taskIdDisplay" style="font-family: monospace;">...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const importForm = document.getElementById('importForm');
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressFill = document.getElementById('progressFill');
+    const statusText = document.getElementById('statusText');
+    const taskIdDisplay = document.getElementById('taskIdDisplay');
+
+    fileInput.addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+            fileName.textContent = this.files[0].name;
+            fileName.style.display = 'block';
+        }
+    });
+
+    importForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        if (!fileInput.files.length) {
+            Swal.fire('Error', 'Selecciona un archivo primero', 'error');
+            return;
+        }
+
+        // UI Update
+        importForm.style.opacity = '0.5';
+        importForm.style.pointerEvents = 'none';
+        progressWrapper.style.display = 'block';
+
+        const formData = new FormData(this);
+
+        // 1. Iniciar Tarea (Enviar archivo)
+        fetch('{% url "admin:activos_plano_import_process_celery" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.task_id) {
+                    taskIdDisplay.textContent = data.task_id;
+                    startPolling(data.task_id);
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo iniciar la tarea', 'error');
+                    resetUI();
+                }
+            })
+            .catch(err => {
+                Swal.fire('Error de Conexión', 'No se pudo contactar al servidor', 'error');
+                resetUI();
+            });
+    });
+
+    function startPolling(taskId) {
+        const interval = setInterval(() => {
+            fetch(`{% url "admin:activos_plano_import_progress_celery" %}?task_id=${taskId}`)
+                .then(res => res.json())
+                .then(data => {
+                    // Actualizar barra
+                    const percent = data.percent || 0;
+                    progressFill.style.width = percent + '%';
+                    progressFill.textContent = percent + '%';
+                    statusText.textContent = data.status || 'Procesando...';
+
+                    if (data.state === 'SUCCESS' || data.state === 'COMPLETED') {
+                        clearInterval(interval);
+                        progressFill.style.width = '100%';
+                        progressFill.style.background = '#10b981'; // Verde éxito
+
+                        Swal.fire({
+                            title: '¡Importación Completada!',
+                            html: `
+                            <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                <p>✅ <b>Nuevos:</b> ${data.new}</p>
+                                <p>🔄 <b>Actualizados:</b> ${data.updated}</p>
+                                <p>⏭️ <b>Omitidos:</b> ${data.skipped}</p>
+                                <p>❌ <b>Errores:</b> ${data.errors}</p>
+                            </div>
+                        `,
+                            icon: 'success',
+                            confirmButtonText: 'Ver Planos'
+                        }).then(() => {
+                            window.location.href = '../';
+                        });
+                    } else if (data.state === 'FAILURE') {
+                        clearInterval(interval);
+                        progressFill.style.background = '#ef4444';
+                        statusText.textContent = 'Falló la importación';
+                        Swal.fire('Error Crítico', data.error || 'La tarea falló inesperadamente', 'error');
+                    }
+                })
+                .catch(err => console.error('Polling error:', err));
+        }, 1000); // Poll cada 1 segundo
+    }
+
+    function resetUI() {
+        importForm.style.opacity = '1';
+        importForm.style.pointerEvents = 'auto';
+        progressWrapper.style.display = 'none';
+        progressFill.style.width = '0%';
+    }
+</script>
+{% endblock %}
