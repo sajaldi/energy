@@ -21,6 +21,7 @@ urlpatterns = [
     path('inventarios/', include('inventarios.urls', namespace='inventarios')),
     path('auditorias/', include('auditorias.urls', namespace='auditorias')),
     path('almacen/', include('almacen.urls', namespace='almacen')),
+    path('seguridad/', include('seguridad.urls', namespace='seguridad')),
     # PWA Support
     path('manifest.json', serve, {'document_root': settings.STATICFILES_DIRS[0], 'path': 'core/manifest.json'}),
     path('sw.js', serve, {'document_root': settings.STATICFILES_DIRS[0], 'path': 'core/sw.js'}),

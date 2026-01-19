@@ -179,73 +179,11 @@ class PlanoAdmin(ImportExportModelAdmin):
         return 'admin/activos/plano/change_list.html'
     resource_class = PlanoResource
 
-    def get_urls(self):
-        from django.urls import path
-        urls = super().get_urls()
-        custom_urls = [
-            path('import-bg-celery/', self.admin_site.admin_view(self.import_background_celery), name='activos_plano_import_background_celery'),
-            path('import-process-celery/', self.admin_site.admin_view(self.import_process_celery), name='activos_plano_import_process_celery'),
-            path('import-progress-celery/', self.admin_site.admin_view(self.import_progress_celery), name='activos_plano_import_progress_celery'),
-        ]
-        return custom_urls + urls
+    # get_urls removed to disable Redis import for Plano
 
-    def import_background_celery(self, request):
-        context = {
-            **self.admin_site.each_context(request),
-            'title': 'Importación Asíncrona de Planos (Redis)',
-        }
-        return render(request, 'admin/activos/plano/background_import_planos.html', context)
 
-    def import_process_celery(self, request):
-        """Recibe el archivo y lanza la tarea Celery"""
-        if request.method == 'POST' and request.FILES.get('import_file'):
-            import_file = request.FILES['import_file']
-            
-            # Guardar archivo temporalmente
-            from django.core.files.storage import default_storage
-            from django.core.files.base import ContentFile
-            import os
-            
-            path = default_storage.save(f'tmp/planos_import_{request.user.id}_{import_file.name}', ContentFile(import_file.read()))
-            full_path = default_storage.path(path)
-            
-            # Determinar formato
-            file_format = 'csv' if import_file.name.endswith('.csv') else 'xlsx'
-            
-            # Lanzar tarea Celery
-            from .tasks import import_planos_task
-            task = import_planos_task.delay(full_path, file_format)
-            
-            return JsonResponse({'task_id': task.id})
-            
-        return JsonResponse({'error': 'No file uploaded'}, status=400)
+    # Redis/Celery import methods removed
 
-    def import_progress_celery(self, request):
-        """Consulta el estado de la tarea usando AsyncResult"""
-        task_id = request.GET.get('task_id')
-        if not task_id:
-            return JsonResponse({'error': 'No task_id provided'}, status=400)
-            
-        from celery.result import AsyncResult
-        result = AsyncResult(task_id)
-        
-        response = {
-            'state': result.state,
-            'status': 'Procesando...',
-            'percent': 0
-        }
-        
-        if result.state == 'PROGRESS':
-            response.update(result.info)
-        elif result.state == 'SUCCESS' or result.state == 'COMPLETED':
-            # Nota: A veces Celery marca SUCCESS y devuelve el return de la función en result.result
-            response.update(result.result if isinstance(result.result, dict) else {})
-            response['state'] = 'COMPLETED'
-            response['percent'] = 100
-        elif result.state == 'FAILURE':
-            response['error'] = str(result.result)
-            
-        return JsonResponse(response)
 
 class PinPlanoInline(admin.TabularInline):
     model = PinPlano
@@ -1372,15 +1310,22 @@ class DocumentoMedicionInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Activo)
-class ActivoAdmin(ImportExportActionModelAdmin):
+class ActivoAdmin(ImportExportModelAdmin):
     list_per_page = 50
     resource_class = ActivoResource
+
+    # get_urls removed to disable Redis import
+
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
     
     def get_export_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
+
+
+    # Redis import methods removed
+
 
     list_display = ('codigo_interno', 'nombre', 'referencia', 'descripcion', 'familia', 'get_parent_info', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'plano', 'ubicacion')
     list_filter = (ActivoFaltantesFilter, 'estado', 'familia', 'modelo__categoria', 'modelo__marca', 'responsable', 'creado_en', UbicacionHierarchyFilter)

@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div
+    style="max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <h2 style="color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px;">
+        Generar Permiso de Trabajo
+    </h2>
+
+    <div
+        style="background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #cbd5e1;">
+        <p><strong>Orden de Trabajo:</strong> OT-{{ ot.id }}</p>
+        <p><strong>Ubicación:</strong> {{ ot.ubicacion.nombre }}</p>
+        <p><strong>Tarea:</strong>
+            {% if ot.rutina %}
+            {{ ot.rutina.nombre }}
+            {% elif ot.aviso %}
+            {{ ot.aviso.descripcion }}
+            {% else %}
+            Mantenimiento General
+            {% endif %}
+        </p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <label for="tipo_permiso" style="display: block; font-weight: bold; margin-bottom: 8px;">Seleccione Tipo de
+            Permiso:</label>
+        <select name="tipo_permiso" id="tipo_permiso"
+            style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 20px;"
+            required>
+            <option value="">-- Seleccionar --</option>
+            {% for tipo in tipos_permiso %}
+            <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit"
+            style="background: #2563eb; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;">
+            Generar Permiso
+        </button>
+    </form>
+</div>
+{% endblock %}

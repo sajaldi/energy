@@ -597,6 +597,26 @@ class MovimientoInventarioInline(admin.TabularInline):
     def get_queryset(self, request):
         return super().get_queryset(request).filter(tipo='SALIDA')
 
+class PermisosTrabajoInline(admin.TabularInline):
+    from seguridad.models import PermisoTrabajo
+    model = PermisoTrabajo
+    extra = 0
+    can_delete = False
+    fields = ('tipo', 'estado', 'solicitante', 'fecha_inicio', 'ver_permiso_link')
+    readonly_fields = ('tipo', 'estado', 'solicitante', 'fecha_inicio', 'ver_permiso_link')
+    verbose_name = "Permiso de Trabajo Vinculado"
+    verbose_name_plural = "Permisos de Trabajo"
+    
+    def ver_permiso_link(self, obj):
+        if obj.id:
+            from django.urls import reverse
+            from django.utils.html import format_html
+            url = reverse('seguridad:detalle_permiso', args=[obj.id])
+            return format_html('<a href="{}" class="button" style="background-color: #8b5cf6; color: white; padding: 3px 8px; border-radius: 4px;" target="_blank">Ver Permiso</a>', url)
+        return "-"
+    ver_permiso_link.short_description = "Acciones"
+
+
 class ValorPasoOrdenInline(admin.TabularInline):
     model = ValorPasoOrden
     extra = 0
@@ -607,7 +627,7 @@ class ValorPasoOrdenInline(admin.TabularInline):
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'equipo', 'estado', 'registrar_salida_link')
+    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'equipo', 'estado', 'registrar_salida_link', 'generar_permiso_action')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'equipo')
     readonly_fields = ('registrar_salida_link',)
     list_select_related = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
@@ -616,7 +636,8 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     date_hierarchy = 'inicio_programado'
     raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
     filter_horizontal = ('activos',)
-    inlines = [CierreOrdenTrabajoInline, MovimientoInventarioInline, ValorPasoOrdenInline]
+    inlines = [CierreOrdenTrabajoInline, MovimientoInventarioInline, PermisosTrabajoInline, ValorPasoOrdenInline]
+
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
@@ -642,7 +663,35 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
 
     def registrar_salida_link(self, obj):
         if obj.estado in ['PROGRAMADA', 'EJECUCION']:
-            url = reverse('registrar_salida')
+            url = reverse('inventarios:registrar_salida')
             return mark_safe(f'<a class="button" href="{url}?ot={obj.id}" style="background: #6366f1; color: white; padding: 4px 10px; border-radius: 4px; font-weight: 600; text-decoration: none;">📦 Salida de Material</a>')
         return "-"
     registrar_salida_link.short_description = "Acciones"
+
+    def generar_permiso_action(self, obj):
+        from django.urls import reverse
+        from django.utils.html import format_html
+        if obj.permisos.exists():
+            permiso = obj.permisos.first()
+            url = reverse('seguridad:detalle_permiso', args=[permiso.id])
+            return format_html('<a href="{}" class="button" style="background-color: #059669; color: white; padding: 3px 8px; border-radius: 4px;">Ver Permiso</a>', url)
+        
+        url = reverse('seguridad:generar_permiso_ot', args=[obj.id])
+        return format_html('<a href="{}" class="button" style="background-color: #2563eb; color: white; padding: 3px 8px; border-radius: 4px;">Generar Permiso</a>', url)
+    
+    generar_permiso_action.short_description = "Permiso de Trabajo"
+    generar_permiso_action.allow_tags = True
+
+    def generar_permiso_action(self, obj):
+        from django.urls import reverse
+        from django.utils.html import format_html
+        if obj.permisos.exists():
+            permiso = obj.permisos.first()
+            url = reverse('seguridad:detalle_permiso', args=[permiso.id])
+            return format_html('<a href="{}" class="button" style="background-color: #059669; color: white; padding: 3px 8px; border-radius: 4px;">Ver Permiso</a>', url)
+        
+        url = reverse('seguridad:generar_permiso_ot', args=[obj.id])
+        return format_html('<a href="{}" class="button" style="background-color: #2563eb; color: white; padding: 3px 8px; border-radius: 4px;">Generar Permiso</a>', url)
+    
+    generar_permiso_action.short_description = "Permiso de Trabajo"
+    generar_permiso_action.allow_tags = True
