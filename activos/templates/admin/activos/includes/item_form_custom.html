@@ -7,8 +7,8 @@
                 ID: #{{ instance.id }}
                 {% if type == 'activo' %}
                 | {{ instance.codigo_interno|default:"Sin Código" }}
-                {% else %}
-                | {{ instance.tipo }}
+                {% elif type == 'ubicacion' %}
+                | {{ instance.get_tipo_display }}
                 {% endif %}
             </p>
         </div>
@@ -47,7 +47,7 @@
                 {% if type == 'activo' %}
                 <div class="model-preview-banner">
                     <div class="image-container" id="model-image-preview">
-                        {% if instance.modelo.imagen %}
+                        {% if instance.modelo and instance.modelo.imagen %}
                         <img src="{{ instance.modelo.imagen }}" alt="{{ instance.modelo.nombre }}">
                         {% else %}
                         <div class="no-image">
@@ -82,7 +82,7 @@
                     {% for activo in activos %}
                     <div class="asset-card" onclick="loadItemById('{{ activo.id }}', 'activo')">
                         <div class="asset-thumb">
-                            {% if activo.modelo.imagen %}
+                            {% if activo.modelo and activo.modelo.imagen %}
                             <img src="{{ activo.modelo.imagen }}" alt="{{ activo.nombre }}">
                             {% else %}
                             <div class="no-thumb"><ion-icon name="cube-outline"></ion-icon></div>
@@ -107,8 +107,7 @@
                 {% else %}
                 <div class="empty-state">
                     <ion-icon name="albums-outline"></ion-icon>
-                    <p>No hay activos registrados en esta {% if type == 'categoria' %}categoría{% else %}ubicación{%
-                        endif %} ni en sus descendientes.</p>
+                    <p>No hay activos registrados en esta {% if type == 'categoria' %}categoría{% else %}ubicación{% endif %} ni en sus descendientes.</p>
                 </div>
                 {% endif %}
             </div>

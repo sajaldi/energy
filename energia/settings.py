@@ -54,6 +54,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok.io',       # Para ngrok
     'http://localhost:3000', 
     'http://181.115.47.107:3000',
+    'https://juda7.work',
     # Si usas algún frontend en este puerto local
     # Añade aquí el dominio o IP de tu aplicación en Coolify, si es necesario.
     # Por ejemplo: 'https://your-coolify-domain.com',
@@ -82,6 +83,7 @@ INSTALLED_APPS = [
     'inventarios',
     'auditorias',
     'almacen',
+    'seguridad',
     'django.contrib.humanize',
 ]
 
@@ -212,6 +214,26 @@ MEDIA_URL = '/media/'
 # El directorio donde se guardarán físicamente los archivos subidos por los usuarios.
 # Asegúrate de que este directorio tenga permisos de escritura para tu aplicación.
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# --- MinIO / S3 Storage Configuration ---
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', 'rootminio')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', 'PasswordRoot07')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-media')
+AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
+AWS_S3_USE_SSL = False
+AWS_S3_REGION_NAME = 'us-east-1'
+AWS_S3_SIGNATURE_VERSION = 's3'  # Necesario para compatibilidad con el Proxy de Apache
+AWS_QUERYSTRING_AUTH = False  # Para que las URLs de archivos sean públicas (si el bucket lo permite)
+AWS_S3_FILE_OVERWRITE = False
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 
 # Default primary key field type

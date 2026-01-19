@@ -1,0 +1,88 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Generar Permiso</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div
+        style="padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 15px;">
+        <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}"
+            style="color: white; text-decoration: none; display: inline-block; margin-bottom: 10px;">
+            ← Volver
+        </a>
+        <h1 style="margin: 0; font-size: 20px; font-weight: 700;">Generar Permiso de Trabajo</h1>
+        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 13px;">Para OT-{{ ot.id }}</p>
+    </div>
+
+    <div style="padding: 0 15px 15px 15px;">
+        <!-- OT Info Card -->
+        <div
+            style="background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+            <h3
+                style="margin: 0 0 12px 0; font-size: 14px; color: #6b7280; text-transform: uppercase; font-weight: 600;">
+                Orden de Trabajo</h3>
+
+            <div style="margin-bottom: 10px;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 2px;">Ubicación</div>
+                <div style="font-weight: 600; color: #1f2937;">📍 {{ ot.ubicacion.nombre }}</div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 2px;">Tarea</div>
+                <div style="color: #4b5563;">
+                    {% if ot.rutina %}
+                    {{ ot.rutina.nombre }}
+                    {% elif ot.aviso %}
+                    {{ ot.aviso.descripcion }}
+                    {% else %}
+                    Mantenimiento General
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Permit Type Selection -->
+        <form method="post">
+            {% csrf_token %}
+            <div
+                style="background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                <label for="tipo_permiso"
+                    style="display: block; font-size: 14px; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 12px;">
+                    Tipo de Permiso
+                </label>
+
+                <select name="tipo_permiso" id="tipo_permiso" required
+                    style="width: 100%; padding: 14px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 15px; font-weight: 500; color: #1f2937; background: #f9fafb;">
+                    <option value="">-- Seleccionar Tipo --</option>
+                    {% for tipo in tipos_permiso %}
+                    <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit"
+                style="width: 100%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+                Generar Permiso
+            </button>
+        </form>
+    </div>
+
+</body>
+
+</html>
