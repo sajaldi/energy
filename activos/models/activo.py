@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
 
 class Marca(models.Model):
@@ -44,8 +45,13 @@ class Activo(models.Model):
         ('OBSOLETO', 'Obsoleto/De Baja'),
     ]
 
-    nombre = models.CharField(max_length=200, help_text="Nombre del activo o equipo")
-    codigo_interno = models.CharField(max_length=50, unique=True, help_text="Código de inventario interno")
+    nombre = models.CharField(max_length=200, db_index=True, help_text="Nombre del activo o equipo")
+    codigo_interno = models.CharField(
+        max_length=50, 
+        unique=True, 
+        validators=[RegexValidator(r'^\d+$', 'El código interno debe contener solo números.')],
+        help_text="Código de inventario interno (Solo números)"
+    )
     serie = models.CharField(max_length=100, blank=True, null=True, help_text="Número de serie del fabricante", db_index=True)
     referencia = models.CharField(max_length=100, blank=True, null=True, help_text="Referencia adicional")
     

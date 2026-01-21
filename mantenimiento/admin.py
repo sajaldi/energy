@@ -663,24 +663,14 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
 
     def registrar_salida_link(self, obj):
         if obj.estado in ['PROGRAMADA', 'EJECUCION']:
-            url = reverse('inventarios:registrar_salida')
-            return mark_safe(f'<a class="button" href="{url}?ot={obj.id}" style="background: #6366f1; color: white; padding: 4px 10px; border-radius: 4px; font-weight: 600; text-decoration: none;">📦 Salida de Material</a>')
+            try:
+                url = reverse('inventarios:registrar_salida')
+                return mark_safe(f'<a class="button" href="{url}?ot={obj.id}" style="background: #6366f1; color: white; padding: 4px 10px; border-radius: 4px; font-weight: 600; text-decoration: none;">📦 Salida de Material</a>')
+            except Exception:
+                # Fallback en caso de error de reversión (ej. migraciones o urls no cargadas)
+                return "-"
         return "-"
     registrar_salida_link.short_description = "Acciones"
-
-    def generar_permiso_action(self, obj):
-        from django.urls import reverse
-        from django.utils.html import format_html
-        if obj.permisos.exists():
-            permiso = obj.permisos.first()
-            url = reverse('seguridad:detalle_permiso', args=[permiso.id])
-            return format_html('<a href="{}" class="button" style="background-color: #059669; color: white; padding: 3px 8px; border-radius: 4px;">Ver Permiso</a>', url)
-        
-        url = reverse('seguridad:generar_permiso_ot', args=[obj.id])
-        return format_html('<a href="{}" class="button" style="background-color: #2563eb; color: white; padding: 3px 8px; border-radius: 4px;">Generar Permiso</a>', url)
-    
-    generar_permiso_action.short_description = "Permiso de Trabajo"
-    generar_permiso_action.allow_tags = True
 
     def generar_permiso_action(self, obj):
         from django.urls import reverse

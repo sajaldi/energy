@@ -44,9 +44,10 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 class PerfilUsuarioInline(admin.StackedInline):
     model = PerfilUsuario
+    fk_name = 'usuario'
     can_delete = False
     verbose_name_plural = 'Perfil de Usuario / Configuración'
-    raw_id_fields = ('ubicacion_defecto',)
+    raw_id_fields = ('ubicacion_defecto', 'responsable')
 
 @admin.register(PerfilUsuario)
 class PerfilUsuarioAdmin(admin.ModelAdmin):

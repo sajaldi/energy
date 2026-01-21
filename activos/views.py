@@ -57,7 +57,9 @@ def api_buscar_activos_json(request):
     if query:
         qs = qs.filter(
             models.Q(nombre__icontains=query) | 
-            models.Q(codigo_interno__icontains=query)
+            models.Q(codigo_interno__icontains=query) |
+            models.Q(descripcion__icontains=query) |
+            models.Q(serie__icontains=query)
         )
     
     if cat_id:
@@ -342,6 +344,10 @@ def api_get_explorer_level(request):
     activos_ubi_exists = Activo.objects.filter(ubicacion=OuterRef('pk'))
     hijos_activo_exists = Activo.objects.filter(padre=OuterRef('pk'))
     
+    
+    import time
+    start_time = time.time()
+    
     if parent_type == 'ubicacion':
         ubicacion = get_object_or_404(Ubicacion, id=parent_id)
         
@@ -392,10 +398,18 @@ def api_get_explorer_level(request):
                 categorias_activos[cat_nombre].append(a)
             
     elif parent_type == 'activo':
+        print(f"DEBUG EXPLORER: Loading components for asset {parent_id}")
+        t0 = time.time()
         activo_padre = get_object_or_404(Activo, id=parent_id)
+        print(f"DEBUG EXPLORER: get_object took {time.time() - t0:.4f}s")
+        
+        t1 = time.time()
         hijos = activo_padre.componentes.annotate(
             num_hijos=Count('componentes')
         ).select_related('modelo__categoria', 'ubicacion').order_by('nombre')
+        
+        hijos_list = list(hijos)
+        print(f"DEBUG EXPLORER: Query took {time.time() - t1:.4f}s. Count: {len(hijos_list)}")
         
         categoria_filt = None
         descendant_cats = []
@@ -403,7 +417,8 @@ def api_get_explorer_level(request):
             categoria_filt = get_object_or_404(Categoria, id=cat_id)
             descendant_cats = list(categoria_filt.get_descendants(include_self=True).values_list('id', flat=True))
             
-        for a in hijos:
+        t2 = time.time()
+        for a in hijos_list:
             show = True
             if cat_id:
                 show = a.modelo and a.modelo.categoria_id in descendant_cats
@@ -411,6 +426,7 @@ def api_get_explorer_level(request):
             if show:
                 cat_nombre = a.modelo.categoria.nombre if (a.modelo and a.modelo.categoria) else "Sin Categoría"
                 categorias_activos[cat_nombre].append(a)
+        print(f"DEBUG EXPLORER: Grouping took {time.time() - t2:.4f}s")
 
     elif parent_type == 'categoria':
         categoria = get_object_or_404(Categoria, id=parent_id)
@@ -445,7 +461,7 @@ def api_get_explorer_level(request):
             ubicacion__isnull=True,
             padre__isnull=True
         ).select_related('modelo__categoria', 'ubicacion').order_by('nombre')
-            
+
     context = {
         'sub_ubicaciones': sub_ubicaciones,
         'sub_categorias': sub_categorias,
@@ -454,6 +470,7 @@ def api_get_explorer_level(request):
         'cat_id': cat_id or (parent_id if parent_type == 'categoria' else None),
     }
     
+    print(f"DEBUG EXPLORER: Total view time {time.time() - start_time:.4f}s")
     return render(request, 'admin/activos/includes/tree_level_fragment.html', context)
 
 @staff_member_required
@@ -470,7 +487,8 @@ def api_explorer_search(request):
     activos = Activo.objects.filter(
         models.Q(nombre__icontains=query) | 
         models.Q(codigo_interno__icontains=query) |
-        models.Q(serie__icontains=query)
+        models.Q(serie__icontains=query) |
+        models.Q(descripcion__icontains=query)
     ).select_related('ubicacion')[:15]
     
     # Buscar Ubicaciones
