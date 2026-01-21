@@ -943,17 +943,11 @@ class ActivoResource(resources.ModelResource):
     )
 
     def import_field(self, field, obj, row, is_m2m=False, **kwargs):
-        """
-        Solo actualiza el campo si la celda NO está vacía.
-        Evita que celdas en blanco en el Excel borren datos que ya existen en la DB.
-        """
-        if field.attribute and field.column_name in row:
-            value = row.get(field.column_name)
-            # Si el valor es nulo o un string vacío (ignorando espacios), no actualizamos este campo
-            if value is None or str(value).strip() == '':
-                return
-        
-        super().import_field(field, obj, row, is_m2m=False, **kwargs)
+        """Simplificado para velocidad: Solo omite si es realmente vacío"""
+        value = row.get(field.column_name)
+        if value is None or str(value).strip() == '':
+            return
+        super().import_field(field, obj, row, is_m2m=is_m2m, **kwargs)
 
     class Meta:
         model = Activo
@@ -965,10 +959,26 @@ class ActivoResource(resources.ModelResource):
         )
         export_order = fields
         skip_unchanged = True
-        report_skipped = True
+        report_skipped = False  # Optimización: No cargar el reporte con miles de filas omitidas
         use_bulk = True
-        batch_size = 1000  # Optimizado: más registros por lote
-        use_transactions = True  # Atomicidad para evitar estados inconsistentes
+        batch_size = 1000  # Volvemos a un tamaño de lote más seguro y manejable
+        use_transactions = True 
+
+    def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
+        """Lógica rápida para omitir filas irrelevantes"""
+        if not any(row.values()): return True
+        
+        # Si no hay nombre ni código, no podemos hacer nada
+        nombre = str(row.get('nombre') or '').strip()
+        codigo = str(row.get('codigo_interno') or '').strip()
+        if not nombre and not codigo:
+            return True
+
+        # Si el objeto es nuevo (no hay original), no omitimos
+        if not original:
+            return False
+
+        return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
 
     def get_queryset(self, request):
         """Eager loading para que skip_row y exportación sean rápidos"""
@@ -994,28 +1004,6 @@ class ActivoResource(resources.ModelResource):
                 update_fields.add(base_attr)
                 
         return list(update_fields)
-
-    def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
-        """Lógica inteligente para decidir si omitir o no una fila"""
-        # 1. Ignorar filas vacías o sin identificador
-        if not any(row.values()):
-            return True
-        if not str(row.get('nombre') or '').strip() and not str(row.get('codigo_interno') or '').strip():
-            return True
-
-        # 2. Forzar actualización si cambió el modelo (indirecto)
-        excel_model = str(row.get('modelo_nombre') or '').strip().upper()
-        current_model = original.modelo.nombre.upper() if original and original.modelo else ''
-        if excel_model and excel_model != current_model:
-            return False
-            
-        # 3. Forzar actualización si cambió la categoría (indirecto via modelo)
-        excel_cat = str(row.get('categoria_nombre') or '').strip().upper()
-        current_cat = original.modelo.categoria.nombre.upper() if original and original.modelo and original.modelo.categoria else ''
-        if excel_cat and excel_cat != current_cat:
-            return False
-            
-        return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
 
     def before_import(self, dataset, *args, **kwargs):
         """Precarga cachés para velocidad y precisión en jerarquías"""
@@ -1120,37 +1108,25 @@ class ActivoResource(resources.ModelResource):
                 # Recargar memoria con todos los modelos
                 self.modelo_cache = {m.nombre.upper(): m for m in Modelo.objects.all().select_related('marca', 'categoria')}
 
-        # 4. Caché Activos por Código Interno
-        self.activo_cache = {a.codigo_interno: a for a in Activo.objects.all().only('id', 'codigo_interno') if a.codigo_interno}
+        # 4. Caché de IDs (Ligero: solo código -> ID) para evitar cargar 75k objetos completos en RAM
+        self.activo_id_cache = dict(Activo.objects.values_list('codigo_interno', 'id').iterator())
+        
+        # Inicializar contadores
+        self._row_counter = 0
+        self._stats = {'new': 0, 'update': 0, 'skip': 0, 'error': 0}
 
     def after_import_row(self, row, row_result, **kwargs):
-        """Actualizar progreso detallado en caché para seguimiento en tiempo real"""
-        from django.core.cache import cache
-        user = kwargs.get('user')
-        if user and hasattr(self, 'total_rows') and self.total_rows > 0:
-            uid = user.id
-            current = cache.get(f"import_progress_{uid}_count", 0) + 1
-            cache.set(f"import_progress_{uid}_count", current, 600)
-            
-            percent = min(int((current / self.total_rows) * 100), 100)
-            cache.set(f"import_progress_{uid}", percent, 600)
-            
-            # Nombre del activo actual para mostrar en UI
-            current_name = row.get('nombre') or row.get('codigo_interno') or f'Fila {current}'
-            cache.set(f"import_progress_{uid}_current", str(current_name)[:50], 600)
-            
-            # Acumular estadísticas por tipo de operación
-            stats = cache.get(f"import_progress_{uid}_stats", {'new': 0, 'update': 0, 'skip': 0, 'error': 0})
-            import_type = getattr(row_result, 'import_type', None)
-            if import_type == 'new':
-                stats['new'] += 1
-            elif import_type == 'update':
-                stats['update'] += 1
-            elif import_type == 'skip':
-                stats['skip'] += 1
-            if row_result.errors:
-                stats['error'] += 1
-            cache.set(f"import_progress_{uid}_stats", stats, 600)
+        """Reporte de progreso ultra-ligero (Cada 1000 filas)"""
+        if not hasattr(self, '_row_counter'): self._row_counter = 0
+        self._row_counter += 1
+        
+        if self._row_counter % 1000 == 0 or self._row_counter == self.total_rows:
+            user = self._import_user
+            if user:
+                from django.core.cache import cache
+                percent = min(int((self._row_counter / self.total_rows) * 100), 100)
+                cache.set(f"import_progress_{user.id}", percent, 300)
+                cache.set(f"import_progress_{user.id}_count", self._row_counter, 300)
 
     def dehydrate_ubicacion_nombre(self, activo):
         """Exportar la ruta completa para evitar ambigüedad en futuras importaciones"""
@@ -1166,53 +1142,15 @@ class ActivoResource(resources.ModelResource):
     def get_instance(self, instance_loader, row):
         codigo = row.get('codigo_interno')
         if codigo:
-            # Usar caché local en lugar de consultar la DB
-            if hasattr(self, 'activo_cache'):
-                return self.activo_cache.get(codigo)
-            return self._meta.model.objects.filter(codigo_interno=codigo).first()
+            # Usar caché de IDs para ver si existe
+            obj_id = self.activo_id_cache.get(str(codigo))
+            if obj_id:
+                # Ya que necesitamos el objeto completo para actualizar, lo traemos por ID (índice primario)
+                # Esto es más rápido que filtrar por código cada vez
+                return Activo.objects.filter(id=obj_id).first()
         return None
 
-    def import_row(self, row, instance_loader, **kwargs):
-        """
-        Override optimizado para manejo de actualizaciones parciales.
-        Si una celda está vacía en el Excel, se preserva el valor actual del Activo.
-        """
-        instance = self.get_instance(instance_loader, row)
-        
-        if instance and instance.pk:
-            if not hasattr(self, '_field_map'):
-                self._field_map = {rf.column_name: rf.attribute for rf in self.get_fields() if rf.column_name and rf.attribute}
-            
-            for field_name, value in row.items():
-                # Detectar si el campo está vacío (incluyendo literales como None/NULL)
-                val_str = str(value).strip() if value is not None else ""
-                is_empty = not val_str or val_str.upper() in ('NONE', 'NULL', 'N/A')
-                
-                if is_empty and field_name in self._field_map:
-                    attr_name = self._field_map[field_name]
-                    
-                    # Manejo de campos directos del modelo
-                    if '__' not in attr_name:
-                        current_val = getattr(instance, attr_name, None)
-                        if current_val is not None:
-                            # Si es un ForeignKey, necesitamos el nombre/código para que el widget no falle
-                            if isinstance(current_val, models.Model):
-                                if attr_name == 'modelo':
-                                    row[field_name] = current_val.nombre
-                                elif attr_name == 'ubicacion':
-                                    row[field_name] = current_val.get_ruta_completa()
-                                elif attr_name == 'responsable':
-                                    row[field_name] = current_val.username
-                                elif attr_name == 'padre':
-                                    row[field_name] = current_val.codigo_interno
-                                elif attr_name == 'plano':
-                                    row[field_name] = current_val.nombre
-                                else:
-                                    row[field_name] = str(current_val)
-                            else:
-                                row[field_name] = current_val
-        
-        return super().import_row(row, instance_loader, **kwargs)
+
 
 class ActivoFaltantesFilter(admin.SimpleListFilter):
     title = 'Calidad de Datos'
@@ -1309,6 +1247,8 @@ class DocumentoMedicionInline(admin.TabularInline):
                 kwargs["queryset"] = PuntoMedicion.objects.filter(activo_id=activo_id)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+
+
 @admin.register(Activo)
 class ActivoAdmin(ImportExportModelAdmin):
     list_per_page = 50
@@ -1327,17 +1267,63 @@ class ActivoAdmin(ImportExportModelAdmin):
     # Redis import methods removed
 
 
-    list_display = ('codigo_interno', 'nombre', 'referencia', 'descripcion', 'familia', 'get_parent_info', 'get_marca', 'modelo', 'serie', 'get_categoria', 'estado', 'plano', 'ubicacion')
-    list_filter = (ActivoFaltantesFilter, 'estado', 'familia', 'modelo__categoria', 'modelo__marca', 'responsable', 'creado_en', UbicacionHierarchyFilter)
-    list_select_related = ('modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable', 'padre', 'familia')
+    class NombreStartsWithFilter(admin.SimpleListFilter):
+        title = 'Nombre comienza con'
+        parameter_name = 'nombre_starts_with'
+
+        def lookups(self, request, model_admin):
+            # 0-9
+            lookups = [('0-9', '0-9 (Números)')]
+            # A-Z
+            import string
+            for char in string.ascii_uppercase:
+                lookups.append((char, char))
+            return lookups
+
+        def queryset(self, request, queryset):
+            if self.value() == '0-9':
+                # Filtra nombres que empiezan con dígito
+                return queryset.filter(nombre__regex=r'^\d')
+            elif self.value():
+                # Filtra por la letra seleccionada (case insensitive)
+                return queryset.filter(nombre__istartswith=self.value())
+            return queryset
+
+
+
+    
+    list_display = ('id', 'codigo_interno', 'nombre', 'referencia', 'get_marca', 'get_categoria', 'get_ubicacion_ruta', 'responsable', 'estado', 'ver_en_plano')
+    list_filter = (
+        NombreStartsWithFilter,
+        ActivoFaltantesFilter, 
+        'estado', 
+        ('familia', admin.RelatedOnlyFieldListFilter),
+        ('modelo__categoria', admin.RelatedOnlyFieldListFilter),
+        ('modelo__marca', admin.RelatedOnlyFieldListFilter),
+        ('responsable', admin.RelatedOnlyFieldListFilter),
+        'creado_en', 
+        UbicacionHierarchyFilter
+    )
+    # Optimización: Mantenemos select_related para evitar N+1 en las columnas personalizadas
+    list_select_related = (
+        'modelo__marca', 
+        'modelo__categoria', 
+        'ubicacion', 
+        'ubicacion__padre',
+        'ubicacion__padre__padre',
+        'responsable', 
+        'padre', 
+        'familia',
+        'plano'
+    )
     search_fields = ('nombre', 'descripcion', 'codigo_interno', 'serie', 'referencia', 'familia__nombre', 'plano__nombre', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('familia', 'modelo', 'ubicacion', 'responsable', 'padre', 'plano')
     inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline]
     readonly_fields = ('get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link', 'get_puntos_medicion_summary')
-    actions = ['export_admin_action', 'export_direct_xlsx']
+    actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv']
 
     def get_queryset(self, request):
-        qs = super().get_queryset(request)
+        qs = super().get_queryset(request).prefetch_related('pines_planos')
         
         # --- Lógica de Filtros Dinámicos (Dynamic Table Filters) ---
         dtf_param = request.GET.get('_dtf')
@@ -1393,6 +1379,7 @@ class ActivoAdmin(ImportExportModelAdmin):
         # Pasamos campos disponibles para el filtro dinámico
         extra_context['available_filter_fields'] = [
             {'name': 'nombre', 'label': 'Nombre', 'type': 'text'},
+            {'name': 'descripcion', 'label': 'Descripción', 'type': 'text'},
             {'name': 'codigo_interno', 'label': 'Código Interno', 'type': 'text'},
             {'name': 'serie', 'label': 'N° Serie', 'type': 'text'},
             {'name': 'modelo__marca__nombre', 'label': 'Marca', 'type': 'text'},
@@ -1434,6 +1421,129 @@ class ActivoAdmin(ImportExportModelAdmin):
         except Exception as e:
             self.message_user(request, f"Error en exportación directa: {str(e)}", messages.ERROR)
             return None
+
+    @admin.action(description="⚡ Exportar CSV Streaming (Rápido - 85k+ registros)")
+    def export_streaming_csv(self, request, queryset):
+        """
+        Exporta datos en CSV usando StreamingHttpResponse para evitar timeouts
+        y uso excesivo de memoria con grandes volúmenes de datos.
+        Optimización: 
+        1. Carga mapa de ubicaciones en memoria para evitar N+1 recursivo en __str__.
+        2. Usa values_list para evitar instanciación de modelos.
+        """
+        import csv
+        from django.http import StreamingHttpResponse
+        from .models import Ubicacion
+
+        # Clase auxiliar para escribir en el buffer de respuesta
+        class Echo:
+            def write(self, value):
+                return value
+
+        # 1. Pre-calcular mapa de ubicaciones (Full Path)
+        # Esto reduce 250k+ queries a 1 query + procesamiento en memoria
+        # Asumimos que el número de ubicaciones no es masivo (<10k) comparado con activos
+        def build_location_map():
+            # Traemos todas las ubicaciones: id, nombre, padre
+            locs = list(Ubicacion.objects.values('id', 'nombre', 'padre_id'))
+            loc_dict = {l['id']: l for l in locs}
+            full_path_map = {}
+
+            def get_path(loc_id, depth=0):
+                if loc_id in full_path_map:
+                    return full_path_map[loc_id]
+                if depth > 20: return "[Max Depth]" # Evitar bucles infinitos
+                
+                node = loc_dict.get(loc_id)
+                if not node: return ""
+                
+                name = node['nombre']
+                parent_id = node['padre_id']
+                
+                if parent_id:
+                    path = f"{get_path(parent_id, depth+1)} → {name}"
+                else:
+                    path = name
+                
+                full_path_map[loc_id] = path
+                return path
+
+            for l in locs:
+                get_path(l['id'])
+            
+            return full_path_map
+
+        # Generador optimizado
+        def rows_generator(queryset):
+            # Excel needs BOM to recognize UTF-8
+            yield [u'\ufeffID', 'Codigo Interno', 'Nombre', 'Referencia', 'Marca', 'Modelo', 
+                'Serie', 'Estado', 'Ubicacion', 'Responsable', 'Costo', 'Fecha Compra']
+
+            # Pre-load cache
+            loc_map = build_location_map()
+            
+            # Use values_list for maximum speed (no model instances)
+            # Fkeys: modelo__marca__nombre, modelo__nombre, ubicacion_id, responsable__username
+            values = queryset.values_list(
+                'id',
+                'codigo_interno',
+                'nombre',
+                'referencia',
+                'modelo__marca__nombre',
+                'modelo__nombre',
+                'marca_legacy', # fallback
+                'modelo_legacy', # fallback
+                'serie',
+                'estado',
+                'ubicacion_id',
+                'ubicacion_legacy', # fallback
+                'responsable__username',
+                'costo',
+                'fecha_compra'
+            ).iterator(chunk_size=5000)
+
+            # ESTADO MAPPING
+            estado_map = dict(self.model.ESTADO_CHOICES)
+
+            for row in values:
+                # Unpack tuple efficiently
+                (rid, code, name, ref, m_brand, m_model, m_brand_leg, m_model_leg, 
+                 serie, status, loc_id, loc_leg, resp, cost, date) = row
+
+                # Logic for fallbacks
+                final_brand = m_brand if m_brand else (m_brand_leg or '')
+                final_model = f"{final_brand} - {m_model}" if m_model else (m_model_leg or '')
+                
+                final_loc = loc_map.get(loc_id, "") if loc_id else (loc_leg or '')
+                final_status = estado_map.get(status, status)
+
+                yield [
+                    str(rid),
+                    code or '',
+                    name or '',
+                    ref or '',
+                    final_brand,
+                    final_model,
+                    serie or '',
+                    final_status,
+                    final_loc,
+                    resp or '',
+                    str(cost) if cost is not None else '',
+                    str(date) if date else '',
+                ]
+
+        pseudo_buffer = Echo()
+        writer = csv.writer(pseudo_buffer)
+        
+        response = StreamingHttpResponse(
+            (writer.writerow(row) for row in rows_generator(queryset)),
+            content_type="text/csv"
+        )
+        
+        from django.utils import timezone
+        fecha = timezone.now().strftime('%Y%m%d_%H%M')
+        response['Content-Disposition'] = f'attachment; filename="export_activos_fast_{fecha}.csv"'
+        return response
 
     def rutinas_aplicables(self, obj):
         if not obj.modelo or not obj.modelo.categoria:
@@ -1789,34 +1899,18 @@ class ActivoAdmin(ImportExportModelAdmin):
 
     def explorer_view(self, request, object_id):
         obj = self.get_object(request, object_id)
-        # Calculate total components (direct and indirect)
-        # Note: 'componentes' is reverse generic relation or FK? model says 'padre' with related_name='componentes'.
-        # Since Activo 'padre' is self-referential, we can use standard recursion.
-        # But standard Django managers don't do deep recursion easily without MPTT or CT.
-        # However, for simply counting, let's try to get components.
-        # If user wants "toda la jerarquía", it implies seeing this asset's children.
-        
-        # Let's count direct children for now, or if possible recursive.
-        # Since we don't have MPTT on Activo (only on Ubicacion/Categoria usually),
-        # we might just count direct components or implement a recursive count helper.
-        # For now, let's just count direct components to be safe, or 2 levels deep if cheap.
-        # Actually, let's just count all descendants if possible.
-        
-        # Recursive function to get all descendants IDs
-        def get_descendant_ids(activo):
-            ids = []
-            children = activo.componentes.all()
-            for child in children:
-                ids.append(child.id)
-                ids.extend(get_descendant_ids(child))
-            return ids
-            
-        descendant_ids = get_descendant_ids(obj)
-        total_componentes = len(descendant_ids)
+        # Optimization: Only count direct components to avoid N+1 recursion
+        # If deeper stats are needed, they should be loaded asynchronously via the API
+        total_componentes = obj.componentes.count()
+
+        # Determine root for the tree view
+        # If asset has a parent, show the parent as root to provide context
+        tree_root = obj.padre if obj.padre else obj
 
         context = {
             **self.admin_site.each_context(request),
             'object': obj,
+            'tree_root': tree_root,
             'cat_id': None, # Not strictly filter by category context here
             'total_activos': total_componentes,
             'is_popup': True,
@@ -1850,11 +1944,10 @@ class ActivoAdmin(ImportExportModelAdmin):
             
             # Guardar archivo temporal
             path = default_storage.save(temp_path, ContentFile(myfile.read()))
-            full_path = default_storage.path(path)
-            
             # Obtener conteo total para informar al front
             try:
-                with open(full_path, 'rb') as f:
+                # Usar default_storage.open para compatibilidad con S3/MinIO
+                with default_storage.open(path, 'rb') as f:
                     file_content = f.read()
                     if file_format == 'csv':
                         dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')
@@ -1892,11 +1985,12 @@ class ActivoAdmin(ImportExportModelAdmin):
         if not default_storage.exists(temp_path):
             return JsonResponse({'status': 'error', 'message': 'Sesión expirada o archivo no encontrado'}, status=404)
 
-        full_path = default_storage.path(temp_path)
+        # No intentamos acceder a full_path, usamos open directamente
+        
         resource = ActivoResource()
         
         try:
-            with open(full_path, 'rb') as f:
+            with default_storage.open(temp_path, 'rb') as f:
                 file_content = f.read()
                 if file_format == 'csv':
                     dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')

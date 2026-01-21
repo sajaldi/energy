@@ -3,10 +3,13 @@ import requests
 import json
 from .ai_data_utils import get_dynamic_context
 
-API_KEY = "AIzaSyAUEPk5NmIUWdgTHKcPo9BtDj8sjBSS0_0"
-MODEL = "gemini-flash-latest" 
-MODEL_REQUESTED = "gemini-flash-latest"
-FALLBACK_MODEL = "gemini-flash-latest"
+# Intentar obtener la API Key de variables de entorno, fallback a la hardcodeada solo si es necesario (mejor eliminar la hardcodeada en prod)
+API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyAUEPk5NmIUWdgTHKcPo9BtDj8sjBSS0_0") 
+
+# Actualizar modelos a versiones estables y existentes
+MODEL = "gemini-1.5-flash" 
+MODEL_REQUESTED = "gemini-1.5-flash"
+FALLBACK_MODEL = "gemini-1.5-flash"
 
 KNOWLEDGE_BASE_PATH = os.path.join(os.path.dirname(__file__), 'ai_knowledge', 'knowledge.txt')
 

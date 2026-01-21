@@ -142,6 +142,19 @@
     #admin-chatbot-widget {
         display: none !important;
     }
+
+    /* Highlight selected node */
+    .item-header.highlight-node {
+        background-color: #fef9c3 !important;
+        /* Yellow-100 */
+        border: 1px solid #facc15 !important;
+        /* Yellow-400 */
+    }
+
+    .item-header.highlight-node .item-name {
+        font-weight: 700;
+        color: #854d0e;
+    }
 </style>
 {% endblock %}
 
@@ -161,7 +174,7 @@
         </div>
         <div class="tree-body">
             <div id="tree-root">
-                {% include "admin/activos/includes/tree_item.html" with node=object type="activo" %}
+                {% include "admin/activos/includes/tree_item.html" with node=tree_root type="activo" %}
             </div>
         </div>
     </div>
@@ -188,6 +201,10 @@
                     const response = await fetch(`/activos/api/explorer-level/?id=${id}&type=${type}`);
                     content.innerHTML = await response.text();
                     item.dataset.loaded = 'true';
+
+                    // Re-apply highlight if the selected node was just loaded
+                    if (window.applyHighlight) window.applyHighlight();
+
                 } catch (e) {
                     content.innerHTML = '<div class="p-2 text-danger small">Error.</div>';
                 }
@@ -213,8 +230,22 @@
 
     // Auto-expand root on load
     document.addEventListener('DOMContentLoaded', () => {
+        // Highlight logic
+        const selectedId = "{{ object.id }}";
+        window.applyHighlight = function () {
+            const target = document.querySelector(`.tree-item[data-id="${selectedId}"][data-type="activo"] > .item-header`);
+            if (target) {
+                target.classList.add('highlight-node');
+                // Optional: ensure visible
+                target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }
+        };
+
         const rootToggle = document.querySelector('#tree-root > .tree-item > .item-header .tree-toggle');
         if (rootToggle) rootToggle.click();
+
+        // Try highlight on initial load (e.g. if root is self)
+        setTimeout(window.applyHighlight, 100);
     });
 
 </script>

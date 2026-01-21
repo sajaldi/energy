@@ -63,6 +63,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 INSTALLED_APPS = [
+    'storages',
     'core',  # Mover al inicio para que sus templates (overrides) tengan prioridad
     'documentos', # Nueva gestión documental
     'comunicaciones', # Nuevo sistema de mail/transmittals
