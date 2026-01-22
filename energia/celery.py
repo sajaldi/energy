@@ -1,20 +1,20 @@
 import os
 from celery import Celery
 
-# Set the default Django settings module for the 'celery' program.
+# Establecer el módulo de configuración predeterminado de Django para el programa 'celery'.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'energia.settings')
 
 app = Celery('energia')
 
-# Using a string here means the worker doesn't have to serialize
-# the configuration object to child processes.
-# - namespace='CELERY' means all celery-related configuration keys
-#   should have a `CELERY_` prefix.
+# Usar una cadena aquí significa que el trabajador no tiene que serializar
+# el objeto de configuración a los procesos hijos.
+# - namespace='CELERY' significa que todas las claves de configuración relacionadas con celery
+#   deben tener un prefijo 'CELERY_'.
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Load task modules from all registered Django apps.
+# Cargar módulos de tareas de todas las aplicaciones Django registradas.
 app.autodiscover_tasks()
 
-@app.task(bind=True, ignore_result=True)
+@app.task(bind=True)
 def debug_task(self):
     print(f'Request: {self.request!r}')

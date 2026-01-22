@@ -91,7 +91,7 @@ class Ubicacion(models.Model):
         return self.sub_ubicaciones.exists() or self.activos.exists()
 
     def __str__(self):
-        return self.get_ruta_completa()
+        return self.nombre
 
     class Meta:
         verbose_name = "Ubicación"

@@ -2,8 +2,8 @@ from django.db import models
 from colorfield.fields import ColorField
 
 class Plano(models.Model):
-    nombre = models.CharField(max_length=100)
-    ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='planos')
+    nombre = models.CharField(max_length=100, unique=True)
+    ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='planos')
     activos = models.ManyToManyField('activos.Activo', blank=True, related_name='planos', help_text="Activos que se visualizan en este plano")
     
     # Vinculación con sistema de documentos para control de versiones
@@ -67,7 +67,8 @@ class Plano(models.Model):
         return None
 
     def __str__(self):
-        return f"{self.nombre} - {self.ubicacion.nombre}"
+        ubicacion_nombre = self.ubicacion.nombre if self.ubicacion else "Sin ubicación"
+        return f"{self.nombre} - {ubicacion_nombre}"
         
     class Meta:
         verbose_name = "Plano"

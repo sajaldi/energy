@@ -244,7 +244,7 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configuración para aumentar el límite de campos en solicitudes POST
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 100000
 
 # Configuración de Logging (ejemplo básico, puedes expandir según necesites)
 LOGGING = {
@@ -343,17 +343,16 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # ===== CELERY CONFIGURATION =====
 # Celery Configuration Options
-# En desarrollo usa localhost, en producción usa el nombre del servicio de docker-compose
+# En desarrollo usa localhost, en producción usa el nombre del servicio o la URL completa de Redis
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'django-db')
-CELERY_CACHE_BACKEND = 'default'
+CELERY_CACHE_BACKEND = 'django-cache'
 
 # Celery Task Settings
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo por tarea
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
