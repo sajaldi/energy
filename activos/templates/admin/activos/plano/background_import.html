@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importación de Planos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #1e293b;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .upload-area {
+            border: 3px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 12px 32px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .file-label:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .file-name {
+            margin-top: 15px;
+            color: #475569;
+            font-size: 14px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .progress-bar-wrapper {
+            background: #e2e8f0;
+            height: 40px;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stat-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 5px;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result.success {
+            background: #ecfdf5;
+            border: 2px solid #10b981;
+            color: #065f46;
+        }
+
+        .result.error {
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .error-details-container {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #fee2e2;
+            border-radius: 8px;
+            background: #fff5f5;
+            display: none;
+        }
+
+        .error-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid #fee2e2;
+            font-size: 13px;
+            color: #991b1b;
+            display: flex;
+            gap: 10px;
+        }
+
+        .error-item:last-child {
+            border-bottom: none;
+        }
+
+        .error-row-label {
+            font-weight: 700;
+            min-width: 60px;
+            color: #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📋 Importación de Planos</h1>
+        <p class="subtitle">Procesa archivos Excel (.xlsx) o CSV con planos mediante chunks en segundo plano</p>
+
+        <form id="import-form" enctype="multipart/form-data">
+            <div class="upload-area">
+                <label for="file-input" class="file-label">
+                    📁 Seleccionar Archivo
+                </label>
+                <input type="file" id="file-input" name="file" accept=".xlsx,.xls,.csv" required>
+                <div class="file-name" id="file-name">Ningún archivo seleccionado</div>
+            </div>
+
+            <button type="submit" class="btn-submit" id="submit-btn">
+                🚀 Iniciar Importación
+            </button>
+        </form>
+
+        <div class="progress-container" id="progress-container">
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar" id="progress-bar">0%</div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Procesados</div>
+                    <div class="stat-value"><span id="current">0</span> / <span id="total">0</span></div>
+                </div>
+                <div class="stat-item" style="border-color: #10b981;">
+                    <div class="stat-label">Nuevos</div>
+                    <div class="stat-value" style="color: #10b981;" id="new">0</div>
+                </div>
+                <div class="stat-item" style="border-color: #f59e0b;">
+                    <div class="stat-label">Actualizados</div>
+                    <div class="stat-value" style="color: #f59e0b;" id="updated">0</div>
+                </div>
+                <div class="stat-item" style="border-color: #ef4444;">
+                    <div class="stat-label">Errores</div>
+                    <div class="stat-value" style="color: #ef4444;" id="errors">0</div>
+                </div>
+                <div class="stat-item" style="border-color: #3b82f6;">
+                    <div class="stat-label">Total en Sistema</div>
+                    <div class="stat-value" style="color: #3b82f6;" id="db_total">--</div>
+                </div>
+            </div>
+
+            <div class="error-details-container" id="error-details">
+                <!-- Errores aparecerán aquí -->
+            </div>
+        </div>
+
+        <div class="result" id="result"></div>
+
+        <a href="/admin/activos/plano/" class="back-link">← Volver a lista de Planos</a>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const fileInput = document.getElementById('file-input');
+        const fileName = document.getElementById('file-name');
+        const form = document.getElementById('import-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const resultDiv = document.getElementById('result');
+        const errorDetails = document.getElementById('error-details');
+
+        let importId, format, total;
+        let accumulatedErrors = [];
+
+        fileInput.addEventListener('change', function () {
+            fileName.textContent = this.files[0] ? this.files[0].name : 'Ningún archivo seleccionado';
+        });
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Procesando...';
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/admin/activos/plano/import-process/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'started') {
+                    importId = data.import_id;
+                    format = data.file_format;
+                    total = data.total;
+
+                    document.getElementById('total').textContent = total;
+                    progressContainer.style.display = 'block';
+                    errorDetails.innerHTML = '';
+                    errorDetails.style.display = 'none';
+                    accumulatedErrors = [];
+
+                    processChunk(0);
+                } else {
+                    showResult('error', data.message || 'Error al iniciar');
+                }
+            } catch (error) {
+                showResult('error', 'Error de conexión: ' + error);
+            }
+        });
+
+        async function processChunk(start) {
+            const size = 1000;
+
+            try {
+                const response = await fetch(`/admin/activos/plano/import-progress/?import_id=${importId}&start=${start}&size=${size}&format=${format}`);
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error("Server Error:", text);
+                    showResult('error', `Error del servidor (${response.status}): ${text.substring(0, 100)}...`);
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.status === 'error') {
+                    showResult('error', data.message);
+                    return;
+                }
+
+                const current = data.current || 0;
+                const percent = Math.round((current / total) * 100);
+
+                progressBar.style.width = percent + '%';
+                progressBar.textContent = percent + '%';
+                document.getElementById('current').textContent = current;
+                document.getElementById('new').textContent = data.new || 0;
+                document.getElementById('updated').textContent = data.updated || 0;
+                document.getElementById('updated').textContent = data.updated || 0;
+                document.getElementById('errors').textContent = data.errors || 0;
+                if (data.db_total) {
+                    document.getElementById('db_total').textContent = data.db_total;
+                }
+
+                if (data.error_list && data.error_list.length > 0) {
+                    accumulatedErrors = accumulatedErrors.concat(data.error_list);
+                    errorDetails.style.display = 'block';
+
+                    data.error_list.forEach(err => {
+                        const div = document.createElement('div');
+                        div.className = 'error-item';
+                        div.innerHTML = `<span class="error-row-label">Fila ${err.row}:</span> <span>${err.message}</span>`;
+                        errorDetails.appendChild(div);
+                    });
+                }
+
+                if (data.is_last) {
+                    showResult('success', `✅ Completado: ${data.new} nuevos, ${data.updated} actualizados, ${data.errors} errores`);
+                } else {
+                    setTimeout(() => processChunk(current), 100);
+                }
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                showResult('error', 'Error de red o procesamiento: ' + error.message);
+            }
+        }
+
+        function showResult(type, message) {
+            resultDiv.className = 'result ' + type;
+            resultDiv.innerHTML = '<strong>' + message + '</strong>';
+            resultDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = '🚀 Iniciar Importación';
+        }
+    </script>
+</body>
+
+</html>

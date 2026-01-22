@@ -251,10 +251,11 @@ class RutinaAdmin(ImportExportModelAdmin):
     list_per_page = 50
     resource_class = RutinaResource
     list_display = ('nombre', 'categoria', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'programar_rutina_link')
-    list_filter = ('categoria', 'frecuencia', 'puesto_trabajo')
+    list_filter = (('categoria', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo')
     search_fields = ('nombre', 'procedimiento_estandar__nombre', 'herramientas')
     autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
     readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link')
+    list_select_related = True
     inlines = [] # Temporalmente vacío hasta que verifiquemos si requiere inlines
     actions = ['exportar_seleccionadas_action']
 
@@ -265,7 +266,12 @@ class RutinaAdmin(ImportExportModelAdmin):
     programar_rutina_link.short_description = 'Programación'
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('categoria', 'frecuencia')
+        # Optimización profunda para evitar N+1 en la renderización de la ruta de categorías (soporta hasta 6 niveles)
+        return super().get_queryset(request).select_related(
+            'categoria__padre__padre__padre__padre__padre', 
+            'frecuencia', 
+            'puesto_trabajo'
+        )
     
     fieldsets = (
         ('Identificación', {

@@ -5,6 +5,7 @@ app_name = 'activos'
 
 from . import views_sync
 from . import views_rutinas
+from . import views_celery
 
 urlpatterns = [
     path('visor/<int:visor_id>/', views.visor_plano, name='visor_plano'),
@@ -32,4 +33,10 @@ urlpatterns = [
     path('api/get_rutinas_ubicacion/', views_rutinas.get_rutinas_ubicacion, name='get_rutinas_ubicacion'),
     path('app/ubicaciones/', views.mobile_ubicaciones, name='mobile_ubicaciones'),
     path('app/ubicaciones/<int:parent_id>/', views.mobile_ubicaciones, name='mobile_ubicaciones_child'),
+    
+    # Celery Industrial Import
+    path('celery-import/', views_celery.celery_import_activos_view, name='celery_import_activos'),
+    path('celery-import-status/<str:task_id>/', views_celery.celery_import_status, name='celery_import_status'),
+    path('celery-cancel-task/<str:task_id>/', views_celery.celery_cancel_task, name='celery_cancel_task'),
+    path('celery-download-template/', views_celery.download_activos_template, name='celery_download_template'),
 ]

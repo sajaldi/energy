@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.db import models
 from django.contrib import admin, messages
+from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from django.db.models import Count
 from import_export.admin import ImportExportModelAdmin, ImportExportMixin, ImportExportActionModelAdmin
@@ -78,30 +79,135 @@ class SmartParentWidget(ForeignKeyWidget):
             return None
         return Ubicacion.objects.filter(nombre=value).first()
 
+class CachedDisciplinaWidget(ForeignKeyWidget):
+    """
+    Widget que utiliza un caché del Resource para evitar consultas redundantes a la DB.
+    """
+    def clean(self, value, row=None, **kwargs):
+        if not value or str(value).strip().upper() in ('NONE', 'NULL', 'N/A', '', 'NAN'):
+            return None
+        val_orig = str(value).strip()
+        val_clean = val_orig.upper()
+        resource = kwargs.get('resource')
+        
+        if resource and hasattr(resource, 'disciplina_cache'):
+            return resource.disciplina_cache.get(val_clean)
+        
+        from .models import Disciplina
+        return Disciplina.objects.filter(nombre__iexact=val_orig).first()
+
+class CachedUbicacionWidget(ForeignKeyWidget):
+    """
+    Widget que utiliza un caché del Resource para evitar consultas redundantes a la DB.
+    """
+    def clean(self, value, row=None, **kwargs):
+        if not value or str(value).strip().upper() in ('NONE', 'NULL', 'N/A', '', 'NAN'):
+            return None
+        val_orig = str(value).strip()
+        val_clean = val_orig.upper()
+        resource = kwargs.get('resource')
+        
+        if resource and hasattr(resource, 'ubicacion_cache'):
+            return resource.ubicacion_cache.get(val_clean)
+        
+        from .models import Ubicacion
+        return Ubicacion.objects.filter(nombre__iexact=val_orig).first()
+
 class PlanoResource(resources.ModelResource):
     ubicacion_nombre = fields.Field(
         column_name='ubicacion_nombre',
         attribute='ubicacion',
-        widget=SmartParentWidget(Ubicacion, field='nombre')
+        widget=CachedUbicacionWidget(Ubicacion, field='nombre')
     )
+    disciplina_nombre = fields.Field(
+        column_name='disciplina_nombre',
+        attribute='disciplina',
+        widget=CachedDisciplinaWidget(Disciplina, field='nombre')
+    )
+
+    def dehydrate_disciplina_nombre(self, plano):
+        if plano.disciplina:
+            return plano.disciplina.get_ruta_completa()
+        return ''
+
     documento_codigo = fields.Field(
         column_name='documento_codigo',
         attribute='documento',
         widget=ForeignKeyWidget(Documento, field='codigo'), 
     )
 
+    def before_import(self, dataset, **kwargs):
+        """Caching agresivo en memoria: Cargamos todo el universo de datos una sola vez."""
+        from .models import Ubicacion, Disciplina, Plano
+        from documentos.models import Documento
+        
+        # Diccionarios de búsqueda rápida (O(1)) de OBJETOS completos
+        self.ubicacion_cache = {str(u.nombre).strip().upper(): u for u in Ubicacion.objects.all()}
+        self.disciplina_cache = {str(d.nombre).strip().upper(): d for d in Disciplina.objects.all()}
+        self.documento_cache = {str(doc.codigo).strip().upper(): doc for doc in Documento.objects.all()}
+        self.planos_existentes = {str(p.nombre).strip().upper() for p in Plano.objects.all()}
+
     class Meta:
         model = Plano
-        import_id_fields = ('nombre', 'ubicacion_nombre')
-        fields = ('id', 'nombre', 'ubicacion_nombre', 'descripcion', 'documento_codigo')
+        import_id_fields = ('nombre',)
+        fields = ('nombre', 'tipo_plano', 'numero_documento', 'titulo', 'ubicacion_nombre', 'disciplina_nombre', 'descripcion', 'documento_codigo')
+        use_bulk = False
+        batch_size = 1000
+        skip_unchanged = True
+    
+    def before_import_row(self, row, **kwargs):
+        # Mapeo flexible de nombres de columnas comunes
+        if 'ubicacion' in row and 'ubicacion_nombre' not in row:
+            row['ubicacion_nombre'] = row['ubicacion']
+        if 'disciplina' in row and 'disciplina_nombre' not in row:
+            row['disciplina_nombre'] = row['disciplina']
+        if 'documento' in row and 'documento_codigo' not in row:
+            row['documento_codigo'] = row['documento']
+
+        # Limpieza básica y normalización
+        for field in ['ubicacion_nombre', 'disciplina_nombre', 'documento_codigo']:
+            if field in row and row[field]:
+                # Quitar espacios y convertir a string limpio
+                row[field] = str(row[field]).strip()
+                if field == 'documento_codigo':
+                    row[field] = row[field].upper()
+
+class DisciplinaResource(resources.ModelResource):
+    padre_nombre = fields.Field(
+        column_name='padre_nombre',
+        attribute='padre',
+        widget=CachedDisciplinaWidget(Disciplina, field='nombre')
+    )
+
+    def before_import(self, dataset, **kwargs):
+        """Cargar todas las disciplinas existentes en un caché para evitar N+1."""
+        self.disciplina_cache = {d.nombre: d for d in Disciplina.objects.all()}
+
+    def after_save_instance(self, instance, row=None, **kwargs):
+        """Actualizar el caché con la nueva disciplina creada para que sus hijos la encuentren."""
+        dry_run = kwargs.get('dry_run', False)
+        if not dry_run and instance:
+            self.disciplina_cache[instance.nombre] = instance
+
+    def before_import_row(self, row, **kwargs):
+        """Limpiar espacios en blanco en los nombres para evitar duplicados por error tipográfico."""
+        if 'nombre' in row:
+            row['nombre'] = str(row['nombre']).strip()
+        if 'padre_nombre' in row and row['padre_nombre']:
+            row['padre_nombre'] = str(row['padre_nombre']).strip()
+        else:
+            row['padre_nombre'] = None
+
+    class Meta:
+        model = Disciplina
+        import_id_fields = ('nombre',)
+        fields = ('nombre', 'padre_nombre', 'descripcion')
         export_order = fields
         skip_unchanged = True
         report_skipped = True
-    
-    def before_import_row(self, row, **kwargs):
-        # Limpieza básica
-        if 'ubicacion_nombre' in row:
-            row['ubicacion_nombre'] = str(row['ubicacion_nombre']).strip()
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False  # Desactivado para jerarquías (fila a fila para actualizar caché)
 
 
 class SmartPlanoWidget(ForeignKeyWidget):
@@ -121,28 +227,105 @@ class SmartPlanoWidget(ForeignKeyWidget):
             ubicacion_val = row.get('ubicacion_nombre')
             ubicacion = None
             if ubicacion_val:
-                # Buscamos la ubicación usando la lógica simplificada (o la misma del widget de ubicacion)
-                ubicacion = Ubicacion.objects.filter(nombre__iexact=str(ubicacion_val).strip()).first()
-            
-            if not ubicacion:
-                # Si no hay ubicación, no podemos crear el Plano (es REQUIRED)
-                return None
+                # Usar lógica de jerarquía también al crear planos automáticamente
+                import re
+                u_val_clean = str(ubicacion_val).strip()
+                u_norm = re.sub(r'\s*([→|>]|->)\s*', '|', u_val_clean).strip().upper()
                 
+                # Intentar buscar por ruta completa primero
+                ubicacion = None
+                for loc in Ubicacion.objects.filter(nombre__iexact=u_norm.split('|')[-1]):
+                    if loc.get_clave_unica().upper() == u_norm:
+                        ubicacion = loc
+                        break
+                
+                # Fallback a nombre simple si no se encontró por jerarquía
+                if not ubicacion:
+                    ubicacion = Ubicacion.objects.filter(nombre__iexact=u_val_clean).first()
+            
+            # Ahora permitimos crear planos sin ubicación
             plano = Plano.objects.create(nombre=val_str, ubicacion=ubicacion)
             
         return plano
 
 
+
+class ActivoFaltantesFilter(admin.SimpleListFilter):
+    title = 'Calidad de Datos'
+    parameter_name = 'faltante'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('serie', '❌ Sin N° Serie'),
+            ('responsable', '👤 Sin Responsable'),
+            ('ubicacion', '📍 Sin Ubicación'),
+            ('codigo', '🆔 Sin Código Interno'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'serie':
+            return queryset.filter(models.Q(serie__isnull=True) | models.Q(serie=''))
+        if self.value() == 'responsable':
+            return queryset.filter(responsable__isnull=True)
+        if self.value() == 'ubicacion':
+            return queryset.filter(ubicacion__isnull=True)
+        if self.value() == 'codigo':
+            return queryset.filter(models.Q(codigo_interno__isnull=True) | models.Q(codigo_interno=''))
+        return queryset
+
+class UbicacionHierarchyFilter(admin.SimpleListFilter):
+    title = 'Ubicación'
+    parameter_name = 'ubicacion_id'
+
+    def lookups(self, request, model_admin):
+        # Optimización: No cargar miles de ubicaciones con ruta_completa en el sidebar.
+        # Solo mostrar las ubicaciones raíz o usar un límite razonable.
+        from .models import Ubicacion
+        lookups = [('none', '📍 Sin Ubicación Asignada')]
+        
+        # Solo mostramos los primeros niveles para evitar bloqueos por volumen
+        locations = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
+        for loc in locations:
+            lookups.append((loc.id, f"🏢 {loc.nombre}"))
+            
+        return lookups
+
+    def queryset(self, request, queryset):
+        val = self.value()
+        if val:
+            if val == 'none':
+                return queryset.filter(ubicacion__isnull=True)
+            
+            from .models import Ubicacion
+            try:
+                ubicacion = Ubicacion.objects.get(id=val)
+                # Obtener todos los descendientes incluyendo el actual
+                descendientes_ids = ubicacion.get_descendants(include_self=True).values_list('id', flat=True)
+                return queryset.filter(ubicacion_id__in=descendientes_ids)
+            except (Ubicacion.DoesNotExist, ValueError):
+                return queryset
+        return queryset
+
 @admin.register(Plano)
 class PlanoAdmin(ImportExportModelAdmin):
     list_per_page = 50
+    resource_class = PlanoResource
+    change_list_template = 'admin/activos/plano/change_list.html'
     list_display = ('nombre', 'tipo_plano', 'numero_documento', 'titulo', 'disciplina', 'ubicacion', 'documento_info', 'creado_en')
-    list_filter = ('tipo_plano', 'disciplina', 'ubicacion')
+    list_filter = (
+        'tipo_plano', 
+        ('disciplina', admin.RelatedOnlyFieldListFilter),
+        UbicacionHierarchyFilter
+    )
 
     def has_import_permission(self, request):
-        """Deshabilitar la importación estándar para obligar a usar la de Redis"""
-        return False
-    list_select_related = ('ubicacion', 'documento__ultima_revision')
+        return True
+
+    list_select_related = (
+        'ubicacion', 'ubicacion__padre', 'ubicacion__padre__padre',
+        'disciplina', 'disciplina__padre', 'disciplina__padre__padre',
+        'documento', 'documento__ultima_revision'
+    )
     search_fields = ('nombre', 'ubicacion__nombre', 'documento__codigo')
     filter_horizontal = ('activos',)
     autocomplete_fields = ('documento', 'disciplina', 'ubicacion')
@@ -171,21 +354,181 @@ class PlanoAdmin(ImportExportModelAdmin):
             return format_html('<a href="{0}" target="_blank">📄 Ver Plano{1}</a>', archivo.url, rev_tag)
         return "No hay archivo"
     visualizar_archivo.short_description = "Visualizar"
+    
+    def get_queryset(self, request):
+        """Optimizar la consulta base con joins pre-calculados para evitar N+1."""
+        return super().get_queryset(request).select_related(
+            *self.list_select_related
+        )
 
-    # change_list_template = 'admin/activos/plano/change_list.html'
     resource_class = PlanoResource
 
-    def get_changelist_template(self, request):
-        return 'admin/activos/plano/change_list.html'
-    resource_class = PlanoResource
+    # get_changelist_template removed in favor of class attribute
 
-    # get_urls removed to disable Redis import for Plano
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-background/', self.admin_site.admin_view(self.import_background), name='activos_plano_import_background'),
+            path('import-process/', self.admin_site.admin_view(self.import_process), name='activos_plano_import_process'),
+            path('import-progress/', self.admin_site.admin_view(self.import_progress), name='activos_plano_import_progress'),
+        ]
+        return custom_urls + urls
 
+    def import_background(self, request):
+        context = {
+            'title': 'Importación masiva de Planos',
+        }
+        return render(request, 'admin/activos/plano/background_import.html', context)
 
-    # Redis/Celery import methods removed
+    @csrf_exempt
+    def import_process(self, request):
+        print(f"DEBUG: import_process called. Method: {request.method}")
+        if request.method == 'POST' and request.FILES.get('file'):
+            import os, uuid
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            from django.http import JsonResponse
+            from tablib import Dataset
+            
+            myfile = request.FILES['file']
+            file_name = myfile.name
+            file_format = file_name.split('.')[-1].lower()
+            import_id = str(uuid.uuid4())
+            temp_path = f'tmp/plano_imp_{import_id}.{file_format}'
+            path = default_storage.save(temp_path, ContentFile(myfile.read()))
+            
+            try:
+                with default_storage.open(path, 'rb') as f:
+                    file_content = f.read()
+                    if file_format == 'csv':
+                        dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')
+                    else:
+                        dataset = Dataset().load(file_content, format=file_format)
+                
+                # Normalizar encabezados (quitar acentos, espacios, a minúsculas y cambiar espacios por guiones bajos)
+                import unicodedata
+                def normalize(text):
+                    text = str(text).strip().lower()
+                    # Quitar acentos: á -> a, é -> e, etc.
+                    text = "".join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+                    return text.replace(' ', '_').replace('.', '_')
+
+                dataset.headers = [normalize(h) for h in dataset.headers]
+                print(f"DEBUG: Normalized headers: {dataset.headers}")
+                
+                # Guardar versión JSON para procesamiento ultra rápido en los chunks
+                # Convertimos a bytes explícitamente para evitar errores de checksum en S3/MinIO
+                json_path = f'tmp/plano_imp_{import_id}.json'
+                json_data = dataset.json.encode('utf-8')
+                default_storage.save(json_path, ContentFile(json_data))
+                
+                # Eliminar archivo original
+                try:
+                    default_storage.delete(path)
+                except:
+                    pass
+
+                return JsonResponse({
+                    'status': 'started',
+                    'import_id': import_id,
+                    'total': len(dataset),
+                    'file_format': 'json'
+                })
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'No se recibió archivo'}, status=400)
+
+    def import_progress(self, request):
+        from django.http import JsonResponse
+        from django.core.files.storage import default_storage
+        from tablib import Dataset
+        from import_export import resources
+        import os
+
+        import_id = request.GET.get('import_id')
+        start = int(request.GET.get('start', 0))
+        chunk_size = int(request.GET.get('size', 50))
+        file_format = request.GET.get('format', 'xlsx')
+
+        if not import_id:
+            return JsonResponse({'status': 'error', 'message': 'Falta import_id'}, status=400)
+
+        temp_path = f'tmp/plano_imp_{import_id}.json'
+        if not default_storage.exists(temp_path):
+            return JsonResponse({'status': 'error', 'message': 'Sesión expirada o archivo no encontrado'}, status=404)
+
+        resource = PlanoResource()
+        
+        try:
+            with default_storage.open(temp_path, 'rb') as f:
+                file_content = f.read()
+                dataset = Dataset().load(file_content, format='json')
+            
+            total = len(dataset)
+            end = min(start + chunk_size, total)
+            
+            print(f"IMPORT PLANOS (ULTRA): Procesando lote {start} - {end} de {total}")
+            
+            mini_dataset = Dataset()
+            mini_dataset.headers = dataset.headers
+            for row in dataset[start:end]:
+                mini_dataset.append(row)
+            
+            from django.db import transaction
+            
+            # Debug: Mostrar qué estamos intentando importar
+            print(f"DEBUG: Mini-dataset headers: {mini_dataset.headers}")
+            if len(mini_dataset) > 0:
+                print(f"DEBUG: First row: {mini_dataset[0]}")
+
+            with transaction.atomic():
+                result = resource.import_data(mini_dataset, dry_run=False, raise_errors=False)
+            
+            from .models import Plano
+            db_count = Plano.objects.count()
+            print(f"IMPORT PLANOS: {result.totals.get('new', 0)} nuevos, {result.totals.get('update', 0)} actualizados. Total en DB ahora: {db_count}")
+
+            if end >= total:
+                try:
+                    default_storage.delete(temp_path)
+                except:
+                    pass
+
+            error_details = []
+            for error in result.row_errors():
+                row_idx = error[0]
+                error_list = error[1]
+                for err in error_list:
+                    error_details.append({
+                        'row': start + row_idx + 1,
+                        'message': str(err.error)
+                    })
+            
+            for err in result.base_errors:
+                error_details.append({
+                    'row': 'General',
+                    'message': str(err.error)
+                })
+
+            return JsonResponse({
+                'status': 'PROGRESS',
+                'current': end,
+                'total': total,
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0) + result.totals.get('updated', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(result.base_errors) + len(result.row_errors()),
+                'error_list': error_details,
+                'db_total': db_count,
+                'is_last': end >= total
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @admin.register(Disciplina)
-class DisciplinaAdmin(admin.ModelAdmin):
+class DisciplinaAdmin(ImportExportModelAdmin):
+    resource_class = DisciplinaResource
     list_display = ('nombre', 'padre', 'get_ruta_completa')
     search_fields = ('nombre',)
     list_filter = ('padre',)
@@ -317,6 +660,7 @@ class FamiliaAdmin(ImportExportModelAdmin):
     list_display = ('nombre_con_indentacion', 'descripcion')
     list_display_links = ('nombre_con_indentacion',)
     search_fields = ('nombre',)
+    list_select_related = ('padre', 'padre__padre')
     autocomplete_fields = ('padre',)
     inlines = [SubFamiliaInline, ActivoFamiliaInline]
 
@@ -613,7 +957,7 @@ class UbicacionHijaInline(admin.TabularInline):
     def total_count(self, obj):
         if not obj.pk:
             return format_html('<span style="color: #94a3b8; font-size: 0.7rem;">(Pendiente)</span>')
-        count = obj.activos.count()
+        count = getattr(obj, '_activos_count', 0)
         if count == 0:
             return format_html('<span style="color: #cbd5e1; font-size: 0.75rem;">Vacío</span>')
         return format_html(
@@ -622,6 +966,11 @@ class UbicacionHijaInline(admin.TabularInline):
             '</div>', count
         )
     total_count.short_description = 'Equipos'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            _activos_count=Count('activos')
+        ).select_related('categoria')
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
@@ -644,8 +993,9 @@ class PlanoInline(admin.StackedInline):
 
     def ver_visores(self, obj):
         if obj.pk:
+            # Aprovecha el prefetch_related('visores') del get_queryset
             visores = obj.visores.all()
-            if visores.exists():
+            if visores:
                 html = '<div style="display: flex; gap: 5px; flex-wrap: wrap;">'
                 for v in visores:
                      html += f'<a href="/activos/visor/{v.pk}/" target="_blank" class="button" style="background-color: #447e9b; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 0.8rem;">👁️ {v.nombre}</a>'
@@ -654,6 +1004,9 @@ class PlanoInline(admin.StackedInline):
             return format_html('<span style="color: #64748b; font-style: italic;">No hay visores configurados. Guarde el plano y agregue uno desde la administración de planos.</span>')
         return "-"
     ver_visores.short_description = "Visores Interactivos"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('visores', 'documento')
 
 class UbicacionEnPlanosInline(admin.TabularInline):
     """
@@ -705,13 +1058,22 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     Admin para ubicaciones jerárquicas con estructura premium.
     """
     list_per_page = 50
-    resource_class = UbicacionResource
-    list_display = ('nombre_con_indentacion', 'tipo', 'padre', 'orden', 'total_hijos', 'total_activos')
+    list_display = ('nombre_con_indentacion', 'tipo', 'padre', 'orden', 'total_hijos')
     list_display_links = ('nombre_con_indentacion',)
     list_editable = ('orden', 'tipo')
     search_fields = ('nombre',)
-    list_filter = ('tipo', 'padre',)
-    autocomplete_fields = ('padre',)
+    
+    class RaizFilter(admin.SimpleListFilter):
+        title = 'Nivel'
+        parameter_name = 'nivel'
+        def lookups(self, request, model_admin):
+            return (('raices', 'Filtrar solo Principales'),)
+        def queryset(self, request, queryset):
+            if self.value() == 'raices':
+                return queryset.filter(padre__isnull=True)
+            return queryset
+
+    list_filter = ('tipo', RaizFilter)
     autocomplete_fields = ('padre', 'categoria')
     inlines = [UbicacionHijaInline, PlanoInline, UbicacionEnPlanosInline]
     change_list_template = 'admin/activos/ubicacion/change_list.html'
@@ -807,7 +1169,9 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     change_list_template = 'admin/activos/ubicacion/change_list.html'
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('padre').annotate(
+        return super().get_queryset(request).select_related(
+            'padre', 'padre__padre', 'padre__padre__padre', 'padre__padre__padre__padre'
+        ).annotate(
             _hijos_count=Count('sub_ubicaciones')
         )
 
@@ -883,31 +1247,33 @@ class SmartUbicacionWidget(ForeignKeyWidget):
         value_str = str(value).strip()
         resource = kwargs.get('resource')
         
-        # 1. Normalizar separadores comunes
-        normalized_val = value_str.replace(' → ', '|').replace(' -> ', '|').replace(' > ', '|')
+        # 1. Normalizar separadores y espacios (soporta: " → ", "->", " > ", "|")
+        import re
+        # Reemplazar cualquier flecha o pipe con espacios opcionales por un pipe limpio
+        normalized_val = re.sub(r'\s*([→|>]|->)\s*', '|', value_str).strip()
+        val_upper = normalized_val.upper()
         
         # 2. Intentar resolver por Clave Única (Ruta Completa) desde caché
         if resource and hasattr(resource, 'ubicacion_clave_cache'):
-            if normalized_val in resource.ubicacion_clave_cache:
-                return resource.ubicacion_clave_cache[normalized_val]
+            if val_upper in resource.ubicacion_clave_cache:
+                return resource.ubicacion_clave_cache[val_upper]
         
         # 3. Intentar resolver por Nombre Simple (solo si es único) desde caché
         if resource and hasattr(resource, 'ubicacion_nombre_cache'):
-            if value_str in resource.ubicacion_nombre_cache:
-                return resource.ubicacion_nombre_cache[value_str]
+            if value_str.upper() in resource.ubicacion_nombre_cache:
+                return resource.ubicacion_nombre_cache[value_str.upper()]
 
         # 4. Fallback: Resolución manual si el caché no lo tiene o el valor tiene jerarquía
         if '|' in normalized_val:
             parts = [p.strip() for p in normalized_val.split('|')]
             nombre_final = parts[-1]
+            # Búsqueda insensible a mayúsculas
             candidatos = Ubicacion.objects.filter(nombre__iexact=nombre_final)
             for cand in candidatos:
-                if cand.get_clave_unica() == normalized_val:
+                if cand.get_clave_unica().upper() == val_upper:
                     return cand
         
-        # Si llegamos aquí y hay jerarquía pero no se encontró, o no hay jerarquía...
-        # Intentamos buscar en el caché de nombres (ya normalizado a iexact implícitamente por el diccionario si lo hiciéramos así)
-        # Pero como fallback final, si no está en caché, hacemos una sola consulta
+        # Fallback final: buscar por nombre simple en la DB
         return Ubicacion.objects.filter(nombre__iexact=value_str).first()
 
 class ActivoResource(resources.ModelResource):
@@ -1051,13 +1417,13 @@ class ActivoResource(resources.ModelResource):
                 curr_path.append(curr.nombre)
                 curr = all_locs.get(curr.padre_id)
             
-            path = "|".join(reversed(curr_path))
+            path = "|".join(reversed(curr_path)).upper()
             self.ubicacion_clave_cache[path] = loc
-            nombres_count[loc.nombre] = nombres_count.get(loc.nombre, 0) + 1
+            nombres_count[loc.nombre.upper()] = nombres_count.get(loc.nombre.upper(), 0) + 1
         
         for loc_id, loc in all_locs.items():
-            if nombres_count.get(loc.nombre) == 1:
-                self.ubicacion_nombre_cache[loc.nombre] = loc
+            if nombres_count.get(loc.nombre.upper()) == 1:
+                self.ubicacion_nombre_cache[loc.nombre.upper()] = loc
         
         self.fields['ubicacion_nombre'].widget.resource = self
         self.fields['modelo_nombre'].widget.resource = self
@@ -1146,10 +1512,10 @@ class ActivoResource(resources.ModelResource):
             return activo.ubicacion.get_ruta_completa()
         return ""
 
-    def before_import_row(self, row, **kwargs):
-        """Auto-asignación desde caché (pre-creado en before_import)"""
-        # Ya no hacemos get_or_create aquí para evitar N+1
-        pass
+    def dehydrate_plano_nombre(self, activo):
+        if activo.plano:
+            return activo.plano.numero_documento or activo.plano.nombre
+        return ""
 
     def get_instance(self, instance_loader, row):
         codigo = row.get('codigo_interno')
@@ -1164,61 +1530,6 @@ class ActivoResource(resources.ModelResource):
 
 
 
-class ActivoFaltantesFilter(admin.SimpleListFilter):
-    title = 'Calidad de Datos'
-    parameter_name = 'faltante'
-
-    def lookups(self, request, model_admin):
-        return (
-            ('serie', '❌ Sin N° Serie'),
-            ('responsable', '👤 Sin Responsable'),
-            ('ubicacion', '📍 Sin Ubicación'),
-            ('codigo', '🆔 Sin Código Interno'),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == 'serie':
-            return queryset.filter(models.Q(serie__isnull=True) | models.Q(serie=''))
-        if self.value() == 'responsable':
-            return queryset.filter(responsable__isnull=True)
-        if self.value() == 'ubicacion':
-            return queryset.filter(ubicacion__isnull=True)
-        if self.value() == 'codigo':
-            return queryset.filter(models.Q(codigo_interno__isnull=True) | models.Q(codigo_interno=''))
-        return queryset
-
-class UbicacionHierarchyFilter(admin.SimpleListFilter):
-    title = 'Ubicación'
-    parameter_name = 'ubicacion_id'
-
-    def lookups(self, request, model_admin):
-        # Optimización: No cargar miles de ubicaciones con ruta_completa en el sidebar.
-        # Solo mostrar las ubicaciones raíz o usar un límite razonable.
-        from .models import Ubicacion
-        lookups = [('none', '📍 Sin Ubicación Asignada')]
-        
-        # Solo mostramos los primeros niveles para evitar bloqueos por volumen
-        locations = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
-        for loc in locations:
-            lookups.append((loc.id, f"🏢 {loc.nombre}"))
-            
-        return lookups
-
-    def queryset(self, request, queryset):
-        val = self.value()
-        if val:
-            if val == 'none':
-                return queryset.filter(ubicacion__isnull=True)
-            
-            from .models import Ubicacion
-            try:
-                ubicacion = Ubicacion.objects.get(id=val)
-                # Obtener todos los descendientes incluyendo el actual
-                descendientes_ids = ubicacion.get_descendants(include_self=True).values_list('id', flat=True)
-                return queryset.filter(ubicacion_id__in=descendientes_ids)
-            except (Ubicacion.DoesNotExist, ValueError):
-                return queryset
-        return queryset
 
 class ComponenteActivoInline(admin.TabularInline):
     model = Activo
@@ -1265,6 +1576,7 @@ class DocumentoMedicionInline(admin.TabularInline):
 class ActivoAdmin(ImportExportModelAdmin):
     list_per_page = 50
     resource_class = ActivoResource
+    change_list_template = 'admin/activos/activo/change_list.html'
 
     # get_urls removed to disable Redis import
 
@@ -1276,7 +1588,86 @@ class ActivoAdmin(ImportExportModelAdmin):
         return {'user': request.user}
 
 
-    # Redis import methods removed
+    def import_background(self, request):
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Importación masiva de Activos (Background)',
+        }
+        return render(request, 'admin/activos/activo/background_import.html', context)
+
+    def import_process(self, request):
+        if request.method == 'POST' and request.FILES.get('import_file'):
+            import os
+            import uuid
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            from django.http import JsonResponse
+            from .tasks import import_activos_task
+            
+            myfile = request.FILES['import_file']
+            file_name = myfile.name
+            file_format = file_name.split('.')[-1].lower()
+            
+            import_id = str(uuid.uuid4())
+            temp_path = f'tmp/activo_imp_{import_id}.{file_format}'
+            
+            # Guardar el archivo temporalmente
+            path = default_storage.save(temp_path, ContentFile(myfile.read()))
+            
+            # Obtener path absoluto para Celery
+            try:
+                abs_path = default_storage.path(path)
+            except NotImplementedError:
+                abs_path = path
+
+            # Tarea Celery con el ID de usuario para el progreso en caché
+            task = import_activos_task.delay(abs_path, file_format, user_id=request.user.id, import_name=f"Importación {file_name}")
+            
+            return JsonResponse({
+                'status': 'started',
+                'task_id': task.id
+            })
+            
+        return JsonResponse({'status': 'error', 'message': 'No se recibió archivo'}, status=400)
+
+    def import_progress(self, request):
+        from celery.result import AsyncResult
+        from django.http import JsonResponse
+        from django.core.cache import cache
+        
+        task_id = request.GET.get('task_id')
+        if not task_id:
+            return JsonResponse({'status': 'error', 'message': 'Falta task_id'}, status=400)
+            
+        res = AsyncResult(task_id)
+        
+        # Intentar obtener info detallada desde caché (actualizada por la tarea)
+        cache_data = cache.get(f"import_progress_{request.user.id}")
+        
+        response_data = {
+            'state': res.state,
+            'status': 'Procesando...',
+            'percent': 0
+        }
+        
+        if cache_data:
+            if isinstance(cache_data, dict):
+                response_data.update(cache_data)
+                # Calcular porcentaje si no viene
+                if 'current' in cache_data and 'total' in cache_data and cache_data['total'] > 0:
+                    response_data['percent'] = int((cache_data['current'] / cache_data['total']) * 100)
+            else:
+                response_data['percent'] = cache_data
+
+        if res.state == 'SUCCESS':
+            if isinstance(res.result, dict):
+                response_data.update(res.result)
+            response_data['state'] = 'COMPLETED'
+            response_data['percent'] = 100
+        elif res.state == 'FAILURE':
+            response_data['error'] = str(res.result)
+            
+        return JsonResponse(response_data)
 
 
     class NombreStartsWithFilter(admin.SimpleListFilter):
@@ -1304,7 +1695,7 @@ class ActivoAdmin(ImportExportModelAdmin):
 
 
     
-    list_display = ('id', 'codigo_interno', 'nombre', 'referencia', 'get_marca', 'get_categoria', 'get_ubicacion_ruta', 'responsable', 'estado', 'creado_en', 'actualizado_en', 'ver_en_plano')
+    list_display = ('nombre', 'codigo_interno', 'descripcion', 'get_marca_modelo', 'serie', 'get_plano_codigo', 'referencia', 'get_ubicacion_ruta')
     list_filter = (
         NombreStartsWithFilter,
         ActivoFaltantesFilter, 
@@ -1323,6 +1714,7 @@ class ActivoAdmin(ImportExportModelAdmin):
         'ubicacion', 
         'ubicacion__padre',
         'ubicacion__padre__padre',
+        'ubicacion__padre__padre__padre',
         'responsable', 
         'padre', 
         'familia',
@@ -1332,10 +1724,21 @@ class ActivoAdmin(ImportExportModelAdmin):
     autocomplete_fields = ('familia', 'modelo', 'ubicacion', 'responsable', 'padre', 'plano')
     inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline]
     readonly_fields = ('get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link', 'get_puntos_medicion_summary')
-    actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv']
+    actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv', 'limpiar_todo_el_inventario']
+
+    @admin.action(description="BORRADO RÁPIDO: Eliminar selección actual (evita error de límites)")
+    def limpiar_todo_el_inventario(self, request, queryset):
+        """
+        Borra los activos seleccionados usando .delete() de QuerySet.
+        Esto es mucho más rápido y evita el error TooManyFieldsSent porque
+        no intenta construir la página de confirmación con miles de objetos.
+        """
+        count = queryset.count()
+        queryset.delete()
+        self.message_user(request, f"Se han eliminado {count} activos correctamente.")
 
     def get_queryset(self, request):
-        qs = super().get_queryset(request).prefetch_related('pines_planos')
+        qs = super().get_queryset(request).prefetch_related('pines_planos__visor')
         
         # --- Lógica de Filtros Dinámicos (Dynamic Table Filters) ---
         dtf_param = request.GET.get('_dtf')
@@ -1490,8 +1893,8 @@ class ActivoAdmin(ImportExportModelAdmin):
         # Generador optimizado
         def rows_generator(queryset):
             # Excel needs BOM to recognize UTF-8
-            yield [u'\ufeffID', 'Codigo Interno', 'Nombre', 'Referencia', 'Marca', 'Modelo', 
-                'Serie', 'Estado', 'Ubicacion', 'Responsable', 'Costo', 'Fecha Compra']
+            yield [u'\ufeffID', 'Codigo Interno', 'Nombre', 'Descripcion', 'Referencia', 'Marca', 'Modelo', 
+                'Serie', 'Estado', 'Ubicacion', 'Plano', 'Responsable', 'Costo', 'Fecha Compra']
 
             # Pre-load cache
             loc_map = build_location_map()
@@ -1502,6 +1905,7 @@ class ActivoAdmin(ImportExportModelAdmin):
                 'id',
                 'codigo_interno',
                 'nombre',
+                'descripcion',
                 'referencia',
                 'modelo__marca__nombre',
                 'modelo__nombre',
@@ -1511,6 +1915,8 @@ class ActivoAdmin(ImportExportModelAdmin):
                 'estado',
                 'ubicacion_id',
                 'ubicacion_legacy', # fallback
+                'plano__nombre',
+                'plano__numero_documento',
                 'responsable__username',
                 'costo',
                 'fecha_compra'
@@ -1521,8 +1927,8 @@ class ActivoAdmin(ImportExportModelAdmin):
 
             for row in values:
                 # Unpack tuple efficiently
-                (rid, code, name, ref, m_brand, m_model, m_brand_leg, m_model_leg, 
-                 serie, status, loc_id, loc_leg, resp, cost, date) = row
+                (rid, code, name, desc, ref, m_brand, m_model, m_brand_leg, m_model_leg, 
+                 serie, status, loc_id, loc_leg, pl_name, pl_doc, resp, cost, date) = row
 
                 # Logic for fallbacks
                 final_brand = m_brand if m_brand else (m_brand_leg or '')
@@ -1535,12 +1941,14 @@ class ActivoAdmin(ImportExportModelAdmin):
                     str(rid),
                     code or '',
                     name or '',
+                    desc or '',
                     ref or '',
                     final_brand,
                     final_model,
                     serie or '',
                     final_status,
                     final_loc,
+                    pl_doc or pl_name or '',
                     resp or '',
                     str(cost) if cost is not None else '',
                     str(date) if date else '',
@@ -1849,6 +2257,18 @@ class ActivoAdmin(ImportExportModelAdmin):
         return obj.marca_legacy
     get_marca.short_description = 'Marca'
 
+    @admin.display(description="Marca -> Modelo", ordering='modelo__marca__nombre')
+    def get_marca_modelo(self, obj):
+        marca = obj.modelo.marca.nombre if obj.modelo and obj.modelo.marca else (obj.marca_legacy or "---")
+        modelo = obj.modelo.nombre if obj.modelo else (obj.modelo_legacy or "---")
+        return f"{marca} -> {modelo}"
+
+    @admin.display(description="Código de Plano", ordering='plano__nombre')
+    def get_plano_codigo(self, obj):
+        if obj.plano:
+            return obj.plano.numero_documento or obj.plano.nombre
+        return "---"
+
     def ver_en_plano(self, obj):
         pines = obj.pines_planos.all()
         if not pines:
@@ -2086,17 +2506,19 @@ class PuntoMedicionAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'activo', 'codigo', 'unidad', 'es_acumulativo', 'valor_objetivo')
     list_filter = ('es_acumulativo', 'unidad')
     search_fields = ('nombre', 'codigo', 'activo__nombre', 'activo__codigo_interno')
+    list_select_related = ('activo',)
     autocomplete_fields = ('activo',)
 
 @admin.register(DocumentoMedicion)
 class DocumentoMedicionAdmin(admin.ModelAdmin):
     list_display = ('punto', 'valor', 'fecha_lectura', 'tecnico', 'orden_trabajo')
     list_filter = ('fecha_lectura', 'tecnico')
+    list_select_related = ('punto__activo', 'tecnico', 'orden_trabajo')
     search_fields = ('punto__nombre', 'punto__activo__nombre', 'observaciones')
     autocomplete_fields = ('punto', 'tecnico', 'orden_trabajo')
 
 
-@admin.register(RegistroImportacion)
+# Registro robusto para evitar AlreadyRegistered
 class RegistroImportacionAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'fecha', 'usuario', 'estado', 'stats_summary', 'revert_button')
     list_filter = ('estado', 'fecha', 'usuario')
@@ -2153,3 +2575,9 @@ class RegistroImportacionAdmin(admin.ModelAdmin):
                 revertir_importacion_task.delay(obj.id)
         self.message_user(request, "Se han lanzado las tareas de reversión para las importaciones seleccionadas.", messages.INFO)
     revertir_importacion_action.short_description = "Revertir importaciones seleccionadas"
+
+try:
+    admin.site.unregister(RegistroImportacion)
+except:
+    pass
+admin.site.register(RegistroImportacion, RegistroImportacionAdmin)

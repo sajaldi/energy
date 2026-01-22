@@ -4,7 +4,7 @@ class Disciplina(models.Model):
     """
     Modelo jerárquico para clasificar planos por especialidad técnica.
     """
-    nombre = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=100, unique=True)
     padre = models.ForeignKey(
         'self', 
         on_delete=models.CASCADE, 
