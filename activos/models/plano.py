@@ -67,8 +67,12 @@ class Plano(models.Model):
         return None
 
     def __str__(self):
-        ubicacion_nombre = self.ubicacion.nombre if self.ubicacion else "Sin ubicación"
-        return f"{self.nombre} - {ubicacion_nombre}"
+        try:
+            if self.ubicacion:
+                return f"{self.nombre} - {self.ubicacion.nombre}"
+        except Exception:
+            pass
+        return f"{self.nombre} - Sin ubicación"
         
     class Meta:
         verbose_name = "Plano"
