@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     'almacen',
     'seguridad',
     'django.contrib.humanize',
+    'callcenter',
 ]
 
 

@@ -7,7 +7,7 @@ from import_export.admin import ImportExportModelAdmin, ImportExportMixin, Impor
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina
 
 # ... (resto de registros)
 
@@ -136,8 +136,8 @@ class SmartPlanoWidget(ForeignKeyWidget):
 @admin.register(Plano)
 class PlanoAdmin(ImportExportModelAdmin):
     list_per_page = 50
-    list_display = ('nombre', 'ubicacion', 'documento_info', 'visualizar_archivo', 'creado_en')
-    list_filter = ('ubicacion',)
+    list_display = ('nombre', 'tipo_plano', 'numero_documento', 'titulo', 'disciplina', 'ubicacion', 'documento_info', 'creado_en')
+    list_filter = ('tipo_plano', 'disciplina', 'ubicacion')
 
     def has_import_permission(self, request):
         """Deshabilitar la importación estándar para obligar a usar la de Redis"""
@@ -145,10 +145,10 @@ class PlanoAdmin(ImportExportModelAdmin):
     list_select_related = ('ubicacion', 'documento__ultima_revision')
     search_fields = ('nombre', 'ubicacion__nombre', 'documento__codigo')
     filter_horizontal = ('activos',)
-    autocomplete_fields = ('documento',)
+    autocomplete_fields = ('documento', 'disciplina', 'ubicacion')
     readonly_fields = ('visualizar_archivo',)
     fieldsets = (
-        (None, {'fields': ('nombre', 'ubicacion', 'descripcion')}),
+        (None, {'fields': ('nombre', 'tipo_plano', 'numero_documento', 'titulo', 'disciplina', 'ubicacion', 'descripcion')}),
         ('Archivo del Plano', {
             'fields': ('documento', 'archivo'),
             'description': 'Usa "Documento" para control de versiones, o "Archivo" para carga directa.'
@@ -183,6 +183,17 @@ class PlanoAdmin(ImportExportModelAdmin):
 
 
     # Redis/Celery import methods removed
+
+@admin.register(Disciplina)
+class DisciplinaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'padre', 'get_ruta_completa')
+    search_fields = ('nombre',)
+    list_filter = ('padre',)
+    autocomplete_fields = ('padre',)
+    
+    def get_ruta_completa(self, obj):
+        return obj.get_ruta_completa()
+    get_ruta_completa.short_description = "Ruta Completa"
 
 
 class PinPlanoInline(admin.TabularInline):
@@ -955,7 +966,7 @@ class ActivoResource(resources.ModelResource):
         fields = (
             'id', 'nombre', 'codigo_interno', 'serie', 'referencia', 'marca_nombre', 'modelo_nombre', 
             'categoria_nombre', 'familia_nombre', 'plano_nombre', 'estado', 'ubicacion_nombre', 'responsable_username',
-            'padre_codigo', 'descripcion', 'fecha_compra', 'costo', 'ubicacion_legacy'
+            'padre_codigo', 'descripcion', 'fecha_compra', 'costo', 'ubicacion_legacy', 'creado_en', 'actualizado_en'
         )
         export_order = fields
         skip_unchanged = True
@@ -1014,6 +1025,7 @@ class ActivoResource(resources.ModelResource):
         # 0. Inicializar progreso detallado
         user = kwargs.get('user')
         self._import_user = user
+        self._ids_creados = [] # Para rastrear y permitir reversión
         if user:
             cache.set(f"import_progress_{user.id}", 0, 600)
             cache.set(f"import_progress_{user.id}_count", 0, 600)
@@ -1292,7 +1304,7 @@ class ActivoAdmin(ImportExportModelAdmin):
 
 
     
-    list_display = ('id', 'codigo_interno', 'nombre', 'referencia', 'get_marca', 'get_categoria', 'get_ubicacion_ruta', 'responsable', 'estado', 'ver_en_plano')
+    list_display = ('id', 'codigo_interno', 'nombre', 'referencia', 'get_marca', 'get_categoria', 'get_ubicacion_ruta', 'responsable', 'estado', 'creado_en', 'actualizado_en', 'ver_en_plano')
     list_filter = (
         NombreStartsWithFilter,
         ActivoFaltantesFilter, 
@@ -1393,6 +1405,8 @@ class ActivoAdmin(ImportExportModelAdmin):
                 {'val': 'REPARACION', 'label': 'Reparación'},
                 {'val': 'OBSOLETO', 'label': 'Obsoleto'},
             ]},
+            {'name': 'creado_en', 'label': 'Fecha Creación', 'type': 'date'},
+            {'name': 'actualizado_en', 'label': 'Última Modificación', 'type': 'date'},
         ]
         return super().changelist_view(request, extra_context=extra_context)
 
@@ -2080,3 +2094,62 @@ class DocumentoMedicionAdmin(admin.ModelAdmin):
     list_filter = ('fecha_lectura', 'tecnico')
     search_fields = ('punto__nombre', 'punto__activo__nombre', 'observaciones')
     autocomplete_fields = ('punto', 'tecnico', 'orden_trabajo')
+
+
+@admin.register(RegistroImportacion)
+class RegistroImportacionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'fecha', 'usuario', 'estado', 'stats_summary', 'revert_button')
+    list_filter = ('estado', 'fecha', 'usuario')
+    search_fields = ('nombre',)
+    readonly_fields = ('nombre', 'fecha', 'usuario', 'estado', 'total_filas', 'filas_nuevas', 'filas_actualizadas', 'filas_omitidas', 'filas_error', 'detalles_error', 'ids_creados')
+    
+    actions = ['revertir_importacion_action']
+
+    def stats_summary(self, obj):
+        return format_html(
+            '<span style="color: green;">+{}</span> / '
+            '<span style="color: blue;">∆{}</span> / '
+            '<span style="color: orange;">ø{}</span> / '
+            '<span style="color: red;">!{}</span>',
+            obj.filas_nuevas, obj.filas_actualizadas, obj.filas_omitidas, obj.filas_error
+        )
+    stats_summary.short_description = 'N / A / O / E'
+
+    def revert_button(self, obj):
+        if obj.estado == 'COMPLETADO' and obj.filas_nuevas > 0:
+            return format_html(
+                '<a class="button" href="revert/{}/" style="background-color: #d9534f; color: white;">Revertir</a>',
+                obj.id
+            )
+        return "-"
+    revert_button.short_description = 'Acciones'
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('revert/<int:registro_id>/', self.admin_site.admin_view(self.revert_view), name='activos_registroimportacion_revert'),
+        ]
+        return custom_urls + urls
+
+    def revert_view(self, request, registro_id):
+        from .tasks import revertir_importacion_task
+        # Ejecutar tarea de reversión
+        # En una app real, esto podría ser async, pero para feedback inmediato lo hacemos sincrónico o lanzamos delay y avisamos
+        res = revertir_importacion_task(registro_id)
+        
+        if res['status'] == 'completed':
+            self.message_user(request, f"Importación revertida con éxito. Se eliminaron {res['deleted_count']} activos.", messages.SUCCESS)
+        else:
+            self.message_user(request, f"Error al revertir: {res['message']}", messages.ERROR)
+            
+        from django.shortcuts import redirect
+        return redirect('..')
+
+    def revertir_importacion_action(self, request, queryset):
+        for obj in queryset:
+            if obj.estado == 'COMPLETADO':
+                from .tasks import revertir_importacion_task
+                revertir_importacion_task.delay(obj.id)
+        self.message_user(request, "Se han lanzado las tareas de reversión para las importaciones seleccionadas.", messages.INFO)
+    revertir_importacion_action.short_description = "Revertir importaciones seleccionadas"
