@@ -19,6 +19,36 @@ class Plano(models.Model):
     archivo = models.FileField(upload_to='planos/', null=True, blank=True, 
                                help_text="Archivo directo (usar 'documento' para control de versiones)")
     
+    # Nuevos atributos
+    TIPO_PLANO_CHOICES = [
+        ('PROYECTO_EJECUTIVO', 'Proyecto Ejecutivo'),
+        ('AS_BUILT', 'Plano As Built'),
+        ('TALLER', 'Plano Taller'),
+    ]
+    tipo_plano = models.CharField(
+        max_length=30, 
+        choices=TIPO_PLANO_CHOICES, 
+        null=True, blank=True,
+        verbose_name="Tipo de Plano"
+    )
+    numero_documento = models.CharField(
+        max_length=100, 
+        blank=True, 
+        verbose_name="No. de Doc"
+    )
+    titulo = models.CharField(
+        max_length=255, 
+        blank=True, 
+        verbose_name="Título"
+    )
+    disciplina = models.ForeignKey(
+        'activos.Disciplina', 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True, 
+        related_name='planos',
+        help_text="Disciplina y Subdisciplina vinculada al plano"
+    )
+
     descripcion = models.TextField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
