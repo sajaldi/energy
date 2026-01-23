@@ -41,6 +41,11 @@ class ResultadoAuditoria(models.Model):
     fecha_escaneo = models.DateTimeField(null=True, blank=True)
     observaciones = models.TextField(blank=True, null=True)
 
+    # Trazabilidad de movimiento
+    sincronizado = models.BooleanField(default=False, verbose_name="¿Movimiento Sincronizado?")
+    sincronizado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sincronizaciones_auditoria')
+    fecha_sincronizacion = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.auditoria} - {self.activo} ({self.estado})"
 
