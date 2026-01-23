@@ -6,7 +6,17 @@ from .models import Auditoria, ResultadoAuditoria
 class ResultadoAuditoriaInline(admin.TabularInline):
     model = ResultadoAuditoria
     extra = 0
-    autocomplete_fields = ['activo', 'ubicacion_esperada', 'ubicacion_encontrada']
+    fields = ('activo', 'estado', 'get_ubicacion_esperada', 'get_ubicacion_encontrada', 'fecha_escaneo')
+    readonly_fields = ('get_ubicacion_esperada', 'get_ubicacion_encontrada', 'fecha_escaneo')
+    autocomplete_fields = ['activo']
+
+    def get_ubicacion_esperada(self, obj):
+        return obj.ubicacion_esperada.ruta_completa if obj.ubicacion_esperada else "---"
+    get_ubicacion_esperada.short_description = "Ubicación Esperada"
+
+    def get_ubicacion_encontrada(self, obj):
+        return obj.ubicacion_encontrada.ruta_completa if obj.ubicacion_encontrada else "---"
+    get_ubicacion_encontrada.short_description = "Ubicación Encontrada"
 
 @admin.register(Auditoria)
 class AuditoriaAdmin(admin.ModelAdmin):
@@ -92,7 +102,35 @@ class AuditoriaAdmin(admin.ModelAdmin):
 
 @admin.register(ResultadoAuditoria)
 class ResultadoAuditoriaAdmin(admin.ModelAdmin):
-    list_display = ('auditoria', 'activo', 'estado', 'ubicacion_esperada', 'ubicacion_encontrada', 'fecha_escaneo')
+    list_display = ('auditoria', 'activo', 'estado', 'get_ubicacion_esperada', 'get_ubicacion_encontrada', 'fecha_escaneo')
     list_filter = ('estado', 'auditoria')
     search_fields = ('activo__nombre', 'activo__codigo_interno')
     autocomplete_fields = ['auditoria', 'activo', 'ubicacion_esperada', 'ubicacion_encontrada']
+
+    def get_ubicacion_esperada(self, obj):
+        return obj.ubicacion_esperada.ruta_completa if obj.ubicacion_esperada else "---"
+    get_ubicacion_esperada.short_description = "Ubicación Esperada"
+
+    def get_ubicacion_encontrada(self, obj):
+        return obj.ubicacion_encontrada.ruta_completa if obj.ubicacion_encontrada else "---"
+    get_ubicacion_encontrada.short_description = "Ubicación Encontrada"
+    actions = ['sincronizar_ubicacion']
+
+    @admin.action(description="Sincronizar ubicación actual del activo con el hallazgo")
+    def sincronizar_ubicacion(self, request, queryset):
+        success_count = 0
+        for res in queryset:
+            if res.ubicacion_encontrada and res.activo:
+                res.activo.ubicacion = res.ubicacion_encontrada
+                res.activo.save()
+                
+                # Registrar trazabilidad
+                from django.utils import timezone
+                res.sincronizado = True
+                res.sincronizado_por = request.user
+                res.fecha_sincronizacion = timezone.now()
+                res.save()
+                
+                success_count += 1
+        
+        self.message_user(request, f"Se han actualizado las ubicaciones de {success_count} activos conforme a los resultados de auditoría.")

@@ -1,9 +1,10 @@
 from django.shortcuts import render
+from django.urls import reverse
 from django.db import models
 from django.contrib import admin, messages
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
-from django.db.models import Count
+from django.db.models import Count, Max, Q
 from import_export.admin import ImportExportModelAdmin, ImportExportMixin, ImportExportActionModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
@@ -11,6 +12,7 @@ from django.contrib.auth.models import User
 from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina
 
 # ... (resto de registros)
+from auditorias.models import ResultadoAuditoria
 
 from django.utils.html import format_html
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
@@ -1330,7 +1332,7 @@ class ActivoResource(resources.ModelResource):
         model = Activo
         import_id_fields = ('codigo_interno',)
         fields = (
-            'id', 'nombre', 'codigo_interno', 'serie', 'referencia', 'marca_nombre', 'modelo_nombre', 
+            'id', 'nombre', 'codigo_interno', 'epc', 'serie', 'referencia', 'marca_nombre', 'modelo_nombre', 
             'categoria_nombre', 'familia_nombre', 'plano_nombre', 'estado', 'ubicacion_nombre', 'responsable_username',
             'padre_codigo', 'descripcion', 'fecha_compra', 'costo', 'ubicacion_legacy', 'creado_en', 'actualizado_en'
         )
@@ -1570,11 +1572,54 @@ class DocumentoMedicionInline(admin.TabularInline):
                 kwargs["queryset"] = PuntoMedicion.objects.filter(activo_id=activo_id)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+class AuditoriasActivoInline(admin.TabularInline):
+    model = ResultadoAuditoria
+    extra = 0
+    fields = ('auditoria', 'estado', 'get_ubicacion_esperada', 'get_ubicacion_encontrada', 'fecha_escaneo', 'get_sync_button')
+    readonly_fields = ('auditoria', 'estado', 'get_ubicacion_esperada', 'get_ubicacion_encontrada', 'fecha_escaneo', 'get_sync_button')
+    can_delete = False
+    verbose_name = "Auditoría Realizada"
+    verbose_name_plural = "Historial de Auditorías"
+
+    def get_ubicacion_esperada(self, obj):
+        if obj.ubicacion_esperada:
+            return obj.ubicacion_esperada.ruta_completa
+        return "---"
+    get_ubicacion_esperada.short_description = "Ubicación Esperada"
+
+    def get_ubicacion_encontrada(self, obj):
+        if obj.ubicacion_encontrada:
+            return obj.ubicacion_encontrada.ruta_completa
+        return "---"
+    get_ubicacion_encontrada.short_description = "Ubicación Encontrada"
+
+    def get_sync_button(self, obj):
+        if not obj.id or not obj.ubicacion_encontrada:
+            return "---"
+        
+        # Verificar si la ubicación del activo ya coincide
+        if obj.activo.ubicacion_id == obj.ubicacion_encontrada_id:
+            info_sync = ""
+            if obj.sincronizado:
+                 info_sync = f'<div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Por: <b>{obj.sincronizado_por.username if obj.sincronizado_por else "Sistema"}</b><br>El: {obj.fecha_sincronizacion.strftime("%d/%m/%Y %H:%M") if obj.fecha_sincronizacion else "-"}</div>'
+            
+            return format_html(f'<span style="color: #10b981; font-weight: bold;">✅ Sincronizado</span>{info_sync}')
+        
+        # Botón de acción
+        url = reverse('admin:activos_activo_sync_audit_location', args=[obj.activo.id, obj.id])
+        return format_html(
+            '<a class="button" href="{}" style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-decoration: none;">'
+            '🔄 Actualizar Ubicación'
+            '</a>',
+            url
+        )
+    get_sync_button.short_description = "Acción de Mejora"
+
 
 
 @admin.register(Activo)
 class ActivoAdmin(ImportExportModelAdmin):
-    list_per_page = 50
+    list_per_page = 25  # Reducido para mejorar rendimiento
     resource_class = ActivoResource
     change_list_template = 'admin/activos/activo/change_list.html'
 
@@ -1695,7 +1740,7 @@ class ActivoAdmin(ImportExportModelAdmin):
 
 
     
-    list_display = ('nombre', 'codigo_interno', 'descripcion', 'get_marca_modelo', 'serie', 'get_plano_codigo', 'referencia', 'get_ubicacion_ruta')
+    list_display = ('nombre', 'codigo_interno', 'epc', 'descripcion', 'ultima_auditoria_display', 'get_marca_modelo', 'serie', 'get_plano_codigo', 'referencia', 'get_ubicacion_ruta')
     list_filter = (
         NombreStartsWithFilter,
         ActivoFaltantesFilter, 
@@ -1720,10 +1765,10 @@ class ActivoAdmin(ImportExportModelAdmin):
         'familia',
         'plano'
     )
-    search_fields = ('nombre', 'descripcion', 'codigo_interno', 'serie', 'referencia', 'familia__nombre', 'plano__nombre', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
+    search_fields = ('nombre', 'descripcion', 'codigo_interno', 'epc', 'serie', 'referencia', 'familia__nombre', 'plano__nombre', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('familia', 'modelo', 'ubicacion', 'responsable', 'padre', 'plano')
-    inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline]
-    readonly_fields = ('get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'creado_en', 'actualizado_en', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link', 'get_puntos_medicion_summary')
+    inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline, AuditoriasActivoInline]
+    readonly_fields = ('ultima_auditoria_display', 'get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link', 'get_puntos_medicion_summary')
     actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv', 'limpiar_todo_el_inventario']
 
     @admin.action(description="BORRADO RÁPIDO: Eliminar selección actual (evita error de límites)")
@@ -1738,7 +1783,23 @@ class ActivoAdmin(ImportExportModelAdmin):
         self.message_user(request, f"Se han eliminado {count} activos correctamente.")
 
     def get_queryset(self, request):
-        qs = super().get_queryset(request).prefetch_related('pines_planos__visor')
+        qs = super().get_queryset(request).select_related(
+            *self.list_select_related
+        ).only(
+            # Campos del modelo Activo necesarios para list_display
+            'id', 'nombre', 'codigo_interno', 'epc', 'descripcion', 'serie', 'referencia',
+            'marca_legacy', 'modelo_legacy',
+            # FKs necesarias
+            'modelo_id', 'ubicacion_id', 'plano_id', 'responsable_id', 'padre_id', 'familia_id',
+            # Campos de modelo relacionado (select_related)
+            'modelo__marca__nombre', 'modelo__nombre', 'modelo__categoria_id',
+            'ubicacion__nombre', 'ubicacion__padre_id',
+            'ubicacion__padre__nombre', 'ubicacion__padre__padre_id',
+            'ubicacion__padre__padre__nombre', 'ubicacion__padre__padre__padre_id',
+            'plano__nombre', 'plano__numero_documento'
+        ).prefetch_related('pines_planos__visor').annotate(
+            ultima_auditoria_fecha=Max('auditorias_participadas__fecha_escaneo')
+        )
         
         # --- Lógica de Filtros Dinámicos (Dynamic Table Filters) ---
         dtf_param = request.GET.get('_dtf')
@@ -1796,6 +1857,7 @@ class ActivoAdmin(ImportExportModelAdmin):
             {'name': 'nombre', 'label': 'Nombre', 'type': 'text'},
             {'name': 'descripcion', 'label': 'Descripción', 'type': 'text'},
             {'name': 'codigo_interno', 'label': 'Código Interno', 'type': 'text'},
+            {'name': 'epc', 'label': 'Código EPC', 'type': 'text'},
             {'name': 'serie', 'label': 'N° Serie', 'type': 'text'},
             {'name': 'modelo__marca__nombre', 'label': 'Marca', 'type': 'text'},
             {'name': 'modelo__nombre', 'label': 'Modelo', 'type': 'text'},
@@ -1893,7 +1955,7 @@ class ActivoAdmin(ImportExportModelAdmin):
         # Generador optimizado
         def rows_generator(queryset):
             # Excel needs BOM to recognize UTF-8
-            yield [u'\ufeffID', 'Codigo Interno', 'Nombre', 'Descripcion', 'Referencia', 'Marca', 'Modelo', 
+            yield [u'\ufeffID', 'Codigo Interno', 'EPC', 'Nombre', 'Descripcion', 'Referencia', 'Marca', 'Modelo', 
                 'Serie', 'Estado', 'Ubicacion', 'Plano', 'Responsable', 'Costo', 'Fecha Compra']
 
             # Pre-load cache
@@ -1904,6 +1966,7 @@ class ActivoAdmin(ImportExportModelAdmin):
             values = queryset.values_list(
                 'id',
                 'codigo_interno',
+                'epc',
                 'nombre',
                 'descripcion',
                 'referencia',
@@ -1927,7 +1990,7 @@ class ActivoAdmin(ImportExportModelAdmin):
 
             for row in values:
                 # Unpack tuple efficiently
-                (rid, code, name, desc, ref, m_brand, m_model, m_brand_leg, m_model_leg, 
+                (rid, code, epc_val, name, desc, ref, m_brand, m_model, m_brand_leg, m_model_leg, 
                  serie, status, loc_id, loc_leg, pl_name, pl_doc, resp, cost, date) = row
 
                 # Logic for fallbacks
@@ -1940,6 +2003,7 @@ class ActivoAdmin(ImportExportModelAdmin):
                 yield [
                     str(rid),
                     code or '',
+                    epc_val or '',
                     name or '',
                     desc or '',
                     ref or '',
@@ -2205,6 +2269,7 @@ class ActivoAdmin(ImportExportModelAdmin):
                 queryset = queryset.filter(
                     models.Q(nombre__icontains=search_term) | 
                     models.Q(codigo_interno__icontains=search_term) |
+                    models.Q(epc__icontains=search_term) |
                     models.Q(serie__icontains=search_term)
                 )
 
@@ -2269,6 +2334,28 @@ class ActivoAdmin(ImportExportModelAdmin):
             return obj.plano.numero_documento or obj.plano.nombre
         return "---"
 
+    @admin.display(description="Última Auditoría", ordering='ultima_auditoria_fecha')
+    def ultima_auditoria_display(self, obj):
+        fecha = getattr(obj, 'ultima_auditoria_fecha', None)
+        if not fecha:
+            return format_html('<span style="color: #94a3b8; font-style: italic;">Nunca auditado</span>')
+        
+        from django.utils.timezone import now
+        dias = (now() - fecha).days
+        
+        color = "#10b981" # Verde (reciente)
+        if dias > 180: color = "#ef4444" # Rojo (>6 meses)
+        elif dias > 90: color = "#f59e0b" # Naranja (>3 meses)
+        
+        return format_html(
+            '<div style="display: flex; align-items: center; gap: 8px;">'
+            '<span style="height: 8px; width: 8px; background-color: {0}; border-radius: 50%; display: inline-block;"></span>'
+            '<span>{1}</span>'
+            '</div>',
+            color,
+            fecha.strftime('%d/%m/%Y')
+        )
+
     def ver_en_plano(self, obj):
         pines = obj.pines_planos.all()
         if not pines:
@@ -2293,38 +2380,53 @@ class ActivoAdmin(ImportExportModelAdmin):
 
     fieldsets = (
         ('Identificación', {
-            'fields': ('nombre', 'codigo_interno', 'referencia', 'familia', ('get_marca', 'modelo'), ('serie', 'padre'), 'get_ubicacion_ruta', 'get_modelo_img')
+            'fields': ('nombre', ('codigo_interno', 'epc'), 'referencia', 'familia', ('get_marca', 'modelo'), ('serie', 'padre'), 'get_ubicacion_ruta', 'get_modelo_img')
         }),
         ('Detalles Técnicos', {
             'fields': ('descripcion', 'foto', 'marca_legacy', 'modelo_legacy')
         }),
         ('Estado y Ubicación', {
-            'fields': ('estado', 'ubicacion', 'plano', 'ubicacion_legacy', 'responsable', 'ver_en_plano', 'crear_aviso_link')
+            'fields': ('estado', 'ubicacion', 'plano', 'ubicacion_legacy', 'responsable', 'ver_en_plano', 'crear_aviso_link', 'ultima_auditoria_display')
         }),
         ('Mantenimiento Preventivo', {
             'fields': ('rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes'),
             'description': 'Información sobre rutinas aplicables, órdenes pendientes e historial de mantenimiento.'
         }),
-        ('Puntos de Medición (SAP Style)', {
-            'fields': ('get_puntos_medicion_summary',),
-            'description': 'Variables de estado y contadores acumulativos asociados a este equipo.'
-        }),
-        ('Información Financiera', {
-            'fields': ('fecha_compra', 'costo')
-        }),
-        ('Sistema', {
-            'fields': ('creado_en', 'actualizado_en'),
-            'classes': ('collapse',)
-        }),
     )
 
     change_form_template = 'admin/activos/activo/change_form.html'
+
+    def sync_audit_location(self, request, activo_id, resultado_id):
+        from django.shortcuts import get_object_or_404, redirect
+        from django.contrib import messages
+        
+        activo = get_object_or_404(Activo, id=activo_id)
+        resultado = get_object_or_404(ResultadoAuditoria, id=resultado_id)
+        
+        if resultado.ubicacion_encontrada:
+            old_loc = activo.ubicacion.nombre if activo.ubicacion else "Ninguna"
+            activo.ubicacion = resultado.ubicacion_encontrada
+            activo.save()
+            
+            # Registrar trazabilidad en el resultado de la auditoría
+            from django.utils import timezone
+            resultado.sincronizado = True
+            resultado.sincronizado_por = request.user
+            resultado.fecha_sincronizacion = timezone.now()
+            resultado.save()
+            
+            messages.success(request, f"Ubicación actualizada: de '{old_loc}' a '{resultado.ubicacion_encontrada.nombre}'. Movimiento registrado por {request.user.username}.")
+        else:
+            messages.error(request, "No se puede actualizar: el resultado de auditoría no registra una ubicación encontrada.")
+            
+        return redirect(reverse('admin:activos_activo_change', args=[activo.id]))
 
     def get_urls(self):
         from django.urls import path
         urls = super().get_urls()
         custom_urls = [
             path('<path:object_id>/explorer/', self.admin_site.admin_view(self.explorer_view), name='activos_activo_explorer'),
+            path('<int:activo_id>/sync-audit/<int:resultado_id>/', self.admin_site.admin_view(self.sync_audit_location), name='activos_activo_sync_audit_location'),
             path('import-background/', self.admin_site.admin_view(self.import_background), name='activos_activo_import_background'),
             path('import-process/', self.admin_site.admin_view(self.import_process), name='activos_activo_import_process'),
             path('import-progress/', self.admin_site.admin_view(self.import_progress), name='activos_activo_import_progress'),

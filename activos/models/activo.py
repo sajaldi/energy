@@ -52,6 +52,14 @@ class Activo(models.Model):
         validators=[RegexValidator(r'^\d+$', 'El código interno debe contener solo números.')],
         help_text="Código de inventario interno (Solo números)"
     )
+    epc = models.CharField(
+        max_length=100, 
+        unique=True, 
+        blank=True, 
+        null=True, 
+        db_index=True,
+        help_text="Código EPC (Electrónic Product Code) de la etiqueta RFID (Alfanumérico)"
+    )
     serie = models.CharField(max_length=100, blank=True, null=True, help_text="Número de serie del fabricante", db_index=True)
     referencia = models.CharField(max_length=100, blank=True, null=True, help_text="Referencia adicional")
     
