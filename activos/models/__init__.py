@@ -6,3 +6,4 @@ from .activo import Marca, Modelo, Activo
 from .plano import Plano, VisorPlano, PinPlano, PinFoto
 from .medicion import PuntoMedicion, DocumentoMedicion
 from .importacion import RegistroImportacion
+from .bien_afecto import BienAfecto, HistorialBienAfecto

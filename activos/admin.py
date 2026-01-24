@@ -19,6 +19,9 @@ from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from inventarios.models import CompatibilidadMaterial
 from documentos.models import Documento
 
+# Importar admin de Bien Afecto
+from .admin_bien_afecto import BienAfectoAdmin, HistorialBienAfectoAdmin
+
 class SmartModeloWidget(ForeignKeyWidget):
     """Widget que usa el caché del Resource para evitar Modelo.DoesNotExist o consultas N+1."""
     def clean(self, value, row=None, **kwargs):
@@ -1767,7 +1770,10 @@ class ActivoAdmin(ImportExportModelAdmin):
     )
     search_fields = ('nombre', 'descripcion', 'codigo_interno', 'epc', 'serie', 'referencia', 'familia__nombre', 'plano__nombre', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('familia', 'modelo', 'ubicacion', 'responsable', 'padre', 'plano')
-    inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline, AuditoriasActivoInline]
+    # Importar inline de Mayan
+    from documentos.admin_mayan import MayanDocumentInline
+
+    inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline, AuditoriasActivoInline, MayanDocumentInline]
     readonly_fields = ('ultima_auditoria_display', 'get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link', 'get_puntos_medicion_summary')
     actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv', 'limpiar_todo_el_inventario']
 
@@ -1887,6 +1893,13 @@ class ActivoAdmin(ImportExportModelAdmin):
             from django.utils import timezone
             # Usar la clase del recurso directamente ya que el método dinámico falló
             resource_class = self.get_export_resource_class() if hasattr(self, 'get_export_resource_class') else self.resource_class
+            
+            # CRITICAL FIX: El get_queryset usa .only() que difiere campos como costo y fecha_compra.
+            # Al exportar, el resource accede a estos campos, causando un refresh_from_db por CADA fila (N+1 masivo).
+            # .defer(None) borra cualquier deferral anterior, cargando todos los campos de inmediato.
+            if hasattr(queryset, 'defer'):
+                queryset = queryset.defer(None)
+                
             resource = resource_class(**self.get_export_resource_kwargs(request))
             dataset = resource.export(queryset)
             
