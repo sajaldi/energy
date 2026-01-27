@@ -236,8 +236,8 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-med
 AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
 AWS_S3_USE_SSL = False
 AWS_S3_REGION_NAME = 'us-east-1'
-AWS_S3_SIGNATURE_VERSION = 's3'  # Necesario para compatibilidad con el Proxy de Apache
-AWS_QUERYSTRING_AUTH = False  # Para que las URLs de archivos sean públicas (si el bucket lo permite)
+AWS_S3_SIGNATURE_VERSION = 's3v4'  # Necesario para compatibilidad con el Proxy de Apache
+AWS_QUERYSTRING_AUTH = True  # Para que las URLs de archivos sean públicas (si el bucket lo permite)
 AWS_S3_FILE_OVERWRITE = False
 
 STORAGES = {
