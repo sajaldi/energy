@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from .models import (
     PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, 
     ItemPresupuesto, Compromiso, DetalleCompromiso, CambioPresupuesto, DetallePeriodico,
-    PresupuestoAgrupado, Requisicion, ArticuloRequisicion
+    PresupuestoAgrupado, Requisicion, ArticuloRequisicion, DocumentoRequisicion
 )
 
 class GastoEjecutadoInline(admin.TabularInline):
@@ -247,12 +247,30 @@ class ArticuloRequisicionInline(admin.TabularInline):
     fields = ('material', 'cr8ca_articulo', 'cr8ca_cantidad', 'cr8ca_costoaproximado', 'cr8ca_tipo')
     autocomplete_fields = ['material']
 
+class DocumentoRequisicionInline(admin.TabularInline):
+    model = DocumentoRequisicion
+    extra = 1
+    fields = ('archivo', 'nombre', 'previsualizar')
+    readonly_fields = ('previsualizar',)
+
+    def previsualizar(self, obj):
+        if obj.archivo:
+            url = obj.archivo.url
+            return format_html(
+                '<a href="javascript:void(0)" onclick="window.open(\'{}\', \'popup\', \'width=800,height=600,scrollbars=yes\'); return false;" '
+                'class="button" style="background-color: #6366f1; color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px;">'
+                '👁️ Ver Documento</a>',
+                url
+            )
+        return "Guarde para previsualizar"
+    previsualizar.short_description = "Vista Previa"
+
 @admin.register(Requisicion)
 class RequisicionAdmin(admin.ModelAdmin):
     list_display = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'createdon')
     list_filter = ('cr8ca_prioridad', 'cr8ca_tipodedocumento', 'createdon')
     search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
-    inlines = [ArticuloRequisicionInline]
+    inlines = [ArticuloRequisicionInline, DocumentoRequisicionInline]
     readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon')
     
     fieldsets = (

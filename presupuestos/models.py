@@ -550,3 +550,33 @@ class ArticuloRequisicion(models.Model):
     class Meta:
         verbose_name = "Artículo de Requisición"
         verbose_name_plural = "Artículos de Requisición"
+
+
+class DocumentoRequisicion(models.Model):
+    """
+    Documentos adjuntos a una requisición, almacenados en MinIO.
+    """
+    requisicion = models.ForeignKey(
+        Requisicion, 
+        on_delete=models.CASCADE, 
+        related_name='documentos',
+        verbose_name="Requisición"
+    )
+    archivo = models.FileField(
+        upload_to='requisiciones/%Y/%m/',
+        verbose_name="Archivo"
+    )
+    nombre = models.CharField(
+        max_length=255, 
+        verbose_name="Nombre/Descripción del Documento",
+        blank=True
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.nombre or f"Documento de {self.requisicion}"
+
+    class Meta:
+        verbose_name = "Documento de Requisición"
+        verbose_name_plural = "Documentos de Requisición"
+        ordering = ['-creado_en']
