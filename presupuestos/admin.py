@@ -253,7 +253,7 @@ class RequisicionAdmin(admin.ModelAdmin):
     list_filter = ('cr8ca_prioridad', 'cr8ca_tipodedocumento', 'createdon')
     search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
     inlines = [ArticuloRequisicionInline]
-    readonly_fields = ('cr8ca_requisicionid', 'createdon', 'modifiedon')
+    readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon')
     
     fieldsets = (
         ('Identificación', {
