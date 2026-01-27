@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from decimal import Decimal
 from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import datetime
+import uuid
+from django.db.models import Max
 
 class PresupuestoAnual(models.Model):
     """
@@ -420,15 +422,22 @@ class Requisicion(models.Model):
     Modelo para sincronización de Requisiciones desde Dynamics 365.
     Mapea campos de la entidad cr8ca_requisicion.
     """
-    cr8ca_requisicionid = models.UUIDField(primary_key=True, verbose_name="ID de Requisición (Dynamics)")
-    cr8ca_requisicion = models.CharField(max_length=100, verbose_name="N° Requisición (REQ-#####-AAAA)")
+    cr8ca_requisicionid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, verbose_name="ID de Requisición (Dynamics)")
+    cr8ca_requisicion = models.CharField(max_length=100, editable=False, verbose_name="N° Requisición (REQ-#####-AAAA)")
     cr8ca_asunto = models.CharField(max_length=500, verbose_name="Asunto")
     cr8ca_motivo = models.TextField(null=True, blank=True, verbose_name="Motivo")
     cr8ca_comentarios = models.TextField(null=True, blank=True, verbose_name="Comentarios")
     
     # Totales y Estado
+    PRIORIDAD_CHOICES = (
+        (1, 'Baja'),
+        (2, 'Normal'),
+        (3, 'Alta'),
+        (4, 'Urgencia'),
+        (5, 'Emerencia'),
+    )
     cr8ca_totalenarticulos = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Total en Artículos")
-    cr8ca_prioridad = models.IntegerField(null=True, blank=True, verbose_name="Prioridad (Code)")
+    cr8ca_prioridad = models.IntegerField(choices=PRIORIDAD_CHOICES, default=2, null=True, blank=True, verbose_name="Prioridad")
     cr8ca_tipodedocumento = models.IntegerField(null=True, blank=True, verbose_name="Tipo de Documento")
     cr8ca_estatusorden = models.IntegerField(null=True, blank=True, verbose_name="Estatus Orden")
     cr8ca_accion = models.IntegerField(null=True, blank=True, verbose_name="Acción")
@@ -459,6 +468,33 @@ class Requisicion(models.Model):
     versionnumber = models.BigIntegerField(null=True, blank=True)
     statecode = models.IntegerField(null=True, blank=True)
     statuscode = models.IntegerField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.cr8ca_requisicion:
+            anio_actual = datetime.now().year
+            prefix = f"REQ-"
+            suffix = f"-{anio_actual}"
+            
+            # Buscar el correlativo más alto para el año actual
+            last_req = Requisicion.objects.filter(
+                cr8ca_requisicion__startswith=prefix,
+                cr8ca_requisicion__endswith=suffix
+            ).order_by('cr8ca_requisicion').last()
+            
+            if last_req:
+                try:
+                    # Extraer el número REQ-XXXXX-2026 -> XXXXX
+                    current_num_str = last_req.cr8ca_requisicion.replace(prefix, '').replace(suffix, '')
+                    current_num = int(current_num_str)
+                    new_num = current_num + 1
+                except (ValueError, IndexError):
+                    new_num = 1
+            else:
+                new_num = 1
+            
+            self.cr8ca_requisicion = f"{prefix}{str(new_num).zfill(5)}{suffix}"
+            
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.cr8ca_requisicion} - {self.cr8ca_asunto[:50]}"

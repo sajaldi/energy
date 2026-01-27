@@ -154,7 +154,7 @@
 
 ## 📱 Fase 8: App Móvil (Q4 2026)
 
-### React Native / Flutter
+### React Native / Expo
 - [ ] App móvil nativa
 - [ ] Firma con dedo/stylus
 - [ ] Escaneo de documentos con cámara
@@ -275,7 +275,7 @@
 ### Futuro
 - **Backend**: Django + DRF (API)
 - **Frontend**: React/Vue.js
-- **Mobile**: React Native / Flutter
+- **Mobile**: React Native / Expo
 - **Storage**: S3 / CloudFlare R2
 - **Queue**: Celery + Redis
 - **Search**: Elasticsearch
