@@ -223,13 +223,24 @@
             body: formData,
             headers: { 'X-CSRFToken': '{{ csrf_token }}' }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    return res.text().then(text => {
+                        throw new Error(`Error del servidor (${res.status}): ${text.slice(0, 100)}...`);
+                    });
+                }
+                return res.json();
+            })
             .then(data => {
                 if (data.status === 'started') {
                     pollProgress();
                 } else {
                     addLog('Error: ' + data.message);
                 }
+            })
+            .catch(err => {
+                console.error(err);
+                addLog('Error: ' + err.message);
             });
     }
 
