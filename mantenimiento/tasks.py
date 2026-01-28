@@ -52,7 +52,7 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
     progress_info = {
         'current': 0, 
         'total': total_rows, 
-        'status': 'Iniciando verificación...' if verification_mode else 'Iniciando importación...', 
+        'status': 'Iniciando verificacion...' if verification_mode else 'Iniciando importacion...', 
         'percent': 0,
         'new': 0,
         'updated': 0,
@@ -216,7 +216,7 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
     progress_info = {
         'current': 0, 
         'total': total_rows, 
-        'status': 'Iniciando importación...', 
+        'status': 'Iniciando importacion...', 
         'percent': 0,
         'new': 0,
         'updated': 0,
