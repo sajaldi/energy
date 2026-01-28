@@ -982,11 +982,10 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/import_background.html', context)
 
-    @csrf_exempt
     def import_process_view(self, request):
         """Inicia la tarea de Celery"""
         start_time = time.time()
-        print(f"⏱️ [DEBUG] Inicio import_process_view a las {time.ctime()}")
+        print(f"[DEBUG] Inicio import_process_view a las {time.ctime()}")
 
         if request.method == 'POST' and request.FILES.get('file'):
             import_file = request.FILES['file']

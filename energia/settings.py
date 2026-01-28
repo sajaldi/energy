@@ -20,12 +20,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# ¡IMPORTANTE! En producción, esta clave DEBE obtenerse de una variable de entorno.
-# No la dejes codificada aquí.
+# IMPORTANTE! En produccion, esta clave DEBE obtenerse de una variable de entorno.
+# No la dejes codificada aqui.
 SECRET_KEY = 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# ¡IMPORTANTE! En producción, DEBUG debe ser False por seguridad.
+# IMPORTANTE! En produccion, DEBUG debe ser False por seguridad.
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena 'True'/'False' a booleano
 
 
@@ -33,7 +33,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena '
 _env_hosts = os.environ.get('ALLOWED_HOSTS', '*')
 ALLOWED_HOSTS = [h.strip() for h in _env_hosts.split(',') if h.strip()]
 
-# Automatización para Coolify: agregar dominios detectados dinámicamente
+# Automatizacion para Coolify: agregar dominios detectados dinamicamente
 coolify_fqdn = os.environ.get('COOLIFY_FQDN')
 if coolify_fqdn:
     if coolify_fqdn not in ALLOWED_HOSTS:
@@ -57,7 +57,7 @@ if coolify_fqdn and not any(coolify_fqdn in o for o in CSRF_TRUSTED_ORIGINS):
     CSRF_TRUSTED_ORIGINS.append(f"http://{coolify_fqdn}")
     CSRF_TRUSTED_ORIGINS.append(f"https://{coolify_fqdn}")
 
-# Configuración para Proxy Inverso (Coolify/Nginx/Traefik)
+# Configuracion para Proxy Inverso (Coolify/Nginx/Traefik)
 # Confía en la cabecera X-Forwarded-Proto para determinar si la conexión es segura
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
