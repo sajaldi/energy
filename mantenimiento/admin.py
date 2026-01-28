@@ -964,6 +964,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             path('import-background/progress/', self.admin_site.admin_view(self.import_progress_api), name='mantenimiento_ordentrabajo_import_progress'),
             path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_ordentrabajo_import_template'),
             path('test-connectivity/', self.admin_site.admin_view(self.test_connectivity), name='mantenimiento_ordentrabajo_test_connectivity'),
+            path('pure-ping/', self.admin_site.admin_view(self.pure_ping), name='mantenimiento_ordentrabajo_pure_ping'),
         ]
         return custom_urls + urls
 
@@ -1096,3 +1097,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             results['storage'] = f"ERROR: {str(e)}"
 
         return JsonResponse(results)
+
+    def pure_ping(self, request):
+        """Vista que no toca nada, solo para confirmar que Django vive"""
+        return HttpResponse("PONG - Server is alive and responding!")
