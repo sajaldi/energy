@@ -240,6 +240,10 @@ AWS_S3_SIGNATURE_VERSION = 's3v4'  # Necesario para compatibilidad con el Proxy 
 AWS_QUERYSTRING_AUTH = True  # Para que las URLs de archivos sean públicas (si el bucket lo permite)
 AWS_S3_FILE_OVERWRITE = False
 
+# Configuración de Import-Export
+# 'utf-8-sig' es más robusto para archivos CSV generados por Excel con BOM
+IMPORT_EXPORT_ENCODING = 'utf-8-sig'
+
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",

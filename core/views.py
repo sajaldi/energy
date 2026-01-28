@@ -55,7 +55,20 @@ def import_excel(request):
                 elif excel_file.name.endswith('.xls'):
                     df = pd.read_excel(excel_file, engine='xlrd')
                 elif excel_file.name.endswith('.csv'):
-                    df = pd.read_csv(excel_file, encoding='utf-8', sep=',') # O el separador que uses
+                    # Intento de decodificación robusta para CSVs
+                    content = excel_file.read()
+                    success = False
+                    for enc in ['utf-8-sig', 'iso-8859-1', 'windows-1252', 'utf-8']:
+                        try:
+                            df = pd.read_csv(io.BytesIO(content), encoding=enc, sep=',')
+                            success = True
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    if not success:
+                        # Fallback forzado
+                        df = pd.read_csv(io.BytesIO(content), encoding='utf-8', encoding_errors='ignore', sep=',')
                 else:
                     messages.error(request, "Formato de archivo no soportado. Use .xlsx, .xls o .csv.")
                     return redirect('admin:core_consumo_changelist') # Ajusta el redirect a tu vista de lista

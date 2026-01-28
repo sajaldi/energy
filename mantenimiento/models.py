@@ -159,6 +159,7 @@ class PasoProcedimiento(models.Model):
         return f"{self.orden}. {self.descripcion[:50]} ({self.get_tipo_respuesta_display()})"
 
 class Rutina(models.Model):
+    codigo_rutina = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="Código identificador de la rutina")
     nombre = models.CharField(max_length=200, blank=True, help_text="Deje vacío para generar un nombre automático basado en frecuencia y categoría")
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas', 
                                   help_text="Clasificación de mantenimiento (ej: Mecánica, Eléctrica)")

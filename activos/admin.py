@@ -407,7 +407,9 @@ class PlanoAdmin(ImportExportModelAdmin):
                 with default_storage.open(path, 'rb') as f:
                     file_content = f.read()
                     if file_format == 'csv':
-                        dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')
+                        # Usar una decodificación robusta para CSVs de Excel
+                        from .tasks import try_decode
+                        dataset = Dataset().load(try_decode(file_content), format='csv')
                     else:
                         dataset = Dataset().load(file_content, format=file_format)
                 
