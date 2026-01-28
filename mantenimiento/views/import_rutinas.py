@@ -25,6 +25,7 @@ def import_rutinas_background(request):
 @csrf_exempt
 def import_rutinas_process(request):
     """Triggers the Celery task for importing routines."""
+    import sys
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
@@ -33,6 +34,7 @@ def import_rutinas_process(request):
         return JsonResponse({'error': 'No file uploaded'}, status=400)
     
     print(f"[DEBUG] [Rutinas] Recibido archivo: {import_file.name} ({import_file.size} bytes)")
+    sys.stdout.flush()
     
     # Save file to temporary storage using chunks
     file_ext = import_file.name.split('.')[-1].lower()
@@ -40,15 +42,19 @@ def import_rutinas_process(request):
     
     try:
         print(f"[DEBUG] [Rutinas] Guardando archivo: {temp_name}...")
+        sys.stdout.flush()
         path = default_storage.save(temp_name, import_file)
         print(f"[DEBUG] [Rutinas] Archivo guardado: {path}")
+        sys.stdout.flush()
     except Exception as e:
         print(f"[DEBUG] [Rutinas] Error al guardar: {str(e)}")
+        sys.stdout.flush()
         return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
     
     # Trigger Celery task
     verification_mode = request.POST.get('verification_mode') == 'true'
     print(f"[DEBUG] [Rutinas] Despachando tarea (verificion={verification_mode}) para: {path}")
+    sys.stdout.flush()
     task = import_rutinas_task.delay(path, file_ext, user_id=request.user.id, verification_mode=verification_mode)
     
     return JsonResponse({'status': 'started', 'task_id': task.id})
