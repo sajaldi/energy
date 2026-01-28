@@ -519,7 +519,7 @@ class RutinaAdmin(ImportExportModelAdmin):
         from .views import import_rutinas
         custom_urls = [
             path('import-background/', self.admin_site.admin_view(import_rutinas.import_rutinas_background), name='mantenimiento_rutina_import_background'),
-            path('import-background/process/', self.admin_site.admin_view(import_rutinas.import_rutinas_process), name='mantenimiento_rutina_import_process'),
+            path('import-background/process/', csrf_exempt(self.admin_site.admin_view(import_rutinas.import_rutinas_process)), name='mantenimiento_rutina_import_process'),
             path('import-background/progress/', self.admin_site.admin_view(import_rutinas.import_rutinas_progress), name='mantenimiento_rutina_import_progress'),
             path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_rutina_import_template'),
         ]
@@ -958,7 +958,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom_urls = [
             path('import-background/', self.admin_site.admin_view(self.import_background_view), name='mantenimiento_ordentrabajo_import_background'),
-            path('import-background/process/', self.admin_site.admin_view(self.import_process_view), name='mantenimiento_ordentrabajo_import_process'),
+            path('import-background/process/', csrf_exempt(self.admin_site.admin_view(self.import_process_view)), name='mantenimiento_ordentrabajo_import_process'),
             path('import-background/progress/', self.admin_site.admin_view(self.import_progress_api), name='mantenimiento_ordentrabajo_import_progress'),
             path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_ordentrabajo_import_template'),
         ]
