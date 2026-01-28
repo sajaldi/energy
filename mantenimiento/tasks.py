@@ -117,11 +117,6 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
             'results': results,
             'verification_mode': True
         }
-            'found': found_count,
-            'not_found': not_found_count,
-            'results': results,
-            'verification_mode': True
-        }
     else:
         resource.before_import(dataset)
         from import_export import resources as ie_resources
