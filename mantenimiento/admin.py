@@ -987,14 +987,21 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         """Inicia la tarea de Celery"""
         if request.method == 'POST' and request.FILES.get('file'):
             import_file = request.FILES['file']
+            print(f"📁 Recibido archivo para importar: {import_file.name} ({import_file.size} bytes)")
+            
             from django.core.files.storage import default_storage
-            from django.core.files.base import ContentFile
             import os
             import time
 
             filename = f"imports/ots_{request.user.id}_{int(time.time())}_{import_file.name}"
-            # Usar chunks para no saturar la memoria ram
-            path = default_storage.save(filename, import_file)
+            
+            try:
+                print(f"⏳ Guardando archivo en storage: {filename}...")
+                path = default_storage.save(filename, import_file)
+                print(f"✅ Archivo guardado en: {path}")
+            except Exception as e:
+                print(f"❌ Error al guardar archivo: {str(e)}")
+                return JsonResponse({'status': 'error', 'message': f'Error al guardar archivo: {str(e)}'}, status=500)
             
             file_format = os.path.splitext(import_file.name)[1][1:].lower()
             
@@ -1003,11 +1010,12 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             cache_key = f"import_ordenes_progress_{request.user.id}"
             cache.set(cache_key, {
                 'current': 0, 'total': 0, 
-                'status': 'En cola de procesamiento (asegúrate de que Celery esté corriendo)...', 
-                'percent': 0
-            }, 300)
+                'status': 'Iniciando tarea en segundo plano...', 
+                'percent': 1
+            }, 3600)
 
             from .tasks import import_ordenes_task
+            print(f"🚀 Despachando tarea Celery para: {path}")
             task = import_ordenes_task.delay(path, file_format, request.user.id)
             
             return JsonResponse({'status': 'started', 'task_id': task.id})
