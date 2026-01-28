@@ -129,6 +129,29 @@ class WorkOrderService:
         }
 
     @staticmethod
+    def _generate_weeks_metadata(year):
+        """Generates metadata for 52 weeks starting from Jan 1st."""
+        weeks = []
+        meses_nombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+        
+        for i in range(52):
+            start = date(year, 1, 1) + timedelta(days=i*7)
+            end = start + timedelta(days=6)
+            if end.year > year: end = date(year, 12, 31)
+            
+            # Determinar el mes de la semana (usamos el inicio)
+            mes_idx = start.month - 1
+            
+            weeks.append({
+                'id': i,
+                'label': f"Sem {i+1}",
+                'start': start,
+                'end': end,
+                'mes': meses_nombres[mes_idx]
+            })
+        return weeks
+
+    @staticmethod
     def get_grouped_tree(year):
         """Logic for grouping orders by Category > Subcategory > Frequency > Routine"""
         ordenes = OrdenTrabajo.objects.filter(inicio_programado__year=year).select_related(
