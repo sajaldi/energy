@@ -982,7 +982,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/import_background.html', context)
 
-    @method_decorator(csrf_exempt)
+    @csrf_exempt
     def import_process_view(self, request):
         """Inicia la tarea de Celery"""
         if request.method == 'POST' and request.FILES.get('file'):
@@ -993,7 +993,8 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             import time
 
             filename = f"imports/ots_{request.user.id}_{int(time.time())}_{import_file.name}"
-            path = default_storage.save(filename, ContentFile(import_file.read()))
+            # Usar chunks para no saturar la memoria ram
+            path = default_storage.save(filename, import_file)
             
             file_format = os.path.splitext(import_file.name)[1][1:].lower()
             
