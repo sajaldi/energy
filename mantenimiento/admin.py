@@ -985,28 +985,44 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     @csrf_exempt
     def import_process_view(self, request):
         """Inicia la tarea de Celery"""
+        start_time = time.time()
+        print(f"⏱️ [DEBUG] Inicio import_process_view a las {time.ctime()}")
+
         if request.method == 'POST' and request.FILES.get('file'):
             import_file = request.FILES['file']
-            print(f"📁 Recibido archivo para importar: {import_file.name} ({import_file.size} bytes)")
+            print(f"📁 [DEBUG] Archivo: {import_file.name} | Tamaño: {import_file.size} bytes")
             
             from django.core.files.storage import default_storage
+            from django.core.cache import cache
             import os
             import time
+
+            # 1. Probar conexión a Caché/Redis antes de nada
+            try:
+                print("⏳ [DEBUG] Probando conexión a Redis/Caché...")
+                cache.set('test_conn', 'ok', 5)
+                if cache.get('test_conn') == 'ok':
+                    print("✅ [DEBUG] Conexión a Redis exitosa.")
+                else:
+                    print("⚠️ [DEBUG] Redis no guardó el valor de prueba.")
+            except Exception as e:
+                print(f"❌ [DEBUG] Error de conexión a Redis: {str(e)}")
+                # No detenemos el proceso, pero ya sabemos que fallará el delay() o el progreso
 
             filename = f"imports/ots_{request.user.id}_{int(time.time())}_{import_file.name}"
             
             try:
-                print(f"⏳ Guardando archivo en storage: {filename}...")
+                t_save_start = time.time()
+                print(f"⏳ [DEBUG] Guardando archivo en storage: {filename}...")
                 path = default_storage.save(filename, import_file)
-                print(f"✅ Archivo guardado en: {path}")
+                print(f"✅ [DEBUG] Archivo guardado en {time.time() - t_save_start:.2f}s")
             except Exception as e:
-                print(f"❌ Error al guardar archivo: {str(e)}")
+                print(f"❌ [DEBUG] Error al guardar archivo: {str(e)}")
                 return JsonResponse({'status': 'error', 'message': f'Error al guardar archivo: {str(e)}'}, status=500)
             
             file_format = os.path.splitext(import_file.name)[1][1:].lower()
             
-            # Set explicit initial state to give immediate UI feedback
-            from django.core.cache import cache
+            # Set explicit initial state
             cache_key = f"import_ordenes_progress_{request.user.id}"
             cache.set(cache_key, {
                 'current': 0, 'total': 0, 
@@ -1015,10 +1031,18 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             }, 3600)
 
             from .tasks import import_ordenes_task
-            print(f"🚀 Despachando tarea Celery para: {path}")
-            task = import_ordenes_task.delay(path, file_format, request.user.id)
+            try:
+                t_task_start = time.time()
+                print(f"🚀 [DEBUG] Enviando tarea a Celery... (Broker: {os.environ.get('CELERY_BROKER_URL', 'default')})")
+                task = import_ordenes_task.delay(path, file_format, request.user.id)
+                print(f"✅ [DEBUG] Tarea enviada en {time.time() - t_task_start:.2f}s | Task ID: {task.id}")
+            except Exception as e:
+                print(f"❌ [DEBUG] Error al enviar tarea a Celery: {str(e)}")
+                return JsonResponse({'status': 'error', 'message': f'Error de Celery: {str(e)}'}, status=500)
             
+            print(f"🏁 [DEBUG] import_process_view finalizado en {time.time() - start_time:.2f}s")
             return JsonResponse({'status': 'started', 'task_id': task.id})
+        
         return JsonResponse({'status': 'error', 'message': 'No se recibió ningún archivo'}, status=400)
 
     def import_progress_api(self, request):
