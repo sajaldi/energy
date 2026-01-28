@@ -206,6 +206,17 @@
                         progressFill.style.width = '100%';
 
                         if (data.verification_mode) {
+                            let missingBtn = '';
+                            if (data.missing_file_url) {
+                                missingBtn = `
+                                    <div style="margin-top: 15px;">
+                                        <a href="${data.missing_file_url}" class="button" style="background: #2563eb; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">
+                                            📊 Descargar Faltantes (${data.missing_count})
+                                        </a>
+                                    </div>
+                                `;
+                            }
+
                             Swal.fire({
                                 title: '¡Verificación Completada!',
                                 html: `
@@ -213,6 +224,7 @@
                                     <p>✅ <b>Encontrados (Ya existen):</b> ${data.found}</p>
                                     <p>🆕 <b>No encontrados (Nuevos):</b> ${data.not_found}</p>
                                     <p>⚠️ <b>Repetidos en archivo:</b> ${data.duplicates || 0}</p>
+                                    ${missingBtn}
                                     <hr>
                                     <div style="max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: monospace;">
                                         ${data.results.join('<br>')}
@@ -224,6 +236,18 @@
                             });
                             resetUI();
                         } else {
+                            let missingBtn = '';
+                            if (data.missing_file_url) {
+                                missingBtn = `
+                                    <div style="margin-top: 15px; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px; border-radius: 6px;">
+                                        <p style="margin: 0 0 10px 0; color: #92400e; font-size: 0.9rem;">Se detectaron items que no existen en el sistema:</p>
+                                        <a href="${data.missing_file_url}" class="button" style="background: #d97706; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold; font-size: 0.9rem;">
+                                            📥 Descargar Plantilla de Faltantes
+                                        </a>
+                                    </div>
+                                `;
+                            }
+
                             Swal.fire({
                                 title: '¡Importación Finalizada!',
                                 html: `
@@ -232,6 +256,7 @@
                                     <p>🔄 <b>Actualizadas:</b> ${data.updated}</p>
                                     <p>⏭️ <b>Omitidas:</b> ${data.skipped}</p>
                                     <p>❌ <b>Errores:</b> ${data.errors}</p>
+                                    ${missingBtn}
                                 </div>
                             `,
                                 icon: 'success',
