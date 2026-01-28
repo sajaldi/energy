@@ -513,56 +513,22 @@ class RutinaAdmin(ImportExportModelAdmin):
 
     def get_urls(self):
         urls = super().get_urls()
+        from .views import import_rutinas
         custom_urls = [
-            path('import-background/', self.admin_site.admin_view(self.import_background_view), name='mantenimiento_rutina_import_background'),
-            path('import-background/process/', self.admin_site.admin_view(self.import_process_view), name='mantenimiento_rutina_import_process'),
-            path('import-background/progress/', self.admin_site.admin_view(self.import_progress_api), name='mantenimiento_rutina_import_progress'),
+            path('import-background/', self.admin_site.admin_view(import_rutinas.import_rutinas_background), name='mantenimiento_rutina_import_background'),
+            path('import-background/process/', self.admin_site.admin_view(import_rutinas.import_rutinas_process), name='mantenimiento_rutina_import_process'),
+            path('import-background/progress/', self.admin_site.admin_view(import_rutinas.import_rutinas_progress), name='mantenimiento_rutina_import_progress'),
+            path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_rutina_import_template'),
         ]
         return custom_urls + urls
 
-    def import_background_view(self, request):
-        """Renders the upload form for background import."""
-        context = self.admin_site.each_context(request)
-        context['opts'] = self.model._meta
-        return render(request, 'admin/mantenimiento/rutina/import_background.html', context)
+    def download_template_view(self, request):
+        """Genera un archivo Excel vacío con las cabeceras del recurso de Rutinas"""
+        dataset = RutinaResource().export(queryset=Rutina.objects.none())
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="formato_importacion_rutinas.xlsx"'
+        return response
 
-    def import_process_view(self, request):
-        """Triggers the Celery task for importing routines."""
-        if request.method != 'POST':
-            return JsonResponse({'error': 'Method not allowed'}, status=405)
-        
-        import_file = request.FILES.get('import_file')
-        if not import_file:
-            return JsonResponse({'error': 'No file uploaded'}, status=400)
-        
-        from django.core.files.storage import default_storage
-        from django.core.files.base import ContentFile
-        import os
-
-        # Save file to temporary storage
-        path = default_storage.save(f'tmp/import_rutinas_{request.user.id}_{int(time.time())}.{import_file.name.split(".")[-1]}', ContentFile(import_file.read()))
-        file_format = import_file.name.split('.')[-1].lower()
-        
-        # Trigger Celery task
-        from .tasks import import_rutinas_task
-        task = import_rutinas_task.delay(path, file_format, user_id=request.user.id)
-        
-        return JsonResponse({'task_id': task.id})
-
-    def import_progress_api(self, request):
-        """API to poll progress for routine import."""
-        task_id = request.GET.get('task_id')
-        from django.core.cache import cache
-        cache_key = f"import_rutinas_progress_{request.user.id}"
-        progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
-        
-        # Add task state for extra safety
-        from celery.result import AsyncResult
-        res = AsyncResult(task_id)
-        # Asegurar que siempre haya un estado válido para el JS
-        progress['state'] = res.state if res else 'PENDING'
-        
-        return JsonResponse(progress)
     
     @admin.action(description="📥 Exportar seleccionadas a Excel")
     def exportar_seleccionadas_action(self, request, queryset):

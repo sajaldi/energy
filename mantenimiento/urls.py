@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views import import_rutinas
 
 app_name = 'mantenimiento'
 
@@ -32,4 +33,9 @@ urlpatterns = [
     path('app/crear-ot-rutina/<int:rutina_id>/', views.mobile_crear_ot_rutina, name='mobile_crear_ot_rutina'),
     path('dashboard-cargas/', views.dashboard_cargas, name='dashboard_cargas'),
     path('proyeccion-generar/api/', views.api_generar_orden_individual, name='api_generar_orden_individual'),
+
+    # Importación de Rutinas (Aislada)
+    path('import-rutinas/', import_rutinas.import_rutinas_background, name='rutina_import_background'),
+    path('import-rutinas/process/', import_rutinas.import_rutinas_process, name='rutina_import_process'),
+    path('import-rutinas/progress/', import_rutinas.import_rutinas_progress, name='rutina_import_progress'),
 ]

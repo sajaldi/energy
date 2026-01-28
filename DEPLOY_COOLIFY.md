@@ -26,6 +26,8 @@ git push
    CELERY_BROKER_URL=redis://redis:6379/0
    CELERY_RESULT_BACKEND=django-db
    ALLOWED_HOSTS=tu-dominio.com,*.coolify.io
+   CSRF_TRUSTED_ORIGINS=https://tu-dominio.com
+   AWS_S3_ENDPOINT_URL=https://tu-minio-endpoint.com  # O la IP/DNS interna si usas MinIO en Coolify
    ```
 
 3. **Configurar Base de Datos**

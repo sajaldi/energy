@@ -100,7 +100,8 @@ def import_ubicaciones_task(self, file_path, file_format):
     
     # Limpiar archivo temporal
     try:
-        os.remove(file_path)
+        if default_storage.exists(file_path):
+            default_storage.delete(file_path)
     except:
         pass
     

@@ -95,6 +95,17 @@ def import_rutinas_task(self, file_path, file_format, user_id=None):
     except:
         pass
         
+    # Recopilar errores detallados
+    detailed_errors = []
+    try:
+        for error in result.base_errors:
+            detailed_errors.append(f"Error General: {str(error.error)}")
+        for line, errors in result.row_errors():
+            for error in errors:
+                msg = f"Fila {line}: {str(error.error)}"
+                detailed_errors.append(msg)
+    except: pass
+
     final_res = {
         'status': 'completed',
         'total': total_rows,
@@ -102,6 +113,7 @@ def import_rutinas_task(self, file_path, file_format, user_id=None):
         'updated': result.totals.get('update', 0),
         'skipped': result.totals.get('skip', 0),
         'errors': len(result.base_errors) + len(result.row_errors()),
+        'error_list': detailed_errors
     }
     cache.set(cache_key, final_res, 3600)
     return final_res
