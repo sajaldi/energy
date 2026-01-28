@@ -32,7 +32,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena '
 # ALLOWED_HOSTS
 # En producción, esto debe incluir los dominios o IPs de Coolify/tu servidor.
 # Se recomienda usar una variable de entorno centrada en comas.
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get('ALLOWED_HOSTS', '*').split(',')]
 
 # URL base para el sitio (usada para generar links en PDFs de firmas)
 # En producción, configurar esto como variable de entorno o poner el dominio real
@@ -42,7 +42,7 @@ SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
 # Por ejemplo, si tu Coolify tiene un IP público o un dominio personalizado.
 
 # Configuración CSRF para producción
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')]
 
 # Configuración para Proxy Inverso (Coolify/Nginx/Traefik)
 # Confía en la cabecera X-Forwarded-Proto para determinar si la conexión es segura
