@@ -18,6 +18,7 @@ import datetime as dt_python
 from import_export.widgets import ForeignKeyWidget, DurationWidget, ManyToManyWidget, DateTimeWidget
 from activos.models import Activo, Ubicacion
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 class CategoriaResource(resources.ModelResource):
     """
@@ -981,7 +982,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/import_background.html', context)
 
-    @csrf_exempt
+    @method_decorator(csrf_exempt)
     def import_process_view(self, request):
         """Inicia la tarea de Celery"""
         if request.method == 'POST' and request.FILES.get('file'):
