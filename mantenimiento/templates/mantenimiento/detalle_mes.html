@@ -640,7 +640,10 @@
             <table>
                 <thead>
                     <tr>
-                        <th class="sticky-col month-header">Estructura de Mantenimiento</th>
+                        <th class="sticky-col month-header">
+                            {% if view_mode == 'ubicacion' %}Estructura de Ubicaciones{% else %}Estructura de
+                            Mantenimiento{% endif %}
+                        </th>
                         {% for d in days_range %}
                         <th class="day-header {% if d in non_working_days %}non-working-day{% endif %}">{{ d }}</th>
                         {% endfor %}
@@ -811,8 +814,8 @@
 
     <script>
         let pendingMoves = null; // {ids, date}
-        const currentYear = {{ year|default:2026 }};
-        const currentMonth = {{ month|default:1 }};
+        const currentYear = {{ year|default: 2026 }};
+        const currentMonth = {{ month|default: 1 }};
 
         // Persistencia del árbol
         document.addEventListener('DOMContentLoaded', () => {
