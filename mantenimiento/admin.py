@@ -300,6 +300,54 @@ class ManyToManyCodeWidget(ManyToManyWidget):
             return ""
         return ", ".join([str(obj.codigo_interno) for obj in value.all()])
 
+class SmartHierarchicalWidget(ForeignKeyWidget):
+    """
+    Widget inteligente que resuelve ubicaciones jerárquicas desambiguando por el padre.
+    Soporta formatos: "Padre -> Hijo", "Padre | Hijo", "Padre - Hijo".
+    """
+    def clean(self, value, row=None, *args, **kwargs):
+        val_str = str(value).strip()
+        if not val_str:
+            return None
+            
+        import re
+        # Dividir por separadores comunes
+        parts = [p.strip() for p in re.split(r'\s*(?:->|\||-)\s*', val_str) if p.strip()]
+        
+        if not parts:
+            return None
+            
+        leaf_name = parts[-1]
+        
+        # 1. Búsqueda por nombre exacto (case-insensitive)
+        candidates = self.model.objects.filter(nombre__iexact=leaf_name)
+        
+        count = candidates.count()
+        if count == 0:
+            raise ValueError(f"No existe ubicación con nombre '{leaf_name}'")
+            
+        if count == 1:
+            return candidates.first()
+            
+        # 2. Desambiguación usando el padre inmediato (si existe en el string)
+        if len(parts) > 1:
+            parent_name = parts[-2]
+            # Filtrar aquellos candidatos cuyo padre llame igual
+            filtered = candidates.filter(padre__nombre__iexact=parent_name)
+            
+            if filtered.count() == 1:
+                return filtered.first()
+                
+            if filtered.count() > 1:
+                raise ValueError(f"Ambigüedad persistente: {filtered.count()} ubicaciones '{leaf_name}' tienen padre '{parent_name}'.")
+                
+            # Si no coincide el padre directo, reportar error claro
+            raise ValueError(f"Conflicto: Se encontró '{leaf_name}' pero ninguno pertenece a '{parent_name}'.")
+            
+        # Si hay duplicados y no se dio contexto de padre
+        names = [f"{c.nombre} (Padre: {c.padre})" for c in candidates[:3]]
+        raise ValueError(f"Ambigüedad: '{leaf_name}' existe {count} veces. Usa formato 'Padre -> Hijo'. Ejemplos: {', '.join(names)}...")
+
 class OrdenTrabajoResource(resources.ModelResource):
     rutina_codigo = fields.Field(
         column_name='rutina_codigo',
@@ -309,7 +357,7 @@ class OrdenTrabajoResource(resources.ModelResource):
     ubicacion_nombre = fields.Field(
         column_name='ubicacion_nombre',
         attribute='ubicacion',
-        widget=ForeignKeyWidget(Ubicacion, field='nombre')
+        widget=SmartHierarchicalWidget(Ubicacion, field='nombre')
     )
     tecnico_usuario = fields.Field(
         column_name='tecnico_usuario',
@@ -347,6 +395,36 @@ class OrdenTrabajoResource(resources.ModelResource):
             val = str(row.get(key, '')).strip()
             if val in ['None', 'nan', 'NULL', '']:
                 row[key] = None
+
+        # Fix de ubicaciones removido: lo maneja SmartHierarchicalWidget para evitar ambigüedades.
+
+        # Calculo automático de fin_programado si falta
+        inicio_str = row.get('inicio_programado')
+        fin_str = row.get('fin_programado')
+        rutina_code = row.get('rutina_codigo')
+
+        if inicio_str and not fin_str and rutina_code:
+            try:
+                from datetime import datetime, timedelta
+                # Intentar parsear inicio (asumimos formato Excel/CSV común)
+                # Ojo: esto depende del LC_TIME o settings, pero probaremos formatos estándar
+                formats = ['%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M', '%Y-%m-%d %H:%M', '%d/%m/%Y %H:%M:%S']
+                inicio_dt = None
+                for fmt in formats:
+                    try:
+                        inicio_dt = datetime.strptime(str(inicio_str).strip(), fmt)
+                        break
+                    except ValueError: continue
+                
+                if inicio_dt:
+                    rutina = Rutina.objects.filter(codigo_rutina=rutina_code).first()
+                    if rutina:
+                        duration = rutina.tiempo_estimado or timedelta(hours=1)
+                        fin_dt = inicio_dt + duration
+                        row['fin_programado'] = fin_dt.strftime('%Y-%m-%d %H:%M:%S')
+            except Exception as e:
+                # Si falla el cálculo, dejamos que falle la validación normal o siga null
+                pass
 
 class PasoProcedimientoInline(admin.TabularInline):
     model = PasoProcedimiento
@@ -840,15 +918,16 @@ from documentos.admin_mayan import MayanDocumentInline
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'ubicacion', 'get_activos_format', 'tecnico', 'equipo', 'estado', 'registrar_salida_link', 'generar_permiso_action')
+    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'get_ubicacion_jerarquia', 'get_activos_format', 'tecnico', 'equipo', 'estado', 'registrar_salida_link', 'generar_permiso_action')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'equipo')
     readonly_fields = ('registrar_salida_link',)
     list_select_related = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
     search_fields = ('id', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
-    autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
+    autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion', 'activos')
+    ordering = ('-id',)
     date_hierarchy = 'inicio_programado'
     raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
-    filter_horizontal = ('activos',)
+    # filter_horizontal = ('activos',)
     inlines = [CierreOrdenTrabajoInline, MovimientoInventarioInline, PermisosTrabajoInline, ValorPasoOrdenInline, MayanDocumentInline]
 
 
@@ -865,6 +944,13 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         if count == 1: return activos_list[0].nombre
         return f"{count} activos"
     get_activos_format.short_description = 'Activos'
+
+    def get_ubicacion_jerarquia(self, obj):
+        if obj.ubicacion:
+            return obj.ubicacion.get_ruta_completa()
+        return "-"
+    get_ubicacion_jerarquia.short_description = 'Ubicación'
+    get_ubicacion_jerarquia.admin_order_field = 'ubicacion__nombre'
 
     def get_descripcion(self, obj):
         if obj.rutina:
@@ -941,6 +1027,15 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             
             file_format = os.path.splitext(import_file.name)[1][1:].lower()
             
+            # Set explicit initial state to give immediate UI feedback
+            from django.core.cache import cache
+            cache_key = f"import_ordenes_progress_{request.user.id}"
+            cache.set(cache_key, {
+                'current': 0, 'total': 0, 
+                'status': 'En cola de procesamiento (asegúrate de que Celery esté corriendo)...', 
+                'percent': 0
+            }, 300)
+
             from .tasks import import_ordenes_task
             task = import_ordenes_task.delay(path, file_format, request.user.id)
             

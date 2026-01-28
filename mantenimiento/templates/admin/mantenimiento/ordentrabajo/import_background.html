@@ -265,6 +265,21 @@
         if (data.status && data.status !== 'waiting') {
             addLog(data.status);
         }
+
+        if (data.error_list && data.error_list.length > 0) {
+            // Mostrar errores detallados en el log con estilo diferente
+            data.error_list.forEach(err => {
+                const log = document.getElementById('logContainer');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.style.borderLeftColor = '#ef4444'; // Red
+                entry.style.background = 'rgba(239, 68, 68, 0.1)';
+                entry.innerText = `❌ ${err}`;
+                log.prepend(entry);
+            });
+            // Limpiar para no repetir si se sigue polleando (aunque debería parar)
+            data.error_list = [];
+        }
     }
 
     function addLog(msg) {
