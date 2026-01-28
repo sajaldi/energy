@@ -47,6 +47,8 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
         return error_res
 
     total_rows = len(dataset)
+    missing_dataset = Dataset()
+    missing_dataset.headers = dataset.headers
     
     # Estado inicial
     progress_info = {
@@ -76,8 +78,10 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
             codigo = str(row.get('codigo_rutina') or '').strip()
             
             if not codigo:
-                status = "SIN CÓDIGO"
+                status = "SIN CODIGO"
                 not_found_count += 1
+                # Agregar a faltantes si tiene nombre o algo mas
+                missing_dataset.append(dataset[i-1])
             else:
                 if codigo in codes_seen:
                     codes_duplicated.add(codigo)
@@ -91,8 +95,9 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
                     else:
                         not_found_count += 1
                         status = "NO EXISTE"
+                        missing_dataset.append(dataset[i-1])
             
-            results.append(f"Fila {i}: Código '{codigo}' -> {status}")
+            results.append(f"Fila {i}: Codigo '{codigo}' -> {status}")
             
             if i % 10 == 0 or i == total_rows:
                 progress_info.update({
@@ -124,6 +129,13 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
         
         for i, row in enumerate(dataset.dict, start=1):
             try:
+                # Verificar si existe para agregarlo a faltantes si falla
+                codigo = str(row.get('codigo_rutina') or '').strip()
+                if codigo:
+                    exists = Rutina.objects.filter(codigo_rutina=codigo).exists()
+                    if not exists:
+                        missing_dataset.append(dataset[i-1])
+
                 if i % 5 == 0 or i == total_rows:
                     progress_info.update({
                         'current': i,
@@ -168,7 +180,19 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
             'verification_mode': False
         }
 
-    # Limpiar archivo
+    # Si hay códigos faltantes, generar el archivo Excel
+    if len(missing_dataset) > 0:
+        try:
+            from django.core.files.base import ContentFile
+            missing_filename = f"imports/faltantes_rutinas_{user_id or 'anon'}_{int(time.time())}.xlsx"
+            default_storage.save(missing_filename, ContentFile(missing_dataset.xlsx))
+            # Generar URL (si es S3 sera firmada, si es local sera relativa)
+            final_res['missing_file_url'] = default_storage.url(missing_filename)
+            final_res['missing_count'] = len(missing_dataset)
+        except Exception as e:
+            print(f"Error al generar archivo de faltantes: {str(e)}")
+
+    # Limpiar archivo original
     try:
         if default_storage.exists(file_path):
             default_storage.delete(file_path)
