@@ -32,14 +32,26 @@ def import_rutinas_process(request):
     if not import_file:
         return JsonResponse({'error': 'No file uploaded'}, status=400)
     
+    print(f"📁 [Rutinas] Recibido archivo: {import_file.name} ({import_file.size} bytes)")
+    
     # Save file to temporary storage using chunks
-    path = default_storage.save(temp_name, import_file)
+    file_ext = import_file.name.split('.')[-1].lower()
+    temp_name = f'tmp/import_rutinas_{request.user.id}_{int(time.time())}.{file_ext}'
+    
+    try:
+        print(f"⏳ [Rutinas] Guardando archivo: {temp_name}...")
+        path = default_storage.save(temp_name, import_file)
+        print(f"✅ [Rutinas] Archivo guardado: {path}")
+    except Exception as e:
+        print(f"❌ [Rutinas] Error al guardar: {str(e)}")
+        return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
     
     # Trigger Celery task
     verification_mode = request.POST.get('verification_mode') == 'true'
+    print(f"🚀 [Rutinas] Despachando tarea (verificion={verification_mode}) para: {path}")
     task = import_rutinas_task.delay(path, file_ext, user_id=request.user.id, verification_mode=verification_mode)
     
-    return JsonResponse({'task_id': task.id})
+    return JsonResponse({'status': 'started', 'task_id': task.id})
 
 @staff_member_required
 def import_rutinas_progress(request):
