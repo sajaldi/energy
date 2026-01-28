@@ -31,10 +31,8 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena '
 
 # ALLOWED_HOSTS
 # En producción, esto debe incluir los dominios o IPs de Coolify/tu servidor.
-# Si Coolify usa un proxy inverso (como Nginx), a menudo puedes usar '*' si confías en el proxy,
-# pero es mejor ser explícito.
-# Los valores de ngrok y sslip.io son para desarrollo/pruebas.
-ALLOWED_HOSTS = ['*']
+# Se recomienda usar una variable de entorno centrada en comas.
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # URL base para el sitio (usada para generar links en PDFs de firmas)
 # En producción, configurar esto como variable de entorno o poner el dominio real
@@ -42,24 +40,15 @@ SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
 
 # Si vas a usar una IP específica o dominio en Coolify, agrégala aquí.
 # Por ejemplo, si tu Coolify tiene un IP público o un dominio personalizado.
-# ALLOWED_HOSTS = ['vwgkccc84sowck4wg44gk40g.10.30.1.11.sslip.io', 'your_coolify_ip', 'localhost', '127.0.0.1','181.115.47.107']
 
-# Configuración CSRF para ngrok (generalmente no necesaria en producción directa con Coolify)
-# En producción, Coolify manejará esto o tu dominio final.
-# CSRF_TRUSTED_ORIGINS = ['https://heavily-magical-mullet.ngrok-free.app','http://181.115.47.107:3000']
-# Puedes mantener esto si necesitas ngrok para depuración remota.
-# Para producción, es probable que no necesites especificar esto, ya que CSRF manejará tu dominio real.
-CSRF_TRUSTED_ORIGINS = [
-    'https://*.ngrok-free.app', # Para ngrok
-    'https://*.ngrok.io',       # Para ngrok
-    'http://localhost:3000', 
-    'http://181.115.47.107:3000',
-    'https://juda7.work',
-    # Si usas algún frontend en este puerto local
-    # Añade aquí el dominio o IP de tu aplicación en Coolify, si es necesario.
-    # Por ejemplo: 'https://your-coolify-domain.com',
-    # 'http://your-coolify-ip',
-]
+# Configuración CSRF para producción
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')
+
+# Configuración para Proxy Inverso (Coolify/Nginx/Traefik)
+# Confía en la cabecera X-Forwarded-Proto para determinar si la conexión es segura
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 
 # Mayan EDMS Configuration
 MAYAN_EDMS_URL = 'http://181.115.47.107:8090'
@@ -233,7 +222,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', 'rootminio')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', 'PasswordRoot07')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-media')
-AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
+AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://181.115.47.107:9000')
 AWS_S3_USE_SSL = False
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'  # Necesario para compatibilidad con el Proxy de Apache
@@ -373,11 +362,12 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-# Cache compartida para que Celery y Django (runserver) se vean
+# Caché compartida para que Celery y Django (runserver) se vean
+# En producción (Coolify), usamos Redis para que todos los contenedores vean la misma caché
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': os.path.join(BASE_DIR, 'django_cache'),
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': CELERY_BROKER_URL,
     }
 }
 
