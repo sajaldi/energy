@@ -132,6 +132,7 @@ def calendario_detallado(request):
                 ruts_final = []
                 for r_id in sorted(tree[d_nom][s_nom][f_key_tuple].keys()):
                     r_data = tree[d_nom][s_nom][f_key_tuple][r_id]
+                    ubicaciones_list = []
                     for loc_name in sorted(r_data['ubicaciones'].keys()):
                         loc_data = r_data['ubicaciones'][loc_name]
                         celdas = []
