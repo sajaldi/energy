@@ -363,7 +363,12 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 # Celery Configuration Options
 # En desarrollo usa localhost, en producción usa el nombre del servicio o la URL completa de Redis
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-print(f"[DEBUG] Redis URL en uso: {CELERY_BROKER_URL}")
+if not DEBUG and 'localhost' in CELERY_BROKER_URL:
+    # Hotfix: URL detectada en el dashboard de Coolify
+    CELERY_BROKER_URL = 'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'
+    print(f"[DEBUG] [HOTFIX] Usando URL interna de Redis: {CELERY_BROKER_URL}")
+
+print(f"[DEBUG] Redis URL final: {CELERY_BROKER_URL}")
 import sys
 sys.stdout.flush()
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'django-db')
