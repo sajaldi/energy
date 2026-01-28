@@ -1,0 +1,151 @@
+{% load i18n admin_urls static admin_modify %}
+
+<div class="inline-group sharepoint-container" id="{{ inline_admin_formset.formset.prefix }}-group">
+    <div class="tabular inline-related {% if forloop.last %}last-related{% endif %}">
+        {{ inline_admin_formset.formset.management_form }}
+        <fieldset class="module {{ inline_admin_formset.classes }}">
+            {% if inline_admin_formset.formset.max_num == 1 %}
+            <h2>{{ inline_admin_formset.opts.verbose_name|capfirst }}</h2>
+            {% else %}
+            <h2>{{ inline_admin_formset.opts.verbose_name_plural|capfirst }}</h2>
+            {% endif %}
+
+            {{ inline_admin_formset.formset.non_form_errors }}
+
+            <table>
+                <thead>
+                    <tr>
+                        <th class="file-icon-column"></th>
+                        <th>{% trans "Nombre del Archivo" %}</th>
+                        <th>{% trans "Descripción" %}</th>
+                        <th>{% trans "Vista Previa" %}</th>
+                        <th>{% trans "Acciones" %}</th>
+                        {% if inline_admin_formset.formset.can_delete %}<th>{% trans "Eliminar?" %}</th>{% endif %}
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for inline_admin_form in inline_admin_formset %}
+                    {% if inline_admin_form.form.non_field_errors %}
+                    <tr>
+                        <td colspan="5">{{ inline_admin_form.form.non_field_errors }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr class="form-row {% if inline_admin_form.original or inline_admin_form.show_url %}has_original{% endif %}{% if forloop.last and inline_admin_formset.has_add_permission %} empty-form{% endif %}"
+                        id="{{ inline_admin_formset.formset.prefix }}-{% if not forloop.last %}{{ forloop.counter0 }}{% else %}empty{% endif %}">
+
+                        <!-- Hidden Fields -->
+                        <td style="display: none;">
+                            {% if inline_admin_form.needs_explicit_pk_field %}
+                            {{ inline_admin_form.pk_field.field }}
+                            {% endif %}
+
+                            {{ inline_admin_form.fk_field.field }}
+
+                            {% for fieldset in inline_admin_form %}
+                            {% for line in fieldset %}
+                            {% for field in line %}
+                            {% if field.field.is_hidden %} {{ field.field }} {% endif %}
+                            {% endfor %}
+                            {% endfor %}
+                            {% endfor %}
+                        </td>
+
+                        <!-- File Icon -->
+                        <td class="file-icon-column">
+                            <span class="file-icon">
+                                {% with original=inline_admin_form.original %}
+                                {% if original and original.archivo %}
+                                {% with ext=original.archivo.name|lower %}
+                                {% if ".pdf" in ext %}
+                                <i class="fas fa-file-pdf icon-pdf"></i>
+                                {% elif ".doc" in ext or ".docx" in ext %}
+                                <i class="fas fa-file-word icon-word"></i>
+                                {% elif ".xls" in ext or ".xlsx" in ext or ".csv" in ext %}
+                                <i class="fas fa-file-excel icon-excel"></i>
+                                {% elif ".jpg" in ext or ".jpeg" in ext or ".png" in ext or ".gif" in ext %}
+                                <i class="fas fa-file-image icon-image"></i>
+                                {% else %}
+                                <i class="fas fa-file icon-generic"></i>
+                                {% endif %}
+                                {% endwith %}
+                                {% else %}
+                                <i class="fas fa-file-upload icon-generic"></i>
+                                {% endif %}
+                                {% endwith %}
+                            </span>
+                        </td>
+
+                        <!-- Filename / Input File -->
+                        <td class="file-link-cell">
+                            {% for fieldset in inline_admin_form %}
+                            {% for line in fieldset %}
+                            {% for field in line %}
+                            {% if field.field.name == "archivo" %}
+                            {% if field.is_readonly %}
+                            {{ field.contents }}
+                            {% else %}
+                            {{ field.field.errors.as_ul }}
+                            {{ field.field }}
+                            {% endif %}
+                            {% endif %}
+                            {% endfor %}
+                            {% endfor %}
+                            {% endfor %}
+                        </td>
+
+                        <!-- Name/Description -->
+                        <td>
+                            {% for fieldset in inline_admin_form %}
+                            {% for line in fieldset %}
+                            {% for field in line %}
+                            {% if field.field.name == "nombre" %}
+                            {{ field.field.errors.as_ul }}
+                            {{ field.field }}
+                            {% endif %}
+                            {% endfor %}
+                            {% endfor %}
+                            {% endfor %}
+                        </td>
+
+                        <!-- Thumbnail Preview -->
+                        <td>
+                            {% for fieldset in inline_admin_form %}
+                            {% for line in fieldset %}
+                            {% for field in line %}
+                            {% if field.field.name == "vista_previa_thumbnail" %}
+                            {{ field.contents }}
+                            {% endif %}
+                            {% endfor %}
+                            {% endfor %}
+                            {% endfor %}
+                        </td>
+
+                        <!-- Preview Button / Actions -->
+                        <td>
+                            {% for fieldset in inline_admin_form %}
+                            {% for line in fieldset %}
+                            {% for field in line %}
+                            {% if field.field.name == "previsualizar" %}
+                            {{ field.contents }}
+                            {% endif %}
+                            {% endfor %}
+                            {% endfor %}
+                            {% endfor %}
+                        </td>
+
+                        <!-- Delete Checkbox -->
+                        {% if inline_admin_formset.formset.can_delete %}
+                        <td class="delete">
+                            {% if inline_admin_form.original %}
+                            {{ inline_admin_form.deletion_field.field }}
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </fieldset>
+    </div>
+</div>

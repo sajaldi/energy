@@ -246,6 +246,22 @@ class OrdenTrabajoInline(admin.TabularInline):
         # Optimizamos ubicación profundamente para evitar N+1 en la reconstrucción de la ruta completa
         return super().get_queryset(request).select_related('rutina', 'ubicacion__padre__padre', 'tecnico', 'equipo').prefetch_related('activos')
 
+class ProgramacionInline(admin.TabularInline):
+    model = Programacion
+    extra = 0
+    readonly_fields = ('creado_en', 'horario', 'fecha_inicio', 'fecha_fin', 'procesada', 'ver_detalle_link')
+    fields = ('creado_en', 'horario', 'fecha_inicio', 'fecha_fin', 'procesada', 'ver_detalle_link')
+    ordering = ('-creado_en',)
+    can_delete = False
+    show_change_link = True
+    
+    def ver_detalle_link(self, obj):
+        if obj.id:
+            url = reverse('admin:mantenimiento_programacion_change', args=[obj.id])
+            return mark_safe(f'<a href="{url}">🔍 Ver Detalle</a>')
+        return "-"
+    ver_detalle_link.short_description = 'Acciones'
+
 @admin.register(Rutina)
 class RutinaAdmin(ImportExportModelAdmin):
     list_per_page = 50
@@ -256,7 +272,7 @@ class RutinaAdmin(ImportExportModelAdmin):
     autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
     readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link')
     list_select_related = True
-    inlines = [] # Temporalmente vacío hasta que verifiquemos si requiere inlines
+    inlines = [ProgramacionInline] # Agregado historial de programaciones
     actions = ['exportar_seleccionadas_action']
 
     def programar_rutina_link(self, obj):

@@ -1,0 +1,33 @@
+{% extends "admin/edit_inline/tabular.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .total-row td {
+        font-weight: bold;
+        background-color: #f8f9fa;
+        border-top: 2px solid #dee2e6;
+        font-size: 1.1em;
+    }
+</style>
+{% endblock %}
+
+{% block tabular_table_body %}
+{{ block.super }}
+<!-- Footer Row for Total -->
+<tfoot>
+    <tr class="total-row" style="border-top: 2px solid #333;">
+        <td colspan="6" style="text-align: right; padding: 10px;">TOTAL ESTIMADO:</td>
+        <td style="padding: 10px; color: #10b981;">
+            {% if inline_admin_formset.formset.instance.total_estimado %}
+            {{ inline_admin_formset.formset.instance.moneda }} {{
+            inline_admin_formset.formset.instance.total_estimado|floatformat:2 }}
+            {% else %}
+            0.00
+            {% endif %}
+        </td>
+        <td></td>
+    </tr>
+</tfoot>
+{% endblock %}
