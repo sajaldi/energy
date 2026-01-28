@@ -1,0 +1,278 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .import-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 40px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    }
+
+    .import-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .import-header h2 {
+        color: #1e293b;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .import-header p {
+        color: #64748b;
+    }
+
+    .drop-zone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        transition: all 0.3s ease;
+        background: #f8fafc;
+        cursor: pointer;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .drop-zone i {
+        font-size: 48px;
+        color: #3b82f6;
+        margin-bottom: 15px;
+    }
+
+    .progress-container {
+        display: none;
+        margin-top: 30px;
+    }
+
+    .progress-bar-bg {
+        height: 12px;
+        background: #e2e8f0;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 15px;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+        width: 0%;
+        transition: width 0.4s ease;
+    }
+
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .status-card {
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        background: #f1f5f9;
+    }
+
+    .status-card .label {
+        font-size: 12px;
+        color: #64748b;
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .status-card .value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .status-card.success .value {
+        color: #059669;
+    }
+
+    .status-card.error .value {
+        color: #dc2626;
+    }
+
+    .log-container {
+        margin-top: 25px;
+        max-height: 200px;
+        overflow-y: auto;
+        background: #1e293b;
+        color: #f8fafc;
+        padding: 15px;
+        border-radius: 8px;
+        font-family: 'Fira Code', monospace;
+        font-size: 13px;
+    }
+
+    .log-entry {
+        margin-bottom: 5px;
+        border-left: 3px solid #3b82f6;
+        padding-left: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <div class="import-header">
+        <h2>🚀 Importación de Órdenes de Trabajo</h2>
+        <p>Sube tu archivo Excel o CSV para procesar las OTs en segundo plano.</p>
+        <div style="margin-top: 15px;">
+            <a href="template/" class="button"
+                style="background: #059669; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                <i class="fas fa-file-excel"></i> Descargar Formato de Importación
+            </a>
+        </div>
+    </div>
+
+    <form id="importForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="drop-zone" id="dropZone">
+            <input type="file" name="file" id="fileInput" hidden accept=".csv, .xls, .xlsx">
+            <div id="dropZoneContent">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Arrastra tu archivo aquí o <strong>haz clic para buscar</strong></p>
+                <span style="font-size: 12px; color: #94a3b8;">Formatos permitidos: .xlsx, .xls, .csv</span>
+            </div>
+        </div>
+    </form>
+
+    <div class="progress-container" id="progressContainer">
+        <div class="import-header" style="text-align: left; margin-bottom: 15px;">
+            <h3 id="currentStatus" style="font-size: 16px; margin: 0;">Iniciando...</h3>
+        </div>
+
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressBar"></div>
+        </div>
+
+        <div class="status-grid">
+            <div class="status-card">
+                <span class="label">TOTAL</span>
+                <span class="value" id="valTotal">0</span>
+            </div>
+            <div class="status-card success">
+                <span class="label">NUEVOS</span>
+                <span class="value" id="valNew">0</span>
+            </div>
+            <div class="status-card">
+                <span class="label">SALTADOS</span>
+                <span class="value" id="valSkipped">0</span>
+            </div>
+            <div class="status-card error">
+                <span class="label">ERRORES</span>
+                <span class="value" id="valErrors">0</span>
+            </div>
+        </div>
+
+        <div class="log-container" id="logContainer">
+            <div class="log-entry">Esperando respuesta del servidor...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const importForm = document.getElementById('importForm');
+    const progressContainer = document.getElementById('progressContainer');
+
+    dropZone.onclick = () => fileInput.click();
+
+    dropZone.ondragover = (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    };
+
+    dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            startUpload();
+        }
+    };
+
+    fileInput.onchange = () => {
+        if (fileInput.files.length) startUpload();
+    };
+
+    function startUpload() {
+        const formData = new FormData(importForm);
+        dropZone.style.display = 'none';
+        progressContainer.style.display = 'block';
+
+        fetch('process/', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'started') {
+                    pollProgress();
+                } else {
+                    addLog('Error: ' + data.message);
+                }
+            });
+    }
+
+    function pollProgress() {
+        const interval = setInterval(() => {
+            fetch('progress/')
+                .then(res => res.json())
+                .then(data => {
+                    updateUI(data);
+                    if (data.status === 'completed' || data.status === 'error') {
+                        clearInterval(interval);
+                        if (data.status === 'completed') {
+                            addLog('✅ Importación finalizada con éxito.');
+                        }
+                    }
+                });
+        }, 1500);
+    }
+
+    function updateUI(data) {
+        if (data.percent !== undefined) {
+            document.getElementById('progressBar').style.width = data.percent + '%';
+        }
+        if (data.status) {
+            document.getElementById('currentStatus').innerText = data.status === 'completed' ? '¡Completado!' : (data.status || 'Procesando...');
+        }
+
+        document.getElementById('valTotal').innerText = data.total || 0;
+        document.getElementById('valNew').innerText = (data.new || 0) + (data.updated || 0);
+        document.getElementById('valSkipped').innerText = data.skipped || 0;
+        document.getElementById('valErrors').innerText = data.errors || 0;
+
+        if (data.status && data.status !== 'waiting') {
+            addLog(data.status);
+        }
+    }
+
+    function addLog(msg) {
+        const log = document.getElementById('logContainer');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        log.prepend(entry);
+    }
+</script>
+{% endblock %}
