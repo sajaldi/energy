@@ -1073,17 +1073,18 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         
         # 1. Probar Cache/Redis
         from django.conf import settings
-        import redis
-        
-        results['testing_url'] = settings.CELERY_BROKER_URL
+        results['testing_url'] = getattr(settings, 'CELERY_BROKER_URL', 'NOT_SET')
         
         # Prueba 1.A: Ping Directo a Redis (Socket)
         try:
-            print(f"[DEBUG] Test Connectivity: Intentando ping directo a {settings.CELERY_BROKER_URL}")
+            import redis
+            print(f"[DEBUG] Test Connectivity: Intentando ping directo a {results['testing_url']}")
             sys.stdout.flush()
-            r = redis.from_url(settings.CELERY_BROKER_URL, socket_connect_timeout=2, socket_timeout=2)
+            r = redis.from_url(results['testing_url'], socket_connect_timeout=2, socket_timeout=2)
             ping_res = r.ping()
             results['redis_direct_ping'] = f"OK ({ping_res})"
+        except ImportError:
+            results['redis_direct_ping'] = "FAIL: Libreria 'redis' no instalada"
         except Exception as e:
             results['redis_direct_ping'] = f"FAIL: {str(e)}"
             print(f"[DEBUG] Test Connectivity Error (Direct): {str(e)}")

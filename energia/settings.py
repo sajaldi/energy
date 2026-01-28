@@ -363,10 +363,11 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 # Celery Configuration Options
 # En desarrollo usa localhost, en producción usa el nombre del servicio o la URL completa de Redis
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-if not DEBUG and 'localhost' in CELERY_BROKER_URL:
-    # Hotfix: URL detectada en el dashboard de Coolify
+# Hotfix: Si detectamos localhost en un entorno que deberia ser produccion (como sslip.io),
+# forzamos la URL interna de Redis que vimos en el dashboard.
+if 'localhost' in CELERY_BROKER_URL:
     CELERY_BROKER_URL = 'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'
-    print(f"[DEBUG] [HOTFIX] Usando URL interna de Redis: {CELERY_BROKER_URL}")
+    print(f"[DEBUG] [HOTFIX] Forzando URL de Redis interna: {CELERY_BROKER_URL}")
 
 print(f"[DEBUG] Redis URL final: {CELERY_BROKER_URL}")
 import sys
