@@ -32,10 +32,8 @@ def import_rutinas_process(request):
     if not import_file:
         return JsonResponse({'error': 'No file uploaded'}, status=400)
     
-    # Save file to temporary storage
-    file_ext = import_file.name.split('.')[-1].lower()
-    temp_name = f'tmp/import_rutinas_{request.user.id}_{int(time.time())}.{file_ext}'
-    path = default_storage.save(temp_name, ContentFile(import_file.read()))
+    # Save file to temporary storage using chunks
+    path = default_storage.save(temp_name, import_file)
     
     # Trigger Celery task
     verification_mode = request.POST.get('verification_mode') == 'true'
