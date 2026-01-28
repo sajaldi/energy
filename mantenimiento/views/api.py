@@ -14,13 +14,43 @@ from activos.models import Activo, Ubicacion
 def api_update_ot_date(request):
     try:
         data = json.loads(request.body)
-        ot_id = data.get('ot_id')
+        ot_id = str(data.get('ot_id', ''))
         nueva_fecha_str = data.get('nueva_fecha')
         if not ot_id or not nueva_fecha_str:
             return JsonResponse({'status': 'error', 'message': 'Datos incompletos'}, status=400)
+        
+        nueva_date = datetime.strptime(nueva_fecha_str, '%Y-%m-%d').date()
+
+        # Caso 1: Es una proyecciÃ³n (Ghost OT)
+        if ot_id.startswith('proj_'):
+            # Formato: proj_programacionId_fechaOriginal
+            parts = ot_id.split('_')
+            if len(parts) < 3:
+                return JsonResponse({'status': 'error', 'message': 'ID de proyecciÃ³n invÃ¡lido'}, status=400)
+            
+            prog_id = parts[1]
+            fecha_orig_str = parts[2]
+            prog = Programacion.objects.get(id=prog_id)
+            fecha_orig = datetime.strptime(fecha_orig_str, '%Y-%m-%d').date()
+            
+            # Generar la orden para esa fecha (esto la convierte en real)
+            prog.generar_ordenes(fecha_corte=fecha_orig)
+            
+            # Buscar las OTs reciÃ©n creadas para moverlas a la nueva fecha
+            ots = OrdenTrabajo.objects.filter(programacion=prog, inicio_programado__date=fecha_orig)
+            if not ots.exists():
+                return JsonResponse({'status': 'error', 'message': 'No se pudo generar la orden para moverla.'}, status=400)
+            
+            delta = nueva_date - fecha_orig
+            for ot in ots:
+                ot.inicio_programado += delta
+                if ot.fin_programado: ot.fin_programado += delta
+                ot.save()
+            return JsonResponse({'status': 'success', 'message': f'ProyecciÃ³n generada y movida al {nueva_fecha_str}'})
+
+        # Caso 2: Es una OT real
         ot = OrdenTrabajo.objects.get(id=ot_id)
-        nueva_fecha = datetime.strptime(nueva_fecha_str, '%Y-%m-%d').date()
-        delta = nueva_fecha - ot.inicio_programado.date()
+        delta = nueva_date - ot.inicio_programado.date()
         ot.inicio_programado = ot.inicio_programado + delta
         if ot.fin_programado:
             ot.fin_programado = ot.fin_programado + delta
@@ -81,11 +111,25 @@ def api_bulk_update_ot_dates(request):
         if not ot_ids or not nf: return JsonResponse({'status': 'error', 'message': 'Incompleto'}, status=400)
         nueva_fecha = datetime.strptime(nf, '%Y-%m-%d').date(); count = 0
         for oid in ot_ids:
+            oid = str(oid)
             try:
-                ot = OrdenTrabajo.objects.get(id=oid); delta = nueva_fecha - ot.inicio_programado.date()
-                ot.inicio_programado += delta
-                if ot.fin_programado: ot.fin_programado += delta
-                ot.save(); count += 1
+                if oid.startswith('proj_'):
+                    parts = oid.split('_')
+                    if len(parts) < 3: continue
+                    prog_id = parts[1]; fecha_orig = datetime.strptime(parts[2], '%Y-%m-%d').date()
+                    prog = Programacion.objects.get(id=prog_id)
+                    prog.generar_ordenes(fecha_corte=fecha_orig)
+                    ots = OrdenTrabajo.objects.filter(programacion=prog, inicio_programado__date=fecha_orig)
+                    delta = nueva_fecha - fecha_orig
+                    for ot in ots:
+                        ot.inicio_programado += delta
+                        if ot.fin_programado: ot.fin_programado += delta
+                        ot.save(); count += 1
+                else:
+                    ot = OrdenTrabajo.objects.get(id=oid); delta = nueva_fecha - ot.inicio_programado.date()
+                    ot.inicio_programado += delta
+                    if ot.fin_programado: ot.fin_programado += delta
+                    ot.save(); count += 1
             except: continue
         return JsonResponse({'status': 'success', 'message': f'{count} movidas.'})
     except Exception as e: return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
