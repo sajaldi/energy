@@ -1067,56 +1067,14 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         return JsonResponse(data)
 
     def test_connectivity(self, request):
-        """Vista de diagnostico para probar Redis y Storage en produccion"""
-        results = {}
-        import sys
-        
-        # 1. Probar Cache/Redis
+        """Vista de diagnostico simplificada - NO intenta conectar"""
         from django.conf import settings
-        results['testing_url'] = getattr(settings, 'CELERY_BROKER_URL', 'NOT_SET')
-        
-        # Prueba 1.A: Ping Directo a Redis (Socket)
-        try:
-            import redis
-            print(f"[DEBUG] Test Connectivity: Intentando ping directo a {results['testing_url']}")
-            sys.stdout.flush()
-            r = redis.from_url(results['testing_url'], socket_connect_timeout=2, socket_timeout=2)
-            ping_res = r.ping()
-            results['redis_direct_ping'] = f"OK ({ping_res})"
-        except ImportError:
-            results['redis_direct_ping'] = "FAIL: Libreria 'redis' no instalada"
-        except Exception as e:
-            results['redis_direct_ping'] = f"FAIL: {str(e)}"
-            print(f"[DEBUG] Test Connectivity Error (Direct): {str(e)}")
-            sys.stdout.flush()
-
-        # Prueba 1.B: Via Django Cache
-        try:
-            from django.core.cache import cache
-            print("[DEBUG] Test Connectivity: Intentando cache.set")
-            sys.stdout.flush()
-            cache.set('test_ping', 'pong', 5)
-            val = cache.get('test_ping')
-            results['cache'] = f"OK (Ping={val})"
-        except Exception as e:
-            results['cache'] = f"FAIL/TIMEOUT: {str(e)}"
-            print(f"[DEBUG] Test Connectivity Error (Cache): {str(e)}")
-            sys.stdout.flush()
-
-        # 2. Probar Storage
-        try:
-            from django.core.files.storage import default_storage
-            from django.core.files.base import ContentFile
-            path = default_storage.save('test_ping.txt', ContentFile(b'hello'))
-            exists = default_storage.exists(path)
-            if exists:
-                default_storage.delete(path)
-                results['storage'] = "OK (Save/Exists/Delete)"
-            else:
-                results['storage'] = "FAIL (File not found after save)"
-        except Exception as e:
-            results['storage'] = f"ERROR: {str(e)}"
-
+        results = {
+            'status': 'SIMPLIFIED_MODE',
+            'celery_broker_url': getattr(settings, 'CELERY_BROKER_URL', 'NOT_SET'),
+            'cache_backend': settings.CACHES['default']['BACKEND'],
+            'message': 'Esta vista fue simplificada para evitar hangs. Redis y Storage NO fueron probados.'
+        }
         return JsonResponse(results)
 
     def pure_ping(self, request):
