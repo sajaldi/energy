@@ -32,7 +32,8 @@ RUN python manage.py collectstatic --noinput || true
 # Exponer puerto
 EXPOSE 8000
 
-# El comando se define en docker-compose.yml o se puede override
-# Por defecto, ejecutar migraciones y gunicorn
-CMD python manage.py migrate && \
-    gunicorn energia.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 120
+# Dar permisos al script de inicio
+RUN chmod +x /app/start.sh
+
+# El comando se define por el script de inicio (Web por defecto)
+CMD ["/bin/bash", "/app/start.sh"]
