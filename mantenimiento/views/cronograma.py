@@ -389,6 +389,13 @@ def detalle_mes(request, year, month):
     # REVERTING STRATEGY: I will ONLY add the if view_mode == 'ubicacion' block and keep the rest as 'else'.
     # This minimizes checking changes.
     
+    # --- Filtering Logic ---
+    filter_options = sorted([t['label'] for t in tree])
+    filter_q = request.GET.get('filter_q')
+    
+    if filter_q and filter_q != 'TODOS':
+        tree = [t for t in tree if t['label'] == filter_q]
+
     return render(request, 'mantenimiento/detalle_mes.html', {
         'year': year, 'month': month, 
         'mes_nombre': ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][month], 
@@ -396,7 +403,9 @@ def detalle_mes(request, year, month):
         'tree': tree, 
         'programacion_id': programacion_id, 
         'non_working_days': non_working_days,
-        'view_mode': view_mode
+        'view_mode': view_mode,
+        'filter_options': filter_options,
+        'current_filter': filter_q
     })
 
 @staff_member_required

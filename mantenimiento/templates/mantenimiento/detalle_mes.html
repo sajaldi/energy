@@ -617,6 +617,18 @@
             </div>
         </div>
         <div style="display: flex; gap: 12px; align-items: center;">
+            <!-- Filter Dropdown -->
+            <div style="display: flex; align-items: center; gap: 8px; margin-right: 8px;">
+                <select onchange="applyFilter(this.value)"
+                    style="padding: 6px; border: 1px solid var(--border); border-radius: 6px; background: white; font-size: 0.85rem; max-width: 200px;">
+                    <option value="TODOS">Todas las {% if view_mode == 'ubicacion' %}Ubicaciones{% else %}Categorías{% endif %}
+</option>
+                    {% for opt in filter_options %}
+                    <option value="{{ opt }}" {% if current_filter == opt %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <div style="background: #e2e8f0; padding: 4px; border-radius: 8px; display: flex; gap: 4px;">
                 <a href="?year={{ year }}&month={{ month }}&view_mode=sistema{% if programacion_id %}&programacion_id={{ programacion_id }}{% endif %}"
                     class="btn"
@@ -833,6 +845,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             restoreTreeState();
         });
+
+        function applyFilter(val) {
+            const url = new URL(window.location.href);
+            if (val && val !== 'TODOS') {
+                url.searchParams.set('filter_q', val);
+            } else {
+                url.searchParams.delete('filter_q');
+            }
+            window.location.href = url.toString();
+        }
 
         function toggleTree(classTarget, headerRow) {
             const isOpen = headerRow.classList.toggle('open');
