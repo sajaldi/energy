@@ -617,6 +617,18 @@
             </div>
         </div>
         <div style="display: flex; gap: 12px; align-items: center;">
+            <div style="background: #e2e8f0; padding: 4px; border-radius: 8px; display: flex; gap: 4px;">
+                <a href="?year={{ year }}&month={{ month }}&view_mode=sistema{% if programacion_id %}&programacion_id={{ programacion_id }}{% endif %}"
+                    class="btn"
+                    style="text-decoration: none; padding: 6px 12px; font-size: 0.85rem; {% if view_mode != 'ubicacion' %}background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1);{% else %}background: transparent; color: var(--text-muted);{% endif %}">
+                    Sistema
+                </a>
+                <a href="?year={{ year }}&month={{ month }}&view_mode=ubicacion{% if programacion_id %}&programacion_id={{ programacion_id }}{% endif %}"
+                    class="btn"
+                    style="text-decoration: none; padding: 6px 12px; font-size: 0.85rem; {% if view_mode == 'ubicacion' %}background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1);{% else %}background: transparent; color: var(--text-muted);{% endif %}">
+                    Ubicación
+                </a>
+            </div>
             <button onclick="expandAll()" class="btn" style="display: flex; align-items: center; gap: 8px;">
                 <ion-icon name="expand-outline"></ion-icon> Expandir todo
             </button>
@@ -814,8 +826,8 @@
 
     <script>
         let pendingMoves = null; // {ids, date}
-        const currentYear = {{ year|default: 2026 }};
-        const currentMonth = {{ month|default: 1 }};
+        const currentYear = {{ year }};
+        const currentMonth = {{ month }};
 
         // Persistencia del árbol
         document.addEventListener('DOMContentLoaded', () => {
