@@ -963,6 +963,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             path('import-background/process/', csrf_exempt(self.admin_site.admin_view(self.import_process_view)), name='mantenimiento_ordentrabajo_import_process'),
             path('import-background/progress/', self.admin_site.admin_view(self.import_progress_api), name='mantenimiento_ordentrabajo_import_progress'),
             path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_ordentrabajo_import_template'),
+            path('test-connectivity/', self.admin_site.admin_view(self.test_connectivity), name='mantenimiento_ordentrabajo_test_connectivity'),
         ]
         return custom_urls + urls
 
@@ -1063,3 +1064,33 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         if not data:
             return JsonResponse({'status': 'waiting', 'message': 'Esperando inicio de tarea...'})
         return JsonResponse(data)
+
+    def test_connectivity(self, request):
+        """Vista de diagnostico para probar Redis y Storage en produccion"""
+        results = {}
+        import sys
+        
+        # 1. Probar Cache/Redis
+        try:
+            from django.core.cache import cache
+            cache.set('test_ping', 'pong', 10)
+            val = cache.get('test_ping')
+            results['cache'] = f"OK (Ping={val})"
+        except Exception as e:
+            results['cache'] = f"ERROR: {str(e)}"
+
+        # 2. Probar Storage
+        try:
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            path = default_storage.save('test_ping.txt', ContentFile(b'hello'))
+            exists = default_storage.exists(path)
+            if exists:
+                default_storage.delete(path)
+                results['storage'] = "OK (Save/Exists/Delete)"
+            else:
+                results['storage'] = "FAIL (File not found after save)"
+        except Exception as e:
+            results['storage'] = f"ERROR: {str(e)}"
+
+        return JsonResponse(results)
