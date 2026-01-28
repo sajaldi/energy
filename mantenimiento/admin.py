@@ -1,16 +1,19 @@
 from datetime import datetime, timedelta
+import time
 from django.db import models
 from django.db.models import Count
 from django.contrib import admin, messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
 from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso
 from activos.models import Categoria as CategoriaActivo
 from django.utils.safestring import mark_safe
-from django.urls import reverse
+from django.urls import reverse, path
 from inventarios.models import MovimientoInventario
+import datetime as dt_python
 
 class CategoriaResource(resources.ModelResource):
     """
@@ -151,6 +154,53 @@ class TecnicoPuestoAdmin(admin.ModelAdmin):
         return mark_safe(f'<b style="color: {color}; font-size: 13px;">{pct:.1f}%</b> <small style="color: #64748b;">({total_horas:.1f}h / {obj.horas_semanales_max}h)</small>')
     get_carga_semanal.short_description = 'Carga esta Semana'
 
+class FlexibleDurationWidget(DurationWidget):
+    """
+    Widget de duración ultra-flexible que soporta:
+    - Formatos HH:MM (ej: 08:00 -> 8 horas)
+    - Objetos datetime.time de Excel
+    - Números decimales (ej: 1.5 -> 1.5 horas)
+    - Formato estándar de Django (D HH:MM:SS)
+    """
+    def clean(self, value, row=None, *args, **kwargs):
+        if not value:
+            return None
+        
+        # 1. Si ya es un objeto timedelta o similar, dejarlo pasar
+        if isinstance(value, dt_python.timedelta):
+            return value
+            
+        # 2. Si es un objeto time de Python (común en imports de Excel/tablib)
+        if isinstance(value, dt_python.time):
+            return dt_python.timedelta(hours=value.hour, minutes=value.minute, seconds=value.second)
+
+        val_str = str(value).strip()
+        
+        # 3. Caso HH:MM (muy común en Excel)
+        if ":" in val_str and val_str.count(":") == 1:
+            try:
+                h, m = val_str.split(":")
+                return dt_python.timedelta(hours=int(h), minutes=int(m))
+            except (ValueError, TypeError):
+                pass
+        
+        # 4. Caso HH:MM:SS
+        if ":" in val_str and val_str.count(":") == 2:
+            try:
+                h, m, s = val_str.split(":")
+                return dt_python.timedelta(hours=int(h), minutes=int(m), seconds=int(s))
+            except (ValueError, TypeError):
+                pass
+
+        # 5. Caso número decimal (asumimos que son HORAS)
+        try:
+            return dt_python.timedelta(hours=float(val_str))
+        except (ValueError, TypeError):
+            pass
+
+        # Fallback al widget original de import-export
+        return super().clean(value, row, *args, **kwargs)
+
 class RutinaResource(resources.ModelResource):
     """
     Resource personalizado para exportar/importar rutinas.
@@ -161,6 +211,11 @@ class RutinaResource(resources.ModelResource):
     nombre = fields.Field(
         column_name='nombre',
         attribute='nombre'
+    )
+    
+    codigo_rutina = fields.Field(
+        column_name='codigo_rutina',
+        attribute='codigo_rutina'
     )
     
     categoria_nombre = fields.Field(
@@ -189,9 +244,18 @@ class RutinaResource(resources.ModelResource):
     tiempo_estimado = fields.Field(
         column_name='tiempo_estimado',
         attribute='tiempo_estimado',
-        widget=DurationWidget()
+        widget=FlexibleDurationWidget()
     )
     
+    def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
+        """
+        Omitir el registro si no tiene código de rutina.
+        """
+        codigo = row.get('codigo_rutina')
+        if not codigo or str(codigo).strip() in ['None', 'nan', 'NULL', '']:
+            return True
+        return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
+
     def before_import_row(self, row, **kwargs):
         """Limpia los valores 'None' que el exportador genera como texto"""
         for key in list(row.keys()):
@@ -201,10 +265,10 @@ class RutinaResource(resources.ModelResource):
 
     class Meta:
         model = Rutina
-        import_id_fields = ('id',)
-        fields = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 
+        import_id_fields = ('codigo_rutina',) # Usar el código como identificador único para el importador
+        fields = ('id', 'codigo_rutina', 'nombre', 'categoria_nombre', 'categoria_ruta', 
                   'frecuencia_nombre', 'procedimiento_estandar', 'descripcion', 'tiempo_estimado', 'cantidad_tecnicos', 'herramientas')
-        export_order = ('id', 'nombre', 'categoria_nombre', 'categoria_ruta', 
+        export_order = ('id', 'codigo_rutina', 'nombre', 'categoria_nombre', 'categoria_ruta', 
                        'frecuencia_nombre', 'procedimiento_estandar', 'tiempo_estimado', 'cantidad_tecnicos', 'herramientas', 'descripcion')
         skip_unchanged = True
         report_skipped = True
@@ -266,7 +330,7 @@ class ProgramacionInline(admin.TabularInline):
 class RutinaAdmin(ImportExportModelAdmin):
     list_per_page = 50
     resource_class = RutinaResource
-    list_display = ('nombre', 'categoria', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'programar_rutina_link')
+    list_display = ('codigo_rutina', 'nombre', 'categoria', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'programar_rutina_link')
     list_filter = (('categoria', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo')
     search_fields = ('nombre', 'procedimiento_estandar__nombre', 'herramientas')
     autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
@@ -291,7 +355,7 @@ class RutinaAdmin(ImportExportModelAdmin):
     
     fieldsets = (
         ('Identificación', {
-            'fields': (('nombre', 'programar_rutina_link'), 'categoria', 'frecuencia', 'puesto_trabajo')
+            'fields': ('codigo_rutina', ('nombre', 'programar_rutina_link'), 'categoria', 'frecuencia', 'puesto_trabajo')
         }),
         ('Manual de Pasos', {
             'fields': ('procedimiento_estandar', 'herramientas')
@@ -300,6 +364,59 @@ class RutinaAdmin(ImportExportModelAdmin):
             'fields': ('tiempo_estimado', 'cantidad_tecnicos', 'descripcion')
         }),
     )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-background/', self.admin_site.admin_view(self.import_background_view), name='mantenimiento_rutina_import_background'),
+            path('import-background/process/', self.admin_site.admin_view(self.import_process_view), name='mantenimiento_rutina_import_process'),
+            path('import-background/progress/', self.admin_site.admin_view(self.import_progress_api), name='mantenimiento_rutina_import_progress'),
+        ]
+        return custom_urls + urls
+
+    def import_background_view(self, request):
+        """Renders the upload form for background import."""
+        context = self.admin_site.each_context(request)
+        context['opts'] = self.model._meta
+        return render(request, 'admin/mantenimiento/rutina/import_background.html', context)
+
+    def import_process_view(self, request):
+        """Triggers the Celery task for importing routines."""
+        if request.method != 'POST':
+            return JsonResponse({'error': 'Method not allowed'}, status=405)
+        
+        import_file = request.FILES.get('import_file')
+        if not import_file:
+            return JsonResponse({'error': 'No file uploaded'}, status=400)
+        
+        from django.core.files.storage import default_storage
+        from django.core.files.base import ContentFile
+        import os
+
+        # Save file to temporary storage
+        path = default_storage.save(f'tmp/import_rutinas_{request.user.id}_{int(time.time())}.{import_file.name.split(".")[-1]}', ContentFile(import_file.read()))
+        file_format = import_file.name.split('.')[-1].lower()
+        
+        # Trigger Celery task
+        from .tasks import import_rutinas_task
+        task = import_rutinas_task.delay(path, file_format, user_id=request.user.id)
+        
+        return JsonResponse({'task_id': task.id})
+
+    def import_progress_api(self, request):
+        """API to poll progress for routine import."""
+        task_id = request.GET.get('task_id')
+        from django.core.cache import cache
+        cache_key = f"import_rutinas_progress_{request.user.id}"
+        progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
+        
+        # Add task state for extra safety
+        from celery.result import AsyncResult
+        res = AsyncResult(task_id)
+        # Asegurar que siempre haya un estado válido para el JS
+        progress['state'] = res.state if res else 'PENDING'
+        
+        return JsonResponse(progress)
     
     @admin.action(description="📥 Exportar seleccionadas a Excel")
     def exportar_seleccionadas_action(self, request, queryset):

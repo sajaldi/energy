@@ -3,6 +3,16 @@ from import_export import resources
 from .models import Ubicacion, Activo, Plano
 import time
 
+def try_decode(content, encodings=['utf-8-sig', 'iso-8859-1', 'windows-1252', 'utf-8']):
+    """Intenta decodificar el contenido usando una lista de encodings prioritarios."""
+    for encoding in encodings:
+        try:
+            return content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    # Si ninguno funciona, forzar utf-8 ignorando errores para que al menos no rompa la tarea
+    return content.decode('utf-8', errors='ignore')
+
 @shared_task(bind=True)
 def import_ubicaciones_task(self, file_path, file_format):
     """
@@ -26,10 +36,11 @@ def import_ubicaciones_task(self, file_path, file_format):
     from django.core.files.storage import default_storage
     # Leer el archivo
     with default_storage.open(file_path, 'rb') as f:
+        file_content = f.read()
         if file_format == 'csv':
-            dataset = Dataset().load(f.read().decode('utf-8'), format='csv')
+            dataset = Dataset().load(try_decode(file_content), format='csv')
         elif file_format in ['xls', 'xlsx']:
-            dataset = Dataset().load(f.read(), format=file_format)
+            dataset = Dataset().load(file_content, format=file_format)
         else:
             raise ValueError(f"Formato no soportado: {file_format}")
     
@@ -134,7 +145,7 @@ def import_activos_task(self, file_path, file_format, user_id=None, import_name=
         with default_storage.open(file_path, 'rb') as f:
             file_content = f.read()
             if file_format == 'csv':
-                dataset = Dataset().load(file_content.decode('utf-8', errors='ignore'), format='csv')
+                dataset = Dataset().load(try_decode(file_content), format='csv')
             elif file_format in ['xls', 'xlsx']:
                 dataset = Dataset().load(file_content, format=file_format)
             else:
@@ -287,10 +298,11 @@ def import_planos_task(self, file_path, file_format):
     # Leer archivo
     try:
         with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
             if file_format == 'csv':
-                dataset = Dataset().load(f.read().decode('utf-8', errors='ignore'), format='csv')
+                dataset = Dataset().load(try_decode(file_content), format='csv')
             elif file_format in ['xls', 'xlsx']:
-                dataset = Dataset().load(f.read(), format=file_format)
+                dataset = Dataset().load(file_content, format=file_format)
             else:
                 raise ValueError(f"Formato no soportado: {file_format}")
     except FileNotFoundError:
