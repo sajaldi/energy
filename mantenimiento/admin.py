@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import time
 import os
+import sys
 from django.db import models
 from django.db.models import Count
 from django.contrib import admin, messages
@@ -987,10 +988,12 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         """Inicia la tarea de Celery"""
         start_time = time.time()
         print(f"[DEBUG] Inicio import_process_view a las {time.ctime()}")
+        sys.stdout.flush()
 
         if request.method == 'POST' and request.FILES.get('file'):
             import_file = request.FILES['file']
             print(f"[DEBUG] Archivo: {import_file.name} | Tamaño: {import_file.size} bytes")
+            sys.stdout.flush()
             
             from django.core.files.storage import default_storage
             from django.core.cache import cache
@@ -998,23 +1001,29 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             # 1. Probar conexion a Cache/Redis antes de nada
             try:
                 print("[DEBUG] Probando conexion a Redis/Cache...")
+                sys.stdout.flush()
                 cache.set('test_conn', 'ok', 5)
                 if cache.get('test_conn') == 'ok':
                     print("[DEBUG] Conexion a Redis exitosa.")
                 else:
                     print("[DEBUG] Redis no guardo el valor de prueba.")
+                sys.stdout.flush()
             except Exception as e:
                 print(f"[DEBUG] Error de conexion a Redis: {str(e)}")
+                sys.stdout.flush()
 
             filename = f"imports/ots_{request.user.id}_{int(time.time())}_{import_file.name}"
             
             try:
                 t_save_start = time.time()
                 print(f"[DEBUG] Guardando archivo en storage: {filename}...")
+                sys.stdout.flush()
                 path = default_storage.save(filename, import_file)
                 print(f"[DEBUG] Archivo guardado en {time.time() - t_save_start:.2f}s")
+                sys.stdout.flush()
             except Exception as e:
                 print(f"[DEBUG] Error al guardar archivo: {str(e)}")
+                sys.stdout.flush()
                 return JsonResponse({'status': 'error', 'message': f'Error al guardar archivo: {str(e)}'}, status=500)
             
             file_format = os.path.splitext(import_file.name)[1][1:].lower()
@@ -1031,13 +1040,17 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             try:
                 t_task_start = time.time()
                 print(f"[DEBUG] Enviando tarea a Celery... (Broker: {os.environ.get('CELERY_BROKER_URL', 'default')})")
+                sys.stdout.flush()
                 task = import_ordenes_task.delay(path, file_format, request.user.id)
                 print(f"[DEBUG] Tarea enviada en {time.time() - t_task_start:.2f}s | Task ID: {task.id}")
+                sys.stdout.flush()
             except Exception as e:
                 print(f"[DEBUG] Error al enviar tarea a Celery: {str(e)}")
+                sys.stdout.flush()
                 return JsonResponse({'status': 'error', 'message': f'Error de Celery: {str(e)}'}, status=500)
             
             print(f"[DEBUG] import_process_view finalizado en {time.time() - start_time:.2f}s")
+            sys.stdout.flush()
             return JsonResponse({'status': 'started', 'task_id': task.id})
         
         return JsonResponse({'status': 'error', 'message': 'No se recibió ningún archivo'}, status=400)
