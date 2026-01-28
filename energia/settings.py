@@ -363,15 +363,10 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 # Celery Configuration Options
 # En desarrollo usa localhost, en producción usa el nombre del servicio o la URL completa de Redis
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-# Hotfix: Si detectamos localhost en un entorno que deberia ser produccion (como sslip.io),
-# forzamos la URL interna de Redis que vimos en el dashboard.
+# Hotfix: Forzar URL interna si detectamos localhost
 if 'localhost' in CELERY_BROKER_URL:
     CELERY_BROKER_URL = 'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'
-    print(f"[DEBUG] [HOTFIX] Forzando URL de Redis interna: {CELERY_BROKER_URL}")
 
-print(f"[DEBUG] Redis URL final: {CELERY_BROKER_URL}")
-import sys
-sys.stdout.flush()
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'django-db')
 CELERY_CACHE_BACKEND = 'django-cache'
 
@@ -385,18 +380,26 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # Caché compartida para que Celery y Django (runserver) se vean
+# TEMPORALMENTE DESHABILITADA para diagnosticar el problema de conexion
 # En producción (Coolify), usamos Redis para que todos los contenedores vean la misma caché
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': CELERY_BROKER_URL,
-        'OPTIONS': {
-            'socket_timeout': 5,            # No esperar más de 5s por datos
-            'socket_connect_timeout': 5,    # No esperar más de 5s para conectar
-            'retry_on_timeout': True,
-        }
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
     }
 }
+
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+#         'LOCATION': CELERY_BROKER_URL,
+#         'OPTIONS': {
+#             'socket_timeout': 5,            # No esperar más de 5s por datos
+#             'socket_connect_timeout': 5,    # No esperar más de 5s para conectar
+#             'retry_on_timeout': True,
+#         }
+#     }
+# }
 
 # Configuración adicional para producción
 if not DEBUG:
