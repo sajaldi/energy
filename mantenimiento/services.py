@@ -256,3 +256,168 @@ class WorkOrderService:
                 'fin': ot.fin_programado.strftime('%H:%M'), 'fecha': ot.inicio_programado.strftime('%d/%m/%Y'), 'estado': ot.estado
             })
         return tree
+    @staticmethod
+    def get_location_grouped_tree(year, month):
+        """
+        Agrupa órdenes por:
+        1. Ubicación Raíz (Edificio) -> Mapeado a 'sys' en template
+        2. Sub-ubicación (Piso/Área) -> Mapeado a 'sub' en template (key: subs)
+        3. Categoría (Sistema)       -> Mapeado a 'rut' en template (key: rutinas)
+        4. Rutina                    -> Mapeado a 'ubi' en template (key: ubicaciones)
+        5. Activo                    -> Mapeado a 'asset' en template (key: activos)
+        """
+        _, num_days = calendar.monthrange(year, month)
+        days_range = range(1, num_days + 1)
+        
+        ordenes = OrdenTrabajo.objects.filter(
+            inicio_programado__year=year,
+            inicio_programado__month=month
+        ).select_related(
+            'rutina__categoria', 'rutina__frecuencia', 'ubicacion', 'programacion__horario'
+        ).prefetch_related('programacion__horario__dias', 'activos')
+        
+        # Pre-fetch locations and cache hierarchy
+        all_locs = {l.id: l for l in OrdenTrabajo.ubicacion.field.related_model.objects.all()}
+        
+        def get_root_and_sub(loc_id):
+            if not loc_id or loc_id not in all_locs:
+                return ("Sin Ubicación", "General")
+            
+            curr = all_locs[loc_id]
+            # Si no tiene padre, es raiz
+            if not curr.padre_id:
+                return (curr.nombre, "General")
+                
+            # Buscar raiz subiendo
+            path = [curr]
+            p = curr
+            while p.padre_id and p.padre_id in all_locs:
+                p = all_locs[p.padre_id]
+                path.append(p)
+            
+            root = path[-1]
+            # El sub es el hijo directo del root en el path, o el mismo root si es corto
+            # path está ordenado [hoja, ..., raiz]
+            # si len > 1, path[-2] es hijo de raiz
+            sub = path[-2] if len(path) > 1 else root 
+            
+            # Ajuste especifico: Si queremos que Sub-ubicacion sea la ubicación directa de la OT:
+            # return (root.nombre, curr.nombre)
+            
+            # Ajuste para jerarquía estricta (Edificio -> Piso):
+            return (root.nombre, sub.nombre)
+
+        # Structure: Tree[Root][Sub][Category][Routine][AssetKey] -> List of OTs
+        tree = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(list))))))
+        
+        system_colors = {} # To store colors based on root
+        
+        for ot in ordenes:
+            root_name, sub_name = get_root_and_sub(ot.ubicacion_id)
+            
+            cat_name = ot.rutina.categoria.nombre if ot.rutina and ot.rutina.categoria else "Sin Categoría"
+            rut_name = ot.rutina.nombre if ot.rutina else "OT Sin Rutina"
+            
+            # Color logic (optional, reuse existing or random)
+            color = ot.programacion.horario.color if ot.programacion and ot.programacion.horario else '#94a3b8'
+            if root_name not in system_colors:
+                system_colors[root_name] = color
+
+            sd = timezone.localtime(ot.inicio_programado)
+            ed = timezone.localtime(ot.fin_programado or ot.inicio_programado)
+            nc = max(1, math.ceil((ed - sd).total_seconds() / 86400))
+            
+            assets = list(ot.activos.all())
+            
+            for i in range(nc):
+                cd = sd.date() + timedelta(days=i)
+                if cd.year == year and cd.month == month:
+                    dp = 'single' if nc == 1 else ('start' if i == 0 else ('end' if i == nc - 1 else 'middle'))
+                    
+                    base_info = {
+                        'id': ot.id, 
+                        'estado': ot.estado, 
+                        'inicio_iso': sd.strftime('%Y-%m-%d'), 
+                        'inicio_hm': sd.strftime('%H:%M'), 
+                        'fin_full': ed.strftime('%d/%m/%Y %H:%M'), 
+                        'fin_hm': ed.strftime('%H:%M'), 
+                        'rutina_nombre': rut_name, 
+                        'activos_nombres': ", ".join([a.nombre for a in assets]), 
+                        'duration_pos': dp, 
+                        'color': color
+                    }
+
+                    if not assets:
+                        asset_key = (0, "General") 
+                        # Use dict to allow multiple OTs per day per slot
+                        tree[root_name][sub_name][cat_name][rut_name][asset_key][cd.day].append(base_info)
+                    else:
+                        for idx, a in enumerate(assets):
+                            info = base_info.copy()
+                            if len(assets) > 1:
+                                info['group_type'] = 'start' if idx == 0 else ('end' if idx == len(assets) - 1 else 'middle')
+                            
+                            asset_key = (a.id, a.nombre)
+                            tree[root_name][sub_name][cat_name][rut_name][asset_key][cd.day].append(info)
+
+        # Convert to list structure for template
+        ft = []
+        for sys in sorted(tree.keys()): # Root Location
+            subs = []
+            sda = collections.defaultdict(bool)
+            
+            for sub in sorted(tree[sys].keys()): # Sub Location
+                rutinas_mapped = [] # Mapped to 'rutinas' key in template (holds Categories)
+                subda = collections.defaultdict(bool)
+                
+                for cat in sorted(tree[sys][sub].keys()): # Category
+                    ubicaciones_mapped = [] # Mapped to 'ubicaciones' key in template (holds Routines)
+                    rda = collections.defaultdict(bool) # cat activity
+                    
+                    for rut in sorted(tree[sys][sub][cat].keys()): # Routine
+                        assets_l = []
+                        
+                        for ak in sorted(tree[sys][sub][cat][rut].keys(), key=lambda x: x[1]): # Asset
+                            cells = []
+                            for d in days_range:
+                                ots = tree[sys][sub][cat][rut][ak].get(d, [])
+                                active = len(ots) > 0
+                                gt = ots[0].get('group_type') if ots else None
+                                cells.append({'day': d, 'ots': ots, 'active': active, 'group_type': gt})
+                                if active: 
+                                    rda[d] = True
+                                    subda[d] = True
+                                    sda[d] = True
+                            
+                            assets_l.append({'label': ak[1], 'id': ak[0], 'celdas': cells})
+                            
+                        # 'ubicaciones' list item (Actually Routine)
+                        ubicaciones_mapped.append({
+                            'label': rut, 
+                            'celdas': [{'day': d, 'active': any(a['celdas'][d-1]['active'] for a in assets_l)} for d in days_range],
+                            'activos': assets_l
+                        })
+                    
+                    # 'rutinas' list item (Actually Category)
+                    rutinas_mapped.append({
+                        'label': cat,
+                        'celdas': [{'day': d, 'active': rda[d]} for d in days_range],
+                        'ubicaciones': ubicaciones_mapped # Contains Routines
+                    })
+                
+                # 'subs' list item (Sub Location)
+                subs.append({
+                    'label': sub,
+                    'celdas': [{'day': d, 'active': subda[d]} for d in days_range],
+                    'rutinas': rutinas_mapped # Contains Categories
+                })
+            
+            # 'tree' item (Root Location)
+            ft.append({
+                'label': sys,
+                'color': system_colors.get(sys, "#64748b"),
+                'celdas': [{'day': d, 'active': sda[d]} for d in days_range],
+                'subs': subs
+            })
+            
+        return ft
