@@ -363,6 +363,9 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 # Celery Configuration Options
 # En desarrollo usa localhost, en producción usa el nombre del servicio o la URL completa de Redis
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+print(f"[DEBUG] Redis URL en uso: {CELERY_BROKER_URL}")
+import sys
+sys.stdout.flush()
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'django-db')
 CELERY_CACHE_BACKEND = 'django-cache'
 

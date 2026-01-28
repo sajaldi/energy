@@ -1071,6 +1071,8 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         import sys
         
         # 1. Probar Cache/Redis
+        from django.conf import settings
+        results['testing_url'] = settings.CELERY_BROKER_URL
         try:
             from django.core.cache import cache
             cache.set('test_ping', 'pong', 10)
