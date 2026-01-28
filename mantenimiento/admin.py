@@ -12,8 +12,11 @@ from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimie
 from activos.models import Categoria as CategoriaActivo
 from django.utils.safestring import mark_safe
 from django.urls import reverse, path
+from django.contrib.auth.models import User
 from inventarios.models import MovimientoInventario
 import datetime as dt_python
+from import_export.widgets import ForeignKeyWidget, DurationWidget, ManyToManyWidget, DateTimeWidget
+from activos.models import Activo, Ubicacion
 
 class CategoriaResource(resources.ModelResource):
     """
@@ -279,6 +282,71 @@ class RutinaResource(resources.ModelResource):
         if rutina.categoria:
             return rutina.categoria.get_ruta_completa()
         return ''
+
+class ManyToManyCodeWidget(ManyToManyWidget):
+    """
+    Widget para ManyToMany que usa codigo_interno en lugar de ID.
+    Soporta múltiples códigos separados por coma.
+    """
+    def clean(self, value, row=None, *args, **kwargs):
+        if not value:
+            return self.model.objects.none()
+        
+        codes = [c.strip() for c in str(value).split(',') if c.strip()]
+        return self.model.objects.filter(codigo_interno__in=codes)
+
+    def render(self, value, obj=None):
+        if not value:
+            return ""
+        return ", ".join([str(obj.codigo_interno) for obj in value.all()])
+
+class OrdenTrabajoResource(resources.ModelResource):
+    rutina_codigo = fields.Field(
+        column_name='rutina_codigo',
+        attribute='rutina',
+        widget=ForeignKeyWidget(Rutina, field='codigo_rutina')
+    )
+    ubicacion_nombre = fields.Field(
+        column_name='ubicacion_nombre',
+        attribute='ubicacion',
+        widget=ForeignKeyWidget(Ubicacion, field='nombre')
+    )
+    tecnico_usuario = fields.Field(
+        column_name='tecnico_usuario',
+        attribute='tecnico',
+        widget=ForeignKeyWidget(User, field='username')
+    )
+    activos_codigos = fields.Field(
+        column_name='activos_codigos',
+        attribute='activos',
+        widget=ManyToManyCodeWidget(Activo, field='codigo_interno')
+    )
+    
+    inicio_programado = fields.Field(
+        column_name='inicio_programado',
+        attribute='inicio_programado',
+        widget=DateTimeWidget(format='%Y-%m-%d %H:%M:%S')
+    )
+    fin_programado = fields.Field(
+        column_name='fin_programado',
+        attribute='fin_programado',
+        widget=DateTimeWidget(format='%Y-%m-%d %H:%M:%S')
+    )
+
+    class Meta:
+        model = OrdenTrabajo
+        import_id_fields = ('id',)
+        fields = ('id', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
+                  'tecnico_usuario', 'activos_codigos', 'inicio_programado', 'fin_programado', 
+                  'estado', 'notas')
+        export_order = fields
+
+    def before_import_row(self, row, **kwargs):
+        """Limpieza de datos similar a RutinaResource"""
+        for key in list(row.keys()):
+            val = str(row.get(key, '')).strip()
+            if val in ['None', 'nan', 'NULL', '']:
+                row[key] = None
 
 class PasoProcedimientoInline(admin.TabularInline):
     model = PasoProcedimiento
@@ -830,3 +898,60 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     
     generar_permiso_action.short_description = "Permiso de Trabajo"
     generar_permiso_action.allow_tags = True
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-background/', self.admin_site.admin_view(self.import_background_view), name='mantenimiento_ordentrabajo_import_background'),
+            path('import-background/process/', self.admin_site.admin_view(self.import_process_view), name='mantenimiento_ordentrabajo_import_process'),
+            path('import-background/progress/', self.admin_site.admin_view(self.import_progress_api), name='mantenimiento_ordentrabajo_import_progress'),
+            path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_ordentrabajo_import_template'),
+        ]
+        return custom_urls + urls
+
+    def download_template_view(self, request):
+        """Genera un archivo Excel vacío con las cabeceras del recurso"""
+        dataset = OrdenTrabajoResource().export(queryset=OrdenTrabajo.objects.none())
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="formato_importacion_ots.xlsx"'
+        return response
+
+    def import_background_view(self, request):
+        """Vista para subir el archivo de importación"""
+        opts = self.model._meta
+        context = {
+            **self.admin_site.each_context(request),
+            'title': f'Importación Aislada de {opts.verbose_name_plural}',
+            'opts': opts,
+            'app_label': opts.app_label,
+        }
+        return render(request, 'admin/mantenimiento/ordentrabajo/import_background.html', context)
+
+    def import_process_view(self, request):
+        """Inicia la tarea de Celery"""
+        if request.method == 'POST' and request.FILES.get('file'):
+            import_file = request.FILES['file']
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            import os
+            import time
+
+            filename = f"imports/ots_{request.user.id}_{int(time.time())}_{import_file.name}"
+            path = default_storage.save(filename, ContentFile(import_file.read()))
+            
+            file_format = os.path.splitext(import_file.name)[1][1:].lower()
+            
+            from .tasks import import_ordenes_task
+            task = import_ordenes_task.delay(path, file_format, request.user.id)
+            
+            return JsonResponse({'status': 'started', 'task_id': task.id})
+        return JsonResponse({'status': 'error', 'message': 'No se recibió ningún archivo'}, status=400)
+
+    def import_progress_api(self, request):
+        """Endpoint para consultar el progreso en Redis/Caché"""
+        from django.core.cache import cache
+        cache_key = f"import_ordenes_progress_{request.user.id}"
+        data = cache.get(cache_key)
+        if not data:
+            return JsonResponse({'status': 'waiting', 'message': 'Esperando inicio de tarea...'})
+        return JsonResponse(data)
