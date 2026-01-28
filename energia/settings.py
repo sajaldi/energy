@@ -42,17 +42,17 @@ if coolify_fqdn:
 if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['*']
 
-# Diagnóstico en el log
-print(f"🚀 DEBUG: ALLOWED_HOSTS final: {ALLOWED_HOSTS}")
+# Diagnostico en el log
+print(f"[DEBUG] ALLOWED_HOSTS final: {ALLOWED_HOSTS}")
 
 # URL base para el sitio
 SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
 
-# Configuración CSRF para producción
+# Configuracion CSRF para produccion
 _csrf_env = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000')
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_env.split(',') if origin.strip()]
 
-# Agregar también el FQDN de Coolify a la confianza de CSRF
+# Agregar tambien el FQDN de Coolify a la confianza de CSRF
 if coolify_fqdn and not any(coolify_fqdn in o for o in CSRF_TRUSTED_ORIGINS):
     CSRF_TRUSTED_ORIGINS.append(f"http://{coolify_fqdn}")
     CSRF_TRUSTED_ORIGINS.append(f"https://{coolify_fqdn}")
