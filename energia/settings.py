@@ -379,6 +379,14 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
+# TIMEOUTS AGRESIVOS para evitar hangs al enviar tareas
+CELERY_BROKER_CONNECTION_TIMEOUT = 3  # Solo 3 segundos para conectar
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'socket_timeout': 3,
+    'socket_connect_timeout': 3,
+    'socket_keepalive': True,
+}
+
 # Caché compartida para que Celery y Django (runserver) se vean
 # TEMPORALMENTE DESHABILITADA para diagnosticar el problema de conexion
 # En producción (Coolify), usamos Redis para que todos los contenedores vean la misma caché
