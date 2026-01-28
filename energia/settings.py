@@ -381,6 +381,11 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': CELERY_BROKER_URL,
+        'OPTIONS': {
+            'socket_timeout': 5,            # No esperar más de 5s por datos
+            'socket_connect_timeout': 5,    # No esperar más de 5s para conectar
+            'retry_on_timeout': True,
+        }
     }
 }
 
