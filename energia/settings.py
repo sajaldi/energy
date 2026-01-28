@@ -31,8 +31,13 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena '
 
 # ALLOWED_HOSTS
 # En producción, esto debe incluir los dominios o IPs de Coolify/tu servidor.
-# Se recomienda usar una variable de entorno centrada en comas.
-ALLOWED_HOSTS = [host.strip() for host in os.environ.get('ALLOWED_HOSTS', '*').split(',')]
+_env_hosts = os.environ.get('ALLOWED_HOSTS', '*')
+ALLOWED_HOSTS = [h.strip() for h in _env_hosts.split(',') if h.strip()]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['*']
+
+# Diagnóstico en el log de Coolify
+print(f"🚀 DEBUG: ALLOWED_HOSTS configurado como: {ALLOWED_HOSTS}")
 
 # URL base para el sitio (usada para generar links en PDFs de firmas)
 # En producción, configurar esto como variable de entorno o poner el dominio real
