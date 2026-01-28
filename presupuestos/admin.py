@@ -244,14 +244,49 @@ class PresupuestoAgrupadoAdmin(admin.ModelAdmin):
 class ArticuloRequisicionInline(admin.TabularInline):
     model = ArticuloRequisicion
     extra = 0
-    fields = ('material', 'cr8ca_articulo', 'cr8ca_cantidad', 'cr8ca_costoaproximado', 'cr8ca_tipo')
-    autocomplete_fields = ['material']
+    fields = ('material', 'descripcion_material', 'unidad_medida', 'cr8ca_articulo', 'cr8ca_cantidad', 'cr8ca_costoaproximado', 'subtotal')
+    readonly_fields = ('unidad_medida', 'descripcion_material', 'subtotal')
+    autocomplete_fields = ['material'] # Enables search for Material
+    template = 'admin/presupuestos/requisicion/articulo_inline.html'
+
+    def descripcion_material(self, obj):
+        if obj.material:
+            return obj.material.descripcion
+        return "-"
+    descripcion_material.short_description = "Detalle Material"
+
+    def unidad_medida(self, obj):
+        if obj.material:
+            return obj.material.unidad_medida
+        return "-"
+    unidad_medida.short_description = "Unidad"
+
+
 
 class DocumentoRequisicionInline(admin.TabularInline):
     model = DocumentoRequisicion
     extra = 1
-    fields = ('archivo', 'nombre', 'previsualizar')
-    readonly_fields = ('previsualizar',)
+    fields = ('archivo', 'nombre', 'vista_previa_thumbnail', 'previsualizar')
+    readonly_fields = ('vista_previa_thumbnail', 'previsualizar')
+    template = 'admin/presupuestos/requisicion/document_inline.html'
+
+    class Media:
+        css = {
+            'all': ('core/css/sharepoint_list.css',)
+        }
+
+    def vista_previa_thumbnail(self, obj):
+        if obj.archivo:
+            ext = obj.archivo.name.lower()
+            url = obj.archivo.url
+            if any(x in ext for x in ['.jpg', '.jpeg', '.png', '.gif']):
+                return format_html('<img src="{}" style="height: 100px; width: auto; border-radius: 4px; border: 1px solid #ddd;" />', url)
+            elif '.pdf' in ext:
+                return format_html('<embed src="{}" type="application/pdf" width="150" height="200" style="border: 1px solid #ddd;" />', url)
+            else:
+                return format_html('<span style="color: #666;">Sin vista previa</span>')
+        return ""
+    vista_previa_thumbnail.short_description = "Vista Previa"
 
     def previsualizar(self, obj):
         if obj.archivo:
@@ -271,14 +306,14 @@ class RequisicionAdmin(admin.ModelAdmin):
     list_filter = ('cr8ca_prioridad', 'cr8ca_tipodedocumento', 'createdon')
     search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
     inlines = [ArticuloRequisicionInline, DocumentoRequisicionInline]
-    readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon')
+    readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon', 'total_estimado')
     
     fieldsets = (
         ('Identificación', {
             'fields': ('cr8ca_requisicionid', 'cr8ca_requisicion', 'cr8ca_asunto', 'versionnumber')
         }),
         ('Detalles y Estado', {
-            'fields': ('cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'cr8ca_prioridad', 'cr8ca_tipodedocumento', 'cr8ca_estatusorden', 'cr8ca_accion')
+            'fields': ('cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'total_estimado', 'cr8ca_prioridad', 'cr8ca_tipodedocumento', 'cr8ca_estatusorden', 'cr8ca_accion')
         }),
         ('Flags y Control', {
             'fields': ('cr8ca_ejecutado', 'cr8ca_cerrar', 'cr8ca_cajachica', 'cr8ca_solicituddetabladepago', 'cr8ca_seleccionar', 'statecode', 'statuscode')

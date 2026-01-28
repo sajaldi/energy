@@ -382,7 +382,8 @@
         <div class="selection-grid" id="rutinaGrid">
             {% for r in rutinas %}
             <div class="option-card {% if rutina_preselected.id == r.id %}selected{% endif %}" data-id="{{ r.id }}"
-                data-type="rutina" data-name="{{ r.nombre }}">
+                data-type="rutina" data-name="{{ r.nombre }}"
+                data-asset-cat-id="{{ r.categoria.categoria_activo.id|default:'' }}">
                 <span class="option-title">{{ r.nombre }}</span>
                 <span class="option-meta">{{ r.categoria.nombre }} | {{ r.frecuencia.nombre }}</span>
             </div>
@@ -426,7 +427,7 @@
             <p style="font-size: 0.9rem; font-weight: 700; margin-bottom: 12px;">Categoría de Activos (Opcional)</p>
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                 {% for c in categorias_activos %}
-                <label
+                <label class="asset-cat-label" data-id="{{ c.id }}"
                     style="background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 99px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                     <input type="checkbox" name="cat" value="{{ c.id }}">
                     {{ c.nombre }}
@@ -558,6 +559,10 @@
             document.querySelectorAll(`.option-card[data-type="${type}"]`).forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
             selections[type] = card.dataset.id;
+
+            if (type === 'rutina') {
+                updateCategoryVisibility(card.dataset.assetCatId);
+            }
         });
     });
 
@@ -606,8 +611,12 @@
         if (step === 3) {
             selections.areas = Array.from(document.querySelectorAll('input[name="area"]:checked')).map(i => i.value);
             selections.categorias = Array.from(document.querySelectorAll('input[name="cat"]:checked')).map(i => i.value);
-            if (selections.areas.length === 0) {
-                alert("Selecciona al menos un edificio o área."); return false;
+
+            // If no areas are selected, we only allow proceeding if there is a selected routine
+            // which will then filter by category in the next step.
+            if (selections.areas.length === 0 && !selections.rutina) {
+                alert("Selecciona al menos un edificio o área.");
+                return false;
             }
         }
         return true;
@@ -620,6 +629,9 @@
         const params = new URLSearchParams();
         selections.areas.forEach(a => params.append('areas[]', a));
         selections.categorias.forEach(c => params.append('categorias[]', c));
+        if (selections.rutina) {
+            params.append('rutina_id', selections.rutina);
+        }
 
         try {
             const response = await fetch(`{% url "mantenimiento:api_get_assets_wizard" %}?${params.toString()}`);
@@ -666,6 +678,28 @@
         btnNext.innerHTML = (currentStep === totalSteps) ?
             'Finalizar y Generar <ion-icon name="flash"></ion-icon>' :
             'Siguiente <ion-icon name="arrow-forward"></ion-icon>';
+    }
+
+    function updateCategoryVisibility(assetCatId) {
+        const catLabels = document.querySelectorAll('.asset-cat-label');
+        if (!assetCatId) {
+            // Si no hay categoría vinculada, mostrar todas (o podrías decidir ocultarlas todas)
+            catLabels.forEach(l => l.style.display = 'flex');
+            return;
+        }
+
+        catLabels.forEach(l => {
+            if (l.dataset.id === assetCatId) {
+                l.style.display = 'flex';
+                // Auto-marcarla para conveniencia
+                const cb = l.querySelector('input');
+                if (cb) cb.checked = true;
+            } else {
+                l.style.display = 'none';
+                const cb = l.querySelector('input');
+                if (cb) cb.checked = false;
+            }
+        });
     }
 
     async function finalizeAndGenerate() {
@@ -766,6 +800,11 @@
     // Auto-advance if routine is pre-selected
     document.addEventListener('DOMContentLoaded', () => {
         if (selections.rutina) {
+            // Find selected routine card to get its asset category ID
+            const selectedRoutineCard = document.querySelector(`.option-card[data-id="${selections.rutina}"][data-type="rutina"]`);
+            if (selectedRoutineCard) {
+                updateCategoryVisibility(selectedRoutineCard.dataset.assetCatId);
+            }
             updateStep(2);
         }
         // Marcar categorías preseleccionadas

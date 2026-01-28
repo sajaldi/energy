@@ -118,22 +118,63 @@ def api_mark_notification_read(request):
 
 @staff_member_required
 def api_get_assets_wizard(request):
-    a_ids = request.GET.getlist('areas[]'); c_ids = request.GET.getlist('categorias[]')
+    a_ids = request.GET.getlist('areas[]')
+    c_ids = request.GET.getlist('categorias[]')
+    rutina_id = request.GET.get('rutina_id')
+    
     all_areas = set()
     for aid in a_ids:
-        try: all_areas.update(Ubicacion.objects.get(id=aid).get_descendants(include_self=True).values_list('id', flat=True))
-        except: continue
+        try:
+            all_areas.update(Ubicacion.objects.get(id=aid).get_descendants(include_self=True).values_list('id', flat=True))
+        except:
+            continue
+            
     f = {}
-    if all_areas: f['ubicacion_id__in'] = all_areas
-    if c_ids:
-        from activos.models import Categoria as CA
-        all_cats = set()
-        for cid in c_ids:
-            try: all_cats.update(CA.objects.get(id=cid).get_descendants(include_self=True).values_list('id', flat=True))
-            except: continue
+    if all_areas:
+        f['ubicacion_id__in'] = all_areas
+        
+    # Categorize filters
+    all_cats = set()
+    from activos.models import Categoria as CA
+    
+    # 1. Manually selected categories
+    for cid in c_ids:
+        try:
+            all_cats.update(CA.objects.get(id=cid).get_descendants(include_self=True).values_list('id', flat=True))
+        except:
+            continue
+            
+    # 2. Category from Routine
+    if rutina_id:
+        from ..models import Rutina
+        try:
+            rutina = Rutina.objects.get(id=rutina_id)
+            if rutina.categoria:
+                # Get all asset categories linked to this routine category or its subcategories
+                r_cats = rutina.categoria.get_descendants(include_self=True)
+                asset_cats_ids = [rc.categoria_activo_id for rc in r_cats if rc.categoria_activo_id]
+                for acid in asset_cats_ids:
+                    try:
+                        all_cats.update(CA.objects.get(id=acid).get_descendants(include_self=True).values_list('id', flat=True))
+                    except:
+                        continue
+        except Rutina.DoesNotExist:
+            pass
+            
+    if all_cats:
         f['modelo__categoria_id__in'] = all_cats
+        
     activos = Activo.objects.filter(**f).select_related('ubicacion', 'modelo__categoria')[:200]
-    return JsonResponse({'status': 'success', 'activos': [{'id': a.id, 'nombre': a.nombre, 'codigo': a.codigo_interno or a.serie or 'S/C', 'ubicacion': a.ubicacion.nombre if a.ubicacion else 'S/U', 'categoria': a.modelo.categoria.nombre if a.modelo and a.modelo.categoria else 'S/C'} for a in activos]})
+    return JsonResponse({
+        'status': 'success', 
+        'activos': [{
+            'id': a.id, 
+            'nombre': a.nombre, 
+            'codigo': a.codigo_interno or a.serie or 'S/C', 
+            'ubicacion': a.ubicacion.nombre if a.ubicacion else 'S/U', 
+            'categoria': a.modelo.categoria.nombre if a.modelo and a.modelo.categoria else 'S/C'
+        } for a in activos]
+    })
 
 @staff_member_required
 def generar_ordenes_programacion(request, pk):

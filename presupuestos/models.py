@@ -499,6 +499,10 @@ class Requisicion(models.Model):
     def __str__(self):
         return f"{self.cr8ca_requisicion} - {self.cr8ca_asunto[:50]}"
 
+    @property
+    def total_estimado(self):
+        return sum(item.subtotal for item in self.articulos.all())
+
     class Meta:
         verbose_name = "Requisición"
         verbose_name_plural = "Requisiciones"
@@ -510,7 +514,7 @@ class ArticuloRequisicion(models.Model):
     Artículos individuales dentro de una Requisición.
     Mapea campos de cr8ca_itemderequisicions.
     """
-    cr8ca_itemderequisicionid = models.UUIDField(primary_key=True)
+    cr8ca_itemderequisicionid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     requisicion = models.ForeignKey(
         Requisicion, 
         on_delete=models.CASCADE, 
@@ -527,8 +531,8 @@ class ArticuloRequisicion(models.Model):
     )
     
     cr8ca_articulo = models.CharField(max_length=500, verbose_name="Descripción del Artículo")
-    cr8ca_cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    cr8ca_costoaproximado = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    cr8ca_cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Cantidad")
+    cr8ca_costoaproximado = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Costo Aprox.")
     cr8ca_costoaproximado_base = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     cr8ca_tipo = models.IntegerField(null=True, blank=True)
     
@@ -537,6 +541,27 @@ class ArticuloRequisicion(models.Model):
     _cr8ca_activo_value = models.UUIDField(null=True, blank=True)
     _cr8ca_catalogo_value = models.UUIDField(null=True, blank=True)
     _cr8ca_unidad_value = models.UUIDField(null=True, blank=True)
+    
+    def save(self, *args, **kwargs):
+        if self.material:
+            # Si no hay descripción manual, usar el nombre del material
+            if not self.cr8ca_articulo:
+                self.cr8ca_articulo = self.material.nombre
+            
+            # Si no hay costo aproximado, usar el precio estimado del material
+            if not self.cr8ca_costoaproximado or self.cr8ca_costoaproximado == 0:
+                self.cr8ca_costoaproximado = self.material.precio_estimado
+        
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.cr8ca_articulo} ({self.cr8ca_cantidad})"
+    
+    @property
+    def subtotal(self):
+        if self.cr8ca_cantidad and self.cr8ca_costoaproximado:
+            return self.cr8ca_cantidad * self.cr8ca_costoaproximado
+        return 0
     
     # Metadatos
     versionnumber = models.BigIntegerField(null=True, blank=True)
