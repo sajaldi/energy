@@ -30,24 +30,32 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena '
 
 
 # ALLOWED_HOSTS
-# En producción, esto debe incluir los dominios o IPs de Coolify/tu servidor.
 _env_hosts = os.environ.get('ALLOWED_HOSTS', '*')
 ALLOWED_HOSTS = [h.strip() for h in _env_hosts.split(',') if h.strip()]
+
+# Automatización para Coolify: agregar dominios detectados dinámicamente
+coolify_fqdn = os.environ.get('COOLIFY_FQDN')
+if coolify_fqdn:
+    if coolify_fqdn not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(coolify_fqdn)
+
 if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['*']
 
-# Diagnóstico en el log de Coolify
-print(f"🚀 DEBUG: ALLOWED_HOSTS configurado como: {ALLOWED_HOSTS}")
+# Diagnóstico en el log
+print(f"🚀 DEBUG: ALLOWED_HOSTS final: {ALLOWED_HOSTS}")
 
-# URL base para el sitio (usada para generar links en PDFs de firmas)
-# En producción, configurar esto como variable de entorno o poner el dominio real
+# URL base para el sitio
 SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
 
-# Si vas a usar una IP específica o dominio en Coolify, agrégala aquí.
-# Por ejemplo, si tu Coolify tiene un IP público o un dominio personalizado.
-
 # Configuración CSRF para producción
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')]
+_csrf_env = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_env.split(',') if origin.strip()]
+
+# Agregar también el FQDN de Coolify a la confianza de CSRF
+if coolify_fqdn and not any(coolify_fqdn in o for o in CSRF_TRUSTED_ORIGINS):
+    CSRF_TRUSTED_ORIGINS.append(f"http://{coolify_fqdn}")
+    CSRF_TRUSTED_ORIGINS.append(f"https://{coolify_fqdn}")
 
 # Configuración para Proxy Inverso (Coolify/Nginx/Traefik)
 # Confía en la cabecera X-Forwarded-Proto para determinar si la conexión es segura
