@@ -9,6 +9,8 @@ from django.shortcuts import render
 from celery.result import AsyncResult
 from ..tasks import import_rutinas_task
 
+from django.views.decorators.csrf import csrf_exempt
+
 @staff_member_required
 def import_rutinas_background(request):
     """Renders the upload form for background import."""
@@ -20,6 +22,7 @@ def import_rutinas_background(request):
     return render(request, 'admin/mantenimiento/rutina/import_background.html', context)
 
 @staff_member_required
+@csrf_exempt
 def import_rutinas_process(request):
     """Triggers the Celery task for importing routines."""
     if request.method != 'POST':
@@ -35,7 +38,8 @@ def import_rutinas_process(request):
     path = default_storage.save(temp_name, ContentFile(import_file.read()))
     
     # Trigger Celery task
-    task = import_rutinas_task.delay(path, file_ext, user_id=request.user.id)
+    verification_mode = request.POST.get('verification_mode') == 'true'
+    task = import_rutinas_task.delay(path, file_ext, user_id=request.user.id, verification_mode=verification_mode)
     
     return JsonResponse({'task_id': task.id})
 

@@ -95,12 +95,21 @@
             <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #2563eb;"></div>
         </div>
 
+        <div
+            style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="verificationMode" name="verification_mode"
+                style="width: 20px; height: 20px; cursor: pointer;">
+            <label for="verificationMode" style="cursor: pointer; font-weight: 600; color: #1e293b;">
+                🔍 Solo verificar si los códigos existen (No importar nada)
+            </label>
+        </div>
+
         <div style="margin-top: 25px; text-align: right;">
             <a href="../" class="button"
                 style="background-color: #cbd5e1; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px;">Cancelar</a>
             <button type="submit" class="button"
                 style="background-color: #2563eb; color: white; padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem;">
-                🚀 Iniciar Importación
+                🚀 Iniciar Proceso
             </button>
         </div>
     </form>
@@ -121,6 +130,7 @@
     const fileInput = document.getElementById('fileInput');
     const fileName = document.getElementById('fileName');
     const importForm = document.getElementById('importForm');
+    const verificationMode = document.getElementById('verificationMode');
     const progressWrapper = document.getElementById('progressWrapper');
     const progressFill = document.getElementById('progressFill');
     const statusText = document.getElementById('statusText');
@@ -147,6 +157,7 @@
         progressWrapper.style.display = 'block';
 
         const formData = new FormData(this);
+        formData.append('verification_mode', verificationMode.checked);
 
         // 1. Iniciar Tarea
         fetch('process/', {
@@ -156,7 +167,14 @@
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             }
         })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Error del servidor (${response.status}): ${text.slice(0, 100)}...`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.task_id) {
                     taskIdDisplay.textContent = data.task_id;
@@ -167,7 +185,8 @@
                 }
             })
             .catch(err => {
-                Swal.fire('Error de Conexión', 'No se pudo contactar al servidor', 'error');
+                console.error(err);
+                Swal.fire('Error', err.message || 'Error de conexión', 'error');
                 resetUI();
             });
     });
@@ -186,21 +205,41 @@
                         clearInterval(interval);
                         progressFill.style.width = '100%';
 
-                        Swal.fire({
-                            title: '¡Importación Finalizada!',
-                            html: `
-                            <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
-                                <p>✅ <b>Nuevas:</b> ${data.new}</p>
-                                <p>🔄 <b>Actualizadas:</b> ${data.updated}</p>
-                                <p>⏭️ <b>Omitidas:</b> ${data.skipped}</p>
-                                <p>❌ <b>Errores:</b> ${data.errors}</p>
-                            </div>
-                        `,
-                            icon: 'success',
-                            confirmButtonText: 'Ver Rutinas'
-                        }).then(() => {
-                            window.location.href = '../';
-                        });
+                        if (data.verification_mode) {
+                            Swal.fire({
+                                title: '¡Verificación Completada!',
+                                html: `
+                                <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                    <p>✅ <b>Encontrados (Ya existen):</b> ${data.found}</p>
+                                    <p>🆕 <b>No encontrados (Nuevos):</b> ${data.not_found}</p>
+                                    <p>⚠️ <b>Repetidos en archivo:</b> ${data.duplicates || 0}</p>
+                                    <hr>
+                                    <div style="max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: monospace;">
+                                        ${data.results.join('<br>')}
+                                    </div>
+                                </div>
+                            `,
+                                icon: 'info',
+                                confirmButtonText: 'Cerrar'
+                            });
+                            resetUI();
+                        } else {
+                            Swal.fire({
+                                title: '¡Importación Finalizada!',
+                                html: `
+                                <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                    <p>✅ <b>Nuevas:</b> ${data.new}</p>
+                                    <p>🔄 <b>Actualizadas:</b> ${data.updated}</p>
+                                    <p>⏭️ <b>Omitidas:</b> ${data.skipped}</p>
+                                    <p>❌ <b>Errores:</b> ${data.errors}</p>
+                                </div>
+                            `,
+                                icon: 'success',
+                                confirmButtonText: 'Ver Rutinas'
+                            }).then(() => {
+                                window.location.href = '../';
+                            });
+                        }
                     } else if (data.state === 'FAILURE' || data.status === 'error') {
                         clearInterval(interval);
                         progressFill.style.background = '#ef4444';

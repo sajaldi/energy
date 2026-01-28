@@ -15,14 +15,15 @@ def try_decode(content, encodings=['utf-8-sig', 'iso-8859-1', 'windows-1252', 'u
     return content.decode('utf-8', errors='ignore')
 
 @shared_task(bind=True)
-def import_rutinas_task(self, file_path, file_format, user_id=None):
+def import_rutinas_task(self, file_path, file_format, user_id=None, verification_mode=False):
     """
-    Tarea Celery para importar RUTINAS con seguimiento de progreso real.
+    Tarea Celery para importar o VERIFICAR RUTINAS con seguimiento de progreso real.
     """
     from tablib import Dataset
     from django.core.files.storage import default_storage
     from .admin import RutinaResource
     from django.core.cache import cache
+    from .models import Rutina
 
     # Inicializar resource
     resource = RutinaResource()
@@ -46,48 +47,132 @@ def import_rutinas_task(self, file_path, file_format, user_id=None):
         return error_res
 
     total_rows = len(dataset)
-    resource.before_import(dataset)
     
     # Estado inicial
     progress_info = {
         'current': 0, 
         'total': total_rows, 
-        'status': 'Iniciando importación...', 
+        'status': 'Iniciando verificación...' if verification_mode else 'Iniciando importación...', 
         'percent': 0,
         'new': 0,
         'updated': 0,
         'skipped': 0,
-        'errors': 0
+        'errors': 0,
+        'found': 0,
+        'not_found': 0,
+        'verification_mode': verification_mode
     }
     cache.set(cache_key, progress_info, 3600)
     self.update_state(state='PROGRESS', meta=progress_info)
     
-    result = resources.Result()
-    for i, row in enumerate(dataset.dict, start=1):
-        try:
-            # Feedback en Redis cada 5 filas
-            if i % 5 == 0 or i == total_rows:
+    if verification_mode:
+        results = []
+        codes_seen = set()
+        codes_duplicated = set()
+        found_count = 0
+        not_found_count = 0
+        
+        for i, row in enumerate(dataset.dict, start=1):
+            codigo = str(row.get('codigo_rutina') or '').strip()
+            
+            if not codigo:
+                status = "SIN CÓDIGO"
+                not_found_count += 1
+            else:
+                if codigo in codes_seen:
+                    codes_duplicated.add(codigo)
+                    status = "REPETIDO EN ARCHIVO"
+                else:
+                    codes_seen.add(codigo)
+                    exists = Rutina.objects.filter(codigo_rutina=codigo).exists()
+                    if exists:
+                        found_count += 1
+                        status = "EXISTE"
+                    else:
+                        not_found_count += 1
+                        status = "NO EXISTE"
+            
+            results.append(f"Fila {i}: Código '{codigo}' -> {status}")
+            
+            if i % 10 == 0 or i == total_rows:
                 progress_info.update({
                     'current': i,
-                    'status': f'Procesando rutina {i}/{total_rows}: {row.get("nombre", "")}',
+                    'status': f'Verificando {i}/{total_rows}...',
                     'percent': int((i / total_rows) * 100),
-                    'new': result.totals.get('new', 0),
-                    'updated': result.totals.get('update', 0),
-                    'skipped': result.totals.get('skip', 0),
-                    'errors': len(result.base_errors) + len(result.row_errors()),
+                    'found': found_count,
+                    'not_found': not_found_count,
+                    'duplicates': len(codes_duplicated)
                 })
                 cache.set(cache_key, progress_info, 3600)
                 self.update_state(state='PROGRESS', meta=progress_info)
-            
-            # Importar fila (usando ModelInstanceLoader para IE 4.x)
-            from import_export.instance_loaders import ModelInstanceLoader
-            instance_loader = ModelInstanceLoader(resource, dataset)
-            row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
-            result.append_row_result(row_result)
-            
-        except Exception as e:
-            result.append_base_error(resources.Error(error=e, traceback=str(e), row=row))
-            
+
+        final_res = {
+            'status': 'completed',
+            'status_code': 'completed',
+            'total': total_rows,
+            'found': found_count,
+            'not_found': not_found_count,
+            'duplicates': len(codes_duplicated),
+            'duplicate_list': list(codes_duplicated),
+            'results': results,
+            'verification_mode': True
+        }
+            'found': found_count,
+            'not_found': not_found_count,
+            'results': results,
+            'verification_mode': True
+        }
+    else:
+        resource.before_import(dataset)
+        from import_export import resources as ie_resources
+        result = ie_resources.Result()
+        
+        for i, row in enumerate(dataset.dict, start=1):
+            try:
+                if i % 5 == 0 or i == total_rows:
+                    progress_info.update({
+                        'current': i,
+                        'status': f'Procesando rutina {i}/{total_rows}: {row.get("nombre", "")}',
+                        'percent': int((i / total_rows) * 100),
+                        'new': result.totals.get('new', 0),
+                        'updated': result.totals.get('update', 0),
+                        'skipped': result.totals.get('skip', 0),
+                        'errors': len(result.base_errors) + len(result.row_errors()),
+                    })
+                    cache.set(cache_key, progress_info, 3600)
+                    self.update_state(state='PROGRESS', meta=progress_info)
+                
+                from import_export.instance_loaders import ModelInstanceLoader
+                instance_loader = ModelInstanceLoader(resource, dataset)
+                row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
+                result.append_row_result(row_result)
+                
+            except Exception as e:
+                result.append_base_error(ie_resources.Error(error=e, traceback=str(e), row=row))
+
+        # Recopilar errores detallados
+        detailed_errors = []
+        try:
+            for error in result.base_errors:
+                detailed_errors.append(f"Error General: {str(error.error)}")
+            for line, errors in result.row_errors():
+                for error in errors:
+                    msg = f"Fila {line}: {str(error.error)}"
+                    detailed_errors.append(msg)
+        except: pass
+
+        final_res = {
+            'status': 'completed',
+            'status_code': 'completed',
+            'total': total_rows,
+            'new': result.totals.get('new', 0),
+            'updated': result.totals.get('update', 0),
+            'skipped': result.totals.get('skip', 0),
+            'errors': len(result.base_errors) + len(result.row_errors()),
+            'error_list': detailed_errors,
+            'verification_mode': False
+        }
+
     # Limpiar archivo
     try:
         if default_storage.exists(file_path):
@@ -95,26 +180,6 @@ def import_rutinas_task(self, file_path, file_format, user_id=None):
     except:
         pass
         
-    # Recopilar errores detallados
-    detailed_errors = []
-    try:
-        for error in result.base_errors:
-            detailed_errors.append(f"Error General: {str(error.error)}")
-        for line, errors in result.row_errors():
-            for error in errors:
-                msg = f"Fila {line}: {str(error.error)}"
-                detailed_errors.append(msg)
-    except: pass
-
-    final_res = {
-        'status': 'completed',
-        'total': total_rows,
-        'new': result.totals.get('new', 0),
-        'updated': result.totals.get('update', 0),
-        'skipped': result.totals.get('skip', 0),
-        'errors': len(result.base_errors) + len(result.row_errors()),
-        'error_list': detailed_errors
-    }
     cache.set(cache_key, final_res, 3600)
     return final_res
 @shared_task(bind=True)

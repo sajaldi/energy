@@ -474,6 +474,7 @@ class ProgramacionInline(admin.TabularInline):
 
 @admin.register(Rutina)
 class RutinaAdmin(ImportExportModelAdmin):
+    change_list_template = 'admin/mantenimiento/rutina/change_list.html'
     list_per_page = 50
     resource_class = RutinaResource
     list_display = ('codigo_rutina', 'nombre', 'categoria', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'programar_rutina_link')
@@ -979,6 +980,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         }
         return render(request, 'admin/mantenimiento/ordentrabajo/import_background.html', context)
 
+    @csrf_exempt
     def import_process_view(self, request):
         """Inicia la tarea de Celery"""
         if request.method == 'POST' and request.FILES.get('file'):
