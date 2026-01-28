@@ -272,13 +272,28 @@ def cronograma_mantenimiento_visual(request):
     proyecciones = Programacion.objects.filter(fecha_inicio__year__lte=year).select_related('rutina__categoria', 'rutina__frecuencia', 'horario')
     if programacion_id: proyecciones = proyecciones.filter(id=programacion_id)
     restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
+    # Cache de días laborables por horario
+    working_days_cache = {}
+    
     for prog in proyecciones:
         fecha_ciclo = prog.fecha_inicio; limite = min(prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365)), date(year, 12, 31))
         frec_dias = prog.rutina.frecuencia.dias; color = prog.horario.color if prog.horario else '#94a3b8'
+        
+        # Obtener días laborables para este horario
+        if prog.horario_id not in working_days_cache:
+            working_days_cache[prog.horario_id] = set(prog.horario.dias.values_list('dia', flat=True)) if prog.horario else set(range(7))
+        working_days = working_days_cache[prog.horario_id]
+
         first_area = prog.areas.first(); ubi_nom = first_area.nombre if first_area else "Múltiples Áreas"; ubi_id = first_area.id if first_area else None
         while fecha_ciclo <= limite:
-            if fecha_ciclo.year == year and (prog.id, fecha_ciclo) not in existing_ot_keys and fecha_ciclo not in restricciones:
-                ordenes_list.append({'id': f'proj_{prog.id}_{fecha_ciclo}', 'rutina__nombre': prog.rutina.nombre, 'ubicacion__nombre': ubi_nom, 'ubicacion_id': ubi_id, 'rutina__categoria_id': prog.rutina.categoria_id, 'inicio_programado': datetime.combine(fecha_ciclo, datetime.min.time()), 'estado': 'PROYECCION', 'programacion__horario__color': color, 'programacion_id': prog.id})
+            # Lógica de "puching" similar a generar_ordenes
+            fecha_proyectada = fecha_ciclo
+            while fecha_proyectada <= limite and (fecha_proyectada in restricciones or fecha_proyectada.weekday() not in working_days):
+                fecha_proyectada += timedelta(days=1)
+            
+            if fecha_proyectada.year == year and (prog.id, fecha_proyectada) not in existing_ot_keys and fecha_proyectada not in restricciones:
+                ordenes_list.append({'id': f'proj_{prog.id}_{fecha_proyectada}', 'rutina__nombre': prog.rutina.nombre, 'ubicacion__nombre': ubi_nom, 'ubicacion_id': ubi_id, 'rutina__categoria_id': prog.rutina.categoria_id, 'inicio_programado': datetime.combine(fecha_proyectada, datetime.min.time()), 'estado': 'PROYECCION', 'programacion__horario__color': color, 'programacion_id': prog.id})
+            
             fecha_ciclo += timedelta(days=frec_dias)
     categorias = {c.id: c for c in Categoria.objects.all()}
     for c in categorias.values():
@@ -348,6 +363,7 @@ def detalle_mes(request, year, month):
             prog = Programacion.objects.get(id=programacion_id)
             if prog.horario: working_weekdays = set(prog.horario.dias.values_list('dia', flat=True))
         except: pass
+    restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
     restricciones_mes = set(RestriccionCalendario.objects.filter(fecha__year=year, fecha__month=month).values_list('fecha__day', flat=True))
     non_working_days = [d for d in days_range if date(year, month, d).weekday() not in working_weekdays or d in restricciones_mes]
     ordenes = OrdenTrabajo.objects.filter(**filtros).select_related('rutina__categoria', 'rutina__frecuencia', 'ubicacion', 'programacion__horario').prefetch_related('activos', 'rutina__categoria')
@@ -355,12 +371,29 @@ def detalle_mes(request, year, month):
     month_start = date(year, month, 1); month_end = date(year, month, num_days); proyecciones_qs = Programacion.objects.filter(fecha_inicio__lte=month_end).select_related('rutina__categoria', 'rutina__frecuencia', 'horario')
     if programacion_id: proyecciones_qs = proyecciones_qs.filter(id=programacion_id)
     ghost_ots = []
+    # Cache de días laborables por horario
+    working_days_cache = {}
+
     for prog in proyecciones_qs:
         limite = min(prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365)), month_end); fecha_ciclo = prog.fecha_inicio; frec_dias = prog.rutina.frecuencia.dias
         if not frec_dias: continue
-        if fecha_ciclo < month_start: fecha_ciclo += timedelta(days=((month_start - fecha_ciclo).days // frec_dias) * frec_dias)
+        
+        # Obtener días laborables para este horario
+        if prog.horario_id not in working_days_cache:
+            working_days_cache[prog.horario_id] = set(prog.horario.dias.values_list('dia', flat=True)) if prog.horario else set(range(7))
+        working_days = working_days_cache[prog.horario_id]
+        
+        if fecha_ciclo < month_start: 
+            fecha_ciclo += timedelta(days=max(0, (month_start - fecha_ciclo).days // frec_dias) * frec_dias)
+        
         while fecha_ciclo <= limite:
-            if fecha_ciclo >= month_start and (prog.id, fecha_ciclo) not in existing_ot_keys and fecha_ciclo.day not in restricciones_mes: ghost_ots.append({'prog': prog, 'fecha': fecha_ciclo})
+            # Lógica de "puching" similar a generar_ordenes
+            fecha_proyectada = fecha_ciclo
+            while fecha_proyectada <= limite and (fecha_proyectada in restricciones or fecha_proyectada.weekday() not in working_days):
+                fecha_proyectada += timedelta(days=1)
+                
+            if fecha_proyectada >= month_start and fecha_proyectada <= limite and (prog.id, fecha_proyectada) not in existing_ot_keys and fecha_proyectada not in restricciones: 
+                ghost_ots.append({'prog': prog, 'fecha': fecha_proyectada})
             fecha_ciclo += timedelta(days=frec_dias)
     categs = {c.id: c for c in Categoria.objects.all()}
     for c in categs.values():
@@ -372,15 +405,26 @@ def detalle_mes(request, year, month):
             fc = categs[cat.id]; root = fc.get_root(); sys_name = root.nombre; sub_name = fc.nombre if fc.id != root.id else "General"
             if sys_name not in system_colors: system_colors[sys_name] = prog_color or '#3b82f6'
         else: sys_name = "Sin Categoría"; sub_name = "General"; system_colors[sys_name] = '#64748b'
-        tree[sys_name][sub_name][rut.nombre if rut else "OT Sin Rutina"][ubi.nombre if ubi else "Multiple"][(None, "General") if not assets else (assets[0].id, assets[0].nombre)][day_key].append(ot_dict)
+        
+        asset_key = (assets[0].id, assets[0].nombre) if assets else (None, "General")
+        tree[sys_name][sub_name][rut.nombre if rut else "OT Sin Rutina"][ubi.nombre if ubi else "Multiple"][asset_key][day_key].append(ot_dict)
     for ot in ordenes:
         sd = timezone.localtime(ot.inicio_programado); ed = timezone.localtime(ot.fin_programado or ot.inicio_programado); nc = max(1, math.ceil((ed - sd).total_seconds() / 86400))
+        assets = list(ot.activos.all())
         for i in range(nc):
             cd = sd.date() + timedelta(days=i)
             if cd.year == year and cd.month == month:
                 dp = 'single' if nc == 1 else ('start' if i == 0 else ('end' if i == nc - 1 else 'middle'))
-                info = {'id': ot.id, 'estado': ot.estado, 'inicio_iso': sd.strftime('%Y-%m-%d'), 'inicio_hm': sd.strftime('%H:%M'), 'fin_full': ed.strftime('%d/%m/%Y %H:%M'), 'fin_hm': ed.strftime('%H:%M'), 'rutina_nombre': ot.rutina.nombre if ot.rutina else "OT", 'activos_nombres': ", ".join([a.nombre for a in ot.activos.all()]), 'duration_pos': dp, 'color': ot.programacion.horario.color if ot.programacion and ot.programacion.horario else '#3b82f6'}
-                add_to_tree_common(info, ot.rutina, ot.ubicacion, list(ot.activos.all()), info['color'], cd.day)
+                base_info = {'id': ot.id, 'estado': ot.estado, 'inicio_iso': sd.strftime('%Y-%m-%d'), 'inicio_hm': sd.strftime('%H:%M'), 'fin_full': ed.strftime('%d/%m/%Y %H:%M'), 'fin_hm': ed.strftime('%H:%M'), 'rutina_nombre': ot.rutina.nombre if ot.rutina else "OT", 'activos_nombres': ", ".join([a.nombre for a in assets]), 'duration_pos': dp, 'color': ot.programacion.horario.color if ot.programacion and ot.programacion.horario else '#3b82f6'}
+                
+                if not assets:
+                    add_to_tree_common(base_info, ot.rutina, ot.ubicacion, [], base_info['color'], cd.day)
+                else:
+                    for idx, a in enumerate(assets):
+                        info = base_info.copy()
+                        if len(assets) > 1:
+                            info['group_type'] = 'start' if idx == 0 else ('end' if idx == len(assets) - 1 else 'middle')
+                        add_to_tree_common(info, ot.rutina, ot.ubicacion, [a], base_info['color'], cd.day)
     for g in ghost_ots:
         p = g['prog']; f = g['fecha']; fa = p.areas.first()
         info = {'id': f'proj_{p.id}_{f}', 'estado': 'PROYECCION', 'inicio_iso': f.isoformat(), 'inicio_hm': '00:00', 'fin_full': '', 'fin_hm': '', 'rutina_nombre': p.rutina.nombre, 'activos_nombres': 'Simulado', 'duration_pos': 'single', 'prog_id': p.id, 'date': f.isoformat(), 'color': p.horario.color if p.horario else '#94a3b8'}
@@ -398,7 +442,8 @@ def detalle_mes(request, year, month):
                         cells = []
                         for d in days_range:
                             ots = tree[sys][sub][rut][ubi][ak].get(d, []); hd = len(ots) > 0
-                            cells.append({'day': d, 'ots': ots, 'active': hd})
+                            gt = ots[0].get('group_type') if ots else None
+                            cells.append({'day': d, 'ots': ots, 'active': hd, 'group_type': gt})
                             if hd: rda[d] = True; subda[d] = True; sda[d] = True
                         assets_l.append({'label': ak[1], 'id': ak[0], 'celdas': cells})
                     ubis.append({'label': ubi, 'celdas': [{'day': d, 'active': any(a['celdas'][d-1]['active'] for a in assets_l)} for d in days_range], 'activos': assets_l})

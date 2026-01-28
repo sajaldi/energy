@@ -353,7 +353,12 @@ class Programacion(models.Model):
         
         # 1. Expandir áreas a sus descendientes
         areas_iniciales = self.areas.all()
-        if not areas_iniciales.exists() or not self.horario:
+        # Permitimos sin áreas si hay activos específicos o si hay categoría en la rutina (para el Wizard)
+        if not self.horario:
+            return 0
+        
+        has_criteria = areas_iniciales.exists() or self.activos.exists() or (self.rutina.categoria)
+        if not has_criteria:
             return 0
             
         todas_las_areas = set()
@@ -369,9 +374,11 @@ class Programacion(models.Model):
         tiempo_rutina = self.rutina.tiempo_estimado or timedelta(hours=1)
         
         # 2. Recopilar todos los activos a programar en el ciclo
-        activos_totales = []
+        # Store as (activo, area_sugerida)
+        items_a_procesar_config = [] 
         if self.activos.exists():
-            activos_totales = list(self.activos.all())
+            for a in self.activos.all():
+                items_a_procesar_config.append((a, a.ubicacion))
         else:
             from activos.models import Categoria as CategoriaActivo
             cat_mantenimiento = self.rutina.categoria
@@ -381,14 +388,27 @@ class Programacion(models.Model):
                 asset_cats_ids = [c.categoria_activo_id for c in m_cats if c.categoria_activo_id]
                 asset_cats = CategoriaActivo.objects.filter(id__in=asset_cats_ids)
             
-            for area in areas_a_programar:
-                if asset_cats.exists():
-                    activos_en_area = list(Activo.objects.filter(ubicacion=area, modelo__categoria__in=asset_cats))
-                    activos_totales.extend(activos_en_area)
-                else:
-                    # Caso genérico por área (si no hay activos, creamos una lista vacía para que cuente como 1 item)
-                    if not activos_totales and not cat_mantenimiento:
-                        pass # Ver lógica abajo
+            if areas_a_programar:
+                for area in areas_a_programar:
+                    if asset_cats.exists():
+                        activos_en_area = list(Activo.objects.filter(ubicacion=area, modelo__categoria__in=asset_cats))
+                        if activos_en_area:
+                            for act in activos_en_area:
+                                items_a_procesar_config.append((act, area))
+                        else:
+                            # Fallback: una orden para el área si es criterio de rutina
+                            items_a_procesar_config.append((None, area))
+                    else:
+                        # Sin filtros de categoría, una orden por área
+                        items_a_procesar_config.append((None, area))
+            elif asset_cats.exists():
+                # Caso solicitado: sin áreas pero con categoría de rutina
+                for act in Activo.objects.filter(modelo__categoria__in=asset_cats):
+                    items_a_procesar_config.append((act, act.ubicacion))
+            
+            # Si al final no hay nada, pero hay criterio, aseguramos al menos un item
+            if not items_a_procesar_config:
+                items_a_procesar_config = [(None, self.areas.first())]
 
         # 3. Preparación de asignación de técnicos (Round Robin + Capacidad Global)
         tecnicos_disponibles = []
@@ -435,14 +455,15 @@ class Programacion(models.Model):
         fecha_ciclo = self.fecha_inicio
         
         while fecha_ciclo <= limite:
+            # Para cada ciclo, rastreamos las OTs creadas en este ciclo para agrupar por día+area+tecnico
+            # Llave: (fecha_date, area_id, tecnico_id) -> OrdenTrabajo
+            ots_en_ciclo = {} 
+
             # Para cada ciclo (ej: cada mes), reiniciamos el cursor temporal al inicio del día del ciclo
             fecha_actual_cursor = fecha_ciclo
             current_dt_cursor = None # Rastrea el final de la última OT programada en este ciclo
             
-            # Si no hay activos pero hay áreas, generamos al menos una orden para el área
-            items_a_procesar = activos_totales if activos_totales else [None]
-            
-            for activo in items_a_procesar:
+            for activo, area_sugerida in items_a_procesar_config:
                 segundos_pendientes = tiempo_rutina.total_seconds()
                 
                 # Buscamos el slot para ESTE activo en particular
@@ -470,7 +491,7 @@ class Programacion(models.Model):
                         fin_laboral = timezone.make_aware(datetime.combine(fecha_actual_cursor, horario_dia.hora_fin))
                         if fin_laboral < inicio_laboral:
                             fin_laboral += timedelta(days=1)
-                    except ValueError:
+                    except (ValueError, TypeError):
                         inicio_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio)
                         fin_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_fin)
                         if fin_laboral < inicio_laboral:
@@ -498,43 +519,51 @@ class Programacion(models.Model):
                         fecha_actual_cursor += timedelta(days=1)
                         current_dt_cursor = None
                 
-                # Crear la orden para ESTE activo
+                # Crear o Agrupar la orden para ESTE activo
                 if ot_start_dt and ot_end_dt:
                     # Asignar técnico automáticamente respetando capacidad
                     tecnico_asignado = None
                     if tecnicos_disponibles:
-                        # Identificar semana de la OT
                         anio, semana, _ = ot_start_dt.isocalendar()
                         semana_key = f"{anio}-{semana}"
-                        
-                        # Round Robin con salto por capacidad
                         for _ in range(len(tecnicos_disponibles)):
                             perfil = tecnicos_disponibles[tecnico_idx % len(tecnicos_disponibles)]
                             tecnico_idx += 1
-                            
                             key = (perfil.id, semana_key)
                             usado = carga_trabajo.get(key, 0.0)
-                            
-                            if (usado + horas_rutina) <= float(perfil.horas_semanales_max):
+                            if (usado + (segundos_pendientes/3600)) <= float(perfil.horas_semanales_max):
                                 tecnico_asignado = perfil.user
                                 carga_trabajo[key] = usado + horas_rutina
                                 break
                     
-                    main_ubi = activo.ubicacion if (activo and activo.ubicacion) else self.areas.first()
-                    ot = OrdenTrabajo.objects.create(
-                        programacion=self,
-                        ubicacion=main_ubi,
-                        inicio_programado=ot_start_dt,
-                        fin_programado=ot_end_dt,
-                        rutina=self.rutina,
-                        tipo='PREVENTIVA',
-                        prioridad='MEDIA',
-                        estado='ESPERA',
-                        tecnico=tecnico_asignado
-                    )
-                    if activo:
-                        ot.activos.add(activo)
-                    ordenes_creadas += 1
+                    main_ubi = area_sugerida or self.areas.first()
+                    ot_key = (ot_start_dt.date(), main_ubi.id if main_ubi else None, tecnico_asignado.id if tecnico_asignado else None)
+                    
+                    if ot_key in ots_en_ciclo:
+                        # AGRUPAR: Añadir a la orden existente en este día/área/técnico
+                        existing_ot = ots_en_ciclo[ot_key]
+                        if activo:
+                            existing_ot.activos.add(activo)
+                        # Actualizar fin si este activo termina más tarde (siempre será así por el cursor)
+                        existing_ot.fin_programado = ot_end_dt
+                        existing_ot.save()
+                    else:
+                        # NUEVA: Crear nueva orden
+                        ot = OrdenTrabajo.objects.create(
+                            programacion=self,
+                            ubicacion=main_ubi,
+                            inicio_programado=ot_start_dt,
+                            fin_programado=ot_end_dt,
+                            rutina=self.rutina,
+                            tipo='PREVENTIVA',
+                            prioridad='MEDIA',
+                            estado='ESPERA',
+                            tecnico=tecnico_asignado
+                        )
+                        if activo:
+                            ot.activos.add(activo)
+                        ots_en_ciclo[ot_key] = ot
+                        ordenes_creadas += 1
 
             fecha_ciclo += timedelta(days=frecuencia_dias)
             
