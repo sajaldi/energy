@@ -17,6 +17,7 @@ from inventarios.models import MovimientoInventario
 import datetime as dt_python
 from import_export.widgets import ForeignKeyWidget, DurationWidget, ManyToManyWidget, DateTimeWidget
 from activos.models import Activo, Ubicacion
+from django.views.decorators.csrf import csrf_exempt
 
 class CategoriaResource(resources.ModelResource):
     """
