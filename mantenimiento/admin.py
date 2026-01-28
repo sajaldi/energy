@@ -1073,14 +1073,34 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         
         # 1. Probar Cache/Redis
         from django.conf import settings
+        import redis
+        
         results['testing_url'] = settings.CELERY_BROKER_URL
+        
+        # Prueba 1.A: Ping Directo a Redis (Socket)
+        try:
+            print(f"[DEBUG] Test Connectivity: Intentando ping directo a {settings.CELERY_BROKER_URL}")
+            sys.stdout.flush()
+            r = redis.from_url(settings.CELERY_BROKER_URL, socket_connect_timeout=2, socket_timeout=2)
+            ping_res = r.ping()
+            results['redis_direct_ping'] = f"OK ({ping_res})"
+        except Exception as e:
+            results['redis_direct_ping'] = f"FAIL: {str(e)}"
+            print(f"[DEBUG] Test Connectivity Error (Direct): {str(e)}")
+            sys.stdout.flush()
+
+        # Prueba 1.B: Via Django Cache
         try:
             from django.core.cache import cache
-            cache.set('test_ping', 'pong', 10)
+            print("[DEBUG] Test Connectivity: Intentando cache.set")
+            sys.stdout.flush()
+            cache.set('test_ping', 'pong', 5)
             val = cache.get('test_ping')
             results['cache'] = f"OK (Ping={val})"
         except Exception as e:
-            results['cache'] = f"ERROR: {str(e)}"
+            results['cache'] = f"FAIL/TIMEOUT: {str(e)}"
+            print(f"[DEBUG] Test Connectivity Error (Cache): {str(e)}")
+            sys.stdout.flush()
 
         # 2. Probar Storage
         try:
