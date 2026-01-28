@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import time
+import os
 from django.db import models
 from django.db.models import Count
 from django.contrib import admin, messages
@@ -993,8 +994,6 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             
             from django.core.files.storage import default_storage
             from django.core.cache import cache
-            import os
-            import time
 
             # 1. Probar conexion a Cache/Redis antes de nada
             try:
