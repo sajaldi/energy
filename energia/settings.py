@@ -388,26 +388,18 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
 }
 
 # Caché compartida para que Celery y Django (runserver) se vean
-# TEMPORALMENTE DESHABILITADA para diagnosticar el problema de conexion
 # En producción (Coolify), usamos Redis para que todos los contenedores vean la misma caché
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': CELERY_BROKER_URL,
+        'OPTIONS': {
+            'socket_timeout': 5,            # No esperar más de 5s por datos
+            'socket_connect_timeout': 5,    # No esperar más de 5s para conectar
+            'retry_on_timeout': True,
+        }
     }
 }
-
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-#         'LOCATION': CELERY_BROKER_URL,
-#         'OPTIONS': {
-#             'socket_timeout': 5,            # No esperar más de 5s por datos
-#             'socket_connect_timeout': 5,    # No esperar más de 5s para conectar
-#             'retry_on_timeout': True,
-#         }
-#     }
-# }
 
 # Configuración adicional para producción
 if not DEBUG:
