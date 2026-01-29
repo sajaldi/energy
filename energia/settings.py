@@ -369,10 +369,10 @@ if IS_LOCAL:
     CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
     print(f"[DEBUG] Entorno LOCAL detectado. Redis: {CELERY_BROKER_URL}")
 else:
-    # Producción: Redis interno de Coolify
+    # Producción: Redis interno de Coolify (usa nombre del servicio)
     CELERY_BROKER_URL = os.environ.get(
         'CELERY_BROKER_URL', 
-        'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'  # Fallback a URL interna
+        'redis://default:saul123@redis:6379/0'  # Nombre del servicio en Coolify
     )
     print(f"[DEBUG] Entorno PRODUCCION detectado. Redis: {CELERY_BROKER_URL}")
 
