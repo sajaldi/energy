@@ -1067,14 +1067,57 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         return JsonResponse(data)
 
     def test_connectivity(self, request):
-        """Vista de diagnostico simplificada - NO intenta conectar"""
+        """Vista de diagnostico AVANZADA con DNS check"""
+        import socket
+        import redis
         from django.conf import settings
-        results = {
-            'status': 'SIMPLIFIED_MODE',
-            'celery_broker_url': getattr(settings, 'CELERY_BROKER_URL', 'NOT_SET'),
-            'cache_backend': settings.CACHES['default']['BACKEND'],
-            'message': 'Esta vista fue simplificada para evitar hangs. Redis y Storage NO fueron probados.'
-        }
+        
+        results = {}
+        target_url = getattr(settings, 'CELERY_BROKER_URL', '')
+        results['testing_url'] = target_url
+        
+        # 1. Analizar URL
+        try:
+            if '://' in target_url:
+                # redis://user:pass@host:port/db
+                parts = target_url.split('@')[-1].split('/')[0] # host:port
+                if ':' in parts:
+                    host = parts.split(':')[0]
+                    port = int(parts.split(':')[1])
+                else:
+                    host = parts
+                    port = 6379
+            else:
+                host = 'localhost'
+                port = 6379
+                
+            results['parsed_host'] = host
+            results['parsed_port'] = port
+            
+            # 2. Test DNS
+            try:
+                ip = socket.gethostbyname(host)
+                results['dns_resolution'] = f"OK -> {ip}"
+            except Exception as e:
+                results['dns_resolution'] = f"FAIL: {str(e)}"
+                
+            # 3. Test Ping (Strict Timeout)
+            try:
+                r = redis.Redis(
+                    host=host, 
+                    port=port, 
+                    password=target_url.split(':')[2].split('@')[0] if '@' in target_url else None,
+                    socket_connect_timeout=2, 
+                    socket_timeout=2
+                )
+                if r.ping():
+                    results['redis_ping'] = "PONG (Success)"
+            except Exception as e:
+                results['redis_ping'] = f"FAIL: {str(e)}"
+
+        except Exception as e:
+            results['parsing_error'] = str(e)
+
         return JsonResponse(results)
 
     def pure_ping(self, request):
