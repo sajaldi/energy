@@ -1115,6 +1115,18 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
             except Exception as e:
                 results['redis_ping'] = f"FAIL: {str(e)}"
 
+            # 4. Test redis.from_url (What Django uses)
+            try:
+                r_from_url = redis.from_url(
+                    target_url, 
+                    socket_connect_timeout=2, 
+                    socket_timeout=2
+                )
+                if r_from_url.ping():
+                    results['redis_from_url'] = "PONG (Success)"
+            except Exception as e:
+                results['redis_from_url'] = f"FAIL: {str(e)}"
+
         except Exception as e:
             results['parsing_error'] = str(e)
 
