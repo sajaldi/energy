@@ -360,12 +360,24 @@ JAZZMIN_UI_TWEAKS = {
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # ===== CELERY CONFIGURATION =====
-# Celery Configuration Options
-# En desarrollo usa localhost, en producción usa el nombre del servicio o la URL completa de Redis
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-# Hotfix: Forzar URL interna si detectamos localhost
-if 'localhost' in CELERY_BROKER_URL:
-    CELERY_BROKER_URL = 'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'
+# Detección automática de entorno
+IS_LOCAL = DEBUG  # En local, DEBUG = True; en producción, DEBUG = False
+
+# Celery Broker URL Configuration
+if IS_LOCAL:
+    # Desarrollo local: Redis en Docker local
+    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+    print(f"[DEBUG] Entorno LOCAL detectado. Redis: {CELERY_BROKER_URL}")
+else:
+    # Producción: Redis interno de Coolify
+    CELERY_BROKER_URL = os.environ.get(
+        'CELERY_BROKER_URL', 
+        'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'  # Fallback a URL interna
+    )
+    print(f"[DEBUG] Entorno PRODUCCION detectado. Redis: {CELERY_BROKER_URL}")
+
+import sys
+sys.stdout.flush()
 
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'django-db')
 CELERY_CACHE_BACKEND = 'django-cache'
@@ -388,28 +400,60 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
 }
 
 # Caché compartida para que Celery y Django (runserver) se vean
-# En producción (Coolify), usamos Redis para que todos los contenedores vean la misma caché
-# Caché compartida para que Celery y Django (runserver) se vean
-# TEMPORALMENTE DESHABILITADA (LocMem) por crash 502 con RedisCache
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+# En ambos entornos usamos Redis si está disponible
+if IS_LOCAL:
+    # Local: Intentar Redis local primero, fallback a LocMem si falla
+    try:
+        import redis
+        # Test connection
+        r = redis.from_url('redis://localhost:6379/0', socket_connect_timeout=1)
+        r.ping()
+        # Si llega aquí, Redis está disponible
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+                'LOCATION': 'redis://localhost:6379/0',
+                'OPTIONS': {
+                    'socket_timeout': 5,
+                    'socket_connect_timeout': 5,
+                    'retry_on_timeout': True,
+                }
+            }
+        }
+        print("[DEBUG] Cache: Redis local")
+    except:
+        # Redis no disponible, usar memoria local
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'unique-snowflake',
+            }
+        }
+        print("[DEBUG] Cache: LocMem (Redis no disponible)")
+else:
+    # Producción: LocMem por ahora para evitar crashes
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
     }
-}
+    print("[DEBUG] Cache: LocMem (Producción - temporal)")
+    
+    # Para habilitar Redis en producción, descomentar:
+    # CACHES = {
+    #     'default': {
+    #         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+    #         'LOCATION': CELERY_BROKER_URL,
+    #         'OPTIONS': {
+    #             'socket_timeout': 5,
+    #             'socket_connect_timeout': 5,
+    #             'retry_on_timeout': True,
+    #         }
+    #     }
+    # }
 
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-#         'LOCATION': CELERY_BROKER_URL,
-#         'OPTIONS': {
-#             'socket_timeout': 5,            # No esperar más de 5s por datos
-#             'socket_connect_timeout': 5,    # No esperar más de 5s para conectar
-#             'retry_on_timeout': True,
-#             # 'ignore_exceptions': True,
-#         }
-#     }
-# }
+sys.stdout.flush()
 
 # Configuración adicional para producción
 if not DEBUG:
