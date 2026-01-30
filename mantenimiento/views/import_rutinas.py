@@ -51,9 +51,14 @@ def import_rutinas_process(request):
         sys.stdout.flush()
         return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
     
+    # Limpiar cache de progreso anterior para este usuario para evitar persistencia de estados viejos
+    cache_key = f"import_rutinas_progress_{request.user.id}"
+    cache.delete(cache_key)
+    
     # Trigger Celery task
-    verification_mode = request.POST.get('verification_mode', '').lower() in ['true', 'on', '1']
-    is_confirm = request.POST.get('confirm') == 'true'
+    v_val = request.POST.get('verification_mode', '').lower()
+    verification_mode = v_val in ['true', 'on', '1']
+    is_confirm = request.POST.get('confirm', '').lower() in ['true', 'on', '1']
     existing_path = request.POST.get('file_path')
     
     # Si es confirmación, usamos el path que ya tenemos
@@ -61,11 +66,12 @@ def import_rutinas_process(request):
         path = existing_path
         file_ext = path.split('.')[-1].lower()
     
-    print(f"[DEBUG] [Rutinas] Despachando tarea (verificion={verification_mode}, confirm={is_confirm}) para: {path}")
-    sys.stdout.flush()
+    # Lógica de Dry Run: SOLO si no es verificación y no es confirmación final
+    dry_run = (not verification_mode) and (not is_confirm)
     
-    # Si NO es modo verificación y NO es confirmación, lo corremos como DRY_RUN primero
-    dry_run = not verification_mode and not is_confirm
+    print(f"[DEBUG] [Rutinas] POST: {request.POST}")
+    print(f"[DEBUG] [Rutinas] verification_mode={verification_mode}, dry_run={dry_run}, is_confirm={is_confirm}")
+    sys.stdout.flush()
     
     task = import_rutinas_task.delay(
         path, 
@@ -75,7 +81,12 @@ def import_rutinas_process(request):
         dry_run=dry_run
     )
     
-    return JsonResponse({'status': 'started', 'task_id': task.id, 'dry_run': dry_run})
+    return JsonResponse({
+        'status': 'started', 
+        'task_id': task.id, 
+        'dry_run': dry_run,
+        'verification_mode': verification_mode
+    })
 
 @staff_member_required
 def import_rutinas_progress(request):

@@ -66,7 +66,10 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
     }
     cache.set(cache_key, progress_info, 3600)
     self.update_state(state='PROGRESS', meta=progress_info)
-    
+    print(f"[DEBUG] [Task] Iniciando import_rutinas_task. verif={verification_mode}, dry={dry_run}, user={user_id}")
+    import sys
+    sys.stdout.flush()
+
     if verification_mode:
         results = []
         codes_seen = set()
@@ -98,6 +101,7 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
                         missing_dataset.append(dataset[i-1])
             
             results.append(f"Fila {i}: Codigo '{codigo}' -> {status}")
+            print(f"[DEBUG] [Task] Verificando fila {i}: {codigo} -> {status}")
             
             if i % 10 == 0 or i == total_rows:
                 progress_info.update({
