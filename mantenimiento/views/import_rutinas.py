@@ -53,11 +53,29 @@ def import_rutinas_process(request):
     
     # Trigger Celery task
     verification_mode = request.POST.get('verification_mode') == 'true'
-    print(f"[DEBUG] [Rutinas] Despachando tarea (verificion={verification_mode}) para: {path}")
-    sys.stdout.flush()
-    task = import_rutinas_task.delay(path, file_ext, user_id=request.user.id, verification_mode=verification_mode)
+    is_confirm = request.POST.get('confirm') == 'true'
+    existing_path = request.POST.get('file_path')
     
-    return JsonResponse({'status': 'started', 'task_id': task.id})
+    # Si es confirmación, usamos el path que ya tenemos
+    if is_confirm and existing_path:
+        path = existing_path
+        file_ext = path.split('.')[-1].lower()
+    
+    print(f"[DEBUG] [Rutinas] Despachando tarea (verificion={verification_mode}, confirm={is_confirm}) para: {path}")
+    sys.stdout.flush()
+    
+    # Si NO es modo verificación y NO es confirmación, lo corremos como DRY_RUN primero
+    dry_run = not verification_mode and not is_confirm
+    
+    task = import_rutinas_task.delay(
+        path, 
+        file_ext, 
+        user_id=request.user.id, 
+        verification_mode=verification_mode,
+        dry_run=dry_run
+    )
+    
+    return JsonResponse({'status': 'started', 'task_id': task.id, 'dry_run': dry_run})
 
 @staff_member_required
 def import_rutinas_progress(request):

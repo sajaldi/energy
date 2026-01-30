@@ -247,6 +247,16 @@ class RutinaResource(resources.ModelResource):
         attribute='procedimiento_estandar',
         widget=ForeignKeyWidget(Procedimiento, field='nombre')
     )
+
+    def get_instance(self, instance_loader, row):
+        """
+        Asegura que la coincidencia se haga SIEMPRE por codigo_rutina
+        incluso si el ID viene vacío o diferente en el archivo.
+        """
+        codigo = row.get('codigo_rutina')
+        if codigo:
+            return self.Meta.model.objects.filter(codigo_rutina=str(codigo).strip()).first()
+        return None
     
     tiempo_estimado = fields.Field(
         column_name='tiempo_estimado',
@@ -283,11 +293,15 @@ class RutinaResource(resources.ModelResource):
 
     class Meta:
         model = Rutina
-        import_id_fields = ('codigo_rutina',) # Usar el código como identificador único para el importador
-        fields = ('id', 'codigo_rutina', 'nombre', 'categoria_nombre', 'categoria_ruta', 
-                  'frecuencia_nombre', 'procedimiento_estandar', 'descripcion', 'tiempo_estimado', 'cantidad_tecnicos', 'herramientas')
+        import_id_fields = ('codigo_rutina',)
+        # EXCLUIMOS 'id' de los campos de importación para evitar que el loader 
+        # intente buscar por ID (que suele estar vacío en plantillas nuevas)
+        fields = ('codigo_rutina', 'nombre', 'categoria_nombre', 'categoria_ruta', 
+                  'frecuencia_nombre', 'procedimiento_estandar', 'descripcion', 
+                  'tiempo_estimado', 'cantidad_tecnicos', 'herramientas')
         export_order = ('id', 'codigo_rutina', 'nombre', 'categoria_nombre', 'categoria_ruta', 
-                       'frecuencia_nombre', 'procedimiento_estandar', 'tiempo_estimado', 'cantidad_tecnicos', 'herramientas', 'descripcion')
+                       'frecuencia_nombre', 'procedimiento_estandar', 'tiempo_estimado', 
+                       'cantidad_tecnicos', 'herramientas', 'descripcion')
         skip_unchanged = True
         report_skipped = True
         use_bulk = False

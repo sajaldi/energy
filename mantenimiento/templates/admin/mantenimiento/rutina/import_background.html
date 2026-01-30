@@ -206,48 +206,55 @@
                         progressFill.style.width = '100%';
 
                         if (data.verification_mode) {
+                            // ... (Existing verification code is same, but let's ensure it's correct)
                             let missingBtn = '';
                             if (data.missing_file_url) {
-                                missingBtn = `
-                                    <div style="margin-top: 15px;">
-                                        <a href="${data.missing_file_url}" class="button" style="background: #2563eb; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">
-                                            📊 Descargar Faltantes (${data.missing_count})
-                                        </a>
-                                    </div>
-                                `;
+                                missingBtn = `<div style="margin-top: 15px;"><a href="${data.missing_file_url}" class="button" style="background: #2563eb; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">📊 Descargar Faltantes (${data.missing_count})</a></div>`;
                             }
-
                             Swal.fire({
                                 title: '¡Verificación Completada!',
-                                html: `
-                                <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
-                                    <p>✅ <b>Encontrados (Ya existen):</b> ${data.found}</p>
-                                    <p>🆕 <b>No encontrados (Nuevos):</b> ${data.not_found}</p>
-                                    <p>⚠️ <b>Repetidos en archivo:</b> ${data.duplicates || 0}</p>
-                                    ${missingBtn}
-                                    <hr>
-                                    <div style="max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: monospace;">
-                                        ${data.results.join('<br>')}
-                                    </div>
-                                </div>
-                            `,
+                                html: `<div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;"><p>✅ <b>Encontrados (Ya existen):</b> ${data.found}</p><p>🆕 <b>No encontrados (Nuevos):</b> ${data.not_found}</p><p>⚠️ <b>Repetidos en archivo:</b> ${data.duplicates || 0}</p>${missingBtn}<hr><div style="max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: monospace;">${data.results.join('<br>')}</div></div>`,
                                 icon: 'info',
                                 confirmButtonText: 'Cerrar'
                             });
                             resetUI();
+                        } else if (data.dry_run) {
+                            // MODO PREVIEW (CONCULTA ANTES DE ACTUALIZAR)
+                            Swal.fire({
+                                title: '🔍 Análisis del Archivo',
+                                html: `
+                                <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                    <p style="color: #2563eb; font-weight: bold; margin-bottom: 10px;">Se detectaron los siguientes cambios:</p>
+                                    <p>🆕 <b>Nuevas (Se crearán):</b> ${data.new}</p>
+                                    <p>🔄 <b>Existentes (Se actualizarán):</b> ${data.updated}</p>
+                                    <p>⏭️ <b>Sin cambios:</b> ${data.skipped}</p>
+                                    
+                                    ${data.errors > 0 ? `
+                                        <div style="margin-top: 15px; border-top: 1px solid #fee2e2; pt-3">
+                                            <p style="color: #ef4444; font-weight: bold;">⚠️ Errores Encontrados (${data.errors}):</p>
+                                            <div style="max-height: 100px; overflow-y: auto; font-size: 0.75rem; color: #b91c1c; background: #fff5f5; padding: 5px; border-radius: 4px;">
+                                                ${data.error_list.join('<br>')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    <p style="margin-top: 15px; font-size: 0.9rem; color: #475569;">¿Deseas proceder con la importación y actualización de estos registros?</p>
+                                </div>
+                                `,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: '✅ Sí, Importar todo',
+                                cancelButtonText: '❌ Cancelar',
+                                confirmButtonColor: '#2563eb',
+                                reverseButtons: true
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    confirmImport(data.file_path);
+                                } else {
+                                    resetUI();
+                                }
+                            });
                         } else {
-                            let missingBtn = '';
-                            if (data.missing_file_url) {
-                                missingBtn = `
-                                    <div style="margin-top: 15px; background: #fffbeb; border: 1px solid #fef3c7; padding: 10px; border-radius: 6px;">
-                                        <p style="margin: 0 0 10px 0; color: #92400e; font-size: 0.9rem;">Se detectaron items que no existen en el sistema:</p>
-                                        <a href="${data.missing_file_url}" class="button" style="background: #d97706; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold; font-size: 0.9rem;">
-                                            📥 Descargar Plantilla de Faltantes
-                                        </a>
-                                    </div>
-                                `;
-                            }
-
+                            // IMPORTACIÓN FINALIZADA
                             Swal.fire({
                                 title: '¡Importación Finalizada!',
                                 html: `
@@ -256,7 +263,6 @@
                                     <p>🔄 <b>Actualizadas:</b> ${data.updated}</p>
                                     <p>⏭️ <b>Omitidas:</b> ${data.skipped}</p>
                                     <p>❌ <b>Errores:</b> ${data.errors}</p>
-                                    ${missingBtn}
                                     ${data.error_list && data.error_list.length > 0 ? `
                                         <div style="margin-top: 15px;">
                                             <p style="margin: 0 0 5px 0; font-weight: bold; color: #ef4444; font-size: 0.9rem;">Detalle de Errores:</p>
@@ -282,6 +288,34 @@
                 })
                 .catch(err => console.error('Error de sondeo:', err));
         }, 1000);
+    }
+
+    function confirmImport(filePath) {
+        // UI Reset para re-iniciar
+        progressFill.style.width = '0%';
+        statusText.textContent = 'Iniciando importación real...';
+
+        const formData = new FormData();
+        formData.append('confirm', 'true');
+        formData.append('file_path', filePath);
+        formData.append('verification_mode', 'false');
+
+        fetch('process/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.task_id) {
+                    startPolling(data.task_id);
+                } else {
+                    Swal.fire('Error', 'No se pudo confirmar la importación', 'error');
+                    resetUI();
+                }
+            });
     }
 
     function resetUI() {
