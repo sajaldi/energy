@@ -264,11 +264,22 @@ class RutinaResource(resources.ModelResource):
         return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
 
     def before_import_row(self, row, **kwargs):
-        """Limpia los valores 'None' que el exportador genera como texto"""
+        """Limpia los valores 'None' y quita espacios de los campos clave"""
         for key in list(row.keys()):
-            val = str(row.get(key, '')).strip()
-            if val in ['None', 'nan', 'NULL', '']:
+            val = row.get(key)
+            if val is None:
+                continue
+            
+            val_str = str(val).strip()
+            # Limpiar nulos de Excel/CSV
+            if val_str.lower() in ['none', 'nan', 'null', '']:
                 row[key] = None
+            else:
+                # Quitar espacios al inicio y final de los strings
+                if isinstance(val, str):
+                    row[key] = val.strip()
+                else:
+                    row[key] = val_str
 
     class Meta:
         model = Rutina

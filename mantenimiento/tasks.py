@@ -123,70 +123,46 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
             'verification_mode': True
         }
     else:
+        # Modo IMPORTACIÓN real
         resource.before_import(dataset)
-        from import_export import resources as ie_resources
-        result = ie_resources.Result()
-        
-        for i, row in enumerate(dataset.dict, start=1):
-            try:
-                # Verificar si existe para agregarlo a faltantes si falla
-                codigo = str(row.get('codigo_rutina') or '').strip()
-                if codigo:
-                    exists = Rutina.objects.filter(codigo_rutina=codigo).exists()
-                    if not exists:
-                        missing_dataset.append(dataset[i-1])
-
-                if i % 5 == 0 or i == total_rows:
-                    progress_info.update({
-                        'current': i,
-                        'status': f'Procesando rutina {i}/{total_rows}: {row.get("nombre", "")}',
-                        'percent': int((i / total_rows) * 100),
-                        'new': result.totals.get('new', 0),
-                        'updated': result.totals.get('update', 0),
-                        'skipped': result.totals.get('skip', 0),
-                        'errors': len(result.base_errors) + len(result.row_errors()),
-                    })
-                    cache.set(cache_key, progress_info, 3600)
-                    self.update_state(state='PROGRESS', meta=progress_info)
-                
-                from import_export.instance_loaders import ModelInstanceLoader
-                instance_loader = ModelInstanceLoader(resource, dataset)
-                row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
-                result.append_row_result(row_result)
-                
-            except Exception as e:
-                result.append_base_error(ie_resources.Error(error=e, traceback=str(e), row=row))
-
-        # Recopilar errores detallados
-        detailed_errors = []
         try:
+            # Usar import_data que es mucho más robusto para detectar duplicados/actualizaciones
+            # basado en import_id_fields configurado en el Resource.
+            result = resource.import_data(dataset, dry_run=False, raise_errors=False)
+            
+            # Recopilar errores detallados de las filas
+            detailed_errors = []
             for error in result.base_errors:
                 detailed_errors.append(f"Error General: {str(error.error)}")
+            
             for line, errors in result.row_errors():
                 for error in errors:
-                    msg = f"Fila {line}: {str(error.error)}"
-                    detailed_errors.append(msg)
-        except: pass
+                    # Incluimos el numero de fila para que el usuario sepa donde esta el fallo
+                    detailed_errors.append(f"Fila {line}: {str(error.error)}")
 
-        final_res = {
-            'status': 'completed',
-            'status_code': 'completed',
-            'total': total_rows,
-            'new': result.totals.get('new', 0),
-            'updated': result.totals.get('update', 0),
-            'skipped': result.totals.get('skip', 0),
-            'errors': len(result.base_errors) + len(result.row_errors()),
-            'error_list': detailed_errors,
-            'verification_mode': False
-        }
+            final_res = {
+                'status': 'completed',
+                'status_code': 'completed',
+                'total': total_rows,
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(detailed_errors),
+                'error_list': detailed_errors,
+                'verification_mode': False
+            }
+        except Exception as e:
+            error_msg = f"Error crítico en importación: {str(e)}"
+            progress_info.update({'status': 'error', 'message': error_msg})
+            cache.set(cache_key, progress_info, 3600)
+            return {'status': 'error', 'message': error_msg}
 
-    # Si hay códigos faltantes, generar el archivo Excel
-    if len(missing_dataset) > 0:
+    # Si estamos en verificacion y hay códigos faltantes, generar el archivo Excel
+    if verification_mode and len(missing_dataset) > 0:
         try:
             from django.core.files.base import ContentFile
             missing_filename = f"imports/faltantes_rutinas_{user_id or 'anon'}_{int(time.time())}.xlsx"
             default_storage.save(missing_filename, ContentFile(missing_dataset.xlsx))
-            # Generar URL (si es S3 sera firmada, si es local sera relativa)
             final_res['missing_file_url'] = default_storage.url(missing_filename)
             final_res['missing_count'] = len(missing_dataset)
         except Exception as e:
