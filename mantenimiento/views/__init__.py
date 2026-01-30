@@ -3,7 +3,6 @@ from .cronograma import (
     calendario_detallado, 
     cronograma_mantenimiento_visual, 
     detalle_mes, 
-    exportar_detalle_mes_excel,
     visualizador_proyecciones
 )
 from .api import (

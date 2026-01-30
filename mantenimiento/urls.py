@@ -9,7 +9,6 @@ urlpatterns = [
     path('calendario/detallado/', views.calendario_detallado, name='detallado'),
     path('cronograma/', views.cronograma_mantenimiento_visual, name='cronograma'),
     path('cronograma/<int:year>/<int:month>/', views.detalle_mes, name='detalle_mes'),
-    path('cronograma/<int:year>/<int:month>/export/', views.exportar_detalle_mes_excel, name='exportar_detalle_mes_excel'),
     path('api/update-ot-date/', views.api_update_ot_date, name='api_update_ot_date'),
     path('api/split-ot-asset/', views.api_split_ot_asset, name='api_split_ot_asset'),
     path('api/merge-ots/', views.api_merge_ots, name='api_merge_ots'),
