@@ -410,13 +410,22 @@ class OrdenTrabajoResource(resources.ModelResource):
         widget=DateTimeWidget(format='%Y-%m-%d %H:%M:%S')
     )
 
+    def get_instance(self, instance_loader, row):
+        """Coincidencia por codigo_de_orden si está presente"""
+        codigo = row.get('codigo_de_orden')
+        if codigo:
+            return self.Meta.model.objects.filter(codigo_de_orden=str(codigo).strip()).first()
+        return None
+
     class Meta:
         model = OrdenTrabajo
-        import_id_fields = ('id',)
-        fields = ('id', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
+        import_id_fields = ('codigo_de_orden',)
+        fields = ('id', 'codigo_de_orden', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
                   'tecnico_usuario', 'activos_codigos', 'inicio_programado', 'fin_programado', 
                   'estado', 'notas')
-        export_order = fields
+        export_order = ('id', 'codigo_de_orden', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
+                        'tecnico_usuario', 'activos_codigos', 'inicio_programado', 'fin_programado', 
+                        'estado', 'notas')
 
     def before_import_row(self, row, **kwargs):
         """Limpieza de datos similar a RutinaResource"""
@@ -914,13 +923,13 @@ from documentos.admin_mayan import MayanDocumentInline
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('id', 'tipo', 'prioridad', 'get_descripcion', 'get_ubicacion_jerarquia', 'get_activos_format', 'tecnico', 'equipo', 'estado', 'registrar_salida_link', 'generar_permiso_action')
+    list_display = ('id', 'codigo_de_orden', 'tipo', 'prioridad', 'get_descripcion', 'get_ubicacion_jerarquia', 'get_activos_format', 'tecnico', 'equipo', 'estado', 'registrar_salida_link', 'generar_permiso_action')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'equipo')
     readonly_fields = ('registrar_salida_link',)
     list_select_related = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
-    search_fields = ('id', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
+    search_fields = ('id', 'codigo_de_orden', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
     autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion', 'activos')
-    ordering = ('-id',)
+    ordering = ('-inicio_programado',)
     date_hierarchy = 'inicio_programado'
     raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
     # filter_horizontal = ('activos',)
