@@ -98,6 +98,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'callcenter',
     'corsheaders',
+    'servicios',
 ]
 
 
