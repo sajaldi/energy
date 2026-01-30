@@ -157,7 +157,7 @@
         progressWrapper.style.display = 'block';
 
         const formData = new FormData(this);
-        formData.append('verification_mode', verificationMode.checked);
+        formData.set('verification_mode', verificationMode.checked ? 'true' : 'false');
 
         // 1. Iniciar Tarea
         fetch('process/', {
@@ -206,7 +206,6 @@
                         progressFill.style.width = '100%';
 
                         if (data.verification_mode) {
-                            // ... (Existing verification code is same, but let's ensure it's correct)
                             let missingBtn = '';
                             if (data.missing_file_url) {
                                 missingBtn = `<div style="margin-top: 15px;"><a href="${data.missing_file_url}" class="button" style="background: #2563eb; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">📊 Descargar Faltantes (${data.missing_count})</a></div>`;

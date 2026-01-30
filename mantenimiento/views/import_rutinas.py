@@ -52,7 +52,7 @@ def import_rutinas_process(request):
         return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
     
     # Trigger Celery task
-    verification_mode = request.POST.get('verification_mode') == 'true'
+    verification_mode = request.POST.get('verification_mode', '').lower() in ['true', 'on', '1']
     is_confirm = request.POST.get('confirm') == 'true'
     existing_path = request.POST.get('file_path')
     
