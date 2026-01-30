@@ -15,7 +15,7 @@ def try_decode(content, encodings=['utf-8-sig', 'iso-8859-1', 'windows-1252', 'u
     return content.decode('utf-8', errors='ignore')
 
 @shared_task(bind=True)
-def import_rutinas_task(self, file_path, file_format, user_id=None, verification_mode=False):
+def import_rutinas_task(self, file_path, file_format, user_id=None, verification_mode=False, dry_run=False):
     """
     Tarea Celery para importar o VERIFICAR RUTINAS con seguimiento de progreso real.
     """
@@ -128,7 +128,7 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
         try:
             # Usar import_data que es mucho más robusto para detectar duplicados/actualizaciones
             # basado en import_id_fields configurado en el Resource.
-            result = resource.import_data(dataset, dry_run=False, raise_errors=False)
+            result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
             
             # Recopilar errores detallados de las filas
             detailed_errors = []
@@ -149,7 +149,9 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
                 'skipped': result.totals.get('skip', 0),
                 'errors': len(detailed_errors),
                 'error_list': detailed_errors,
-                'verification_mode': False
+                'verification_mode': False,
+                'dry_run': dry_run,
+                'file_path': file_path
             }
         except Exception as e:
             error_msg = f"Error crítico en importación: {str(e)}"
@@ -168,12 +170,13 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
         except Exception as e:
             print(f"Error al generar archivo de faltantes: {str(e)}")
 
-    # Limpiar archivo original
-    try:
-        if default_storage.exists(file_path):
-            default_storage.delete(file_path)
-    except:
-        pass
+    # Limpiar archivo original SOLO si no es dry_run
+    if not dry_run:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
         
     cache.set(cache_key, final_res, 3600)
     return final_res
