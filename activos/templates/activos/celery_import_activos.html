@@ -167,6 +167,105 @@
     .log-entry.error {
         color: #ef4444;
     }
+
+    /* Estilos para el Modal de Detalles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(8px);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+        opacity: 1;
+    }
+
+    .modal-content {
+        background: white;
+        width: 90%;
+        max-width: 500px;
+        max-height: 80vh;
+        border-radius: 20px;
+        padding: 30px;
+        position: relative;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-header {
+        margin-bottom: 20px;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 15px;
+    }
+
+    .modal-title {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #1e293b;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: #f1f5f9;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+    }
+
+    .modal-body {
+        overflow-y: auto;
+        flex: 1;
+        padding-right: 10px;
+    }
+
+    .asset-list-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid #f8fafc;
+        font-size: 0.9rem;
+        color: #475569;
+        display: flex;
+        align-items: center;
+    }
+
+    .asset-list-item:before {
+        content: "•";
+        color: var(--primary);
+        font-weight: bold;
+        margin-right: 10px;
+    }
+
+    .column-card {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .column-card:hover {
+        transform: translateY(-2px);
+        background: #eff6ff !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+    }
 </style>
 {% endblock %}
 
@@ -239,13 +338,39 @@
             </div>
         </div>
 
+        <!-- Nuevo: Reporte de Columnas Actualizadas -->
+        <div id="column-report-section"
+            style="display: none; margin-top: 30px; padding: 20px; background: rgba(255, 255, 255, 0.9); border-radius: 16px; border: 1px solid #e2e8f0;">
+            <h4
+                style="margin-top: 0; margin-bottom: 15px; color: #1e293b; font-weight: 700; display: flex; align-items: center;">
+                <span style="margin-right: 8px;">📊</span> Detalle de Columnas Actualizadas
+            </h4>
+            <div id="column-report-list"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+                <!-- Se llenará vía JS -->
+            </div>
+        </div>
+
         <div class="log-area" id="log-area">
             <div class="log-entry">Esperando inicio de tarea...</div>
         </div>
 
         <div id="finish-actions" style="display: none; margin-top: 30px; text-align: center;">
             <a href="/admin/activos/activo/" class="button" style="background: var(--success); padding: 12px 24px;">Ir
-                al Listado de Activos</a>
+                Al Listado de Activos</a>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalles de columnas -->
+<div class="modal-overlay" id="column-modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal()">×</button>
+        <div class="modal-header">
+            <div class="modal-title" id="modal-title">Detalle de Columna</div>
+        </div>
+        <div class="modal-body" id="modal-body">
+            <!-- Items se llenarán aquí -->
         </div>
     </div>
 </div>
@@ -342,9 +467,29 @@
                 // Mostrar logs en tiempo real
                 if (data.last_error) {
                     addLog('❌ ' + data.last_error, 'error');
-                } else if (data.last_log) {
-                    // Solo logueamos cada cierto tiempo o eventos importantes para no saturar el DOM
-                    // addLog('🔹 ' + data.last_log); 
+                }
+
+                // Renderizar reporte de columnas si existe
+                if (data.reporte_columnas && Object.keys(data.reporte_columnas).length > 0) {
+                    const reportSection = document.getElementById('column-report-section');
+                    const reportList = document.getElementById('column-report-list');
+                    reportSection.style.display = 'block';
+                    reportList.innerHTML = '';
+
+                    window._lastColumnData = data.reporte_columnas; // Guardar para el modal
+
+                    Object.entries(data.reporte_columnas).forEach(([col, items]) => {
+                        const count = Array.isArray(items) ? items.length : items;
+                        const item = document.createElement('div');
+                        item.className = 'column-card';
+                        item.style = 'background: #f8fafc; padding: 10px 15px; border-radius: 10px; border: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;';
+                        item.onclick = () => showColumnDetail(col);
+                        item.innerHTML = `
+                            <span style="font-weight: 600; font-size: 0.85rem; color: #475569;">${col}</span>
+                            <span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem;">${count}</span>
+                        `;
+                        reportList.appendChild(item);
+                    });
                 }
 
                 if (data.state === 'SUCCESS') {
@@ -359,6 +504,36 @@
                 addLog('Error fatal: ' + data.error, 'error');
             }
         }, 1000);
+    }
+
+    function showColumnDetail(column) {
+        const data = window._lastColumnData[column];
+        if (!data || !Array.isArray(data)) return;
+
+        document.getElementById('modal-title').innerText = `Activos con "${column}" actualizado`;
+        const body = document.getElementById('modal-body');
+        body.innerHTML = '';
+
+        data.forEach(text => {
+            const div = document.createElement('div');
+            div.className = 'asset-list-item';
+            div.innerText = text;
+            body.appendChild(div);
+        });
+
+        document.getElementById('column-modal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('column-modal').classList.remove('active');
+    }
+
+    // Cerrar modal al hacer clic fuera
+    window.onclick = function (event) {
+        const modal = document.getElementById('column-modal');
+        if (event.target == modal) {
+            closeModal();
+        }
     }
 </script>
 {% endblock %}

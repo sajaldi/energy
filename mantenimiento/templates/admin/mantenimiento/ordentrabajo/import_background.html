@@ -123,6 +123,114 @@
         border-left: 3px solid #3b82f6;
         padding-left: 10px;
     }
+
+    /* Estilos para el reporte de columnas */
+    .column-report-section {
+        margin-top: 25px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .column-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .column-card {
+        background: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .column-card:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        transform: translateY(-2px);
+    }
+
+    .column-card .col-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+    }
+
+    .column-card .col-count {
+        background: #3b82f6;
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+
+    /* Estilos para el Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: white;
+        width: 90%;
+        max-width: 500px;
+        max-height: 80vh;
+        border-radius: 16px;
+        padding: 25px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-header {
+        margin-bottom: 20px;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 10px;
+    }
+
+    .modal-body {
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: #f1f5f9;
+        border: none;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        color: #64748b;
+    }
+
+    .asset-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid #f8fafc;
+        font-size: 13px;
+        color: #334155;
+    }
 </style>
 {% endblock %}
 
@@ -169,6 +277,10 @@
                 <span class="label">NUEVOS</span>
                 <span class="value" id="valNew">0</span>
             </div>
+            <div class="status-card" style="background: #fffbeb;">
+                <span class="label" style="color: #d97706;">ACTUALIZADOS</span>
+                <span class="value" id="valUpdated" style="color: #d97706;">0</span>
+            </div>
             <div class="status-card">
                 <span class="label">SALTADOS</span>
                 <span class="value" id="valSkipped">0</span>
@@ -179,9 +291,32 @@
             </div>
         </div>
 
+        <div id="columnReportSection" class="column-report-section" style="display: none;">
+            <h4 style="margin: 0; font-size: 14px; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                📊 Detalle de Columnas Actualizadas
+            </h4>
+            <div id="columnGrid" class="column-grid"></div>
+        </div>
+
         <div class="log-container" id="logContainer">
             <div class="log-entry">Esperando respuesta del servidor...</div>
         </div>
+    </div>
+    <div id="finishActions" style="display: none; margin-top: 25px; text-align: center;">
+        <a href="../" class="button"
+            style="background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px;">Ir al Listado de
+            Órdenes</a>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal()">×</button>
+        <div class="modal-header">
+            <h4 id="modalTitle" style="margin: 0; color: #1e293b;">Detalle</h4>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
     </div>
 </div>
 
@@ -254,6 +389,7 @@
                         clearInterval(interval);
                         if (data.status === 'completed') {
                             addLog('✅ Importación finalizada con éxito.');
+                            document.getElementById('finishActions').style.display = 'block';
                         }
                     }
                 });
@@ -269,11 +405,33 @@
         }
 
         document.getElementById('valTotal').innerText = data.total || 0;
-        document.getElementById('valNew').innerText = (data.new || 0) + (data.updated || 0);
+        document.getElementById('valNew').innerText = data.new || 0;
+        document.getElementById('valUpdated').innerText = data.updated || 0;
         document.getElementById('valSkipped').innerText = data.skipped || 0;
         document.getElementById('valErrors').innerText = data.errors || 0;
 
-        if (data.status && data.status !== 'waiting') {
+        // Manejar reporte de columnas
+        if (data.reporte_columnas && Object.keys(data.reporte_columnas).length > 0) {
+            window._lastReportData = data.reporte_columnas;
+            const container = document.getElementById('columnReportSection');
+            const grid = document.getElementById('columnGrid');
+            container.style.display = 'block';
+            grid.innerHTML = '';
+
+            Object.entries(data.reporte_columnas).forEach(([col, items]) => {
+                const count = Array.isArray(items) ? items.length : items;
+                const card = document.createElement('div');
+                card.className = 'column-card';
+                card.onclick = () => showColumnDetail(col);
+                card.innerHTML = `
+                    <span class="col-name">${col}</span>
+                    <span class="col-count">${count}</span>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        if (data.status && data.status !== 'waiting' && data.status !== 'completed') {
             addLog(data.status);
         }
 
@@ -299,6 +457,32 @@
         entry.className = 'log-entry';
         entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
         log.prepend(entry);
+    }
+
+    function showColumnDetail(column) {
+        const items = window._lastReportData[column];
+        if (!items || !Array.isArray(items)) return;
+
+        document.getElementById('modalTitle').innerText = `OTs actualizadas en "${column}"`;
+        const body = document.getElementById('modalBody');
+        body.innerHTML = '';
+
+        items.forEach(text => {
+            const div = document.createElement('div');
+            div.className = 'asset-item';
+            div.innerText = text;
+            body.appendChild(div);
+        });
+
+        document.getElementById('detailModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('detailModal').style.display = 'none';
+    }
+
+    window.onclick = (e) => {
+        if (e.target.classList.contains('modal-overlay')) closeModal();
     }
 </script>
 {% endblock %}

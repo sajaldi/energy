@@ -1333,6 +1333,35 @@ class ActivoResource(resources.ModelResource):
             return
         super().import_field(field, obj, row, is_m2m=is_m2m, **kwargs)
 
+    def import_row(self, row, instance_loader, **kwargs):
+        """Sobrescribe import_row para detectar qué campos cambiaron realmente"""
+        from import_export import resources
+        
+        # Obtenemos la instancia y los valores originales para comparar después
+        instance, is_new = self.get_or_init_instance(instance_loader, row)
+        original_values = {}
+        if not is_new and instance:
+            for field in self.get_fields():
+                original_values[field.column_name] = field.get_value(instance)
+
+        # Procesar la fila normalmente
+        row_result = super().import_row(row, instance_loader, **kwargs)
+
+        # Si fue un update exitoso, comparamos valores (usando los originales que guardamos)
+        if row_result.import_type == resources.RowResult.IMPORT_TYPE_UPDATE:
+            changed_fields = []
+            for field in self.get_fields():
+                if field.column_name in row:
+                    old_val = original_values.get(field.column_name)
+                    new_val = field.get_value(row_result.instance)
+                    if old_val != new_val:
+                        changed_fields.append(field.column_name)
+            
+            # Guardamos los campos cambiados en el row_result para que la tarea los pueda leer
+            row_result.changed_fields = changed_fields
+
+        return row_result
+
     class Meta:
         model = Activo
         import_id_fields = ('codigo_interno',)
@@ -1395,7 +1424,11 @@ class ActivoResource(resources.ModelResource):
         from .models import Marca, Modelo, Categoria, Ubicacion
         from django.db.models import Count
         
-        # 0. Inicializar progreso detallado
+        # 0. Normalizar cabeceras a minúsculas para asegurar coincidencia con Resource
+        if dataset.headers:
+            dataset.headers = [str(h).lower() for h in dataset.headers]
+
+        # 0.1 Inicializar progreso detallado
         user = kwargs.get('user')
         self._import_user = user
         self._ids_creados = [] # Para rastrear y permitir reversión
