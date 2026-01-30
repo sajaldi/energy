@@ -25,6 +25,8 @@ class RegistroImportacion(models.Model):
     # Almacenamos los IDs creados como una lista en texto para poder revertir
     ids_creados = models.TextField(blank=True, help_text="IDs de activos creados en esta sesión (JSON)")
     
+    resumen_columnas = models.JSONField(null=True, blank=True, help_text="Resumen de qué columnas se actualizaron y cuántas veces")
+    
     detalles_error = models.TextField(blank=True, null=True)
 
     def __str__(self):

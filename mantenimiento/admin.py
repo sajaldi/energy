@@ -417,6 +417,51 @@ class OrdenTrabajoResource(resources.ModelResource):
             return self.Meta.model.objects.filter(codigo_de_orden=str(codigo).strip()).first()
         return None
 
+    def before_import(self, dataset, *args, **kwargs):
+        """Normalizar cabeceras a minúsculas"""
+        if dataset.headers:
+            dataset.headers = [str(h).lower().strip() for h in dataset.headers]
+
+    def import_row(self, row, instance_loader, **kwargs):
+        """Sobrescribe import_row para detectar qué campos cambiaron realmente, incluyendo M2M"""
+        from import_export import resources, widgets
+        
+        # Obtenemos la instancia y los valores originales para comparar después
+        instance, is_new = self.get_or_init_instance(instance_loader, row)
+        original_values = {}
+        if not is_new and instance:
+            for field in self.get_fields():
+                val = field.get_value(instance)
+                # Para campos M2M, renderizamos a string para comparar
+                if isinstance(field.widget, widgets.ManyToManyWidget):
+                    original_values[field.column_name] = field.widget.render(val, instance)
+                else:
+                    original_values[field.column_name] = val
+
+        # Procesar la fila normalmente
+        row_result = super().import_row(row, instance_loader, **kwargs)
+
+        # Si fue un update exitoso, comparamos valores
+        if row_result.import_type == resources.RowResult.IMPORT_TYPE_UPDATE:
+            changed_fields = []
+            for field in self.get_fields():
+                if field.column_name in row:
+                    old_val = original_values.get(field.column_name)
+                    new_val_raw = field.get_value(row_result.instance)
+                    
+                    if isinstance(field.widget, widgets.ManyToManyWidget):
+                        new_val = field.widget.render(new_val_raw, row_result.instance)
+                    else:
+                        new_val = new_val_raw
+
+                    if old_val != new_val:
+                        changed_fields.append(field.column_name)
+            
+            # Guardamos los campos cambiados en el row_result para que la tarea los pueda leer
+            row_result.changed_fields = changed_fields
+
+        return row_result
+
     class Meta:
         model = OrdenTrabajo
         import_id_fields = ('codigo_de_orden',)
@@ -923,7 +968,7 @@ from documentos.admin_mayan import MayanDocumentInline
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('id', 'codigo_de_orden', 'tipo', 'prioridad', 'get_descripcion', 'get_ubicacion_jerarquia', 'get_activos_format', 'tecnico', 'equipo', 'estado', 'registrar_salida_link', 'generar_permiso_action')
+    list_display = ('codigo_de_orden', 'tipo', 'prioridad', 'get_descripcion', 'get_ubicacion_jerarquia', 'get_activos_format', 'inicio_programado', 'estado', 'registrar_salida_link')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'equipo')
     readonly_fields = ('registrar_salida_link',)
     list_select_related = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
@@ -931,9 +976,23 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion', 'activos')
     ordering = ('-inicio_programado',)
     date_hierarchy = 'inicio_programado'
-    raw_id_fields = ('rutina', 'aviso', 'tecnico', 'ubicacion', 'programacion')
-    # filter_horizontal = ('activos',)
-    inlines = [CierreOrdenTrabajoInline, MovimientoInventarioInline, PermisosTrabajoInline, ValorPasoOrdenInline, MayanDocumentInline]
+    actions = ['generar_permiso_action', 'exportar_seleccionadas_action']
+
+    @admin.action(description="📥 Exportar seleccionadas (Formato Importación)")
+    def exportar_seleccionadas_action(self, request, queryset):
+        """
+        Exporta las OTs seleccionadas en el formato exacto requerido para la importación.
+        """
+        resource = OrdenTrabajoResource()
+        dataset = resource.export(queryset)
+        
+        response = HttpResponse(
+            dataset.xlsx,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="ordenes_trabajo_seleccionadas.xlsx"'
+        
+        return response
 
 
     def get_queryset(self, request):
@@ -969,12 +1028,12 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         if obj.estado in ['PROGRAMADA', 'EJECUCION']:
             try:
                 url = reverse('inventarios:registrar_salida')
-                return mark_safe(f'<a class="button" href="{url}?ot={obj.id}" style="background: #6366f1; color: white; padding: 4px 10px; border-radius: 4px; font-weight: 600; text-decoration: none;">📦 Salida de Material</a>')
+                return mark_safe(f'<a class="button" href="{url}?ot={obj.id}" style="background: #6366f1; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-decoration: none; font-size: 0.9em;">📦 Salida</a>')
             except Exception:
                 # Fallback en caso de error de reversión (ej. migraciones o urls no cargadas)
                 return "-"
         return "-"
-    registrar_salida_link.short_description = "Acciones"
+    registrar_salida_link.short_description = "Acc."
 
     def generar_permiso_action(self, obj):
         from django.urls import reverse

@@ -197,6 +197,7 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
 
     # Inicializar resource
     resource = OrdenTrabajoResource()
+    resource._meta.use_bulk = False
     
     # Marcador de progreso en caché
     cache_key = f"import_ordenes_progress_{user_id}" if user_id else "import_ordenes_progress_system"
@@ -220,6 +221,7 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
     resource.before_import(dataset)
     
     # Estado inicial
+    resumen_columnas = {}
     progress_info = {
         'current': 0, 
         'total': total_rows, 
@@ -228,7 +230,8 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
         'new': 0,
         'updated': 0,
         'skipped': 0,
-        'errors': 0
+        'errors': 0,
+        'reporte_columnas': resumen_columnas
     }
     cache.set(cache_key, progress_info, 3600)
     self.update_state(state='PROGRESS', meta=progress_info)
@@ -253,6 +256,19 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
             from import_export.instance_loaders import ModelInstanceLoader
             instance_loader = ModelInstanceLoader(resource, dataset)
             row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
+            
+            # Acumular reporte de columnas si vienen en el row_result
+            if row_result.import_type == ie_resources.RowResult.IMPORT_TYPE_UPDATE:
+                changed = getattr(row_result, 'changed_fields', [])
+                assets_str = row.get('activos_codigos') or '-'
+                if len(str(assets_str)) > 40:
+                    assets_str = str(assets_str)[:37] + "..."
+                ot_info = f"OT {row.get('codigo_de_orden', 'S/C')} (Activos: {assets_str})"
+                for field in changed:
+                    if field not in resumen_columnas:
+                        resumen_columnas[field] = []
+                    resumen_columnas[field].append(ot_info)
+
             result.append_row_result(row_result)
             
         except Exception as e:
@@ -284,7 +300,8 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
         'updated': result.totals.get('update', 0),
         'skipped': result.totals.get('skip', 0),
         'errors': len(result.base_errors) + len(result.row_errors()),
-        'error_list': detailed_errors
+        'error_list': detailed_errors,
+        'reporte_columnas': resumen_columnas
     }
     cache.set(cache_key, final_res, 3600)
     return final_res

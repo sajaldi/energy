@@ -161,6 +161,8 @@ def import_activos_task(self, file_path, file_format, user_id=None, import_name=
     from .admin import ActivoResource
     from import_export import resources
     resource = ActivoResource()
+    # Desactivar bulk para asegurar persistencia inmediata y obtención de IDs en el loop manual
+    resource._meta.use_bulk = False
     
     total_rows = len(dataset)
     registro.total_rows = total_rows
@@ -173,6 +175,7 @@ def import_activos_task(self, file_path, file_format, user_id=None, import_name=
     cache_key = f"import_progress_{user_id}" if user_id else "import_progress_system"
     
     ids_creados = []
+    resumen_columnas = {}
     
     # Procesar fila por fila para ver progreso real
     for i, row in enumerate(dataset.dict, start=1):
@@ -189,6 +192,7 @@ def import_activos_task(self, file_path, file_format, user_id=None, import_name=
                     'skipped': registro.filas_omitidas,
                     'errors': registro.filas_error,
                     'last_log': f'Procesado: {row.get("nombre", "S/N")}',
+                    'reporte_columnas': resumen_columnas
                 }
                 if hasattr(self, '_last_error_tmp'):
                     progress_info['last_error'] = self._last_error_tmp
@@ -211,6 +215,13 @@ def import_activos_task(self, file_path, file_format, user_id=None, import_name=
                     ids_creados.append(row_result.object_id)
             elif row_result.import_type == resources.RowResult.IMPORT_TYPE_UPDATE:
                 registro.filas_actualizadas += 1
+                # Acumular reporte de columnas si vienen en el row_result
+                changed = getattr(row_result, 'changed_fields', [])
+                asset_info = f"{row.get('nombre', 'S/N')} ({row.get('codigo_interno', 'S/C')})"
+                for field in changed:
+                    if field not in resumen_columnas:
+                        resumen_columnas[field] = []
+                    resumen_columnas[field].append(asset_info)
             elif row_result.import_type == resources.RowResult.IMPORT_TYPE_SKIP:
                 registro.filas_omitidas += 1
             
@@ -226,10 +237,12 @@ def import_activos_task(self, file_path, file_format, user_id=None, import_name=
             registro.detalles_error = (registro.detalles_error or "") + error_msg + "\n"
             
         if i % 100 == 0:
+            registro.resumen_columnas = resumen_columnas
             registro.save()
 
     # Guardar resultados finales en el registro
     registro.ids_creados = json.dumps(ids_creados)
+    registro.resumen_columnas = resumen_columnas
     registro.estado = 'COMPLETADO'
     registro.save()
 
@@ -249,6 +262,7 @@ def import_activos_task(self, file_path, file_format, user_id=None, import_name=
         'updated': registro.filas_actualizadas,
         'skipped': registro.filas_omitidas,
         'errors': registro.filas_error,
+        'reporte_columnas': resumen_columnas,
     }
     cache.set(cache_key, final_res, 3600)
     return final_res
