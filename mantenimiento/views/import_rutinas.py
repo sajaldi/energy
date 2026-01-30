@@ -29,27 +29,30 @@ def import_rutinas_process(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
+    is_confirm = request.POST.get('confirm', '').lower() in ['true', 'on', '1']
+    existing_path = request.POST.get('file_path')
     import_file = request.FILES.get('import_file')
-    if not import_file:
-        return JsonResponse({'error': 'No file uploaded'}, status=400)
-    
-    print(f"[DEBUG] [Rutinas] Recibido archivo: {import_file.name} ({import_file.size} bytes)")
-    sys.stdout.flush()
-    
-    # Save file to temporary storage using chunks
-    file_ext = import_file.name.split('.')[-1].lower()
-    temp_name = f'tmp/import_rutinas_{request.user.id}_{int(time.time())}.{file_ext}'
-    
-    try:
-        print(f"[DEBUG] [Rutinas] Guardando archivo: {temp_name}...")
-        sys.stdout.flush()
-        path = default_storage.save(temp_name, import_file)
-        print(f"[DEBUG] [Rutinas] Archivo guardado: {path}")
-        sys.stdout.flush()
-    except Exception as e:
-        print(f"[DEBUG] [Rutinas] Error al guardar: {str(e)}")
-        sys.stdout.flush()
-        return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
+
+    # Si NO es confirmación, necesitamos un archivo nuevo obligatoriamente
+    if not is_confirm:
+        if not import_file:
+            return JsonResponse({'error': 'No se subió ningún archivo'}, status=400)
+            
+        print(f"[DEBUG] [Rutinas] Recibido archivo nuevo: {import_file.name}")
+        file_ext = import_file.name.split('.')[-1].lower()
+        temp_name = f'tmp/import_rutinas_{request.user.id}_{int(time.time())}.{file_ext}'
+        
+        try:
+            path = default_storage.save(temp_name, import_file)
+        except Exception as e:
+            return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
+    else:
+        # ES UNA CONFIRMACIÓN: Usar el archivo que ya está en el servidor
+        if not existing_path:
+            return JsonResponse({'error': 'Falta la ruta del archivo para confirmar'}, status=400)
+        path = existing_path
+        file_ext = path.split('.')[-1].lower()
+        print(f"[DEBUG] [Rutinas] Confirmando importación sobre archivo existente: {path}")
     
     # Limpiar cache de progreso anterior para este usuario para evitar persistencia de estados viejos
     cache_key = f"import_rutinas_progress_{request.user.id}"
@@ -58,13 +61,6 @@ def import_rutinas_process(request):
     # Trigger Celery task
     v_val = request.POST.get('verification_mode', '').lower()
     verification_mode = v_val in ['true', 'on', '1']
-    is_confirm = request.POST.get('confirm', '').lower() in ['true', 'on', '1']
-    existing_path = request.POST.get('file_path')
-    
-    # Si es confirmación, usamos el path que ya tenemos
-    if is_confirm and existing_path:
-        path = existing_path
-        file_ext = path.split('.')[-1].lower()
     
     # Lógica de Dry Run: SOLO si no es verificación y no es confirmación final
     dry_run = (not verification_mode) and (not is_confirm)
