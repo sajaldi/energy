@@ -257,9 +257,17 @@
                                     <p>⏭️ <b>Omitidas:</b> ${data.skipped}</p>
                                     <p>❌ <b>Errores:</b> ${data.errors}</p>
                                     ${missingBtn}
+                                    ${data.error_list && data.error_list.length > 0 ? `
+                                        <div style="margin-top: 15px;">
+                                            <p style="margin: 0 0 5px 0; font-weight: bold; color: #ef4444; font-size: 0.9rem;">Detalle de Errores:</p>
+                                            <div style="max-height: 150px; overflow-y: auto; font-size: 0.8rem; font-family: monospace; color: #b91c1c; border: 1px solid #fecaca; padding: 8px; border-radius: 4px; background: #fff5f5;">
+                                                ${data.error_list.join('<br>')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
                                 </div>
                             `,
-                                icon: 'success',
+                                icon: data.errors > 0 ? 'warning' : 'success',
                                 confirmButtonText: 'Ver Rutinas'
                             }).then(() => {
                                 window.location.href = '../';

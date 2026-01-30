@@ -483,7 +483,7 @@ class RutinaAdmin(ImportExportModelAdmin):
     resource_class = RutinaResource
     list_display = ('codigo_rutina', 'nombre', 'categoria', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'programar_rutina_link')
     list_filter = (('categoria', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo')
-    search_fields = ('nombre', 'procedimiento_estandar__nombre', 'herramientas')
+    search_fields = ('codigo_rutina', 'nombre', 'procedimiento_estandar__nombre', 'herramientas')
     autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
     readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link')
     list_select_related = True
