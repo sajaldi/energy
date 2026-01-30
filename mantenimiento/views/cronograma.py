@@ -409,6 +409,182 @@ def detalle_mes(request, year, month):
     })
 
 @staff_member_required
+def exportar_detalle_mes_excel(request, year, month):
+    import pandas as pd
+    from io import BytesIO
+    from django.http import HttpResponse
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from ..services import WorkOrderService
+    
+    programacion_id = request.GET.get('programacion_id')
+    view_mode = request.GET.get('view_mode', 'sistema')
+    
+    num_days = calendar.monthrange(year, month)[1]
+    days_range = range(1, num_days + 1)
+
+    # Reutilizar lógica de detalle_mes para obtener el mismo 'tree'
+    if view_mode == 'ubicacion':
+        tree = WorkOrderService.get_location_grouped_tree(year, month)
+    else:
+        filtros = {'inicio_programado__year': year, 'inicio_programado__month': month}
+        if programacion_id: filtros['programacion_id'] = programacion_id
+        ordenes = OrdenTrabajo.objects.filter(**filtros).select_related('rutina__categoria', 'rutina__frecuencia', 'ubicacion', 'programacion__horario').prefetch_related('activos', 'rutina__categoria')
+        
+        existing_ot_keys = set((ot.programacion_id, timezone.localtime(ot.inicio_programado).date()) for ot in ordenes if ot.programacion_id)
+        month_start = date(year, month, 1)
+        month_end = date(year, month, num_days)
+        proyecciones_qs = Programacion.objects.filter(fecha_inicio__lte=month_end).select_related('rutina__categoria', 'rutina__frecuencia', 'horario')
+        if programacion_id: proyecciones_qs = proyecciones_qs.filter(id=programacion_id)
+        
+        ghost_ots = []
+        working_days_cache = {}
+        restricciones_mes = set(RestriccionCalendario.objects.filter(fecha__year=year, fecha__month=month).values_list('fecha__day', flat=True))
+
+        for prog in proyecciones_qs:
+            limite = min(prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365)), month_end)
+            fecha_ciclo = prog.fecha_inicio
+            frec_dias = prog.rutina.frecuencia.dias
+            if not frec_dias: continue
+            
+            if prog.horario_id not in working_days_cache:
+                working_days_cache[prog.horario_id] = set(prog.horario.dias.values_list('dia', flat=True)) if prog.horario else set(range(7))
+            working_days = working_days_cache[prog.horario_id]
+            
+            if fecha_ciclo < month_start: 
+                fecha_ciclo += timedelta(days=max(0, (month_start - fecha_ciclo).days // frec_dias) * frec_dias)
+            
+            while fecha_ciclo <= limite:
+                fecha_proyectada = fecha_ciclo
+                while fecha_proyectada <= limite and (fecha_proyectada.day in restricciones_mes or fecha_proyectada.weekday() not in working_days):
+                    fecha_proyectada += timedelta(days=1)
+                if month_start <= fecha_proyectada <= limite and (prog.id, fecha_proyectada) not in existing_ot_keys and fecha_proyectada.day not in restricciones_mes: 
+                    ghost_ots.append({'prog': prog, 'fecha': fecha_proyectada})
+                fecha_ciclo += timedelta(days=frec_dias)
+
+        categs = {c.id: c for c in Categoria.objects.all()}
+        for c in categs.values():
+            if c.padre_id: c.padre = categs.get(c.padre_id)
+            
+        tree_dict = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(list))))))
+        system_colors = {}
+
+        def add_to_tree_common(ot_dict, rut, ubi, assets, prog_color, day_key):
+            cat = rut.categoria if rut else None
+            if cat and cat.id in categs:
+                fc = categs[cat.id]
+                root = fc.get_root()
+                sys_name = root.nombre
+                sub_name = fc.nombre if fc.id != root.id else "General"
+                if sys_name not in system_colors: system_colors[sys_name] = prog_color or '#3b82f6'
+            else: 
+                sys_name = "Sin Categoría"; sub_name = "General"; system_colors[sys_name] = '#64748b'
+            asset_key = (assets[0].id, assets[0].nombre) if assets else (None, "General")
+            tree_dict[sys_name][sub_name][rut.nombre if rut else "OT Sin Rutina"][ubi.nombre if ubi else "Multiple"][asset_key][day_key].append(ot_dict)
+
+        for ot in ordenes:
+            sd = timezone.localtime(ot.inicio_programado)
+            ed = timezone.localtime(ot.fin_programado or ot.inicio_programado)
+            nc = max(1, math.ceil((ed - sd).total_seconds() / 86400))
+            assets = list(ot.activos.all())
+            for i in range(nc):
+                cd = sd.date() + timedelta(days=i)
+                if cd.year == year and cd.month == month:
+                    base_info = {'id': ot.id, 'estado': ot.estado, 'rutina_nombre': ot.rutina.nombre if ot.rutina else "OT", 'activos_nombres': ", ".join([a.nombre for a in assets])}
+                    if not assets: add_to_tree_common(base_info, ot.rutina, ot.ubicacion, [], '#3b82f6', cd.day)
+                    else:
+                        for a in assets: add_to_tree_common(base_info, ot.rutina, ot.ubicacion, [a], '#3b82f6', cd.day)
+        
+        for g in ghost_ots:
+            p = g['prog']; f = g['fecha']; fa = p.areas.first()
+            info = {'id': f'proj_{p.id}_{f}', 'estado': 'PROYECCION', 'rutina_nombre': p.rutina.nombre, 'activos_nombres': 'Simulado'}
+            add_to_tree_common(info, p.rutina, fa, [], '#fca5a5', f.day)
+
+        tree = []
+        for sys in sorted(tree_dict.keys()):
+            subs = []
+            for sub in sorted(tree_dict[sys].keys()):
+                ruts = []
+                for rut in sorted(tree_dict[sys][sub].keys()):
+                    ubis = []
+                    for ubi in sorted(tree_dict[sys][sub][rut].keys()):
+                        assets_l = []
+                        for ak in sorted(tree_dict[sys][sub][rut][ubi].keys(), key=lambda x: x[1]):
+                            cells = []
+                            for d in days_range:
+                                ots = tree_dict[sys][sub][rut][ubi][ak].get(d, [])
+                                cells.append({'day': d, 'ots': ots, 'active': len(ots) > 0})
+                            assets_l.append({'label': ak[1], 'celdas': cells})
+                        ubis.append({'label': ubi, 'activos': assets_l})
+                    ruts.append({'label': rut, 'ubicaciones': ubis})
+                subs.append({'label': sub, 'rutinas': ruts})
+            tree.append({'label': sys, 'subs': subs})
+
+    filter_q = request.GET.get('filter_q')
+    if filter_q and filter_q != 'TODOS':
+        tree = [t for t in tree if t['label'] == filter_q]
+
+    # --- Generación de Excel ---
+    rows = []
+    for sys in tree:
+        for sub in sys['subs']:
+            for rut in sub['rutinas']:
+                for ubi in rut['ubicaciones']:
+                    for act in ubi['activos']:
+                        row = {
+                            'Sistema/Disciplina': sys['label'],
+                            'Subgrupo': sub['label'],
+                            'Rutina': rut['label'],
+                            'Ubicación': ubi['label'],
+                            'Activo': act['label']
+                        }
+                        for cell in act['celdas']:
+                            val = ""
+                            if cell['active']:
+                                states = set(o['estado'] for o in cell['ots'])
+                                if 'REALIZADA' in states and len(states) == 1: val = "X"
+                                elif 'PROYECCION' in states: val = "P"
+                                else: val = "S"
+                            row[f"{cell['day']}"] = val
+                        rows.append(row)
+
+    df = pd.DataFrame(rows)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Detalle Mensual')
+        workbook = writer.book
+        worksheet = writer.sheets['Detalle Mensual']
+        
+        # Estilos
+        h_fill = PatternFill(start_color='1E293B', end_color='1E293B', fill_type='solid')
+        h_font = Font(color='FFFFFF', bold=True)
+        center = Alignment(horizontal='center')
+        border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+        for cell in worksheet[1]:
+            cell.fill = h_fill
+            cell.font = h_font
+            cell.alignment = center
+            cell.border = border
+            
+        for row in worksheet.iter_rows(min_row=2):
+            for cell in row:
+                cell.border = border
+                if cell.column > 5: # Columnas de días
+                    cell.alignment = center
+                    if cell.value == 'X': cell.fill = PatternFill(start_color='22C55E', end_color='22C55E', fill_type='solid')
+                    elif cell.value == 'P': cell.fill = PatternFill(start_color='FCA5A5', end_color='FCA5A5', fill_type='solid')
+                    elif cell.value == 'S': cell.fill = PatternFill(start_color='3B82F6', end_color='3B82F6', fill_type='solid')
+
+        for i in range(1, 6): worksheet.column_dimensions[get_column_letter(i)].width = 25
+        for i in range(6, 6 + len(days_range)): worksheet.column_dimensions[get_column_letter(i)].width = 4
+
+    output.seek(0)
+    response = HttpResponse(output.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="Cronograma_Mensual_{year}_{month}.xlsx"'
+    return response
+
+@staff_member_required
 def visualizador_proyecciones(request, pk):
     prog = get_object_or_404(Programacion, pk=pk); fechas = []; fc = prog.fecha_inicio; lim = prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365)); fd = prog.rutina.frecuencia.dias; restr = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
     while fc <= lim:
