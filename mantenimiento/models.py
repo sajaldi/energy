@@ -691,6 +691,8 @@ class OrdenTrabajo(models.Model):
         ('CRITICA', 'Crítica'),
     ]
     
+    codigo_de_orden = models.CharField(max_length=20, unique=True, blank=True, null=True, verbose_name="Código de Orden", db_index=True)
+    
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default='PREVENTIVA', db_index=True)
     prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA', db_index=True)
     rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='ordenes', null=True, blank=True)
@@ -715,6 +717,19 @@ class OrdenTrabajo(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        """
+        Garantiza que la orden tenga un código único.
+        Si no viene en el import, usa OT-000000ID.
+        """
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        if not self.codigo_de_orden:
+            self.codigo_de_orden = f"OT-{str(self.id).zfill(9)}"
+            # Update single field to avoid recursion and update only what's necessary
+            OrdenTrabajo.objects.filter(pk=self.pk).update(codigo_de_orden=self.codigo_de_orden)
+
     class Meta:
         verbose_name = "Orden de Trabajo"
         verbose_name_plural = "Órdenes de Trabajo"
@@ -723,7 +738,7 @@ class OrdenTrabajo(models.Model):
     def __str__(self):
         nombre = self.rutina.nombre if self.rutina else (self.aviso.descripcion[:30] if self.aviso else "OT Correctiva")
         lugar = self.ubicacion.nombre if self.ubicacion else "S/U"
-        return f"{self.tipo[:3]} OT-{self.id}: {nombre} - {lugar} ({self.inicio_programado.date()})"
+        return f"{self.tipo[:3]} {self.codigo_de_orden or 'OT-TEMP'}: {nombre} - {lugar} ({self.inicio_programado.date()})"
 
 class CierreOrdenTrabajo(models.Model):
     orden_trabajo = models.OneToOneField(OrdenTrabajo, on_delete=models.CASCADE, related_name='cierre', verbose_name="Orden de Trabajo")
@@ -745,7 +760,7 @@ class CierreOrdenTrabajo(models.Model):
         verbose_name_plural = "Cierres de Órdenes de Trabajo"
 
     def __str__(self):
-        return f"Cierre OT-{self.orden_trabajo.id}"
+        return f"Cierre {self.orden_trabajo.codigo_de_orden or self.orden_trabajo.id}"
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
