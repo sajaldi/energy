@@ -41,8 +41,9 @@ class CategoriaResource(resources.ModelResource):
     
     class Meta:
         model = Categoria
-        fields = ('id', 'nombre', 'padre', 'categoria_activo', 'descripcion')
+        fields = ('id', 'ruta_completa', 'nombre', 'padre', 'categoria_activo', 'descripcion')
         export_order = ('id', 'ruta_completa', 'nombre', 'padre', 'categoria_activo', 'descripcion')
+        readonly_fields = ('ruta_completa',)
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ('id',)
@@ -573,6 +574,8 @@ class OrdenTrabajoResource(resources.ModelResource):
                     
             except Exception as e:
                 print(f"[DEBUG] [Import] Error calculando fin_programado: {str(e)}")
+
+        print(f"[DEBUG] [Import] Fila lista para procesar: {row}")
 
 class PasoProcedimientoInline(admin.TabularInline):
     model = PasoProcedimiento
