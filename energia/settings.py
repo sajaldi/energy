@@ -238,6 +238,7 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', 'PasswordRoot07'
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-media')
 AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'https://minio-p0kooogwgcw840wk8scskoow.10.30.1.11.sslip.io')
 AWS_S3_USE_SSL = True
+AWS_S3_VERIFY = False # Deshabilitar validación SSL para certificados autofirmados/internos
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'  # Necesario para compatibilidad con el Proxy de Apache
 AWS_QUERYSTRING_AUTH = True  # Para que las URLs de archivos sean públicas (si el bucket lo permite)
