@@ -434,26 +434,19 @@ if IS_LOCAL:
         print("[DEBUG] Cache: LocMem (Redis no disponible)")
 else:
     # Producción: LocMem por ahora para evitar crashes
+    # Producción: Redis compartido
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'unique-snowflake',
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': CELERY_BROKER_URL,
+            'OPTIONS': {
+                'socket_timeout': 5,
+                'socket_connect_timeout': 5,
+                'retry_on_timeout': True,
+            }
         }
     }
-    print("[DEBUG] Cache: LocMem (Producción - temporal)")
-    
-    # Para habilitar Redis en producción, descomentar:
-    # CACHES = {
-    #     'default': {
-    #         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-    #         'LOCATION': CELERY_BROKER_URL,
-    #         'OPTIONS': {
-    #             'socket_timeout': 5,
-    #             'socket_connect_timeout': 5,
-    #             'retry_on_timeout': True,
-    #         }
-    #     }
-    # }
+    print(f"[DEBUG] Cache: Redis Produccion ({CELERY_BROKER_URL})")
 
 sys.stdout.flush()
 
