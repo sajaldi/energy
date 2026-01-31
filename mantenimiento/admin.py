@@ -473,41 +473,63 @@ class OrdenTrabajoResource(resources.ModelResource):
                         'estado', 'notas')
 
     def before_import_row(self, row, **kwargs):
-        """Limpieza de datos similar a RutinaResource"""
+        """Limpieza de datos y cálculo automático de campos faltantes"""
+        # 1. Limpieza básica de strings y nulos
         for key in list(row.keys()):
-            val = str(row.get(key, '')).strip()
-            if val in ['None', 'nan', 'NULL', '']:
-                row[key] = None
+            val = row.get(key)
+            if val is not None:
+                val_str = str(val).strip()
+                if val_str in ['None', 'nan', 'NULL', '']:
+                    row[key] = None
+                else:
+                    # Si es un string, quitar espacios
+                    if isinstance(val, str):
+                        row[key] = val_str
 
-        # Fix de ubicaciones removido: lo maneja SmartHierarchicalWidget para evitar ambigüedades.
-
-        # Calculo automático de fin_programado si falta
-        inicio_str = row.get('inicio_programado')
-        fin_str = row.get('fin_programado')
+        # 2. Cálculo automático de fin_programado si falta
+        inicio_val = row.get('inicio_programado')
+        fin_val = row.get('fin_programado')
         rutina_code = row.get('rutina_codigo')
 
-        if inicio_str and not fin_str and rutina_code:
+        if inicio_val and not fin_val:
             try:
                 from datetime import datetime, timedelta
-                # Intentar parsear inicio (asumimos formato Excel/CSV común)
-                # Ojo: esto depende del LC_TIME o settings, pero probaremos formatos estándar
-                formats = ['%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M', '%Y-%m-%d %H:%M', '%d/%m/%Y %H:%M:%S']
                 inicio_dt = None
-                for fmt in formats:
-                    try:
-                        inicio_dt = datetime.strptime(str(inicio_str).strip(), fmt)
-                        break
-                    except ValueError: continue
+                
+                # Caso A: Ya es un objeto datetime (común con openpyxl/tablib)
+                if isinstance(inicio_val, datetime):
+                    inicio_dt = inicio_val
+                # Caso B: Es un string, intentar parsear
+                elif isinstance(inicio_val, str):
+                    formats = [
+                        '%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M:%S',
+                        '%Y-%m-%d %H:%M', '%d/%m/%Y %H:%M',
+                        '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f'
+                    ]
+                    for fmt in formats:
+                        try:
+                            inicio_dt = datetime.strptime(inicio_val.strip(), fmt)
+                            break
+                        except ValueError: continue
                 
                 if inicio_dt:
-                    rutina = Rutina.objects.filter(codigo_rutina=rutina_code).first()
-                    if rutina:
-                        duration = rutina.tiempo_estimado or timedelta(hours=1)
-                        fin_dt = inicio_dt + duration
-                        row['fin_programado'] = fin_dt.strftime('%Y-%m-%d %H:%M:%S')
+                    # Intentar obtener duración de la rutina
+                    duration = timedelta(hours=1) # Default
+                    if rutina_code:
+                        rutina = Rutina.objects.filter(codigo_rutina=str(rutina_code).strip()).first()
+                        if rutina and rutina.tiempo_estimado:
+                            duration = rutina.tiempo_estimado
+                    
+                    fin_dt = inicio_dt + duration
+                    # Si el recurso espera string para el widget DateTime, o si lo dejamos como dt
+                    # import-export suele manejar bien objetos datetime si el widget es compatible
+                    row['fin_programado'] = fin_dt
+                    print(f"[DEBUG] [Import] Autocalculado fin_programado: {inicio_dt} + {duration} -> {fin_dt}")
+                else:
+                    print(f"[DEBUG] [Import] No se pudo determinar inicio_dt para valor: {repr(inicio_val)}")
+                    
             except Exception as e:
-                # Si falla el cálculo, dejamos que falle la validación normal o siga null
-                pass
+                print(f"[DEBUG] [Import] Error calculando fin_programado: {str(e)}")
 
 class PasoProcedimientoInline(admin.TabularInline):
     model = PasoProcedimiento
