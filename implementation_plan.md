@@ -120,9 +120,10 @@ Este documento detalla la estrategia actual para asegurar que las importaciones 
 
 ### 1. Configuración de MinIO
 Se han actualizado las credenciales y el endpoint en `settings.py`:
-- **Endpoint:** `http://181.115.47.107:9001`
+- **Endpoint:** `https://minio-p0kooogwgcw840wk8scskoow.10.30.1.11.sslip.io`
 - **Bucket:** `energia-media`
 - **Credenciales:** `rootminio` / `PasswordRoot07`
+- **SSL:** Habilitado (HTTPS)
 
 ### 2. Flujo de Importación de Órdenes (MAO)
 1. **Web:** Guarda el archivo Excel subido por el usuario en el bucket de MinIO bajo la carpeta `imports/`.
