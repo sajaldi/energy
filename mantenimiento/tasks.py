@@ -201,19 +201,30 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
     # Marcador de progreso en caché
     cache_key = f"import_ordenes_progress_{user_id}" if user_id else "import_ordenes_progress_system"
 
-    # Leer archivo directamente del sistema de archivos (no usar S3)
+    # Leer archivo desde MinIO (file_path es la ruta en S3)
+    from django.core.files.storage import default_storage
     try:
-        print(f"DEBUG: Leyendo archivo desde: {file_path}")
-        with open(file_path, 'rb') as f:
+        print(f"DEBUG: Leyendo archivo desde MinIO: {file_path}")
+        with default_storage.open(file_path, 'rb') as f:
             file_content = f.read()
-            if file_format == 'csv':
-                dataset = Dataset().load(try_decode(file_content), format='csv')
-            elif file_format in ['xls', 'xlsx']:
-                dataset = Dataset().load(file_content, format=file_format)
-            else:
-                raise ValueError(f"Formato no soportado: {file_format}")
+            
+        if not file_content:
+            error_msg = f"Archivo vacio o no encontrado en MinIO: {file_path}"
+            error_res = {'status': 'error', 'message': error_msg}
+            cache.set(cache_key, error_res, 3600)
+            return error_res
+        
+        print(f"DEBUG: Archivo recuperado desde MinIO ({len(file_content)} bytes)")
+        
+        if file_format == 'csv':
+            dataset = Dataset().load(try_decode(file_content), format='csv')
+        elif file_format in ['xls', 'xlsx']:
+            dataset = Dataset().load(file_content, format=file_format)
+        else:
+            raise ValueError(f"Formato no soportado: {file_format}")
+            
     except Exception as e:
-        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        error_res = {'status': 'error', 'message': f'Error al leer archivo desde MinIO: {str(e)}'}
         cache.set(cache_key, error_res, 3600)
         return error_res
 
@@ -275,12 +286,8 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
             from import_export import resources as ie_resources
             result.append_base_error(ie_resources.Error(error=e, traceback=str(e), row=row))
             
-    # Limpiar archivo local
-    try:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-    except:
-        pass
+            
+    # El archivo ya fue eliminado de Redis después de leerlo
         
     # Recopilar errores detallados
     detailed_errors = []

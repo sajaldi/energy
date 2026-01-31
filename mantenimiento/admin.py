@@ -1108,32 +1108,26 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
                 sys.stdout.flush()
 
 
-            # Usar almacenamiento local para importaciones (evitar timeouts de S3)
-            from django.core.files.storage import FileSystemStorage
-            from django.conf import settings
-            
-            # Crear directorio temporal para importaciones si no existe
-            import_dir = os.path.join(settings.BASE_DIR, 'temp_imports')
-            os.makedirs(import_dir, exist_ok=True)
-            
-            local_storage = FileSystemStorage(location=import_dir)
-            filename = f"ots_{request.user.id}_{int(time.time())}_{import_file.name}"
+            # Guardar el archivo en MinIO (default_storage)
+            from django.core.files.storage import default_storage
+            filename = f"imports/ots_{request.user.id}_{int(time.time())}_{import_file.name}"
             
             try:
                 t_save_start = time.time()
-                print(f"[DEBUG] Guardando archivo localmente: {filename}...")
+                print(f"[DEBUG] Guardando archivo en MinIO: {filename}...")
                 sys.stdout.flush()
-                path = local_storage.save(filename, import_file)
-                # Convertir a ruta absoluta para Celery
-                absolute_path = os.path.join(import_dir, path)
-                print(f"[DEBUG] Archivo guardado en {time.time() - t_save_start:.2f}s -> {absolute_path}")
+                
+                path = default_storage.save(filename, import_file)
+                
+                print(f"[DEBUG] Archivo guardado en MinIO en {time.time() - t_save_start:.2f}s -> {path}")
                 sys.stdout.flush()
             except Exception as e:
-                print(f"[DEBUG] Error al guardar archivo: {str(e)}")
+                print(f"[DEBUG] Error al guardar archivo en MinIO: {str(e)}")
                 sys.stdout.flush()
-                return JsonResponse({'status': 'error', 'message': f'Error al guardar archivo: {str(e)}'}, status=500)
+                return JsonResponse({'status': 'error', 'message': f'Error al guardar archivo en MinIO: {str(e)}'}, status=500)
             
             file_format = os.path.splitext(import_file.name)[1][1:].lower()
+            file_key = path # Usamos el path como clave para la tarea
             
             # Set explicit initial state
             cache_key = f"import_ordenes_progress_{request.user.id}"
@@ -1148,7 +1142,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
                 t_task_start = time.time()
                 print(f"[DEBUG] Enviando tarea a Celery... (Broker: {os.environ.get('CELERY_BROKER_URL', 'default')})")
                 sys.stdout.flush()
-                task = import_ordenes_task.delay(absolute_path, file_format, request.user.id)
+                task = import_ordenes_task.delay(file_key, file_format, request.user.id)
                 print(f"[DEBUG] Tarea enviada en {time.time() - t_task_start:.2f}s | Task ID: {task.id}")
                 sys.stdout.flush()
             except Exception as e:
