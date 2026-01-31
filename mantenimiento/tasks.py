@@ -257,26 +257,41 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
     
     result = ie_resources.Result()
     instance_loader = ModelInstanceLoader(resource, dataset)
+    
+    # Contadores manuales por si result.totals falla en el loop manual
+    cnt_new = 0
+    cnt_update = 0
+    cnt_skip = 0
+    cnt_error = 0
 
     for i, row in enumerate(dataset.dict, start=1):
         try:
-            # Actualizar progreso cada fila para que la barra se mueva fluido
+            # Procesar la fila individualmente
+            row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
+            result.append_row_result(row_result)
+            
+            # Actualizar contadores manuales
+            if row_result.import_type == 'new': cnt_new += 1
+            elif row_result.import_type == 'update': cnt_update += 1
+            elif row_result.import_type == 'skip': cnt_skip += 1
+            
+            # Debug explícito
+            print(f"[DEBUG] Fila {i}: {row.get('codigo_de_orden')} -> {row_result.import_type}")
+            
+            # Actualizar progreso cada fila
             progress_info.update({
                 'current': i,
                 'status': f'Procesando fila {i} de {total_rows}...',
                 'percent': int((i / total_rows) * 100),
-                'new': result.totals.get('new', 0),
-                'updated': result.totals.get('update', 0),
-                'skipped': result.totals.get('skip', 0),
+                'new': cnt_new,
+                'updated': cnt_update,
+                'skipped': cnt_skip,
                 'errors': len(result.base_errors) + len(result.row_errors()),
             })
             cache.set(cache_key, progress_info, 3600)
             self.update_state(state='PROGRESS', meta=progress_info)
-
-            # Procesar la fila individualmente
-            row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
             
-            # Trazabilidad de cambios (opcional para el reporte final)
+            # Trazabilidad de cambios
             if row_result.import_type == 'update':
                 changed = getattr(row_result, 'changed_fields', [])
                 if changed:
@@ -285,9 +300,8 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
                         if field not in resumen_columnas: resumen_columnas[field] = []
                         resumen_columnas[field].append(str(ot_code))
 
-            result.append_row_result(row_result)
-            
         except Exception as e:
+            cnt_error += 1
             result.append_base_error(ie_resources.Error(error=e, traceback=str(e), row=row))
 
     # Recopilar errores detallados para el reporte final
@@ -301,9 +315,9 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
     final_res = {
         'status': 'completed',
         'total': total_rows,
-        'new': result.totals.get('new', 0),
-        'updated': result.totals.get('update', 0),
-        'skipped': result.totals.get('skip', 0),
+        'new': cnt_new,
+        'updated': cnt_update,
+        'skipped': cnt_skip,
         'errors': len(detailed_errors),
         'error_list': detailed_errors,
         'reporte_columnas': resumen_columnas
