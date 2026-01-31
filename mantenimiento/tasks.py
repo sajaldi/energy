@@ -191,7 +191,6 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
     """
     print(f"DEBUG: Starting task import_ordenes_task for user_id={user_id}")
     from tablib import Dataset
-    from django.core.files.storage import default_storage
     from .admin import OrdenTrabajoResource
     from django.core.cache import cache
 
@@ -202,9 +201,10 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
     # Marcador de progreso en caché
     cache_key = f"import_ordenes_progress_{user_id}" if user_id else "import_ordenes_progress_system"
 
-    # Leer archivo
+    # Leer archivo directamente del sistema de archivos (no usar S3)
     try:
-        with default_storage.open(file_path, 'rb') as f:
+        print(f"DEBUG: Leyendo archivo desde: {file_path}")
+        with open(file_path, 'rb') as f:
             file_content = f.read()
             if file_format == 'csv':
                 dataset = Dataset().load(try_decode(file_content), format='csv')
@@ -275,10 +275,10 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
             from import_export import resources as ie_resources
             result.append_base_error(ie_resources.Error(error=e, traceback=str(e), row=row))
             
-    # Limpiar archivo
+    # Limpiar archivo local
     try:
-        if default_storage.exists(file_path):
-            default_storage.delete(file_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
     except:
         pass
         
