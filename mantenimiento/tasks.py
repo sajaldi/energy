@@ -237,60 +237,77 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
     
     resource.before_import(dataset)
     
-    # Estado inicial para el usuario
+    # Marcador de progreso en caché
+    resumen_columnas = {}
     progress_info = {
         'current': 0, 
         'total': total_rows, 
-        'status': 'Procesando archivo con django-import-export...', 
-        'percent': 10,
+        'status': 'Iniciando procesamiento...', 
+        'percent': 0,
         'new': 0,
         'updated': 0,
         'skipped': 0,
         'errors': 0,
-        'reporte_columnas': {}
+        'reporte_columnas': resumen_columnas
     }
     cache.set(cache_key, progress_info, 3600)
-    self.update_state(state='PROGRESS', meta=progress_info)
     
-    try:
-        # Usar import_data (modo real, no dry_run)
-        result = resource.import_data(dataset, dry_run=False, raise_errors=False)
-        
-        # Recopilar errores detallados
-        detailed_errors = []
-        for error in result.base_errors:
-            detailed_errors.append(f"Error General: {str(error.error)}")
-        for line, errors in result.row_errors():
-            for error in errors:
-                detailed_errors.append(f"Fila {line}: {str(error.error)}")
-        
-        # Procesar reporte de cambios por columna (opcional, para feedback de qué cambió)
-        resumen_columnas = {}
-        for row_result in result.rows:
-            if row_result.import_type == 'update': # IMPORT_TYPE_UPDATE
-                changed = getattr(row_result, 'changed_fields', [])
-                ot_code = row_result.row.get('codigo_de_orden', f"OT-Nueva-{row_result.row_number}")
-                for field in changed:
-                    if field not in resumen_columnas:
-                        resumen_columnas[field] = []
-                    resumen_columnas[field].append(str(ot_code))
+    from import_export import resources as ie_resources
+    from import_export.instance_loaders import ModelInstanceLoader
+    
+    result = ie_resources.Result()
+    instance_loader = ModelInstanceLoader(resource, dataset)
 
-        final_res = {
-            'status': 'completed',
-            'total': total_rows,
-            'new': result.totals.get('new', 0),
-            'updated': result.totals.get('update', 0),
-            'skipped': result.totals.get('skip', 0),
-            'errors': len(detailed_errors),
-            'error_list': detailed_errors,
-            'reporte_columnas': resumen_columnas
-        }
-        
-    except Exception as e:
-        import traceback
-        error_msg = f"Error critico en import_data: {str(e)}\n{traceback.format_exc()}"
-        print(f"DEBUG: {error_msg}")
-        final_res = {'status': 'error', 'message': error_msg}
+    for i, row in enumerate(dataset.dict, start=1):
+        try:
+            # Actualizar progreso cada fila para que la barra se mueva fluido
+            progress_info.update({
+                'current': i,
+                'status': f'Procesando fila {i} de {total_rows}...',
+                'percent': int((i / total_rows) * 100),
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(result.base_errors) + len(result.row_errors()),
+            })
+            cache.set(cache_key, progress_info, 3600)
+            self.update_state(state='PROGRESS', meta=progress_info)
+
+            # Procesar la fila individualmente
+            row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
+            
+            # Trazabilidad de cambios (opcional para el reporte final)
+            if row_result.import_type == 'update':
+                changed = getattr(row_result, 'changed_fields', [])
+                if changed:
+                    ot_code = row.get('codigo_de_orden', f"Fila-{i}")
+                    for field in changed:
+                        if field not in resumen_columnas: resumen_columnas[field] = []
+                        resumen_columnas[field].append(str(ot_code))
+
+            result.append_row_result(row_result)
+            
+        except Exception as e:
+            result.append_base_error(ie_resources.Error(error=e, traceback=str(e), row=row))
+
+    # Recopilar errores detallados para el reporte final
+    detailed_errors = []
+    for error in result.base_errors:
+        detailed_errors.append(f"Error General: {str(error.error)}")
+    for line, errors in result.row_errors():
+        for error in errors:
+            detailed_errors.append(f"Fila {line}: {str(error.error)}")
+
+    final_res = {
+        'status': 'completed',
+        'total': total_rows,
+        'new': result.totals.get('new', 0),
+        'updated': result.totals.get('update', 0),
+        'skipped': result.totals.get('skip', 0),
+        'errors': len(detailed_errors),
+        'error_list': detailed_errors,
+        'reporte_columnas': resumen_columnas
+    }
 
     # Limpiar archivo de MinIO tras procesar
     try:

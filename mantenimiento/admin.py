@@ -510,10 +510,10 @@ class OrdenTrabajoResource(resources.ModelResource):
         import_id_fields = ('codigo_de_orden',)
         fields = ('id', 'codigo_de_orden', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
                   'tecnico_usuario', 'activos_codigos', 'inicio_programado', 'fin_programado', 
-                  'estado', 'notas')
+                  'descripcion_corta', 'descripcion_detallada', 'estado', 'notas')
         export_order = ('id', 'codigo_de_orden', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
                         'tecnico_usuario', 'activos_codigos', 'inicio_programado', 'fin_programado', 
-                        'estado', 'notas')
+                        'descripcion_corta', 'descripcion_detallada', 'estado', 'notas')
 
     def before_import_row(self, row, **kwargs):
         """Limpieza de datos y cálculo automático de campos faltantes"""
@@ -1033,11 +1033,11 @@ from documentos.admin_mayan import MayanDocumentInline
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('codigo_de_orden', 'tipo', 'prioridad', 'get_descripcion', 'get_ubicacion_jerarquia', 'get_activos_format', 'inicio_programado', 'estado', 'registrar_salida_link')
+    list_display = ('codigo_de_orden', 'tipo', 'prioridad', 'descripcion_corta', 'get_ubicacion_jerarquia', 'get_activos_format', 'inicio_programado', 'estado', 'registrar_salida_link')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'equipo')
     readonly_fields = ('registrar_salida_link',)
     list_select_related = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
-    search_fields = ('id', 'codigo_de_orden', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
+    search_fields = ('id', 'codigo_de_orden', 'descripcion_corta', 'descripcion_detallada', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
     autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion', 'activos')
     ordering = ('-inicio_programado',)
     date_hierarchy = 'inicio_programado'

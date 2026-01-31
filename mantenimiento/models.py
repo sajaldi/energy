@@ -712,6 +712,9 @@ class OrdenTrabajo(models.Model):
     fecha_ejecucion = models.DateTimeField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='ESPERA', db_index=True)
     
+    descripcion_corta = models.CharField(max_length=200, blank=True, null=True, verbose_name="Descripción Corta")
+    descripcion_detallada = models.TextField(blank=True, null=True, verbose_name="Descripción Detallada")
+    
     notas = models.TextField(blank=True, null=True)
     
     creado_en = models.DateTimeField(auto_now_add=True)

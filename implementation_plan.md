@@ -135,11 +135,21 @@ Se han actualizado las credenciales y el endpoint en `settings.py`:
 > [!NOTE]
 > La funcionalidad de scraping de Playwright ha sido **deshabilitada temporalmente** y los cambios revertidos para asegurar que la aplicación principal arranque sin errores de dependencias de sistema en el servidor. Se reactivará una vez configurado el entorno de sistema necesario.
 
+## Nuevas Funcionalidades (Enero 31)
+
+### 1. Campos de Descripción en Órdenes de Trabajo (OT)
+Se añadirán dos nuevos campos al modelo `OrdenTrabajo` para mejorar la trazabilidad:
+- `descripcion_corta`: Campo de texto breve (máx 200 caract.) que se mostrará en el listado de administración.
+- `descripcion_detallada`: Campo de texto libre (TextField) para bitácora extensa.
+
+### 2. Mejoras en el Motor de Importación
+- **Progreso en Tiempo Real:** Se modificará el motor de importación para que procese las filas en un bucle controlado, permitiendo que la barra de progreso de la UI se actualice fila por fila en lugar de quedarse estática.
+- **Importación/Exportación:** Se incluirán los nuevos campos de descripción en la plantilla de Excel.
+
 ## Verificación en Producción
-1. Esperar a que Coolify complete el despliegue del commit `e69502f`.
-2. Realizar una importación de Órdenes de Trabajo en el Admin.
-3. Verificar en los logs del **Worker**:
-   - `DEBUG: Leyendo archivo desde MinIO: imports/ots_...`
-   - `DEBUG: Archivo recuperado desde MinIO (XXXX bytes)`
+1. Esperar a que Coolify complete el despliegue del commit con los nuevos campos y la lógica de progreso.
+2. Realizar una importación de Órdenes de Trabajo.
+3. Verificar que la **barra de progreso azul** se mueva suavemente.
+4. Confirmar que la columna "Descripción Corta" aparezca en el listado de OTs.
 5.  Crear y enviar un comunicado tipo RFI. Verificar inmutabilidad tras envío.
 6.  Validar que los destinatarios reciban una notificación (interna/email).
