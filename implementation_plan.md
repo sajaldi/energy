@@ -124,6 +124,7 @@ Se han actualizado las credenciales y el endpoint en `settings.py`:
 - **Bucket:** `energia-media`
 - **Credenciales:** `rootminio` / `PasswordRoot07`
 - **SSL:** Habilitado (HTTPS)
+- **SSL Verify:** Deshabilitado (Permite certificados autofirmados)
 
 ### 2. Flujo de Importación de Órdenes (MAO)
 1. **Web:** Guarda el archivo Excel subido por el usuario en el bucket de MinIO bajo la carpeta `imports/`.
