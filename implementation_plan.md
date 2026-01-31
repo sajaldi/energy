@@ -108,6 +108,36 @@ Sistema para alertar a los usuarios sobre nueva correspondencia.
 2.  Subir nueva versión (Rev 0).
 3.  Verificar que el listado muestra Rev 0 pero el historial conserva Rev A.
 4.  Comprobar que se puede vincular a un Activo existente.
+
+# Plan de Despliegue con Almacenamiento Compartido (MinIO)
+
+Este documento detalla la estrategia actual para asegurar que las importaciones masivas funcionen correctamente en el entorno de contenedores aislados de Coolify.
+
+## Estrategia de Intercambio de Archivos
+
+> [!IMPORTANT]
+> **Cambio de Dirección:** A petición del usuario, hemos abandonado el uso de Redis para el intercambio de archivos y hemos configurado **MinIO** como el almacenamiento compartido oficial.
+
+### 1. Configuración de MinIO
+Se han actualizado las credenciales y el endpoint en `settings.py`:
+- **Endpoint:** `http://181.115.47.107:9001`
+- **Bucket:** `energia-media`
+- **Credenciales:** `rootminio` / `PasswordRoot07`
+
+### 2. Flujo de Importación de Órdenes (MAO)
+1. **Web:** Guarda el archivo Excel subido por el usuario en el bucket de MinIO bajo la carpeta `imports/`.
+2. **Celery Task:** Recibe la **ruta del archivo** en el bucket.
+3. **Worker:** Descarga el contenido del archivo directamente desde MinIO usando esa ruta, lo procesa y guarda los resultados en PostgreSQL.
+
+## Estado de Playwright
+> [!NOTE]
+> La funcionalidad de scraping de Playwright ha sido **deshabilitada temporalmente** y los cambios revertidos para asegurar que la aplicación principal arranque sin errores de dependencias de sistema en el servidor. Se reactivará una vez configurado el entorno de sistema necesario.
+
+## Verificación en Producción
+1. Esperar a que Coolify complete el despliegue del commit `e69502f`.
+2. Realizar una importación de Órdenes de Trabajo en el Admin.
+3. Verificar en los logs del **Worker**:
+   - `DEBUG: Leyendo archivo desde MinIO: imports/ots_...`
+   - `DEBUG: Archivo recuperado desde MinIO (XXXX bytes)`
 5.  Crear y enviar un comunicado tipo RFI. Verificar inmutabilidad tras envío.
 6.  Validar que los destinatarios reciban una notificación (interna/email).
-
