@@ -229,86 +229,74 @@ def import_ordenes_task(self, file_path, file_format, user_id=None):
         return error_res
 
     total_rows = len(dataset)
+    
+    # Debug: Mostrar cabeceras y primera fila
+    print(f"DEBUG: Dataset headers detected: {dataset.headers}")
+    if total_rows > 0:
+        print(f"DEBUG: First row data: {dataset.dict[0]}")
+    
     resource.before_import(dataset)
     
-    # Estado inicial
-    resumen_columnas = {}
+    # Estado inicial para el usuario
     progress_info = {
         'current': 0, 
         'total': total_rows, 
-        'status': 'Iniciando importacion...', 
-        'percent': 0,
+        'status': 'Procesando archivo con django-import-export...', 
+        'percent': 10,
         'new': 0,
         'updated': 0,
         'skipped': 0,
         'errors': 0,
-        'reporte_columnas': resumen_columnas
+        'reporte_columnas': {}
     }
     cache.set(cache_key, progress_info, 3600)
     self.update_state(state='PROGRESS', meta=progress_info)
     
-    from import_export import resources as ie_resources
-    result = ie_resources.Result()
-    for i, row in enumerate(dataset.dict, start=1):
-        try:
-            if i % 5 == 0 or i == total_rows:
-                progress_info.update({
-                    'current': i,
-                    'status': f'Procesando OT {i}/{total_rows}',
-                    'percent': int((i / total_rows) * 100),
-                    'new': result.totals.get('new', 0),
-                    'updated': result.totals.get('update', 0),
-                    'skipped': result.totals.get('skip', 0),
-                    'errors': len(result.base_errors) + len(result.row_errors()),
-                })
-                cache.set(cache_key, progress_info, 3600)
-                self.update_state(state='PROGRESS', meta=progress_info)
-            
-            from import_export.instance_loaders import ModelInstanceLoader
-            instance_loader = ModelInstanceLoader(resource, dataset)
-            row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
-            
-            # Acumular reporte de columnas si vienen en el row_result
-            if row_result.import_type == ie_resources.RowResult.IMPORT_TYPE_UPDATE:
-                changed = getattr(row_result, 'changed_fields', [])
-                assets_str = row.get('activos_codigos') or '-'
-                if len(str(assets_str)) > 40:
-                    assets_str = str(assets_str)[:37] + "..."
-                ot_info = f"OT {row.get('codigo_de_orden', 'S/C')} (Activos: {assets_str})"
-                for field in changed:
-                    if field not in resumen_columnas:
-                        resumen_columnas[field] = []
-                    resumen_columnas[field].append(ot_info)
-
-            result.append_row_result(row_result)
-            
-        except Exception as e:
-            from import_export import resources as ie_resources
-            result.append_base_error(ie_resources.Error(error=e, traceback=str(e), row=row))
-            
-            
-    # El archivo ya fue eliminado de Redis después de leerlo
-        
-    # Recopilar errores detallados
-    detailed_errors = []
     try:
+        # Usar import_data (modo real, no dry_run)
+        result = resource.import_data(dataset, dry_run=False, raise_errors=False)
+        
+        # Recopilar errores detallados
+        detailed_errors = []
         for error in result.base_errors:
             detailed_errors.append(f"Error General: {str(error.error)}")
         for line, errors in result.row_errors():
             for error in errors:
-                msg = f"Fila {line}: {str(error.error)}"
-                detailed_errors.append(msg)
-    except: pass
+                detailed_errors.append(f"Fila {line}: {str(error.error)}")
+        
+        # Procesar reporte de cambios por columna (opcional, para feedback de qué cambió)
+        resumen_columnas = {}
+        for row_result in result.rows:
+            if row_result.import_type == 'update': # IMPORT_TYPE_UPDATE
+                changed = getattr(row_result, 'changed_fields', [])
+                ot_code = row_result.row.get('codigo_de_orden', f"OT-Nueva-{row_result.row_number}")
+                for field in changed:
+                    if field not in resumen_columnas:
+                        resumen_columnas[field] = []
+                    resumen_columnas[field].append(str(ot_code))
 
-    final_res = {
-        'status': 'completed',
-        'total': total_rows,
-        'new': result.totals.get('new', 0),
-        'updated': result.totals.get('update', 0),
-        'skipped': result.totals.get('skip', 0),
-        'errors': len(result.base_errors) + len(result.row_errors()),
-        'error_list': detailed_errors,
-        'reporte_columnas': resumen_columnas
-    }
+        final_res = {
+            'status': 'completed',
+            'total': total_rows,
+            'new': result.totals.get('new', 0),
+            'updated': result.totals.get('update', 0),
+            'skipped': result.totals.get('skip', 0),
+            'errors': len(detailed_errors),
+            'error_list': detailed_errors,
+            'reporte_columnas': resumen_columnas
+        }
+        
+    except Exception as e:
+        import traceback
+        error_msg = f"Error critico en import_data: {str(e)}\n{traceback.format_exc()}"
+        print(f"DEBUG: {error_msg}")
+        final_res = {'status': 'error', 'message': error_msg}
+
+    # Limpiar archivo de MinIO tras procesar
+    try:
+        if default_storage.exists(file_path):
+            default_storage.delete(file_path)
+    except: pass
+        
     cache.set(cache_key, final_res, 3600)
     return final_res

@@ -418,9 +418,52 @@ class OrdenTrabajoResource(resources.ModelResource):
         return None
 
     def before_import(self, dataset, *args, **kwargs):
-        """Normalizar cabeceras a minúsculas"""
-        if dataset.headers:
-            dataset.headers = [str(h).lower().strip() for h in dataset.headers]
+        """Normalizar cabeceras: minúsculas, sin acentos y mapeo de sinónimos"""
+        if not dataset.headers:
+            return
+
+        import unicodedata
+        import re
+
+        def normalize(text):
+            if not text: return ""
+            # Quitar acentos
+            text = unicodedata.normalize('NFD', str(text))
+            text = "".join([c for c in text if unicodedata.category(c) != 'Mn'])
+            # A minúsculas y quitar caracteres raros, espacios por guiones bajos
+            text = text.lower().strip()
+            text = re.sub(r'[\s-]+', '_', text)
+            return text
+
+        # Mapeo de nombres "amigables" a nombres técnicos del resource
+        header_map = {
+            'codigo': 'codigo_de_orden',
+            'orden': 'codigo_de_orden',
+            'ot': 'codigo_de_orden',
+            'tipo_orden': 'tipo',
+            'rutina': 'rutina_codigo',
+            'codigo_rutina': 'rutina_codigo',
+            'ubicacion': 'ubicacion_nombre',
+            'area': 'ubicacion_nombre',
+            'tecnico': 'tecnico_usuario',
+            'usuario': 'tecnico_usuario',
+            'activos': 'activos_codigos',
+            'equipos': 'activos_codigos',
+            'inicio': 'inicio_programado',
+            'fecha_inicio': 'inicio_programado',
+            'fin': 'fin_programado',
+            'fecha_fin': 'fin_programado',
+        }
+
+        new_headers = []
+        for h in dataset.headers:
+            norm_h = normalize(h)
+            # Si el normalizado coincide con un mapeo, usar el técnico
+            mapped_h = header_map.get(norm_h, norm_h)
+            new_headers.append(mapped_h)
+
+        dataset.headers = new_headers
+        print(f"[DEBUG] [Import] Headers normalizados: {dataset.headers}")
 
     def import_row(self, row, instance_loader, **kwargs):
         """Sobrescribe import_row para detectar qué campos cambiaron realmente, incluyendo M2M"""
