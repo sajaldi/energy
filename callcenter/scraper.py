@@ -55,9 +55,19 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
         page.click("input.MuiSwitch-input")
         print("Búsqueda avanzada activada. Esperando campos de fecha...")
         
-        # Esperar a que aparezcan los inputs de fecha (suelen tener un placeholder o estar dentro de un MuiFormControl)
-        page.wait_for_selector("input.MuiInputBase-input", timeout=30000)
-        time.sleep(1) # Un segundo extra para asegurar que el JS los habilitó
+        # Esperar a que aparezcan los inputs de fecha
+        try:
+            page.wait_for_selector("input.MuiInputBase-input", timeout=30000)
+            time.sleep(2) # Segundo extra para asegurar que el JS los habilitó
+            
+            # Tomar screenshot para depuración
+            page.screenshot(path="downloads/debug_busqueda_avanzada.png")
+            print("Screenshot guardado en downloads/debug_busqueda_avanzada.png")
+        except Exception as e:
+            page.screenshot(path="downloads/error_busqueda_avanzada.png")
+            print(f"Error esperando campos de fecha: {e}")
+            browser.close()
+            return None
         
         # Calcular fechas
         end_date = datetime.now().strftime("%d/%m/%Y")
@@ -66,29 +76,48 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
         print(f"Aplicando filtro de fechas: {start_date} al {end_date}")
         
         # Seleccionar inputs de fecha por su etiqueta o índice
-        inputs = page.query_selector_all("input.MuiInputBase-input")
+        # Intentar ser más específico para evitar inputs ocultos
+        inputs = page.query_selector_all("input.MuiInputBase-input:not([type='hidden'])")
         
         if len(inputs) >= 2:
-            # Inicio (normalmente el primero)
-            inputs[0].click()
-            page.keyboard.press("Control+A")
-            page.keyboard.type(start_date)
-            page.keyboard.press("Enter") # Asegurar que el cambio se registre
-            
-            # Final (normalmente el segundo)
-            inputs[1].click()
-            page.keyboard.press("Control+A")
-            page.keyboard.type(end_date)
-            page.keyboard.press("Enter")
+            try:
+                # Inicio
+                inputs[0].scroll_into_view_if_needed()
+                inputs[0].click(force=True) # Usar force=True si está cubierto
+                page.keyboard.press("Control+A")
+                page.keyboard.type(start_date)
+                page.keyboard.press("Enter")
+                
+                # Final
+                inputs[1].scroll_into_view_if_needed()
+                inputs[1].click(force=True)
+                page.keyboard.press("Control+A")
+                page.keyboard.type(end_date)
+                page.keyboard.press("Enter")
+                
+                time.sleep(1)
+                page.screenshot(path="downloads/debug_fechas_aplicadas.png")
+            except Exception as e:
+                page.screenshot(path="downloads/error_llenando_fechas.png")
+                print(f"Error llenando fechas: {e}")
+                browser.close()
+                return None
             
             # Aplicar filtros
             print("Clic en Aplicar filtros...")
             page.click("button#btnBuscar")
             
-            # Esperar a que aparezca algún indicador de carga o simplemente esperar un poco
+            # Esperar a que la tabla se actualice y el botón de Excel sea clickeable
             print("Filtros aplicados. Esperando a que el botón de Excel sea clickeable...")
-            page.wait_for_selector("button#btnSolicitudesExcel", timeout=60000)
-            time.sleep(5) # Tiempo de gracia para que la tabla se pueble
+            try:
+                page.wait_for_selector("button#btnSolicitudesExcel", timeout=60000)
+                time.sleep(5) # Tiempo de gracia para que la tabla se pueble
+                page.screenshot(path="downloads/debug_tabla_cargada.png")
+            except:
+                page.screenshot(path="downloads/error_esperando_excel.png")
+                print("El botón de Excel no apareció a tiempo.")
+                browser.close()
+                return None
             
             # Exportar Excel
             print("Iniciando descarga de Excel...")
@@ -105,7 +134,8 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
             browser.close()
             return file_path
         else:
-            print("No se encontraron los campos de fecha.")
+            print(f"No se encontraron suficientes campos de fecha. Encontrados: {len(inputs)}")
+            page.screenshot(path="downloads/error_inputs_insuficientes.png")
             browser.close()
             return None
 
