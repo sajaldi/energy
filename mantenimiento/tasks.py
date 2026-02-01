@@ -185,149 +185,156 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
     cache.set(cache_key, final_res, 3600)
     return final_res
 @shared_task(bind=True)
-def import_ordenes_task(self, file_path, file_format, user_id=None):
+def import_ordenes_task(self, file_path, file_format, user_id=None, verification_mode=False, dry_run=False):
     """
-    Tarea Celery para importar ÓRDENES DE TRABAJO con seguimiento de progreso real.
+    Tarea Celery para importar o VERIFICAR OTs con seguimiento de progreso real.
     """
-    print(f"DEBUG: Starting task import_ordenes_task for user_id={user_id}")
     from tablib import Dataset
+    from django.core.files.storage import default_storage
     from .admin import OrdenTrabajoResource
     from django.core.cache import cache
+    from .models import OrdenTrabajo
+    import sys
 
     # Inicializar resource
     resource = OrdenTrabajoResource()
-    resource._meta.use_bulk = False
     
     # Marcador de progreso en caché
     cache_key = f"import_ordenes_progress_{user_id}" if user_id else "import_ordenes_progress_system"
 
-    # Leer archivo desde MinIO (file_path es la ruta en S3)
-    from django.core.files.storage import default_storage
+    # Leer archivo
     try:
-        print(f"DEBUG: Leyendo archivo desde MinIO: {file_path}")
         with default_storage.open(file_path, 'rb') as f:
             file_content = f.read()
-            
-        if not file_content:
-            error_msg = f"Archivo vacio o no encontrado en MinIO: {file_path}"
-            error_res = {'status': 'error', 'message': error_msg}
-            cache.set(cache_key, error_res, 3600)
-            return error_res
-        
-        print(f"DEBUG: Archivo recuperado desde MinIO ({len(file_content)} bytes)")
-        
-        if file_format == 'csv':
-            dataset = Dataset().load(try_decode(file_content), format='csv')
-        elif file_format in ['xls', 'xlsx']:
-            dataset = Dataset().load(file_content, format=file_format)
-        else:
-            raise ValueError(f"Formato no soportado: {file_format}")
-            
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(file_content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(file_content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
     except Exception as e:
-        error_res = {'status': 'error', 'message': f'Error al leer archivo desde MinIO: {str(e)}'}
+        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
         cache.set(cache_key, error_res, 3600)
         return error_res
 
     total_rows = len(dataset)
+    missing_dataset = Dataset()
+    missing_dataset.headers = dataset.headers
     
-    # Debug: Mostrar cabeceras y primera fila
-    print(f"DEBUG: Dataset headers detected: {dataset.headers}")
-    if total_rows > 0:
-        print(f"DEBUG: First row data: {dataset.dict[0]}")
-    
-    resource.before_import(dataset)
-    
-    # Marcador de progreso en caché
-    resumen_columnas = {}
+    # Estado inicial
     progress_info = {
         'current': 0, 
         'total': total_rows, 
-        'status': 'Iniciando procesamiento...', 
+        'status': 'Iniciando verificacion...' if verification_mode else 'Iniciando importacion...', 
         'percent': 0,
         'new': 0,
         'updated': 0,
         'skipped': 0,
         'errors': 0,
-        'reporte_columnas': resumen_columnas
+        'found': 0,
+        'not_found': 0,
+        'verification_mode': verification_mode
     }
     cache.set(cache_key, progress_info, 3600)
-    
-    from import_export import resources as ie_resources
-    from import_export.instance_loaders import ModelInstanceLoader
-    
-    result = ie_resources.Result()
-    instance_loader = ModelInstanceLoader(resource, dataset)
-    
-    # Contadores manuales por si result.totals falla en el loop manual
-    cnt_new = 0
-    cnt_update = 0
-    cnt_skip = 0
-    cnt_error = 0
+    self.update_state(state='PROGRESS', meta=progress_info)
+    print(f"[DEBUG] [Task] Iniciando import_ordenes_task. verif={verification_mode}, dry={dry_run}, user={user_id}")
+    sys.stdout.flush()
 
-    for i, row in enumerate(dataset.dict, start=1):
+    if verification_mode:
+        results = []
+        codes_seen = set()
+        codes_duplicated = set()
+        found_count = 0
+        not_found_count = 0
+        
+        for i, row in enumerate(dataset.dict, start=1):
+            codigo = str(row.get('codigo_de_orden') or '').strip()
+            
+            if not codigo or codigo.lower() in ['none', 'nan', 'null', '']:
+                status = "SIN CODIGO"
+                not_found_count += 1
+                missing_dataset.append(dataset[i-1])
+            else:
+                if codigo in codes_seen:
+                    codes_duplicated.add(codigo)
+                    status = "REPETIDO EN ARCHIVO"
+                else:
+                    codes_seen.add(codigo)
+                    exists = OrdenTrabajo.objects.filter(codigo_de_orden=codigo).exists()
+                    if exists:
+                        found_count += 1
+                        status = "EXISTE (Se actualizará)"
+                    else:
+                        not_found_count += 1
+                        status = "NO EXISTE (Se creará)"
+            
+            results.append(f"Fila {i}: Codigo '{codigo}' -> {status}")
+            
+            if i % 10 == 0 or i == total_rows:
+                progress_info.update({
+                    'current': i,
+                    'status': f'Verificando {i}/{total_rows}...',
+                    'percent': int((i / total_rows) * 100),
+                    'found': found_count,
+                    'not_found': not_found_count,
+                    'duplicates': len(codes_duplicated)
+                })
+                cache.set(cache_key, progress_info, 3600)
+                self.update_state(state='PROGRESS', meta=progress_info)
+
+        final_res = {
+            'status': 'completed',
+            'status_code': 'completed',
+            'total': total_rows,
+            'found': found_count,
+            'not_found': not_found_count,
+            'duplicates': len(codes_duplicated),
+            'duplicate_list': list(codes_duplicated),
+            'results': results,
+            'verification_mode': True
+        }
+    else:
+        # Modo IMPORTACIÓN real o Dry Run
+        resource.before_import(dataset)
         try:
-            # Procesar la fila individualmente
-            row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
-            result.append_row_result(row_result)
+            # Usar import_data para consistencia y robustez
+            result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
             
-            # Actualizar contadores manuales
-            if row_result.import_type == 'new': cnt_new += 1
-            elif row_result.import_type == 'update': cnt_update += 1
-            elif row_result.import_type == 'skip': cnt_skip += 1
+            # Recopilar errores
+            detailed_errors = []
+            for error in result.base_errors:
+                detailed_errors.append(f"Error General: {str(error.error)}")
             
-            # Debug explícito
-            print(f"[DEBUG] Fila {i}: {row.get('codigo_de_orden')} -> {row_result.import_type}")
-            
-            # Actualizar progreso cada fila
-            progress_info.update({
-                'current': i,
-                'status': f'Procesando fila {i} de {total_rows}...',
-                'percent': int((i / total_rows) * 100),
-                'new': cnt_new,
-                'updated': cnt_update,
-                'skipped': cnt_skip,
-                'errors': len(result.base_errors) + len(result.row_errors()),
-            })
-            cache.set(cache_key, progress_info, 3600)
-            self.update_state(state='PROGRESS', meta=progress_info)
-            
-            # Trazabilidad de cambios
-            if row_result.import_type == 'update':
-                changed = getattr(row_result, 'changed_fields', [])
-                if changed:
-                    ot_code = row.get('codigo_de_orden', f"Fila-{i}")
-                    for field in changed:
-                        if field not in resumen_columnas: resumen_columnas[field] = []
-                        resumen_columnas[field].append(str(ot_code))
+            for line, errors in result.row_errors():
+                for error in errors:
+                    detailed_errors.append(f"Fila {line}: {str(error.error)}")
 
+            final_res = {
+                'status': 'completed',
+                'status_code': 'completed',
+                'total': total_rows,
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(detailed_errors),
+                'error_list': detailed_errors,
+                'verification_mode': False,
+                'dry_run': dry_run,
+                'file_path': file_path
+            }
         except Exception as e:
-            cnt_error += 1
-            result.append_base_error(ie_resources.Error(error=e, traceback=str(e), row=row))
+            error_msg = f"Error crítico en importación: {str(e)}"
+            progress_info.update({'status': 'error', 'message': error_msg})
+            cache.set(cache_key, progress_info, 3600)
+            return {'status': 'error', 'message': error_msg}
 
-    # Recopilar errores detallados para el reporte final
-    detailed_errors = []
-    for error in result.base_errors:
-        detailed_errors.append(f"Error General: {str(error.error)}")
-    for line, errors in result.row_errors():
-        for error in errors:
-            detailed_errors.append(f"Fila {line}: {str(error.error)}")
-
-    final_res = {
-        'status': 'completed',
-        'total': total_rows,
-        'new': cnt_new,
-        'updated': cnt_update,
-        'skipped': cnt_skip,
-        'errors': len(detailed_errors),
-        'error_list': detailed_errors,
-        'reporte_columnas': resumen_columnas
-    }
-
-    # Limpiar archivo de MinIO tras procesar
-    try:
-        if default_storage.exists(file_path):
-            default_storage.delete(file_path)
-    except: pass
+    # Limpiar archivo original SOLO si no es dry_run
+    if not dry_run:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
         
     cache.set(cache_key, final_res, 3600)
     return final_res
