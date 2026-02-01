@@ -198,6 +198,7 @@ def import_ordenes_task(self, file_path, file_format, user_id=None, verification
 
     # Inicializar resource
     resource = OrdenTrabajoResource()
+    resource._meta.use_bulk = False
     
     # Marcador de progreso en caché
     cache_key = f"import_ordenes_progress_{user_id}" if user_id else "import_ordenes_progress_system"
@@ -297,8 +298,10 @@ def import_ordenes_task(self, file_path, file_format, user_id=None, verification
         # Modo IMPORTACIÓN real o Dry Run
         resource.before_import(dataset)
         try:
+            print(f"[DEBUG] [Task] Ejecutando resource.import_data. dry_run={dry_run}")
             # Usar import_data para consistencia y robustez
             result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
+            print(f"[DEBUG] [Task] import_data finalizado. Totals: {result.totals}")
             
             # Recopilar errores
             detailed_errors = []
@@ -308,6 +311,9 @@ def import_ordenes_task(self, file_path, file_format, user_id=None, verification
             for line, errors in result.row_errors():
                 for error in errors:
                     detailed_errors.append(f"Fila {line}: {str(error.error)}")
+            
+            if detailed_errors:
+                print(f"[DEBUG] [Task] Errores encontrados: {detailed_errors}")
 
             final_res = {
                 'status': 'completed',
