@@ -530,6 +530,14 @@ class OrdenTrabajoResource(resources.ModelResource):
                     if isinstance(val, str):
                         row[key] = val_str
 
+        # 1.5. Asignar valores por defecto para campos requeridos si faltan
+        if not row.get('tipo'):
+            row['tipo'] = 'PREVENTIVA'
+        if not row.get('prioridad'):
+            row['prioridad'] = 'MEDIA'
+        if not row.get('estado'):
+            row['estado'] = 'ESPERA'
+
         # 2. Cálculo automático de fin_programado si falta
         inicio_val = row.get('inicio_programado')
         fin_val = row.get('fin_programado')

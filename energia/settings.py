@@ -404,17 +404,20 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
 # Caché compartida para que Celery y Django (runserver) se vean
 # En ambos entornos usamos Redis si está disponible
 if IS_LOCAL:
-    # Local: Intentar Redis local primero, fallback a LocMem si falla
+    # Local: Intentar usar el mismo Redis que Celery si está configurado
     try:
         import redis
+        # Usar la URL del broker configurada (que viene de env o default)
+        redis_url = CELERY_BROKER_URL
+        
         # Test connection
-        r = redis.from_url('redis://localhost:6379/0', socket_connect_timeout=1)
+        r = redis.from_url(redis_url, socket_connect_timeout=1)
         r.ping()
         # Si llega aquí, Redis está disponible
         CACHES = {
             'default': {
                 'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-                'LOCATION': 'redis://localhost:6379/0',
+                'LOCATION': redis_url,
                 'OPTIONS': {
                     'socket_timeout': 5,
                     'socket_connect_timeout': 5,
@@ -422,8 +425,8 @@ if IS_LOCAL:
                 }
             }
         }
-        print("[DEBUG] Cache: Redis local")
-    except:
+        print(f"[DEBUG] Cache: Redis conectado exitosamente en {redis_url}")
+    except Exception as e:
         # Redis no disponible, usar memoria local
         CACHES = {
             'default': {
@@ -431,7 +434,7 @@ if IS_LOCAL:
                 'LOCATION': 'unique-snowflake',
             }
         }
-        print("[DEBUG] Cache: LocMem (Redis no disponible)")
+        print(f"[DEBUG] Cache: LocMem (Redis no disponible en {CELERY_BROKER_URL}: {e})")
 else:
     # Producción: LocMem por ahora para evitar crashes
     # Producción: Redis compartido
