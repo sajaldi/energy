@@ -8,7 +8,7 @@ from .models import OrdenTrabajo, Rutina, Categoria, Programacion, RestriccionCa
 
 class WorkOrderService:
     @staticmethod
-    def get_calendar_data(year, view_mode='sistema', ubicacion_id=None, programacion_id=None):
+    def get_calendar_data(year, view_mode='sistema', ubicacion_ids=None, categoria_ids=None, programacion_id=None):
         """
         Logic for grouping and projecting Work Orders for the visual calendar.
         Refactored from cronograma_mantenimiento_visual.
@@ -19,12 +19,25 @@ class WorkOrderService:
         if programacion_id:
             filtros['programacion_id'] = programacion_id
             
-        if ubicacion_id:
-            try:
-                area_sel = Ubicacion.objects.get(id=ubicacion_id)
-                filtros['ubicacion_id__in'] = area_sel.get_descendants(include_self=True).values_list('id', flat=True)
-            except Ubicacion.DoesNotExist:
-                pass
+        if ubicacion_ids:
+            if isinstance(ubicacion_ids, str): ubicacion_ids = [int(x) for x in ubicacion_ids.split(',') if x.strip()]
+            all_ids = set()
+            for uid in ubicacion_ids:
+                try:
+                    area = Ubicacion.objects.get(id=uid)
+                    all_ids.update(area.get_descendants(include_self=True).values_list('id', flat=True))
+                except Ubicacion.DoesNotExist: pass
+            filtros['ubicacion_id__in'] = list(all_ids)
+            
+        if categoria_ids:
+            if isinstance(categoria_ids, str): categoria_ids = [int(x) for x in categoria_ids.split(',') if x.strip()]
+            all_cat_ids = set()
+            for cid in categoria_ids:
+                try:
+                    cat = Categoria.objects.get(id=cid)
+                    all_cat_ids.update(cat.get_descendants(include_self=True).values_list('id', flat=True))
+                except Categoria.DoesNotExist: pass
+            filtros['rutina__categoria_id__in'] = list(all_cat_ids)
         
         # 1. Fetch real Work Orders
         ordenes_qs = OrdenTrabajo.objects.filter(**filtros).select_related(
@@ -39,11 +52,19 @@ class WorkOrderService:
         existing_ot_keys = set((ot['programacion_id'], ot['inicio_programado'].date()) for ot in ordenes_list if ot.get('programacion_id'))
         
         # 2. Handle Projections (Ghost OTs)
-        proyecciones = Programacion.objects.filter(fecha_inicio__year__lte=year).select_related(
+        proy_filtros = {'fecha_inicio__year__lte': year}
+        if programacion_id:
+            proy_filtros['id'] = programacion_id
+        
+        if categoria_ids:
+            proy_filtros['rutina__categoria_id__in'] = list(all_cat_ids)
+            
+        proyecciones = Programacion.objects.filter(**proy_filtros).select_related(
             'rutina__categoria', 'rutina__frecuencia', 'horario'
         )
-        if programacion_id:
-            proyecciones = proyecciones.filter(id=programacion_id)
+        
+        if ubicacion_ids:
+            proyecciones = proyecciones.filter(areas__id__in=list(all_ids)).distinct()
             
         restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
         working_days_cache = {}
