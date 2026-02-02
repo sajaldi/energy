@@ -97,9 +97,37 @@ class PuestoTrabajo(models.Model):
         verbose_name = "Puesto de Trabajo"
         verbose_name_plural = "Puestos de Trabajo"
 
+class Empresa(models.Model):
+    nombre = models.CharField(max_length=200, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Empresa"
+        verbose_name_plural = "Empresas"
+
 class TecnicoPuesto(models.Model):
+    TIPO_SANGRE_CHOICES = [
+        ('A+', 'A+'), ('A-', 'A-'),
+        ('B+', 'B+'), ('B-', 'B-'),
+        ('AB+', 'AB+'), ('AB-', 'AB-'),
+        ('O+', 'O+'), ('O-', 'O-'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil_tecnico')
     puesto = models.ForeignKey(PuestoTrabajo, on_delete=models.PROTECT, related_name='tecnicos')
+    empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados')
+    
+    dni = models.CharField(max_length=20, unique=True, null=True, blank=True, help_text="Ej: 0501-1986-06985")
+    fecha_nacimiento = models.DateField(null=True, blank=True)
+    tipo_sangre = models.CharField(max_length=5, choices=TIPO_SANGRE_CHOICES, null=True, blank=True)
+    fecha_alta = models.DateField(null=True, blank=True, help_text="Fecha de ingreso a la empresa")
+    
     disponible = models.BooleanField(default=True)
     horas_semanales_max = models.DecimalField(max_length=5, max_digits=5, decimal_places=2, default=40.00, help_text="Capacidad máxima de horas por semana")
 

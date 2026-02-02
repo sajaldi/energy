@@ -123,12 +123,37 @@ class PuestoTrabajoAdmin(admin.ModelAdmin):
         return mark_safe(f'<a class="button" href="{url}" style="background: #4f46e5; color: white; font-weight: 700;">📊 VER DASHBOARD DE CARGAS</a>')
     ver_dashboard_link.short_description = 'Dashboard'
 
+from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Empresa
+
+@admin.register(Empresa)
+class EmpresaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'activo', 'creado_en')
+    search_fields = ('nombre',)
+    list_filter = ('activo',)
+
 @admin.register(TecnicoPuesto)
 class TecnicoPuestoAdmin(admin.ModelAdmin):
-    list_display = ('user', 'puesto', 'get_carga_semanal', 'disponible', 'horas_semanales_max')
-    list_filter = ('puesto', 'disponible')
-    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'puesto__nombre')
-    autocomplete_fields = ('user', 'puesto')
+    list_display = ('user', 'get_nombre_completo', 'puesto', 'empresa', 'dni', 'get_carga_semanal', 'disponible')
+    list_filter = ('empresa', 'puesto', 'disponible', 'tipo_sangre')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'puesto__nombre', 'dni', 'empresa__nombre')
+    autocomplete_fields = ('user', 'puesto', 'empresa')
+    
+    fieldsets = (
+        ('Información de Usuario', {
+            'fields': ('user', 'puesto', 'empresa', 'disponible')
+        }),
+        ('Información Personal', {
+            'fields': ('dni', 'fecha_nacimiento', 'tipo_sangre', 'fecha_alta')
+        }),
+        ('Capacidad', {
+            'fields': ('horas_semanales_max',)
+        }),
+    )
+
+    def get_nombre_completo(self, obj):
+        return obj.user.get_full_name() or obj.user.username
+    get_nombre_completo.short_description = 'Nombre Completo'
+    get_nombre_completo.admin_order_field = 'user__first_name'
 
     def get_carga_semanal(self, obj):
         from .models import OrdenTrabajo
