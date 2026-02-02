@@ -311,6 +311,14 @@ def import_ordenes_task(self, file_path, file_format, user_id=None, verification
             for line, errors in result.row_errors():
                 for error in errors:
                     detailed_errors.append(f"Fila {line}: {str(error.error)}")
+                    
+            if result.invalid_rows:
+                for row in result.invalid_rows:
+                    error_msg = f"Fila {row.number} (Invalid): {str(row.error)}"
+                    detailed_errors.append(error_msg)
+                    # Force print to stdout for capturing in logs
+                    print(f"[DEBUG] [Task] INVALID ROW DETECTED: {error_msg}")
+                    print(f"[DEBUG] [Task] Row Values: {row.values}")
             
             if detailed_errors:
                 print(f"[DEBUG] [Task] Errores encontrados: {detailed_errors}")
