@@ -8,6 +8,7 @@ urlpatterns = [
     path('calendario/', views.calendario_mantenimiento, name='calendario'),
     path('calendario/detallado/', views.calendario_detallado, name='detallado'),
     path('cronograma/', views.cronograma_mantenimiento_visual, name='cronograma'),
+    path('cronograma/wizard/', views.wizard_cronograma, name='cronograma_wizard'),
     path('cronograma/<int:year>/<int:month>/', views.detalle_mes, name='detalle_mes'),
     path('api/update-ot-date/', views.api_update_ot_date, name='api_update_ot_date'),
     path('api/split-ot-asset/', views.api_split_ot_asset, name='api_split_ot_asset'),

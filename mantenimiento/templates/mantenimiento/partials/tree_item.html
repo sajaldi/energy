@@ -1,0 +1,30 @@
+{% load static %}
+<div class="tree-item" id="{{ type }}-{{ item.id }}">
+    <div class="tree-header">
+        {% if item.sub_ubicaciones.all or item.subcategorias.all %}
+        <ion-icon name="chevron-forward-outline" class="toggle-btn" onclick="toggleTree(this)"></ion-icon>
+        {% else %}
+        <div style="width: 14px;"></div>
+        {% endif %}
+
+        <label class="checkbox-container">
+            {{ item.nombre }}
+            <input type="checkbox" name="{{ type }}_id" value="{{ item.id }}">
+            <span class="checkmark"></span>
+        </label>
+    </div>
+
+    {% if item.sub_ubicaciones.all or item.subcategorias.all %}
+    <div class="tree-children">
+        {% if type == 'ubicacion' %}
+        {% for child in item.sub_ubicaciones.all %}
+        {% include "mantenimiento/partials/tree_item.html" with item=child type="ubicacion" %}
+        {% endfor %}
+        {% else %}
+        {% for child in item.subcategorias.all %}
+        {% include "mantenimiento/partials/tree_item.html" with item=child type="categoria" %}
+        {% endfor %}
+        {% endif %}
+    </div>
+    {% endif %}
+</div>

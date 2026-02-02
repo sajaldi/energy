@@ -158,14 +158,25 @@ def cronograma_mantenimiento_visual(request):
     from ..services import WorkOrderService
     year = int(request.GET.get('year', datetime.now().year))
     view_mode = request.GET.get('view_mode', 'sistema')
-    ubicacion_id = request.GET.get('ubicacion_id')
+    
+    def parse_ids(param):
+        val = request.GET.getlist(param)
+        if not val:
+            val = request.GET.get(param, '')
+            if ',' in val: return [int(x) for x in val.split(',') if x.strip()]
+            return [int(val)] if val.isdigit() else []
+        return [int(x) for x in val if str(x).isdigit()]
+
+    ubicacion_ids = parse_ids('ubicacion_id')
+    categoria_ids = parse_ids('categoria_id')
     programacion_id = request.GET.get('programacion_id')
 
     # Usar el servicio para obtener los datos base
     data = WorkOrderService.get_calendar_data(
         year=year,
         view_mode=view_mode,
-        ubicacion_id=ubicacion_id,
+        ubicacion_ids=ubicacion_ids,
+        categoria_ids=categoria_ids,
         programacion_id=programacion_id
     )
     
@@ -222,14 +233,41 @@ def cronograma_mantenimiento_visual(request):
     
     from activos.models import Ubicacion
     ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True, tipo='EDIFICIO').order_by('nombre')
-    current_ubi_id = int(ubicacion_id) if ubicacion_id else None
+    first_ubi_id = ubicacion_ids[0] if ubicacion_ids else None
     for u in ubicaciones_roots: 
-        u.is_selected = (u.id == current_ubi_id)
+        u.is_selected = (u.id == first_ubi_id)
         
     return render(request, 'mantenimiento/cronograma_fix.html', {
         'items': datos_finales, 'semanas': semanas, 'meses_header': meses_header, 
         'year': year, 'view_mode': view_mode, 'ubicaciones_roots': ubicaciones_roots, 
-        'current_ubi': current_ubi_id, 'programacion_id': programacion_id
+        'current_ubi': first_ubi_id, 'programacion_id': programacion_id
+    })
+
+@staff_member_required
+def wizard_cronograma(request):
+    """Interfaz visual para filtrar el cronograma."""
+    from activos.models import Ubicacion
+    from ..models import Categoria
+    from django.shortcuts import redirect
+    from django.urls import reverse
+    
+    # Redirección si se solicita un mes específico
+    if request.GET.get('month'):
+        year = request.GET.get('year', datetime.now().year)
+        month = request.GET.get('month')
+        # Limpiar mes de los parámetros para no entrar en bucle si se pasaran como qstring
+        params = request.GET.copy()
+        if 'month' in params: params.pop('month')
+        return redirect(f"{reverse('mantenimiento:detalle_mes', kwargs={'year': year, 'month': month})}?{params.urlencode()}")
+    
+    year = request.GET.get('year', datetime.now().year)
+    ubicaciones_roots = Ubicacion.objects.filter(padre=None).prefetch_related('sub_ubicaciones')
+    categorias_roots = Categoria.objects.filter(padre=None).prefetch_related('subcategorias')
+    
+    return render(request, 'mantenimiento/wizard_cronograma.html', {
+        'year': year,
+        'ubicaciones': ubicaciones_roots,
+        'categorias': categorias_roots
     })
 
 @staff_member_required

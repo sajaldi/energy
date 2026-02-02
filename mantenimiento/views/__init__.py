@@ -3,7 +3,8 @@ from .cronograma import (
     calendario_detallado, 
     cronograma_mantenimiento_visual, 
     detalle_mes, 
-    visualizador_proyecciones
+    visualizador_proyecciones,
+    wizard_cronograma
 )
 from .api import (
     api_update_ot_date,
