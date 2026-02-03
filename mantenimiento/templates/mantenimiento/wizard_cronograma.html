@@ -325,12 +325,18 @@
 <body>
 
     <div class="glass-card">
-        <header>
+        <header style="position: relative;">
             <h1>Configurar Vista</h1>
             <p class="subtitle">Selecciona los criterios para filtrar el cronograma</p>
+            <div style="margin-top: 15px;">
+                <a href="{% url 'mantenimiento:rutinas_dashboard' %}" class="btn"
+                    style="text-decoration: none; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; font-size: 0.9rem; border-radius: 8px;">
+                    📊 Dashboard de Rutinas
+                </a>
+            </div>
         </header>
 
-        <form id="wizardForm" action="{% url 'mantenimiento:cronograma' %}" method="get">
+        <form id="wizardForm" action="{% url 'mantenimiento:cronograma_wizard' %}" method="get">
             <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 30px;">
                 <div class="input-group">
                     <label
@@ -339,11 +345,30 @@
                         style="background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: var(--text); width: 100px;">
                 </div>
                 <div class="input-group">
+                    <label style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px;">Tipo
+                        de Vista</label>
+                    <div style="display: flex; gap: 15px; margin-top: 10px;">
+                        <label class="checkbox-container"
+                            style="padding-left: 0; display: flex; align-items: center; gap: 8px;">
+                            <input type="radio" name="view_type" value="anual" checked
+                                style="position: relative; opacity: 1; width: auto; height: auto;">
+                            <span style="color: var(--text);">Anual</span>
+                        </label>
+                        <label class="checkbox-container"
+                            style="padding-left: 0; display: flex; align-items: center; gap: 8px;">
+                            <input type="radio" name="view_type" value="mensual"
+                                style="position: relative; opacity: 1; width: auto; height: auto;">
+                            <span style="color: var(--text);">Mensual</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="input-group">
                     <label style="display: block; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px;">Mes
-                        (Opcional)</label>
+                        <span id="monthRequired" style="display: none; color: var(--accent);">*</span>
+                    </label>
                     <select name="month" id="monthSelect"
                         style="background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: var(--text); width: 160px; appearance: none;">
-                        <option value="">Anual (Todo el año)</option>
+                        <option value="">-- Seleccionar --</option>
                         <option value="1">Enero</option>
                         <option value="2">Febrero</option>
                         <option value="3">Marzo</option>
@@ -418,6 +443,39 @@
                     ccb.checked = e.target.checked;
                 });
             });
+        });
+
+        // Handle view type changes
+        const viewTypeRadios = document.querySelectorAll('input[name="view_type"]');
+        const monthSelect = document.getElementById('monthSelect');
+        const monthRequired = document.getElementById('monthRequired');
+
+        function updateMonthRequirement() {
+            const viewType = document.querySelector('input[name="view_type"]:checked').value;
+            if (viewType === 'mensual') {
+                monthSelect.style.borderColor = 'var(--accent)';
+                monthRequired.style.display = 'inline';
+            } else {
+                monthSelect.style.borderColor = 'var(--border)';
+                monthRequired.style.display = 'none';
+            }
+        }
+
+        viewTypeRadios.forEach(radio => {
+            radio.addEventListener('change', updateMonthRequirement);
+        });
+
+        // Form validation
+        document.getElementById('wizardForm').addEventListener('submit', (e) => {
+            const viewType = document.querySelector('input[name="view_type"]:checked').value;
+            const month = monthSelect.value;
+
+            if (viewType === 'mensual' && !month) {
+                e.preventDefault();
+                alert('Por favor selecciona un mes para la vista mensual');
+                monthSelect.focus();
+                return false;
+            }
         });
 
         function filterTree(input, type) {

@@ -1,0 +1,428 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jerarquía de Rutinas | Mantenimiento</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary: #7c3aed;
+            --bg: #f8fafc;
+            --card-rgba: rgba(255, 255, 255, 0.85);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --accent: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            min-height: 100vh;
+            color: var(--text-main);
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .dashboard-header {
+            background: var(--card-rgba);
+            backdrop-filter: blur(12px);
+            padding: 2rem;
+            border-radius: 20px;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-box {
+            background: var(--card-rgba);
+            backdrop-filter: blur(8px);
+            padding: 1.25rem;
+            border-radius: 16px;
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-box small {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .stat-box div {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .explorer-card {
+            background: var(--card-rgba);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-bar {
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.5);
+            border-bottom: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .btn-search {
+            padding: 0.6rem 1.5rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Tree Styles */
+        .tree-container {
+            padding: 1.5rem;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .tree-node {
+            margin-left: 1.5rem;
+        }
+
+        .tree-node[data-level="0"] {
+            margin-left: 0;
+        }
+
+        .tree-row {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-bottom: 2px;
+        }
+
+        .cat-row:hover {
+            background: rgba(79, 70, 229, 0.08);
+        }
+
+        .routine-row {
+            cursor: pointer;
+            padding-left: 2rem;
+            border: 1px solid transparent;
+        }
+
+        .routine-row:hover {
+            background: rgba(79, 70, 229, 0.05) !important;
+            border-color: rgba(79, 70, 229, 0.1);
+        }
+
+        .tree-icon {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: 10px;
+            color: var(--text-muted);
+        }
+
+        .cat-name {
+            font-weight: 600;
+            color: #334155;
+            font-size: 0.95rem;
+        }
+
+        .cat-count {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-left: 8px;
+        }
+
+        .chevron {
+            transition: transform 0.2s;
+        }
+
+        .tree-node.expanded>.cat-row .chevron {
+            transform: rotate(90deg);
+        }
+
+        .tree-node.expanded>.tree-content {
+            display: block !important;
+        }
+
+        .folder-icon {
+            color: var(--primary-light);
+        }
+
+        .file-icon {
+            color: var(--accent);
+            opacity: 0.7;
+        }
+
+        .routine-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            column-gap: 12px;
+        }
+
+        .routine-code {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .routine-name {
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        .routine-badges {
+            display: flex;
+            gap: 6px;
+            margin-left: auto;
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge-frec {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .badge-time {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        /* Custom Scrollbar */
+        .tree-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .tree-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .tree-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="dashboard-header">
+            <div class="header-title">
+                <h1>🌳 Jerarquía de Rutinas</h1>
+                <p>Explorador estructurado de mantenimiento preventivo</p>
+            </div>
+            <a href="{% url 'mantenimiento:cronograma_wizard' %}" class="btn-search"
+                style="text-decoration: none; background: #64748b;">
+                ⬅️ Volver
+            </a>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <small>Total Rutinas</small>
+                <div>{{ total_rutinas }}</div>
+            </div>
+            <div class="stat-box" style="border-left-color: var(--secondary);">
+                <small>Categorías Raíz</small>
+                <div>{{ tree|length }}</div>
+            </div>
+        </div>
+
+        <div class="explorer-card">
+            {% include "mantenimiento/partials/dashboard_filters.html" %}
+
+            <div class="tree-container">
+                {% if tree %}
+                {% for node in tree %}
+                {% include "mantenimiento/partials/routine_tree_node.html" with node=node %}
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <p>No se encontraron resultados para la búsqueda.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleNode(element) {
+            const node = element.parentElement;
+            node.classList.toggle('expanded');
+        }
+
+        // Auto-expandir si hay búsqueda o filtros activos
+        {% if search or frecuencia_selected or puesto_selected %}
+        document.querySelectorAll('.tree-node').forEach(node => {
+            node.classList.add('expanded');
+        });
+        {% endif %}
+
+        // MODAL LOGIC
+        const modal = document.getElementById('routineModal');
+        const loader = document.getElementById('modal-loader');
+
+        function showRoutineDetail(id) {
+            modal.style.display = 'flex';
+            loader.style.display = 'flex';
+            switchTab('general');
+
+            fetch('/mantenimiento/rutinas/dashboard/detail/' + id + '/')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Llenar datos básicos
+                        document.getElementById('m-routine-name').innerText = data.rutina.nombre;
+                        document.getElementById('m-routine-code').innerText = data.rutina.codigo;
+                        document.getElementById('m-category').innerText = data.rutina.categoria;
+                        document.getElementById('m-frequency').innerText = data.rutina.frecuencia;
+                        document.getElementById('m-time').innerText = data.rutina.tiempo_estimado;
+                        document.getElementById('m-techs').innerText = data.rutina.tecnicos;
+                        document.getElementById('m-description').innerText = data.rutina.descripcion;
+                        document.getElementById('m-tools').innerText = data.rutina.herramientas;
+                        document.getElementById('m-edit-link').href = data.rutina.admin_url;
+
+                        // Llenar historial
+                        const historyBody = document.getElementById('m-history-body');
+                        const historyEmpty = document.getElementById('m-history-empty');
+                        historyBody.innerHTML = '';
+
+                        if (data.historial.length > 0) {
+                            historyEmpty.style.display = 'none';
+                            data.historial.forEach(ot => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${ot.fecha_cierre}</td>
+                                    <td>${ot.tecnico}</td>
+                                    <td>${ot.hh}</td>
+                                    <td style="font-size: 0.8rem; color: #64748b;">${ot.comentarios || '-'}</td>
+                                `;
+                                historyBody.appendChild(row);
+                            });
+                        } else {
+                            historyEmpty.style.display = 'block';
+                        }
+
+                        loader.style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Error al cargar los detalles de la rutina');
+                    closeRoutineModal();
+                });
+        }
+
+        function closeRoutineModal() {
+            modal.style.display = 'none';
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tab));
+            if (targetBtn) targetBtn.classList.add('active');
+        }
+
+        // Cerrar con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeRoutineModal();
+        });
+
+        // Cerrar al click afuera
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeRoutineModal();
+        });
+    </script>
+
+    {% include "mantenimiento/partials/routine_detail_modal.html" %}
+</body>
+
+</html>

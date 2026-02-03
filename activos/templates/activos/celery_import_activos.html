@@ -1,539 +1,303 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static %}
+{% load i18n admin_urls static %}
 
-{% block extrastyle %}
+{% block extrahead %}
 {{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
-    :root {
-        --primary: #2563eb;
-        --secondary: #64748b;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --danger: #ef4444;
-        --bg-glass: rgba(255, 255, 255, 0.8);
-    }
-
-    .importer-container {
-        max-width: 900px;
+    .import-container {
+        max-width: 800px;
         margin: 40px auto;
-        padding: 40px;
-        background: var(--bg-glass);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(226, 232, 240, 0.8);
-        border-radius: 24px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    }
-
-    .importer-header {
-        text-align: center;
-        margin-bottom: 40px;
-    }
-
-    .importer-header h1 {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: #1e293b;
-        margin-bottom: 12px;
-        letter-spacing: -0.025em;
-    }
-
-    .importer-header p {
-        color: var(--secondary);
-        font-size: 1.1rem;
-    }
-
-    .upload-area {
-        border: 2px dashed #cbd5e1;
-        border-radius: 20px;
-        padding: 40px;
-        text-align: center;
-        transition: all 0.3s ease;
-        background: rgba(248, 250, 252, 0.5);
-        cursor: pointer;
-        position: relative;
-    }
-
-    .upload-area:hover,
-    .upload-area.dragover {
-        border-color: var(--primary);
-        background: rgba(37, 99, 235, 0.05);
-    }
-
-    .upload-icon {
-        font-size: 48px;
-        color: var(--primary);
-        margin-bottom: 16px;
-    }
-
-    .file-input {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        left: 0;
-        opacity: 0;
-        cursor: pointer;
-    }
-
-    .btn-import {
-        display: block;
-        width: 100%;
-        padding: 16px;
-        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-        margin-top: 24px;
-        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.4);
-    }
-
-    .btn-import:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.5);
-    }
-
-    .progress-section {
-        display: none;
-        margin-top: 40px;
-    }
-
-    .progress-bar-container {
-        width: 100%;
-        height: 16px;
-        background: #e2e8f0;
+        background: white;
+        padding: 30px;
         border-radius: 8px;
-        overflow: hidden;
-        margin-bottom: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-wrapper {
+        margin-top: 30px;
+        display: none;
     }
 
     .progress-bar {
-        width: 0%;
-        height: 100%;
-        background: linear-gradient(90deg, #3b82f6, #10b981);
-        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-        margin-top: 30px;
-    }
-
-    .stat-card {
-        padding: 20px;
-        background: white;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        text-align: center;
-    }
-
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        display: block;
-    }
-
-    .stat-label {
-        font-size: 0.9rem;
-        color: var(--secondary);
-    }
-
-    .log-area {
-        margin-top: 30px;
-        padding: 20px;
-        background: #0f172a;
-        color: #94a3b8;
-        border-radius: 12px;
-        font-family: 'Fira Code', monospace;
-        font-size: 0.85rem;
-        max-height: 200px;
-        overflow-y: auto;
-    }
-
-    .log-entry {
-        margin-bottom: 4px;
-    }
-
-    .log-entry.success {
-        color: #10b981;
-    }
-
-    .log-entry.error {
-        color: #ef4444;
-    }
-
-    /* Estilos para el Modal de Detalles */
-    .modal-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
         width: 100%;
-        height: 100%;
-        background: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(8px);
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .modal-overlay.active {
-        display: flex;
-        opacity: 1;
-    }
-
-    .modal-content {
-        background: white;
-        width: 90%;
-        max-width: 500px;
-        max-height: 80vh;
-        border-radius: 20px;
-        padding: 30px;
-        position: relative;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        height: 25px;
+        background-color: #f0f0f0;
+        border-radius: 15px;
         overflow: hidden;
-        display: flex;
-        flex-direction: column;
+        position: relative;
     }
 
-    .modal-header {
-        margin-bottom: 20px;
-        border-bottom: 1px solid #f1f5f9;
-        padding-bottom: 15px;
-    }
-
-    .modal-title {
-        font-size: 1.25rem;
-        font-weight: 800;
-        color: #1e293b;
-    }
-
-    .modal-close {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        background: #f1f5f9;
-        border: none;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 20px;
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #6366f1, #4f46e5);
+        /* Indigo for Assets */
+        width: 0%;
+        transition: width 0.3s ease;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #64748b;
-    }
-
-    .modal-body {
-        overflow-y: auto;
-        flex: 1;
-        padding-right: 10px;
-    }
-
-    .asset-list-item {
-        padding: 10px 15px;
-        border-bottom: 1px solid #f8fafc;
-        font-size: 0.9rem;
-        color: #475569;
-        display: flex;
-        align-items: center;
-    }
-
-    .asset-list-item:before {
-        content: "•";
-        color: var(--primary);
+        color: white;
+        font-size: 12px;
         font-weight: bold;
-        margin-right: 10px;
     }
 
-    .column-card {
+    .status-text {
+        margin-top: 10px;
+        text-align: center;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .file-upload-zone {
+        border: 2px dashed #cbd5e1;
+        padding: 40px;
+        text-align: center;
+        border-radius: 8px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.3s;
     }
 
-    .column-card:hover {
-        transform: translateY(-2px);
-        background: #eff6ff !important;
-        border-color: var(--primary) !important;
-        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+    .file-upload-zone:hover {
+        border-color: #6366f1;
+        background-color: #f5f3ff;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="importer-container">
-    <div class="importer-header">
-        <h1>🚀 Importación Industrial</h1>
-        <p>Procesamiento en segundo plano con Redis y Celery para máxima agilidad.</p>
-        <div style="margin-top: 15px;">
-            <a href="{% url 'activos:celery_download_template' %}" class="button"
-                style="background: #64748b; font-size: 0.9rem; padding: 8px 16px; border-radius: 8px; text-decoration: none; color: white;">
-                📥 Descargar Plantilla Excel
-            </a>
-        </div>
+<div class="import-container">
+    <h2 style="margin-bottom: 20px; color: #1e293b;">
+        <span style="color: #6366f1">📦</span> Importación de Activos (Aislada)
+    </h2>
+
+    <div style="background: #f5f3ff; border-left: 4px solid #6366f1; padding: 15px; margin-bottom: 25px;">
+        <p style="margin: 0; color: #4c1d95;">
+            <strong>Modo Seguro:</strong> Esta importación utiliza un motor independiente para garantizar la integridad
+            de las ubicaciones y el formato de los activos.
+        </p>
     </div>
 
-    <form id="import-form">
+    <div style="margin-bottom: 25px; text-align: center;">
+        <a href="../celery-download-template/" class="button"
+            style="background: #059669; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.2);">
+            <span style="font-size: 1.2rem;">📊</span> Descargar Plantilla de Activos
+        </a>
+    </div>
+
+    <form id="importForm" enctype="multipart/form-data">
         {% csrf_token %}
-        <div class="field-container" style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nombre del Lote</label>
-            <input type="text" name="name" placeholder="Ej: Carga Activos Enero 2024"
-                style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
+        <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" name="file" style="display: none;" accept=".xlsx, .xls, .csv">
+            <div style="font-size: 3rem; color: #94a3b8; margin-bottom: 15px;">📄</div>
+            <h3 style="color: #475569; margin: 0;">Selecciona tu archivo de Activos</h3>
+            <p style="color: #94a3b8; margin-top: 5px;">Soporta Excel (.xlsx) y CSV</p>
+            <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #6366f1;"></div>
         </div>
 
-        <div class="upload-area" id="drop-zone">
-            <div class="upload-icon">📄</div>
-            <h3>Suelte su archivo aquí</h3>
-            <p>Soporta .xlsx, .xls y .csv</p>
-            <input type="file" name="file" class="file-input" id="file-input" accept=".xlsx,.xls,.csv">
-            <div id="file-name" style="margin-top: 10px; font-weight: 600; color: var(--primary);"></div>
+        <div
+            style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="verificationMode" name="verification_mode"
+                style="width: 20px; height: 20px; cursor: pointer;">
+            <label for="verificationMode" style="cursor: pointer; font-weight: 600; color: #1e293b;">
+                🔍 Solo verificar si los códigos/ubicaciones existen (No importar nada)
+            </label>
         </div>
 
-        <button type="submit" class="btn-import" id="submit-btn">
-            Iniciar Importación Masiva
-        </button>
-    </form>
-
-    <div class="progress-section" id="progress-section">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span id="progress-status" style="font-weight: 600; color: #1e293b;">Preparando...</span>
-            <span id="progress-percent" style="font-weight: 700; color: var(--primary);">0%</span>
-        </div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" id="progress-bar"></div>
-        </div>
-
-        <div id="cancel-section" style="text-align: center; margin-top: 15px;">
-            <button type="button" class="btn-import" id="btn-cancel"
-                style="background: var(--danger); width: auto; padding: 10px 30px; margin-top: 0;">
-                🛑 Cancelar Importación
+        <div style="margin-top: 25px; text-align: right;">
+            <a href="/admin/activos/activo/" class="button"
+                style="background-color: #cbd5e1; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px; border-radius: 4px;">Cancelar</a>
+            <button type="submit" class="button"
+                style="background-color: #6366f1; color: white; padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem;">
+                🚀 Iniciar Proceso
             </button>
         </div>
+    </form>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <span class="stat-value" id="stat-new" style="color: var(--success);">0</span>
-                <span class="stat-label">Nuevos</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-value" id="stat-updated" style="color: var(--warning);">0</span>
-                <span class="stat-label">Actualizados</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-value" id="stat-skipped" style="color: var(--secondary);">0</span>
-                <span class="stat-label">Omitidos</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-value" id="stat-errors" style="color: var(--danger);">0</span>
-                <span class="stat-label">Errores</span>
-            </div>
+    <!-- Barra de Progreso -->
+    <div class="progress-wrapper" id="progressWrapper">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill">0%</div>
         </div>
-
-        <!-- Nuevo: Reporte de Columnas Actualizadas -->
-        <div id="column-report-section"
-            style="display: none; margin-top: 30px; padding: 20px; background: rgba(255, 255, 255, 0.9); border-radius: 16px; border: 1px solid #e2e8f0;">
-            <h4
-                style="margin-top: 0; margin-bottom: 15px; color: #1e293b; font-weight: 700; display: flex; align-items: center;">
-                <span style="margin-right: 8px;">📊</span> Detalle de Columnas Actualizadas
-            </h4>
-            <div id="column-report-list"
-                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
-                <!-- Se llenará vía JS -->
-            </div>
-        </div>
-
-        <div class="log-area" id="log-area">
-            <div class="log-entry">Esperando inicio de tarea...</div>
-        </div>
-
-        <div id="finish-actions" style="display: none; margin-top: 30px; text-align: center;">
-            <a href="/admin/activos/activo/" class="button" style="background: var(--success); padding: 12px 24px;">Ir
-                Al Listado de Activos</a>
-        </div>
-    </div>
-</div>
-
-<!-- Modal para detalles de columnas -->
-<div class="modal-overlay" id="column-modal">
-    <div class="modal-content">
-        <button class="modal-close" onclick="closeModal()">×</button>
-        <div class="modal-header">
-            <div class="modal-title" id="modal-title">Detalle de Columna</div>
-        </div>
-        <div class="modal-body" id="modal-body">
-            <!-- Items se llenarán aquí -->
+        <div class="status-text" id="statusText">Iniciando proceso...</div>
+        <div style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: #94a3b8;">
+            ID de Tarea: <span id="taskIdDisplay" style="font-family: monospace;">...</span>
         </div>
     </div>
 </div>
 
 <script>
-    const form = document.getElementById('import-form');
-    const fileInput = document.getElementById('file-input');
-    const fileName = document.getElementById('file-name');
-    const dropZone = document.getElementById('drop-zone');
-    const progressSection = document.getElementById('progress-section');
-    const logArea = document.getElementById('log-area');
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const importForm = document.getElementById('importForm');
+    const verificationMode = document.getElementById('verificationMode');
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressFill = document.getElementById('progressFill');
+    const statusText = document.getElementById('statusText');
+    const taskIdDisplay = document.getElementById('taskIdDisplay');
 
-    fileInput.onchange = () => {
-        if (fileInput.files.length > 0) {
-            fileName.innerText = fileInput.files[0].name;
+    fileInput.addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+            fileName.textContent = this.files[0].name;
+            fileName.style.display = 'block';
         }
-    };
+    });
 
-    document.getElementById('btn-cancel').onclick = async () => {
-        if (!confirm('¿Está seguro de que desea cancelar la importación? (Se detendrá el proceso actual)')) return;
-
-        const taskId = sessionStorage.getItem('active_task_id');
-        if (!taskId) return;
-
-        try {
-            const response = await fetch(`/activos/celery-cancel-task/${taskId}/`);
-            if (response.ok) {
-                sessionStorage.removeItem('active_task_id');
-                window.location.reload();
-            }
-        } catch (err) {
-            alert('Error al intentar cancelar');
-        }
-    };
-
-    form.onsubmit = async (e) => {
+    importForm.addEventListener('submit', function (e) {
         e.preventDefault();
-        const formData = new FormData(form);
 
-        document.getElementById('submit-btn').disabled = true;
-        document.getElementById('submit-btn').innerText = '⏳ Procesando...';
-
-        try {
-            const response = await fetch('', {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-            });
-            const data = await response.json();
-
-            if (data.status === 'started') {
-                sessionStorage.setItem('active_task_id', data.task_id);
-                startPolling(data.task_id);
-                form.style.display = 'none';
-                progressSection.style.display = 'block';
-                addLog('Tarea encolada con éxito. ID: ' + data.task_id, 'success');
-            } else {
-                alert('Error: ' + data.message);
-                document.getElementById('submit-btn').disabled = false;
-            }
-        } catch (err) {
-            alert('Error en la conexión');
-            document.getElementById('submit-btn').disabled = false;
+        if (!fileInput.files.length) {
+            Swal.fire('Error', 'Selecciona un archivo primero', 'error');
+            return;
         }
-    };
 
-    function addLog(msg, type = '') {
-        const div = document.createElement('div');
-        div.className = 'log-entry ' + type;
-        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-        logArea.appendChild(div);
-        logArea.scrollTop = logArea.scrollHeight;
-    }
+        // UI Update
+        importForm.style.opacity = '0.5';
+        importForm.style.pointerEvents = 'none';
+        progressWrapper.style.display = 'block';
 
-    async function startPolling(taskId) {
-        const interval = setInterval(async () => {
-            const response = await fetch(`/activos/celery-import-status/${taskId}/`);
-            const data = await response.json();
+        const formData = new FormData(this);
+        formData.set('verification_mode', verificationMode.checked ? 'true' : 'false');
 
-            if (data.state === 'PROGRESS' || data.state === 'SUCCESS') {
-                const current = data.current || data.new + data.updated + data.skipped + data.errors || 0;
-                const total = data.total || 100;
-                const percent = Math.round((current / total) * 100);
-
-                document.getElementById('progress-bar').style.width = percent + '%';
-                document.getElementById('progress-percent').innerText = percent + '%';
-                document.getElementById('progress-status').innerText = data.status || 'Procesando...';
-
-                document.getElementById('stat-new').innerText = data.new || 0;
-                document.getElementById('stat-updated').innerText = data.updated || 0;
-                document.getElementById('stat-skipped').innerText = data.skipped || 0;
-                document.getElementById('stat-errors').innerText = data.errors || 0;
-
-                // Mostrar logs en tiempo real
-                if (data.last_error) {
-                    addLog('❌ ' + data.last_error, 'error');
-                }
-
-                // Renderizar reporte de columnas si existe
-                if (data.reporte_columnas && Object.keys(data.reporte_columnas).length > 0) {
-                    const reportSection = document.getElementById('column-report-section');
-                    const reportList = document.getElementById('column-report-list');
-                    reportSection.style.display = 'block';
-                    reportList.innerHTML = '';
-
-                    window._lastColumnData = data.reporte_columnas; // Guardar para el modal
-
-                    Object.entries(data.reporte_columnas).forEach(([col, items]) => {
-                        const count = Array.isArray(items) ? items.length : items;
-                        const item = document.createElement('div');
-                        item.className = 'column-card';
-                        item.style = 'background: #f8fafc; padding: 10px 15px; border-radius: 10px; border: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;';
-                        item.onclick = () => showColumnDetail(col);
-                        item.innerHTML = `
-                            <span style="font-weight: 600; font-size: 0.85rem; color: #475569;">${col}</span>
-                            <span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem;">${count}</span>
-                        `;
-                        reportList.appendChild(item);
+        // 1. Iniciar Tarea (URL: process/)
+        fetch('process/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Error del servidor (${response.status}): ${text.slice(0, 100)}...`);
                     });
                 }
-
-                if (data.state === 'SUCCESS') {
-                    clearInterval(interval);
-                    document.getElementById('progress-status').innerText = '✅ Importación Finalizada';
-                    document.getElementById('finish-actions').style.display = 'block';
-                    addLog('Proceso completado exitosamente.', 'success');
+                return response.json();
+            })
+            .then(data => {
+                if (data.task_id) {
+                    taskIdDisplay.textContent = data.task_id;
+                    startPolling(data.task_id);
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo iniciar la tarea', 'error');
+                    resetUI();
                 }
-            } else if (data.state === 'FAILURE') {
-                clearInterval(interval);
-                document.getElementById('progress-status').innerText = '❌ Error Crítico';
-                addLog('Error fatal: ' + data.error, 'error');
-            }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire('Error', err.message || 'Error de conexión', 'error');
+                resetUI();
+            });
+    });
+
+    function startPolling(taskId) {
+        const interval = setInterval(() => {
+            fetch(`progress/?task_id=${taskId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const percent = data.percent || 0;
+                    progressFill.style.width = percent + '%';
+                    progressFill.textContent = percent + '%';
+                    statusText.textContent = data.status || 'Procesando...';
+
+                    if (data.state === 'COMPLETED' || data.state === 'SUCCESS') {
+                        clearInterval(interval);
+                        progressFill.style.width = '100%';
+
+                        if (data.verification_mode) {
+                            Swal.fire({
+                                title: '¡Verificación Completada!',
+                                html: `<div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;"><p>✅ <b>Encontrados:</b> ${data.found || 0}</p><p>🆕 <b>No encontrados:</b> ${data.not_found || 0}</p><hr><div style="max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: monospace;">${(data.results || []).join('<br>')}</div></div>`,
+                                icon: 'info',
+                                confirmButtonText: 'Cerrar'
+                            });
+                            resetUI();
+                        } else if (data.dry_run) {
+                            // MODO PREVIEW
+                            Swal.fire({
+                                title: '🔍 Análisis del Archivo',
+                                html: `
+                                <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                    <p style="color: #4f46e5; font-weight: bold; margin-bottom: 10px;">Se detectaron los siguientes cambios:</p>
+                                    <p>🆕 <b>Nuevos (Se crearán):</b> ${data.new || 0}</p>
+                                    <p>🔄 <b>Existentes (Se actualizarán):</b> ${data.updated || 0}</p>
+                                    <p>⏭️ <b>Sin cambios:</b> ${data.skipped || 0}</p>
+                                    <p style="margin-top: 15px; font-size: 0.9rem; color: #475569;">¿Deseas proceder con la importación?</p>
+                                </div>
+                                `,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: '✅ Sí, Importar todo',
+                                cancelButtonText: '❌ Cancelar',
+                                reverseButtons: true
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    confirmImport(data.file_path);
+                                } else {
+                                    resetUI();
+                                }
+                            });
+                        } else {
+                            // IMPORTACIÓN FINALIZADA
+                            Swal.fire({
+                                title: '¡Importación Finalizada!',
+                                html: `
+                                <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                    <p>✅ <b>Nuevos:</b> ${data.new || 0}</p>
+                                    <p>🔄 <b>Actualizados:</b> ${data.updated || 0}</p>
+                                    <p>❌ <b>Errores:</b> ${data.errors || 0}</p>
+                                </div>
+                            `,
+                                icon: (data.errors || 0) > 0 ? 'warning' : 'success',
+                                confirmButtonText: 'Ver Activos'
+                            }).then(() => {
+                                window.location.href = '/admin/activos/activo/';
+                            });
+                        }
+                    } else if (data.state === 'FAILURE' || data.status === 'error') {
+                        clearInterval(interval);
+                        progressFill.style.background = '#ef4444';
+                        statusText.textContent = 'Falló la importación';
+                        Swal.fire('Error Crítico', data.message || data.error || 'La tarea falló inesperadamente', 'error');
+                    }
+                })
+                .catch(err => console.error('Error de sondeo:', err));
         }, 1000);
     }
 
-    function showColumnDetail(column) {
-        const data = window._lastColumnData[column];
-        if (!data || !Array.isArray(data)) return;
+    function confirmImport(filePath) {
+        progressFill.style.width = '0%';
+        statusText.textContent = 'Iniciando importación real...';
 
-        document.getElementById('modal-title').innerText = `Activos con "${column}" actualizado`;
-        const body = document.getElementById('modal-body');
-        body.innerHTML = '';
+        const formData = new FormData();
+        formData.append('confirm', 'true');
+        formData.append('file_path', filePath);
+        formData.append('verification_mode', 'false');
 
-        data.forEach(text => {
-            const div = document.createElement('div');
-            div.className = 'asset-list-item';
-            div.innerText = text;
-            body.appendChild(div);
-        });
-
-        document.getElementById('column-modal').classList.add('active');
+        fetch('process/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.task_id) {
+                    startPolling(data.task_id);
+                } else {
+                    Swal.fire('Error', 'No se pudo confirmar la importación', 'error');
+                    resetUI();
+                }
+            });
     }
 
-    function closeModal() {
-        document.getElementById('column-modal').classList.remove('active');
-    }
-
-    // Cerrar modal al hacer clic fuera
-    window.onclick = function (event) {
-        const modal = document.getElementById('column-modal');
-        if (event.target == modal) {
-            closeModal();
-        }
+    function resetUI() {
+        importForm.style.opacity = '1';
+        importForm.style.pointerEvents = 'auto';
+        progressWrapper.style.display = 'none';
+        progressFill.style.width = '0%';
     }
 </script>
 {% endblock %}

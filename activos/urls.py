@@ -35,8 +35,12 @@ urlpatterns = [
     path('app/ubicaciones/<int:parent_id>/', views.mobile_ubicaciones, name='mobile_ubicaciones_child'),
     
     # Celery Industrial Import
-    path('celery-import/', views_celery.celery_import_activos_view, name='celery_import_activos'),
-    path('celery-import-status/<str:task_id>/', views_celery.celery_import_status, name='celery_import_status'),
+    path('celery-import/', views_celery.import_activos_view, name='celery_import_activos'),
+    path('celery-import/process/', views_celery.import_activos_process, name='celery_import_process'),
+    path('celery-import/progress/', views_celery.import_activos_progress, name='celery_import_progress'),
     path('celery-cancel-task/<str:task_id>/', views_celery.celery_cancel_task, name='celery_cancel_task'),
     path('celery-download-template/', views_celery.download_activos_template, name='celery_download_template'),
+    
+    # Edición personalizada de activos
+    path('editar-activo/<int:pk>/', views.activo_edit_view, name='activo_edit'),
 ]
