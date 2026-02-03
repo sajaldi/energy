@@ -661,11 +661,11 @@ class RutinaAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/mantenimiento/rutina/change_list.html'
     list_per_page = 50
     resource_class = RutinaResource
-    list_display = ('codigo_rutina', 'nombre', 'categoria', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'programar_rutina_link')
+    list_display = ('codigo_rutina', 'nombre', 'categoria', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'ver_dashboard_link', 'programar_rutina_link')
     list_filter = (('categoria', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo')
     search_fields = ('codigo_rutina', 'nombre', 'procedimiento_estandar__nombre', 'herramientas')
     autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
-    readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link')
+    readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link', 'ver_dashboard_link')
     list_select_related = True
     inlines = [ProgramacionInline] # Agregado historial de programaciones
     actions = ['exportar_seleccionadas_action']
@@ -675,6 +675,11 @@ class RutinaAdmin(ImportExportModelAdmin):
         url = reverse('mantenimiento:programar_rutina_wizard') + f'?rutina={obj.id}'
         return mark_safe(f'<a class="button" href="{url}" style="background: #10b981; color: white; font-weight: 700; padding: 5px 15px; border-radius: 4px; text-decoration: none;">🗓️ PROGRAMAR ESTA RUTINA</a>')
     programar_rutina_link.short_description = 'Programación'
+
+    def ver_dashboard_link(self, obj):
+        url = reverse('mantenimiento:rutinas_dashboard')
+        return mark_safe(f'<a class="button" href="{url}" style="background: #3b82f6; color: white; font-weight: 700; padding: 5px 10px; border-radius: 4px; text-decoration: none;">📊 DASHBOARD</a>')
+    ver_dashboard_link.short_description = 'Dashboard'
 
     def get_queryset(self, request):
         # Optimización profunda para evitar N+1 en la renderización de la ruta de categorías (soporta hasta 6 niveles)
