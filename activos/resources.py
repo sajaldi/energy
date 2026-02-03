@@ -392,6 +392,12 @@ class ActivoResource(resources.ModelResource):
         # Usar clave compuesta (Nombre, Marca) para evitar colisiones
         self.modelo_cache = {(m.nombre.upper(), m.marca.nombre.upper()): m for m in Modelo.objects.all().select_related('marca', 'categoria')}
         self.categoria_cache = {c.nombre.upper(): c for c in Categoria.objects.all()}
+        
+        # Caché de Planos (Indexado por nombre y por número de documento)
+        self.plano_cache = {p.nombre.upper(): p for p in Plano.objects.all()}
+        for p in list(self.plano_cache.values()):
+            if p.numero_documento:
+                self.plano_cache[p.numero_documento.upper()] = p
 
         # 3. Pre-procesar Dataset para creación masiva de Marcas/Modelos/Planos
         marcas_to_create = set()
@@ -480,16 +486,11 @@ class ActivoResource(resources.ModelResource):
             )
         }
         
-        # 5. Caché de Otros (User, Familia, Plano)
+        # 5. Caché de Otros (User, Familia)
         from django.contrib.auth.models import User
-        from .models import Familia, Plano
+        from .models import Familia
         self.user_cache = {u.username: u for u in User.objects.all()}
         self.familia_cache = {f.nombre.upper(): f for f in Familia.objects.all()}
-        self.plano_cache = {p.nombre.upper(): p for p in Plano.objects.all()}
-        # También indexamos planos por numero_documento si existe
-        for p in list(self.plano_cache.values()):
-            if p.numero_documento:
-                self.plano_cache[p.numero_documento.upper()] = p
 
         # 6. Caché para SmartActivoWidget (padre_codigo)
         # Solo cargamos los activos que son referenciados como padres en este archivo

@@ -4,26 +4,31 @@
         <button class="modal-close-btn" onclick="closeRoutineModal()">&times;</button>
 
         <div class="modal-header">
-            <div class="header-icon">
+            <div class="header-icon" id="m-header-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <path d="M14 2v6h6" />
                 </svg>
             </div>
-            <div class="header-text">
-                <h2 id="m-routine-name">Nombre de la Rutina</h2>
-                <span id="m-routine-code" class="code-badge">CODIGO</span>
+            <div class="header-text" style="flex: 1;">
+                <h2 id="m-title">Detalles de Rutina</h2>
+                <div id="m-view-header">
+                    <span id="m-routine-name" style="font-weight: 700; font-size: 1.2rem;">Nombre</span>
+                    <span id="m-routine-code" class="code-badge">CODIGO</span>
+                </div>
             </div>
         </div>
 
-        <div class="modal-tabs">
-            <button class="tab-btn active" onclick="switchTab('general')">Información General</button>
-            <button class="tab-btn" onclick="switchTab('history')">Historial de Ejecución</button>
+        <div class="modal-tabs" id="m-tabs">
+            <button class="tab-btn active" id="tab-btn-general" onclick="switchTab('general')">Información
+                General</button>
+            <button class="tab-btn" id="tab-btn-history" onclick="switchTab('history')">Historial de Ejecución</button>
+            <button class="tab-btn" id="tab-btn-steps" onclick="switchTab('steps')">Pasos del Procedimiento</button>
         </div>
 
         <div class="modal-body">
-            <!-- PESTAÑA GENERAL -->
-            <div id="tab-general" class="tab-content active">
+            <!-- PESTAÑA GENERAL (VISTA) -->
+            <div id="tab-general" class="tab-content active view-mode">
                 <div class="info-grid">
                     <div class="info-item">
                         <label>Categoría</label>
@@ -48,14 +53,105 @@
                     <div id="m-description" class="text-content">Sin descripción.</div>
                 </div>
 
-                <div class="info-block">
+                <div class="info-block" style="margin-bottom:0;">
                     <label>Herramientas y Materiales</label>
                     <div id="m-tools" class="text-content">Ninguna.</div>
                 </div>
             </div>
 
+            <!-- FORMULARIO DE EDICIÓN / CREACIÓN -->
+            <form id="routineForm" class="edit-mode" style="display: none;">
+                <input type="hidden" id="f-id" name="id">
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label>Nombre de la Rutina</label>
+                        <input type="text" id="f-nombre" name="nombre" class="form-control" required
+                            placeholder="Ej: Mantenimiento Preventivo Mensual">
+                    </div>
+                    <div class="form-group">
+                        <label>Código Interno</label>
+                        <input type="text" id="f-codigo" name="codigo_rutina" class="form-control"
+                            placeholder="Ej: RUT-001">
+                    </div>
+                    <div class="form-group">
+                        <label>Categoría</label>
+                        <select id="f-categoria" name="categoria_id" class="form-control" required>
+                            <option value="">Seleccione...</option>
+                            {% for cat in todas_categorias %}
+                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Frecuencia</label>
+                        <select id="f-frecuencia" name="frecuencia_id" class="form-control" required>
+                            <option value="">Seleccione...</option>
+                            {% for frec in frecuencias %}
+                            <option value="{{ frec.id }}">{{ frec.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Puesto de Trabajo</label>
+                        <select id="f-puesto" name="puesto_trabajo_id" class="form-control">
+                            <option value="">Seleccione...</option>
+                            {% for p in puestos %}
+                            <option value="{{ p.id }}">{{ p.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tiempo Estimado (HH:MM:SS)</label>
+                        <input type="text" id="f-tiempo" name="tiempo_estimado" class="form-control"
+                            placeholder="02:00:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}">
+                    </div>
+                    <div class="form-group">
+                        <label>Cant. Técnicos</label>
+                        <input type="number" id="f-tecnicos" name="cantidad_tecnicos" class="form-control" min="1"
+                            value="1">
+                    </div>
+                    <div class="form-group full">
+                        <label>Procedimiento Estándar</label>
+                        <div class="searchable-dropdown" id="proc-dropdown-container">
+                            <div class="search-input-wrapper">
+                                <input type="text" id="proc-search-input" class="form-control"
+                                    placeholder="Buscar procedimiento..." autocomplete="off">
+                                <input type="hidden" id="f-procedimiento" name="procedimiento_estandar_id">
+                                <div class="search-icon-right">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="dropdown-results" id="proc-results-list" style="display: none;">
+                                <div class="result-item" data-value="" data-text="Ninguno (Crear pasos personalizados)">
+                                    Ninguno (Crear pasos personalizados)</div>
+                                {% for p in procedimientos %}
+                                <div class="result-item" data-value="{{ p.id }}" data-text="{{ p.nombre }}">{{ p.nombre
+                                    }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <small style="color: #64748b; margin-top: 4px; display: block;">
+                            Al elegir un procedimiento, se cargarán sus pasos en la pestaña "Pasos".
+                        </small>
+                    </div>
+                    <div class="form-group full">
+                        <label>Descripción</label>
+                        <textarea id="f-descripcion" name="descripcion" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group full">
+                        <label>Herramientas y Materiales</label>
+                        <textarea id="f-herramientas" name="herramientas" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+            </form>
+
             <!-- PESTAÑA HISTORIAL -->
             <div id="tab-history" class="tab-content">
+                <!-- ... same as before ... -->
                 <div class="history-container" style="max-height: 400px; overflow-y: auto;">
                     <table class="history-table">
                         <thead>
@@ -66,9 +162,7 @@
                                 <th>Observaciones</th>
                             </tr>
                         </thead>
-                        <tbody id="m-history-body">
-                            <!-- Se llena vía JS -->
-                        </tbody>
+                        <tbody id="m-history-body"></tbody>
                     </table>
                     <div id="m-history-empty" style="display: none;" class="empty-history">
                         No hay registros de ejecución para esta rutina.
@@ -76,23 +170,80 @@
                 </div>
             </div>
 
+            <!-- PESTAÑA PASOS DEL PROCEDIMIENTO -->
+            <div id="tab-steps" class="tab-content">
+                <div id="steps-view-container" class="view-mode">
+                    <div id="m-steps-list-view" class="steps-list-static">
+                        <!-- Se llena vía JS -->
+                    </div>
+                </div>
+
+                <div id="steps-edit-container" class="edit-mode" style="display: none;">
+                    <div class="alert-info" style="margin-bottom: 1rem; font-size: 0.85rem;">
+                        <strong>Nota:</strong> Los cambios realizados aquí se aplicarán al procedimiento estándar
+                        seleccionado.
+                        Si no hay procedimiento seleccionado, estos cambios no se guardarán (primero selecciona un
+                        procedimiento en la pestaña General).
+                    </div>
+                    <div id="m-steps-list-edit" class="steps-list-editable">
+                        <!-- Se llena vía JS -->
+                    </div>
+                    <button type="button" class="btn btn-secondary-soft" onclick="addStepRow()"
+                        style="width: 100%; margin-top: 1rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-right:8px;">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Agregar Nuevo Paso
+                    </button>
+
+                    <div id="steps-edit-actions"
+                        style="margin-top: 1.5rem; display: flex; justify-content: flex-end; border-top: 1px solid #efefef; padding-top: 1rem;">
+                        <button type="button" class="btn btn-success" onclick="saveProcedimiento()">
+                            Actualizar Solo Pasos
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- CARGANDO -->
             <div id="modal-loader" class="modal-loader" style="display: none;">
                 <div class="spinner"></div>
-                <p style="font-weight: 600; color: #1e293b;">Cargando detalles...</p>
+                <p style="font-weight: 600; color: #1e293b;">Procesando...</p>
             </div>
         </div>
 
-        <div class="modal-footer">
+        <div class="modal-footer" id="m-footer-view">
+            <button class="btn btn-danger-soft" id="btn-delete" onclick="confirmDeleteRoutine()"
+                style="margin-right: auto;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Eliminar
+            </button>
             <button class="btn btn-secondary" onclick="closeRoutineModal()">Cerrar</button>
-            <a id="m-edit-link" href="#" class="btn btn-primary" target="_blank">
+            <button class="btn btn-primary" onclick="enterEditMode()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     style="margin-right: 8px;">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
-                Editar Rutina
-            </a>
+                Editar
+            </button>
+        </div>
+
+        <div class="modal-footer" id="m-footer-edit" style="display: none;">
+            <button class="btn btn-secondary" onclick="exitEditMode()">Cancelar</button>
+            <button class="btn btn-success" onclick="saveRoutine()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    style="margin-right:8px;">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                </svg>
+                Guardar Cambios
+            </button>
         </div>
     </div>
 </div>
@@ -121,12 +272,25 @@
         width: 90%;
         max-width: 800px;
         max-height: 90vh;
-        border-radius: 24px;
+        border-radius: 4px;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         display: flex;
         flex-direction: column;
         position: relative;
         overflow: hidden;
+        animation: slideUp 0.4s ease;
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
     }
 
     .modal-close-btn {
@@ -166,7 +330,7 @@
         height: 48px;
         background: #dbeafe;
         color: #2563eb;
-        border-radius: 14px;
+        border-radius: 4px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -184,7 +348,7 @@
         padding: 4px 10px;
         background: #f1f5f9;
         color: #64748b;
-        border-radius: 6px;
+        border-radius: 4px;
         font-size: 0.75rem;
         font-weight: 600;
         letter-spacing: 0.05em;
@@ -276,7 +440,7 @@
     .text-content {
         background: #f8fafc;
         padding: 16px;
-        border-radius: 12px;
+        border-radius: 4px;
         color: #475569;
         font-size: 0.95rem;
         line-height: 1.6;
@@ -312,7 +476,7 @@
 
     .btn {
         padding: 10px 24px;
-        border-radius: 12px;
+        border-radius: 4px;
         font-weight: 600;
         cursor: pointer;
         display: inline-flex;
@@ -357,14 +521,93 @@
         backdrop-filter: blur(4px);
     }
 
-    .spinner {
-        width: 40px;
-        height: 40px;
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #2563eb;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-bottom: 15px;
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    .form-group.full {
+        grid-column: span 2;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        background: #fff;
+    }
+
+    .form-control:focus {
+        border-color: #2563eb;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .btn-danger-soft {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .btn-danger-soft:hover {
+        background: #fecaca;
+    }
+
+    .btn-success {
+        background: #10b981;
+        color: white;
+        box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-success:hover {
+        background: #059669;
+        transform: translateY(-2px);
+    }
+
+    .toast-container {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .toast {
+        background: #1e293b;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 4px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
     }
 
     @keyframes spin {

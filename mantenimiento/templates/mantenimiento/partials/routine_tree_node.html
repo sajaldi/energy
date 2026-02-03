@@ -22,6 +22,15 @@
             {% if total_r > 0 %}({{ total_r }}){% endif %}
             {% endwith %}
         </span>
+        <div class="action-btns" style="margin-left: auto; opacity: 0; transition: opacity 0.2s;">
+            <button class="btn-action" onclick="event.stopPropagation(); createNewRoutine({{ node.categoria.id }})"
+                title="Nueva Rutina en esta categoría">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+        </div>
     </div>
 
     <div class="tree-content" style="display: none;">
@@ -34,7 +43,7 @@
         {% if node.rutinas %}
         <div class="routines-container">
             {% for rutina in node.rutinas %}
-            <div class="tree-row routine-row" onclick="event.stopPropagation(); showRoutineDetail({{ rutina.id }})">
+            <div class="tree-row routine-row" onclick="toggleRoutineExpansion(this, {{ rutina.id }})">
                 <span class="tree-icon">
                     <svg class="file-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2">
@@ -47,7 +56,7 @@
                 </span>
                 <div class="routine-info">
                     <span class="routine-code">[{{ rutina.codigo_rutina|default:"SC" }}]</span>
-                    <span class="routine-name">{{ rutina.nombre }}</span>
+                    <span class="routine-name" style="cursor: pointer;">{{ rutina.nombre }}</span>
                     <div class="routine-badges">
                         {% if rutina.frecuencia %}
                         <span class="badge badge-frec">{{ rutina.frecuencia.nombre }}</span>
@@ -55,7 +64,22 @@
                         {% if rutina.tiempo_estimado %}
                         <span class="badge badge-time">⏱️ {{ rutina.tiempo_estimado }}</span>
                         {% endif %}
+                        {% if rutina.procedimiento_estandar %}
+                        <span class="badge" style="background:#f0fdf4; color:#166534; border:1px solid #bbf7d0;">📖 Con
+                            Pasos</span>
+                        {% endif %}
                     </div>
+                </div>
+                <div class="action-btns" style="opacity: 0; transition: opacity 0.2s;">
+                    <button class="btn-action"
+                        onclick="event.stopPropagation(); showRoutineDetail({{ rutina.id }}, true);"
+                        title="Editar Rutina">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
             {% endfor %}
