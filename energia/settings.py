@@ -27,6 +27,7 @@ SECRET_KEY = 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj
 # SECURITY WARNING: don't run with debug turned on in production!
 # IMPORTANTE! En produccion, DEBUG debe ser False por seguridad.
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena 'True'/'False' a booleano
+IS_LOCAL = DEBUG  # En local, DEBUG = True; en producción, DEBUG = False
 
 
 # ALLOWED_HOSTS
@@ -248,14 +249,24 @@ AWS_S3_FILE_OVERWRITE = False
 # 'utf-8-sig' es más robusto para archivos CSV generados por Excel con BOM
 IMPORT_EXPORT_ENCODING = 'utf-8-sig'
 
-STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+if IS_LOCAL:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 
 # Default primary key field type
@@ -363,7 +374,6 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # ===== CELERY CONFIGURATION =====
 # Detección automática de entorno
-IS_LOCAL = DEBUG  # En local, DEBUG = True; en producción, DEBUG = False
 
 # Celery Broker URL Configuration
 if IS_LOCAL:

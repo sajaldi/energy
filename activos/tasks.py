@@ -30,7 +30,7 @@ def import_ubicaciones_task(self, file_path, file_format):
     import os
     
     # Inicializar el resource y cachés
-    from .admin import UbicacionResource
+    from .resources import UbicacionResource
     resource = UbicacionResource()
     
     from django.core.files.storage import default_storage
@@ -117,30 +117,33 @@ def import_ubicaciones_task(self, file_path, file_format):
     }
 
 @shared_task(bind=True)
-def import_activos_task(self, file_path, file_format, user_id=None, import_name="Importación sin nombre"):
+def import_activos_task(self, file_path, file_format, user_id=None, import_name="Importación sin nombre", verification_mode=False, dry_run=False):
     """
-    Tarea Celery para importar activos con seguimiento de progreso y reversión.
+    Tarea Celery para importar activos con seguimiento de progreso, soporte para verificación y dry-run.
     """
     from tablib import Dataset
     import os
     import json
     from django.contrib.auth.models import User
     from django.core.cache import cache
-    from .models import RegistroImportacion
+    from .models import RegistroImportacion, Activo
+    from django.core.files.storage import default_storage
     
     user = User.objects.get(id=user_id) if user_id else None
+    cache_key = f"import_activos_progress_{user_id}" if user_id else "import_activos_progress_system"
     
-    # Crear registro de importación
-    registro = RegistroImportacion.objects.create(
-        nombre=import_name,
-        usuario=user,
-        estado='PROCESANDO'
-    )
+    # Crear registro de importación solo si no es verificación pura
+    registro = None
+    if not verification_mode:
+        registro = RegistroImportacion.objects.create(
+            nombre=import_name,
+            usuario=user,
+            estado='PROCESANDO'
+        )
     
-    from .admin import ActivoResource
-    resource = ActivoResource()
+    print(f"[CELERY] Iniciando importación: {import_name} (User: {user_id})")
+    print(f"[CELERY] Cargando archivo: {file_path}")
     
-    from django.core.files.storage import default_storage
     # Leer el archivo
     try:
         with default_storage.open(file_path, 'rb') as f:
@@ -152,118 +155,147 @@ def import_activos_task(self, file_path, file_format, user_id=None, import_name=
             else:
                 raise ValueError(f"Formato no soportado: {file_format}")
     except Exception as e:
-        registro.estado = 'ERROR'
-        registro.detalles_error = f"Error al leer archivo: {str(e)}"
-        registro.save()
-        return {'status': 'error', 'message': str(e)}
+        if registro:
+            registro.estado = 'ERROR'
+            registro.detalles_error = f"Error al leer archivo: {str(e)}"
+            registro.save()
+        error_res = {'status': 'error', 'message': str(e)}
+        cache.set(cache_key, error_res, 3600)
+        return error_res
 
-    # Configurar el resource y cachés
-    from .admin import ActivoResource
+    total_rows = len(dataset)
+    if registro:
+        registro.total_rows = total_rows
+        registro.save()
+
+    from .resources import ActivoResource
     from import_export import resources
     resource = ActivoResource()
-    # Desactivar bulk para asegurar persistencia inmediata y obtención de IDs en el loop manual
-    resource._meta.use_bulk = False
     
-    total_rows = len(dataset)
-    registro.total_rows = total_rows
-    registro.save()
-    
-    # Inicializar cachés (crítico para evitar AttributeError: activo_id_cache)
+    # Estado inicial
+    progress_info = {
+        'current': 0, 
+        'total': total_rows, 
+        'status': 'Verificando archivo...' if verification_mode else 'Procesando importación...', 
+        'percent': 0,
+        'new': 0,
+        'updated': 0,
+        'skipped': 0,
+        'errors': 0,
+        'verification_mode': verification_mode,
+        'dry_run': dry_run
+    }
+    cache.set(cache_key, progress_info, 3600)
+    self.update_state(state='PROGRESS', meta=progress_info)
+
+    # Unificar lógica: Modo Verificación fuerza dry_run
+    if verification_mode:
+        dry_run = True
+
     resource.before_import(dataset, user=user)
     
-    # Marcador de progreso en caché para la UI compatible con el frontend
-    cache_key = f"import_progress_{user_id}" if user_id else "import_progress_system"
-    
-    ids_creados = []
-    resumen_columnas = {}
-    
-    # Procesar fila por fila para ver progreso real
-    for i, row in enumerate(dataset.dict, start=1):
-        try:
-            # Feedback cada 5 filas para fluidez
-            if i % 5 == 0 or i == total_rows:
-                progress_info = {
-                    'current': i, 
-                    'total': total_rows, 
-                    'status': f'Procesando activo {i}/{total_rows}: {row.get("nombre", "")}', 
-                    'percent': int((i / total_rows) * 100),
-                    'new': registro.filas_nuevas,
-                    'updated': registro.filas_actualizadas,
-                    'skipped': registro.filas_omitidas,
-                    'errors': registro.filas_error,
-                    'last_log': f'Procesado: {row.get("nombre", "S/N")}',
-                    'reporte_columnas': resumen_columnas
-                }
-                if hasattr(self, '_last_error_tmp'):
-                    progress_info['last_error'] = self._last_error_tmp
-                    del self._last_error_tmp
+    print(f"[CELERY] Iniciando import_data para {total_rows} filas...")
+    try:
+        # Ejecutar importación (simulada si dry_run/verificación)
+        # raise_errors=False para capturar errores por fila en el reporte
+        result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
+        print(f"[CELERY] import_data completado. Procesando reporte...")
 
-                cache.set(cache_key, progress_info, 3600)
-                # Actualizar estado de Celery también
-                self.update_state(state='PROGRESS', meta=progress_info)
+        # Recopilar resultados detallados
+        detailed_messages = []
+        detailed_errors = []
+        
+        # Procesar errores globales
+        for error in result.base_errors:
+            msg = f"Error General: {str(error.error)}"
+            detailed_errors.append(msg)
+            detailed_messages.append(f"[ERROR CRÍTICO] {msg}")
 
-            # Obtener el cargador de instancias correcto (ModelInstanceLoader en IE 4.x)
-            from import_export.instance_loaders import ModelInstanceLoader
-            instance_loader = ModelInstanceLoader(resource, dataset)
+        # Procesar resultados por fila para el reporte detallado
+        # OPTIMIZACIÓN CRÍTICA: dataset.dict es una propiedad costosa en tablib que recrea la lista.
+        # La extraemos una sola vez fuera del loop.
+        dataset_dict = dataset.dict
+        
+        for i, row_result in enumerate(result.rows):
+            row_idx = i + 1
+            data_row = dataset_dict[i]
+            nombre = str(data_row.get('nombre') or 'S/N').strip()
+            codigo = str(data_row.get('codigo_interno') or '---').strip()
             
-            # Procesar la fila pasando el número de fila (requerido en IE 4.x)
-            row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
+            action = "SIN CAMBIOS"
+            details = ""
+            status_tag = "SKIP"
             
-            if row_result.import_type == resources.RowResult.IMPORT_TYPE_NEW:
-                registro.filas_nuevas += 1
-                if row_result.object_id:
-                    ids_creados.append(row_result.object_id)
-            elif row_result.import_type == resources.RowResult.IMPORT_TYPE_UPDATE:
-                registro.filas_actualizadas += 1
-                # Acumular reporte de columnas si vienen en el row_result
-                changed = getattr(row_result, 'changed_fields', [])
-                asset_info = f"{row.get('nombre', 'S/N')} ({row.get('codigo_interno', 'S/C')})"
-                for field in changed:
-                    if field not in resumen_columnas:
-                        resumen_columnas[field] = []
-                    resumen_columnas[field].append(asset_info)
-            elif row_result.import_type == resources.RowResult.IMPORT_TYPE_SKIP:
-                registro.filas_omitidas += 1
+            if row_result.import_type == 'new':
+                action = "NUEVO"
+                status_tag = "NEW"
+                details = "Se creará un nuevo activo."
+            elif row_result.import_type == 'update':
+                action = "ACTUALIZAR"
+                status_tag = "UPDATE"
+                # Usar el atributo 'changed_fields' que inyectamos en ActivoResource.import_row
+                if hasattr(row_result, 'changed_fields') and row_result.changed_fields:
+                    details = f"Cambios en: {', '.join(row_result.changed_fields)}"
+                else:
+                    details = "Actualización detectada."
+            elif row_result.import_type == 'skip':
+                action = "OMITIDO"
+                status_tag = "SKIP"
+                details = "Sin cambios o fila vacía."
+            elif row_result.import_type == 'error':
+                action = "ERROR"
+                status_tag = "ERROR"
+                err_msg = str(row_result.errors[0].error) if row_result.errors else "Error desconocido"
+                details = f"{err_msg}"
+                detailed_errors.append(f"Fila {row_idx}: {err_msg}")
             
-            if row_result.errors:
-                registro.filas_error += len(row_result.errors)
-                err_text = "; ".join([str(e.error) for e in row_result.errors])
-                self._last_error_tmp = f"Fila {i} ({row.get('nombre')}): {err_text}"
-
-        except Exception as e:
-            registro.filas_error += 1
-            error_msg = f"Error en fila {i}: {str(e)}"
-            self._last_error_tmp = error_msg
-            registro.detalles_error = (registro.detalles_error or "") + error_msg + "\n"
-            
-        if i % 100 == 0:
-            registro.resumen_columnas = resumen_columnas
+            # Formato de línea para el log de verificación
+            if verification_mode or dry_run:
+                msg = f"Fila {row_idx}: {codigo} ({nombre}) -> [{action}] {details}"
+                detailed_messages.append(msg)
+        
+        # Actualizar registro si existe (solo en modo no-verificación o dry-run confirmado)
+        if registro:
+            registro.filas_nuevas = result.totals.get('new', 0)
+            registro.filas_actualizadas = result.totals.get('update', 0)
+            registro.filas_omitidas = result.totals.get('skip', 0)
+            registro.filas_error = len(detailed_errors)
+            registro.estado = 'COMPLETADO' if not dry_run else 'PROCESANDO'
+            if detailed_errors:
+                registro.detalles_error = "\n".join(detailed_errors[:20]) # Guardar primeros 20 errores
             registro.save()
 
-    # Guardar resultados finales en el registro
-    registro.ids_creados = json.dumps(ids_creados)
-    registro.resumen_columnas = resumen_columnas
-    registro.estado = 'COMPLETADO'
-    registro.save()
+        final_res = {
+            'status': 'completed',
+            'status_code': 'completed',
+            'total': total_rows,
+            'new': result.totals.get('new', 0),
+            'updated': result.totals.get('update', 0),
+            'skipped': result.totals.get('skip', 0),
+            'errors': len(detailed_errors),
+            'error_list': detailed_errors,
+            'results': detailed_messages, # Para el modal de verificación
+            'verification_mode': verification_mode,
+            'dry_run': dry_run,
+            'file_path': file_path
+        }
+        
+    except Exception as e:
+        error_msg = f"Error crítico durante el procesamiento: {str(e)}"
+        if registro:
+            registro.estado = 'ERROR'
+            registro.detalles_error = error_msg
+            registro.save()
+        final_res = {'status': 'error', 'message': error_msg}
 
-    # Limpiar archivo temporal
-    try:
-        from django.core.files.storage import default_storage
-        if default_storage.exists(file_path):
-            default_storage.delete(file_path)
-    except:
-        pass
-    
-    final_res = {
-        'status': 'completed',
-        'registro_id': registro.id,
-        'total': total_rows,
-        'new': registro.filas_nuevas,
-        'updated': registro.filas_actualizadas,
-        'skipped': registro.filas_omitidas,
-        'errors': registro.filas_error,
-        'reporte_columnas': resumen_columnas,
-    }
+    # Limpiar archivo original SOLO si no es dry_run y no es verificación
+    if not dry_run and not verification_mode:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
+        
     cache.set(cache_key, final_res, 3600)
     return final_res
 
@@ -304,7 +336,7 @@ def import_planos_task(self, file_path, file_format):
     """
     from tablib import Dataset
     import os
-    from .admin import PlanoResource
+    from .resources import PlanoResource
     
     # Inicializar resource
     resource = PlanoResource()

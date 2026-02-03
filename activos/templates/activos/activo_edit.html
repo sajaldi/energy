@@ -1,0 +1,680 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+
+<style>
+    :root {
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --secondary: #64748b;
+        --background: #f8fafc;
+        --glass: rgba(255, 255, 255, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.4);
+        --text: #0f172a;
+        --success: #10b981;
+        --error: #ef4444;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif !important;
+        background-color: var(--background) !important;
+        margin: 0;
+    }
+
+    /* Glass Container */
+    .edit-container {
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 0 20px;
+        animation: slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Header Section */
+    .edit-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .edit-header h1 {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--text);
+        margin: 0;
+    }
+
+    .edit-header .badges {
+        display: flex;
+        gap: 10px;
+        margin-top: 5px;
+    }
+
+    .badge {
+        padding: 4px 12px;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-id {
+        background: #e2e8f0;
+        color: #475569;
+    }
+
+    .badge-status {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    /* Glass Card */
+    .glass-card {
+        background: var(--glass);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+        box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+        display: flex;
+        background: rgba(0, 0, 0, 0.03);
+        padding: 10px;
+        gap: 5px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        overflow-x: auto;
+    }
+
+    .tab-btn {
+        padding: 12px 20px;
+        border: none;
+        background: transparent;
+        color: var(--secondary);
+        font-weight: 600;
+        font-size: 0.9rem;
+        border-radius: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    .tab-btn ion-icon {
+        font-size: 1.2rem;
+    }
+
+    .tab-btn:hover {
+        background: rgba(255, 255, 255, 0.5);
+        color: var(--text);
+    }
+
+    .tab-btn.active {
+        background: white;
+        color: var(--primary);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Form Body */
+    .form-content {
+        padding: 40px;
+    }
+
+    .tab-pane {
+        display: none;
+        animation: fadeIn 0.4s ease;
+    }
+
+    .tab-pane.active {
+        display: block;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+    }
+
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .form-field.full {
+        grid-column: span 2;
+    }
+
+    .form-field label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #475569;
+    }
+
+    .input-wrapper {
+        position: relative;
+    }
+
+    .input-wrapper select,
+    .input-wrapper input,
+    .input-wrapper textarea {
+        width: 100%;
+        padding: 12px 16px;
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 14px;
+        font-size: 1rem;
+        color: var(--text);
+        transition: all 0.2s;
+        box-sizing: border-box;
+    }
+
+    .input-wrapper select:focus,
+    .input-wrapper input:focus,
+    .input-wrapper textarea:focus {
+        border-color: var(--primary);
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+
+    .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 5px 0 0 0;
+        color: var(--error);
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    /* Footer Buttons */
+    .form-footer {
+        padding: 24px 40px;
+        background: rgba(0, 0, 0, 0.02);
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .btn {
+        padding: 14px 28px;
+        border-radius: 14px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        text-decoration: none;
+    }
+
+    .btn-secondary:hover {
+        background: #e2e8f0;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: none;
+        box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        background: var(--primary-dark);
+        box-shadow: 0 15px 25px -5px rgba(37, 99, 235, 0.5);
+    }
+
+    .btn-primary:active {
+        transform: scale(0.98);
+    }
+
+    /* Info Banner */
+    .info-banner {
+        grid-column: span 2;
+        background: #eff6ff;
+        border: 1px solid #dbeafe;
+        border-radius: 16px;
+        padding: 15px 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        color: #1e40af;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+
+    .info-banner ion-icon {
+        font-size: 1.5rem;
+    }
+
+    /* Multimedia Grid */
+    .media-container {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 30px;
+        align-items: start;
+    }
+
+    .preview-box {
+        width: 100%;
+        aspect-ratio: 1;
+        background: #f1f5f9;
+        border: 2px dashed #cbd5e1;
+        border-radius: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        overflow: hidden;
+    }
+
+    .preview-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-field.full {
+            grid-column: span 1;
+        }
+
+        .media-container {
+            grid-template-columns: 1fr;
+        }
+
+        .edit-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-container">
+    <div class="edit-header">
+        <div>
+            <h1>{{ title }}</h1>
+            <div class="badges">
+                <span class="badge badge-id">ID: #{{ activo.id }}</span>
+                <span class="badge badge-id">{{ activo.codigo_interno|default:"Sin Código" }}</span>
+                <span class="badge badge-status">{{ activo.get_estado_display }}</span>
+            </div>
+        </div>
+        <div class="actions">
+            <a href="/admin/activos/activo/{{ activo.id }}/change/" class="btn btn-secondary">
+                <ion-icon name="options-outline"></ion-icon>
+                Ir a Admin Original
+            </a>
+        </div>
+    </div>
+
+    <div class="glass-card">
+        <form id="activo-form" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="nav-tabs">
+                <button type="button" class="tab-btn active" onclick="switchTab(this, 'general')">
+                    <ion-icon name="information-circle-outline"></ion-icon>
+                    Básico
+                </button>
+                <button type="button" class="tab-btn" onclick="switchTab(this, 'ubicacion')">
+                    <ion-icon name="location-outline"></ion-icon>
+                    Ubicación
+                </button>
+                <button type="button" class="tab-btn" onclick="switchTab(this, 'tecnico')">
+                    <ion-icon name="construct-outline"></ion-icon>
+                    Técnico
+                </button>
+                <button type="button" class="tab-btn" onclick="switchTab(this, 'financiero')">
+                    <ion-icon name="card-outline"></ion-icon>
+                    Financiero
+                </button>
+                <button type="button" class="tab-btn" onclick="switchTab(this, 'multimedia')">
+                    <ion-icon name="image-outline"></ion-icon>
+                    Multimedia
+                </button>
+            </div>
+
+            <div class="form-content">
+                <!-- Tab: General -->
+                <div id="general" class="tab-pane active">
+                    <div class="info-banner">
+                        <ion-icon name="shield-checkmark-outline"></ion-icon>
+                        <div>
+                            <strong>Información Crítica</strong><br>
+                            Nombre y código son los identificadores principales del activo en el sistema.
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label>{{ form.nombre.label }}</label>
+                            <div class="input-wrapper">{{ form.nombre }}</div>
+                            {{ form.nombre.errors }}
+                        </div>
+                        <div class="form-field">
+                            <label>{{ form.codigo_interno.label }}</label>
+                            <div class="input-wrapper">{{ form.codigo_interno }}</div>
+                            {{ form.codigo_interno.errors }}
+                        </div>
+                        <div class="form-field">
+                            <label>{{ form.estado.label }}</label>
+                            <div class="input-wrapper">{{ form.estado }}</div>
+                            {{ form.estado.errors }}
+                        </div>
+                        <div class="form-field">
+                            <label>{{ form.epc.label }}</label>
+                            <div class="input-wrapper">{{ form.epc }}</div>
+                            {{ form.epc.errors }}
+                        </div>
+                        <div class="form-field full">
+                            <label>{{ form.descripcion.label }}</label>
+                            <div class="input-wrapper">{{ form.descripcion }}</div>
+                            {{ form.descripcion.errors }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Ubicación -->
+                <div id="ubicacion" class="tab-pane">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label>{{ form.ubicacion.label }}</label>
+                            <div class="input-wrapper">{{ form.ubicacion }}</div>
+                            {{ form.ubicacion.errors }}
+                        </div>
+                        <div class="form-field">
+                            <label>{{ form.responsable.label }}</label>
+                            <div class="input-wrapper">{{ form.responsable }}</div>
+                            {{ form.responsable.errors }}
+                        </div>
+                        <div class="form-field">
+                            <label>{{ form.plano.label }}</label>
+                            <div class="input-wrapper">{{ form.plano }}</div>
+                            {{ form.plano.errors }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Técnico -->
+                <div id="tecnico" class="tab-pane">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label>{{ form.familia.label }}</label>
+                            <div class="input-wrapper">{{ form.familia }}</div>
+                            {{ form.familia.errors }}
+                        </div>
+                        <div class="form-field">
+                            <label>{{ form.modelo.label }}</label>
+                            <div class="input-wrapper">{{ form.modelo }}</div>
+                            {{ form.modelo.errors }}
+                        </div>
+                        <div class="form-field">
+                            <label>{{ form.serie.label }}</label>
+                            <div class="input-wrapper">{{ form.serie }}</div>
+                            {{ form.serie.errors }}
+                        </div>
+                        <div class="form-field">
+                            <label>{{ form.padre.label }}</label>
+                            <div class="input-wrapper">{{ form.padre }}</div>
+                            {{ form.padre.errors }}
+                        </div>
+                        <div class="form-field full">
+                            <label>{{ form.referencia.label }}</label>
+                            <div class="input-wrapper">{{ form.referencia }}</div>
+                            {{ form.referencia.errors }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Financiero -->
+                <div id="financiero" class="tab-pane">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label>{{ form.fecha_compra.label }}</label>
+                            <div class="input-wrapper">{{ form.fecha_compra }}</div>
+                            {{ form.fecha_compra.errors }}
+                        </div>
+                        <div class="form-field">
+                            <label>{{ form.costo.label }}</label>
+                            <div class="input-wrapper">{{ form.costo }}</div>
+                            {{ form.costo.errors }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Multimedia -->
+                <div id="multimedia" class="tab-pane">
+                    <div class="media-container">
+                        <div class="preview-box">
+                            {% if activo.foto %}
+                            <img src="{{ activo.foto.url }}" id="img-preview" alt="Foto activo">
+                            {% else %}
+                            <ion-icon name="image-outline" style="font-size: 3rem;"></ion-icon>
+                            <span style="font-size: 0.8rem; margin-top: 10px;">Sin Foto</span>
+                            {% endif %}
+                        </div>
+                        <div class="form-field">
+                            <label>Actualizar Foto del Activo</label>
+                            <div class="input-wrapper">
+                                {{ form.foto }}
+                            </div>
+                            {{ form.foto.errors }}
+                            <p style="font-size: 0.75rem; color: #64748b; margin-top: 10px;">
+                                La imagen debe ser clara y mostrar el equipo completo para facilitar su identificación
+                                durante las rondas de mantenimiento.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary" id="save-btn">
+                    <ion-icon name="checkmark-circle-outline"></ion-icon>
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function switchTab(btn, tabId) {
+        // Toggle Buttons
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Toggle Panes
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+    }
+
+    // AJAX Form Submission
+    const form = document.getElementById('activo-form');
+    const saveBtn = document.getElementById('save-btn');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const originalContent = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="loader-mini"></span> Guardando...';
+
+        const formData = new FormData(form);
+
+        // Limpiar errores previos
+        document.querySelectorAll('.errorlist').forEach(el => el.remove());
+        document.querySelectorAll('.input-wrapper input, .input-wrapper select, .input-wrapper textarea').forEach(el => {
+            el.style.borderColor = '#e2e8f0';
+        });
+
+        try {
+            const response = await fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                showToast(result.message, 'success');
+            } else {
+                // Manejo de errores detallados
+                let errorMsg = 'Error en el formulario. Revisa los campos.';
+
+                if (result.errors) {
+                    // Si hay errores globales (agregados en form.clean)
+                    if (result.errors.__all__) {
+                        errorMsg = result.errors.__all__[0];
+                    }
+
+                    // Resaltar campos con error
+                    for (const [field, messages] of Object.entries(result.errors)) {
+                        if (field === '__all__') continue;
+
+                        const input = form.querySelector(`[name="${field}"]`);
+                        if (input) {
+                            input.style.borderColor = 'var(--error)';
+                            // Opcional: Agregar hint de error
+                            const wrapper = input.closest('.input-wrapper');
+                            if (wrapper) {
+                                const errHint = document.createElement('ul');
+                                errHint.className = 'errorlist';
+                                errHint.innerHTML = `<li>${messages[0]}</li>`;
+                                wrapper.appendChild(errHint);
+                            }
+                        }
+                    }
+                }
+
+                showToast(errorMsg, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Error de conexión con el servidor.', 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalContent;
+        }
+    });
+
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.style.position = 'fixed';
+        toast.style.bottom = '30px';
+        toast.style.right = '30px';
+        toast.style.padding = '16px 24px';
+        toast.style.borderRadius = '14px';
+        toast.style.color = 'white';
+        toast.style.fontWeight = '700';
+        toast.style.zIndex = '9999';
+        toast.style.display = 'flex';
+        toast.style.alignItems = 'center';
+        toast.style.gap = '12px';
+        toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.1)';
+        toast.style.animation = 'slideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+        if (type === 'success') {
+            toast.style.background = '#10b981';
+            toast.innerHTML = '<ion-icon name="checkmark-done-circle" style="font-size: 1.5rem;"></ion-icon> ' + message;
+        } else {
+            toast.style.background = '#ef4444';
+            toast.innerHTML = '<ion-icon name="alert-circle" style="font-size: 1.5rem;"></ion-icon> ' + message;
+        }
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.transition = 'all 0.4s ease';
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            setTimeout(() => toast.remove(), 400);
+        }, 4000);
+    }
+</script>
+
+<style>
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%) scale(0.9);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0) scale(1);
+            opacity: 1;
+        }
+    }
+
+    .loader-mini {
+        width: 18px;
+        height: 18px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top: 3px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+{% endblock %}

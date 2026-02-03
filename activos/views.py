@@ -1,10 +1,12 @@
-from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse, HttpResponse
+from .forms import ActivoAdminForm
 from .models import VisorPlano, PinPlano, Activo
 import json
 from django.views.decorators.csrf import csrf_exempt
 from celery.result import AsyncResult
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib import messages
 
 def visor_plano(request, visor_id):
     visor = get_object_or_404(
@@ -926,3 +928,36 @@ def mobile_ubicaciones(request, parent_id=None):
         'ubicaciones': ubicaciones,
         'parent': parent,
     })
+
+@staff_member_required
+def activo_edit_view(request, pk):
+    """
+    Vista premium para editar un activo.
+    """
+    activo = get_object_or_404(
+        Activo.objects.select_related(
+            'modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable', 'familia', 'plano', 'padre'
+        ).prefetch_related('puntos_medicion', 'componentes'), 
+        pk=pk
+    )
+    
+    if request.method == 'POST':
+        form = ActivoAdminForm(request.POST, request.FILES, instance=activo)
+        if form.is_valid():
+            form.save()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'success', 'message': 'Activo actualizado correctamente.'})
+            messages.success(request, f'Activo "{activo.nombre}" actualizado correctamente.')
+            return redirect('activos:activo_edit', pk=pk)
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+    else:
+        form = ActivoAdminForm(instance=activo)
+        
+    context = {
+        'activo': activo,
+        'form': form,
+        'title': f'Editar Activo: {activo.nombre}',
+    }
+    return render(request, 'activos/activo_edit.html', context)

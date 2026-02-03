@@ -1,74 +1,112 @@
 import os
 import uuid
+import time
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .tasks import import_activos_task
+from django.core.cache import cache
+from django.views.decorators.csrf import csrf_exempt
 from celery.result import AsyncResult
+from .tasks import import_activos_task
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)
-def celery_import_activos_view(request):
-    """Vista principal para subir el archivo e iniciar la tarea de Celery."""
-    if request.method == 'POST' and request.FILES.get('file'):
-        myfile = request.FILES['file']
-        file_name = myfile.name
-        file_format = file_name.split('.')[-1].lower()
-        
-        if file_format not in ['xlsx', 'xls', 'csv']:
-            return JsonResponse({'status': 'error', 'message': 'Formato de archivo no válido. Use Excel o CSV.'}, status=400)
+def import_activos_view(request):
+    """Renders the upload form for assets background import."""
+    from django.contrib import admin
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Importación masiva de Activos (Celery)',
+    }
+    return render(request, 'activos/celery_import_activos.html', context)
 
-        # Guardar archivo usando el storage por defecto (Local o S3)
-        import_id = str(uuid.uuid4())
-        path = default_storage.save(
-            f'celery_imports/activos_{import_id}.{file_format}', 
-            ContentFile(myfile.read())
-        )
-        
-        # Lanzar tarea de Celery (pasando la ruta relativa / llave)
-        import_name = request.POST.get('name', f"Importación {file_name}")
-        task = import_activos_task.delay(path, file_format, user_id=request.user.id, import_name=import_name)
-        
-        return JsonResponse({
-            'status': 'started',
-            'task_id': task.id,
-            'message': 'Tarea de importación iniciada en segundo plano.'
-        })
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@csrf_exempt
+def import_activos_process(request):
+    """Triggers the Celery task for importing assets."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    is_confirm = request.POST.get('confirm', '').lower() in ['true', 'on', '1']
+    existing_path = request.POST.get('file_path')
+    import_file = request.FILES.get('file') # El template de activos usa name="file"
 
-    return render(request, 'activos/celery_import_activos.html', {
-        'title': 'Importación masiva de Activos con Celery'
+    if not is_confirm:
+        if not import_file:
+            return JsonResponse({'error': 'No se subió ningún archivo'}, status=400)
+            
+        file_ext = import_file.name.split('.')[-1].lower()
+        temp_name = f'tmp/import_activos_{request.user.id}_{int(time.time())}.{file_ext}'
+        
+        try:
+            path = default_storage.save(temp_name, import_file)
+        except Exception as e:
+            return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
+    else:
+        if not existing_path:
+            return JsonResponse({'error': 'Falta la ruta del archivo para confirmar'}, status=400)
+        path = existing_path
+        file_ext = path.split('.')[-1].lower()
+    
+    # Limpiar cache de progreso anterior
+    cache_key = f"import_activos_progress_{request.user.id}"
+    cache.delete(cache_key)
+    
+    # Trigger Celery task
+    v_val = request.POST.get('verification_mode', '').lower()
+    verification_mode = v_val in ['true', 'on', '1']
+    dry_run = (not verification_mode) and (not is_confirm)
+    
+    import_name = request.POST.get('name') or f"Importación {import_file.name if import_file else 'Activos'}"
+    
+    task = import_activos_task.delay(
+        path, 
+        file_ext, 
+        user_id=request.user.id, 
+        import_name=import_name,
+        verification_mode=verification_mode,
+        dry_run=dry_run
+    )
+    
+    return JsonResponse({
+        'status': 'started', 
+        'task_id': task.id, 
+        'dry_run': dry_run,
+        'verification_mode': verification_mode
     })
 
 @login_required
-def celery_import_status(request, task_id):
-    """Endpoint para consultar el estado de la tarea de Celery."""
-    task_result = AsyncResult(task_id)
-    
-    response_data = {
-        'task_id': task_id,
-        'state': task_result.state,
-    }
-    
-    if task_result.state == 'PROGRESS':
-        response_data.update(task_result.info)
-    elif task_result.state == 'SUCCESS':
-        response_data.update(task_result.result)
-    elif task_result.state == 'FAILURE':
-        response_data['error'] = str(task_result.info)
+def import_activos_progress(request):
+    """API to poll progress for assets import."""
+    task_id = request.GET.get('task_id')
+    if not task_id:
+        return JsonResponse({'error': 'Falta task_id'}, status=400)
         
-    return JsonResponse(response_data)
+    cache_key = f"import_activos_progress_{request.user.id}"
+    progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
+    
+    res = AsyncResult(task_id)
+    progress['state'] = res.state if res else 'PENDING'
+    
+    if res.state == 'SUCCESS':
+        if isinstance(res.result, dict):
+            progress.update(res.result)
+        progress['state'] = 'COMPLETED'
+        progress['percent'] = 100
+    elif res.state == 'FAILURE':
+        progress['error'] = str(res.result)
+        progress['state'] = 'FAILURE'
+        
+    return JsonResponse(progress)
 
 @login_required
 def celery_cancel_task(request, task_id):
     """Cancela una tarea de Celery en ejecución."""
     from energia.celery import app
-    task_result = AsyncResult(task_id)
-    
-    # Terminar la tarea
     app.control.revoke(task_id, terminate=True, signal='SIGKILL')
-    
     return JsonResponse({'status': 'cancelled', 'task_id': task_id})
 
 @login_required
@@ -79,12 +117,7 @@ def download_activos_template(request):
     import tablib
     
     resource = ActivoResource()
-    # Obtener cabeceras del resource (excluyendo campos calculados o readonly si se prefiere)
-    # Por defecto, export() sin queryset da las cabeceras
     dataset = resource.export(queryset=[])
-    
-    # Podríamos forzar solo ciertos campos si quisiéramos una plantilla más limpia
-    # Pero usar las cabeceras actuales asegura compatibilidad total
     
     export_format = request.GET.get('format', 'xlsx')
     

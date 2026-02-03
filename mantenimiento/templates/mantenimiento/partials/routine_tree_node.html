@@ -1,0 +1,65 @@
+{% load static %}
+<div class="tree-node" data-level="{{ node.level }}">
+    <div class="tree-row cat-row {% if node.subcategorias or node.rutinas %}has-children{% endif %}"
+        onclick="toggleNode(this)">
+        <span class="tree-icon">
+            {% if node.subcategorias or node.rutinas %}
+            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M9 18l6-6-6-6" />
+            </svg>
+            {% else %}
+            <span style="display: inline-block; width: 16px;"></span>
+            {% endif %}
+            <svg class="folder-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+        </span>
+        <span class="cat-name">{{ node.categoria.nombre }}</span>
+        <span class="cat-count">
+            {% with total_r=node.rutinas|length %}
+            {% if total_r > 0 %}({{ total_r }}){% endif %}
+            {% endwith %}
+        </span>
+    </div>
+
+    <div class="tree-content" style="display: none;">
+        <!-- Subcategorías -->
+        {% for subnode in node.subcategorias %}
+        {% include "mantenimiento/partials/routine_tree_node.html" with node=subnode %}
+        {% endfor %}
+
+        <!-- Rutinas -->
+        {% if node.rutinas %}
+        <div class="routines-container">
+            {% for rutina in node.rutinas %}
+            <div class="tree-row routine-row" onclick="event.stopPropagation(); showRoutineDetail({{ rutina.id }})">
+                <span class="tree-icon">
+                    <svg class="file-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <path d="M14 2v6h6" />
+                        <path d="M16 13H8" />
+                        <path d="M16 17H8" />
+                        <path d="M10 9H8" />
+                    </svg>
+                </span>
+                <div class="routine-info">
+                    <span class="routine-code">[{{ rutina.codigo_rutina|default:"SC" }}]</span>
+                    <span class="routine-name">{{ rutina.nombre }}</span>
+                    <div class="routine-badges">
+                        {% if rutina.frecuencia %}
+                        <span class="badge badge-frec">{{ rutina.frecuencia.nombre }}</span>
+                        {% endif %}
+                        {% if rutina.tiempo_estimado %}
+                        <span class="badge badge-time">⏱️ {{ rutina.tiempo_estimado }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>

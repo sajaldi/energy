@@ -251,16 +251,26 @@ def wizard_cronograma(request):
     from django.shortcuts import redirect
     from django.urls import reverse
     
-    # Redirección si se solicita un mes específico
-    if request.GET.get('month'):
-        year = request.GET.get('year', datetime.now().year)
-        month = request.GET.get('month')
-        # Limpiar mes de los parámetros para no entrar en bucle si se pasaran como qstring
-        params = request.GET.copy()
-        if 'month' in params: params.pop('month')
-        return redirect(f"{reverse('mantenimiento:detalle_mes', kwargs={'year': year, 'month': month})}?{params.urlencode()}")
-    
     year = request.GET.get('year', datetime.now().year)
+    view_type = request.GET.get('view_type', 'anual')
+    month = request.GET.get('month')
+    
+    # Si se envía el formulario con view_type, redirigir a la vista apropiada
+    if view_type == 'mensual' and month:
+        # Redirigir a la vista mensual (detalle_mes)
+        params = request.GET.copy()
+        # Remover parámetros que no se usan en detalle_mes
+        params.pop('view_type', None)
+        params.pop('month', None)
+        return redirect(f"{reverse('mantenimiento:detalle_mes', kwargs={'year': year, 'month': month})}?{params.urlencode()}")
+    elif 'view_type' in request.GET:
+        # Redirigir a la vista anual (cronograma principal)
+        params = request.GET.copy()
+        params.pop('view_type', None)
+        params.pop('month', None)
+        return redirect(f"{reverse('mantenimiento:cronograma')}?{params.urlencode()}")
+    
+    # Mostrar el wizard (GET sin view_type)
     ubicaciones_roots = Ubicacion.objects.filter(padre=None).prefetch_related('sub_ubicaciones')
     categorias_roots = Categoria.objects.filter(padre=None).prefetch_related('subcategorias')
     
@@ -274,13 +284,34 @@ def wizard_cronograma(request):
 def detalle_mes(request, year, month):
     from ..services import WorkOrderService
     import calendar
+    from django.core.cache import cache
+    import hashlib
+    import json
+    
     programacion_id = request.GET.get('programacion_id')
     view_mode = request.GET.get('view_mode', 'sistema')
+    filter_q = request.GET.get('filter_q')
+    
+    # Crear cache key basado en parámetros
+    cache_params = {
+        'year': year,
+        'month': month,
+        'view_mode': view_mode,
+        'programacion_id': programacion_id,
+        'filter_q': filter_q,
+        # No incluir ubicacion_id ni categoria_id en cache para evitar cache bloat
+    }
+    cache_key = f"detalle_mes_{hashlib.md5(json.dumps(cache_params, sort_keys=True).encode()).hexdigest()}"
+    
+    # Intentar obtener del cache (15 minutos)
+    cached_data = cache.get(cache_key)
+    if cached_data and not request.GET.get('nocache'):
+        return render(request, 'mantenimiento/detalle_mes.html', cached_data)
     
     _, num_days = calendar.monthrange(year, month)
     days_range = range(1, num_days + 1)
     
-    # Calcular días no laborables y restricciones (logic simplified/move to service later if needed, kept here for context)
+    # Calcular días no laborables y restricciones
     working_weekdays = set(range(7))
     if programacion_id:
         try:
@@ -295,11 +326,20 @@ def detalle_mes(request, year, month):
     if view_mode == 'ubicacion':
         tree = WorkOrderService.get_location_grouped_tree(year, month)
     else:
-        # Legacy Logic for 'sistema' view
+        # Legacy Logic for 'sistema' view - OPTIMIZED with select_related/prefetch_related
         filtros = {'inicio_programado__year': year, 'inicio_programado__month': month}
         if programacion_id: filtros['programacion_id'] = programacion_id
         
-        ordenes = OrdenTrabajo.objects.filter(**filtros).select_related('rutina__categoria', 'rutina__frecuencia', 'ubicacion', 'programacion__horario').prefetch_related('activos', 'rutina__categoria')
+        # BRUTAL OPTIMIZATION: Single optimized query instead of N+1
+        ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
+            'rutina',
+            'rutina__categoria',
+            'rutina__categoria__padre',
+            'rutina__frecuencia',
+            'ubicacion',
+            'programacion',
+            'programacion__horario'
+        ).prefetch_related('activos')
         
         existing_ot_keys = set((ot.programacion_id, timezone.localtime(ot.inicio_programado).date()) for ot in ordenes if ot.programacion_id)
         
@@ -434,7 +474,8 @@ def detalle_mes(request, year, month):
     if filter_q and filter_q != 'TODOS':
         tree = [t for t in tree if t['label'] == filter_q]
 
-    return render(request, 'mantenimiento/detalle_mes.html', {
+    # Prepare context
+    context = {
         'year': year, 'month': month, 
         'mes_nombre': ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][month], 
         'days_range': days_range, 
@@ -444,7 +485,12 @@ def detalle_mes(request, year, month):
         'view_mode': view_mode,
         'filter_options': filter_options,
         'current_filter': filter_q
-    })
+    }
+    
+    # BRUTAL OPTIMIZATION: Cache result for 15 minutes
+    cache.set(cache_key, context, 60 * 15)
+
+    return render(request, 'mantenimiento/detalle_mes.html', context)
 
 @staff_member_required
 def visualizador_proyecciones(request, pk):

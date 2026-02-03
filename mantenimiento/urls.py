@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from .views import import_rutinas
+from .views.rutinas_dashboard import rutinas_dashboard, rutina_detail_api
 
 app_name = 'mantenimiento'
 
@@ -33,6 +34,8 @@ urlpatterns = [
     path('app/avisos/', views.mobile_mis_avisos, name='mobile_mis_avisos'),
     path('app/crear-ot-rutina/<int:rutina_id>/', views.mobile_crear_ot_rutina, name='mobile_crear_ot_rutina'),
     path('dashboard-cargas/', views.dashboard_cargas, name='dashboard_cargas'),
+    path('rutinas/dashboard/', rutinas_dashboard, name='rutinas_dashboard'),
+    path('rutinas/dashboard/detail/<int:pk>/', rutina_detail_api, name='rutina_detail_api'),
     path('proyeccion-generar/api/', views.api_generar_orden_individual, name='api_generar_orden_individual'),
 
     # Importación de Rutinas (Aislada)
