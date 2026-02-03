@@ -43,7 +43,7 @@
             background: var(--card-rgba);
             backdrop-filter: blur(12px);
             padding: 2rem;
-            border-radius: 20px;
+            border-radius: 4px;
             margin-bottom: 2rem;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -74,7 +74,7 @@
             background: var(--card-rgba);
             backdrop-filter: blur(8px);
             padding: 1.25rem;
-            border-radius: 16px;
+            border-radius: 4px;
             border-left: 4px solid var(--primary);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
@@ -95,7 +95,7 @@
         .explorer-card {
             background: var(--card-rgba);
             backdrop-filter: blur(12px);
-            border-radius: 20px;
+            border-radius: 4px;
             overflow: hidden;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -139,7 +139,7 @@
             background: var(--primary);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 4px;
             font-weight: 600;
             cursor: pointer;
         }
@@ -163,7 +163,7 @@
             display: flex;
             align-items: center;
             padding: 0.5rem 0.75rem;
-            border-radius: 8px;
+            border-radius: 4px;
             cursor: pointer;
             transition: all 0.15s;
             margin-bottom: 2px;
@@ -286,6 +286,37 @@
             background: #cbd5e1;
             border-radius: 10px;
         }
+
+        /* CRUD styles */
+        .tree-row:hover .action-btns {
+            opacity: 1 !important;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 4px;
+        }
+
+        .btn-action {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            border: none;
+            background: #fff;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-action:hover {
+            color: var(--primary);
+            background: #f1f5f9;
+            transform: scale(1.1);
+        }
     </style>
 </head>
 
@@ -296,10 +327,15 @@
                 <h1>🌳 Jerarquía de Rutinas</h1>
                 <p>Explorador estructurado de mantenimiento preventivo</p>
             </div>
-            <a href="{% url 'mantenimiento:cronograma_wizard' %}" class="btn-search"
-                style="text-decoration: none; background: #64748b;">
-                ⬅️ Volver
-            </a>
+            <div style="display: flex; gap: 12px;">
+                <button onclick="createNewRoutine()" class="btn-search" style="background: var(--success, #10b981);">
+                    ➕ Nueva Rutina
+                </button>
+                <a href="{% url 'mantenimiento:cronograma_wizard' %}" class="btn-search"
+                    style="text-decoration: none; background: #64748b;">
+                    ⬅️ Volver
+                </a>
+            </div>
         </div>
 
         <div class="stats-grid">
@@ -330,50 +366,198 @@
         </div>
     </div>
 
+    {% include "mantenimiento/partials/routine_detail_modal.html" %}
+
     <script>
+        // Init variables
+        let modal, loader, form, footerView, footerEdit;
+        let currentRoutineId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            modal = document.getElementById('routineModal');
+            loader = document.getElementById('modal-loader');
+            form = document.getElementById('routineForm');
+            footerView = document.getElementById('m-footer-view');
+            footerEdit = document.getElementById('m-footer-edit');
+
+            // Auto-expandir si hay búsqueda o filtros activos
+            {% if search or frecuencia_selected or puesto_selected %}
+            document.querySelectorAll('.tree-node').forEach(node => {
+                node.classList.add('expanded');
+            });
+            {% endif %}
+
+            // Global key listeners
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeRoutineModal();
+            });
+
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeRoutineModal();
+                });
+            }
+
+            // Lógica del Buscador de Procedimientos
+            const procSearchInput = document.getElementById('proc-search-input');
+            const procResultsList = document.getElementById('proc-results-list');
+            const procHiddenInput = document.getElementById('f-procedimiento');
+
+            if (procSearchInput) {
+                // Mostrar resultados al enfocar
+                procSearchInput.addEventListener('focus', () => {
+                    procResultsList.style.display = 'block';
+                });
+
+                // Filtrado
+                procSearchInput.addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    const items = procResultsList.querySelectorAll('.result-item');
+                    let visibleCount = 0;
+
+                    items.forEach(item => {
+                        const text = item.dataset.text.toLowerCase();
+                        if (text.includes(term)) {
+                            item.classList.remove('hidden');
+                            visibleCount++;
+                        } else {
+                            item.classList.add('hidden');
+                        }
+                    });
+
+                    procResultsList.style.display = 'block';
+                });
+
+                // Selección
+                procResultsList.addEventListener('click', (e) => {
+                    const item = e.target.closest('.result-item');
+                    if (item) {
+                        const val = item.dataset.value;
+                        const text = item.dataset.text;
+
+                        procHiddenInput.value = val;
+                        procSearchInput.value = text;
+                        procResultsList.style.display = 'none';
+
+                        // Disparar carga de pasos (como se hacía antes con el select)
+                        loadProcedureSteps(val);
+
+                        // Marcar como seleccionado visulamente
+                        procResultsList.querySelectorAll('.result-item').forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+                    }
+                });
+
+                // Cerrar al hacer clic fuera
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.searchable-dropdown')) {
+                        procResultsList.style.display = 'none';
+                    }
+                });
+            }
+        });
+
+        function loadProcedureSteps(procId) {
+            if (!procId) {
+                renderSteps([], 'm-steps-list-edit', true);
+                return;
+            }
+
+            const editList = document.getElementById('m-steps-list-edit');
+            if (editList) editList.innerHTML = '<div style="padding:20px; text-align:center;">Cargando pasos...</div>';
+
+            fetch(`/mantenimiento/rutinas/dashboard/procedimiento/detail/${procId}/`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        renderSteps(data.pasos, 'm-steps-list-view', false);
+                        renderSteps(data.pasos, 'm-steps-list-edit', true);
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showToast('Error al cargar pasos', 'error');
+                });
+        }
+
         function toggleNode(element) {
             const node = element.parentElement;
             node.classList.toggle('expanded');
         }
 
-        // Auto-expandir si hay búsqueda o filtros activos
-        {% if search or frecuencia_selected or puesto_selected %}
-        document.querySelectorAll('.tree-node').forEach(node => {
-            node.classList.add('expanded');
-        });
-        {% endif %}
+        function closeRoutineModal() {
+            if (modal) modal.style.display = 'none';
+            currentRoutineId = null;
+        }
 
-        // MODAL LOGIC
-        const modal = document.getElementById('routineModal');
-        const loader = document.getElementById('modal-loader');
+        function toggleRoutineExpansion(element, routineId) {
+            const row = element.closest('.routine-row');
+            let stepsRow = row.nextElementSibling;
 
-        function showRoutineDetail(id) {
-            modal.style.display = 'flex';
-            loader.style.display = 'flex';
+            if (stepsRow && stepsRow.classList.contains('steps-row')) {
+                stepsRow.style.display = stepsRow.style.display === 'none' ? 'block' : 'none';
+                return;
+            }
+
+            stepsRow = document.createElement('div');
+            stepsRow.classList.add('steps-row');
+            stepsRow.style.padding = '0 0 1rem 3.5rem';
+            stepsRow.style.fontSize = '0.85rem';
+            stepsRow.innerHTML = '<div style="color:var(--text-muted); font-style:italic;">Cargando procedimiento...</div>';
+            row.after(stepsRow);
+
+            fetch('/mantenimiento/rutinas/dashboard/detail/' + routineId + '/')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' && data.rutina.pasos && data.rutina.pasos.length > 0) {
+                        let html = '<div style="border-left: 2px solid var(--primary-light); padding-left: 1rem; margin-top: 0.5rem;">';
+                        html += '<div style="font-weight:700; color:var(--primary); margin-bottom:0.5rem; font-size:0.75rem; text-transform:uppercase;">Pasos del Procedimiento:</div>';
+                        data.rutina.pasos.forEach(p => {
+                            html += `<div style="margin-bottom: 0.4rem; display:flex; gap:8px;">
+                                <span style="font-weight:700; color:var(--text-muted); min-width:15px;">${p.orden}.</span>
+                                <span>${p.descripcion}</span>
+                                ${p.verificacion ? `<small style="display:block; color:var(--text-muted); font-size:0.7rem;">(Ref: ${p.verificacion})</small>` : ''}
+                            </div>`;
+                        });
+                        html += '</div>';
+                        stepsRow.innerHTML = html;
+                    } else {
+                        stepsRow.innerHTML = '<div style="color:var(--text-muted); font-style:italic; padding:0.5rem 0;">No hay pasos configurados para esta rutina.</div>';
+                    }
+                })
+                .catch(err => {
+                    stepsRow.remove();
+                    console.error(err);
+                });
+        }
+
+        function showRoutineDetail(id, isEdit = false) {
+            currentRoutineId = id;
+            if (modal) modal.style.display = 'flex';
+            if (loader) loader.style.display = 'flex';
+
+            if (isEdit) {
+                enterEditMode();
+            } else {
+                exitEditMode();
+            }
+
             switchTab('general');
 
             fetch('/mantenimiento/rutinas/dashboard/detail/' + id + '/')
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        // Llenar datos básicos
-                        document.getElementById('m-routine-name').innerText = data.rutina.nombre;
-                        document.getElementById('m-routine-code').innerText = data.rutina.codigo;
-                        document.getElementById('m-category').innerText = data.rutina.categoria;
-                        document.getElementById('m-frequency').innerText = data.rutina.frecuencia;
-                        document.getElementById('m-time').innerText = data.rutina.tiempo_estimado;
-                        document.getElementById('m-techs').innerText = data.rutina.tecnicos;
-                        document.getElementById('m-description').innerText = data.rutina.descripcion;
-                        document.getElementById('m-tools').innerText = data.rutina.herramientas;
-                        document.getElementById('m-edit-link').href = data.rutina.admin_url;
+                        fillModalData(data.rutina);
 
-                        // Llenar historial
                         const historyBody = document.getElementById('m-history-body');
                         const historyEmpty = document.getElementById('m-history-empty');
-                        historyBody.innerHTML = '';
+                        if (historyBody) historyBody.innerHTML = '';
 
                         if (data.historial.length > 0) {
-                            historyEmpty.style.display = 'none';
+                            if (historyEmpty) historyEmpty.style.display = 'none';
                             data.historial.forEach(ot => {
                                 const row = document.createElement('tr');
                                 row.innerHTML = `
@@ -382,47 +566,336 @@
                                     <td>${ot.hh}</td>
                                     <td style="font-size: 0.8rem; color: #64748b;">${ot.comentarios || '-'}</td>
                                 `;
-                                historyBody.appendChild(row);
+                                if (historyBody) historyBody.appendChild(row);
                             });
                         } else {
-                            historyEmpty.style.display = 'block';
+                            if (historyEmpty) historyEmpty.style.display = 'block';
                         }
-
-                        loader.style.display = 'none';
+                        if (loader) loader.style.display = 'none';
                     }
                 })
                 .catch(err => {
                     console.error(err);
-                    alert('Error al cargar los detalles de la rutina');
+                    showToast('Error al cargar detalles', 'error');
                     closeRoutineModal();
                 });
         }
 
-        function closeRoutineModal() {
-            modal.style.display = 'none';
+        function fillModalData(rutina) {
+            // No sobreescribir m-title aquí, ya se maneja en showRoutineDetail/enterEditMode
+            document.getElementById('m-routine-name').innerText = rutina.nombre;
+            document.getElementById('m-routine-code').innerText = rutina.codigo || 'S/C';
+            document.getElementById('m-category').innerText = rutina.categoria;
+            document.getElementById('m-frequency').innerText = rutina.frecuencia;
+            document.getElementById('m-time').innerText = rutina.tiempo_estimado;
+            document.getElementById('m-techs').innerText = rutina.tecnicos;
+            document.getElementById('m-description').innerText = rutina.descripcion;
+            document.getElementById('m-tools').innerText = rutina.herramientas;
+
+            document.getElementById('f-id').value = rutina.id;
+            document.getElementById('f-nombre').value = rutina.nombre;
+            document.getElementById('f-codigo').value = rutina.codigo || '';
+            document.getElementById('f-descripcion').value = rutina.descripcion || '';
+            document.getElementById('f-herramientas').value = rutina.herramientas || '';
+            document.getElementById('f-tecnicos').value = rutina.tecnicos || 1;
+            document.getElementById('f-tiempo').value = rutina.tiempo_estimado || '00:00:00';
+
+            setSelectByText('f-categoria', rutina.categoria);
+            setSelectByText('f-frecuencia', rutina.frecuencia);
+
+            const procHidden = document.getElementById('f-procedimiento');
+            const procSearch = document.getElementById('proc-search-input');
+            const procList = document.getElementById('proc-results-list');
+
+            if (procHidden) procHidden.value = rutina.procedimiento_id || '';
+
+            // Actualizar texto del buscador
+            if (procSearch && procList) {
+                const selectedItem = procList.querySelector(`.result-item[data-value="${rutina.procedimiento_id || ''}"]`);
+                procSearch.value = selectedItem ? selectedItem.dataset.text : '';
+
+                // Marcar seleccionado
+                procList.querySelectorAll('.result-item').forEach(i => i.classList.remove('selected'));
+                if (selectedItem) selectedItem.classList.add('selected');
+            }
+
+            // Renderizar pasos en ambas vistas
+            renderSteps(rutina.pasos, 'm-steps-list-view', false);
+            renderSteps(rutina.pasos, 'm-steps-list-edit', true);
+        }
+
+        function renderSteps(pasos, containerId, isEditable) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!pasos || pasos.length === 0) {
+                container.innerHTML = '<div style="color: #94a3b8; font-style: italic; padding: 20px; text-align: center;">No hay pasos definidos.</div>';
+                return;
+            }
+
+            pasos.sort((a, b) => a.orden - b.orden).forEach((p, index) => {
+                if (isEditable) {
+                    const row = document.createElement('div');
+                    row.className = 'step-row-edit';
+                    row.dataset.id = p.id || '';
+                    row.innerHTML = `
+                        <div class="remove-step" onclick="this.parentElement.remove()">&times;</div>
+                        <div class="form-group step-full">
+                            <label>Descripción del Paso</label>
+                            <textarea class="form-control s-desc" rows="2">${p.descripcion}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Respuesta</label>
+                            <select class="form-control s-tipo">
+                                <option value="INSTRUCCION" ${p.tipo_respuesta === 'INSTRUCCION' ? 'selected' : ''}>Instrucción</option>
+                                <option value="CHECK" ${p.tipo_respuesta === 'CHECK' ? 'selected' : ''}>Check</option>
+                                <option value="NUMERICO" ${p.tipo_respuesta === 'NUMERICO' ? 'selected' : ''}>Numérico</option>
+                                <option value="TEXTO" ${p.tipo_respuesta === 'TEXTO' ? 'selected' : ''}>Texto</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Verificación / Referencia</label>
+                            <input type="text" class="form-control s-verif" value="${p.verificacion || ''}" placeholder="Ej: Medir con multímetro">
+                        </div>
+                    `;
+                    container.appendChild(row);
+                } else {
+                    const div = document.createElement('div');
+                    div.className = 'step-item-static';
+                    div.innerHTML = `
+                        <div class="step-number">${index + 1}.</div>
+                        <div class="step-content-view">
+                            <div style="font-weight: 500; color: #1e293b;">${p.descripcion}</div>
+                            ${p.verificacion ? `<div class="step-verif">Ref: ${p.verificacion}</div>` : ''}
+                        </div>
+                    `;
+                    container.appendChild(div);
+                }
+            });
+        }
+
+        function addStepRow() {
+            const container = document.getElementById('m-steps-list-edit');
+            if (!container) return;
+
+            // Quitar mensaje de "No hay pasos" si existe
+            if (container.innerHTML.includes('No hay pasos')) container.innerHTML = '';
+
+            const row = document.createElement('div');
+            row.className = 'step-row-edit';
+            row.innerHTML = `
+                <div class="remove-step" onclick="this.parentElement.remove()">&times;</div>
+                <div class="form-group step-full">
+                    <label>Descripción del Paso</label>
+                    <textarea class="form-control s-desc" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Respuesta</label>
+                    <select class="form-control s-tipo">
+                        <option value="INSTRUCCION">Instrucción</option>
+                        <option value="CHECK">Check</option>
+                        <option value="NUMERICO">Numérico</option>
+                        <option value="TEXTO">Texto</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Verificación / Referencia</label>
+                    <input type="text" class="form-control s-verif" placeholder="Ej: Referencia técnica">
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function saveProcedimiento() {
+            const procId = document.getElementById('f-procedimiento').value;
+            if (!procId) {
+                showToast('Primero selecciona un Procedimiento Estándar en la pestaña General', 'error');
+                return;
+            }
+
+            const stepRows = document.querySelectorAll('.step-row-edit');
+            const pasos = Array.from(stepRows).map(row => ({
+                id: row.dataset.id || null,
+                descripcion: row.querySelector('.s-desc').value,
+                tipo_respuesta: row.querySelector('.s-tipo').value,
+                verificacion: row.querySelector('.s-verif').value
+            }));
+
+            if (loader) loader.style.display = 'flex';
+
+            fetch('/mantenimiento/rutinas/dashboard/procedimiento/save/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    procedimiento_id: procId,
+                    pasos: pasos
+                })
+            })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        showToast('Pasos del procedimiento actualizados', 'success');
+                        // Actualizar vista estática
+                        renderSteps(pasos, 'm-steps-list-view', false);
+                    } else {
+                        showToast(res.message, 'error');
+                    }
+                    if (loader) loader.style.display = 'none';
+                })
+                .catch(err => {
+                    console.error(err);
+                    showToast('Error al guardar pasos', 'error');
+                    if (loader) loader.style.display = 'none';
+                });
+        }
+
+        function setSelectByText(id, text) {
+            const select = document.getElementById(id);
+            if (!select) return;
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].text === text) {
+                    select.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        function enterEditMode() {
+            document.getElementById('m-title').innerText = currentRoutineId ? 'Editar Rutina' : 'Nueva Rutina';
+            const vHeader = document.getElementById('m-view-header');
+            const tabs = document.getElementById('m-tabs');
+            if (vHeader) vHeader.style.display = 'none';
+            // Dejar m-tabs visible para navegar a Pasos
+            if (tabs) tabs.style.display = 'flex';
+
+            // Ocultar pestaña historial en modo edición (opcional, pero mejor dejarla)
+            const btnHistory = document.getElementById('tab-btn-history');
+            // if (btnHistory) btnHistory.style.display = 'none';
+            document.querySelectorAll('.view-mode').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.edit-mode').forEach(el => el.style.display = 'block');
+            if (footerView) footerView.style.display = 'none';
+            if (footerEdit) footerEdit.style.display = 'flex';
+        }
+
+        function exitEditMode() {
+            if (!currentRoutineId) { closeRoutineModal(); return; }
+            document.getElementById('m-title').innerText = 'Detalles de Rutina';
+            const vHeader = document.getElementById('m-view-header');
+            const tabs = document.getElementById('m-tabs');
+            if (vHeader) vHeader.style.display = 'block';
+            if (tabs) tabs.style.display = 'flex';
+            document.querySelectorAll('.view-mode').forEach(el => el.style.display = 'block');
+            document.querySelectorAll('.edit-mode').forEach(el => el.style.display = 'none');
+            if (footerView) footerView.style.display = 'flex';
+            if (footerEdit) footerEdit.style.display = 'none';
+            switchTab('general');
+        }
+
+        function createNewRoutine(categoryId = null) {
+            currentRoutineId = null;
+            if (form) form.reset();
+            const fId = document.getElementById('f-id');
+            const fCat = document.getElementById('f-categoria');
+            if (fId) fId.value = '';
+            if (categoryId && fCat) fCat.value = categoryId;
+
+            if (modal) modal.style.display = 'flex';
+            enterEditMode();
+            const btnDel = document.getElementById('btn-delete');
+            if (btnDel) btnDel.style.display = 'none';
+        }
+
+        function saveRoutine() {
+            if (form && !form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            if (loader) loader.style.display = 'flex';
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            fetch('/mantenimiento/rutinas/dashboard/save/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(data)
+            })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        showToast('Rutina guardada correctamente', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showToast(res.message, 'error');
+                        if (loader) loader.style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showToast('Error de conexión', 'error');
+                    if (loader) loader.style.display = 'none';
+                });
+        }
+
+        function confirmDeleteRoutine() {
+            if (!currentRoutineId) return;
+            if (confirm('¿Estás seguro de que deseas eliminar esta rutina? Esta acción no se puede deshacer.')) {
+                if (loader) loader.style.display = 'flex';
+                fetch('/mantenimiento/rutinas/dashboard/delete/' + currentRoutineId + '/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                })
+                    .then(res => res.json())
+                    .then(res => {
+                        if (res.status === 'success') {
+                            showToast('Rutina eliminada', 'success');
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            showToast(res.message, 'error');
+                            if (loader) loader.style.display = 'none';
+                        }
+                    });
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container') || createToastContainer();
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function createToastContainer() {
+            const div = document.createElement('div');
+            div.id = 'toast-container';
+            div.className = 'toast-container';
+            document.body.appendChild(div);
+            return div;
         }
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
 
-            document.getElementById(`tab-${tab}`).classList.add('active');
-            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tab));
-            if (targetBtn) targetBtn.classList.add('active');
+            const tabContent = document.getElementById(`tab-${tab}`);
+            if (tabContent) tabContent.classList.add('active');
+
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(btn => {
+                const onc = btn.getAttribute('onclick');
+                if (onc && onc.includes(tab)) btn.classList.add('active');
+            });
         }
-
-        // Cerrar con Escape
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeRoutineModal();
-        });
-
-        // Cerrar al click afuera
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeRoutineModal();
-        });
     </script>
-
-    {% include "mantenimiento/partials/routine_detail_modal.html" %}
 </body>
 
 </html>

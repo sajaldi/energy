@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from .views import import_rutinas
-from .views.rutinas_dashboard import rutinas_dashboard, rutina_detail_api
+from .views.rutinas_dashboard import rutinas_dashboard, rutina_detail_api, rutina_save_api, rutina_delete_api, procedimiento_save_api, procedimiento_detail_api
 
 app_name = 'mantenimiento'
 
@@ -36,6 +36,10 @@ urlpatterns = [
     path('dashboard-cargas/', views.dashboard_cargas, name='dashboard_cargas'),
     path('rutinas/dashboard/', rutinas_dashboard, name='rutinas_dashboard'),
     path('rutinas/dashboard/detail/<int:pk>/', rutina_detail_api, name='rutina_detail_api'),
+    path('rutinas/dashboard/save/', rutina_save_api, name='rutina_save_api'),
+    path('rutinas/dashboard/delete/<int:pk>/', rutina_delete_api, name='rutina_delete_api'),
+    path('rutinas/dashboard/procedimiento/save/', procedimiento_save_api, name='procedimiento_save_api'),
+    path('rutinas/dashboard/procedimiento/detail/<int:pk>/', procedimiento_detail_api, name='procedimiento_detail_api'),
     path('proyeccion-generar/api/', views.api_generar_orden_individual, name='api_generar_orden_individual'),
 
     # Importación de Rutinas (Aislada)

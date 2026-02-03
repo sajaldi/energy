@@ -56,8 +56,7 @@ class PlanoAdmin(ImportExportModelAdmin):
         'documento', 'documento__ultima_revision'
     )
     search_fields = ('nombre', 'ubicacion__nombre', 'documento__codigo')
-    filter_horizontal = ('activos',)
-    autocomplete_fields = ('documento', 'disciplina', 'ubicacion')
+    autocomplete_fields = ('documento', 'disciplina', 'ubicacion', 'activos')
     readonly_fields = ('visualizar_archivo',)
     fieldsets = (
         (None, {'fields': ('nombre', 'tipo_plano', 'numero_documento', 'titulo', 'disciplina', 'ubicacion', 'descripcion')}),

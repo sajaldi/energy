@@ -1,5 +1,8 @@
 from django.db import models
 from colorfield.fields import ColorField
+from core.storage import MinIOStorage
+
+minio_storage = MinIOStorage()
 
 class Plano(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
@@ -16,7 +19,7 @@ class Plano(models.Model):
     )
     
     # Campo legacy - mantener para compatibilidad
-    archivo = models.FileField(upload_to='planos/', null=True, blank=True, 
+    archivo = models.FileField(upload_to='planos/', null=True, blank=True, storage=minio_storage,
                                help_text="Archivo directo (usar 'documento' para control de versiones)")
     
     # Nuevos atributos
@@ -142,7 +145,7 @@ class PinPlano(models.Model):
 
 class PinFoto(models.Model):
     pin = models.ForeignKey(PinPlano, on_delete=models.CASCADE, related_name='fotos')
-    imagen = models.ImageField(upload_to='pines/fotos/')
+    imagen = models.ImageField(upload_to='pines/fotos/', storage=minio_storage)
     descripcion = models.CharField(max_length=100, blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
