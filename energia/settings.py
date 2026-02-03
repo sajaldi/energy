@@ -26,8 +26,11 @@ SECRET_KEY = 'django-insecure-t5a&grl!cy%k)x6=r8i9b$^g3w5q&schghtp1-001#3+j8o7aj
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # IMPORTANTE! En produccion, DEBUG debe ser False por seguridad.
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Convierte la cadena 'True'/'False' a booleano
-IS_LOCAL = DEBUG  # En local, DEBUG = True; en producción, DEBUG = False
+# Por defecto False para seguridad. Solo True si se especifica explícitamente.
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
+
+# Detección de entorno: Si hay COOLIFY_FQDN, definitivamente NO es local.
+IS_LOCAL = DEBUG and not os.environ.get('COOLIFY_FQDN')
 
 
 # ALLOWED_HOSTS
