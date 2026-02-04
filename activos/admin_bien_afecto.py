@@ -115,8 +115,9 @@ class BienAfectoAdmin(admin.ModelAdmin):
         return format_html('<span style="color: #94a3b8; font-style: italic;">Sin asignar</span>')
     get_activo_actual.short_description = "Activo Actual"
     
+    
     def get_activo_actual_detalle(self, obj):
-        """Muestra detalles del activo actual en el formulario"""
+        """Muestra detalles completos del activo actual en el formulario"""
         activo = obj.activo_actual
         if not activo:
             return format_html(
@@ -128,33 +129,108 @@ class BienAfectoAdmin(admin.ModelAdmin):
         
         historial = obj.historial.filter(fecha_baja__isnull=True).first()
         fecha_alta = historial.fecha_alta.strftime('%d/%m/%Y %H:%M') if historial else 'N/A'
-        usuario_alta = historial.usuario_alta.username if historial and historial.usuario_alta else 'Sistema'
+        usuario_alta = historial.usuario_alta.get_full_name() if historial and historial.usuario_alta else 'Sistema'
         
         url = f"/admin/activos/activo/{activo.id}/change/"
         
+        # Obtener información adicional del activo
+        marca = activo.modelo.marca.nombre if activo.modelo and activo.modelo.marca else 'N/A'
+        modelo_nombre = activo.modelo.nombre if activo.modelo else 'N/A'
+        categoria = activo.categoria.nombre if activo.categoria else 'N/A'
+        ubicacion = activo.ubicacion.nombre if activo.ubicacion else 'N/A'
+        
+        
+        # Obtener foto del modelo
+        foto_url = None
+        if activo.modelo and activo.modelo.imagen:
+            foto_url = activo.modelo.imagen.url
+        elif activo.foto:
+            foto_url = activo.foto.url
+        
+        # Construir HTML base
+        html_base = (
+            '<div style="padding: 20px; background: #ecfdf5; border: 2px solid #10b981; border-radius: 12px;">'
+            '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">'
+            '<span style="background: #10b981; color: white; padding: 6px 16px; border-radius: 12px; font-weight: 600; font-size: 0.85rem;">✓ ACTIVO</span>'
+            '<a href="{}" target="_blank" style="font-size: 1.25rem; font-weight: 700; color: #047857; text-decoration: none;">{}</a>'
+            '</div>'
+            
+            '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 15px; font-size: 0.9rem; color: #065f46;">'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Código Interno</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Serie</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Estado</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Marca</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Modelo</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Categoría</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Ubicación</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Fecha Alta</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Dado de Alta por</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '</div>'
+            '{}'
+            '</div>'
+        )
+        
+        # Agregar foto si existe
+        foto_html = ''
+        if foto_url:
+            foto_html = (
+                '<div style="margin-top: 15px; text-align: center;">'
+                '<img src="{}" alt="Foto del modelo" '
+                'style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />'
+                '</div>'
+            ).format(foto_url)
+        
         return format_html(
-            '<div style="padding: 15px; background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px;">'
-            '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">'
-            '<span style="background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 0.75rem;">✓ ACTIVO</span>'
-            '<a href="{}" target="_blank" style="font-size: 1.1rem; font-weight: 700; color: #047857; text-decoration: none;">{}</a>'
-            '</div>'
-            '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 0.85rem; color: #065f46;">'
-            '<div><strong>Código:</strong> {}</div>'
-            '<div><strong>Serie:</strong> {}</div>'
-            '<div><strong>Modelo:</strong> {}</div>'
-            '<div><strong>Estado:</strong> {}</div>'
-            '<div><strong>Fecha Alta:</strong> {}</div>'
-            '<div><strong>Dado de Alta por:</strong> {}</div>'
-            '</div>'
-            '</div>',
+            html_base,
             url,
             activo.nombre,
             activo.codigo_interno or 'S/C',
             activo.serie or 'N/A',
-            activo.modelo if activo.modelo else 'N/A',
             activo.get_estado_display(),
+            marca,
+            modelo_nombre,
+            categoria,
+            ubicacion,
             fecha_alta,
-            usuario_alta
+            usuario_alta,
+            foto_html
         )
     get_activo_actual_detalle.short_description = "Equipo Asignado"
 
