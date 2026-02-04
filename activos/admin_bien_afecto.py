@@ -103,6 +103,16 @@ class BienAfectoAdmin(admin.ModelAdmin):
         )
     get_estadisticas.short_description = "Estadísticas de Uso"
     
+    def save_formset(self, request, form, formset, change):
+        """Auto-asignar usuario_alta al crear nuevos registros de HistorialBienAfecto"""
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if isinstance(instance, HistorialBienAfecto) and not instance.pk:
+                # Nuevo registro de historial - asignar usuario actual
+                instance.usuario_alta = request.user
+            instance.save()
+        formset.save_m2m()
+    
     def get_activo_actual(self, obj):
         """Muestra el activo actual en la lista"""
         activo = obj.activo_actual
