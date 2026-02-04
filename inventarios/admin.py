@@ -1,6 +1,13 @@
 from django.contrib import admin
 from django.contrib import messages
+from django.urls import path
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from import_export import resources, fields
+from import_export.widgets import ForeignKeyWidget
+from import_export.admin import ImportExportModelAdmin
 from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial
+from activos.models import Marca
 
 class StockRecordInline(admin.TabularInline):
     model = StockRecord
@@ -25,8 +32,44 @@ class SolicitudMaterialAdmin(admin.ModelAdmin):
     search_fields = ('usuario__username', 'items__material__nombre')
     inlines = [MovimientoInventarioInline]
 
+class MaterialResource(resources.ModelResource):
+    categoria = fields.Field(
+        column_name='categoria',
+        attribute='categoria',
+        widget=ForeignKeyWidget(CategoriaMaterial, 'nombre')
+    )
+    marca = fields.Field(
+        column_name='marca',
+        attribute='marca',
+        widget=ForeignKeyWidget(Marca, 'nombre')
+    )
+
+    class Meta:
+        model = Material
+        import_id_fields = ('sku',)
+        fields = ('sku', 'nombre', 'marca', 'descripcion', 'categoria', 'unidad_medida', 'precio_estimado', 'stock_minimo')
+        export_order = fields
+
+    def before_import_row(self, row, **kwargs):
+        """Limpia los valores 'None' y quita espacios de los campos clave"""
+        for key in list(row.keys()):
+            val = row.get(key)
+            if val is None:
+                continue
+            
+            val_str = str(val).strip()
+            if val_str.lower() in ['none', 'nan', 'null', '']:
+                row[key] = None
+            else:
+                if isinstance(val, str):
+                    row[key] = val.strip()
+                else:
+                    row[key] = val_str
+
 @admin.register(Material)
-class MaterialAdmin(admin.ModelAdmin):
+class MaterialAdmin(ImportExportModelAdmin):
+    change_list_template = 'admin/inventarios/material/change_list.html'
+    resource_class = MaterialResource
     list_display = ('sku', 'nombre', 'categoria', 'unidad_medida', 'get_stock_total')
     search_fields = ('nombre', 'sku', 'descripcion')
     list_filter = ('categoria', 'unidad_medida')
@@ -41,6 +84,24 @@ class MaterialAdmin(admin.ModelAdmin):
         return obj.db_stock_total if obj.db_stock_total is not None else 0
     get_stock_total.short_description = 'Stock Total'
     get_stock_total.admin_order_field = 'db_stock_total'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        from . import views
+        custom_urls = [
+            path('import-background/', self.admin_site.admin_view(views.import_materiales_background), name='inventarios_material_import_background'),
+            path('import-background/process/', csrf_exempt(self.admin_site.admin_view(views.import_materiales_process)), name='inventarios_material_import_process'),
+            path('import-background/progress/', self.admin_site.admin_view(views.import_materiales_progress), name='inventarios_material_import_progress'),
+            path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='inventarios_material_import_template'),
+        ]
+        return custom_urls + urls
+
+    def download_template_view(self, request):
+        """Genera un archivo Excel vacío con las cabeceras del recurso de Materiales"""
+        dataset = MaterialResource().export(queryset=Material.objects.none())
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="formato_importacion_materiales.xlsx"'
+        return response
 
 @admin.register(MovimientoInventario)
 class MovimientoInventarioAdmin(admin.ModelAdmin):

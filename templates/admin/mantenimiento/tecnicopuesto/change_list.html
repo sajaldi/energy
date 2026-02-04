@@ -1,0 +1,24 @@
+{% extends "admin/import_export/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+<li>
+    <a href="import-background/" class="addlink"
+        style="background: #3b82f6; color: white; border-color: #2563eb; font-weight: bold;">
+        🧑‍🔧 Importación de Personal (Background)
+    </a>
+</li>
+{{ block.super }}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Fallback: Si el bloque no renderizó el botón correctamente o quedó oculto
+        // intentamos inyectarlo manualmente en la barra de herramientas
+        const tools = document.querySelector('.object-tools');
+        if (tools && !tools.innerText.includes('Importación de Personal')) {
+            const li = document.createElement('li');
+            li.innerHTML = '<a href="import-background/" class="addlink" style="background: #3b82f6; color: white; border-color: #2563eb; font-weight: bold;">🧑‍🔧 Importación de Personal (Background)</a>';
+            tools.insertBefore(li, tools.firstChild);
+        }
+    });
+</script>
+{% endblock %}

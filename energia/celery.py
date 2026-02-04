@@ -1,5 +1,8 @@
 import os
 from celery import Celery
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Establecer el módulo de configuración predeterminado de Django para el programa 'celery'.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'energia.settings')

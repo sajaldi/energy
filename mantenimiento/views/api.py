@@ -240,3 +240,36 @@ def api_generar_orden_individual(request):
         c = prog.generar_ordenes(fecha_corte=fc)
         return JsonResponse({'status': 'success', 'count': c, 'message': f'Se generaron {c} órdenes.'})
     except Exception as e: return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+@staff_member_required
+def api_search_ordenes(request):
+    """
+    Busca órdenes de trabajo activas (PROGRAMADA, EJECUCION) por ID, código o descripción.
+    Optimizado para evitar cargar miles de opciones en un select estático.
+    """
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'results': []})
+    
+    from django.db.models import Q
+    ots = OrdenTrabajo.objects.filter(
+        Q(id__icontains=query) | 
+        Q(codigo_de_orden__icontains=query) |
+        Q(descripcion_corta__icontains=query) |
+        Q(ubicacion__nombre__icontains=query)
+    ).filter(
+        estado__in=['PROGRAMADA', 'EJECUCION']
+    ).select_related('ubicacion').only(
+        'id', 'codigo_de_orden', 'descripcion_corta', 'ubicacion__nombre'
+    )[:30]
+    
+    results = []
+    for ot in ots:
+        lugar = ot.ubicacion.nombre if ot.ubicacion else "Sin Ubicación"
+        desc = ot.descripcion_corta or ("Sin descripción" if not ot.id else f"OT #{ot.id}")
+        text = f"OT #{ot.id if not ot.codigo_de_orden else ot.codigo_de_orden} - {lugar} - {desc}"
+        results.append({
+            'id': ot.id,
+            'text': text
+        })
+    
+    return JsonResponse({'results': results})

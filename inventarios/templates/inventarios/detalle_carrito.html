@@ -211,15 +211,18 @@
                         </select>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="position: relative;">
                         <label>Orden de Trabajo (Opcional)</label>
-                        <select name="orden_trabajo">
-                            <option value="">Sin vincular a OT</option>
-                            {% for ot in ordenes_activas %}
-                            <option value="{{ ot.id }}">OT #{{ ot.id }} - {{ ot.get_descripcion|truncatechars:30 }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <div style="position: relative;">
+                            <ion-icon name="search-outline"
+                                style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></ion-icon>
+                            <input type="text" id="otSearch" autocomplete="off"
+                                placeholder="Escribe ID o descripción de la OT..." style="padding-left: 40px;">
+                        </div>
+                        <input type="hidden" name="orden_trabajo" id="selectedOtId">
+                        <div id="otResults"
+                            style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border); border-radius: 0 0 12px 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: none; z-index: 100; max-height: 250px; overflow-y: auto;">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -260,6 +263,65 @@
             const res = await fetch(`/inventarios/cart/remove/${id}/`);
             if (res.ok) location.reload();
         } catch (e) { console.error(e); }
+    }
+
+    // --- Optimización: Búsqueda Asíncrona de OTs ---
+    const otSearch = document.getElementById('otSearch');
+    const selectedOtId = document.getElementById('selectedOtId');
+    const otResults = document.getElementById('otResults');
+    let otTimeout = null;
+
+    if (otSearch) {
+        otSearch.addEventListener('input', () => {
+            clearTimeout(otTimeout);
+            const q = otSearch.value.trim();
+            if (q.length < 1) {
+                otResults.style.display = 'none';
+                selectedOtId.value = '';
+                return;
+            }
+
+            otTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/mantenimiento/api/search-ordenes/?q=${q}`);
+                    const data = await res.json();
+                    if (data.results && data.results.length > 0) {
+                        let html = '';
+                        data.results.forEach(ot => {
+                            html += `
+                                <div class="ot-item" data-id="${ot.id}" data-text="${ot.text}" 
+                                     style="padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
+                                    <div style="font-weight: 600; color: var(--text);">${ot.text.split(' - ')[0]}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">${ot.text.split(' - ').slice(1).join(' - ')}</div>
+                                </div>`;
+                        });
+                        otResults.innerHTML = html;
+                        otResults.style.display = 'block';
+
+                        document.querySelectorAll('.ot-item').forEach(item => {
+                            item.addEventListener('mouseenter', function () { this.style.background = '#f0fdf4'; });
+                            item.addEventListener('mouseleave', function () { this.style.background = 'transparent'; });
+                            item.addEventListener('click', () => {
+                                selectedOtId.value = item.dataset.id;
+                                otSearch.value = item.dataset.text.split(' - ')[0] + '...';
+                                otSearch.style.fontWeight = '700';
+                                otSearch.style.color = 'var(--primary)';
+                                otResults.style.display = 'none';
+                            });
+                        });
+                    } else {
+                        otResults.innerHTML = '<div style="padding: 15px; color: var(--text-muted); text-align: center; font-size: 0.85rem;">No se encontraron órdenes activas</div>';
+                        otResults.style.display = 'block';
+                    }
+                } catch (e) { console.error('Error buscando OTs:', e); }
+            }, 300);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!otSearch.contains(e.target) && !otResults.contains(e.target)) {
+                otResults.style.display = 'none';
+            }
+        });
     }
 </script>
 {% endblock %}
