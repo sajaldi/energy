@@ -133,10 +133,11 @@ class BienAfectoAdmin(admin.ModelAdmin):
         
         url = f"/admin/activos/activo/{activo.id}/change/"
         
+        
         # Obtener información adicional del activo
         marca = activo.modelo.marca.nombre if activo.modelo and activo.modelo.marca else 'N/A'
         modelo_nombre = activo.modelo.nombre if activo.modelo else 'N/A'
-        categoria = activo.categoria.nombre if activo.categoria else 'N/A'
+        categoria = activo.modelo.categoria.nombre if activo.modelo and activo.modelo.categoria else 'N/A'
         ubicacion = activo.ubicacion.nombre if activo.ubicacion else 'N/A'
         
         
