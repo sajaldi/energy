@@ -252,24 +252,17 @@ AWS_S3_FILE_OVERWRITE = False
 # 'utf-8-sig' es más robusto para archivos CSV generados por Excel con BOM
 IMPORT_EXPORT_ENCODING = 'utf-8-sig'
 
-if IS_LOCAL:
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
-else:
-    STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        },
-        "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-        },
-    }
+# Configuración de Storage
+# SIEMPRE usar MinIO/S3 para archivos de media (imágenes de modelos, fotos de activos, etc.)
+# Esto asegura que las imágenes estén centralizadas y accesibles desde cualquier entorno
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 
 # Default primary key field type

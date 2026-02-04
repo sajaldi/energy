@@ -9,6 +9,13 @@ from mantenimiento.models import OrdenTrabajo
 from activos.models import Ubicacion, Categoria
 from .cart_utils import Cart
 import json
+import time
+from django.contrib.admin.views.decorators import staff_member_required
+from django.core.cache import cache
+from django.core.files.storage import default_storage
+from celery.result import AsyncResult
+from .tasks import import_materiales_task
+from django.views.decorators.csrf import csrf_exempt
 
 @login_required
 def registrar_salida_view(request):
@@ -27,7 +34,7 @@ def registrar_salida_view(request):
         materiales_qs = materiales_qs.filter(modelos_compatibles__modelo__categoria_id=cat_id).distinct()
 
     materiales = materiales_qs
-    ordenes_activas = OrdenTrabajo.objects.filter(estado__in=['PROGRAMADA', 'EJECUCION']).select_related('ubicacion')
+    # ordenes_activas = OrdenTrabajo.objects.filter(estado__in=['PROGRAMADA', 'EJECUCION']).select_related('ubicacion')
     ubicaciones = Ubicacion.objects.all()
 
     if request.method == 'POST':
@@ -68,7 +75,7 @@ def registrar_salida_view(request):
 
     context = {
         'materiales': materiales,
-        'ordenes_activas': ordenes_activas,
+        # 'ordenes_activas': ordenes_activas,
         'ubicaciones': ubicaciones,
         'categorias': categorias,
         'cat_id': int(cat_id) if cat_id else None,
@@ -122,12 +129,12 @@ def cart_detail_view(request):
     cart = Cart(request)
     items = cart.get_items()
     ubicaciones = Ubicacion.objects.all()
-    ordenes_activas = OrdenTrabajo.objects.filter(estado__in=['PROGRAMADA', 'EJECUCION'])
+    # ordenes_activas = OrdenTrabajo.objects.filter(estado__in=['PROGRAMADA', 'EJECUCION'])
     
     return render(request, 'inventarios/detalle_carrito.html', {
         'items': items,
         'ubicaciones': ubicaciones,
-        'ordenes_activas': ordenes_activas,
+        # 'ordenes_activas': ordenes_activas,
         'cart_count': len(cart)
     })
 
@@ -283,3 +290,93 @@ def mobile_detalle_pedido(request, pk):
         'pedido': pedido,
         'items': items
     })
+
+@staff_member_required
+def import_materiales_background(request):
+    """Renders the upload form for background import."""
+    from django.contrib import admin
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Importación masiva de Materiales (Background)',
+    }
+    return render(request, 'admin/inventarios/material/import_background.html', context)
+
+@staff_member_required
+@csrf_exempt
+def import_materiales_process(request):
+    """Triggers the Celery task for importing materials."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    is_confirm = request.POST.get('confirm', '').lower() in ['true', 'on', '1']
+    existing_path = request.POST.get('file_path')
+    import_file = request.FILES.get('import_file')
+
+    # Si NO es confirmación, necesitamos un archivo nuevo obligatoriamente
+    if not is_confirm:
+        if not import_file:
+            return JsonResponse({'error': 'No se subió ningún archivo'}, status=400)
+            
+        file_ext = import_file.name.split('.')[-1].lower()
+        temp_name = f'tmp/import_materiales_{request.user.id}_{int(time.time())}.{file_ext}'
+        
+        try:
+            path = default_storage.save(temp_name, import_file)
+        except Exception as e:
+            return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
+    else:
+        # ES UNA CONFIRMACIÓN: Usar el archivo que ya está en el servidor
+        if not existing_path:
+            return JsonResponse({'error': 'Falta la ruta del archivo para confirmar'}, status=400)
+        path = existing_path
+        file_ext = path.split('.')[-1].lower()
+    
+    # Limpiar cache de progreso anterior para este usuario
+    cache_key = f"import_materiales_progress_{request.user.id}"
+    cache.delete(cache_key)
+    
+    # Trigger Celery task
+    v_val = request.POST.get('verification_mode', '').lower()
+    verification_mode = v_val in ['true', 'on', '1']
+    
+    # Lógica de Dry Run: SOLO si no es verificación y no es confirmación final
+    dry_run = (not verification_mode) and (not is_confirm)
+    
+    task = import_materiales_task.delay(
+        path, 
+        file_ext, 
+        user_id=request.user.id, 
+        verification_mode=verification_mode,
+        dry_run=dry_run
+    )
+    
+    return JsonResponse({
+        'status': 'started', 
+        'task_id': task.id, 
+        'dry_run': dry_run,
+        'verification_mode': verification_mode
+    })
+
+@staff_member_required
+def import_materiales_progress(request):
+    """API to poll progress for material import."""
+    task_id = request.GET.get('task_id')
+    if not task_id:
+        return JsonResponse({'error': 'Falta task_id'}, status=400)
+        
+    cache_key = f"import_materiales_progress_{request.user.id}"
+    progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
+    
+    res = AsyncResult(task_id)
+    progress['state'] = res.state if res else 'PENDING'
+    
+    if res.state == 'SUCCESS':
+        if isinstance(res.result, dict):
+            progress.update(res.result)
+        progress['state'] = 'COMPLETED'
+        progress['percent'] = 100
+    elif res.state == 'FAILURE':
+        progress['error'] = str(res.result)
+        progress['state'] = 'FAILURE'
+        
+    return JsonResponse(progress)

@@ -120,7 +120,7 @@ class TecnicoPuesto(models.Model):
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil_tecnico')
-    puesto = models.ForeignKey(PuestoTrabajo, on_delete=models.PROTECT, related_name='tecnicos')
+    puesto = models.ForeignKey(PuestoTrabajo, on_delete=models.SET_NULL, null=True, blank=True, related_name='tecnicos')
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados')
     
     dni = models.CharField(max_length=20, unique=True, null=True, blank=True, help_text="Ej: 0501-1986-06985")

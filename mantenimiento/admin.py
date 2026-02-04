@@ -131,8 +131,141 @@ class EmpresaAdmin(admin.ModelAdmin):
     search_fields = ('nombre',)
     list_filter = ('activo',)
 
+# --- RESOURCE PERSONALIZADO PARA TÉCNICOS ---
+class TecnicoPuestoResource(resources.ModelResource):
+    """
+    IMPORTACIÓN DE PERSONAL (Técnicos)
+    
+    Crea automáticamente el Usuario de Django si no existe (basado en 'username' o 'email').
+    Busca/Asigna PuestoTrabajo y Empresa por nombre.
+    """
+    # Campos directos de TecnicoPuesto
+    dni = fields.Field(attribute='dni', column_name='dni')
+    fecha_nacimiento = fields.Field(attribute='fecha_nacimiento', column_name='fecha_nacimiento')
+    tipo_sangre = fields.Field(attribute='tipo_sangre', column_name='tipo_sangre')
+    hora_entrada = fields.Field(attribute='hora_entrada', column_name='hora_entrada')
+    hora_salida = fields.Field(attribute='hora_salida', column_name='hora_salida')
+    horas_semanales_max = fields.Field(attribute='horas_semanales_max', column_name='horas_semanales_max')
+    disponible = fields.Field(attribute='disponible', column_name='disponible')
+    
+    # Relaciones FK (Búsqueda por nombre)
+    puesto_nombre = fields.Field(
+        column_name='puesto',
+        attribute='puesto',
+        widget=ForeignKeyWidget(PuestoTrabajo, field='nombre')
+    )
+    empresa_nombre = fields.Field(
+        column_name='empresa',
+        attribute='empresa',
+        widget=ForeignKeyWidget(Empresa, field='nombre')
+    )
+    
+    # Campos virtuales para crear/actualizar el USER
+    username = fields.Field(column_name='username', attribute='user', widget=ForeignKeyWidget(User, 'username'))
+    first_name = fields.Field(column_name='nombre', attribute='user__first_name') # Mapeamos 'nombre' excel -> first_name modelo
+    last_name = fields.Field(column_name='apellido', attribute='user__last_name')
+    email = fields.Field(column_name='email', attribute='user__email')
+    password = fields.Field(column_name='password', attribute='user__password') # Opcional
+
+    class Meta:
+        model = TecnicoPuesto
+        import_id_fields = ('dni',) # Usamos DNI como clave principal de actualización si existe
+        fields = ('dni', 'username', 'nombre', 'apellido', 'email', 'puesto_nombre', 'empresa_nombre', 
+                  'fecha_nacimiento', 'tipo_sangre', 'horas_semanales_max', 'disponible', 'password')
+        export_order = fields
+        skip_unchanged = True
+        report_skipped = True
+
+    def before_import_row(self, row, **kwargs):
+        """
+        Lógica CRÍTICA: 
+        1. Asegurar que el USER exista o crearlo antes de que import-export intente asignar la FK.
+        2. ACTUALIZACIÓN PARCIAL: Eliminar campos vacíos para que solo se actualicen los que tienen valor.
+        """
+        # PASO 0: Limpiar campos vacíos para permitir actualizaciones parciales
+        # Esto permite que si una celda está vacía, NO se sobrescriba el valor existente
+        empty_values = ['', 'None', 'nan', 'NULL', None]
+        keys_to_remove = []
+        for key, value in row.items():
+            if value in empty_values or (isinstance(value, str) and value.strip() in empty_values):
+                keys_to_remove.append(key)
+        
+        for key in keys_to_remove:
+            del row[key]
+        
+        username = str(row.get('username') or '').strip()
+        email = str(row.get('email') or '').strip()
+        dni = str(row.get('dni') or '').strip()
+        
+        # 1. Validaciones básicas
+        if not username and not dni:
+            # Si no hay username, intentar generarlo con DNI o Nombre
+            if dni: username = dni
+            elif row.get('nombre'): username = f"{row.get('nombre')}.{row.get('apellido') or ''}".lower().replace(' ', '')
+            row['username'] = username
+
+        if not username: return # Se caerá más adelante, pero evitamos error aquí
+
+        # 2. Buscar/Crear Usuario
+        user = User.objects.filter(username=username).first()
+        if not user and email:
+            user = User.objects.filter(email=email).first()
+            
+        if not user:
+            # CREAR USUARIO NUEVO
+            print(f"[Import Personal] Creando usuario nuevo: {username}")
+            try:
+                first_name = row.get('nombre') or ''
+                last_name = row.get('apellido') or ''
+                password = row.get('password') or dni or '123456' # Password default = DNI o 123456
+                
+                user = User.objects.create_user(
+                    username=username, 
+                    email=email, 
+                    password=str(password),
+                    first_name=first_name,
+                    last_name=last_name
+                )
+                user.is_staff = True # Asumimos que es staff técnico
+                user.save()
+            except Exception as e:
+                print(f"[Import Personal] Error creando usuario {username}: {e}")
+                
+        # 3. Inyectar el ID real del usuario en la fila para que ForeignKeyWidget funcione si es necesario,
+        # aunque como usamos 'username' como campo de lookup en el widget, debería estar bien.
+        # Pero aseguramos actualizacion de datos del usuario:
+        if user:
+            # Actualizar nombres si vienen en el excel (solo si NO están vacíos)
+            changed = False
+            if row.get('nombre') and user.first_name != row.get('nombre'):
+                user.first_name = row.get('nombre')
+                changed = True
+            if row.get('apellido') and user.last_name != row.get('apellido'):
+                user.last_name = row.get('apellido')
+                changed = True
+            if row.get('email') and user.email != row.get('email'):
+                user.email = row.get('email')
+                changed = True
+            if changed: user.save()
+
+    def get_instance(self, instance_loader, row):
+        # Intentar coincidencia por DNI primero (más seguro)
+        dni = row.get('dni')
+        if dni:
+            return TecnicoPuesto.objects.filter(dni=dni).first()
+            
+        # Si no hay DNI, intentar por Usuario
+        username = row.get('username')
+        if username:
+            return TecnicoPuesto.objects.filter(user__username=username).first()
+            
+        return None
+
 @admin.register(TecnicoPuesto)
-class TecnicoPuestoAdmin(admin.ModelAdmin):
+class TecnicoPuestoAdmin(ImportExportModelAdmin):
+    resource_class = TecnicoPuestoResource
+    change_list_template = 'admin/mantenimiento/tecnicopuesto/change_list.html' # Template custom con botón
+
     list_display = ('user', 'get_nombre_completo', 'puesto', 'empresa', 'dni', 'get_carga_semanal', 'disponible')
     list_filter = ('empresa', 'puesto', 'disponible', 'tipo_sangre')
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'puesto__nombre', 'dni', 'empresa__nombre')
@@ -186,6 +319,24 @@ class TecnicoPuestoAdmin(admin.ModelAdmin):
         
         return mark_safe(f'<b style="color: {color}; font-size: 13px;">{pct:.1f}%</b> <small style="color: #64748b;">({total_horas:.1f}h / {obj.horas_semanales_max}h)</small>')
     get_carga_semanal.short_description = 'Carga esta Semana'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        from .views import import_personal
+        custom_urls = [
+            path('import-background/', self.admin_site.admin_view(import_personal.import_personal_background), name='mantenimiento_tecnicopuesto_import_background'),
+            path('import-background/process/', csrf_exempt(self.admin_site.admin_view(import_personal.import_personal_process)), name='mantenimiento_tecnicopuesto_import_process'),
+            path('import-background/progress/', self.admin_site.admin_view(import_personal.import_personal_progress), name='mantenimiento_tecnicopuesto_import_progress'),
+            path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_tecnicopuesto_import_template'),
+        ]
+        return custom_urls + urls
+
+    def download_template_view(self, request):
+        """Genera un archivo Excel vacío con las cabeceras correoctas"""
+        dataset = TecnicoPuestoResource().export(queryset=TecnicoPuesto.objects.none())
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_personal.xlsx"'
+        return response
 
 class FlexibleDurationWidget(DurationWidget):
     """
