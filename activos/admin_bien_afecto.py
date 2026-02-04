@@ -29,12 +29,13 @@ from documentos.admin_mayan import MayanDocumentInline
 
 @admin.register(BienAfecto)
 class BienAfectoAdmin(admin.ModelAdmin):
-    list_display = ('codigo_interno', 'nombre', 'get_activo_actual', 'ubicacion', 'responsable', 'actualizado_en')
+    list_display = ('codigo_interno', 'nombre', 'get_activo_actual', 'ubicacion', 'responsable', 'get_total_reemplazos', 'actualizado_en')
     list_filter = ('familia', 'ubicacion', 'responsable')
     search_fields = ('codigo_interno', 'nombre')
     autocomplete_fields = ('ubicacion', 'familia', 'responsable')
     inlines = [HistorialBienAfectoInline, MayanDocumentInline]
-    readonly_fields = ('creado_en', 'actualizado_en', 'get_activo_actual_detalle')
+    readonly_fields = ('creado_en', 'actualizado_en', 'get_activo_actual_detalle', 'get_estadisticas')
+    
     
     fieldsets = (
         ('Información del Bien Afecto', {
@@ -47,11 +48,60 @@ class BienAfectoAdmin(admin.ModelAdmin):
             'fields': ('get_activo_actual_detalle',),
             'description': 'Equipo físico actualmente asignado a este bien afecto'
         }),
+        ('Estadísticas', {
+            'fields': ('get_estadisticas',),
+            'classes': ('collapse',)
+        }),
         ('Auditoría', {
             'fields': ('creado_en', 'actualizado_en'),
             'classes': ('collapse',)
         }),
     )
+    
+    def get_total_reemplazos(self, obj):
+        """Muestra el total de reemplazos en la lista"""
+        total = obj.historial.count() - 1  # -1 porque el primero no es reemplazo
+        if total > 0:
+            return format_html(
+                '<span style="background: #fbbf24; color: #78350f; padding: 2px 8px; border-radius: 8px; font-weight: 600; font-size: 0.75rem;">{} reemplazos</span>',
+                total
+            )
+        return format_html('<span style="color: #94a3b8;">Sin reemplazos</span>')
+    get_total_reemplazos.short_description = "Reemplazos"
+    
+    def get_estadisticas(self, obj):
+        """Muestra estadísticas del bien afecto"""
+        total_activos = obj.historial.count()
+        vida_util = obj.tiempo_promedio_vida_util()
+        
+        if vida_util:
+            dias = vida_util.days
+            if dias >= 365:
+                vida_util_str = f"{dias // 365} años, {(dias % 365) // 30} meses"
+            elif dias >= 30:
+                vida_util_str = f"{dias // 30} meses, {dias % 30} días"
+            else:
+                vida_util_str = f"{dias} días"
+        else:
+            vida_util_str = "N/A (sin datos suficientes)"
+        
+        return format_html(
+            '<div style="padding: 15px; background: #f1f5f9; border-radius: 8px;">'
+            '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">'
+            '<div>'
+            '<div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600;">Total de Activos</div>'
+            '<div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">{}</div>'
+            '</div>'
+            '<div>'
+            '<div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600;">Vida Útil Promedio</div>'
+            '<div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">{}</div>'
+            '</div>'
+            '</div>'
+            '</div>',
+            total_activos,
+            vida_util_str
+        )
+    get_estadisticas.short_description = "Estadísticas de Uso"
     
     def get_activo_actual(self, obj):
         """Muestra el activo actual en la lista"""
