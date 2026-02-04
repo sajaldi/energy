@@ -18,6 +18,9 @@ import hashlib
 import uuid
 from io import BytesIO
 from PIL import Image
+from core.storage import MinIOStorage
+
+minio_storage = MinIOStorage()
 
 
 def firma_upload_path(instance, filename):
@@ -51,7 +54,8 @@ class PerfilFirma(models.Model):
         validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg'])],
         help_text="Imagen de la firma (PNG recomendado con fondo transparente)",
         blank=True,
-        null=True
+        null=True,
+        storage=minio_storage
     )
     
     # Metadatos
@@ -132,7 +136,8 @@ class DocumentoFirmado(models.Model):
         upload_to='firmas/documentos_firmados/',
         blank=True,
         null=True,
-        help_text="PDF con todas las firmas estampadas"
+        help_text="PDF con todas las firmas estampadas",
+        storage=minio_storage
     )
     
     class Meta:
@@ -300,7 +305,8 @@ class Firma(models.Model):
     imagen_firma = models.ImageField(
         upload_to=firma_documento_path,
         validators=[FileExtensionValidator(allowed_extensions=['png'])],
-        help_text="Imagen PNG de la firma estampada"
+        help_text="Imagen PNG de la firma estampada",
+        storage=minio_storage
     )
     
     # Posición de la firma en el documento

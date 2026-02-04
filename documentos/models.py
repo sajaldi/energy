@@ -6,6 +6,9 @@ import hashlib
 import datetime # Required for Revision model default
 from activos.models import Activo
 from activos.models import Ubicacion
+from core.storage import MinIOStorage
+
+minio_storage = MinIOStorage()
 
 def documento_upload_path(instance, filename):
     # Organizar por Año/Mes para evitar carpetas gigantes
@@ -98,7 +101,7 @@ class Revision(models.Model):
         help_text="Ej: A, B, 0, 1, 2..."
     )
     
-    archivo = models.FileField(upload_to=documento_upload_path)
+    archivo = models.FileField(upload_to=documento_upload_path, storage=minio_storage)
     fecha_revision = models.DateField(default=datetime.date.today)
     
     creado_por = models.ForeignKey(User, on_delete=models.PROTECT)

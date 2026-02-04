@@ -1,6 +1,9 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
+from core.storage import MinIOStorage
+
+minio_storage = MinIOStorage()
 
 class Marca(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
@@ -18,7 +21,7 @@ class Modelo(models.Model):
     marca = models.ForeignKey(Marca, on_delete=models.CASCADE, related_name='modelos')
     categoria = models.ForeignKey('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='modelos')
     
-    imagen_archivo = models.ImageField(upload_to='modelos_fotos/', blank=True, null=True, help_text="Cargar imagen desde el equipo")
+    imagen_archivo = models.ImageField(upload_to='modelos_fotos/', blank=True, null=True, storage=minio_storage, help_text="Cargar imagen desde el equipo")
     imagen_url = models.URLField(max_length=500, blank=True, null=True, help_text="O pegar una URL externa de la imagen")
 
     @property
@@ -83,7 +86,7 @@ class Activo(models.Model):
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='activos', help_text="Ubicación jerárquica")
     plano = models.ForeignKey('activos.Plano', on_delete=models.SET_NULL, null=True, blank=True, related_name='activos_principales', help_text="Plano principal donde se ubica este activo")
     
-    foto = models.ImageField(upload_to='activos_fotos/', blank=True, null=True)
+    foto = models.ImageField(upload_to='activos_fotos/', blank=True, null=True, storage=minio_storage)
     
     creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
     actualizado_en = models.DateTimeField(auto_now=True)
