@@ -45,11 +45,74 @@ class BienAfecto(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
     
+    
     @property
     def activo_actual(self):
         """Retorna el activo físico actualmente asignado (sin fecha de baja)"""
         historial_activo = self.historial.filter(fecha_baja__isnull=True).first()
         return historial_activo.activo if historial_activo else None
+    
+    def reemplazar_activo(self, nuevo_activo, motivo_baja, usuario, observaciones=""):
+        """
+        Método helper para reemplazar el activo actual por uno nuevo.
+        Maneja automáticamente la baja del anterior y alta del nuevo.
+        
+        Args:
+            nuevo_activo: Instancia del nuevo Activo a asignar
+            motivo_baja: Motivo de la baja (debe ser una de las opciones de MOTIVO_BAJA_CHOICES)
+            usuario: Usuario que realiza el reemplazo
+            observaciones: Detalles adicionales sobre el reemplazo
+            
+        Returns:
+            Nuevo registro de HistorialBienAfecto creado
+        """
+        from django.utils import timezone
+        
+        # Dar de baja el activo actual usando update para evitar validación
+        historial_actual = self.historial.filter(fecha_baja__isnull=True).first()
+        if historial_actual:
+            HistorialBienAfecto.objects.filter(pk=historial_actual.pk).update(
+                fecha_baja=timezone.now(),
+                usuario_baja=usuario,
+                motivo_baja=motivo_baja,
+                observaciones_baja=observaciones
+            )
+        
+        # Dar de alta el nuevo activo
+        nuevo_historial = HistorialBienAfecto.objects.create(
+            bien_afecto=self,
+            activo=nuevo_activo,
+            usuario_alta=usuario
+        )
+        
+        return nuevo_historial
+    
+    def tiempo_promedio_vida_util(self):
+        """
+        Calcula el tiempo promedio que duran los activos en este bien afecto.
+        Retorna un timedelta o None si no hay suficientes datos.
+        """
+        from datetime import timedelta
+        
+        historiales_cerrados = self.historial.filter(fecha_baja__isnull=False)
+        
+        if not historiales_cerrados.exists():
+            return None
+        
+        # Calcular duración de cada activo
+        duraciones = []
+        for h in historiales_cerrados:
+            duracion = (h.fecha_baja - h.fecha_alta).total_seconds() / 86400  # días
+            duraciones.append(duracion)
+        
+        promedio_dias = sum(duraciones) / len(duraciones)
+        return timedelta(days=promedio_dias)
+    
+    def historial_completo(self):
+        """
+        Retorna el historial ordenado cronológicamente con información precargada.
+        """
+        return self.historial.select_related('activo', 'usuario_alta', 'usuario_baja').all()
     
     def __str__(self):
         return f"{self.codigo_interno} - {self.nombre}"
@@ -125,10 +188,46 @@ class HistorialBienAfecto(models.Model):
         help_text="Detalles adicionales sobre la baja"
     )
     
+    
     @property
     def esta_activo(self):
         """Retorna True si este registro no tiene fecha de baja"""
         return self.fecha_baja is None
+    
+    def clean(self):
+        """
+        Validaciones del modelo:
+        - No puede haber más de un activo activo en el mismo bien afecto
+        - Si hay fecha de baja, debe haber motivo de baja
+        """
+        from django.core.exceptions import ValidationError
+        
+        # Validar que no haya otro activo activo en el mismo bien afecto
+        if not self.fecha_baja:
+            activos_activos = HistorialBienAfecto.objects.filter(
+                bien_afecto=self.bien_afecto,
+                fecha_baja__isnull=True
+            ).exclude(pk=self.pk)
+            
+            if activos_activos.exists():
+                raise ValidationError(
+                    f"Ya existe un activo activo en {self.bien_afecto.codigo_interno}. "
+                    f"Debe dar de baja el activo actual antes de asignar uno nuevo."
+                )
+        
+        # Validar que si hay fecha de baja, haya motivo
+        if self.fecha_baja and not self.motivo_baja:
+            raise ValidationError(
+                "Debe especificar un motivo de baja cuando se da de baja un activo."
+            )
+    
+    
+    def save(self, *args, **kwargs):
+        """Override save to run validations unless explicitly skipped"""
+        skip_validation = kwargs.pop('skip_validation', False)
+        if not skip_validation:
+            self.full_clean()
+        super().save(*args, **kwargs)
     
     def __str__(self):
         estado = "ACTIVO" if self.esta_activo else f"BAJA ({self.get_motivo_baja_display()})"
