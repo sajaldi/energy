@@ -1,0 +1,683 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    :root {
+        --primary: #10b981;
+        --primary-dark: #059669;
+        --secondary: #6366f1;
+        --bg-body: #f1f5f9;
+        --card-bg: #ffffff;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+        --radius: 6px;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif !important;
+        background-color: var(--bg-body) !important;
+    }
+
+    .form-container {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 0 20px 60px;
+    }
+
+    /* Stepper Styles */
+    .stepper {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 40px;
+        position: relative;
+    }
+
+    .stepper::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--border);
+        z-index: 0;
+    }
+
+    .step {
+        position: relative;
+        z-index: 1;
+        background: var(--bg-body);
+        padding: 0 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .step-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: white;
+        border: 2px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--text-muted);
+        transition: all 0.3s;
+    }
+
+    .step.active .step-icon {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+    }
+
+    .step.completed .step-icon {
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+
+    .step-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .step.active .step-label {
+        color: var(--text-main);
+    }
+
+    .form-card {
+        background: white;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+        overflow: hidden;
+        display: none;
+        /* Hidden by default, shown by step */
+    }
+
+    .form-card.active {
+        display: block;
+    }
+
+    .card-header {
+        padding: 20px 24px;
+        background: #f8fafc;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .card-title {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    .card-body {
+        padding: 24px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    .btn-custom {
+        padding: 10px 24px;
+        border-radius: var(--radius);
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+        text-decoration: none;
+    }
+
+    .btn-primary-custom {
+        background: var(--primary);
+        color: white !important;
+    }
+
+    .btn-primary-custom:hover {
+        background: var(--primary-dark);
+    }
+
+    .btn-outline-custom {
+        background: white;
+        border: 1px solid var(--border);
+        color: var(--text-main) !important;
+    }
+
+    .btn-outline-custom:hover {
+        background: var(--bg-body);
+    }
+
+    .btn-danger-custom {
+        background: #ef4444;
+        color: white !important;
+    }
+
+    .inline-row {
+        display: grid;
+        grid-template-columns: 2fr 3fr 1fr 1fr 40px;
+        gap: 12px;
+        margin-bottom: 12px;
+        align-items: center;
+    }
+
+    .empty-row {
+        display: none;
+    }
+
+    .select2-container--default .select2-selection--single {
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        height: 42px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 40px;
+    }
+
+    .review-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .review-label {
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .review-value {
+        font-weight: 500;
+        color: var(--text-main);
+    }
+
+    .alert-msg {
+        padding: 12px 20px;
+        border-radius: var(--radius);
+        margin-bottom:
+            10px;
+        font-size: 0.9rem;
+    }
+
+    .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+    }
+
+    .alert-success {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'presupuestos:requisicion_dashboard' %}">Requisiciones</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div style="margin-bottom: 30px; text-align: center;">
+        <h1 style="margin: 0; font-weight: 800; color: var(--text-main); font-size: 1.75rem;">{{ title }}</h1>
+        <p style="color: var(--text-muted); margin-top: 8px;">Completa los pasos para procesar tu Requisición</p>
+    </div>
+
+    {% if messages %}
+    <div style="margin-bottom: 20px;">
+        {% for message in messages %}
+        <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Stepper -->
+    <div class="stepper">
+        <div class="step {% if current_step >= 1 %}active{% endif %} {% if current_step > 1 %}completed{% endif %}">
+            <div class="step-icon">1</div>
+            <div class="step-label">General</div>
+        </div>
+        <div class="step {% if current_step >= 2 %}active{% endif %} {% if current_step > 2 %}completed{% endif %}">
+            <div class="step-icon">2</div>
+            <div class="step-label">Artículos</div>
+        </div>
+        <div class="step {% if current_step >= 3 %}active{% endif %} {% if current_step > 3 %}completed{% endif %}">
+            <div class="step-icon">3</div>
+            <div class="step-label">Documentos</div>
+        </div>
+        <div class="step {% if current_step >= 4 %}active{% endif %}">
+            <div class="step-icon">4</div>
+            <div class="step-label">Finalizar</div>
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="wizard-form" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="target_step" id="target_step" value="{{ current_step }}">
+        <input type="hidden" name="final_save" id="final_save" value="false">
+
+        <!-- Paso 1: Información General -->
+        <div class="form-card {% if current_step == 1 %}active{% endif %}" id="card-step-1">
+            <div class="card-header">
+                <h3 class="card-title">📌 Paso 1: Información General</h3>
+            </div>
+            <div class="card-body">
+                {% if form.errors %}
+                <div class="alert-msg alert-error">
+                    <strong>Errores:</strong>
+                    {{ form.errors }}
+                </div>
+                {% endif %}
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div class="form-group"><label class="form-label">Número de Requisición</label>{{
+                        form.cr8ca_requisicion }}</div>
+                    <div class="form-group">
+                        <label class="form-label"
+                            style="display: flex; justify-content: space-between; align-items: center;">
+                            Solicitante
+                            <button type="button" class="btn-toggle-on-behalf" id="toggle-behalf"
+                                style="font-size: 0.7rem; padding: 2px 8px; background: var(--secondary); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                👤 En nombre de...
+                            </button>
+                        </label>
+                        {{ form.usuario_solicitante }}
+                    </div>
+                </div>
+
+                <div id="on-behalf-container"
+                    style="display: {% if form.usuario_en_nombre_de.value %}block{% else %}none{% endif %}; margin-top: -10px; margin-bottom: 20px; padding: 15px; background: rgba(0,0,0,0.03); border-radius: 8px; border-left: 4px solid var(--secondary);">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">👤 Realizar solicitud en nombre de:</label>
+                        {{ form.usuario_en_nombre_de }}
+                        <small style="color: #666; margin-top: 5px; display: block;">Selecciona al usuario que realmente
+                            solicita los materiales.</small>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div class="form-group"><label class="form-label">Fecha</label>{{ form.fecha }}</div>
+                    <div class="form-group"><label class="form-label">Prioridad</label>{{ form.cr8ca_prioridad }}</div>
+                </div>
+                <div class="form-group"><label class="form-label">Asunto</label>{{ form.cr8ca_asunto }}</div>
+                <div class="form-group"><label class="form-label">Motivo</label>{{ form.cr8ca_motivo }}</div>
+                <div class="form-group"><label class="form-label">Comentarios</label>{{ form.cr8ca_comentarios }}</div>
+                <div style="display:none">{{ form.wizard_step }}</div>
+            </div>
+            <div class="card-body"
+                style="border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" class="btn-custom btn-outline-custom save-draft">Guardar Borrador y Salir</button>
+                <button type="button" class="btn-custom btn-primary-custom next-step" data-next="2">Siguiente ➔</button>
+            </div>
+        </div>
+
+        <!-- Paso 2: Artículos -->
+        <div class="form-card {% if current_step == 2 %}active{% endif %}" id="card-step-2">
+            <div class="card-header">
+                <h3 class="card-title">📦 Paso 2: Artículos / Materiales</h3>
+                <button type="button" class="btn-custom btn-outline-custom" id="add-article"
+                    style="padding: 6px 12px; font-size: 0.8rem;">➕ Añadir Item</button>
+            </div>
+            <div class="card-body" id="article-formset">
+                {{ articulo_formset.management_form }}
+                <div class="inline-labels inline-row"
+                    style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 8px;">
+                    <span>Material</span><span>Descripción / Detalle</span><span>Cantidad</span><span>Costo
+                        Unit.</span><span></span>
+                </div>
+                {% for a_form in articulo_formset %}
+                <div class="article-row inline-row formset-row" id="article-{{ forloop.counter0 }}">
+                    {{ a_form.id }}
+                    <div>{{ a_form.material }}</div>
+                    <div>{{ a_form.cr8ca_articulo }}</div>
+                    <div>{{ a_form.cr8ca_cantidad }}</div>
+                    <div>{{ a_form.cr8ca_costoaproximado }}</div>
+                    <div style="text-align: right;">
+                        {% if a_form.instance.pk %}<div style="display:none">{{ a_form.DELETE }}</div><button
+                            type="button" class="btn-custom btn-danger-custom delete-row"
+                            style="padding: 8px;">🗑️</button>
+                        {% else %}<button type="button" class="btn-custom btn-danger-custom remove-new-row"
+                            style="padding: 8px;">✕</button>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="card-body"
+                style="border-top: 1px solid var(--border); display: flex; justify-content: space-between;">
+                <button type="button" class="btn-custom btn-outline-custom prev-step" data-prev="1">⬅ Atrás</button>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" class="btn-custom btn-outline-custom save-draft">Guardar Borrador</button>
+                    <button type="button" class="btn-custom btn-primary-custom next-step" data-next="3">Siguiente
+                        ➔</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paso 3: Documentos -->
+        <div class="form-card {% if current_step == 3 %}active{% endif %}" id="card-step-3">
+            <div class="card-header">
+                <h3 class="card-title">📂 Paso 3: Documentos Adjuntos</h3>
+                <button type="button" class="btn-custom btn-outline-custom" id="add-document"
+                    style="padding: 6px 12px; font-size: 0.8rem;">➕ Adjuntar Archivo</button>
+            </div>
+            <div class="card-body" id="document-formset">
+                {{ documento_formset.management_form }}
+                {% for d_form in documento_formset %}
+                <div class="document-row inline-row formset-row" style="grid-template-columns: 2fr 2fr 40px;">
+                    {{ d_form.id }}<div>{{ d_form.archivo }}</div>
+                    <div>{{ d_form.nombre }}</div>
+                    <div style="text-align: right;">
+                        {% if d_form.instance.pk %}<div style="display:none">{{ d_form.DELETE }}</div><button
+                            type="button" class="btn-custom btn-danger-custom delete-row"
+                            style="padding: 8px;">🗑️</button>
+                        {% else %}<button type="button" class="btn-custom btn-danger-custom remove-new-row"
+                            style="padding: 8px;">✕</button>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="card-body"
+                style="border-top: 1px solid var(--border); display: flex; justify-content: space-between;">
+                <button type="button" class="btn-custom btn-outline-custom prev-step" data-prev="2">⬅ Atrás</button>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" class="btn-custom btn-outline-custom save-draft">Guardar Borrador</button>
+                    <button type="button" class="btn-custom btn-primary-custom next-step" data-next="4">Siguiente
+                        ➔</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paso 4: Revisión -->
+        <div class="form-card {% if current_step == 4 %}active{% endif %}" id="card-step-4">
+            <div class="card-header">
+                <h3 class="card-title">✅ Paso 4: Revisar y Finalizar</h3>
+            </div>
+            <div class="card-body">
+                <h4 style="margin-top: 0; color: var(--primary);">Información General</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px;">
+                    <div class="review-item"><span class="review-label">Número</span><span class="review-value">{{
+                            instance.cr8ca_requisicion|default:"(Nueva)" }}</span></div>
+                    <div class="review-item"><span class="review-label">Solicitante</span><span class="review-value">{{
+                            instance.usuario_solicitante.get_full_name|default:instance.usuario_solicitante.username
+                            }}</span></div>
+                    {% if instance.usuario_en_nombre_de %}
+                    <div class="review-item"><span class="review-label">En nombre de</span><span class="review-value">{{
+                            instance.usuario_en_nombre_de.get_full_name|default:instance.usuario_en_nombre_de.username
+                            }}</span></div>
+                    {% endif %}
+                    <div class="review-item"><span class="review-label">Fecha</span><span class="review-value">{{
+                            instance.fecha|default:"-" }}</span></div>
+                    <div class="review-item"><span class="review-label">Prioridad</span><span class="review-value">{{
+                            instance.get_cr8ca_prioridad_display }}</span></div>
+                    <div class="review-item"><span class="review-label">Estado</span><span class="review-value"
+                            style="font-weight: bold; color: var(--primary);">{{
+                            instance.get_estado_requisicion_display|default:"Borrador" }}</span></div>
+                    <div class="review-item"><span class="review-label">Asunto</span><span class="review-value">{{
+                            instance.cr8ca_asunto }}</span></div>
+                </div>
+
+                {% if instance.pk and instance.estado_requisicion == 'BORRADOR' %}
+                <div
+                    style="margin-bottom: 24px; padding: 15px; background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <strong style="color: #2e7d32; display: block; margin-bottom: 4px;">🚀 Listo para
+                            enviar</strong>
+                        <span style="font-size: 0.9em; color: #555;">La requisición está completa. Solicita la
+                            autorización para procesarla.</span>
+                    </div>
+                    <button type="button" id="btn-authorize" class="btn-custom"
+                        style="background: #2e7d32; color: white; border: none; padding: 10px 20px; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                        Solicitar Autorización
+                    </button>
+                </div>
+                {% endif %}
+
+                <h4 style="color: var(--primary);">Artículos Seleccionados</h4>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 24px;">
+                    <thead>
+                        <tr style="text-align: left; border-bottom: 2px solid var(--border);">
+                            <th style="padding: 10px 5px;">Material</th>
+                            <th style="padding: 10px 5px;">Descripción</th>
+                            <th style="padding: 10px 5px;">Cant.</th>
+                            <th style="padding: 10px 5px;">Costo Est.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for art in instance.articulos.all %}
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 5px;">{{ art.material.nombre|default:"-" }}</td>
+                            <td style="padding: 10px 5px;">{{ art.cr8ca_articulo }}</td>
+                            <td style="padding: 10px 5px;">{{ art.cr8ca_cantidad }}</td>
+                            <td style="padding: 10px 5px;">L. {{ art.cr8ca_costoaproximado|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="padding: 20px; text-align: center; color: var(--text-muted);">No hay
+                                artículos registrados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <h4 style="color: var(--primary);">Documentos</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    {% for doc in instance.documentos.all %}
+                    <div
+                        style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem; background: #f8fafc;">
+                        📄 {{ doc.nombre|default:doc.archivo.name }}
+                    </div>
+                    {% empty %}
+                    <p style="color: var(--text-muted); font-style: italic;">Sin documentos adjuntos.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="card-body"
+                style="border-top: 1px solid var(--border); display: flex; justify-content: space-between;">
+                <button type="button" class="btn-custom btn-outline-custom prev-step" data-prev="3">⬅ Atrás</button>
+                <button type="button" class="btn-custom btn-primary-custom" id="btn-finish">🚀 Finalizar y
+                    Guardar</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Templates -->
+<div id="empty-article-row" class="empty-row">
+    <div class="article-row inline-row formset-row">
+        <div>{{ articulo_formset.empty_form.material }}</div>
+        <div>{{ articulo_formset.empty_form.cr8ca_articulo }}</div>
+        <div>{{ articulo_formset.empty_form.cr8ca_cantidad }}</div>
+        <div>{{ articulo_formset.empty_form.cr8ca_costoaproximado }}</div>
+        <div style="text-align: right;"><button type="button" class="btn-custom btn-danger-custom remove-new-row"
+                style="padding: 8px;">✕</button></div>
+    </div>
+</div>
+<div id="empty-document-row" class="empty-row">
+    <div class="document-row inline-row formset-row" style="grid-template-columns: 2fr 2fr 40px;">
+        <div>{{ documento_formset.empty_form.archivo }}</div>
+        <div>{{ documento_formset.empty_form.nombre }}</div>
+        <div style="text-align: right;"><button type="button" class="btn-custom btn-danger-custom remove-new-row"
+                style="padding: 8px;">✕</button></div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    (function () {
+        // Aseguramos que tenemos un símbolo $ válido
+        const waitJQuery = setInterval(() => {
+            if (typeof jQuery !== 'undefined' || typeof $ !== 'undefined') {
+                clearInterval(waitJQuery);
+                initWizard(jQuery || $);
+            }
+        }, 100);
+
+        function initWizard($) {
+            console.log('Iniciando Wizard JS...');
+
+            // Inicializar Select2 con precaución
+            try {
+                if ($.fn.select2) {
+                    $('.select2-material').select2({ width: '100%' });
+                    console.log('Select2 inicializado');
+                } else {
+                    console.warn('Select2 no está disponible en $.fn');
+                }
+            } catch (e) {
+                console.error('Error al inicializar Select2:', e);
+            }
+
+            // Registrar eventos de botones (esto debe correr pase lo que pase con Select2)
+            $('.next-step').on('click', function () {
+                const nextStep = $(this).data('next');
+                console.log('Navegando al paso:', nextStep);
+                $('#target_step').val(nextStep);
+                $('#wizard-form').submit();
+            });
+
+            $('.prev-step').on('click', function () {
+                const prevStep = $(this).data('prev');
+                console.log('Regresando al paso:', prevStep);
+                const pk = "{{ instance.pk|default:'' }}";
+                if (pk) {
+                    const urlTemplate = "{% url 'presupuestos:requisicion_editar' pk='00000000-0000-0000-0000-000000000000' %}";
+                    window.location.href = urlTemplate.replace('00000000-0000-0000-0000-000000000000', pk) + "?step=" + prevStep;
+                }
+            });
+
+            $('#btn-finish').on('click', function () {
+                console.log('Finalizando requisición');
+                $('#final_save').val('true');
+                $('#wizard-form').submit();
+            });
+
+            $('.save-draft').on('click', function () {
+                console.log('Guardando borrador');
+                $('#final_save').val('true');
+                $('#wizard-form').submit();
+            });
+
+            // Lógica de Formsets
+            function addRow(prefix, containerId, emptyRowId) {
+                const totalForms = $(`#id_${prefix}-TOTAL_FORMS`);
+                const count = parseInt(totalForms.val());
+                const newRow = $(`#${emptyRowId}`).html().replace(/__prefix__/g, count);
+                $(`#${containerId}`).append(newRow);
+                totalForms.val(count + 1);
+
+                if (prefix === 'articulos') {
+                    try {
+                        if ($.fn.select2) $(`#${containerId} .article-row:last-child .select2-material`).select2({ width: '100%' });
+                    } catch (e) { }
+                }
+            }
+
+            $('#add-article').on('click', () => addRow('articulos', 'article-formset', 'empty-article-row'));
+            $('#add-document').on('click', () => addRow('documentos', 'document-formset', 'empty-document-row'));
+            $(document).on('click', '.remove-new-row', function () { $(this).closest('.formset-row').remove(); });
+
+            // Toggle "En nombre de"
+            $('#toggle-behalf').on('click', function () {
+                const container = $('#on-behalf-container');
+                if (container.is(':visible')) {
+                    container.slideUp();
+                    // Limpiar el valor si se oculta? No, dejar que el usuario lo decida.
+                } else {
+                    container.slideDown();
+                }
+            });
+
+            // Botón Solicitar Autorización
+            $('#btn-authorize').on('click', function () {
+                const pk = "{{ instance.pk|default:'' }}";
+                if (!pk) return;
+
+                Swal.fire({
+                    title: '¿Solicitar Autorización?',
+                    text: 'Esto enviará la requisición al flujo de aprobación.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: '🚀 Sí, solicitar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({ title: 'Enviando...', didOpen: () => Swal.showLoading() });
+
+                        const urlTemplate = "{% url 'presupuestos:requisicion_autorizar' pk='00000000-0000-0000-0000-000000000000' %}";
+                        const url = urlTemplate.replace('00000000-0000-0000-0000-000000000000', pk);
+
+                        $.ajax({
+                            url: url,
+                            type: 'POST',
+                            data: {
+                                'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+                            },
+                            success: function (response) {
+                                Swal.fire('¡Enviado!', response.message, 'success').then(() => {
+                                    location.reload();
+                                });
+                            },
+                            error: function (xhr) {
+                                Swal.fire('Error', xhr.responseJSON ? xhr.responseJSON.message : 'Error al conectar con Power Automate', 'error');
+                            }
+                        });
+                    }
+                });
+            });
+
+            console.log('Eventos del Wizard registrados correctamente');
+        }
+    })();
+</script>
+{% endblock %}

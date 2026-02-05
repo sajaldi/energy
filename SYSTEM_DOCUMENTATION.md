@@ -1,141 +1,93 @@
-# Documentación del Sistema Energy
+# Documentación Integral del Sistema Energy
 
-Energy es un ecosistema integral de gestión industrial diseñado para la administración de activos, mantenimiento preventivo y correctivo, seguridad ocupacional, control de inventarios y gestión de proyectos.
+Energy es un ecosistema industrial avanzado para la gestión de activos, mantenimiento, seguridad y finanzas operativas. Esta documentación detalla cada uno de los módulos que integran la plataforma.
 
-## Arquitectura por Módulos
-
-El sistema está construido sobre Django y sigue una arquitectura modular donde cada aplicación se encarga de un dominio específico del negocio.
+## Mapa de Arquitectura
+El sistema utiliza una arquitectura desacoplada basada en Django, donde cada aplicación maneja un dominio de negocio específico.
 
 ```mermaid
 graph TD
     M[Mantenimiento] --> A[Activos]
     M --> S[Seguridad]
     I[Inventarios] --> A
-    P[Proyectos] --> D[Documentos]
-    P --> A
     B[Presupuestos] --> M
-    B --> P
+    P[Proyectos] --> D[Documentos]
     AU[Auditorías] --> A
+    CC[Call Center / MAO] --> M
+    SRV[Servicios & KPI] --> M
 ```
 
 ---
 
-## 1. Mantenimiento (`mantenimiento`)
-El corazón del sistema. Gestiona todo el ciclo de vida del mantenimiento.
+## 1. Gestión de Activos (`activos`)
+Administra la estructura física y técnica de la planta.
+- **Explorador Jerárquico**: Estructura de Sitios, Edificios, Áreas y Equipos.
+- **Ficha del Activo**: Historial de mantenimiento, documentos asociados y especificaciones técnicas.
+- **Visor de Planos**: Localización geoespacial de activos sobre planos técnicos.
+- **Importación Dinámica**: Motor de sincronización masiva con validación de integridad.
 
-### Funciones Principales:
-*   **Gestión de Rutinas**: Definición de tareas periódicas con tiempos estimados y personal necesario.
-*   **Procedimientos Estándar**: Editor dinámico de pasos con diferentes tipos de respuesta (Check, Numérico, Texto).
-*   **Cronograma Interactivo**: Visualización anual y mensual de las órdenes de trabajo (OTs).
-*   **Dashboard de Rutinas**: Interfaz premium para la gestión rápida de categorías y tareas.
-*   **Órdenes de Trabajo (OT)**: Seguimiento de ejecución, vinculación con activos y registro de hallazgos.
-*   **Importación Masiva**: Soporte para carga de rutinas desde Excel/CSV con validación de jerarquía.
+## 2. Mantenimiento (`mantenimiento`)
+El motor de ejecución operativa del sistema.
+- **Rutinas**: Definición de tareas preventivas con frecuencias configurables.
+- **Procedimientos**: Guías paso a paso para la ejecución técnica.
+- **Órdenes de Trabajo (OT)**: Gestión de correctivos y preventivos con reporte de hallazgos.
+- **Cronograma**: Visualizador anual/mensual interactivo para planificación de carga.
+- **Importación/Exportación Asíncrona**: Sistema robusto con Celery para manejo de grandes volúmenes de datos.
 
-### Modelos Clave:
-*   `Rutina`: Tarea base vinculada a una frecuencia y categoría.
-*   `Procedimiento`: Conjunto de pasos técnicos a seguir.
-*   `OrdenTrabajo`: Instancia de ejecución de una rutina o correctivo.
-*   `PuestoTrabajo`: Clasificación del personal técnico (Eléctrico, Mecánico, etc.).
-
----
-
-## 2. Gestión de Activos (`activos`)
-Administra la jerarquía física y técnica de la planta.
-
-### Funciones Principales:
-*   **Explorador Jerárquico**: Navegación por niveles (Sitio → Edificio → Piso → Área).
-*   **Visor de Planos**: Interfaz interactiva para ubicar activos físicamente mediante "Pins".
-*   **Ficha Técnica**: Historial detallado de cada activo, incluyendo sus OTs y documentos.
-*   **Sincronización Industrial**: Motor de importación masiva compatible con grandes volúmenes de datos.
-
-### Modelos Clave:
-*   `Activo`: Entidad principal (Equipos, Herramientas, Infraestructura).
-*   `Ubicacion`: Nodos del árbol de ubicación física.
-*   `VisorPlano`: Mapas o planos donde se posicionan los activos.
-
----
-
-## 3. Inventarios y Almacén (`inventarios`, `almacen`)
-Control total sobre los materiales y repuestos.
-
-### Funciones Principales:
-*   **Control de Stock**: Gestión de existencias por almacén y ubicación específica (pasillo/estante).
-*   **Movimientos**: Registro de entradas, salidas, traslados y ajustes.
-*   **Liquidación**: Proceso de aprobación para validar el consumo real de materiales.
-*   **Carrito de Pedidos**: Interfaz móvil para que los técnicos soliciten materiales desde el campo.
-*   **Compatibilidad**: Vinculación de repuestos específicos con modelos de activos.
-
----
+## 3. Presupuestos y Finanzas (`presupuestos`)
+Control financiero de la operación industrial.
+- **Cost Sheet**: Monitoreo en tiempo real de presupuesto original vs. gasto real.
+- **Control de Partidas**: Desglose por disciplina (Eléctrico, Mecánico, Civil).
+- **Requisiciones**: Gestión de solicitudes de compra integradas con Dynamics 365.
+- **Importación Background**: Importación masiva de requisiciones con validación de estado.
 
 ## 4. Seguridad y Salud Ocupacional (`seguridad`)
-Garantiza el cumplimiento de normas de seguridad durante el trabajo.
+Gestión de riesgos y cumplimiento normativo.
+- **Permisos de Trabajo**: Flujos de aprobación para trabajos de alto riesgo.
+- **AST (Análisis de Seguridad)**: Identificación proactiva de peligros por actividad.
+- **Inspecciones**: Checklists de seguridad con evidencia fotográfica.
+- **EPP**: Control de asignación y vida útil de equipos de protección.
 
-### Funciones Principales:
-*   **Permisos de Trabajo (PT)**: Generación dinámica de permisos según el riesgo (Caliente, Alturas, etc.).
-*   **Análisis de Riesgos (AST)**: Identificación de peligros y medidas de control por actividad.
-*   **Gestión de EPP**: Registro de entrega y renovación de Equipos de Protección Personal.
-*   **Incidentes**: Reporte y seguimiento de condiciones inseguras o accidentes.
-*   **Inspecciones**: Listas de verificación (Checklists) de seguridad con evidencia fotográfica.
+## 5. Inventarios y Almacén (`inventarios`, `almacen`)
+Logística de materiales y refacciones.
+- **Multi-Almacén**: Control de stock en diferentes bodegas físicas.
+- **Movimientos**: Registro trazable de entradas, salidas y transferencias.
+- **Liquidación de Materiales**: Proceso de validación de consumos en OTs.
+- **Carrito de Técnico**: Interfaz móvil para solicitud de repuestos desde campo.
 
----
+## 6. Proyectos y Obras (`proyectos`)
+Seguimiento de CAPEX y mejoras capitales.
+- **Hitos de Avance**: Control cronológico de ejecución.
+- **Asignación de Costos**: Vinculación de requisiciones y materiales a proyectos específicos.
+- **Registro Fotográfico**: Histórico visual del progreso de obra.
 
-## 5. Gestión Documental (`documentos`)
-Repositorio centralizado de manuales, planos y certificados.
+## 7. Gestión Documental (`documentos`)
+Repositorio técnico de alto nivel.
+- **Control de Versiones**: Gestión de revisiones de planos y manuales.
+- **Integración EDMS**: Conexión nativa con gestores documentales como Mayan.
+- **Transmittals**: Control de envío y recepción formal de información técnica.
 
-### Funciones Principales:
-*   **Integración Mayan EDMS**: Conexión con un gestor documental externo para alta seguridad.
-*   **Control de Versiones**: Historial de revisiones (Rev A, B, 0, 1...) con aprobación.
-*   **Firmas Electrónicas**: Sistema de validación y flujo de firmas para aprobación de planos.
-*   **Vinculación Genérica**: Los documentos se pueden asociar a activos, OTs o proyectos.
+## 8. Call Center / MAO (`callcenter`)
+Interfaz de servicio al cliente interno.
+- **Levantamiento de Tickets**: Registro rápido de fallas por usuarios finales.
+- **Sincronización MAO**: Integración asíncrona con sistemas externos de atención.
+- **Seguimiento de SLA**: Monitoreo de tiempos de respuesta y solución.
 
----
+## 9. Servicios y KPIs (`servicios`)
+Capa de analítica y medición de desempeño.
+- **Indicadores (KPI)**: Tableros de control para disponibilidad, confiabilidad y costos.
+- **Reporteo**: Generación de informes ejecutivos en PDF y Excel.
 
-## 6. Proyectos (`proyectos`)
-Planificación y seguimiento de obras o mejoras capitales.
-
-### Funciones Principales:
-*   **Planificación**: Definición de hitos, fechas y responsables.
-*   **Actividades**: Desglose de tareas con estados y dependencias.
-*   **Control Fotográfico**: Registro visual del avance de obra en planos.
-*   **Consolidación de Gastos**: Seguimiento de costos asociados a cada proyecto.
-
----
-
-## 7. Presupuestos (`presupuestos`)
-Control financiero por disciplina y año fiscal.
-
-### Funciones Principales:
-*   **Cost Sheet**: Visibilidad en tiempo real del presupuesto original, cambios, compromisos y gasto real.
-*   **Compromisos**: Registro de contratos y órdenes de compra que afectan el presupuesto.
-*   **Transferencias**: Gestión de movimientos de presupuesto entre diferentes partidas.
-*   **Dashboard Financiero**: Porcentaje de ejecución y saldo disponible por área.
-
----
-
-## 8. Auditorías (`auditorias`)
-Validación de integridad de datos y activos.
-
-### Funciones Principales:
-*   **Inventarios Físicos**: Auditorías por área para confirmar la existencia y ubicación de activos.
-*   **Escaneo QR**: Interfaz móvil para validación rápida en campo.
-*   **Conciliación**: Actualización automática de la ubicación de los activos tras la auditoría.
+## 10. Auditorías (`auditorias`)
+Verificación de integridad en campo.
+- **Inventarios Ciegos**: Proceso de auditoría física de activos.
+- **Escaneo QR/RFID**: Identificación rápida de equipos mediante dispositivos móviles.
+- **Conciliación**: Sincronización automática tras resultados de auditoría.
 
 ---
 
-## 9. Comunicaciones (`comunicaciones`)
-Gestión de RFI, Memorandos y comunicaciones oficiales.
-
-### Funciones Principales:
-*   **Transmittals**: Envío controlado de documentos con acuse de recibo.
-*   **Flujos de RFI**: Solicitudes de información con seguimiento de respuestas.
-*   **Notificaciones**: Sistema de alertas internas y por correo electrónico.
-
----
-
-## 10. Core del Sistema (`core`)
-Capa base de infraestructura y configuraciones generales.
-
-### Funciones Principales:
-*   **Gestión de Medidores**: Centralización de lecturas de energía, agua, etc.
-*   **Configuración UI**: Personalización de colores y logotipos del sistema.
-*   **Utilidades de Backup**: Herramientas para la exportación e importación de la base de datos completa.
+## Capa Técnica y Core (`core`, `energia`)
+- **Seguridad**: Autenticación basada en grupos y permisos granulares de Django.
+- **Background Tasks**: Procesamiento distribuido mediante Celery y Redis.
+- **UI/UX**: Interfaz personalizada con Jazzmin, SweetAlert2 y estilos visuales premium.
+- **API**: Endpoints REST para integración con aplicaciones móviles y externas.

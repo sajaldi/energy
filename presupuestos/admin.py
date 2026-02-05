@@ -302,15 +302,67 @@ class DocumentoRequisicionInline(admin.TabularInline):
 
 @admin.register(Requisicion)
 class RequisicionAdmin(admin.ModelAdmin):
-    list_display = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'createdon')
-    list_filter = ('cr8ca_prioridad', 'cr8ca_tipodedocumento', 'createdon')
+    list_display = ('cr8ca_requisicion', 'fecha', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'createdon')
+    list_filter = ('fecha', 'cr8ca_prioridad', 'cr8ca_tipodedocumento', 'createdon')
     search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
     inlines = [ArticuloRequisicionInline, DocumentoRequisicionInline]
-    readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon', 'total_estimado')
+    readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon', 'total_estimado', 'import_background_btn')
     
+    def get_urls(self):
+        urls = super().get_urls()
+        from django.urls import path
+        custom_urls = [
+            path('import-background/', self.admin_site.admin_view(self.import_background_view), name='presupuestos_requisicion_import_background'),
+            path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='presupuestos_requisicion_import_template'),
+        ]
+        return custom_urls + urls
+
+    def import_background_btn(self, obj=None):
+        from django.urls import reverse
+        url = reverse('admin:presupuestos_requisicion_import_background')
+        return format_html('<a class="button" href="{}" style="background-color: #10b981; color: white;">📥 Importación Background</a>', url)
+    import_background_btn.short_description = "Acciones Masivas"
+
+    def import_background_view(self, request):
+        from django.shortcuts import redirect
+        from django.urls import reverse
+        return redirect(reverse('presupuestos:import_requisiciones_background'))
+
+    def download_template_view(self, request):
+        """Genera un archivo Excel con cabeceras y una fila de ejemplo"""
+        from .resources import RequisicionResource
+        from django.http import HttpResponse
+        import tablib
+
+        resource = RequisicionResource()
+        headers = resource.get_export_headers()
+        dataset = tablib.Dataset(headers=headers)
+        
+        sample_row = {
+            'cr8ca_requisicion': 'REQ-00001-2026',
+            'fecha': '2026-02-05',
+            'cr8ca_asunto': 'Compra de Material Eléctrico',
+            'cr8ca_totalenarticulos': '57168.80',
+            'costo': '57168.80',
+            'cr8ca_prioridad': '2',
+            'cr8ca_id_oc': 'OC-12345',
+        }
+        
+        row_data = [sample_row.get(h, '') for h in headers]
+        dataset.append(row_data)
+        
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="formato_importacion_requisiciones.xlsx"'
+        return response
+    
+    class Media:
+        css = {
+            'all': ('presupuestos/css/requisicion_admin.css',)
+        }
+
     fieldsets = (
         ('Identificación', {
-            'fields': ('cr8ca_requisicionid', 'cr8ca_requisicion', 'cr8ca_asunto', 'versionnumber')
+            'fields': ('cr8ca_requisicionid', 'cr8ca_requisicion', 'cr8ca_asunto', 'versionnumber', 'import_background_btn')
         }),
         ('Detalles y Estado', {
             'fields': ('cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'total_estimado', 'cr8ca_prioridad', 'cr8ca_tipodedocumento', 'cr8ca_estatusorden', 'cr8ca_accion')
@@ -319,7 +371,7 @@ class RequisicionAdmin(admin.ModelAdmin):
             'fields': ('cr8ca_ejecutado', 'cr8ca_cerrar', 'cr8ca_cajachica', 'cr8ca_solicituddetabladepago', 'cr8ca_seleccionar', 'statecode', 'statuscode')
         }),
         ('Fechas', {
-            'fields': ('cr8ca_fechadegasto', 'createdon', 'modifiedon')
+            'fields': ('fecha', 'cr8ca_fechadegasto', 'createdon', 'modifiedon')
         }),
         ('Lookups Dynamics (IDs)', {
             'classes': ('collapse',),

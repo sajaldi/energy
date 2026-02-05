@@ -29,10 +29,10 @@ from documentos.admin_mayan import MayanDocumentInline
 
 @admin.register(BienAfecto)
 class BienAfectoAdmin(admin.ModelAdmin):
-    list_display = ('codigo_interno', 'nombre', 'get_activo_actual', 'ubicacion', 'responsable', 'get_total_reemplazos', 'actualizado_en')
-    list_filter = ('familia', 'ubicacion', 'responsable')
-    search_fields = ('codigo_interno', 'nombre')
-    autocomplete_fields = ('ubicacion', 'familia', 'responsable')
+    list_display = ('codigo_interno', 'nombre', 'get_activo_actual', 'ubicacion', 'plano', 'responsable', 'get_total_reemplazos', 'actualizado_en')
+    list_filter = ('familia', 'ubicacion', 'plano', 'responsable')
+    search_fields = ('codigo_interno', 'nombre', 'plano__nombre')
+    autocomplete_fields = ('ubicacion', 'plano', 'familia', 'responsable')
     inlines = [HistorialBienAfectoInline, MayanDocumentInline]
     readonly_fields = ('creado_en', 'actualizado_en', 'get_activo_actual_detalle', 'get_estadisticas')
     
@@ -42,7 +42,7 @@ class BienAfectoAdmin(admin.ModelAdmin):
             'fields': ('codigo_interno', 'nombre', 'familia')
         }),
         ('Ubicación y Responsable', {
-            'fields': ('ubicacion', 'responsable')
+            'fields': ('ubicacion', 'plano', 'responsable')
         }),
         ('Activo Actual', {
             'fields': ('get_activo_actual_detalle',),
@@ -148,7 +148,8 @@ class BienAfectoAdmin(admin.ModelAdmin):
         marca = activo.modelo.marca.nombre if activo.modelo and activo.modelo.marca else 'N/A'
         modelo_nombre = activo.modelo.nombre if activo.modelo else 'N/A'
         categoria = activo.modelo.categoria.nombre if activo.modelo and activo.modelo.categoria else 'N/A'
-        ubicacion = activo.ubicacion.nombre if activo.ubicacion else 'N/A'
+        ubicacion = activo.ubicacion.ruta_completa if activo.ubicacion else 'N/A'
+        plano_info = activo.plano.nombre if activo.plano else 'N/A'
         
         
         # Obtener foto del modelo
@@ -204,6 +205,11 @@ class BienAfectoAdmin(admin.ModelAdmin):
             '</div>'
             
             '<div style="background: white; padding: 10px; border-radius: 6px;">'
+            '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Plano</div>'
+            '<div style="font-weight: 600;">{}</div>'
+            '</div>'
+            
+            '<div style="background: white; padding: 10px; border-radius: 6px;">'
             '<div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Fecha Alta</div>'
             '<div style="font-weight: 600;">{}</div>'
             '</div>'
@@ -239,6 +245,7 @@ class BienAfectoAdmin(admin.ModelAdmin):
             modelo_nombre,
             categoria,
             ubicacion,
+            plano_info,
             fecha_alta,
             usuario_alta,
             foto_html

@@ -23,6 +23,15 @@ class BienAfecto(models.Model):
         help_text="Ubicación actual del bien afecto"
     )
     
+    plano = models.ForeignKey(
+        'Plano', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='bienes_afectos',
+        help_text="Plano actual del bien afecto (Heredado del activo)"
+    )
+    
     familia = models.ForeignKey(
         'Familia', 
         on_delete=models.SET_NULL, 
@@ -227,6 +236,15 @@ class HistorialBienAfecto(models.Model):
         skip_validation = kwargs.pop('skip_validation', False)
         if not skip_validation:
             self.full_clean()
+        
+        # Sincronizar ubicación, plano y familia con el Bien Afecto si este registro es el activo
+        if self.esta_activo:
+            self.bien_afecto.ubicacion = self.activo.ubicacion
+            self.bien_afecto.plano = self.activo.plano
+            self.bien_afecto.familia = self.activo.familia
+            # Guardar BienAfecto
+            self.bien_afecto.save(update_fields=['ubicacion', 'plano', 'familia'])
+
         super().save(*args, **kwargs)
     
     def __str__(self):
