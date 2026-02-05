@@ -202,6 +202,12 @@ USE_I18N = True # Habilita la internacionalización
 
 USE_TZ = True # Habilita zonas horarias para los modelos (recomendado)
 
+# Configuración regional para Honduras (Lempiras, Punto para decimales)
+DECIMAL_SEPARATOR = '.'
+THOUSAND_SEPARATOR = ','
+USE_THOUSAND_SEPARATOR = True
+NUMBER_GROUPING = 3
+
 
 # --- Static files (CSS, JavaScript, Images) ---
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
@@ -313,6 +319,7 @@ JAZZMIN_SETTINGS = {
     "user_avatar": None,
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "📦 Dashboard Requisiciones", "url": "/presupuestos/requisiciones/dashboard/", "permissions": ["presupuestos.view_requisicion"]},
         {"model": "auth.User"},
         {"name": "Asistente AI", "url": "/admin/chatbot_trigger/", "new_window": False},
     ],

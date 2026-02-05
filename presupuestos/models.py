@@ -423,7 +423,7 @@ class Requisicion(models.Model):
     Mapea campos de la entidad cr8ca_requisicion.
     """
     cr8ca_requisicionid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, verbose_name="ID de Requisición (Dynamics)")
-    cr8ca_requisicion = models.CharField(max_length=100, editable=False, verbose_name="N° Requisición (REQ-#####-AAAA)")
+    cr8ca_requisicion = models.CharField(max_length=100, unique=True, verbose_name="N° Requisición (REQ-#####-AAAA)")
     cr8ca_asunto = models.CharField(max_length=500, verbose_name="Asunto")
     cr8ca_motivo = models.TextField(null=True, blank=True, verbose_name="Motivo")
     cr8ca_comentarios = models.TextField(null=True, blank=True, verbose_name="Comentarios")
@@ -440,6 +440,7 @@ class Requisicion(models.Model):
     cr8ca_prioridad = models.IntegerField(choices=PRIORIDAD_CHOICES, default=2, null=True, blank=True, verbose_name="Prioridad")
     cr8ca_tipodedocumento = models.IntegerField(null=True, blank=True, verbose_name="Tipo de Documento")
     cr8ca_estatusorden = models.IntegerField(null=True, blank=True, verbose_name="Estatus Orden")
+    cr8ca_id_oc = models.CharField(max_length=100, null=True, blank=True, verbose_name="ID OC (Orden de Compra)")
     cr8ca_accion = models.IntegerField(null=True, blank=True, verbose_name="Acción")
     
     # Flags
@@ -462,12 +463,31 @@ class Requisicion(models.Model):
     _ownerid_value = models.UUIDField(null=True, blank=True)
     
     # Fechas y Metadatos
+    fecha = models.DateField(null=True, blank=True, verbose_name="Fecha")
     cr8ca_fechadegasto = models.DateTimeField(null=True, blank=True)
     createdon = models.DateTimeField(null=True, blank=True, verbose_name="Creado en Dynamics")
     modifiedon = models.DateTimeField(null=True, blank=True, verbose_name="Modificado en Dynamics")
     versionnumber = models.BigIntegerField(null=True, blank=True)
     statecode = models.IntegerField(null=True, blank=True)
     statuscode = models.IntegerField(null=True, blank=True)
+    
+    # Wizard state y Flujo de Autorización
+    ESTADO_REQUISICION_CHOICES = (
+        ('BORRADOR', 'Borrador'),
+        ('PENDIENTE', 'En espera de autorización'),
+        ('AUTORIZADO', 'Autorizado'),
+        ('RECHAZADO', 'Rechazado'),
+        ('CANCELADO', 'Cancelado'),
+    )
+    estado_requisicion = models.CharField(
+        max_length=50, 
+        choices=ESTADO_REQUISICION_CHOICES, 
+        default='BORRADOR',
+        verbose_name="Estado de la Requisición"
+    )
+    wizard_step = models.IntegerField(default=1, verbose_name="Paso del Wizard")
+    usuario_solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Solicitante", related_name='requisiciones_solicitadas')
+    usuario_en_nombre_de = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="En nombre de", related_name='requisiciones_en_nombre_de')
 
     def save(self, *args, **kwargs):
         if not self.cr8ca_requisicion:
@@ -562,6 +582,7 @@ class ArticuloRequisicion(models.Model):
         if self.cr8ca_cantidad and self.cr8ca_costoaproximado:
             return self.cr8ca_cantidad * self.cr8ca_costoaproximado
         return 0
+    
     
     # Metadatos
     versionnumber = models.BigIntegerField(null=True, blank=True)

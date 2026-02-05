@@ -1,6 +1,8 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from core.storage import MinIOStorage
 
 minio_storage = MinIOStorage()
@@ -105,3 +107,29 @@ class Activo(models.Model):
         verbose_name = "Activo"
         verbose_name_plural = "Activos"
         app_label = 'activos'
+
+@receiver(post_save, sender=Activo)
+def sync_bien_afecto_location(sender, instance, **kwargs):
+    """
+    Sincroniza la ubicación y el plano con el Bien Afecto asociado
+    si este activo es el que está actualmente asignado (sin fecha de baja).
+    """
+    from .bien_afecto import HistorialBienAfecto
+    
+    # Buscar el historial activo para este equipo
+    historial = HistorialBienAfecto.objects.filter(
+        activo=instance, 
+        fecha_baja__isnull=True
+    ).select_related('bien_afecto').first()
+    
+    if historial:
+        bien = historial.bien_afecto
+        # Solo actualizar si hay cambios
+        if (bien.ubicacion != instance.ubicacion or 
+            bien.plano != instance.plano or 
+            bien.familia != instance.familia):
+            
+            bien.ubicacion = instance.ubicacion
+            bien.plano = instance.plano
+            bien.familia = instance.familia
+            bien.save(update_fields=['ubicacion', 'plano', 'familia'])
