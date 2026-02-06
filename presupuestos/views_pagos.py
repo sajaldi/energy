@@ -161,6 +161,50 @@ def api_add_requisicion_pago(request):
     return JsonResponse({'status': 'error', 'message': 'Solo POST'}, status=405)
 
 @login_required
+def api_requisicion_detalle(request, pk):
+    """
+    Retorna detalles de una requisición y su historial de pagos en JSON.
+    """
+    from .models import Requisicion
+    requisicion = get_object_or_404(Requisicion.objects.prefetch_related(
+        'articulos', 
+        'items_pago', 
+        'items_pago__solicitud'
+    ), pk=pk)
+    
+    articulos = []
+    for art in requisicion.articulos.all():
+        articulos.append({
+            'descripcion': art.cr8ca_articulo,
+            'cantidad': float(art.cr8ca_cantidad),
+            'costo': float(art.cr8ca_costoaproximado or 0),
+            'subtotal': float(art.subtotal)
+        })
+        
+    pagos = []
+    for item in requisicion.items_pago.all().order_by('-creado_en'):
+        pagos.append({
+            'solicitud_id': item.solicitud.pk,
+            'descripcion': item.descripcion,
+            'monto': float(item.monto_solicitado),
+            'estatus': item.estatus,
+            'fecha': item.creado_en.strftime("%d/%m/%Y")
+        })
+        
+    data = {
+        'id': requisicion.pk,
+        'codigo': requisicion.cr8ca_requisicion,
+        'asunto': requisicion.cr8ca_asunto,
+        'proveedor': requisicion.proveedor.nombre if requisicion.proveedor else "No asignado",
+        'total_estimado': float(requisicion.total_estimado),
+        'total_pagado': float(requisicion.monto_pagado),
+        'articulos': articulos,
+        'pagos': pagos
+    }
+    
+    return JsonResponse(data)
+
+@login_required
 def exportar_solicitud_pago_excel(request, pk):
     """
     Genera un archivo Excel con el detalle de la solicitud de pago.

@@ -31,6 +31,7 @@ urlpatterns = [
     path('pagos/solicitud/<int:pk>/', views_pagos.detalle_solicitud_pago, name='detalle_solicitud_pago'),
     path('api/pagos/update-item/', views_pagos.api_update_item_pago, name='api_update_item_pago'),
     path('api/pagos/add-requisicion/', views_pagos.api_add_requisicion_pago, name='api_add_requisicion_pago'),
+    path('api/requisicion/<uuid:pk>/detalle/', views_pagos.api_requisicion_detalle, name='api_requisicion_detalle'),
     path('pagos/solicitud/<int:pk>/export/', views_pagos.exportar_solicitud_pago_excel, name='exportar_pago_excel'),
     path('pagos/solicitud/<int:pk>/import/', views_pagos.import_items_pago_background, name='import_items_pago'),
     path('api/pagos/import/process/', views_pagos.import_items_pago_process, name='import_items_pago_process'),
