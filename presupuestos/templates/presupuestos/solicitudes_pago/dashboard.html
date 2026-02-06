@@ -1,0 +1,153 @@
+{% load static %}
+{% load humanize %}
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Pagos | Energy</title>
+    <link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
+    <!-- Iconos Phosphor (Modernos y limpios) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body>
+
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="header-title">
+                <h1>Solicitudes de Pago</h1>
+                <p>Gestión y seguimiento de flujo de caja</p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'admin:presupuestos_solicitudpago_changelist' %}" class="btn">
+                    <i class="ph ph-arrow-left"></i> Volver al Admin
+                </a>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <span class="metric-label">Total Solicitado</span>
+                <span class="metric-value">{{ metrics.total_solicitado|floatformat:2|intcomma }}</span>
+                <span class="metric-sub">{{ metrics.total_count }} solicitudes totales</span>
+            </div>
+            <div class="metric-card" style="border-left: 4px solid var(--info);">
+                <span class="metric-label">Total Aprobado</span>
+                <span class="metric-value" style="color: var(--info);">{{ metrics.total_aprobado|floatformat:2|intcomma
+                    }}</span>
+                <span class="metric-sub">Listo para pago</span>
+            </div>
+            <div class="metric-card" style="border-left: 4px solid var(--success);">
+                <span class="metric-label">Total Pagado</span>
+                <span class="metric-value" style="color: var(--success);">{{ metrics.total_pagado|floatformat:2|intcomma
+                    }}</span>
+                <span class="metric-sub">Efectivo desembolsado</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Por Pagar</span>
+                <span class="metric-value" style="color: var(--danger);">{{
+                    metrics.total_pendiente|floatformat:2|intcomma }}</span>
+                <span class="metric-sub">Pendiente de pago</span>
+            </div>
+        </div>
+
+        <!-- Controls (Search & Filters) -->
+        <div class="controls-bar">
+            <div class="search-box">
+                <i class="ph ph-magnifying-glass"
+                    style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                <form method="get" id="search-form">
+                    <input type="text" name="q" class="search-input"
+                        placeholder="Buscar por referencia, ID o solicitante..." value="{{ search_query|default:'' }}">
+                    {% if current_filter %}<input type="hidden" name="estado" value="{{ current_filter }}">{% endif %}
+                </form>
+            </div>
+
+            <div class="filter-group">
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}"
+                    class="filter-btn {% if not current_filter %}active{% endif %}">Todos</a>
+                <a href="?estado=ABIERTA{% if search_query %}&q={{ search_query }}{% endif %}"
+                    class="filter-btn {% if current_filter == 'ABIERTA' %}active{% endif %}">
+                    Abiertas <span style="opacity: 0.7; font-size: 0.8em;">({{ conteo_estados.ABIERTA }})</span>
+                </a>
+                <a href="?estado=EN_REVISION{% if search_query %}&q={{ search_query }}{% endif %}"
+                    class="filter-btn {% if current_filter == 'EN_REVISION' %}active{% endif %}">
+                    En Revisión <span style="opacity: 0.7; font-size: 0.8em;">({{ conteo_estados.EN_REVISION }})</span>
+                </a>
+                <a href="?estado=CERRADA{% if search_query %}&q={{ search_query }}{% endif %}"
+                    class="filter-btn {% if current_filter == 'CERRADA' %}active{% endif %}">
+                    Cerradas <span style="opacity: 0.7; font-size: 0.8em;">({{ conteo_estados.CERRADA }})</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Requests Grid -->
+        <div class="requests-grid">
+            {% for req in solicitudes %}
+            <div class="req-card">
+                <div class="req-header">
+                    <div>
+                        <div class="req-title">#{{ req.pk }} - {{ req.descripcion|truncatechars:30 }}</div>
+                        <div class="req-meta">
+                            <i class="ph ph-calendar-blank"></i> {{ req.fecha_solicitud|date:"d M, Y" }}
+                            <span style="margin: 0 5px;">•</span>
+                            <i class="ph ph-user"></i> {{ req.usuario_solicitante.username|default:"-" }}
+                        </div>
+                    </div>
+                    <span class="status-badge status-{{ req.estado }}">
+                        {{ req.get_estado_display }}
+                    </span>
+                </div>
+                <div class="req-body">
+                    <div class="amount-row">
+                        <span class="amount-label">Solicitado</span>
+                        <span class="amount-value">{{ req.total_solicitado|floatformat:2|intcomma }}</span>
+                    </div>
+                    <div class="amount-row">
+                        <span class="amount-label">Aprobado</span>
+                        <span class="amount-value aprobado">{{ req.total_aprobado|floatformat:2|intcomma }}</span>
+                    </div>
+                    <div class="amount-row">
+                        <span class="amount-label">Pagado</span>
+                        <span class="amount-value pagado">{{ req.total_pagado|floatformat:2|intcomma }}</span>
+                    </div>
+
+                    <!-- Progress Bar (Pagado vs Aprobado) -->
+                    {% with pagado=req.total_pagado aprobado=req.total_aprobado %}
+                    {% if aprobado > 0 %}
+                    <div class="progress-bar-bg" title="Progreso de Pagos">
+                        <div class="progress-bar-fill" style="width: {% widthratio pagado aprobado 100 %}%;"></div>
+                    </div>
+                    {% else %}
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" style="width: 0%;"></div>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+                <div class="req-footer">
+                    <a href="{% url 'presupuestos:detalle_solicitud_pago' req.pk %}" class="btn-detail">
+                        <i class="ph ph-eye"></i> Detalles
+                    </a>
+                    <a href="{% url 'admin:presupuestos_solicitudpago_change' req.pk %}" class="view-link">
+                        Admin <i class="ph ph-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 4rem; color: var(--text-muted);">
+                <i class="ph ph-file-search" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                <p>No se encontraron solicitudes con los filtros actuales.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</body>
+
+</html>

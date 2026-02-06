@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, views_import, views_autorizar, views_webhook
+from . import views, views_import, views_autorizar, views_webhook, views_mayan, views_pagos
 
 app_name = 'presupuestos'
 
@@ -25,4 +25,13 @@ urlpatterns = [
     path('requisiciones/import-background/process/', views_import.import_requisiciones_process, name='import_requisiciones_process'),
     path('requisiciones/import-background/progress/', views_import.import_requisiciones_progress, name='import_requisiciones_progress'),
     path('requisiciones/import-background/template/', views_import.download_template, name='import_requisiciones_template'),
+    
+    # Pagos Dashboard
+    path('pagos/dashboard/', views_pagos.dashboard_pagos, name='dashboard_pagos'),
+    path('pagos/solicitud/<int:pk>/', views_pagos.detalle_solicitud_pago, name='detalle_solicitud_pago'),
+    path('api/pagos/update-item/', views_pagos.api_update_item_pago, name='api_update_item_pago'),
+    path('api/pagos/add-requisicion/', views_pagos.api_add_requisicion_pago, name='api_add_requisicion_pago'),
+    
+    # Mayan Integration
+    path('api/mayan/upload-requisition-document/', views_mayan.upload_requisition_document_to_mayan, name='mayan_upload_requisition_document'),
 ]

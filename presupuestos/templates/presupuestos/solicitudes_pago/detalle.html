@@ -1,0 +1,435 @@
+{% load static %}
+{% load humanize %}
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de Solicitud #{{ solicitud.pk }} | Energy</title>
+    <link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- SweetAlert2 para feedback -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .detail-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-bottom: 5rem;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-item span {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .items-section {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: visible;
+            margin-bottom: 2rem;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .items-table th {
+            background-color: #f9fafb;
+            text-align: left;
+            padding: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .items-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* Estilos para inputs editables */
+        .editable-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid transparent;
+            background: transparent;
+            border-radius: 0.25rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .editable-input:hover {
+            border-color: #d1d5db;
+            background: #f9fafb;
+        }
+
+        .editable-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .amount-input {
+            font-weight: 600;
+            text-align: right;
+            max-width: 150px;
+        }
+
+        .provider-header {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .req-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .add-row-section {
+            padding: 1.5rem;
+            background-color: #f8fafc;
+            border-top: 2px dashed var(--border-color);
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .form-control {
+            padding: 0.6rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.4rem;
+            font-size: 0.9rem;
+        }
+
+        .btn-add {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 0.4rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            height: 38px;
+        }
+
+        .btn-add:hover {
+            background-color: var(--primary-hover);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="detail-container">
+        <!-- Header / Navigation -->
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; margin-top: 1rem;">
+            <a href="{% url 'presupuestos:dashboard_pagos' %}"
+                style="text-decoration: none; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.5rem;">
+                <i class="ph ph-arrow-left"></i> Volver al Dashboard
+            </a>
+            <div style="display: flex; gap: 1rem;">
+                <a href="{% url 'admin:presupuestos_solicitudpago_change' solicitud.pk %}" class="btn-detail"
+                    style="border: 1px solid var(--border-color); padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; color: var(--text-main); font-size: 0.9rem;">
+                    <i class="ph ph-gear"></i> Configuración Admin
+                </a>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="info-header">
+                <div>
+                    <h1 style="margin: 0; font-size: 1.5rem;">Solicitud de Pago #{{ solicitud.pk }}</h1>
+                    <p style="margin: 0.5rem 0 0 0; color: var(--text-muted);">{{ solicitud.descripcion }}</p>
+                </div>
+                <span class="status-badge status-{{ solicitud.estado }}">
+                    {{ solicitud.get_estado_display }}
+                </span>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Fecha de Solicitud</label>
+                    <span>{{ solicitud.fecha_solicitud|date:"d M, Y" }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Solicitante</label>
+                    <span>{{ solicitud.usuario_solicitante.get_full_name|default:solicitud.usuario_solicitante.username
+                        }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Total Solicitado</label>
+                    <span id="total-solicitado-val" style="font-weight: 700;">{{
+                        solicitud.total_solicitado|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Total Pagado</label>
+                    <span style="color: var(--success); font-weight: 700;">{{
+                        solicitud.total_pagado|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+
+        <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
+            <i class="ph ph-list-numbers" style="color: var(--primary);"></i> Ítems y Requisiciones
+        </h2>
+
+        <div class="items-section">
+            <table class="items-table" id="items-table">
+                <thead>
+                    <tr>
+                        <th style="width: 140px;">N° Requisición</th>
+                        <th style="width: 150px;">Proveedor</th>
+                        <th>Asunto/Desc. Item</th>
+                        <th>Descripción del Pago</th>
+                        <th style="width: 140px; text-align: right;">Monto</th>
+                        <th style="width: 120px;">Estado</th>
+                        <th style="width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for proveedor, items in items_por_proveedor.items %}
+                    <tr class="provider-header">
+                        <td colspan="7">
+                            <i class="ph ph-buildings" style="margin-right: 0.5rem; color: var(--primary);"></i>
+                            {{ proveedor }}
+                        </td>
+                    </tr>
+                    {% for item in items %}
+                    <tr data-item-id="{{ item.pk }}">
+                        <td>
+                            <a href="{% url 'admin:presupuestos_requisicion_change' item.requisicion.pk %}"
+                                class="req-link">
+                                {{ item.requisicion.cr8ca_requisicion }}
+                            </a>
+                        </td>
+                        <td style="font-size: 0.85rem; color: var(--text-muted);">
+                            {{ item.requisicion.proveedor.nombre|default:"-" }}
+                        </td>
+                        <td style="font-size: 0.85rem;">
+                            {{ item.requisicion.cr8ca_asunto|truncatechars:50 }}
+                        </td>
+                        <td>
+                            <input type="text" class="editable-input" value="{{ item.descripcion }}"
+                                onchange="updateItem({{ item.pk }}, 'descripcion', this.value)"
+                                placeholder="Click para editar descripción...">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" class="editable-input amount-input"
+                                value="{{ item.monto_solicitado|stringformat:'.2f' }}"
+                                onchange="updateItem({{ item.pk }}, 'monto_solicitado', this.value)">
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ item.estatus }}">
+                                {{ item.get_estatus_display }}
+                            </span>
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="{% url 'admin:presupuestos_itemsolicitudpago_change' item.pk %}"
+                                title="Ver en Admin" style="color: var(--text-muted); opacity: 0.5;">
+                                <i class="ph ph-arrow-square-out"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% empty %}
+                    <tr id="no-items-row">
+                        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                            No hay ítems asociados. Agregue uno abajo.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Sección para agregar nuevas requisiciones -->
+            <div class="add-row-section">
+                <div class="form-group" style="flex: 2;">
+                    <label>Requisición Pendiente</label>
+                    <select id="new-req-id" class="form-control">
+                        <option value="">Seleccione una requisición...</option>
+                        {% for req in requisiciones %}
+                        <option value="{{ req.pk }}" data-monto="{{ req.total_estimado }}">
+                            {{ req.cr8ca_requisicion }} - {{ req.cr8ca_asunto|truncatechars:40 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 2;">
+                    <label>Descripción del Pago</label>
+                    <input type="text" id="new-req-desc" class="form-control" placeholder="Ej: Anticipo 50%">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 120px;">
+                    <label>Monto</label>
+                    <input type="number" id="new-req-monto" class="form-control" step="0.01" value="0.00">
+                </div>
+                <button class="btn-add" onclick="addNewRequisition()">
+                    <i class="ph ph-plus-bold"></i> Agregar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de CSRF para fetch
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // Autocompletar monto al seleccionar requisición
+        document.getElementById('new-req-id').addEventListener('change', function () {
+            const selected = this.options[this.selectedIndex];
+            if (selected.value) {
+                const monto = selected.getAttribute('data-monto');
+                document.getElementById('new-req-monto').value = parseFloat(monto).toFixed(2);
+                if (!document.getElementById('new-req-desc').value) {
+                    document.getElementById('new-req-desc').value = 'Pago Requisición';
+                }
+            }
+        });
+
+        async function updateItem(id, campo, valor) {
+            try {
+                const response = await fetch('{% url "presupuestos:api_update_item_pago" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({ id, campo, valor })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Feedback visual sutil si quieres, o solo actualizar los totales (que requeriría recargar o calcular)
+                    console.log('Actualizado correctamente');
+                } else {
+                    Swal.fire('Error', data.message || 'Error al actualizar', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'Error de conexión', 'error');
+            }
+        }
+
+        async function addNewRequisition() {
+            const reqId = document.getElementById('new-req-id').value;
+            const desc = document.getElementById('new-req-desc').value;
+            const monto = document.getElementById('new-req-monto').value;
+
+            if (!reqId) {
+                Swal.fire('Atención', 'Seleccione una requisición', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('{% url "presupuestos:api_add_requisicion_pago" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        solicitud_id: '{{ solicitud.pk }}',
+                        requisicion_id: reqId,
+                        monto: monto,
+                        descripcion: desc
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    Swal.fire({
+                        title: 'Agregado',
+                        text: 'La requisición se añadió correctamente',
+                        icon: 'success',
+                        timer: 1500
+                    }).then(() => {
+                        location.reload(); // Recargar para ver el nuevo item y actualizar totales
+                    });
+                } else {
+                    Swal.fire('Error', data.message || 'No se pudo agregar', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'Error de conexión', 'error');
+            }
+        }
+    </script>
+
+</body>
+
+</html>
