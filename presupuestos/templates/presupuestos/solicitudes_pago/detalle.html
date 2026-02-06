@@ -176,6 +176,55 @@
         .btn-add:hover {
             background-color: var(--primary-hover);
         }
+
+        @media print {
+
+            .no-print,
+            .add-row-section,
+            #table-search,
+            .btn-detail,
+            a[href*="dashboard_pagos"],
+            tr td:last-child,
+            th:last-child {
+                display: none !important;
+            }
+
+            .detail-container {
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            body {
+                background: white !important;
+                padding: 0 !important;
+            }
+
+            .info-card,
+            .items-section {
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .editable-input {
+                border: none !important;
+                padding: 0 !important;
+                background: transparent !important;
+            }
+
+            .items-table th {
+                background-color: #f8fafc !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .provider-header {
+                background-color: #f1f5f9 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
     </style>
 </head>
 
@@ -190,6 +239,10 @@
                 <i class="ph ph-arrow-left"></i> Volver al Dashboard
             </a>
             <div style="display: flex; gap: 1rem;">
+                <button onclick="window.print()" class="btn-detail no-print"
+                    style="background: var(--primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; font-weight: 600;">
+                    <i class="ph ph-printer"></i> Imprimir PDF
+                </button>
                 <a href="{% url 'admin:presupuestos_solicitudpago_change' solicitud.pk %}" class="btn-detail"
                     style="border: 1px solid var(--border-color); padding: 0.5rem 1rem; border-radius: 0.5rem; text-decoration: none; color: var(--text-main); font-size: 0.9rem;">
                     <i class="ph ph-gear"></i> Configuración Admin
