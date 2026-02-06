@@ -609,7 +609,8 @@
                     <select id="new-req-id" class="form-control">
                         <option value="">Seleccione una requisición...</option>
                         {% for req in requisiciones %}
-                        <option value="{{ req.pk }}" data-monto="{{ req.cr8ca_totalenarticulos|unlocalize|default:0 }}">
+                        <option value="{{ req.pk }}" data-total="{{ req.cr8ca_totalenarticulos|unlocalize|default:0 }}"
+                            data-pagado="{{ req.monto_pagado_db|unlocalize|default:0 }}">
                             {{ req.cr8ca_requisicion }} - {{ req.cr8ca_asunto|truncatechars:40 }}
                         </option>
                         {% endfor %}
@@ -619,9 +620,23 @@
                     <label>Descripción del Pago</label>
                     <input type="text" id="new-req-desc" class="form-control" placeholder="Ej: Anticipo 50%">
                 </div>
-                <div class="form-group" style="flex: 1; min-width: 120px;">
-                    <label>Monto</label>
+                <div class="form-group" style="flex: 1.5; min-width: 150px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label>Monto a Pagar</label>
+                        <span id="pending-badge"
+                            style="font-size: 0.65rem; background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; display: none; font-weight: 700;">SALDO:
+                            0.00</span>
+                    </div>
                     <input type="number" id="new-req-monto" class="form-control" step="0.01" value="0.00">
+
+                    <!-- Slider Porcentual -->
+                    <div
+                        style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.75rem; background: #fff; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                        <input type="range" id="payment-slider" min="0" max="100" value="100"
+                            style="flex: 1; cursor: pointer; height: 6px; accent-color: var(--primary);">
+                        <span id="slider-pct"
+                            style="font-size: 0.8rem; font-weight: 800; color: var(--primary); min-width: 40px; text-align: right;">100%</span>
+                    </div>
                 </div>
                 <button class="btn-add" onclick="addNewRequisition()">
                     <i class="ph ph-plus-bold"></i> Agregar
@@ -911,15 +926,44 @@
             // Autocompletar monto al seleccionar requisición (adaptado para Select2)
             $('#new-req-id').on('change', function () {
                 const selected = $(this).select2('data')[0];
+                const badge = $('#pending-badge');
+                const slider = $('#payment-slider');
+                const pctLabel = $('#slider-pct');
+
                 if (selected && selected.id) {
                     const option = $(selected.element);
-                    let montoRaw = option.attr('data-monto') || "0";
-                    // Asegurar que sea un string y limpiar comas adicionales si las hay
-                    const monto = parseFloat(montoRaw.toString().replace(/,/g, ''));
-                    $('#new-req-monto').val(monto.toFixed(2));
+                    const total = parseFloat(option.attr('data-total') || "0");
+                    const pagado = parseFloat(option.attr('data-pagado') || "0");
+                    const saldo = total - pagado;
+
+                    // Guardar valores en el input para el slider
+                    $('#new-req-monto').data('saldo-full', saldo);
+
+                    // Resetear slider a 100%
+                    slider.val(100);
+                    pctLabel.text('100%');
+
+                    // Mostrar badge de saldo
+                    badge.text('SALDO: ' + formatCurrency(saldo)).show();
+                    $('#new-req-monto').val(saldo.toFixed(2));
+
                     if (!$('#new-req-desc').val()) {
                         $('#new-req-desc').val('Pago Requisición');
                     }
+                } else {
+                    badge.hide();
+                }
+            });
+
+            // Lógica del slider
+            $('#payment-slider').on('input', function () {
+                const pct = parseInt($(this).val());
+                $('#slider-pct').text(pct + '%');
+
+                const saldo = $('#new-req-monto').data('saldo-full');
+                if (saldo !== undefined) {
+                    const calculado = (saldo * pct) / 100;
+                    $('#new-req-monto').val(calculado.toFixed(2));
                 }
             });
         });
