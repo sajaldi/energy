@@ -1,5 +1,5 @@
-{% load static %}
 {% load humanize %}
+{% load presupuesto_tags %}
 
 <!DOCTYPE html>
 <html lang="es">
@@ -299,13 +299,13 @@
                 <div class="info-item">
                     <label>Total Solicitado</label>
                     {% with t=solicitud.total_solicitado %}
-                    <span id="total-solicitado-val" style="font-weight: 700;">{{ t|floatformat:2|intcomma }}</span>
+                    <span id="total-solicitado-val" style="font-weight: 700;">{{ t|currency }}</span>
                     {% endwith %}
                 </div>
                 <div class="info-item">
                     <label>Total Pagado</label>
                     {% with p=solicitud.total_pagado %}
-                    <span style="color: var(--success); font-weight: 700;">{{ p|floatformat:2|intcomma }}</span>
+                    <span style="color: var(--success); font-weight: 700;">{{ p|currency }}</span>
                     {% endwith %}
                 </div>
             </div>
@@ -348,7 +348,7 @@
                             {{ proveedor }}
                         </td>
                         <td style="text-align: right; font-weight: 800; font-size: 1rem;">
-                            Total: {{ data.total|floatformat:2|intcomma }}
+                            Total: {{ data.total|currency }}
                         </td>
                         <td colspan="2"></td>
                     </tr>
@@ -377,7 +377,7 @@
                                 onchange="updateItem({{ item.pk }}, 'monto_solicitado', this.value)">
                         </td>
                         <td style="text-align: right; font-weight: 600; color: var(--text-muted);">
-                            {{ item.requisicion.monto_pagado|floatformat:2|intcomma }}
+                            {{ item.requisicion.monto_pagado|currency }}
                         </td>
                         <td style="text-align: center;">
                             {% with r=item.requisicion total=item.requisicion.cr8ca_totalenarticulos %}
@@ -385,7 +385,7 @@
                             {% widthratio r.monto_pagado total 100 as p1 %}
                             {% widthratio item.monto_solicitado total 100 as p2 %}
                             <div class="pie-container"
-                                title="Pagado: {{ r.monto_pagado|floatformat:2|intcomma }}&#10;Solicitado: {{ item.monto_solicitado|floatformat:2|intcomma }}&#10;Total RQ: {{ total|floatformat:2|intcomma }}">
+                                title="Pagado: {{ r.monto_pagado|currency }}&#10;Solicitado: {{ item.monto_solicitado|currency }}&#10;Total RQ: {{ total|currency }}">
                                 <div class="mini-pie" style="--p1: {{ p1 }}%; --p2: {{ p2 }}%;"></div>
                                 <span>{% widthratio r.monto_pagado|add:item.monto_solicitado total 100 %}%</span>
                             </div>
