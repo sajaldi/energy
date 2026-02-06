@@ -249,14 +249,18 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for proveedor, items in items_por_proveedor.items %}
+                    {% for proveedor, data in items_por_proveedor.items %}
                     <tr class="provider-header">
-                        <td colspan="7">
+                        <td colspan="4">
                             <i class="ph ph-buildings" style="margin-right: 0.5rem; color: var(--primary);"></i>
                             {{ proveedor }}
                         </td>
+                        <td style="text-align: right; font-weight: 800; font-size: 1rem;">
+                            Total: {{ data.total|floatformat:2|intcomma }}
+                        </td>
+                        <td colspan="2"></td>
                     </tr>
-                    {% for item in items %}
+                    {% for item in data.lista_items %}
                     <tr data-item-id="{{ item.pk }}">
                         <td>
                             <a href="{% url 'admin:presupuestos_requisicion_change' item.requisicion.pk %}"
