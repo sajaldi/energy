@@ -4,10 +4,13 @@ from django.db.models import Sum, Q, Count
 from .models import SolicitudPago
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
+from django.core.files.storage import default_storage
+from django.core.cache import cache
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 import json
+import os
 
 @login_required
 def dashboard_pagos(request):
@@ -235,3 +238,76 @@ def exportar_solicitud_pago_excel(request, pk):
     response['Content-Disposition'] = f'attachment; filename=Solicitud_Pago_{solicitud.pk}.xlsx'
     wb.save(response)
     return response
+
+@login_required
+def import_items_pago_background(request, pk):
+    """
+    Vista para subir archivo e iniciar la importación asíncrona de items.
+    """
+    solicitud = get_object_or_404(SolicitudPago, pk=pk)
+    
+    if request.method == 'POST' and request.FILES.get('archivo'):
+        archivo = request.FILES['archivo']
+        ext = os.path.splitext(archivo.name)[1].lower().replace('.', '')
+        
+        if ext not in ['csv', 'xls', 'xlsx']:
+            return render(request, 'presupuestos/solicitudes_pago/import_items.html', {
+                'solicitud': solicitud,
+                'error': 'Formato no soportado. Use CSV, XLS o XLSX.'
+            })
+            
+        # Guardar temporalmente
+        path = default_storage.save(f'tmp/import_items_{request.user.id}_{datetime.now().timestamp()}.{ext}', archivo)
+        
+        # Iniciar tarea Celery
+        from .tasks import import_items_solicitud_task
+        import_items_solicitud_task.delay(
+            path, ext, 
+            user_id=request.user.id, 
+            solicitud_id=solicitud.pk,
+            verification_mode=True # Iniciar con verificación
+        )
+        
+        return render(request, 'presupuestos/solicitudes_pago/import_items.html', {
+            'solicitud': solicitud,
+            'importing': True,
+            'cache_key': f"import_items_pago_progress_{request.user.id}"
+        })
+        
+    return render(request, 'presupuestos/solicitudes_pago/import_items.html', {'solicitud': solicitud})
+
+@login_required
+def import_items_pago_process(request):
+    """
+    API para confirmar la ejecución real (Import o Dry Run) tras la verificación.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            solicitud_id = data.get('solicitud_id')
+            file_path = data.get('file_path')
+            dry_run = data.get('dry_run', False)
+            
+            ext = os.path.splitext(file_path)[1].lower().replace('.', '')
+            
+            from .tasks import import_items_solicitud_task
+            import_items_solicitud_task.delay(
+                file_path, ext, 
+                user_id=request.user.id, 
+                solicitud_id=solicitud_id,
+                verification_mode=False,
+                dry_run=dry_run
+            )
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Solo POST'}, status=405)
+
+@login_required
+def import_items_pago_progress(request):
+    """
+    API para consultar el progreso de la importación desde el caché.
+    """
+    cache_key = f"import_items_pago_progress_{request.user.id}"
+    data = cache.get(cache_key)
+    return JsonResponse(data or {'status': 'waiting'})
