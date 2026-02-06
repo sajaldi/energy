@@ -198,11 +198,30 @@ def api_requisicion_detalle(request, pk):
         'proveedor': requisicion.proveedor.nombre if requisicion.proveedor else "No asignado",
         'total_estimado': float(requisicion.total_estimado),
         'total_pagado': float(requisicion.monto_pagado),
+        'comentarios': requisicion.cr8ca_comentarios or "",
         'articulos': articulos,
         'pagos': pagos
     }
     
     return JsonResponse(data)
+
+@login_required
+@csrf_exempt
+def api_update_requisicion_comentarios(request, pk):
+    """
+    Actualiza los comentarios de una requisición vía AJAX.
+    """
+    if request.method == 'POST':
+        try:
+            from .models import Requisicion
+            data = json.loads(request.body)
+            requisicion = get_object_or_404(Requisicion, pk=pk)
+            requisicion.cr8ca_comentarios = data.get('comentarios', '')
+            requisicion.save()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Solo POST'}, status=405)
 
 @login_required
 def exportar_solicitud_pago_excel(request, pk):

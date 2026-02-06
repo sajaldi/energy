@@ -317,6 +317,16 @@
             color: #b91c1c;
         }
 
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         @media print {
             @page {
                 margin: 0.5cm;
@@ -615,6 +625,24 @@
                     </div>
                 </div>
 
+                <div
+                    style="margin-bottom: 2rem; padding: 1rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.5rem;">
+                    <label
+                        style="display: block; font-size: 0.75rem; color: #92400e; font-weight: 700; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        <i class="ph ph-note" style="vertical-align: middle;"></i> Comentarios y Notas Internas
+                    </label>
+                    <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                        <textarea id="modal-comentarios"
+                            style="flex: 1; min-height: 80px; padding: 0.75rem; border: 1px solid #fcd34d; border-radius: 0.4rem; font-family: inherit; font-size: 0.9rem; resize: vertical; background: white;"
+                            placeholder="Agregar notas o comentarios sobre esta requisición..."></textarea>
+                        <button onclick="saveRequisitionComments(event)" id="modal-save-comments"
+                            style="background: #d97706; color: white; border: none; border-radius: 0.4rem; padding: 0.75rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
+                            title="Guardar comentarios">
+                            <i class="ph ph-floppy-disk" style="font-size: 1.25rem;"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <h3
                     style="font-size: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem;">
                     <i class="ph ph-shopping-cart"></i> Artículos de la Requisición
@@ -680,6 +708,11 @@
                 document.getElementById('modal-total-est').textContent = formatCurrency(data.total_estimado);
                 document.getElementById('modal-total-pag').textContent = formatCurrency(data.total_pagado);
 
+                // Comentarios
+                const commentsArea = document.getElementById('modal-comentarios');
+                commentsArea.value = data.comentarios;
+                commentsArea.dataset.reqId = reqId;
+
                 // Llenar artículos
                 let artHtml = '';
                 data.articulos.forEach(art => {
@@ -720,6 +753,51 @@
 
         function closeModal(event) {
             document.getElementById('req-modal').style.display = 'none';
+        }
+
+        async function saveRequisitionComments(event) {
+            const btn = event.currentTarget;
+            const textarea = document.getElementById('modal-comentarios');
+            const reqId = textarea.dataset.reqId;
+            const comentarios = textarea.value;
+
+            if (!reqId) return;
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.innerHTML = '<i class="ph ph-circle-notch" style="animation: spin 1s linear infinite;"></i>';
+
+            try {
+                const response = await fetch(`/presupuestos/api/requisicion/${reqId}/update-comentarios/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({ comentarios })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    btn.style.background = '#059669';
+                    btn.innerHTML = '<i class="ph ph-check"></i>';
+                    setTimeout(() => {
+                        btn.style.background = '';
+                        btn.innerHTML = originalHtml;
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    }, 1500);
+                } else {
+                    throw new Error(data.message || 'Error al guardar');
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', error.message, 'error');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
         }
         // Configuración de CSRF para fetch
         function getCookie(name) {
