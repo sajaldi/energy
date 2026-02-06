@@ -16,7 +16,30 @@ from django.core.files.storage import default_storage
 from celery.result import AsyncResult
 from .tasks import import_materiales_task
 from django.views.decorators.csrf import csrf_exempt
+from .models import CategoriaMaterial
 
+@login_required
+def crear_solicitud_dashboard(request):
+    """
+    Dashboard premium para crear una Solicitud de Materiales con el selector 
+    exacto de la Requisición.
+    """
+    ubicaciones = Ubicacion.objects.all()
+    categorias = CategoriaMaterial.objects.all().order_by('nombre')
+    
+    # Obtener OTs activas para el buscador inicial
+    # Las demás se buscan vía AJAX
+    ordenes_recientes = OrdenTrabajo.objects.filter(
+        estado__in=['PROGRAMADA', 'EJECUCION']
+    ).order_by('-id')[:5]
+
+    context = {
+        'ubicaciones': ubicaciones,
+        'categorias': categorias,
+        'ordenes_recientes': ordenes_recientes,
+        'title': 'Crear Solicitud de Materiales'
+    }
+    return render(request, 'inventarios/crear_solicitud.html', context)
 @login_required
 def registrar_salida_view(request):
     """
@@ -140,20 +163,43 @@ def cart_detail_view(request):
 
 @login_required
 def cart_checkout(request):
-    """Procesa el carrito y crea una orden de salida con sus movimientos."""
+    """Procesa el carrito o una lista JSON y crea una orden de salida."""
     if request.method == 'POST':
-        cart = Cart(request)
-        items = cart.get_items()
+        ajax_mode = request.POST.get('ajax_mode') == 'true'
+        items_json = request.POST.get('items_json')
         
         ubicacion_id = request.POST.get('ubicacion_origen')
         ot_id = request.POST.get('orden_trabajo')
         comentarios = request.POST.get('comentarios', '')
         
-        if not items:
+        items_to_process = []
+        
+        if items_json:
+            # Procesar desde JSON (Dashboard nuevo)
+            try:
+                raw_items = json.loads(items_json)
+                for ri in raw_items:
+                    mat = get_object_or_404(Material, id=ri['material_id'])
+                    items_to_process.append({
+                        'material': mat,
+                        'quantity': ri['cantidad']
+                    })
+            except Exception as e:
+                if ajax_mode: return JsonResponse({'status': 'error', 'message': f'JSON inválido: {str(e)}'}, status=400)
+                messages.error(request, "Datos de materiales inválidos.")
+                return redirect('inventarios:cart_detail')
+        else:
+            # Procesar desde el Carrito de sesión (Vista anterior)
+            cart = Cart(request)
+            items_to_process = cart.get_items()
+
+        if not items_to_process:
+            if ajax_mode: return JsonResponse({'status': 'error', 'message': 'No hay materiales seleccionados.'}, status=400)
             messages.error(request, "El carrito está vacío.")
             return redirect('inventarios:cart_detail')
             
         if not ubicacion_id:
+            if ajax_mode: return JsonResponse({'status': 'error', 'message': 'Selecciona una ubicación de origen.'}, status=400)
             messages.error(request, "Debes seleccionar una ubicación de origen.")
             return redirect('inventarios:cart_detail')
 
@@ -171,21 +217,28 @@ def cart_checkout(request):
                 )
 
                 # Crear los movimientos asociados
-                for item in items:
+                for item in items_to_process:
                     MovimientoInventario.objects.create(
                         solicitud=solicitud,
                         material=item['material'],
                         tipo='SALIDA',
                         cantidad=Decimal(str(item['quantity'])),
-                        ubicacion_origen=ubicacion, # Mantener para consistencia con el modelo MovimientoInventario
-                        orden_trabajo=ot, # Mantener para consistencia con el modelo MovimientoInventario
-                        usuario=request.user, # Mantener para consistencia con el modelo MovimientoInventario
-                        comentarios=comentarios # Mantener para consistencia con el modelo MovimientoInventario
+                        ubicacion_origen=ubicacion,
+                        orden_trabajo=ot,
+                        usuario=request.user,
+                        comentarios=comentarios
                     )
             
-            cart.clear()
-            messages.success(request, f"Orden #{solicitud.id} registrada correctamente con {len(items)} ítems.")
-            return redirect('inventarios:registrar_salida')
+            # Limpiar carrito solo si venimos de la vista de carrito
+            if not items_json:
+                Cart(request).clear()
+
+            msg = f"Orden #{solicitud.id} registrada correctamente con {len(items_to_process)} ítems."
+            if ajax_mode:
+                return JsonResponse({'status': 'success', 'message': msg, 'solicitud_id': solicitud.id})
+            
+            messages.success(request, msg)
+            return redirect('inventarios:crear_solicitud')
             
         except Exception as e:
             messages.error(request, f"Error en el proceso: {str(e)}")
