@@ -61,6 +61,11 @@ admin.site.unregister(User)
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     inlines = (PerfilUsuarioInline,)
+    list_display = ('username', 'email', 'first_name', 'last_name', 'get_nombre_completo', 'is_staff')
+
+    def get_nombre_completo(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+    get_nombre_completo.short_description = 'Nombre Completo'
 
 
 from . import views

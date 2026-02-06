@@ -51,6 +51,18 @@ def requisicion_webhook_update(request):
 
         requisicion.save()
 
+        # CREAR NOTIFICACIÓN FLOTANTE
+        if requisicion.usuario_solicitante:
+            from mantenimiento.models import NotificacionMantenimiento
+            tipo_notif = 'SUCCESS' if accion == 'APROBAR' else 'ERROR'
+            mensaje_notif = f"Tu requisición {numero_requisicion} ha sido {nuevo_estado}."
+            
+            NotificacionMantenimiento.objects.create(
+                user=requisicion.usuario_solicitante,
+                mensaje=mensaje_notif,
+                tipo=tipo_notif
+            )
+
         return JsonResponse({
             'success': True, 
             'message': f'Requisición {numero_requisicion} actualizada a {nuevo_estado}'

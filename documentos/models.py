@@ -28,6 +28,35 @@ class TipoDocumento(models.Model):
         verbose_name = "Tipo de Documento"
         verbose_name_plural = "Tipos de Documento"
 
+class MetadatoConfig(models.Model):
+    """
+    Configuración de campos dinámicos asociados a un Tipo de Documento.
+    """
+    TIPOS_CAMPO = (
+        ('TEXTO', 'Texto'),
+        ('EMAIL', 'Email'),
+        ('FECHA', 'Fecha'),
+        ('HORA', 'Hora'),
+        ('NUMERO', 'Número'),
+        ('URL', 'URL'),
+    )
+    
+    tipo_documento = models.ForeignKey(TipoDocumento, on_delete=models.CASCADE, related_name='metadatos_config')
+    nombre = models.CharField(max_length=50, help_text="Nombre interno del campo (ej: fecha_vencimiento)")
+    etiqueta = models.CharField(max_length=100, help_text="Nombre que verá el usuario (ej: Fecha de Vencimiento)")
+    tipo_campo = models.CharField(max_length=20, choices=TIPOS_CAMPO, default='TEXTO')
+    requerido = models.BooleanField(default=False)
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Configuración de Metadato"
+        verbose_name_plural = "Configuraciones de Metadatos"
+        ordering = ['orden']
+        unique_together = ('tipo_documento', 'nombre')
+
+    def __str__(self):
+        return f"{self.tipo_documento.nombre} - {self.etiqueta} ({self.tipo_campo})"
+
 class Disciplina(models.Model):
     nombre = models.CharField(max_length=100)
     codigo = models.CharField(max_length=10, unique=True, help_text="Abreviatura (ej: ELE, MEC)")
@@ -59,6 +88,17 @@ class Documento(models.Model):
     tipo_documento = models.ForeignKey(TipoDocumento, on_delete=models.PROTECT, verbose_name=_("Tipo"))
     disciplina = models.ForeignKey(Disciplina, on_delete=models.PROTECT, null=True, blank=True)
     
+    # Trazabilidad
+    respuesta_a = models.ForeignKey(
+        'self', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='respuestas',
+        verbose_name=_("Respuesta a"),
+        help_text="Documento al que este archivo hace referencia o responde."
+    )
+    
     # Metadatos de estado actual
     estado_actual = models.CharField(max_length=20, choices=ESTADOS, default='BORRADOR')
     
@@ -88,6 +128,22 @@ class Documento(models.Model):
             self.codigo = self.codigo.upper()
         super().save(*args, **kwargs)
 
+class MetadatoValor(models.Model):
+    """
+    Almacena el valor de un metadato dinámico para un documento específico.
+    """
+    documento = models.ForeignKey(Documento, on_delete=models.CASCADE, related_name='metadatos_valores')
+    config = models.ForeignKey(MetadatoConfig, on_delete=models.CASCADE)
+    valor = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Valor de Metadato"
+        verbose_name_plural = "Valores de Metadatos"
+        unique_together = ('documento', 'config')
+
+    def __str__(self):
+        return f"{self.documento.codigo}: {self.config.etiqueta} = {self.valor}"
+
 class Revision(models.Model):
     """
     Revisiones históricas del documento.
@@ -109,6 +165,20 @@ class Revision(models.Model):
     
     comentarios = models.TextField(blank=True, help_text="Descripción del cambio")
     hash_archivo = models.CharField(max_length=64, blank=True, editable=False)
+
+    # --- Campos para Extracción de Datos ---
+    estado_extraccion = models.CharField(
+        max_length=20,
+        choices=(
+            ('PENDIENTE', 'Pendiente'),
+            ('PROCESANDO', 'Procesando'),
+            ('COMPLETADO', 'Completado'),
+            ('ERROR', 'Error'),
+            ('NO_APLICA', 'No Aplica'),
+        ),
+        default='PENDIENTE'
+    )
+    datos_extraidos = models.JSONField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Revisión"

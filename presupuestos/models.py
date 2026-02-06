@@ -438,10 +438,7 @@ class Requisicion(models.Model):
     )
     cr8ca_totalenarticulos = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Total en Artículos")
     cr8ca_prioridad = models.IntegerField(choices=PRIORIDAD_CHOICES, default=2, null=True, blank=True, verbose_name="Prioridad")
-    cr8ca_tipodedocumento = models.IntegerField(null=True, blank=True, verbose_name="Tipo de Documento")
-    cr8ca_estatusorden = models.IntegerField(null=True, blank=True, verbose_name="Estatus Orden")
     cr8ca_id_oc = models.CharField(max_length=100, null=True, blank=True, verbose_name="ID OC (Orden de Compra)")
-    cr8ca_accion = models.IntegerField(null=True, blank=True, verbose_name="Acción")
     
     # Flags
     cr8ca_ejecutado = models.BooleanField(default=False)
@@ -451,15 +448,6 @@ class Requisicion(models.Model):
     cr8ca_seleccionar = models.BooleanField(default=True)
     
     # Lookups (IDs Externos)
-    _cr8ca_presupuesto_value = models.UUIDField(null=True, blank=True)
-    _cr8ca_proyecto_value = models.UUIDField(null=True, blank=True)
-    _cr8ca_area_value = models.UUIDField(null=True, blank=True)
-    _cr8ca_categoria_value = models.UUIDField(null=True, blank=True)
-    _cr8ca_departamento_value = models.UUIDField(null=True, blank=True)
-    _cr8ca_proveedorasignado_value = models.UUIDField(null=True, blank=True)
-    _cr8ca_solicita_value = models.UUIDField(null=True, blank=True)
-    _cr8ca_autoriza_value = models.UUIDField(null=True, blank=True)
-    _cr8ca_reviso_value = models.UUIDField(null=True, blank=True)
     _ownerid_value = models.UUIDField(null=True, blank=True)
     
     # Fechas y Metadatos
@@ -488,6 +476,15 @@ class Requisicion(models.Model):
     wizard_step = models.IntegerField(default=1, verbose_name="Paso del Wizard")
     usuario_solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Solicitante", related_name='requisiciones_solicitadas')
     usuario_en_nombre_de = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="En nombre de", related_name='requisiciones_en_nombre_de')
+
+    proveedor = models.ForeignKey(
+        'mantenimiento.Empresa',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisiciones_asignadas',
+        verbose_name="Proveedor Asignado"
+    )
 
     def save(self, *args, **kwargs):
         if not self.cr8ca_requisicion:
@@ -523,6 +520,19 @@ class Requisicion(models.Model):
     def total_estimado(self):
         return sum(item.subtotal for item in self.articulos.all())
 
+    @property
+    def mayan_documents(self):
+        """Retorna los documentos vinculados de Mayan EDMS"""
+        from documentos.models import MayanDocumentLink
+        from django.contrib.contenttypes.models import ContentType
+        ct = ContentType.objects.get_for_model(self.__class__)
+        return MayanDocumentLink.objects.filter(content_type=ct, object_id=self.pk)
+
+    @property
+    def monto_pagado(self):
+        """Suma de montos en solicitudes de pago con estatus PAGADO"""
+        return sum(item.monto_solicitado for item in self.items_pago.filter(estatus='PAGADO'))
+
     class Meta:
         verbose_name = "Requisición"
         verbose_name_plural = "Requisiciones"
@@ -534,7 +544,7 @@ class ArticuloRequisicion(models.Model):
     Artículos individuales dentro de una Requisición.
     Mapea campos de cr8ca_itemderequisicions.
     """
-    cr8ca_itemderequisicionid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cr8ca_itemderequisicionid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, null=False, blank=True)
     requisicion = models.ForeignKey(
         Requisicion, 
         on_delete=models.CASCADE, 
@@ -563,6 +573,10 @@ class ArticuloRequisicion(models.Model):
     _cr8ca_unidad_value = models.UUIDField(null=True, blank=True)
     
     def save(self, *args, **kwargs):
+        # Generate UUID if not provided
+        if not self.cr8ca_itemderequisicionid:
+            self.cr8ca_itemderequisicionid = uuid.uuid4()
+            
         if self.material:
             # Si no hay descripción manual, usar el nombre del material
             if not self.cr8ca_articulo:
@@ -626,3 +640,111 @@ class DocumentoRequisicion(models.Model):
         verbose_name = "Documento de Requisición"
         verbose_name_plural = "Documentos de Requisición"
         ordering = ['-creado_en']
+
+
+class SolicitudPago(models.Model):
+    """
+    Agrupa varias solicitudes de pago de distintas requisiciones.
+    """
+    ESTADOS = (
+        ('ABIERTA', 'Abierta'),
+        ('EN_REVISION', 'En Revisión'),
+        ('CERRADA', 'Cerrada'),
+    )
+
+    descripcion = models.CharField(max_length=255, verbose_name="Descripción Global/Referencia")
+    fecha_solicitud = models.DateField(default=datetime.now, verbose_name="Fecha de Solicitud")
+    usuario_solicitante = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True,
+        related_name='solicitudes_pago',
+        verbose_name="Solicitante"
+    )
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='ABIERTA')
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Solicitud {self.pk} - {self.descripcion}"
+
+    @property
+    def total_solicitado(self):
+        """Suma de montos de TODOS los items (Global)"""
+        return sum(item.monto_solicitado for item in self.items.all())
+
+    @property
+    def total_aprobado(self):
+        """Suma de montos con estatus APROBADO"""
+        return sum(item.monto_solicitado for item in self.items.filter(estatus='APROBADO'))
+
+    @property
+    def total_pagado(self):
+        """Suma de montos con estatus PAGADO"""
+        return sum(item.monto_solicitado for item in self.items.filter(estatus='PAGADO'))
+
+    class Meta:
+        verbose_name = "Solicitud de Pago"
+        verbose_name_plural = "Solicitudes de Pago"
+        ordering = ['-fecha_solicitud']
+
+
+class ItemSolicitudPago(models.Model):
+    """
+    Item individual de una solicitud de pago, vinculado a una requisición.
+    """
+    ESTATUS_CHOICES = (
+        ('SOLICITADO', 'Solicitado'),
+        ('APROBADO', 'Aprobado'),
+        ('PAGADO', 'Pagado'),
+        ('POSPUESTO', 'Pospuesto'),
+        ('RECHAZADO', 'Rechazado'),
+    )
+
+    CONDICION_PAGO_CHOICES = (
+        ('CONTADO', 'Al Contado'),
+        ('ANTICIPO', 'Anticipo'),
+        ('DIFERIDO', 'Diferido'),
+        ('CREDITO', 'A Plazos / Crédito'),
+        ('CONTRA_ENTREGA', 'Contra Entrega'),
+    )
+
+    solicitud = models.ForeignKey(
+        SolicitudPago, 
+        on_delete=models.CASCADE, 
+        related_name='items',
+        verbose_name="Solicitud Padre"
+    )
+    requisicion = models.ForeignKey(
+        Requisicion, 
+        on_delete=models.CASCADE, 
+        related_name='items_pago',
+        verbose_name="Requisición Vinculada"
+    )
+    
+    monto_solicitado = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Monto Solicitado")
+    condicion_pago = models.CharField(
+        max_length=20, 
+        choices=CONDICION_PAGO_CHOICES, 
+        null=True, 
+        blank=True, 
+        verbose_name="Condición de Pago"
+    )
+    descripcion = models.CharField(
+        max_length=500, 
+        verbose_name="Descripción del Pago",
+        help_text="Ej: Anticipo, Pago Parcial, Pago Final"
+    )
+    estatus = models.CharField(max_length=20, choices=ESTATUS_CHOICES, default='SOLICITADO', verbose_name="Estatus del Item")
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Pago para {self.requisicion} - {self.monto_solicitado}"
+
+    class Meta:
+        verbose_name = "Ítem de Solicitud de Pago"
+        verbose_name_plural = "Ítems de Solicitud de Pago"
+        unique_together = ('solicitud', 'requisicion')

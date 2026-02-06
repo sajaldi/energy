@@ -3,7 +3,8 @@ from django.utils.html import format_html
 from .models import (
     PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, 
     ItemPresupuesto, Compromiso, DetalleCompromiso, CambioPresupuesto, DetallePeriodico,
-    PresupuestoAgrupado, Requisicion, ArticuloRequisicion, DocumentoRequisicion
+    PresupuestoAgrupado, Requisicion, ArticuloRequisicion, DocumentoRequisicion,
+    SolicitudPago, ItemSolicitudPago
 )
 
 class GastoEjecutadoInline(admin.TabularInline):
@@ -302,11 +303,12 @@ class DocumentoRequisicionInline(admin.TabularInline):
 
 @admin.register(Requisicion)
 class RequisicionAdmin(admin.ModelAdmin):
-    list_display = ('cr8ca_requisicion', 'fecha', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'createdon')
-    list_filter = ('fecha', 'cr8ca_prioridad', 'cr8ca_tipodedocumento', 'createdon')
+    list_display = ('cr8ca_requisicion', 'fecha', 'proveedor', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'createdon')
+    list_filter = ('fecha', 'proveedor', 'cr8ca_prioridad', 'createdon')
     search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
+    ordering = ('-fecha',)
     inlines = [ArticuloRequisicionInline, DocumentoRequisicionInline]
-    readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon', 'total_estimado', 'import_background_btn')
+    readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon', 'total_estimado', 'monto_pagado', 'import_background_btn')
     
     def get_urls(self):
         urls = super().get_urls()
@@ -346,6 +348,7 @@ class RequisicionAdmin(admin.ModelAdmin):
             'costo': '57168.80',
             'cr8ca_prioridad': '2',
             'cr8ca_id_oc': 'OC-12345',
+            'proveedor': 'Proveedor Generico SA',
         }
         
         row_data = [sample_row.get(h, '') for h in headers]
@@ -365,7 +368,7 @@ class RequisicionAdmin(admin.ModelAdmin):
             'fields': ('cr8ca_requisicionid', 'cr8ca_requisicion', 'cr8ca_asunto', 'versionnumber', 'import_background_btn')
         }),
         ('Detalles y Estado', {
-            'fields': ('cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'total_estimado', 'cr8ca_prioridad', 'cr8ca_tipodedocumento', 'cr8ca_estatusorden', 'cr8ca_accion')
+            'fields': ('proveedor', 'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'total_estimado', 'monto_pagado', 'cr8ca_prioridad')
         }),
         ('Flags y Control', {
             'fields': ('cr8ca_ejecutado', 'cr8ca_cerrar', 'cr8ca_cajachica', 'cr8ca_solicituddetabladepago', 'cr8ca_seleccionar', 'statecode', 'statuscode')
@@ -376,12 +379,11 @@ class RequisicionAdmin(admin.ModelAdmin):
         ('Lookups Dynamics (IDs)', {
             'classes': ('collapse',),
             'fields': (
-                '_cr8ca_presupuesto_value', '_cr8ca_proyecto_value', '_cr8ca_area_value', 
-                '_cr8ca_categoria_value', '_cr8ca_departamento_value', '_cr8ca_proveedorasignado_value',
-                '_cr8ca_solicita_value', '_cr8ca_autoriza_value', '_cr8ca_reviso_value', '_ownerid_value'
+                '_ownerid_value',
             )
         }),
     )
+
 
 @admin.register(ArticuloRequisicion)
 class ArticuloRequisicionAdmin(admin.ModelAdmin):
@@ -390,3 +392,108 @@ class ArticuloRequisicionAdmin(admin.ModelAdmin):
     search_fields = ('cr8ca_articulo', 'requisicion__cr8ca_requisicion', 'material__nombre')
     autocomplete_fields = ['requisicion', 'material']
     readonly_fields = ('cr8ca_itemderequisicionid', 'createdon', 'modifiedon')
+
+
+
+class ItemSolicitudPagoInline(admin.TabularInline):
+    model = ItemSolicitudPago
+    extra = 1
+    fields = ('requisicion', 'total_req', 'pagado_req', 'monto_solicitado', 'condicion_pago', 'descripcion', 'estatus')
+    readonly_fields = ('total_req', 'pagado_req')
+    autocomplete_fields = ['requisicion']
+
+    def total_req(self, obj):
+        if obj.pk and obj.requisicion:
+            return f"{obj.requisicion.total_estimado:,.2f}"
+        return "-"
+    total_req.short_description = "Total Req."
+
+    def pagado_req(self, obj):
+        if obj.pk and obj.requisicion:
+            return f"{obj.requisicion.monto_pagado:,.2f}"
+        return "-"
+    pagado_req.short_description = "Pagado Req."
+
+    def has_add_permission(self, request, obj=None):
+        if obj and obj.estado == 'CERRADA':
+            return False
+        return super().has_add_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.estado == 'CERRADA':
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.estado == 'CERRADA':
+            return False
+        return super().has_delete_permission(request, obj)
+
+@admin.register(SolicitudPago)
+class SolicitudPagoAdmin(admin.ModelAdmin):
+    change_list_template = 'admin/presupuestos/solicitudpago/change_list.html'
+    list_display = ('id', 'descripcion', 'fecha_solicitud', 'usuario_solicitante', 'estado', 'get_total_solicitado', 'get_total_aprobado', 'get_total_pagado')
+    list_filter = ('estado', 'fecha_solicitud')
+    search_fields = ('descripcion', 'usuario_solicitante__username')
+    inlines = [ItemSolicitudPagoInline]
+    autocomplete_fields = ['usuario_solicitante']
+    readonly_fields = ('get_total_solicitado', 'get_total_aprobado', 'get_total_pagado')
+
+    def total_items(self, obj):
+        return obj.items.count()
+    total_items.short_description = "# Items"
+
+    def get_total_solicitado(self, obj):
+        return f"{obj.total_solicitado:,.2f}"
+    get_total_solicitado.short_description = "Monto Solicitado"
+
+    def get_total_aprobado(self, obj):
+        return f"{obj.total_aprobado:,.2f}"
+    get_total_aprobado.short_description = "Monto Aprobado"
+
+    def get_total_pagado(self, obj):
+        return f"{obj.total_pagado:,.2f}"
+    get_total_pagado.short_description = "Monto Pagado"
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = super().get_readonly_fields(request, obj)
+        if obj and obj.estado == 'CERRADA':
+            # Si está cerrada, SOLO los Gerentes pueden editar el campo 'estado'
+            # y NADA MÁS. O bien, podemos decir que todo es readonly salvo estado si es gerente.
+            # El requerimiento dice: "Una vez que esté en estatus Cerrada, solo los usuarios en el grupo 'Gerentes' Podrán modificar este campo"
+            # Asumiremos que el resto de campos quedan bloqueados para todos.
+            
+            is_gerente = request.user.groups.filter(name='Gerentes').exists()
+            if not is_gerente:
+                # Bloquear todo para no gerentes
+                return [f.name for f in self.model._meta.fields] + list(readonly)
+            else:
+                # Para gerentes, todo readonly EXCEPTO 'estado' (implícitamente)
+                # Obtenemos todos los campos
+                all_fields = [f.name for f in self.model._meta.fields]
+                # Removemos 'estado' de la lista de readonly
+                if 'estado' in all_fields:
+                    all_fields.remove('estado')
+                return all_fields + list(readonly)
+        return readonly
+
+@admin.register(ItemSolicitudPago)
+class ItemSolicitudPagoAdmin(admin.ModelAdmin):
+    list_display = ('solicitud', 'requisicion', 'total_req', 'pagado_req', 'monto_solicitado', 'condicion_pago', 'estatus', 'creado_en')
+    list_filter = ('estatus', 'condicion_pago', 'creado_en')
+    search_fields = ('requisicion__cr8ca_requisicion', 'solicitud__descripcion', 'descripcion')
+    autocomplete_fields = ['solicitud', 'requisicion']
+    readonly_fields = ('total_req', 'pagado_req')
+    
+    def total_req(self, obj):
+        if obj.requisicion:
+            return f"{obj.requisicion.total_estimado:,.2f}"
+        return "-"
+    total_req.short_description = "Total Requisición"
+
+    def pagado_req(self, obj):
+        if obj.requisicion:
+            return f"{obj.requisicion.monto_pagado:,.2f}"
+        return "-"
+    pagado_req.short_description = "Pagado Acumulado"
+
