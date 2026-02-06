@@ -7,7 +7,7 @@ class RequisicionForm(forms.ModelForm):
         model = Requisicion
         fields = [
             'cr8ca_requisicion', 'fecha', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
-            'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion'
+            'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos'
         ]
         widgets = {
             'cr8ca_requisicion': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
@@ -20,6 +20,10 @@ class RequisicionForm(forms.ModelForm):
             'usuario_en_nombre_de': forms.Select(attrs={'class': 'form-control select2-material'}),
             'cr8ca_id_oc': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ID de Orden de Compra'}),
             'estado_requisicion': forms.Select(attrs={'class': 'form-control', 'disabled': 'disabled'}),
+            'cr8ca_totalenarticulos': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
+        }
+        labels = {
+            'cr8ca_totalenarticulos': 'Costo Aproximado'
         }
 
     def __init__(self, *args, **kwargs):
@@ -39,6 +43,13 @@ class ArticuloRequisicionForm(forms.ModelForm):
             'cr8ca_cantidad': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'cr8ca_costoaproximado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make UUID field not required for new instances
+        if 'cr8ca_itemderequisicionid' in self.fields:
+            self.fields['cr8ca_itemderequisicionid'].required = False
+            self.fields['cr8ca_itemderequisicionid'].widget = forms.HiddenInput()
 
 ArticuloFormSet = forms.inlineformset_factory(
     Requisicion, ArticuloRequisicion,

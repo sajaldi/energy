@@ -125,8 +125,18 @@ class PuestoTrabajoAdmin(admin.ModelAdmin):
 
 from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Empresa
 
+class EmpresaResource(resources.ModelResource):
+    class Meta:
+        model = Empresa
+        fields = ('id', 'nombre', 'descripcion', 'activo', 'creado_en')
+        export_order = ('id', 'nombre', 'descripcion', 'activo', 'creado_en')
+        skip_unchanged = True
+        report_skipped = True
+        import_id_fields = ('id',)
+
 @admin.register(Empresa)
-class EmpresaAdmin(admin.ModelAdmin):
+class EmpresaAdmin(ImportExportModelAdmin):
+    resource_class = EmpresaResource
     list_display = ('nombre', 'activo', 'creado_en')
     search_fields = ('nombre',)
     list_filter = ('activo',)

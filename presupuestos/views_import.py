@@ -121,7 +121,17 @@ def requisicion_upsert(request, pk=None):
         # Para nuevas requisiciones, creamos una instancia temporal para el form
         instance = Requisicion(usuario_solicitante=request.user)
 
+    # Bloquear edición si ya está autorizada
+    is_readonly = False
+    if instance and instance.estado_requisicion == 'AUTORIZADO':
+        is_readonly = True
+        messages.warning(request, "Esta requisición ya fue autorizada y no se puede editar.")
+
     if request.method == 'POST':
+        if is_readonly:
+             messages.error(request, "No se pueden guardar cambios: La requisición ya está autorizada.")
+             return redirect('presupuestos:requisicion_dashboard')
+
         form = RequisicionForm(request.POST, instance=instance)
         articulo_formset = ArticuloFormSet(request.POST, instance=instance, prefix='articulos')
         documento_formset = DocumentoFormSet(request.POST, request.FILES, instance=instance, prefix='documentos')
@@ -165,7 +175,30 @@ def requisicion_upsert(request, pk=None):
             url = reverse('presupuestos:requisicion_editar', kwargs={'pk': instance.pk})
             return redirect(f"{url}?step={target_step}")
         else:
-            messages.error(request, "Por favor corrige los errores para continuar.")
+            # Mostrar errores específicos
+            error_messages = []
+            if current_step == 1 and not form.is_valid():
+                for field, errors in form.errors.items():
+                    field_label = form.fields[field].label if field in form.fields else field
+                    error_messages.append(f"{field_label}: {', '.join(errors)}")
+            elif current_step == 2 and not articulo_formset.is_valid():
+                for i, form_errors in enumerate(articulo_formset.errors):
+                    if form_errors:
+                        error_messages.append(f"Artículo {i+1}: {', '.join([f'{k}: {v[0]}' for k, v in form_errors.items()])}")
+                if articulo_formset.non_form_errors():
+                    error_messages.extend(articulo_formset.non_form_errors())
+            elif current_step == 3 and not documento_formset.is_valid():
+                for i, form_errors in enumerate(documento_formset.errors):
+                    if form_errors:
+                        error_messages.append(f"Documento {i+1}: {', '.join([f'{k}: {v[0]}' for k, v in form_errors.items()])}")
+                if documento_formset.non_form_errors():
+                    error_messages.extend(documento_formset.non_form_errors())
+            
+            if error_messages:
+                for error_msg in error_messages:
+                    messages.error(request, error_msg)
+            else:
+                messages.error(request, "Por favor corrige los errores para continuar.")
 
     else:
         form = RequisicionForm(instance=instance)
@@ -179,6 +212,7 @@ def requisicion_upsert(request, pk=None):
         'instance': instance,
         'title': f"Editar Requisición {instance.cr8ca_requisicion}" if instance else "Nueva Requisición",
         'current_step': current_step,
+        'is_readonly': is_readonly,
     }
     return render(request, 'admin/presupuestos/requisicion/requisicion_form.html', context)
 
@@ -191,6 +225,9 @@ def requisicion_dashboard(request):
     from django.utils import timezone
     from datetime import timedelta
 
+    # Obtener parámetro de búsqueda
+    search_query = request.GET.get('q', '').strip()
+
     # Métricas básicas
     total_reqs = Requisicion.objects.count()
     total_monto = Requisicion.objects.aggregate(total=Sum('cr8ca_totalenarticulos'))['total'] or 0
@@ -202,8 +239,20 @@ def requisicion_dashboard(request):
     # Desglose por prioridad
     prioridad_data = Requisicion.objects.values('cr8ca_prioridad').annotate(count=Count('cr8ca_prioridad')).order_by('cr8ca_prioridad')
     
-    # Últimas 10 requisiciones
-    ultimas_requisiciones = Requisicion.objects.all().order_by('-createdon')[:10]
+    # Últimas requisiciones con búsqueda y ordenamiento por fecha (más nuevas primero)
+    requisiciones_query = Requisicion.objects.all()
+    
+    # Aplicar búsqueda si existe
+    if search_query:
+        requisiciones_query = requisiciones_query.filter(
+            Q(cr8ca_requisicion__icontains=search_query) |
+            Q(cr8ca_asunto__icontains=search_query) |
+            Q(cr8ca_motivo__icontains=search_query)
+        )
+    
+    # Ordenar por fecha de solicitud (más nuevas primero)
+    # Usar fecha si existe, sino createdon
+    ultimas_requisiciones = requisiciones_query.order_by('-fecha', '-createdon')[:20]
 
     context = {
         'total_reqs': total_reqs,
@@ -211,6 +260,7 @@ def requisicion_dashboard(request):
         'reqs_recientes': reqs_recientes,
         'prioridad_data': prioridad_data,
         'ultimas_requisiciones': ultimas_requisiciones,
+        'search_query': search_query,
         'title': 'Dashboard de Requisiciones'
     }
     return render(request, 'admin/presupuestos/requisicion/dashboard.html', context)

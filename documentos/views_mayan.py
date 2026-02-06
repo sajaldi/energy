@@ -5,6 +5,8 @@ from django.views.decorators.csrf import csrf_exempt
 from .mayan_client import MayanEDMSClient
 from .models import MayanDocumentLink
 from django.contrib.contenttypes.models import ContentType
+from .models import TipoDocumento, Documento
+from django.shortcuts import render, redirect, get_object_or_404
 
 @csrf_exempt
 @staff_member_required

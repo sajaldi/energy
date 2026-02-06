@@ -1,0 +1,305 @@
+{# VERSION 2.0 - ANTI-SYNTAX-ERROR #}
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    :root {
+        --primary: #4f46e5;
+        --primary-hover: #4338ca;
+        --primary-light: #f5f3ff;
+        --border-color: #e5e7eb;
+        --text-dark: #111827;
+        --text-muted: #6b7280;
+    }
+
+    .wizard-wrapper {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 0 20px;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .stepper {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 40px;
+        position: relative;
+    }
+
+    .stepper::before {
+        content: "";
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--border-color);
+        z-index: 0;
+    }
+
+    .step-item {
+        flex: 1;
+        text-align: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: white;
+        border: 2px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        font-weight: bold;
+        color: var(--text-muted);
+    }
+
+    .step-item.active .step-circle {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: white;
+        transform: scale(1.1);
+        box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+    }
+
+    .step-item.completed .step-circle {
+        background: #10b981;
+        border-color: #10b981;
+        color: white;
+    }
+
+    .wizard-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+    }
+
+    .wizard-body {
+        padding: 40px;
+    }
+
+    .type-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .type-option {
+        cursor: pointer;
+        display: block;
+    }
+
+    .type-option input {
+        display: none;
+    }
+
+    .type-card {
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        background: white;
+        transition: all 0.2s;
+    }
+
+    .type-option input:checked+.type-card {
+        border-color: var(--primary);
+        background: var(--primary-light);
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 18px;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: var(--text-dark);
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-sizing: border-box;
+    }
+
+    .wizard-footer {
+        padding: 25px 40px;
+        background: #f9fafb;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .btn-btn {
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        border: none;
+    }
+
+    .btn-prev {
+        background: white;
+        color: var(--text-muted);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-next {
+        background: var(--primary);
+        color: white;
+    }
+
+    #loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        display: none;
+        z-index: 9999;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 6px solid #f3f3f3;
+        border-top: 6px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <h3 style="margin-top:20px;">Analizando...</h3>
+</div>
+<div class="wizard-wrapper">
+    <div class="stepper">
+        <div class="step-item {% if step > 0 %}active{% endif %} {% if step > 1 %}completed{% endif %}">
+            <div class="step-circle">1</div>
+            <div>Identificación</div>
+        </div>
+        <div class="step-item {% if step > 1 %}active{% endif %} {% if step > 2 %}completed{% endif %}">
+            <div class="step-circle">2</div>
+            <div>Carga</div>
+        </div>
+        <div class="step-item {% if step > 2 %}active{% endif %}">
+            <div class="step-circle">3</div>
+            <div>Verificación</div>
+        </div>
+    </div>
+    <div class="wizard-card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="wizard-body">
+                {% if step == 1 %}
+                <div class="form-group">
+                    <label class="form-label">Tipo de Documento *</label>
+                    <div class="type-grid">
+                        {% for t in tipos %}
+                        <label class="type-option">
+                            <input type="radio" name="tipo_id" value="{{ t.id }}" {% if
+                                t.id|slugify==saved_data.tipo_id|slugify %}checked{% endif %} required>
+                            <div class="type-card">
+                                <div>📄</div>
+                                <div style="font-weight:700;">{{ t.nombre }}</div><small>{{ t.codigo }}</small>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label class="form-label">Código (Opcional)</label><input type="text"
+                            name="codigo" class="form-input" value="{{ saved_data.codigo|default:'' }}"></div>
+                    <div class="form-group">
+                        <label class="form-label">Disciplina</label>
+                        <select name="disciplina_id" class="form-input">
+                            <option value="">---</option>
+                            {% for d in disciplinas %}<option value="{{ d.id }}" {% if
+                                d.id|slugify==saved_data.disciplina_id|slugify %}selected{% endif %}>{{ d.nombre }}
+                            </option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;"><label class="form-label">Título
+                            (Opcional)</label><input type="text" name="titulo" class="form-input"
+                            value="{{ saved_data.titulo|default:'' }}"></div>
+                </div>
+                {% endif %}
+                {% if step == 2 %}
+                <div style="border: 3px dashed #ccc; padding: 80px; text-align: center; border-radius: 16px; cursor: pointer;"
+                    onclick="document.getElementById('file-input').click()">
+                    <div style="font-size:4rem;">☁️</div>
+                    <h2>Subir Archivo</h2>
+                    <input type="file" name="archivo" id="file-input" style="display:none;"
+                        onchange="document.getElementById('fn').innerText='Seleccionado: ' + this.files[0].name"
+                        required>
+                    <div id="fn" style="margin-top:20px; font-weight:700; color:var(--primary);"></div>
+                </div>
+                {% endif %}
+                {% if step == 3 %}
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <div>
+                        <h4>Análisis</h4>
+                        <div
+                            style="background:#0f172a; color:#e2e8f0; border-radius:8px; padding:20px; font-family:monospace; height:350px; overflow-y:auto; white-space:pre-wrap;">
+                            {{ revision.datos_extraidos.text_preview|default:"(No hay texto)" }}</div>
+                    </div>
+                    <div>
+                        <div class="form-group"><label class="form-label">Código</label><input type="text" name="codigo"
+                                class="form-input"
+                                value="{% if suggested_code %}{{ suggested_code }}{% else %}{{ documento.codigo }}{% endif %}"
+                                required></div>
+                        <div class="form-group"><label class="form-label">Título</label><input type="text" name="titulo"
+                                class="form-input" value="{{ documento.titulo }}" required></div>
+                        <div class="form-group">
+                            <label class="form-label">Respuesta a</label>
+                            <select name="respuesta_a" class="form-input">
+                                <option value="">---</option>
+                                {% for dl in documentos_link %}
+                                <option value="{{ dl.id }}" {% if dl.id==documento.respuesta_a_id %}selected{% endif %}>
+                                    {{ dl.codigo }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="wizard-footer">
+                {% if step == 1 %}<a href="{% url 'admin:documentos_documento_changelist' %}"
+                    class="btn-btn btn-prev">Cancelar</a>
+                {% else %}<button type="button" class="btn-btn btn-prev" onclick="history.back()">Volver</button>{%
+                endif %}
+                <button type="submit" class="btn-btn btn-next">{% if step == 1 %}Siguiente{% elif step == 2 %}Analizar{%
+                    else %}Finalizar{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

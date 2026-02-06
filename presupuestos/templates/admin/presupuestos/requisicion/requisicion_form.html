@@ -253,6 +253,254 @@
         color: #166534;
         border: 1px solid #bbf7d0;
     }
+
+    /* Material Selector Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 9999;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 1200px;
+        max-height: 85vh;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-header {
+        padding: 20px 24px;
+        border-bottom: 2px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--text-muted);
+        transition: color 0.2s;
+    }
+
+    .modal-close:hover {
+        color: var(--text-main);
+    }
+
+    .modal-body {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .modal-sidebar {
+        width: 250px;
+        border-right: 1px solid var(--border);
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .modal-main {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .search-box {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+    }
+
+    .category-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .category-item {
+        padding: 10px 12px;
+        margin-bottom: 4px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.85rem;
+    }
+
+    .category-item:hover {
+        background: var(--bg-body);
+    }
+
+    .category-item.active {
+        background: var(--primary);
+        color: white;
+        font-weight: 600;
+    }
+
+    .materials-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 16px;
+    }
+
+    .material-card {
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        position: relative;
+    }
+
+    .material-card:hover {
+        border-color: var(--primary);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        transform: translateY(-2px);
+    }
+
+    .material-card.selected {
+        border-color: var(--primary);
+        background: rgba(16, 185, 129, 0.05);
+    }
+
+    .material-card .quantity-controls {
+        display: none;
+        margin-top: 12px;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .material-card.selected .quantity-controls {
+        display: flex;
+    }
+
+    .quantity-input {
+        width: 70px;
+        padding: 6px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        text-align: center;
+        font-size: 0.85rem;
+    }
+
+    .qty-btn {
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--border);
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+    }
+
+    .qty-btn:hover {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    .add-to-cart-btn {
+        padding: 6px 12px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .add-to-cart-btn:hover {
+        background: var(--primary-dark);
+    }
+
+    .material-image {
+        width: 100%;
+        height: 120px;
+        object-fit: contain;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        padding: 10px;
+    }
+
+    .material-name {
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+        color: var(--text-main);
+    }
+
+    .material-sku {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+    }
+
+    .material-stock {
+        font-size: 0.75rem;
+        color: var(--primary);
+        font-weight: 600;
+    }
+
+    .pagination-controls {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 20px;
+    }
+
+    .pagination-btn {
+        padding: 8px 16px;
+        border: 1px solid var(--border);
+        background: white;
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 </style>
 {% endblock %}
 
@@ -347,6 +595,8 @@
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                     <div class="form-group"><label class="form-label">Fecha</label>{{ form.fecha }}</div>
                     <div class="form-group"><label class="form-label">Prioridad</label>{{ form.cr8ca_prioridad }}</div>
+                    <div class="form-group"><label class="form-label">Costo Aproximado</label>{{
+                        form.cr8ca_totalenarticulos }}</div>
                 </div>
                 <div class="form-group"><label class="form-label">Asunto</label>{{ form.cr8ca_asunto }}</div>
                 <div class="form-group"><label class="form-label">Motivo</label>{{ form.cr8ca_motivo }}</div>
@@ -364,8 +614,8 @@
         <div class="form-card {% if current_step == 2 %}active{% endif %}" id="card-step-2">
             <div class="card-header">
                 <h3 class="card-title">📦 Paso 2: Artículos / Materiales</h3>
-                <button type="button" class="btn-custom btn-outline-custom" id="add-article"
-                    style="padding: 6px 12px; font-size: 0.8rem;">➕ Añadir Item</button>
+                <button type="button" class="btn-custom btn-primary-custom" id="open-material-selector"
+                    style="padding: 6px 12px; font-size: 0.8rem;">🛒 Seleccionar Materiales</button>
             </div>
             <div class="card-body" id="article-formset">
                 {{ articulo_formset.management_form }}
@@ -406,10 +656,33 @@
         <div class="form-card {% if current_step == 3 %}active{% endif %}" id="card-step-3">
             <div class="card-header">
                 <h3 class="card-title">📂 Paso 3: Documentos Adjuntos</h3>
-                <button type="button" class="btn-custom btn-outline-custom" id="add-document"
-                    style="padding: 6px 12px; font-size: 0.8rem;">➕ Adjuntar Archivo</button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn-custom btn-outline-custom" id="open-mayan-wizard"
+                        style="padding: 6px 12px; font-size: 0.8rem; background: #e8f5e9; border-color: #2e7d32; color: #1b5e20;">☁️
+                        Subir a Mayan</button>
+                    <button type="button" class="btn-custom btn-outline-custom" id="add-document"
+                        style="padding: 6px 12px; font-size: 0.8rem;">➕ Adjuntar Local</button>
+                </div>
             </div>
             <div class="card-body" id="document-formset">
+                {% if instance.pk and instance.mayan_documents %}
+                <div style="margin-bottom: 20px;">
+                    <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Documentos en Mayan
+                    </h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        {% for doc in instance.mayan_documents %}
+                        <div class="document-preview-item" data-url="{{ doc.download_url }}"
+                            data-name="{{ doc.document_label }}"
+                            style="padding: 8px 12px; border: 1px solid #b7e1cd; border-radius: 4px; font-size: 0.8rem; background: #e8f5e9; cursor: pointer; transition: all 0.2s;">
+                            ☁️ {{ doc.document_label }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border);">
+                {% endif %}
+
+                <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Documentos Locales</h4>
                 {{ documento_formset.management_form }}
                 {% for d_form in documento_formset %}
                 <div class="document-row inline-row formset-row" style="grid-template-columns: 2fr 2fr 40px;">
@@ -492,6 +765,7 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% if instance.pk %}
                         {% for art in instance.articulos.all %}
                         <tr style="border-bottom: 1px solid var(--border);">
                             <td style="padding: 10px 5px;">{{ art.material.nombre|default:"-" }}</td>
@@ -505,20 +779,45 @@
                                 artículos registrados.</td>
                         </tr>
                         {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="padding: 20px; text-align: center; color: var(--text-muted);">
+                                Completa el Paso 1 para registrar artículos.</td>
+                        </tr>
+                        {% endif %}
                     </tbody>
                 </table>
 
                 <h4 style="color: var(--primary);">Documentos</h4>
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    {% if instance.pk %}
+                    {# Documentos de Mayan #}
+                    {% for doc in instance.mayan_documents %}
+                    <div class="document-preview-item" data-url="{{ doc.download_url }}"
+                        data-name="{{ doc.document_label }}"
+                        style="padding: 8px 12px; border: 1px solid #b7e1cd; border-radius: 4px; font-size: 0.8rem; background: #e8f5e9; cursor: pointer; transition: all 0.2s;">
+                        ☁️ {{ doc.document_label }}
+                    </div>
+                    {% endfor %}
+
+                    {# Documentos Locales #}
                     {% for doc in instance.documentos.all %}
-                    <div
-                        style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem; background: #f8fafc;">
+                    <div class="document-preview-item" data-url="{{ doc.archivo.url }}"
+                        data-name="{{ doc.nombre|default:doc.archivo.name }}"
+                        style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem; background: #f8fafc; cursor: pointer; transition: all 0.2s;">
                         📄 {{ doc.nombre|default:doc.archivo.name }}
                     </div>
                     {% empty %}
+                    {% if not instance.mayan_documents %}
                     <p style="color: var(--text-muted); font-style: italic;">Sin documentos adjuntos.</p>
+                    {% endif %}
                     {% endfor %}
+                    {% else %}
+                    <p style="color: var(--text-muted); font-style: italic;">Guarda el borrador para adjuntar
+                        documentos.</p>
+                    {% endif %}
                 </div>
+                <div style="display:none">{{ form.wizard_step }}</div>
             </div>
             <div class="card-body"
                 style="border-top: 1px solid var(--border); display: flex; justify-content: space-between;">
@@ -529,6 +828,96 @@
         </div>
     </form>
 </div>
+
+<!-- Material Selector Modal -->
+<div class="modal-overlay" id="material-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">🛒 Seleccionar Materiales</h3>
+            <button class="modal-close" id="close-modal">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-sidebar">
+                <input type="text" class="search-box" id="material-search" placeholder="🔍 Buscar material...">
+                <h4 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--text-muted);">Categorías</h4>
+                <ul class="category-list" id="category-list">
+                    <li class="category-item active" data-category="">Todas</li>
+                </ul>
+            </div>
+            <div class="modal-main">
+                <div class="materials-grid" id="materials-grid">
+                    <!-- Materials will be loaded here -->
+                </div>
+                <div class="pagination-controls" id="pagination-controls" style="display: none;">
+                    <button class="pagination-btn" id="prev-page">← Anterior</button>
+                    <span id="page-info" style="padding: 8px 16px; font-size: 0.85rem;"></span>
+                    <button class="pagination-btn" id="next-page">Siguiente →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document Preview Modal -->
+<div class="modal-overlay" id="document-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 100%; max-height: 100%; width: 95vw; height: 95vh;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="document-modal-title">📄 Vista Previa de Documento</h3>
+            <button class="modal-close" id="close-document-modal">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 0; height: calc(100% - 60px);">
+            <iframe id="document-iframe" style="width: 100%; height: 100%; border: none;"></iframe>
+        </div>
+    </div>
+</div>
+
+<!-- Mayan Upload Wizard Modal -->
+<div class="modal-overlay" id="mayan-wizard-modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 class="modal-title">☁️ Subir Documento a Mayan</h3>
+            <button class="modal-close" id="close-mayan-wizard">✕</button>
+        </div>
+        <div class="modal-body">
+            <form id="mayan-upload-form">
+                <div class="form-group">
+                    <label class="form-label">Título del Documento</label>
+                    <input type="text" id="mayan-title" class="form-control" placeholder="Ej: Cotización de materiales"
+                        required
+                        style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="form-label">Asunto / Descripción</label>
+                    <textarea id="mayan-description" class="form-control" placeholder="Describe brevemente el contenido"
+                        style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; height: 80px;"></textarea>
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="form-label">Archivo</label>
+                    <input type="file" id="mayan-file" class="form-control" required
+                        style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                </div>
+
+                <div id="mayan-upload-progress" style="display: none; margin-top: 20px;">
+                    <div style="height: 10px; background: #eee; border-radius: 5px; overflow: hidden;">
+                        <div id="mayan-progress-bar"
+                            style="height: 100%; background: var(--primary); width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                    <p id="mayan-status-text"
+                        style="font-size: 0.8rem; margin-top: 5px; text-align: center; color: var(--text-muted);">
+                        Subiendo...</p>
+                </div>
+
+                <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-custom btn-outline-custom"
+                        id="cancel-mayan-upload">Cancelar</button>
+                    <button type="submit" class="btn-custom btn-primary-custom" id="submit-mayan-upload">🚀 Subir a
+                        Mayan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 
 <!-- Templates -->
 <div id="empty-article-row" class="empty-row">
@@ -578,9 +967,40 @@
                 console.error('Error al inicializar Select2:', e);
             }
 
-            // Registrar eventos de botones (esto debe correr pase lo que pase con Select2)
-            $('.next-step').on('click', function () {
+            // ReadOnly Check
+            const isReadOnly = "{{ is_readonly|yesno:'true,false' }}" === "true";
+
+            if (isReadOnly) {
+                console.log('Modo Solo Lectura Activado');
+                // Deshabilitar todos los inputs
+                $('#wizard-form :input').prop('disabled', true);
+
+                // Ocultar botones de acción de guardado/edición
+                $('.save-draft, #add-article, #add-document, .delete-row, .remove-new-row, #btn-finish, #btn-authorize').hide();
+
+                // Habilitar botones de navegación (aunque los inputs estén disabled)
+                $('.next-step, .prev-step').prop('disabled', false).show();
+
+                // Mensaje informativo
+                if ($('.alert-readonly').length === 0) {
+                    $('.form-container').prepend('<div class="alert-msg alert-error notify-readonly">🔒 Esta requisición está autorizada y no se puede editar.</div>');
+                }
+            }
+
+            // Registrar eventos de botones
+            $('.next-step').on('click', function (e) {
                 const nextStep = $(this).data('next');
+
+                if (isReadOnly) {
+                    // Navegación GET para modo lectura
+                    e.preventDefault();
+                    console.log('Navegando (Solo Lectura) al paso:', nextStep);
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('step', nextStep);
+                    window.location.href = url.toString();
+                    return;
+                }
+
                 console.log('Navegando al paso:', nextStep);
                 $('#target_step').val(nextStep);
                 $('#wizard-form').submit();
@@ -597,12 +1017,14 @@
             });
 
             $('#btn-finish').on('click', function () {
+                if (isReadOnly) return;
                 console.log('Finalizando requisición');
                 $('#final_save').val('true');
                 $('#wizard-form').submit();
             });
 
             $('.save-draft').on('click', function () {
+                if (isReadOnly) return;
                 console.log('Guardando borrador');
                 $('#final_save').val('true');
                 $('#wizard-form').submit();
@@ -626,6 +1048,14 @@
             $('#add-article').on('click', () => addRow('articulos', 'article-formset', 'empty-article-row'));
             $('#add-document').on('click', () => addRow('documentos', 'document-formset', 'empty-document-row'));
             $(document).on('click', '.remove-new-row', function () { $(this).closest('.formset-row').remove(); });
+            $(document).on('click', '.delete-row', function () {
+                const row = $(this).closest('.formset-row');
+                const deleteCheckbox = row.find('input[type="checkbox"][name$="-DELETE"]');
+                if (deleteCheckbox.length) {
+                    deleteCheckbox.prop('checked', true);
+                    row.hide();
+                }
+            });
 
             // Toggle "En nombre de"
             $('#toggle-behalf').on('click', function () {
@@ -675,6 +1105,336 @@
                     }
                 });
             });
+
+            // ========== MATERIAL SELECTOR MODAL ==========
+            const materialModal = {
+                currentPage: 1,
+                currentCategory: '',
+                searchQuery: '',
+
+                init() {
+                    this.loadCategories();
+                    this.bindEvents();
+                },
+
+                bindEvents() {
+                    $('#open-material-selector').on('click', () => this.open());
+                    $('#close-modal').on('click', () => this.close());
+                    $('.modal-overlay').on('click', (e) => {
+                        if (e.target.id === 'material-modal') this.close();
+                    });
+
+                    $('#material-search').on('input', (e) => {
+                        this.searchQuery = e.target.value;
+                        this.currentPage = 1;
+                        this.loadMaterials();
+                    });
+
+                    $(document).on('click', '.category-item', (e) => {
+                        $('.category-item').removeClass('active');
+                        $(e.target).addClass('active');
+                        this.currentCategory = $(e.target).data('category');
+                        this.currentPage = 1;
+                        this.loadMaterials();
+                    });
+
+                    $(document).on('click', '.material-card', (e) => {
+                        // Ignore clicks on buttons/inputs
+                        if ($(e.target).is('button, input')) return;
+
+                        const card = $(e.currentTarget);
+                        const wasSelected = card.hasClass('selected');
+
+                        // Deselect all others
+                        $('.material-card').removeClass('selected');
+
+                        // Toggle this one
+                        if (!wasSelected) {
+                            card.addClass('selected');
+                            card.find('.quantity-input').focus();
+                        }
+                    });
+
+                    $(document).on('click', '.qty-btn', (e) => {
+                        e.stopPropagation();
+                        const input = $(e.target).siblings('.quantity-input');
+                        const current = parseFloat(input.val()) || 1;
+                        const change = $(e.target).data('change');
+                        const newVal = Math.max(0.01, current + change);
+                        input.val(newVal.toFixed(2));
+                    });
+
+                    $(document).on('click', '.add-to-cart-btn', (e) => {
+                        e.stopPropagation();
+                        const card = $(e.target).closest('.material-card');
+                        const quantity = card.find('.quantity-input').val();
+
+                        this.addToFormset({
+                            id: card.data('id'),
+                            nombre: card.data('nombre'),
+                            sku: card.data('sku'),
+                            precio: card.data('precio')
+                        }, quantity, '');
+
+                        // Visual feedback
+                        card.removeClass('selected');
+                        card.css('background', 'rgba(16, 185, 129, 0.2)');
+                        setTimeout(() => card.css('background', ''), 500);
+                    });
+
+                    $('#prev-page').on('click', () => {
+                        if (this.currentPage > 1) {
+                            this.currentPage--;
+                            this.loadMaterials();
+                        }
+                    });
+
+                    $('#next-page').on('click', () => {
+                        this.currentPage++;
+                        this.loadMaterials();
+                    });
+                },
+
+                open() {
+                    $('#material-modal').addClass('active');
+                    this.loadMaterials();
+                },
+
+                close() {
+                    $('#material-modal').removeClass('active');
+                },
+
+                loadCategories() {
+                    $.get('/inventarios/api/categories/', (data) => {
+                        const list = $('#category-list');
+                        data.results.forEach(cat => {
+                            list.append(`<li class="category-item" data-category="${cat.id}">${cat.nombre}</li>`);
+                        });
+                    });
+                },
+
+                loadMaterials() {
+                    const params = {
+                        page: this.currentPage,
+                        q: this.searchQuery,
+                        category: this.currentCategory
+                    };
+
+                    $.get('/inventarios/api/materials/', params, (data) => {
+                        const grid = $('#materials-grid');
+                        grid.empty();
+
+                        if (data.results.length === 0) {
+                            grid.html('<p style="text-align: center; color: var(--text-muted); padding: 40px;">No se encontraron materiales.</p>');
+                            $('#pagination-controls').hide();
+                            return;
+                        }
+
+                        data.results.forEach(material => {
+                            grid.append(`
+                                <div class="material-card" 
+                                     data-id="${material.id}" 
+                                     data-nombre="${material.nombre}"
+                                     data-sku="${material.sku}"
+                                     data-precio="${material.precio_estimado}">
+                                    <img src="${material.image_url}" class="material-image" alt="${material.nombre}">
+                                    <div class="material-name">${material.nombre}</div>
+                                    <div class="material-sku">SKU: ${material.sku}</div>
+                                    <div class="material-stock">Stock: ${material.stock} ${material.unidad}</div>
+                                    <div class="quantity-controls">
+                                        <button class="qty-btn" data-change="-1" type="button">−</button>
+                                        <input type="number" class="quantity-input" value="1" min="0.01" step="0.01">
+                                        <button class="qty-btn" data-change="1" type="button">+</button>
+                                        <button class="add-to-cart-btn" type="button">✓ Agregar</button>
+                                    </div>
+                                </div>
+                            `);
+                        });
+
+                        // Pagination
+                        if (data.num_pages > 1) {
+                            $('#pagination-controls').show();
+                            $('#page-info').text(`Página ${data.current_page} de ${data.num_pages}`);
+                            $('#prev-page').prop('disabled', data.current_page === 1);
+                            $('#next-page').prop('disabled', !data.has_next);
+                        } else {
+                            $('#pagination-controls').hide();
+                        }
+                    });
+                },
+
+                addToFormset(material, quantity, description) {
+                    const totalForms = $('#id_articulos-TOTAL_FORMS');
+                    const count = parseInt(totalForms.val());
+                    const newRow = $('#empty-article-row').html().replace(/__prefix__/g, count);
+                    $('#article-formset').append(newRow);
+
+                    // Set values
+                    $(`#id_articulos-${count}-material`).val(material.id).trigger('change');
+                    $(`#id_articulos-${count}-cr8ca_articulo`).val(description || material.nombre);
+                    $(`#id_articulos-${count}-cr8ca_cantidad`).val(quantity);
+                    $(`#id_articulos-${count}-cr8ca_costoaproximado`).val(material.precio);
+
+                    // Initialize Select2 on new row
+                    try {
+                        if ($.fn.select2) $(`#id_articulos-${count}-material`).select2({ width: '100%' });
+                    } catch (e) { }
+
+                    totalForms.val(count + 1);
+                }
+            };
+
+            materialModal.init();
+
+            // ========== DOCUMENT PREVIEW MODAL ==========
+            const documentModal = {
+                init() {
+                    this.bindEvents();
+                },
+
+                bindEvents() {
+                    // Open document modal on click
+                    $(document).on('click', '.document-preview-item', function () {
+                        const url = $(this).data('url');
+                        const name = $(this).data('name');
+                        documentModal.open(url, name);
+                    });
+
+                    // Close modal
+                    $('#close-document-modal').on('click', () => documentModal.close());
+                    $('#document-modal').on('click', (e) => {
+                        if (e.target.id === 'document-modal') documentModal.close();
+                    });
+
+                    // Hover effect
+                    $(document).on('mouseenter', '.document-preview-item', function () {
+                        $(this).css('background', '#e3f2fd');
+                    });
+                    $(document).on('mouseleave', '.document-preview-item', function () {
+                        $(this).css('background', '#f8fafc');
+                    });
+                },
+
+                open(url, name) {
+                    $('#document-modal-title').text(`📄 ${name}`);
+                    $('#document-iframe').attr('src', url);
+                    $('#document-modal').fadeIn(200);
+                },
+
+                close() {
+                    $('#document-modal').fadeOut(200);
+                    setTimeout(() => $('#document-iframe').attr('src', ''), 300);
+                }
+            };
+
+            documentModal.init();
+
+            // ========== MAYAN UPLOAD WIZARD ==========
+            const mayanWizard = {
+                init() {
+                    this.modal = $('#mayan-wizard-modal');
+                    this.form = $('#mayan-upload-form');
+                    this.progressBar = $('#mayan-progress-bar');
+                    this.progressContainer = $('#mayan-upload-progress');
+                    this.statusText = $('#mayan-status-text');
+                    this.submitBtn = $('#submit-mayan-upload');
+                    this.bindEvents();
+                },
+
+                bindEvents() {
+                    $('#open-mayan-wizard').on('click', () => this.open());
+                    $('#close-mayan-wizard, #cancel-mayan-upload').on('click', () => this.close());
+                    this.modal.on('click', (e) => {
+                        if (e.target.id === 'mayan-wizard-modal') this.close();
+                    });
+
+                    this.form.on('submit', (e) => {
+                        e.preventDefault();
+                        this.upload();
+                    });
+                },
+
+                open() {
+                    const reqId = "{{ instance.pk }}";
+                    if (!reqId || reqId === "None") {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: '¡Espera!',
+                            text: 'Debes completar el Paso 1 y 2 para poder subir documentos a Mayan.',
+                            confirmButtonColor: 'var(--primary)'
+                        });
+                        return;
+                    }
+                    this.form[0].reset();
+                    this.progressContainer.hide();
+                    this.progressBar.css('width', '0%');
+                    this.submitBtn.prop('disabled', false);
+                    this.modal.fadeIn(200);
+                },
+
+                close() {
+                    this.modal.fadeOut(200);
+                },
+
+                upload() {
+                    const formData = new FormData();
+                    formData.append('file', $('#mayan-file')[0].files[0]);
+                    formData.append('title', $('#mayan-title').val());
+                    formData.append('description', $('#mayan-description').val());
+                    formData.append('requisicion_id', "{{ instance.pk }}");
+                    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+                    this.progressContainer.show();
+                    this.submitBtn.prop('disabled', true);
+                    this.statusText.text('Subiendo documento...');
+
+                    $.ajax({
+                        url: "{% url 'presupuestos:mayan_upload_requisition_document' %}",
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        xhr: () => {
+                            const xhr = new window.XMLHttpRequest();
+                            xhr.upload.addEventListener("progress", (evt) => {
+                                if (evt.lengthComputable) {
+                                    const percentComplete = (evt.loaded / evt.total) * 100;
+                                    this.progressBar.css('width', percentComplete + '%');
+                                    if (percentComplete === 100) {
+                                        this.statusText.text('Procesando en Mayan...');
+                                    }
+                                }
+                            }, false);
+                            return xhr;
+                        },
+                        success: (response) => {
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Documento Subido!',
+                                text: response.message,
+                                confirmButtonColor: 'var(--primary)'
+                            }).then(() => {
+                                this.close();
+                                // Recargar la página para ver el nuevo documento en la lista (mejor que manipular el DOM)
+                                window.location.reload();
+                            });
+                        },
+                        error: (xhr) => {
+                            const errorMsg = xhr.responseJSON ? xhr.responseJSON.error : 'Ocurrió un error inesperado al subir a Mayan.';
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: errorMsg,
+                                confirmButtonColor: 'var(--primary)'
+                            });
+                            this.progressContainer.hide();
+                            this.submitBtn.prop('disabled', false);
+                        }
+                    });
+                }
+            };
+
+            mayanWizard.init();
 
             console.log('Eventos del Wizard registrados correctamente');
         }
