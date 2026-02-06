@@ -31,6 +31,7 @@ urlpatterns = [
     path('pagos/solicitud/<int:pk>/', views_pagos.detalle_solicitud_pago, name='detalle_solicitud_pago'),
     path('api/pagos/update-item/', views_pagos.api_update_item_pago, name='api_update_item_pago'),
     path('api/pagos/add-requisicion/', views_pagos.api_add_requisicion_pago, name='api_add_requisicion_pago'),
+    path('pagos/solicitud/<int:pk>/export/', views_pagos.exportar_solicitud_pago_excel, name='exportar_pago_excel'),
     
     # Mayan Integration
     path('api/mayan/upload-requisition-document/', views_mayan.upload_requisition_document_to_mayan, name='mayan_upload_requisition_document'),
