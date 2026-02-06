@@ -6,6 +6,7 @@ from datetime import datetime
 from django.http import HttpResponse, JsonResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
 import json
 
 @login_required
@@ -220,14 +221,15 @@ def exportar_solicitud_pago_excel(request, pk):
     # Ajustar anchos
     for col in ws.columns:
         max_length = 0
-        column = col[0].column_letter
+        column_index = col[0].column
+        column_letter = get_column_letter(column_index)
         for cell in col:
             try:
-                if len(str(cell.value)) > max_length:
+                if cell.value and len(str(cell.value)) > max_length:
                     max_length = len(str(cell.value))
             except:
                 pass
-        ws.column_dimensions[column].width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename=Solicitud_Pago_{solicitud.pk}.xlsx'
