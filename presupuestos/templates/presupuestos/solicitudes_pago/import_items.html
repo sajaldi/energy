@@ -1,0 +1,288 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Importar Items - Solicitud #{{ solicitud.pk }}</title>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary: #1e293b;
+            --success: #10b981;
+            --bg-body: #f8fafc;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-body);
+            padding: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .progress-container {
+            margin: 2rem 0;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 1.5rem;
+            background: #e2e8f0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .status-text {
+            margin-top: 0.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .results-box {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="header">
+            <i class="ph ph-file-arrow-up" style="font-size: 2rem; color: var(--primary);"></i>
+            <div>
+                <h1 style="margin: 0;">Importar Items de Pago</h1>
+                <p style="margin: 0; color: #64748b;">Solicitud #{{ solicitud.pk }} - {{ solicitud.descripcion }}</p>
+            </div>
+        </div>
+
+        {% if error %}
+        <div style="background: #fee2e2; color: #b91c1c; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" id="upload-form" {% if importing %}style="display:none;" {%
+            endif %}>
+            {% csrf_token %}
+            <div
+                style="border: 2px dashed var(--border-color); padding: 3rem; text-align: center; border-radius: 1rem; margin-bottom: 2rem;">
+                <input type="file" name="archivo" id="file-input" style="display: none;" accept=".csv, .xls, .xlsx">
+                <label for="file-input" style="cursor: pointer;">
+                    <i class="ph ph-cloud-arrow-up" style="font-size: 3rem; color: #94a3b8;"></i>
+                    <p style="margin-top: 1rem; font-weight: 500;">Haga clic para seleccionar o arrastre su archivo</p>
+                    <p style="font-size: 0.8rem; color: #94a3b8;">CSV, Excel (.xls, .xlsx)</p>
+                </label>
+                <div id="file-name" style="margin-top: 1rem; font-weight: 700; color: var(--success);"></div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="{% url 'presupuestos:detalle_solicitud_pago' solicitud.pk %}"
+                    style="color: #64748b; text-decoration: none;">
+                    <i class="ph ph-arrow-left"></i> Cancelar y volver
+                </a>
+                <button type="submit" class="btn btn-primary" id="btn-upload" disabled>
+                    <i class="ph ph-rocket-launch"></i> Iniciar Verificación
+                </button>
+            </div>
+        </form>
+
+        <div class="progress-container" id="progress-container" {% if importing %}style="display:block;" {% endif %}>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="status-text" id="status-text">Iniciando verificación asíncrona...</div>
+
+            <div id="verification-results" style="display: none; margin-top: 2rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                    <h3>Resultados de Verificación</h3>
+                    <div id="stats" style="font-weight: 700;"></div>
+                </div>
+                <div class="results-box" id="results-box"></div>
+                <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button class="btn" style="background: #94a3b8; color: white;"
+                        onclick="location.reload()">Reintentar</button>
+                    <button class="btn btn-success" id="btn-confirm" onclick="processImport(false)">Confirmar
+                        Importación</button>
+                </div>
+            </div>
+
+            <div id="final-results" style="display: none; margin-top: 2rem; text-align: center;">
+                <i class="ph ph-check-circle" style="font-size: 4rem; color: var(--success);"></i>
+                <h2 id="final-title">Importación Completada</h2>
+                <p id="final-summary"></p>
+                <div id="error-list" class="results-box" style="display: none; text-align: left;"></div>
+                <div style="margin-top: 2rem;">
+                    <a href="{% url 'presupuestos:detalle_solicitud_pago' solicitud.pk %}" class="btn btn-primary">
+                        <i class="ph ph-arrow-square-out"></i> Ver detalle de solicitud
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const fileNameDiv = document.getElementById('file-name');
+        const btnUpload = document.getElementById('btn-upload');
+        let pollingInterval = null;
+        let currentFilePath = null;
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                fileNameDiv.textContent = e.target.files[0].name;
+                btnUpload.disabled = false;
+            }
+        });
+
+        {% if importing %}
+        startPolling();
+        {% endif %}
+
+        function startPolling() {
+            pollingInterval = setInterval(async () => {
+                const res = await fetch('{% url "presupuestos:import_items_pago_progress" %}');
+                const data = await res.json();
+
+                if (data.status === 'completed') {
+                    clearInterval(pollingInterval);
+                    handleCompleted(data);
+                } else if (data.status === 'error') {
+                    clearInterval(pollingInterval);
+                    Swal.fire('Error', data.message, 'error');
+                } else if (data.percent !== undefined) {
+                    document.getElementById('progress-fill').style.width = data.percent + '%';
+                    document.getElementById('status-text').textContent = data.status || `Procesando... ${data.percent}%`;
+                }
+            }, 1000);
+        }
+
+        function handleCompleted(data) {
+            if (data.verification_mode) {
+                currentFilePath = data.file_path || null; // La tarea lo guarda en el cache si lo incluimos
+                // Si la tarea no devolvió el path, lo necesitamos para el step 2. 
+                // En mi implementación de tasks.py no devolví el file_path en verification_mode, corregiré eso.
+
+                document.getElementById('progress-fill').style.width = '100%';
+                document.getElementById('status-text').textContent = 'Verificación finalizada';
+                document.getElementById('verification-results').style.display = 'block';
+                document.getElementById('stats').textContent = `Total: ${data.total} | Encontrados: ${data.found} | No existen: ${data.not_found}`;
+
+                const box = document.getElementById('results-box');
+                box.innerHTML = data.results.join('<br>');
+
+                // Si no hay requisiciones encontradas, deshabilitar importar
+                if (data.found === 0) {
+                    document.getElementById('btn-confirm').disabled = true;
+                    document.getElementById('btn-confirm').style.opacity = '0.5';
+                }
+            } else {
+                document.getElementById('progress-container').style.display = 'none';
+                document.getElementById('final-results').style.display = 'block';
+                document.getElementById('final-summary').textContent = `Nuevos: ${data.new} | Actualizados: ${data.updated} | Errores: ${data.errors}`;
+
+                if (data.errors > 0) {
+                    const errBox = document.getElementById('error-list');
+                    errBox.style.display = 'block';
+                    errBox.innerHTML = '<strong>Detalle de errores:</strong><br>' + data.error_list.join('<br>');
+                }
+            }
+        }
+
+        async function processImport(dryRun) {
+            if (!currentFilePath) {
+                Swal.fire('Error', 'No se encontró la ruta del archivo temporal.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: '¿Confirmar Importación?',
+                text: "Se procesarán los items en la base de datos.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                confirmButtonText: 'Sí, importar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('verification-results').style.display = 'none';
+                    document.getElementById('status-text').textContent = 'Iniciando importación real...';
+                    document.getElementById('progress-fill').style.width = '0%';
+
+                    const res = await fetch('{% url "presupuestos:import_items_pago_process" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({
+                            solicitud_id: {{ solicitud.pk }},
+                        file_path: currentFilePath,
+                        dry_run: dryRun
+                        })
+        });
+
+        if (res.ok) {
+            startPolling();
+        } else {
+            const err = await res.json();
+            Swal.fire('Error', err.message, 'error');
+        }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

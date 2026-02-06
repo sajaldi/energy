@@ -3,7 +3,7 @@ from django.core.files.storage import default_storage
 from django.core.cache import cache
 from tablib import Dataset
 import time
-from .resources import RequisicionResource
+from .resources import RequisicionResource, ItemSolicitudPagoResource
 
 def try_decode(content, encodings=['utf-8-sig', 'iso-8859-1', 'windows-1252', 'utf-8']):
     for encoding in encodings:
@@ -58,6 +58,12 @@ def import_requisiciones_task(self, file_path, file_format, user_id=None, verifi
         found_count = 0
         not_found_count = 0
         
+        # Optimización: Prest-fetch de identificadores existentes para evitar N+1 queries
+        # Traemos solo los campos necesarios y los convertimos a string/set para búsqueda O(1)
+        existing_reqs = set(Requisicion.objects.exclude(cr8ca_requisicion__isnull=True).values_list('cr8ca_requisicion', flat=True))
+        # Para UUIDs, asegurar conversión a string para comparación
+        existing_uuids = set(str(uuid_val) for uuid_val in Requisicion.objects.values_list('cr8ca_requisicionid', flat=True))
+        
         for i, row in enumerate(dataset.dict, start=1):
             # Identificador de Dynamics (cr8ca_requisicion o ID UUID)
             req_id = str(row.get('cr8ca_requisicion') or '').strip()
@@ -70,10 +76,10 @@ def import_requisiciones_task(self, file_path, file_format, user_id=None, verifi
                 not_found_count += 1
             else:
                 exists = False
-                if req_id:
-                    exists = Requisicion.objects.filter(cr8ca_requisicion=req_id).exists()
-                elif uuid_id:
-                    exists = Requisicion.objects.filter(cr8ca_requisicionid=uuid_id).exists()
+                if req_id and req_id in existing_reqs:
+                    exists = True
+                elif uuid_id and uuid_id in existing_uuids:
+                    exists = True
                 
                 if exists:
                     found_count += 1
@@ -170,5 +176,91 @@ def import_requisiciones_task(self, file_path, file_format, user_id=None, verifi
         except:
             pass
         
+    cache.set(cache_key, final_res, 3600)
+    return final_res
+
+@shared_task(bind=True)
+def import_items_solicitud_task(self, file_path, file_format, user_id=None, solicitud_id=None, verification_mode=False, dry_run=False):
+    """
+    Tarea Celery para importar items de solicitud de pago.
+    """
+    from .models import ItemSolicitudPago, Requisicion
+    resource = ItemSolicitudPagoResource()
+    cache_key = f"import_items_pago_progress_{user_id}" if user_id else "import_items_pago_progress_system"
+
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(file_content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(file_content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        cache.set(cache_key, error_res, 3600)
+        return error_res
+
+    total_rows = len(dataset)
+    progress_info = {
+        'current': 0, 'total': total_rows, 'percent': 0,
+        'status': 'Procesando...', 'verification_mode': verification_mode,
+        'file_path': file_path
+    }
+    cache.set(cache_key, progress_info, 3600)
+
+    if verification_mode:
+        results = []
+        found_count = 0
+        existing_reqs = set(Requisicion.objects.values_list('cr8ca_requisicion', flat=True))
+        
+        for i, row in enumerate(dataset.dict, start=1):
+            req_code = str(row.get('codigo_requisicion') or row.get('requisicion_codigo') or '').strip()
+            exists = req_code in existing_reqs
+            if exists: found_count += 1
+            results.append(f"Fila {i}: '{req_code}' -> {'ENCONTRADO' if exists else 'NO EXISTE'}")
+            
+            if i % 20 == 0 or i == total_rows:
+                progress_info.update({'current': i, 'percent': int((i / total_rows) * 100)})
+                cache.set(cache_key, progress_info, 3600)
+
+        final_res = {
+            'status': 'completed', 'total': total_rows, 'found': found_count,
+            'not_found': total_rows - found_count, 'results': results, 
+            'verification_mode': True, 'file_path': file_path
+        }
+    else:
+        try:
+            # Pasar solicitud_id a través de kwargs para que Resource lo use en before_import_row
+            kwargs = {}
+            if solicitud_id:
+                kwargs['solicitud_id'] = solicitud_id
+                
+            result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False, **kwargs)
+            
+            detailed_errors = []
+            for line, errors in result.row_errors():
+                for error in errors:
+                    detailed_errors.append(f"Fila {line}: {str(error.error)}")
+
+            final_res = {
+                'status': 'completed', 
+                'total': total_rows,
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(detailed_errors),
+                'error_list': detailed_errors,
+                'dry_run': dry_run
+            }
+        except Exception as e:
+            final_res = {'status': 'error', 'message': str(e)}
+
+    if not dry_run:
+        try:
+            if default_storage.exists(file_path): default_storage.delete(file_path)
+        except: pass
+
     cache.set(cache_key, final_res, 3600)
     return final_res
