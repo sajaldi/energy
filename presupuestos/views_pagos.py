@@ -1,7 +1,8 @@
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Q, Count
+from django.db.models import Sum, Q, Count, OuterRef, Subquery, DecimalField
+from django.db.models.functions import Coalesce
 from .models import SolicitudPago
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
@@ -77,8 +78,19 @@ def detalle_solicitud_pago(request, pk):
     """
     solicitud = get_object_or_404(SolicitudPago.objects.prefetch_related('items', 'items__requisicion'), pk=pk)
     
-    from .models import Requisicion
-    requisiciones = Requisicion.objects.all().order_by('-cr8ca_requisicion')
+    from .models import Requisicion, ItemSolicitudPago
+    from django.db.models import Sum, DecimalField
+    from django.db.models.functions import Coalesce
+
+    # Anotamos el monto pagado para evitar N+1 en el select de requisiciones
+    pagos_reales = ItemSolicitudPago.objects.filter(requisicion=OuterRef('pk'), estatus='PAGADO')
+    requisiciones = Requisicion.objects.annotate(
+        monto_pagado_db=Coalesce(
+            Subquery(pagos_reales.values('requisicion').annotate(total=Sum('monto_solicitado')).values('total')),
+            0.0,
+            output_field=DecimalField()
+        )
+    ).select_related('proveedor').order_by('-cr8ca_requisicion')
     
     # Agrupar items por proveedor y calcular totales
     items_por_proveedor = {}
