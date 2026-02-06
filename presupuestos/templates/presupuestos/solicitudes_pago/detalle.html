@@ -177,6 +177,26 @@
             background-color: var(--primary-hover);
         }
 
+        /* Mini Pie Chart */
+        .pie-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .mini-pie {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary) 0% var(--p1),
+                    #fbbf24 var(--p1) calc(var(--p1) + var(--p2)),
+                    #e2e8f0 calc(var(--p1) + var(--p2)) 100%);
+            border: 1px solid #cbd5e1;
+            flex-shrink: 0;
+        }
+
         @media print {
             @page {
                 margin: 0.5cm;
@@ -315,14 +335,15 @@
                         <th>Asunto/Desc. Item</th>
                         <th>Descripción del Pago</th>
                         <th style="width: 140px; text-align: right;">Monto</th>
-                        <th style="width: 120px;">Estado</th>
+                        <th style="width: 140px; text-align: right;">Pagado RQ</th>
+                        <th style="width: 80px; text-align: center;">Avance</th>
                         <th style="width: 50px;"></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for proveedor, data in items_por_proveedor.items %}
                     <tr class="provider-header">
-                        <td colspan="4">
+                        <td colspan="5">
                             <i class="ph ph-buildings" style="margin-right: 0.5rem; color: var(--primary);"></i>
                             {{ proveedor }}
                         </td>
@@ -355,10 +376,23 @@
                                 value="{{ item.monto_solicitado|stringformat:'.2f' }}"
                                 onchange="updateItem({{ item.pk }}, 'monto_solicitado', this.value)">
                         </td>
-                        <td>
-                            <span class="status-badge status-{{ item.estatus }}">
-                                {{ item.get_estatus_display }}
-                            </span>
+                        <td style="text-align: right; font-weight: 600; color: var(--text-muted);">
+                            {{ item.requisicion.monto_pagado|floatformat:2|intcomma }}
+                        </td>
+                        <td style="text-align: center;">
+                            {% with r=item.requisicion total=item.requisicion.cr8ca_totalenarticulos %}
+                            {% if total > 0 %}
+                            {% widthratio r.monto_pagado total 100 as p1 %}
+                            {% widthratio item.monto_solicitado total 100 as p2 %}
+                            <div class="pie-container"
+                                title="Pagado: {{ r.monto_pagado|floatformat:2|intcomma }}&#10;Solicitado: {{ item.monto_solicitado|floatformat:2|intcomma }}&#10;Total RQ: {{ total|floatformat:2|intcomma }}">
+                                <div class="mini-pie" style="--p1: {{ p1 }}%; --p2: {{ p2 }}%;"></div>
+                                <span>{% widthratio r.monto_pagado|add:item.monto_solicitado total 100 %}%</span>
+                            </div>
+                            {% else %}
+                            <span style="color: #e2e8f0;">-</span>
+                            {% endif %}
+                            {% endwith %}
                         </td>
                         <td style="text-align: center;">
                             <a href="{% url 'admin:presupuestos_itemsolicitudpago_change' item.pk %}"
@@ -370,7 +404,7 @@
                     {% endfor %}
                     {% empty %}
                     <tr id="no-items-row">
-                        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <td colspan="8" style="text-align: center; padding: 3rem; color: var(--text-muted);">
                             No hay ítems asociados. Agregue uno abajo.
                         </td>
                     </tr>
