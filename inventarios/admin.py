@@ -51,7 +51,7 @@ class MaterialResource(resources.ModelResource):
         export_order = fields
 
     def before_import_row(self, row, **kwargs):
-        """Limpia los valores 'None' y quita espacios de los campos clave"""
+        """Limpia datos y auto-crea categorías/marcas para facilitar la importación."""
         for key in list(row.keys()):
             val = row.get(key)
             if val is None:
@@ -65,6 +65,81 @@ class MaterialResource(resources.ModelResource):
                     row[key] = val.strip()
                 else:
                     row[key] = val_str
+        
+        # Auto-crear Categoría
+        cat_nombre = row.get('categoria')
+        if cat_nombre:
+            CategoriaMaterial.objects.get_or_create(nombre=cat_nombre.strip())
+            
+        # Auto-crear Marca
+        marca_nombre = row.get('marca')
+        if marca_nombre:
+            Marca.objects.get_or_create(nombre=marca_nombre.strip())
+
+    def after_import_row(self, row, instance, **kwargs):
+        """
+        Procesa stock inicial y compatibilidades de repuestos.
+        """
+        # 1. Procesar Stock Inicial si viene en el archivo
+        stock_inicial = row.get('stock_inicial') or row.get('cantidad_inicial') or row.get('existencias')
+        ubicacion_nombre = row.get('ubicacion') or row.get('bodega') or row.get('almacen')
+        
+        if stock_inicial and ubicacion_nombre:
+            from activos.models import Ubicacion
+            from decimal import Decimal
+            
+            try:
+                # Buscar ubicación por nombre
+                ubicacion = Ubicacion.objects.filter(nombre__iexact=str(ubicacion_nombre).strip()).first()
+                if ubicacion:
+                    cantidad = Decimal(str(stock_inicial))
+                    if cantidad > 0:
+                        # Crear o actualizar registro de stock
+                        stock, created = StockRecord.objects.get_or_create(
+                            material=instance,
+                            ubicacion=ubicacion
+                        )
+                        if created:
+                            stock.cantidad = cantidad
+                        else:
+                            # Si ya existía, sumamos la carga inicial (o podrías decidir sobrescribir)
+                            stock.cantidad += cantidad
+                        stock.save()
+                        
+                        # Registrar movimiento de entrada si estamos en importación real (no dry run)
+                        if not kwargs.get('dry_run'):
+                            MovimientoInventario.objects.create(
+                                material=instance,
+                                tipo='ENTRADA',
+                                cantidad=cantidad,
+                                ubicacion_destino=ubicacion,
+                                estado='APROBADO',
+                                comentarios='Carga inicial desde importación masiva'
+                            )
+            except Exception as e:
+                pass # Errores silenciosos en stock para no romper la importación principal
+
+        # 2. Procesar Compatibilidad (Repuestos para modelos específicos)
+        modelos_compatibles = row.get('modelos_compatibles') or row.get('repuesto_para') or row.get('equipos')
+        if modelos_compatibles:
+            from activos.models import Modelo
+            from .models import CompatibilidadMaterial
+            
+            # Formatos soportados: "Modelo A, Modelo B" o "Modelo A; Modelo B"
+            delimitador = ';' if ';' in str(modelos_compatibles) else ','
+            nombres = [n.strip() for n in str(modelos_compatibles).split(delimitador) if n.strip()]
+            
+            for nombre in nombres:
+                modelo = Modelo.objects.filter(nombre__iexact=nombre).first()
+                if not modelo:
+                    # Intentar por código si no por nombre
+                    modelo = Modelo.objects.filter(codigo__iexact=nombre).first()
+                
+                if modelo:
+                    CompatibilidadMaterial.objects.get_or_create(
+                        material=instance,
+                        modelo=modelo
+                    )
 
 @admin.register(Material)
 class MaterialAdmin(ImportExportModelAdmin):
