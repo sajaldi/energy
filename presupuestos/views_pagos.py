@@ -71,13 +71,14 @@ def detalle_solicitud_pago(request, pk):
     from .models import Requisicion
     requisiciones = Requisicion.objects.all().order_by('-cr8ca_requisicion')
     
-    # Agrupar items por proveedor
+    # Agrupar items por proveedor y calcular totales
     items_por_proveedor = {}
     for item in solicitud.items.all():
         prov_nombre = item.requisicion.proveedor.nombre if item.requisicion.proveedor else "Sin Proveedor Asignado"
         if prov_nombre not in items_por_proveedor:
-            items_por_proveedor[prov_nombre] = []
-        items_por_proveedor[prov_nombre].append(item)
+            items_por_proveedor[prov_nombre] = {'lista_items': [], 'total': 0}
+        items_por_proveedor[prov_nombre]['lista_items'].append(item)
+        items_por_proveedor[prov_nombre]['total'] += (item.monto_solicitado or 0)
 
     context = {
         'solicitud': solicitud,
