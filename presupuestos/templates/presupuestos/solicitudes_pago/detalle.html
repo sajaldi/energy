@@ -13,6 +13,12 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <!-- SweetAlert2 para feedback -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- jQuery y Select2 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <style>
         .detail-container {
             max-width: 1200px;
@@ -158,6 +164,40 @@
             border: 1px solid var(--border-color);
             border-radius: 0.4rem;
             font-size: 0.9rem;
+        }
+
+        /* Estilos personalizados para Select2 */
+        .select2-container--default .select2-selection--single {
+            height: 38px;
+            border: 1px solid var(--border-color);
+            border-radius: 0.4rem;
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+        }
+
+        .select2-container {
+            width: 100% !important;
+        }
+
+        .select2-dropdown {
+            border: 1px solid var(--border-color);
+            border-radius: 0.4rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .select2-container--default .select2-search--dropdown .select2-search__field {
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            padding: 8px;
+        }
+
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: var(--primary);
         }
 
         .btn-add {
@@ -568,7 +608,7 @@
                     <select id="new-req-id" class="form-control">
                         <option value="">Seleccione una requisición...</option>
                         {% for req in requisiciones %}
-                        <option value="{{ req.pk }}" data-monto="{{ req.total_estimado }}">
+                        <option value="{{ req.pk }}" data-monto="{{ req.cr8ca_totalenarticulos|default:0 }}">
                             {{ req.cr8ca_requisicion }} - {{ req.cr8ca_asunto|truncatechars:40 }}
                         </option>
                         {% endfor %}
@@ -859,16 +899,26 @@
             }
         }
 
-        // Autocompletar monto al seleccionar requisición
-        document.getElementById('new-req-id').addEventListener('change', function () {
-            const selected = this.options[this.selectedIndex];
-            if (selected.value) {
-                const monto = selected.getAttribute('data-monto');
-                document.getElementById('new-req-monto').value = parseFloat(monto).toFixed(2);
-                if (!document.getElementById('new-req-desc').value) {
-                    document.getElementById('new-req-desc').value = 'Pago Requisición';
+        // Inicializar Select2
+        $(document).ready(function () {
+            $('#new-req-id').select2({
+                placeholder: "Buscar o seleccionar requisición...",
+                allowClear: true,
+                width: '100%'
+            });
+
+            // Autocompletar monto al seleccionar requisición (adaptado para Select2)
+            $('#new-req-id').on('change', function () {
+                const selected = $(this).select2('data')[0];
+                if (selected && selected.id) {
+                    const option = $(selected.element);
+                    const monto = option.attr('data-monto');
+                    $('#new-req-monto').val(parseFloat(monto).toFixed(2));
+                    if (!$('#new-req-desc').val()) {
+                        $('#new-req-desc').val('Pago Requisición');
+                    }
                 }
-            }
+            });
         });
 
         function handleAmountChange(id, value) {
