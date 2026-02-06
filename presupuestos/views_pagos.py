@@ -3,6 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Q, Count
 from .models import SolicitudPago
 from datetime import datetime
+from django.http import HttpResponse, JsonResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
+import json
 
 @login_required
 def dashboard_pagos(request):
@@ -151,3 +155,81 @@ def api_add_requisicion_pago(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error', 'message': 'Solo POST'}, status=405)
+
+@login_required
+def exportar_solicitud_pago_excel(request, pk):
+    """
+    Genera un archivo Excel con el detalle de la solicitud de pago.
+    """
+    solicitud = get_object_or_404(SolicitudPago.objects.prefetch_related('items', 'items__requisicion'), pk=pk)
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Solicitud_{solicitud.pk}"
+    
+    # Estilos
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
+    center_align = Alignment(horizontal="center")
+    
+    # Encabezado de la solicitud
+    ws.merge_cells('A1:G1')
+    ws['A1'] = f"SOLICITUD DE PAGO #{solicitud.pk}"
+    ws['A1'].font = Font(size=14, bold=True)
+    ws['A1'].alignment = center_align
+    
+    ws.append([])
+    ws.append(["Fecha:", solicitud.fecha_solicitud.strftime("%d/%m/%Y")])
+    ws.append(["Solicitante:", solicitud.usuario_solicitante.get_full_name() if solicitud.usuario_solicitante else "N/A"])
+    ws.append(["Descripción:", solicitud.descripcion or ""])
+    ws.append(["Estado:", solicitud.get_estado_display()])
+    ws.append([])
+    
+    # Tabla de items
+    headers = ["N° REQUISICIÓN", "PROVEEDOR", "ASUNTO", "DESCRIPCIÓN PAGO", "MONTO SOLICITADO", "PAGADO RQ", "AVANCE %"]
+    ws.append(headers)
+    
+    # Aplicar estilos a headers
+    for cell in ws[ws.max_row]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+
+    for item in solicitud.items.all():
+        total_rq = item.requisicion.cr8ca_totalenarticulos or 0
+        pagado_rq = item.requisicion.monto_pagado or 0
+        porcentaje = 0
+        if total_rq > 0:
+            porcentaje = ((pagado_rq + (item.monto_solicitado or 0)) / total_rq) * 100
+        
+        row = [
+            item.requisicion.cr8ca_requisicion,
+            item.requisicion.proveedor.nombre if item.requisicion.proveedor else "N/A",
+            item.requisicion.cr8ca_asunto,
+            item.descripcion,
+            float(item.monto_solicitado or 0),
+            float(pagado_rq),
+            f"{porcentaje:.2f}%"
+        ]
+        ws.append(row)
+        
+    # Totales al final
+    ws.append([])
+    ws.append(["", "", "", "TOTAL SOLICITADO:", float(solicitud.total_solicitado or 0)])
+    
+    # Ajustar anchos
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        ws.column_dimensions[column].width = min(max_length + 2, 50)
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=Solicitud_Pago_{solicitud.pk}.xlsx'
+    wb.save(response)
+    return response
