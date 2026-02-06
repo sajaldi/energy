@@ -196,6 +196,8 @@
                     #e2e8f0 calc(var(--p1) + var(--p2)) 100%);
             border: 1px solid #cbd5e1;
             flex-shrink: 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
 
         @media print {
@@ -373,9 +375,9 @@
                                 placeholder="Click para editar descripción...">
                         </td>
                         <td>
-                            <input type="number" step="0.01" class="editable-input amount-input"
-                                value="{{ item.monto_solicitado|stringformat:'.2f' }}"
-                                onchange="updateItem({{ item.pk }}, 'monto_solicitado', this.value)">
+                            <input type="text" class="editable-input amount-input"
+                                value="{{ item.monto_solicitado|currency }}"
+                                onchange="handleAmountChange({{ item.pk }}, this.value)">
                         </td>
                         <td style="text-align: right; font-weight: 600; color: var(--text-muted);">
                             {{ item.requisicion.monto_pagado|currency }}
@@ -513,6 +515,12 @@
                 }
             }
         });
+
+        function handleAmountChange(id, value) {
+            // Limpiar comas para enviar al backend
+            const cleanValue = value.replace(/,/g, '');
+            updateItem(id, 'monto_solicitado', cleanValue);
+        }
 
         async function updateItem(id, campo, valor) {
             try {
