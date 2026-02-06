@@ -234,9 +234,20 @@
             </div>
         </div>
 
-        <h2 style="margin-bottom: 1.5rem; font-size: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
-            <i class="ph ph-list-numbers" style="color: var(--primary);"></i> Ítems y Requisiciones
-        </h2>
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
+            <h2 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="ph ph-list-numbers" style="color: var(--primary);"></i> Ítems y Requisiciones
+            </h2>
+
+            <div style="position: relative; flex: 1; max-width: 400px;">
+                <i class="ph ph-magnifying-glass"
+                    style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                <input type="text" id="table-search" placeholder="Buscar ítems..."
+                    style="width: 100%; padding: 0.5rem 0.75rem 0.5rem 2.25rem; border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.9rem; outline: none; transition: border-color 0.2s;"
+                    onkeyup="filterTable()">
+            </div>
+        </div>
 
         <div class="items-section">
             <table class="items-table" id="items-table">
@@ -355,6 +366,49 @@
             return cookieValue;
         }
         const csrftoken = getCookie('csrftoken');
+
+        function filterTable() {
+            const input = document.getElementById('table-search');
+            const filter = input.value.toLowerCase().trim();
+            const table = document.getElementById('items-table');
+            const tbody = table.querySelector('tbody');
+            const rows = tbody.querySelectorAll('tr');
+
+            let currentHeader = null;
+            let groupHasVisibleItems = false;
+
+            rows.forEach(row => {
+                if (row.classList.contains('provider-header')) {
+                    // Si el grupo anterior no tuvo items visibles y estábamos filtrando, se ocultará después
+                    if (currentHeader && !groupHasVisibleItems && filter !== "") {
+                        currentHeader.style.display = 'none';
+                    }
+
+                    currentHeader = row;
+                    groupHasVisibleItems = false;
+                    row.style.display = ''; // Mostrar por defecto para evaluar
+                } else if (row.id === 'no-items-row') {
+                    // No hacer nada con la fila de "no hay items"
+                } else {
+                    // Es una fila de datos
+                    const content = row.innerText.toLowerCase();
+                    // Buscar también en los valores de los inputs editables
+                    const inputValues = Array.from(row.querySelectorAll('input')).map(i => i.value.toLowerCase()).join(' ');
+
+                    if (content.includes(filter) || inputValues.includes(filter)) {
+                        row.style.display = '';
+                        groupHasVisibleItems = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+
+            // Ajuste para el último header procesado
+            if (currentHeader && !groupHasVisibleItems && filter !== "") {
+                currentHeader.style.display = 'none';
+            }
+        }
 
         // Autocompletar monto al seleccionar requisición
         document.getElementById('new-req-id').addEventListener('change', function () {
