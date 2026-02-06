@@ -1,5 +1,6 @@
 {% load static %}
 {% load humanize %}
+{% load l10n %}
 {% load presupuesto_tags %}
 
 <!DOCTYPE html>
@@ -608,7 +609,7 @@
                     <select id="new-req-id" class="form-control">
                         <option value="">Seleccione una requisición...</option>
                         {% for req in requisiciones %}
-                        <option value="{{ req.pk }}" data-monto="{{ req.cr8ca_totalenarticulos|default:0 }}">
+                        <option value="{{ req.pk }}" data-monto="{{ req.cr8ca_totalenarticulos|unlocalize|default:0 }}">
                             {{ req.cr8ca_requisicion }} - {{ req.cr8ca_asunto|truncatechars:40 }}
                         </option>
                         {% endfor %}
@@ -912,8 +913,10 @@
                 const selected = $(this).select2('data')[0];
                 if (selected && selected.id) {
                     const option = $(selected.element);
-                    const monto = option.attr('data-monto');
-                    $('#new-req-monto').val(parseFloat(monto).toFixed(2));
+                    let montoRaw = option.attr('data-monto') || "0";
+                    // Asegurar que sea un string y limpiar comas adicionales si las hay
+                    const monto = parseFloat(montoRaw.toString().replace(/,/g, ''));
+                    $('#new-req-monto').val(monto.toFixed(2));
                     if (!$('#new-req-desc').val()) {
                         $('#new-req-desc').val('Pago Requisición');
                     }
