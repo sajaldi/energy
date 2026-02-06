@@ -178,26 +178,39 @@
             background-color: var(--primary-hover);
         }
 
-        /* Mini Pie Chart */
-        .pie-container {
+        /* Mini Progress Bar */
+        .progress-wrapper {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            font-size: 0.8rem;
-            color: var(--text-muted);
+            min-width: 100px;
         }
 
-        .mini-pie {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: conic-gradient(var(--primary) 0% var(--p1),
-                    #4b5563 var(--p1) calc(var(--p1) + var(--p2)),
-                    #e2e8f0 calc(var(--p1) + var(--p2)) 100%);
+        .mini-progress-bg {
+            flex: 1;
+            height: 12px;
+            background-color: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
             border: 1px solid #cbd5e1;
-            flex-shrink: 0;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+        }
+
+        .progress-segment {
+            height: 100%;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            transition: width 0.3s ease;
+        }
+
+        .segment-paid {
+            background-color: var(--primary);
+        }
+
+        .segment-requested {
+            background-color: #4b5563;
         }
 
         @media print {
@@ -347,7 +360,7 @@
                         <th>Descripción del Pago</th>
                         <th style="width: 140px; text-align: right;">Monto</th>
                         <th style="width: 140px; text-align: right;">Pagado RQ</th>
-                        <th style="width: 80px; text-align: center;">Avance</th>
+                        <th style="width: 130px; text-align: center;">Avance</th>
                         <th style="width: 50px;"></th>
                     </tr>
                 </thead>
@@ -392,10 +405,15 @@
                             {% if total > 0 %}
                             {% widthratio r.monto_pagado total 100 as p1 %}
                             {% widthratio item.monto_solicitado total 100 as p2 %}
-                            <div class="pie-container"
+                            <div class="progress-wrapper"
                                 title="Pagado: {{ r.monto_pagado|currency }}&#10;Solicitado: {{ item.monto_solicitado|currency }}&#10;Total RQ: {{ total|currency }}">
-                                <div class="mini-pie" style="--p1: {{ p1 }}%; --p2: {{ p2 }}%;"></div>
-                                <span>{% widthratio r.monto_pagado|add:item.monto_solicitado total 100 %}%</span>
+                                <div class="mini-progress-bg">
+                                    <div class="progress-segment segment-paid" style="width: {{ p1 }}%"></div>
+                                    <div class="progress-segment segment-requested" style="width: {{ p2 }}%"></div>
+                                </div>
+                                <span style="font-size: 0.75rem; font-weight: 700; min-width: 35px; text-align: right;">
+                                    {% widthratio r.monto_pagado|add:item.monto_solicitado total 100 %}%
+                                </span>
                             </div>
                             {% else %}
                             <span style="color: #e2e8f0;">-</span>
