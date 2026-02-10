@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+{% load l10n %}
 
 <head>
     <meta charset="UTF-8">
@@ -715,6 +716,12 @@
                         onclick="toggleTree('rut-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
                         <td class="sticky-col indent-3">
                             <span class="toggle-icon">▶</span> {{ rut.label }}
+                            {% if rut.frecuencia %}
+                            <span
+                                style="font-size: 0.65rem; border: 1px dashed var(--primary); color: var(--primary); padding: 1px 6px; border-radius: 4px; margin-left: 8px; font-weight: 500; background: rgba(59, 130, 246, 0.05); vertical-align: middle;">
+                                {{ rut.frecuencia|lower }}
+                            </span>
+                            {% endif %}
                         </td>
                         {% for c in rut.celdas %}
                         <td class="{% if c.day in non_working_days %}non-working-day{% endif %}">
@@ -729,7 +736,7 @@
                     <!-- NIVEL 4: UBICACIÓN -->
                     <tr class="row-ubi rut-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}"
                         id="row-ubi-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
-                        onclick="toggleTree('ubi-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
+                        onclick="toggleTree('ubi-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
                         <td class="sticky-col indent-4">
                             <span class="toggle-icon">▶</span> {{ ubi.label }}
                         </td>
@@ -837,8 +844,8 @@
 
     <script>
         let pendingMoves = null; // {ids, date}
-        const currentYear = {{ year }};
-        const currentMonth = {{ month }};
+        const currentYear = {{ year| unlocalize }};
+        const currentMonth = {{ month| unlocalize }};
 
         // Persistencia del árbol
         document.addEventListener('DOMContentLoaded', () => {

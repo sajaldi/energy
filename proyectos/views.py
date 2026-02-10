@@ -93,7 +93,11 @@ def cronograma_proyecto(request, proyecto_id):
     actividades = proyecto.actividades.all().order_by('orden', 'fecha_inicio')
     
     # Determinar rango de semanas (Año actual por defecto)
-    year = int(request.GET.get('year', datetime.now().year))
+    try:
+        year_raw = request.GET.get('year', str(datetime.now().year))
+        year = int(str(year_raw).replace('\xa0', '').replace(' ', '').replace(',', ''))
+    except (ValueError, TypeError):
+        year = datetime.now().year
     
     # Generar estructura de semanas por mes
     meses_data = []
