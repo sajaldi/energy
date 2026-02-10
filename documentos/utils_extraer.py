@@ -20,7 +20,45 @@ def extract_metadata_from_file(file_content, filename):
         logger.warning(f"Extracción fallida: Archivo {filename} vacío.")
         return extracted_data
 
+    # FALLBACK 0: Mayan EDMS OCR (Nuevo motor principal)
     if file_ext == '.pdf':
+        try:
+            from django.conf import settings
+            from .mayan_client import MayanEDMSClient
+            
+            # Solo si el cliente está configurado (tiene password o token)
+            if hasattr(settings, 'MAYAN_EDMS_PASSWORD') or hasattr(settings, 'MAYAN_EDMS_TOKEN'):
+                client = MayanEDMSClient()
+                # 1. Obtener el ID de tipo de documento (usamos el primero por defecto o uno genérico)
+                types = client.get_document_types()
+                if types.get('results'):
+                    dt_id = types['results'][0]['id']
+                    # 2. Subir temporalmente a Mayan para procesamiento
+                    # Creamos un pseudodocumento para Mayan
+                    doc_resp = client.upload_document(
+                        file=(filename, io.BytesIO(file_content)),
+                        document_type_id=dt_id,
+                        description='Análisis temporal Wizard'
+                    )
+                    
+                    if doc_resp.get('id'):
+                        mayan_id = doc_resp['id']
+                        # 3. Darle un momento a Mayan para OCR o intentar leer
+                        import time
+                        time.sleep(1) # Pequeña espera
+                        text = client.get_document_ocr_content(mayan_id)
+                        
+                        if text:
+                            extracted_data['text_preview'] = "(MAYAN OCR) " + text[:5000]
+                            extracted_data['mayan_id'] = mayan_id # Guardar referencia
+                            logger.info(f"Texto extraído exitosamente con MAYAN para {filename} (Guardado ID: {mayan_id})")
+                        
+                        # Ya no se elimina el documento para que permanezca en Mayan
+        except Exception as e:
+            logger.error(f"Error procesando en motor MAYAN para {filename}: {e}")
+
+    # Si Mayan no obtuvo nada, continuar con los motores locales
+    if not extracted_data.get('text_preview') and file_ext == '.pdf':
         try:
             import fitz  # PyMuPDF
             doc = fitz.open(stream=file_content, filetype="pdf")

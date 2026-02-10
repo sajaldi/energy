@@ -87,3 +87,28 @@ class MayanEDMSClient:
         response = self.session.get(url)
         response.raise_for_status()
         return response.json()
+
+    def get_document_ocr_content(self, document_id):
+        """Obtiene el contenido de texto (OCR) de un documento en Mayan"""
+        url = f'{self.base_url}documents/{document_id}/content/'
+        try:
+            response = self.session.get(url)
+            response.raise_for_status()
+            data = response.json()
+            # Mayan retorna una lista de páginas, unimos el contenido
+            full_text = ""
+            if 'results' in data:
+                for page in data['results']:
+                    full_text += page.get('content', '') + "\n"
+            return full_text.strip()
+        except Exception as e:
+            print(f"Error al obtener OCR de Mayan: {e}")
+            return ""
+
+    def delete_document(self, document_id):
+        """Elimina un documento de Mayan"""
+        url = f'{self.base_url}documents/{document_id}/'
+        try:
+            self.session.delete(url)
+        except:
+            pass

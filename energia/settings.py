@@ -70,10 +70,10 @@ USE_X_FORWARDED_PORT = True
 # Mayan EDMS Configuration
 MAYAN_EDMS_URL = 'http://181.115.47.107:8090'
 MAYAN_EDMS_API_URL = f'{MAYAN_EDMS_URL}/api/v4/'
-# TODO: User must provide these in .env or update here
+# Credenciales actualizadas por el usuario para Coolify
 MAYAN_EDMS_USERNAME = os.environ.get('MAYAN_USERNAME', 'admin')
 MAYAN_EDMS_TOKEN = os.environ.get('MAYAN_API_TOKEN', '')
-MAYAN_EDMS_PASSWORD = os.environ.get('MAYAN_PASSWORD', '')
+MAYAN_EDMS_PASSWORD = os.environ.get('MAYAN_PASSWORD', '3vPW7RPyUk')
 
 
 INSTALLED_APPS = [

@@ -166,6 +166,22 @@ def documento_wizard(request):
                             'estado_extraccion': 'COMPLETADO'
                         }
                     )
+                    
+                    # 4. Vincular con Mayan si la extracción fue exitosa por ese motor
+                    if 'mayan_id' in extracted_data:
+                        from .models import MayanDocumentLink
+                        from django.contrib.contenttypes.models import ContentType
+                        
+                        MayanDocumentLink.objects.update_or_create(
+                            content_type=ContentType.objects.get_for_model(documento),
+                            object_id=documento.id,
+                            defaults={
+                                'mayan_document_id': extracted_data['mayan_id'],
+                                'document_label': archivo.name,
+                                'description': f"Sincronizado desde Wizard - {documento.codigo}",
+                                'uploaded_by': request.user
+                            }
+                        )
                 
                 return redirect(f'/documentos/nuevo/?step=3&doc_id={documento.id}')
             except Exception as e:
