@@ -19,24 +19,26 @@ class MayanEDMSClient:
                 settings.MAYAN_EDMS_PASSWORD
             )
     
-    def upload_document(self, file, document_type_id, description='', metadata=None):
+    def upload_document(self, file_data, document_type_id, label=None, description='', metadata=None):
         """
-        Sube un documento a Mayan EDMS
+        Sube un documento a Mayan EDMS usando el endpoint de upload de la v4
         
         Args:
-            file: Archivo a subir (FileField o path)
+            file_data: Tupla (filename, file_stream)
             document_type_id: ID del tipo de documento en Mayan
+            label: Nombre visible del documento (opcional)
             description: Descripción del documento
             metadata: Dict con metadatos adicionales
-        
-        Returns:
-            dict: Respuesta de Mayan con ID del documento creado
         """
-        url = f'{self.base_url}documents/'
+        # En Mayan v4, el endpoint para carga rápida es /documents/upload/
+        url = f'{self.base_url}documents/upload/'
         
-        files = {'file': file}
+        filename, stream = file_data
+        files = {'file': (filename, stream)}
+        
         data = {
             'document_type_id': document_type_id,
+            'label': label or filename,
             'description': description
         }
         
