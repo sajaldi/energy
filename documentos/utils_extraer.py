@@ -43,17 +43,24 @@ def extract_metadata_from_file(file_content, filename):
                     
                     if doc_resp.get('id'):
                         mayan_id = doc_resp['id']
-                        # 3. Darle un momento a Mayan para OCR o intentar leer
-                        import time
-                        time.sleep(1) # Pequeña espera
-                        text = client.get_document_ocr_content(mayan_id)
+                        print(f"DEBUG: Documento subido a Mayan ID: {mayan_id}. Iniciando espera de OCR (proceso asíncrono en Mayan)...")
+                        
+                        # 3. Reintento progresivo: Mayan procesa OCR en background (Celery)
+                        text = ""
+                        for attempt in range(8): # 8 intentos de 3 seg = 24 segundos
+                            time.sleep(3) 
+                            text = client.get_document_ocr_content(mayan_id)
+                            if text and len(text.strip()) > 5: # Validar que tenga contenido real
+                                print(f"DEBUG: OCR detectado exitosamente en intento {attempt+1}")
+                                break
+                            print(f"DEBUG: Intento {attempt+1} - texto aún no disponible o muy corto.")
                         
                         if text:
                             extracted_data['text_preview'] = "(MAYAN OCR) " + text[:5000]
-                            extracted_data['mayan_id'] = mayan_id # Guardar referencia
-                            logger.info(f"Texto extraído exitosamente con MAYAN para {filename} (Guardado ID: {mayan_id})")
-                        
-                        # Ya no se elimina el documento para que permanezca en Mayan
+                            extracted_data['mayan_id'] = mayan_id
+                            logger.info(f"Texto extraído exitosamente con MAYAN para {filename} (ID: {mayan_id})")
+                        else:
+                            print(f"DEBUG: Mayan NO devolvió texto después de 24 segundos para ID {mayan_id}. Es posible que la cola de OCR en Mayan esté saturada o el archivo no sea legible.")
         except Exception as e:
             logger.error(f"Error procesando en motor MAYAN para {filename}: {e}")
 
