@@ -358,7 +358,7 @@ def detalle_mes(request, year, month):
         month_start = date(year, month, 1)
         month_end = date(year, month, num_days)
         
-        proyecciones_qs = Programacion.objects.filter(fecha_inicio__lte=month_end).select_related('rutina__categoria', 'rutina__frecuencia', 'horario')
+        proyecciones_qs = Programacion.objects.filter(fecha_inicio__lte=month_end).select_related('rutina__categoria', 'rutina__frecuencia', 'horario').prefetch_related('areas')
         if programacion_id: proyecciones_qs = proyecciones_qs.filter(id=programacion_id)
         
         ghost_ots = []
@@ -409,7 +409,8 @@ def detalle_mes(request, year, month):
             
             asset_key = (assets[0].id, assets[0].nombre) if assets else (None, "General")
             rut_key = (rut.nombre, rut.frecuencia.nombre) if rut and rut.frecuencia else (rut.nombre if rut else "OT Sin Rutina", "")
-            tree_dict[sys_name][sub_name][rut_key][ubi.nombre if ubi else "Multiple"][asset_key][day_key].append(ot_dict)
+            ubi_label = ubi.get_ruta_completa(separador=' - ') if ubi else "Multiple"
+            tree_dict[sys_name][sub_name][rut_key][ubi_label][asset_key][day_key].append(ot_dict)
 
         for ot in ordenes:
             sd = timezone.localtime(ot.inicio_programado)
