@@ -284,6 +284,13 @@ def documento_wizard(request):
                             documento=documento, config=config, defaults={'valor': val}
                         )
             
+            # --- Automatización n8n ---
+            try:
+                from .utils_n8n import notify_n8n_document_created
+                notify_n8n_document_created(documento)
+            except Exception as e_n8n:
+                print(f"Error disparando automatización n8n: {e_n8n}")
+
             messages.success(request, f"Documento {documento.codigo} registrado exitosamente.")
             if 'doc_wizard_data' in request.session: del request.session['doc_wizard_data']
             return redirect('admin:documentos_documento_changelist')
