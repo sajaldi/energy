@@ -33,11 +33,10 @@ def extract_metadata_from_file(file_content, filename):
                 types = client.get_document_types()
                 if types.get('results'):
                     dt_id = types['results'][0]['id']
-                    # 2. Subir temporalmente a Mayan para procesamiento
-                    # Creamos un pseudodocumento para Mayan
                     doc_resp = client.upload_document(
-                        file=(filename, io.BytesIO(file_content)),
+                        file_data=(filename, io.BytesIO(file_content)),
                         document_type_id=dt_id,
+                        label=filename,
                         description='Análisis temporal Wizard'
                     )
                     
