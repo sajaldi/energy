@@ -12,10 +12,20 @@ import calendar
 import math
 from django.db.models import Count, Q, Min
 
+def to_int(value, default=None):
+    if value is None: return default
+    try:
+        # Limpiar posibles caracteres de formato como espacios de no ruptura (\xa0) o espacios normales
+        clean_val = str(value).replace('\xa0', '').replace(' ', '').replace(',', '')
+        if not clean_val: return default
+        return int(clean_val)
+    except (ValueError, TypeError):
+        return default
+
 @staff_member_required
 def calendario_mantenimiento(request):
     from ..services import WorkOrderService
-    year = int(request.GET.get('year', date.today().year))
+    year = to_int(request.GET.get('year'), date.today().year)
     
     # 1. Obtener la estructura agrupada desde el servicio
     tree = WorkOrderService.get_grouped_tree(year)
@@ -107,7 +117,7 @@ def calendario_mantenimiento(request):
 @staff_member_required
 def calendario_detallado(request):
     from ..services import WorkOrderService
-    year = int(request.GET.get('year', date.today().year))
+    year = to_int(request.GET.get('year'), date.today().year)
     
     # 1. Obtener la estructura detallada desde el servicio
     tree = WorkOrderService.get_detailed_tree(year)
@@ -156,16 +166,18 @@ def calendario_detallado(request):
 @staff_member_required
 def cronograma_mantenimiento_visual(request):
     from ..services import WorkOrderService
-    year = int(request.GET.get('year', datetime.now().year))
+    year = to_int(request.GET.get('year'), datetime.now().year)
     view_mode = request.GET.get('view_mode', 'sistema')
     
     def parse_ids(param):
         val = request.GET.getlist(param)
         if not val:
             val = request.GET.get(param, '')
-            if ',' in val: return [int(x) for x in val.split(',') if x.strip()]
-            return [int(val)] if val.isdigit() else []
-        return [int(x) for x in val if str(x).isdigit()]
+            if ',' in val: 
+                return [to_int(x) for x in val.split(',') if to_int(x) is not None]
+            parsed = to_int(val)
+            return [parsed] if parsed is not None else []
+        return [to_int(x) for x in val if to_int(x) is not None]
 
     ubicacion_ids = parse_ids('ubicacion_id')
     categoria_ids = parse_ids('categoria_id')
@@ -251,9 +263,9 @@ def wizard_cronograma(request):
     from django.shortcuts import redirect
     from django.urls import reverse
     
-    year = request.GET.get('year', datetime.now().year)
+    year = to_int(request.GET.get('year'), datetime.now().year)
     view_type = request.GET.get('view_type', 'anual')
-    month = request.GET.get('month')
+    month = to_int(request.GET.get('month'))
     
     # Si se envía el formulario con view_type, redirigir a la vista apropiada
     if view_type == 'mensual' and month:
@@ -396,7 +408,8 @@ def detalle_mes(request, year, month):
                 system_colors[sys_name] = '#64748b'
             
             asset_key = (assets[0].id, assets[0].nombre) if assets else (None, "General")
-            tree_dict[sys_name][sub_name][rut.nombre if rut else "OT Sin Rutina"][ubi.nombre if ubi else "Multiple"][asset_key][day_key].append(ot_dict)
+            rut_key = (rut.nombre, rut.frecuencia.nombre) if rut and rut.frecuencia else (rut.nombre if rut else "OT Sin Rutina", "")
+            tree_dict[sys_name][sub_name][rut_key][ubi.nombre if ubi else "Multiple"][asset_key][day_key].append(ot_dict)
 
         for ot in ordenes:
             sd = timezone.localtime(ot.inicio_programado)
@@ -445,21 +458,21 @@ def detalle_mes(request, year, month):
             subs = []; sda = collections.defaultdict(bool)
             for sub in sorted(tree_dict[sys].keys()):
                 ruts = []; subda = collections.defaultdict(bool)
-                for rut in sorted(tree_dict[sys][sub].keys()):
+                for rut_key in sorted(tree_dict[sys][sub].keys()):
                     ubis = []; rda = collections.defaultdict(bool)
-                    for ubi in sorted(tree_dict[sys][sub][rut].keys()):
+                    for ubi in sorted(tree_dict[sys][sub][rut_key].keys()):
                         assets_l = []
-                        for ak in sorted(tree_dict[sys][sub][rut][ubi].keys(), key=lambda x: x[1]):
+                        for ak in sorted(tree_dict[sys][sub][rut_key][ubi].keys(), key=lambda x: x[1]):
                             cells = []
                             for d in days_range:
-                                ots = tree_dict[sys][sub][rut][ubi][ak].get(d, [])
+                                ots = tree_dict[sys][sub][rut_key][ubi][ak].get(d, [])
                                 active = len(ots) > 0
                                 gt = ots[0].get('group_type') if ots else None
                                 cells.append({'day': d, 'ots': ots, 'active': active, 'group_type': gt})
                                 if active: rda[d] = True; subda[d] = True; sda[d] = True
                             assets_l.append({'label': ak[1], 'id': ak[0], 'celdas': cells})
                         ubis.append({'label': ubi, 'celdas': [{'day': d, 'active': any(a['celdas'][d-1]['active'] for a in assets_l)} for d in days_range], 'activos': assets_l})
-                    ruts.append({'label': rut, 'celdas': [{'day': d, 'active': rda[d]} for d in days_range], 'ubicaciones': ubis})
+                    ruts.append({'label': rut_key[0], 'frecuencia': rut_key[1], 'celdas': [{'day': d, 'active': rda[d]} for d in days_range], 'ubicaciones': ubis})
                 subs.append({'label': sub, 'celdas': [{'day': d, 'active': subda[d]} for d in days_range], 'rutinas': ruts})
             tree.append({'label': sys, 'color': system_colors.get(sys, "#64748b"), 'celdas': [{'day': d, 'active': sda[d]} for d in days_range], 'subs': subs})
     
