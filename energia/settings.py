@@ -75,6 +75,11 @@ MAYAN_EDMS_USERNAME = os.environ.get('MAYAN_USERNAME', 'admin')
 MAYAN_EDMS_TOKEN = os.environ.get('MAYAN_API_TOKEN', '')
 MAYAN_EDMS_PASSWORD = os.environ.get('MAYAN_PASSWORD', '3vPW7RPyUk')
 
+# n8n Automation Configuration
+# Nota: Crea un nodo 'Webhook' en n8n y pega aquí la URL que te genere.
+# Por ahora uso una URL de ejemplo basada en tu IP.
+N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook/nuevo-documento')
+
 
 INSTALLED_APPS = [
     'storages',
