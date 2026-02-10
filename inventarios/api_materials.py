@@ -31,12 +31,12 @@ def api_list_materials(request):
     
     data = []
     for m in page_obj:
-        # Determine image URL (using a placeholder if not available)
-        # Since Material model doesn't have an image field yet, use a default icon
-        # You can replace this with a static file path or add an image field to Material model
-        image_url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='1.5'%3E%3Cpath d='M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4zm10 16H4V9h16v11z'/%3E%3Cpath d='M12 12h-1v4h1v-4zm0 5h-1v1h1v-1z'/%3E%3C/svg%3E"
-        # If you have an image field, replace with: image_url = m.imagen.url if m.imagen else default_url
-        
+        if  hasattr(m, 'imagen') and m.imagen:
+             image_url = m.imagen.url
+        else:
+             # SVG de una cajita de inventario
+             image_url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
+
         data.append({
             'id': m.id,
             'nombre': m.nombre,
@@ -57,6 +57,19 @@ def api_list_materials(request):
 
 @login_required
 def api_list_categories(request):
-    categories = CategoriaMaterial.objects.all().order_by('nombre')
-    data = [{'id': c.id, 'nombre': c.nombre} for c in categories]
-    return JsonResponse({'results': data})
+    categories = list(CategoriaMaterial.objects.all().order_by('nombre'))
+    
+    def build_tree(parent_id):
+        nodes = []
+        for cat in categories:
+            if cat.padre_id == parent_id:
+                children = build_tree(cat.id)
+                nodes.append({
+                    'id': cat.id,
+                    'nombre': cat.nombre,
+                    'children': children
+                })
+        return nodes
+
+    tree = build_tree(None)
+    return JsonResponse({'results': tree})

@@ -78,6 +78,13 @@ def documento_wizard(request):
                 'codigo': doc.codigo,
                 'disciplina_id': str(doc.disciplina_id or ''),
             }
+        
+        # Pre-marcar selección para evitar errores de sintaxis en template (etiquetas partidas)
+        for t in context['tipos']:
+            t.is_checked = str(t.id) == str(saved_data.get('tipo_id', ''))
+        for d in context['disciplinas']:
+            d.is_selected = str(d.id) == str(saved_data.get('disciplina_id', ''))
+
         context['saved_data'] = saved_data
 
         if request.method == 'POST':
@@ -173,10 +180,15 @@ def documento_wizard(request):
             
         documento = get_object_or_404(Documento, id=doc_id)
         revision = documento.revisiones.filter(revision='0').first() or documento.ultima_revision
+        documentos_link = Documento.objects.exclude(id=doc_id).order_by('-creado_en')[:50]
+        
+        for dl in documentos_link:
+            dl.is_selected = str(dl.id) == str(documento.respuesta_a_id)
+
         context.update({
             'documento': documento, 
             'revision': revision,
-            'documentos_link': Documento.objects.exclude(id=doc_id).order_by('-creado_en')[:50]
+            'documentos_link': documentos_link
         })
         
         # Sugerencia inteligente de Código y Título
@@ -230,16 +242,23 @@ def documento_wizard(request):
                 m = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
                 if m: suggested_value = m.group(0)
                 
-            metadatos_prefilled.append({'config': config, 'suggested_value': suggested_value})
-        
-        context['metadatos_prefilled'] = metadatos_prefilled
+            metadatos_prefilled.append({
+                'config': config, 
+                'suggested_value': suggested_value,
+                'required_attr': 'required' if config.requerido else '',
+                'required_mark': '*' if config.requerido else '',
+                'is_date': config.tipo_campo == 'FECHA',
+                'is_number': config.tipo_campo == 'NUMERO',
+                'is_email': config.tipo_campo == 'EMAIL',
+                'is_text': config.tipo_campo not in ['FECHA', 'NUMERO', 'EMAIL']
+            })
         
         if request.method == 'POST':
             with transaction.atomic():
                 documento.codigo = request.POST.get('codigo', documento.codigo)
                 documento.titulo = request.POST.get('titulo', documento.titulo)
                 documento.respuesta_a_id = request.POST.get('respuesta_a') or None
-                documento.estado_actual = 'REVISION'
+                documento.estado_actual = 'RECIBIDO'
                 documento.save()
                 
                 for config in metadatos_config:

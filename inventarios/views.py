@@ -112,19 +112,37 @@ def api_get_material_stock(request, material_id):
     incluyendo detalles completos del material.
     """
     material = get_object_or_404(Material, id=material_id)
-    existencias = material.existencias.select_related('ubicacion').values(
-        'ubicacion__nombre', 'ubicacion_especifica', 'cantidad'
-    )
+    materiales_qs = Material.objects.all().prefetch_related('existencias').order_by('nombre')
+
+    if q:
+        materiales_qs = materiales_qs.filter(
+            Q(nombre__icontains=q) | 
+            Q(sku__icontains=q)
+        )
+    
+    if category_id:
+        materiales_qs = materiales_qs.filter(categoria_id=category_id)
+
+    paginator = Paginator(materiales_qs, 12) # 12 items por página
+    page_obj = paginator.get_page(page)
+
+    results = []
+    for m in page_obj:
+        stock_total = m.get_stock_total()
+        results.append({
+            'id': m.id,
+            'nombre': m.nombre,
+            'sku': m.sku,
+            'unidad': m.unidad_medida,
+            'stock': float(stock_total),
+            'image_url': m.imagen.url if m.imagen else '/static/img/no-image.png'
+        })
+    
     return JsonResponse({
-        'id': material.id,
-        'nombre': material.nombre,
-        'sku': material.sku,
-        'marca': material.marca.nombre if material.marca else "Sin marca",
-        'categoria': str(material.categoria) if material.categoria else "Sin categoría",
-        'descripcion': material.descripcion or "Sin descripción",
-        'unidad': material.get_unidad_medida_display(),
-        'existencias': list(existencias),
-        'total': float(material.get_stock_total())
+        'results': results,
+        'has_next': page_obj.has_next(),
+        'num_pages': paginator.num_pages,
+        'current_page': page_obj.number
     })
 
 @login_required

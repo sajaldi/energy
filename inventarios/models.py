@@ -75,6 +75,18 @@ class Material(models.Model):
     precio_estimado = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))])
     stock_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Alerta cuando el stock total baje de este nivel")
     
+    TIPO_MATERIAL_CHOICES = [
+        ('INSUMO', 'Insumo'),
+        ('REPUESTO', 'Repuesto'),
+        ('CONSUMIBLE', 'Consumible'),
+        ('MEDICAMENTO', 'Medicamento'),
+        ('HERRAMIENTA', 'Herramienta'),
+        ('EPP', 'Equipo de Protección (EPP)'),
+        ('OTRO', 'Otro'),
+    ]
+    tipo_material = models.CharField(max_length=20, choices=TIPO_MATERIAL_CHOICES, default='INSUMO', verbose_name="Tipo de Material")
+    imagen = models.ImageField(upload_to='materiales/', verbose_name="Imagen del Material", blank=True, null=True)
+    
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
@@ -100,8 +112,26 @@ class CompatibilidadMaterial(models.Model):
         verbose_name_plural = "Compatibilidades de Repuestos"
         unique_together = ('material', 'modelo')
 
+class Lote(models.Model):
+    material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='lotes')
+    codigo = models.CharField(max_length=50, verbose_name="Código de Lote")
+    fecha_vencimiento = models.DateField(null=True, blank=True, verbose_name="Fecha de Vencimiento")
+    fecha_fabricacion = models.DateField(null=True, blank=True, verbose_name="Fecha de Fabricación")
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Lote"
+        verbose_name_plural = "Lotes"
+        unique_together = ('material', 'codigo')
+        ordering = ['fecha_vencimiento']
+
+    def __str__(self):
+        return f"Lote {self.codigo} (Vence: {self.fecha_vencimiento})"
+
 class StockRecord(models.Model):
     material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='existencias')
+    lote = models.ForeignKey(Lote, on_delete=models.CASCADE, null=True, blank=True, related_name='existencias_lote')
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='inventario')
     cantidad = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     ubicacion_especifica = models.CharField(max_length=100, blank=True, verbose_name="Ubicación Específica (Pasillo/Estante)")
@@ -111,10 +141,11 @@ class StockRecord(models.Model):
     class Meta:
         verbose_name = "Existencia por Ubicación"
         verbose_name_plural = "Existencias por Ubicación"
-        unique_together = ('material', 'ubicacion', 'ubicacion_especifica')
+        unique_together = ('material', 'lote', 'ubicacion', 'ubicacion_especifica')
 
     def __str__(self):
-        return f"{self.material.nombre} en {self.ubicacion.nombre}: {self.cantidad}"
+        lote_str = f" - {self.lote}" if self.lote else ""
+        return f"{self.material.nombre} en {self.ubicacion.nombre}{lote_str}: {self.cantidad}"
 
 class MovimientoInventario(models.Model):
     TIPO_MOVIMIENTO = [
@@ -125,6 +156,7 @@ class MovimientoInventario(models.Model):
     ]
 
     material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='movimientos')
+    lote = models.ForeignKey(Lote, on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos')
     solicitud = models.ForeignKey(SolicitudMaterial, on_delete=models.CASCADE, null=True, blank=True, related_name='items')
     tipo = models.CharField(max_length=15, choices=TIPO_MOVIMIENTO, db_index=True)
     cantidad = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
@@ -160,60 +192,74 @@ class MovimientoInventario(models.Model):
         if self.tipo == 'ENTRADA' and self.ubicacion_destino:
             stock, _ = StockRecord.objects.get_or_create(
                 material=self.material, 
+                lote=self.lote,
                 ubicacion=self.ubicacion_destino,
                 ubicacion_especifica=self.ubicacion_especifica
             )
             stock.cantidad += self.cantidad
             stock.save()
         elif self.tipo == 'SALIDA' and self.ubicacion_origen:
-            if self.ubicacion_especifica:
-                # Caso 1: Se especificó una ubicación exacta (pasillo, estante, etc.)
+            # Si se especificó LOTE, intentamos sacar de ese lote
+            if self.lote:
                 stock = StockRecord.objects.filter(
-                    material=self.material, 
+                    material=self.material,
+                    lote=self.lote,
                     ubicacion=self.ubicacion_origen,
                     ubicacion_especifica=self.ubicacion_especifica
                 ).first()
                 if not stock or stock.cantidad < self.cantidad:
-                    raise ValueError(f"Stock insuficiente en {self.ubicacion_especifica}. Disponible: {stock.cantidad if stock else 0}")
+                    raise ValueError(f"Stock insuficiente en lote {self.lote.codigo}. Disponible: {stock.cantidad if stock else 0}")
                 stock.cantidad -= self.cantidad
                 stock.save()
             else:
-                # Caso 2: Pedido general al almacén. Descontar de cualquier celda disponible de forma incremental (Recursivo).
-                desc_ids = self.ubicacion_origen.get_descendants().values_list('id', flat=True)
-                total_disponible = StockRecord.objects.filter(
-                    material=self.material, 
-                    ubicacion__in=desc_ids
-                ).aggregate(total=Sum('cantidad'))['total'] or 0
+                # Si NO se especificó lote (salida genérica), hay que implementar FEFO o 
+                # impedir la salida si hay lotes.
+                # Por ahora, para mantener compatibilidad, buscaremos stock sin lote (null) 
+                # o tomaremos del primero disponible (Esto se implementará en Fase 2)
                 
-                if total_disponible < self.cantidad:
-                    raise ValueError(f"Stock insuficiente en almacén {self.ubicacion_origen.nombre}. Disponible: {total_disponible}")
+                # IMPLEMENTACIÓN PROVISIONAL: Buscar stock exacto (que probablemente sea Lote=None)
+                stock = StockRecord.objects.filter(
+                    material=self.material,
+                    lote=None,
+                    ubicacion=self.ubicacion_origen,
+                    ubicacion_especifica=self.ubicacion_especifica
+                ).first()
                 
-                pendiente = self.cantidad
-                existencias = StockRecord.objects.filter(
-                    material=self.material, 
-                    ubicacion__in=desc_ids,
-                    cantidad__gt=0
-                ).order_by('cantidad') # Empezar por las de menor cantidad
-                
-                for stock in existencias:
-                    if pendiente <= 0: break
-                    a_descontar = min(stock.cantidad, pendiente)
-                    stock.cantidad -= a_descontar
+                if stock and stock.cantidad >= self.cantidad:
+                    stock.cantidad -= self.cantidad
                     stock.save()
-                    pendiente -= a_descontar
+                else:
+                    # Fallback recursivo/general
+                    # Nota: Esto debería mejorarse para usar FEFO automáticamente
+                    raise ValueError(f"Debe especificar un Lotería para este material o no hay stock genérico disponible.")
+
         elif self.tipo == 'TRASLADO' and self.ubicacion_origen and self.ubicacion_destino:
             # Restar de origen
-            stock_orig, _ = StockRecord.objects.get_or_create(material=self.material, ubicacion=self.ubicacion_origen)
+            stock_orig, _ = StockRecord.objects.get_or_create(
+                material=self.material, 
+                lote=self.lote,
+                ubicacion=self.ubicacion_origen
+            )
             if stock_orig.cantidad < self.cantidad:
                 raise ValueError(f"Stock insuficiente en origen. Disponible: {stock_orig.cantidad}")
             stock_orig.cantidad -= self.cantidad
             stock_orig.save()
+            
             # Sumar a destino
-            stock_dest, _ = StockRecord.objects.get_or_create(material=self.material, ubicacion=self.ubicacion_destino)
+            stock_dest, _ = StockRecord.objects.get_or_create(
+                material=self.material, 
+                lote=self.lote,
+                ubicacion=self.ubicacion_destino
+            )
             stock_dest.cantidad += self.cantidad
             stock_dest.save()
+            
         elif self.tipo == 'AJUSTE' and self.ubicacion_destino:
-            stock, _ = StockRecord.objects.get_or_create(material=self.material, ubicacion=self.ubicacion_destino)
+            stock, _ = StockRecord.objects.get_or_create(
+                material=self.material, 
+                lote=self.lote, 
+                ubicacion=self.ubicacion_destino
+            )
             stock.cantidad += self.cantidad
             stock.save()
 

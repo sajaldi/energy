@@ -3,10 +3,11 @@ from django.contrib import messages
 from django.urls import path
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.html import mark_safe
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from import_export.admin import ImportExportModelAdmin
-from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial
+from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial, Lote
 from activos.models import Marca
 
 class StockRecordInline(admin.TabularInline):
@@ -19,6 +20,12 @@ class CategoriaMaterialAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'padre')
     search_fields = ('nombre',)
     list_filter = ('padre',)
+
+@admin.register(Lote)
+class LoteAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'material', 'fecha_vencimiento', 'fecha_fabricacion')
+    search_fields = ('codigo', 'material__nombre', 'material__sku')
+    list_filter = ('fecha_vencimiento',)
 
 class MovimientoInventarioInline(admin.TabularInline):
     model = MovimientoInventario
@@ -47,7 +54,7 @@ class MaterialResource(resources.ModelResource):
     class Meta:
         model = Material
         import_id_fields = ('sku',)
-        fields = ('sku', 'nombre', 'marca', 'descripcion', 'categoria', 'unidad_medida', 'precio_estimado', 'stock_minimo')
+        fields = ('sku', 'nombre', 'marca', 'descripcion', 'categoria', 'tipo_material', 'unidad_medida', 'precio_estimado', 'stock_minimo', 'imagen')
         export_order = fields
 
     def before_import_row(self, row, **kwargs):
@@ -94,15 +101,27 @@ class MaterialResource(resources.ModelResource):
                 if ubicacion:
                     cantidad = Decimal(str(stock_inicial))
                     if cantidad > 0:
+                        # Procesar Lote si viene
+                        lote_obj = None
+                        lote_codigo = row.get('lote_codigo') or row.get('lote')
+                        if lote_codigo:
+                            vencimiento = row.get('lote_vencimiento') or row.get('fecha_vencimiento') or row.get('vencimiento')
+                            lote_obj, _ = Lote.objects.get_or_create(
+                                material=instance,
+                                codigo=str(lote_codigo).strip(),
+                                defaults={'fecha_vencimiento': vencimiento}
+                            )
+
                         # Crear o actualizar registro de stock
                         stock, created = StockRecord.objects.get_or_create(
                             material=instance,
+                            lote=lote_obj,
                             ubicacion=ubicacion
                         )
                         if created:
                             stock.cantidad = cantidad
                         else:
-                            # Si ya existía, sumamos la carga inicial (o podrías decidir sobrescribir)
+                            # Si ya existía, sumamos la carga inicial
                             stock.cantidad += cantidad
                         stock.save()
                         
@@ -110,6 +129,7 @@ class MaterialResource(resources.ModelResource):
                         if not kwargs.get('dry_run'):
                             MovimientoInventario.objects.create(
                                 material=instance,
+                                lote=lote_obj,
                                 tipo='ENTRADA',
                                 cantidad=cantidad,
                                 ubicacion_destino=ubicacion,
@@ -145,10 +165,20 @@ class MaterialResource(resources.ModelResource):
 class MaterialAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/inventarios/material/change_list.html'
     resource_class = MaterialResource
-    list_display = ('sku', 'nombre', 'categoria', 'unidad_medida', 'get_stock_total')
+    list_display = ('sku', 'nombre', 'categoria', 'tipo_material', 'unidad_medida', 'get_stock_total', 'imagen_preview')
     search_fields = ('nombre', 'sku', 'descripcion')
-    list_filter = ('categoria', 'unidad_medida')
+    list_filter = ('categoria', 'tipo_material', 'unidad_medida')
     inlines = [StockRecordInline]
+    readonly_fields = ('imagen_preview',)
+
+    def imagen_preview(self, obj):
+        if obj.imagen:
+            return mark_safe(f'<img src="{obj.imagen.url}" width="50" height="50" style="object-fit:cover; border-radius:4px;" />')
+        else:
+             fallback_svg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
+             return mark_safe(f'<img src="{fallback_svg}" width="50" height="50" style="object-fit:cover; border-radius:4px; opacity:0.6;" />')
+        return "-"
+    imagen_preview.short_description = 'Imagen'
 
     def get_queryset(self, request):
         from django.db.models import Sum
@@ -180,7 +210,7 @@ class MaterialAdmin(ImportExportModelAdmin):
 
 @admin.register(MovimientoInventario)
 class MovimientoInventarioAdmin(admin.ModelAdmin):
-    list_display = ('fecha_movimiento', 'material', 'tipo', 'cantidad', 'ubicacion_origen', 'ubicacion_destino', 'estado', 'usuario')
+    list_display = ('fecha_movimiento', 'material', 'lote', 'tipo', 'cantidad', 'ubicacion_origen', 'ubicacion_destino', 'estado', 'usuario')
     list_filter = ('estado', 'tipo', 'fecha_movimiento')
     search_fields = ('material__nombre', 'material__sku', 'usuario__username', 'orden_trabajo__id')
     readonly_fields = ('fecha_movimiento', 'fecha_aprobacion', 'aprobado_por')

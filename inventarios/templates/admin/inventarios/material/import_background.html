@@ -31,7 +31,7 @@
     .progress-fill {
         height: 100%;
         background: linear-gradient(90deg, #10b981, #059669);
-        /* Green for Materials/Inventory */
+        /* Green for Materials */
         width: 0%;
         transition: width 0.3s ease;
         display: flex;
@@ -60,7 +60,7 @@
 
     .file-upload-zone:hover {
         border-color: #10b981;
-        background-color: #f0fdf4;
+        background-color: #ecfdf5;
     }
 </style>
 {% endblock %}
@@ -68,23 +68,20 @@
 {% block content %}
 <div class="import-container">
     <h2 style="margin-bottom: 20px; color: #1e293b;">
-        <span style="color: #10b981">📦</span> Importación de Materiales (Background)
+        <span style="color: #10b981">📦</span> Importación de Materiales y Repuestos (Aislada)
     </h2>
 
-    <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin-bottom: 25px;">
-        <p style="margin: 0; color: #166534;">
-            <strong>Modo Seguro:</strong> Esta importación permite cargar materiales de forma asíncrona.
-            Se recomienda usar el SKU como identificador único para actualizar registros existentes.
-        </p>
-        <p style="margin: 10px 0 0 0; font-size: 0.85rem; color: #166534; opacity: 0.8;">
-            <strong>Nuevas capacidades:</strong> Ahora puedes incluir columnas como <code>stock_inicial</code>, <code>ubicacion</code> y <code>modelos_compatibles</code> (separados por coma) para configurar tu inventario completo en un solo paso.
+    <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 15px; margin-bottom: 25px;">
+        <p style="margin: 0; color: #064e3b;">
+            <strong>Modo Seguro:</strong> Esta importación utiliza un motor independiente para garantizar la integridad
+            de inventarios, categorías y marcas.
         </p>
     </div>
 
     <div style="margin-bottom: 25px; text-align: center;">
         <a href="template/" class="button"
             style="background: #059669; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.2);">
-            <span style="font-size: 1.2rem;">📊</span> Descargar Formato de Importación Completo
+            <span style="font-size: 1.2rem;">📊</span> Descargar Formato de Importación de Materiales
         </a>
     </div>
 
@@ -154,6 +151,7 @@
             return;
         }
 
+        // UI Update
         importForm.style.opacity = '0.5';
         importForm.style.pointerEvents = 'none';
         progressWrapper.style.display = 'block';
@@ -161,6 +159,7 @@
         const formData = new FormData(this);
         formData.set('verification_mode', verificationMode.checked ? 'true' : 'false');
 
+        // 1. Iniciar Tarea
         fetch('process/', {
             method: 'POST',
             body: formData,
@@ -219,6 +218,7 @@
                             });
                             resetUI();
                         } else if (data.dry_run) {
+                            // MODO PREVIEW
                             Swal.fire({
                                 title: '🔍 Análisis del Archivo',
                                 html: `
@@ -236,7 +236,7 @@
                                             </div>
                                         </div>
                                     ` : ''}
-                                    <p style="margin-top: 15px; font-size: 0.9rem; color: #475569;">¿Deseas proceder con la importación y actualización de estos materiales?</p>
+                                    <p style="margin-top: 15px; font-size: 0.9rem; color: #475569;">¿Deseas proceder con la importación y actualización de estos registros?</p>
                                 </div>
                                 `,
                                 icon: 'question',
@@ -253,6 +253,7 @@
                                 }
                             });
                         } else {
+                            // IMPORTACIÓN FINALIZADA
                             Swal.fire({
                                 title: '¡Importación Finalizada!',
                                 html: `
@@ -289,6 +290,7 @@
     }
 
     function confirmImport(filePath) {
+        // UI Reset para re-iniciar
         progressFill.style.width = '0%';
         statusText.textContent = 'Iniciando importación real...';
 

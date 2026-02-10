@@ -19,6 +19,7 @@ urlpatterns = [
     path('requisiciones/dashboard/', views_import.requisicion_dashboard, name='requisicion_dashboard'),
     path('requisiciones/nuevo/', views_import.requisicion_upsert, name='requisicion_nuevo'),
     path('requisiciones/editar/<uuid:pk>/', views_import.requisicion_upsert, name='requisicion_editar'),
+    path('requisiciones/<uuid:pk>/unlock/', views_import.requisicion_unlock_edit, name='requisicion_unlock_edit'),
     path('requisiciones/autorizar/<uuid:pk>/', views_autorizar.requisicion_autorizar, name='requisicion_autorizar'),
     path('api/requisicion/webhook/update/', views_webhook.requisicion_webhook_update, name='requisicion_webhook_update'),
     path('requisiciones/import-background/', views_import.import_requisiciones_background, name='import_requisiciones_background'),

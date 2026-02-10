@@ -103,6 +103,38 @@ def import_requisiciones_progress(request):
 
 @staff_member_required
 @login_required
+def requisicion_unlock_edit(request, pk):
+    """
+    Desbloquea una requisición para edición.
+    Cambia el estado de PENDIENTE/RECHAZADO a BORRADOR.
+    Solo funciona si la requisición está en esos estados.
+    """
+    from .models import Requisicion
+    from django.urls import reverse
+    
+    requisicion = get_object_or_404(Requisicion, pk=pk)
+    
+    # Validar que puede desbloquearse
+    if requisicion.estado_requisicion not in ['PENDIENTE', 'RECHAZADO']:
+        messages.error(request, f"No se puede desbloquear. Estado actual: {requisicion.get_estado_requisicion_display()}")
+        return redirect('presupuestos:requisicion_editar', pk=pk)
+    
+    # Cambiar a BORRADOR para permitir edición
+    estado_anterior = requisicion.get_estado_requisicion_display()
+    requisicion.estado_requisicion = 'BORRADOR'
+    requisicion.save()
+    
+    messages.success(
+        request, 
+        f"Requisición desbloqueada. Estado cambiado de {estado_anterior} a Borrador. "
+        f"Deberá solicitar nuevamente la autorización después de editar."
+    )
+    
+    # Redirigir a la vista de edición
+    return redirect('presupuestos:requisicion_editar', pk=pk)
+
+@staff_member_required
+@login_required
 def requisicion_upsert(request, pk=None):
     """Vista para crear o editar requisiciones usando un Wizard"""
     from .models import Requisicion
@@ -121,15 +153,30 @@ def requisicion_upsert(request, pk=None):
         # Para nuevas requisiciones, creamos una instancia temporal para el form
         instance = Requisicion(usuario_solicitante=request.user)
 
-    # Bloquear edición si ya está autorizada
+    # Bloquear edición si ya está enviada a aprobar o en estado final
     is_readonly = False
-    if instance and instance.estado_requisicion == 'AUTORIZADO':
-        is_readonly = True
-        messages.warning(request, "Esta requisición ya fue autorizada y no se puede editar.")
+    can_unlock = False
+    
+    if instance and instance.pk:
+        # Estados que bloquean la edición
+        locked_states = ['PENDIENTE', 'AUTORIZADO', 'RECHAZADO']
+        
+        if instance.estado_requisicion in locked_states:
+            is_readonly = True
+            
+            # Solo puede desbloquear si está PENDIENTE (enviada a aprobar pero no decidida)
+            if instance.estado_requisicion == 'PENDIENTE':
+                can_unlock = True
+                messages.info(request, "Esta requisición fue enviada a aprobación y está bloqueada para edición.")
+            elif instance.estado_requisicion == 'AUTORIZADO':
+                messages.warning(request, "Esta requisición ya fue AUTORIZADA y no puede modificarse.")
+            elif instance.estado_requisicion == 'RECHAZADO':
+                can_unlock = True
+                messages.warning(request, "Esta requisición fue RECHAZADA. Puede desbloquearla para editarla.")
 
     if request.method == 'POST':
         if is_readonly:
-             messages.error(request, "No se pueden guardar cambios: La requisición ya está autorizada.")
+             messages.error(request, "No se pueden guardar cambios: La requisición está bloqueada para edición.")
              return redirect('presupuestos:requisicion_dashboard')
 
         form = RequisicionForm(request.POST, instance=instance)
@@ -213,6 +260,7 @@ def requisicion_upsert(request, pk=None):
         'title': f"Editar Requisición {instance.cr8ca_requisicion}" if instance else "Nueva Requisición",
         'current_step': current_step,
         'is_readonly': is_readonly,
+        'can_unlock': can_unlock,
     }
     return render(request, 'admin/presupuestos/requisicion/requisicion_form.html', context)
 

@@ -544,7 +544,7 @@ class ArticuloRequisicion(models.Model):
     Artículos individuales dentro de una Requisición.
     Mapea campos de cr8ca_itemderequisicions.
     """
-    cr8ca_itemderequisicionid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, null=False, blank=True)
+    cr8ca_itemderequisicionid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=True, null=False, blank=True)
     requisicion = models.ForeignKey(
         Requisicion, 
         on_delete=models.CASCADE, 

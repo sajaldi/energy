@@ -1,11 +1,21 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor
+from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento
 import json
 
 from django.forms import TextInput, Textarea
 from django.db import models
+
+class ComentarioDocumentoInline(admin.TabularInline):
+    model = ComentarioDocumento
+    extra = 0
+    fields = ('usuario', 'texto', 'pagina', 'resuelto')
+    readonly_fields = ('usuario', 'texto', 'pagina')
+    can_delete = False
+    
+    def has_add_permission(self, request, obj=None):
+        return False # Se agregan desde el visor
 
 class RevisionInline(admin.TabularInline):
     model = Revision
@@ -41,11 +51,11 @@ class MetadatoValorInline(admin.TabularInline):
 
 @admin.register(Documento)
 class DocumentoAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'get_ultima_revision_info', 'get_extraccion_status', 'extraer_datos_button', 'solicitar_firmas_link')
+    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'get_ultima_revision_info', 'trazabilidad_link', 'extraer_datos_button', 'solicitar_firmas_link')
     list_filter = ('tipo_documento', 'disciplina', 'estado_actual')
     search_fields = ('codigo', 'titulo', 'revisiones__comentarios')
     
-    inlines = [MetadatoValorInline, RevisionInline]
+    inlines = [MetadatoValorInline, ComentarioDocumentoInline, RevisionInline]
     autocomplete_fields = ('activos', 'ubicaciones')
     change_list_template = "admin/documentos/documento/change_list.html"
     
@@ -55,7 +65,7 @@ class DocumentoAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Identificación', {
-            'fields': (('codigo', 'titulo'), ('tipo_documento', 'disciplina'))
+            'fields': (('codigo', 'titulo'), ('tipo_documento', 'disciplina'), ('respuesta_a', 'trazabilidad_link'))
         }),
         ('Estado', {
             'fields': ('estado_actual', 'ultima_revision', 'extraer_datos_button')
@@ -65,7 +75,16 @@ class DocumentoAdmin(admin.ModelAdmin):
         }),
     )
     
-    readonly_fields = ('ultima_revision', 'extraer_datos_button') 
+    readonly_fields = ('ultima_revision', 'extraer_datos_button', 'trazabilidad_link') 
+
+    def trazabilidad_link(self, obj):
+        if not obj.pk: return "-"
+        url = reverse('documentos:documento_trazabilidad', args=[obj.pk])
+        return format_html(
+            '<a class="button" href="{}" style="background: #0f172a; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem;">🌳 Ver Trazabilidad</a>',
+            url
+        )
+    trazabilidad_link.short_description = "Flujo / Trazabilidad"
     
     def save_formset(self, request, form, formset, change):
         # Asignar usuario automáticamente a las revisiones nuevas
@@ -154,6 +173,17 @@ class RevisionAdmin(admin.ModelAdmin):
             )
         return "-"
     get_datos_preview.short_description = "Datos Extraídos"
+
+@admin.register(ComentarioDocumento)
+class ComentarioDocumentoAdmin(admin.ModelAdmin):
+    list_display = ('documento', 'usuario', 'texto_resumen', 'pagina', 'creado_en', 'resuelto')
+    list_filter = ('resuelto', 'creado_en', 'usuario')
+    search_fields = ('documento__codigo', 'texto', 'usuario__username')
+    readonly_fields = ('creado_en',)
+    
+    def texto_resumen(self, obj):
+        return obj.texto[:50] + "..." if len(obj.texto) > 50 else obj.texto
+    texto_resumen.short_description = "Comentario"
 
 # Importar y registrar admins del sistema de firmas
 from . import admin_firmas
