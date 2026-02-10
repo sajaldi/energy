@@ -36,8 +36,9 @@ class RequisicionForm(forms.ModelForm):
 class ArticuloRequisicionForm(forms.ModelForm):
     class Meta:
         model = ArticuloRequisicion
-        fields = ['material', 'cr8ca_articulo', 'cr8ca_cantidad', 'cr8ca_costoaproximado']
+        fields = ['cr8ca_itemderequisicionid', 'material', 'cr8ca_articulo', 'cr8ca_cantidad', 'cr8ca_costoaproximado']
         widgets = {
+            'cr8ca_itemderequisicionid': forms.HiddenInput(),
             'material': forms.Select(attrs={'class': 'form-control select2-material'}),
             'cr8ca_articulo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Descripción del artículo'}),
             'cr8ca_cantidad': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
@@ -46,10 +47,11 @@ class ArticuloRequisicionForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Make UUID field not required for new instances
-        if 'cr8ca_itemderequisicionid' in self.fields:
-            self.fields['cr8ca_itemderequisicionid'].required = False
-            self.fields['cr8ca_itemderequisicionid'].widget = forms.HiddenInput()
+        # PK must be non-required for new rows in formsets
+        for field_name in ['cr8ca_itemderequisicionid', 'id']:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
+                self.fields[field_name].widget = forms.HiddenInput()
 
 ArticuloFormSet = forms.inlineformset_factory(
     Requisicion, ArticuloRequisicion,

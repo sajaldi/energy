@@ -1,13 +1,13 @@
-{# VERSION 2.0 - ANTI-SYNTAX-ERROR #}
+{# VERSION 5.0 - TOTAL SYNTAX ARMOR #}
 {% extends "admin/base_site.html" %}
 {% load i18n static %}
+
 {% block extrastyle %}
 {{ block.super }}
 <style>
     :root {
         --primary: #4f46e5;
         --primary-hover: #4338ca;
-        --primary-light: #f5f3ff;
         --border-color: #e5e7eb;
         --text-dark: #111827;
         --text-muted: #6b7280;
@@ -112,7 +112,7 @@
 
     .type-option input:checked+.type-card {
         border-color: var(--primary);
-        background: var(--primary-light);
+        background: #f5f3ff;
     }
 
     .form-grid {
@@ -191,6 +191,16 @@
         border-radius: 50%;
         animation: spin 1s linear infinite;
     }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
 </style>
 {% endblock %}
 
@@ -199,6 +209,7 @@
     <div class="spinner"></div>
     <h3 style="margin-top:20px;">Analizando...</h3>
 </div>
+
 <div class="wizard-wrapper">
     <div class="stepper">
         <div class="step-item {% if step > 0 %}active{% endif %} {% if step > 1 %}completed{% endif %}">
@@ -214,6 +225,7 @@
             <div>Verificación</div>
         </div>
     </div>
+
     <div class="wizard-card">
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
@@ -224,31 +236,38 @@
                     <div class="type-grid">
                         {% for t in tipos %}
                         <label class="type-option">
-                            <input type="radio" name="tipo_id" value="{{ t.id }}" {% if t.id|slugify == saved_data.tipo_id|slugify %}checked{% endif %} required>
+                            <input type="radio" name="tipo_id" value="{{ t.id }}" {{ t.is_checked|yesno:"checked," }}
+                                required>
                             <div class="type-card">
                                 <div>📄</div>
-                                <div style="font-weight:700;">{{ t.nombre }}</div><small>{{ t.codigo }}</small>
+                                <div style="font-weight:700;">{{ t.nombre }}</div>
+                                <small>{{ t.codigo }}</small>
                             </div>
                         </label>
                         {% endfor %}
                     </div>
                 </div>
                 <div class="form-grid">
-                    <div class="form-group"><label class="form-label">Código (Opcional)</label><input type="text"
-                            name="codigo" class="form-input" value="{{ saved_data.codigo|default:'' }}"></div>
+                    <div class="form-group">
+                        <label class="form-label">Código (Opcional)</label>
+                        <input type="text" name="codigo" class="form-input" value="{{ saved_data.codigo|default:'' }}">
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Disciplina</label>
                         <select name="disciplina_id" class="form-input">
                             <option value="">---</option>
-                            {% for d in disciplinas %}<option value="{{ d.id }}" {% if d.id|slugify == saved_data.disciplina_id|slugify %}selected{% endif %}>{{ d.nombre }}
-                            </option>{% endfor %}
+                            {% for d in disciplinas %}
+                            <option value="{{ d.id }}" {{ d.is_selected|yesno:"selected," }}>{{ d.nombre }}</option>
+                            {% endfor %}
                         </select>
                     </div>
-                    <div class="form-group" style="grid-column: span 2;"><label class="form-label">Título
-                            (Opcional)</label><input type="text" name="titulo" class="form-input"
-                            value="{{ saved_data.titulo|default:'' }}"></div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label">Título (Opcional)</label>
+                        <input type="text" name="titulo" class="form-input" value="{{ saved_data.titulo|default:'' }}">
+                    </div>
                 </div>
                 {% endif %}
+
                 {% if step == 2 %}
                 <div style="border: 3px dashed #ccc; padding: 80px; text-align: center; border-radius: 16px; cursor: pointer;"
                     onclick="document.getElementById('file-input').click()">
@@ -260,6 +279,7 @@
                     <div id="fn" style="margin-top:20px; font-weight:700; color:var(--primary);"></div>
                 </div>
                 {% endif %}
+
                 {% if step == 3 %}
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
                     <div>
@@ -269,33 +289,67 @@
                             {{ revision.datos_extraidos.text_preview|default:"(No hay texto)" }}</div>
                     </div>
                     <div>
-                        <div class="form-group"><label class="form-label">Código</label><input type="text" name="codigo"
-                                class="form-input"
+                        <div class="form-group">
+                            <label class="form-label">Código</label>
+                            <input type="text" name="codigo" class="form-input"
                                 value="{% if suggested_code %}{{ suggested_code }}{% else %}{{ documento.codigo }}{% endif %}"
-                                required></div>
-                        <div class="form-group"><label class="form-label">Título</label><input type="text" name="titulo"
-                                class="form-input" value="{{ documento.titulo }}" required></div>
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Título</label>
+                            <input type="text" name="titulo" class="form-input" value="{{ documento.titulo }}" required>
+                        </div>
                         <div class="form-group">
                             <label class="form-label">Respuesta a</label>
                             <select name="respuesta_a" class="form-input">
                                 <option value="">---</option>
                                 {% for dl in documentos_link %}
-                                <option value="{{ dl.id }}" {% if dl.id == documento.respuesta_a_id %}selected{% endif %}>
-                                    {{ dl.codigo }}</option>
+                                <option value="{{ dl.id }}" {{ dl.is_selected|yesno:"selected," }}>{{ dl.codigo }}
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
+                        {% for meta in metadatos_prefilled %}
+                        <div class="form-group">
+                            <label class="form-label">{{ meta.config.etiqueta }} {{ meta.required_mark }}</label>
+                            {% if meta.is_date %}
+                            <input type="date" name="meta_{{ meta.config.id }}" class="form-input"
+                                value="{{ meta.suggested_value }}" {{ meta.required_attr }}>
+                            {% elif meta.is_number %}
+                            <input type="number" name="meta_{{ meta.config.id }}" class="form-input"
+                                value="{{ meta.suggested_value }}" {{ meta.required_attr }}>
+                            {% elif meta.is_email %}
+                            <input type="email" name="meta_{{ meta.config.id }}" class="form-input"
+                                value="{{ meta.suggested_value }}" {{ meta.required_attr }}>
+                            {% else %}
+                            <input type="text" name="meta_{{ meta.config.id }}" class="form-input"
+                                value="{{ meta.suggested_value }}" {{ meta.required_attr }}>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}
             </div>
             <div class="wizard-footer">
-                {% if step == 1 %}<a href="{% url 'admin:documentos_documento_changelist' %}"
-                    class="btn-btn btn-prev">Cancelar</a>{% else %}<button type="button" class="btn-btn btn-prev"
-                    onclick="history.back()">Volver</button>{% endif %}
-                <button type="submit" class="btn-btn btn-next">{% if step == 1 %}Siguiente{% elif step == 2 %}Analizar{% else %}Finalizar{% endif %}</button>
+                {% if step == 1 %}
+                <a href="{% url 'admin:documentos_documento_changelist' %}" class="btn-btn btn-prev">Cancelar</a>
+                {% else %}
+                <button type="button" class="btn-btn btn-prev" onclick="history.back()">Volver</button>
+                {% endif %}
+                <button type="submit" class="btn-btn btn-next">
+                    {% if step == 1 %}Siguiente{% elif step == 2 %}Analizar{% else %}Finalizar{% endif %}
+                </button>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+    document.querySelector('form').onsubmit = function () {
+        if (document.getElementById('file-input') && document.getElementById('file-input').files.length > 0) {
+            document.getElementById('loading-overlay').style.display = 'flex';
+        }
+    };
+</script>
 {% endblock %}

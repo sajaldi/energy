@@ -501,6 +501,75 @@
         opacity: 0.5;
         cursor: not-allowed;
     }
+
+    .category-tree-root {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .tree-node {
+        margin-bottom: 2px;
+    }
+
+    .category-row {
+        display: flex;
+        align-items: center;
+        padding: 6px 8px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.85rem;
+        color: var(--text-main);
+    }
+
+    .category-row:hover {
+        background: var(--bg-body);
+    }
+
+    .category-label.active {
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .category-row:has(.category-label.active) {
+        background: rgba(16, 185, 129, 0.05);
+    }
+
+    .cat-caret {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        margin-right: 4px;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        transition: transform 0.2s;
+        border-radius: 4px;
+    }
+
+    .cat-caret:hover {
+        background: #e2e8f0;
+        color: var(--text-main);
+    }
+
+    .cat-caret.collapsed {
+        transform: rotate(-90deg);
+    }
+
+    .cat-spacer {
+        width: 24px;
+        display: inline-block;
+    }
+
+    .subtree {
+        list-style: none;
+        padding-left: 20px;
+        margin: 0;
+        border-left: 1px solid var(--border);
+        margin-left: 10px;
+    }
 </style>
 {% endblock %}
 
@@ -549,7 +618,38 @@
         </div>
     </div>
 
-    <form method="post" enctype="multipart/form-data" id="wizard-form" novalidate>
+    {% if is_readonly %}
+    <!-- Banner de Bloqueo -->
+    <div
+        style="background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%); border-left: 4px solid #ff9800; padding: 20px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="flex: 1;">
+                <h4 style="margin: 0 0 8px 0; color: #e65100; font-size: 1.1rem;">
+                    🔒 Requisición Bloqueada para Edición
+                </h4>
+                <p style="margin: 0; color: #666; line-height: 1.5;">
+                    Esta requisición está en estado <strong>{{ instance.get_estado_requisicion_display }}</strong> y no
+                    se puede modificar.
+                    {% if can_unlock %}
+                    <br>Si necesita editarla, puede desbloquearla, pero <strong>deberá solicitar nuevamente la
+                        autorización</strong> después de guardar los cambios.
+                    {% endif %}
+                </p>
+            </div>
+            {% if can_unlock %}
+            <div style="margin-left: 20px;">
+                <button type="button" id="btn-unlock-edit" class="btn-custom"
+                    style="background: #ff9800; color: white; border: none; padding: 12px 24px; font-weight: 600; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+                    🔓 Desbloquear para Editar
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="wizard-form" novalidate {% if is_readonly %}disabled{% endif
+        %}>
         {% csrf_token %}
         <input type="hidden" name="target_step" id="target_step" value="{{ current_step }}">
         <input type="hidden" name="final_save" id="final_save" value="false">
@@ -626,7 +726,7 @@
                 </div>
                 {% for a_form in articulo_formset %}
                 <div class="article-row inline-row formset-row" id="article-{{ forloop.counter0 }}">
-                    {{ a_form.id }}
+                    {{ a_form.cr8ca_itemderequisicionid }}
                     <div>{{ a_form.material }}</div>
                     <div>{{ a_form.cr8ca_articulo }}</div>
                     <div>{{ a_form.cr8ca_cantidad }}</div>
@@ -664,7 +764,17 @@
                         style="padding: 6px 12px; font-size: 0.8rem;">➕ Adjuntar Local</button>
                 </div>
             </div>
-            <div class="card-body" id="document-formset">
+            <div class="card-body" style="padding-bottom: 0;">
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0; margin-bottom: 20px;">
+                    💡 Cargue aquí cotizaciones, documentos de referencia y otros que le sirvan a procura.
+                </p>
+            </div>
+            <div class="card-body" id="document-formset" style="padding-top: 0;">
+                <p
+                    style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px; background: #fff8e1; padding: 10px; border-radius: 4px; border-left: 4px solid #ffb300;">
+                    💡 <strong>Nota:</strong> Cargue aquí cotizaciones, documentos de referencia y otros que le sirvan a
+                    procura.
+                </p>
                 {% if instance.pk and instance.mayan_documents %}
                 <div style="margin-bottom: 20px;">
                     <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Documentos en Mayan
@@ -716,7 +826,7 @@
             </div>
             <div class="card-body">
                 <h4 style="margin-top: 0; color: var(--primary);">Información General</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 24px;">
                     <div class="review-item"><span class="review-label">Número</span><span class="review-value">{{
                             instance.cr8ca_requisicion|default:"(Nueva)" }}</span></div>
                     <div class="review-item"><span class="review-label">Solicitante</span><span class="review-value">{{
@@ -839,9 +949,21 @@
         <div class="modal-body">
             <div class="modal-sidebar">
                 <input type="text" class="search-box" id="material-search" placeholder="🔍 Buscar material...">
-                <h4 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--text-muted);">Categorías</h4>
-                <ul class="category-list" id="category-list">
-                    <li class="category-item active" data-category="">Todas</li>
+
+                <button class="btn-custom btn-outline-custom" id="btn-show-new-mat-form"
+                    style="width: 100%; margin: 10px 0; font-size: 0.8rem; padding: 6px;">
+                    ⚠️ ¿No lo encuentra? Solicitar Nuevo
+                </button>
+
+                <h4 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--text-muted); margin-top: 10px;">
+                    Categorías</h4>
+                <ul class="category-tree-root" id="category-tree-root">
+                    <li class="tree-node">
+                        <div class="category-row all-categories active">
+                            <span class="cat-spacer"></span>
+                            <span class="category-label" data-category="">Todas</span>
+                        </div>
+                    </li>
                 </ul>
             </div>
             <div class="modal-main">
@@ -852,6 +974,57 @@
                     <button class="pagination-btn" id="prev-page">← Anterior</button>
                     <span id="page-info" style="padding: 8px 16px; font-size: 0.85rem;"></span>
                     <button class="pagination-btn" id="next-page">Siguiente →</button>
+                </div>
+
+                <!-- NEW MATERIAL FORM (Initially Hidden) -->
+                <div class="new-material-form" id="new-material-form"
+                    style="display: none; padding: 20px; animation: fadeIn 0.3s;">
+                    <h3 style="margin-bottom: 5px; color: var(--primary);">🆕 Solicitar Nuevo Material</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">
+                        Complete los detalles para solicitar un material que no existe en el catálogo.
+                    </p>
+
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 5px; display: block;">Nombre /
+                            Descripción Corta <span style="color:red">*</span></label>
+                        <input type="text" id="new-mat-name" class="form-control"
+                            placeholder="Ej: Tubo PVC 4 pulgadas Reforzado"
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                    </div>
+
+                    <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                        <div class="form-group" style="flex:1;">
+                            <label
+                                style="font-weight: 600; font-size: 0.9rem; margin-bottom: 5px; display: block;">Cantidad
+                                <span style="color:red">*</span></label>
+                            <input type="number" id="new-mat-qty" class="form-control" value="1" min="0.1" step="0.1"
+                                style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label
+                                style="font-weight: 600; font-size: 0.9rem; margin-bottom: 5px; display: block;">Costo
+                                Unit. Estimado</label>
+                            <input type="number" id="new-mat-price" class="form-control" value="0" min="0" step="0.01"
+                                style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label
+                            style="font-weight: 600; font-size: 0.9rem; margin-bottom: 5px; display: block;">Comentarios
+                            / Especificaciones</label>
+                        <textarea id="new-mat-desc" class="form-control" rows="3"
+                            placeholder="Detalles adicionales, marca preferida, link de referencia, etc."
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;"></textarea>
+                    </div>
+
+                    <div
+                        style="margin-top: 25px; text-align: right; border-top: 1px solid var(--border); padding-top: 20px;">
+                        <button type="button" class="btn-custom btn-outline-custom" id="cancel-new-mat"
+                            style="margin-right: 10px;">Cancelar</button>
+                        <button type="button" class="btn-custom btn-primary-custom" id="add-new-mat-btn">➕ Agregar a
+                            Solicitud</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -921,7 +1094,8 @@
 
 <!-- Templates -->
 <div id="empty-article-row" class="empty-row">
-    <div class="article-row inline-row formset-row">
+    <div class="article-row inline-row formset-row" id="article-__prefix__">
+        {{ articulo_formset.empty_form.cr8ca_itemderequisicionid }}
         <div>{{ articulo_formset.empty_form.material }}</div>
         <div>{{ articulo_formset.empty_form.cr8ca_articulo }}</div>
         <div>{{ articulo_formset.empty_form.cr8ca_cantidad }}</div>
@@ -1130,12 +1304,49 @@
                         this.loadMaterials();
                     });
 
-                    $(document).on('click', '.category-item', (e) => {
-                        $('.category-item').removeClass('active');
-                        $(e.target).addClass('active');
-                        this.currentCategory = $(e.target).data('category');
+                    // New Material Form Events
+                    $('#btn-show-new-mat-form').on('click', (e) => {
+                        e.preventDefault();
+                        this.toggleNewMaterialForm(true);
+                    });
+
+                    $('#cancel-new-mat').on('click', () => {
+                        this.toggleNewMaterialForm(false);
+                    });
+
+                    $('#add-new-mat-btn').on('click', () => {
+                        this.addNewMaterial();
+                    });
+
+                    // Event delegation for category tree
+                    $(document).on('click', '.category-row', (e) => {
+                        e.stopPropagation();
+                        // Ignore if clicking caret
+                        if ($(e.target).hasClass('cat-caret')) return;
+
+                        $('.category-row').removeClass('active'); // Remove from rows
+                        $('.category-label').removeClass('active'); // Remove from labels (visual)
+
+                        const row = $(e.currentTarget);
+                        const label = row.find('.category-label');
+
+                        label.addClass('active'); // Add to label inside
+
+                        this.currentCategory = label.data('category');
                         this.currentPage = 1;
+                        this.toggleNewMaterialForm(false); // Ensure grid is shown
                         this.loadMaterials();
+                    });
+
+                    // Toggle caret
+                    $(document).on('click', '.cat-caret', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const caret = $(e.currentTarget);
+                        const subtree = caret.closest('.tree-node').children('.subtree');
+
+                        subtree.slideToggle(200);
+                        caret.toggleClass('collapsed');
                     });
 
                     $(document).on('click', '.material-card', (e) => {
@@ -1204,12 +1415,111 @@
                     $('#material-modal').removeClass('active');
                 },
 
+                toggleNewMaterialForm(show) {
+                    if (show) {
+                        $('#materials-grid').hide();
+                        $('#pagination-controls').hide();
+                        $('#new-material-form').show();
+                        $('#btn-show-new-mat-form').hide();
+                        $('#new-mat-name').focus();
+                    } else {
+                        $('#new-material-form').hide();
+                        $('#materials-grid').show();
+                        if (this.currentPage > 0) $('#pagination-controls').show();
+                        $('#btn-show-new-mat-form').show();
+                    }
+                },
+
+                addNewMaterial() {
+                    const name = $('#new-mat-name').val();
+                    const qty = $('#new-mat-qty').val();
+                    const price = $('#new-mat-price').val();
+                    const desc = $('#new-mat-desc').val();
+
+                    if (!name) {
+                        Swal.fire({ title: 'Error', text: 'Debe ingresar un nombre para el material.', icon: 'error', confirmButtonColor: '#EF4444' });
+                        return;
+                    }
+                    if (!qty || parseFloat(qty) <= 0) {
+                        Swal.fire({ title: 'Error', text: 'La cantidad debe ser mayor a 0.', icon: 'error', confirmButtonColor: '#EF4444' });
+                        return;
+                    }
+
+                    const manualMaterial = {
+                        id: '',
+                        nombre: name,
+                        sku: 'SOLICITUD',
+                        precio: price || 0
+                    };
+
+                    const fullDesc = `[NUEVO] ${name}` + (desc ? ` - ${desc}` : '');
+
+                    this.addToFormset(manualMaterial, qty, fullDesc);
+
+                    // Reset fields
+                    $('#new-mat-name').val('');
+                    $('#new-mat-desc').val('');
+                    $('#new-mat-qty').val('1');
+                    $('#new-mat-price').val('0');
+
+                    this.toggleNewMaterialForm(false);
+
+                    Swal.fire({
+                        title: '¡Solicitud Agregada!',
+                        text: 'Se ha agregado el nuevo material a la lista.',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                },
+
                 loadCategories() {
                     $.get('/inventarios/api/categories/', (data) => {
-                        const list = $('#category-list');
-                        data.results.forEach(cat => {
-                            list.append(`<li class="category-item" data-category="${cat.id}">${cat.nombre}</li>`);
-                        });
+                        const list = $('#category-tree-root');
+                        list.empty();
+
+                        // Re-add "Todas" option
+                        list.append(`
+                            <li class="tree-node">
+                                <div class="category-row all-categories active">
+                                    <span class="cat-spacer"></span>
+                                    <span class="category-label" data-category="">Todas</span>
+                                </div>
+                            </li>
+                        `);
+
+                        function buildTreeHtml(nodes) {
+                            if (!nodes || nodes.length === 0) return '';
+                            let html = '';
+                            nodes.forEach(node => {
+                                const hasChildren = node.children && node.children.length > 0;
+
+                                html += `<li class="tree-node">`;
+
+                                // Container for the row (caret + name)
+                                html += `<div class="category-row">`;
+
+                                if (hasChildren) {
+                                    html += `<span class="cat-caret">▼</span>`;
+                                } else {
+                                    html += `<span class="cat-spacer"></span>`; // Alignment
+                                }
+
+                                html += `<span class="category-label" data-category="${node.id}">${node.nombre}</span>`;
+                                html += `</div>`;
+
+                                if (hasChildren) {
+                                    html += `<ul class="subtree" style="display:none;">`; // Collapsed by default
+                                    html += buildTreeHtml(node.children);
+                                    html += `</ul>`;
+                                }
+
+                                html += `</li>`;
+                            });
+                            return html;
+                        }
+
+                        list.append(buildTreeHtml(data.results));
                     });
                 },
 
@@ -1264,13 +1574,77 @@
                 },
 
                 addToFormset(material, quantity, description) {
+                    // Check for duplicates ONLY if it's a real material (has ID)
+                    if (material.id) {
+                        let existingRowIndex = -1;
+                        const totalForms = parseInt($('#id_articulos-TOTAL_FORMS').val());
+
+                        for (let i = 0; i < totalForms; i++) {
+                            const row = $(`#article-${i}`);
+                            if (row.length && row.is(':visible')) {
+                                const rowMaterialVal = $(`#id_articulos-${i}-material`).val();
+                                if (rowMaterialVal == material.id) {
+                                    existingRowIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (existingRowIndex !== -1) {
+                            Swal.fire({
+                                title: '¡Material ya agregado!',
+                                text: `El material "${material.nombre}" ya está en tu lista. ¿Quieres sumar la cantidad ingresada a la existente?`,
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonColor: '#10b981',
+                                cancelButtonColor: '#64748b',
+                                confirmButtonText: '➕ Sumar Cantidad',
+                                cancelButtonText: 'Cancelar'
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    const qtyInput = $(`#id_articulos-${existingRowIndex}-cr8ca_cantidad`);
+                                    const currentQty = parseFloat(qtyInput.val()) || 0;
+                                    const addQty = parseFloat(quantity) || 0;
+                                    const newTotal = currentQty + addQty;
+
+                                    qtyInput.val(newTotal.toFixed(2));
+
+                                    const row = $(`#article-${existingRowIndex}`);
+                                    const originalBg = row.css('background-color');
+                                    row.css('background-color', '#dcfce7');
+                                    row.css('transition', 'background-color 0.5s');
+                                    setTimeout(() => row.css('background-color', originalBg || ''), 1500);
+
+                                    Swal.fire({
+                                        title: '¡Cantidad Actualizada!',
+                                        text: `Total acumulado: ${newTotal.toFixed(2)}`,
+                                        icon: 'success',
+                                        timer: 1500,
+                                        showConfirmButton: false
+                                    });
+                                }
+                            });
+                            return;
+                        }
+                    }
+
+                    this._itemAddLogic(material, quantity, description);
+                },
+
+                _itemAddLogic(material, quantity, description) {
                     const totalForms = $('#id_articulos-TOTAL_FORMS');
                     const count = parseInt(totalForms.val());
                     const newRow = $('#empty-article-row').html().replace(/__prefix__/g, count);
                     $('#article-formset').append(newRow);
 
                     // Set values
-                    $(`#id_articulos-${count}-material`).val(material.id).trigger('change');
+                    if (material.id) {
+                        $(`#id_articulos-${count}-material`).val(material.id).trigger('change');
+                    } else {
+                        // For manual items, select2 stays empty.
+                        $(`#id_articulos-${count}-material`).val(null).trigger('change');
+                    }
+
                     $(`#id_articulos-${count}-cr8ca_articulo`).val(description || material.nombre);
                     $(`#id_articulos-${count}-cr8ca_cantidad`).val(quantity);
                     $(`#id_articulos-${count}-cr8ca_costoaproximado`).val(material.precio);
@@ -1435,6 +1809,43 @@
             };
 
             mayanWizard.init();
+
+            // ========== UNLOCK EDIT BUTTON ==========
+            {% if instance and can_unlock %}
+            document.getElementById('btn-unlock-edit').addEventListener('click', function () {
+                Swal.fire({
+                    title: '⚠️ ¿Desbloquear esta requisición?',
+                    html: '<p style="text-align: left; padding: 0 20px;">Si desbloquea esta requisición para editarla, <strong>volverá al estado de Borrador</strong> y deberá:<br><br>' +
+                        '✓ Realizar los cambios necesarios<br>' +
+                        '✓ Guardar la requisición<br>' +
+                        '✓ <strong>Solicitar nuevamente la autorización</strong><br><br>' +
+                        '¿Está de acuerdo en continuar?</p>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ff9800',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, Desbloquear',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true,
+                    width: '600px'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = "{% url 'presupuestos:requisicion_unlock_edit' pk=instance.pk %}";
+                    }
+                });
+            });
+            {% endif %}
+
+            // ========== READONLY MODE: Disable all inputs ==========
+            {% if is_readonly %}
+            document.querySelectorAll('#wizard-form input, #wizard-form select, #wizard-form textarea, #wizard-form button[type="submit"]').forEach(el => el.disabled = true);
+            document.querySelectorAll('.next-step, .prev-step, .save-draft, #add-article, #add-document, #open-mayan-wizard').forEach(el => {
+                el.disabled = true;
+                el.style.opacity = '0.5';
+                el.style.cursor = 'not-allowed';
+                el.style.pointerEvents = 'none';
+            });
+            {% endif %}
 
             console.log('Eventos del Wizard registrados correctamente');
         }

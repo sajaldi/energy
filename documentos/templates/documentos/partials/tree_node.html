@@ -1,0 +1,19 @@
+<div class="doc-node {% if node.is_current %}active{% endif %}" data-id="{{ node.id }}"
+    onclick="showDetails({{ node.id }})">
+    <span class="code">{{ node.codigo }}</span>
+    <span class="title" title="{{ node.titulo }}">{{ node.titulo }}</span>
+    <div class="meta">
+        <span class="badge-status status-{{ node.estado|lower }}">{{ node.estado }}</span>
+        <span>{{ node.fecha|date:"d/m/y" }}</span>
+    </div>
+</div>
+
+{% if node.hijos %}
+<ul>
+    {% for hijo in node.hijos %}
+    <li>
+        {% include "documentos/partials/tree_node.html" with node=hijo %}
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}

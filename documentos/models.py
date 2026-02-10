@@ -71,10 +71,10 @@ class Documento(models.Model):
     Apunta siempre a la última revisión válida.
     """
     ESTADOS = (
+        ('RECIBIDO', 'Recibido'),
         ('BORRADOR', 'Borrador'),
-        ('REVISION', 'En Revisión'),
-        ('APROBADO', 'Aprobado'),
-        ('OBSOLETO', 'Obsoleto'),
+        ('ENVIADO', 'Enviado'),
+        ('COMPLETADO', 'Completado'),
     )
 
     codigo = models.CharField(
@@ -105,6 +105,15 @@ class Documento(models.Model):
     # Relaciones
     activos = models.ManyToManyField(Activo, blank=True, related_name='documentos')
     ubicaciones = models.ManyToManyField(Ubicacion, blank=True, related_name='documentos')
+    
+    responsable = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='documentos_responsable',
+        verbose_name=_("Responsable")
+    )
     
     # Cache de la última revisión para acceso rápido
     ultima_revision = models.ForeignKey(
@@ -143,6 +152,31 @@ class MetadatoValor(models.Model):
 
     def __str__(self):
         return f"{self.documento.codigo}: {self.config.etiqueta} = {self.valor}"
+
+class ComentarioDocumento(models.Model):
+    """
+    Comentarios u observaciones asociados a un punto específico del PDF.
+    """
+    documento = models.ForeignKey(Documento, on_delete=models.CASCADE, related_name='comentarios')
+    revision = models.ForeignKey('Revision', on_delete=models.CASCADE, related_name='comentarios_pines', null=True, blank=True)
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE)
+    texto = models.TextField()
+    
+    # Posicionamiento (Pins)
+    posicion_x = models.FloatField(default=0, help_text="Posición X en porcentaje (0-100)")
+    posicion_y = models.FloatField(default=0, help_text="Posición Y en porcentaje (0-100)")
+    pagina = models.PositiveIntegerField(default=1)
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    resuelto = models.BooleanField(default=False, help_text="Marcar si el comentario ya ha sido atendido")
+
+    class Meta:
+        verbose_name = "Comentario de Documento"
+        verbose_name_plural = "Comentarios de Documentos"
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f"Comentario de {self.usuario.username} en {self.documento.codigo} (Hoja {self.pagina})"
 
 class Revision(models.Model):
     """

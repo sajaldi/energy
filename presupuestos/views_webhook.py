@@ -4,71 +4,143 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404
 from .models import Requisicion
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 @csrf_exempt
 @require_POST
 def requisicion_webhook_update(request):
     """
     Webhook para recibir actualizaciones de estado desde Power Automate.
+    
     Payload esperado:
     {
         "numero_requisicion": "REQ-00000-202X",
-        "accion": "APROBAR" | "RECHAZAR",
-        "comentarios": "Opcional"
+        "accion": "APROBAR" | "RECHAZAR" | "DENEGAR",
+        "comentarios": "Opcional: razón de aprobación/rechazo"
     }
+    
+    Respuestas:
+    - 200: Actualización exitosa
+    - 400: Datos inválidos o faltantes
+    - 404: Requisición no encontrada
+    - 500: Error interno del servidor
     """
     try:
-        data = json.loads(request.body)
+        # Parsear el body JSON
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            logger.error("Webhook recibió JSON inválido")
+            return JsonResponse({
+                'success': False, 
+                'message': 'El payload debe ser un JSON válido'
+            }, status=400)
+        
+        # Validar campos requeridos
         numero_requisicion = data.get('numero_requisicion')
-        accion = data.get('accion', '').upper()
-        comentarios = data.get('comentarios', '')
-
+        accion = data.get('accion', '').upper().strip()
+        comentarios = data.get('comentarios', '').strip()
+        
         if not numero_requisicion:
-            return JsonResponse({'success': False, 'message': 'Falta numero_requisicion'}, status=400)
-
+            return JsonResponse({
+                'success': False, 
+                'message': 'El campo "numero_requisicion" es obligatorio'
+            }, status=400)
+        
+        if not accion:
+            return JsonResponse({
+                'success': False, 
+                'message': 'El campo "accion" es obligatorio'
+            }, status=400)
+        
         # Buscar la requisición
         requisicion = Requisicion.objects.filter(cr8ca_requisicion=numero_requisicion).first()
         if not requisicion:
-            return JsonResponse({'success': False, 'message': f'Requisición {numero_requisicion} no encontrada'}, status=404)
-
+            logger.warning(f"Requisición {numero_requisicion} no encontrada en webhook")
+            return JsonResponse({
+                'success': False, 
+                'message': f'La requisición "{numero_requisicion}" no existe en el sistema'
+            }, status=404)
+        
         # Mapear acción a estado
+        # Soportamos APROBAR, RECHAZAR y DENEGAR (alias de RECHAZAR)
         if accion == 'APROBAR':
             nuevo_estado = 'AUTORIZADO'
-        elif accion == 'RECHAZAR':
+            tipo_notif = 'SUCCESS'
+            mensaje_usuario = 'aprobada'
+        elif accion in ['RECHAZAR', 'DENEGAR']:
             nuevo_estado = 'RECHAZADO'
+            tipo_notif = 'ERROR'
+            mensaje_usuario = 'rechazada'
         else:
-            return JsonResponse({'success': False, 'message': f'Acción desconocida: {accion}'}, status=400)
-
+            return JsonResponse({
+                'success': False, 
+                'message': f'Acción desconocida: "{accion}". Valores válidos: APROBAR, RECHAZAR, DENEGAR'
+            }, status=400)
+        
+        # Verificar que la requisición esté en un estado que permita aprobación/rechazo
+        if requisicion.estado_requisicion not in ['BORRADOR', 'PENDIENTE', 'EN_REVISION']:
+            logger.warning(f"Intento de actualizar requisición {numero_requisicion} en estado {requisicion.estado_requisicion}")
+            return JsonResponse({
+                'success': False,
+                'message': f'La requisición ya está en estado "{requisicion.get_estado_requisicion_display()}". Solo se pueden aprobar/rechazar requisiciones en borrador o pendientes.'
+            }, status=400)
+        
         # Actualizar estado
+        estado_anterior = requisicion.estado_requisicion
         requisicion.estado_requisicion = nuevo_estado
         
-        # Opcional: Agregar comentarios al historial o campo de comentarios
+        # Agregar comentarios al historial si se proporcionan
         if comentarios:
-            import datetime
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            from django.utils import timezone
+            timestamp = timezone.now().strftime("%Y-%m-%d %H:%M")
             existing_comments = requisicion.cr8ca_comentarios or ""
-            requisicion.cr8ca_comentarios = f"{existing_comments}\n[{timestamp}] Power Automate ({accion}): {comentarios}".strip()
-
-        requisicion.save()
-
-        # CREAR NOTIFICACIÓN FLOTANTE
-        if requisicion.usuario_solicitante:
-            from mantenimiento.models import NotificacionMantenimiento
-            tipo_notif = 'SUCCESS' if accion == 'APROBAR' else 'ERROR'
-            mensaje_notif = f"Tu requisición {numero_requisicion} ha sido {nuevo_estado}."
+            nuevo_comentario = f"[{timestamp}] Power Automate ({accion}): {comentarios}"
             
-            NotificacionMantenimiento.objects.create(
-                user=requisicion.usuario_solicitante,
-                mensaje=mensaje_notif,
-                tipo=tipo_notif
-            )
-
+            if existing_comments:
+                requisicion.cr8ca_comentarios = f"{existing_comments}\n{nuevo_comentario}"
+            else:
+                requisicion.cr8ca_comentarios = nuevo_comentario
+        
+        requisicion.save()
+        
+        logger.info(f"Requisición {numero_requisicion} actualizada de {estado_anterior} a {nuevo_estado} vía webhook")
+        
+        # CREAR NOTIFICACIÓN FLOTANTE para el usuario solicitante
+        if requisicion.usuario_solicitante:
+            try:
+                from mantenimiento.models import NotificacionMantenimiento
+                mensaje_notif = f"Tu requisición {numero_requisicion} ha sido {mensaje_usuario}."
+                if comentarios:
+                    mensaje_notif += f" Comentarios: {comentarios[:100]}"
+                
+                NotificacionMantenimiento.objects.create(
+                    user=requisicion.usuario_solicitante,
+                    mensaje=mensaje_notif,
+                    tipo=tipo_notif
+                )
+                logger.info(f"Notificación creada para usuario {requisicion.usuario_solicitante.username}")
+            except Exception as e:
+                # No fallar el webhook si la notificación falla
+                logger.error(f"Error al crear notificación: {str(e)}")
+        
         return JsonResponse({
             'success': True, 
-            'message': f'Requisición {numero_requisicion} actualizada a {nuevo_estado}'
-        })
-
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'message': 'JSON inválido'}, status=400)
+            'message': f'Requisición {numero_requisicion} actualizada exitosamente a estado {nuevo_estado}',
+            'data': {
+                'numero_requisicion': numero_requisicion,
+                'estado_anterior': estado_anterior,
+                'estado_nuevo': nuevo_estado,
+                'accion': accion
+            }
+        }, status=200)
+    
     except Exception as e:
-        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+        logger.exception(f"Error inesperado en webhook: {str(e)}")
+        return JsonResponse({
+            'success': False, 
+            'message': f'Error interno del servidor: {str(e)}'
+        }, status=500)
+

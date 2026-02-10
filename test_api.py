@@ -1,19 +1,35 @@
-import requests
-import json
+import os
+import django
+from django.test import RequestFactory
+from django.urls import reverse
 
-API_KEY = "AIzaSyD6NlcfSsDPTxNzefz6M8z_mEpEsJVaGkE"
-MODEL = "gemini-3-flash-preview"
-URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={API_KEY}"
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'energia.settings')
+django.setup()
 
-payload = {
-    "contents": [{
-        "parts": [{"text": "Hola, responde con un saludo corto."}]
-    }]
-}
+from documentos.views import documento_detalle_json
+from documentos.models import Documento
 
-try:
-    response = requests.post(URL, json=payload, timeout=30)
-    print(f"Status: {response.status_code}")
-    print(f"Response: {response.text}")
-except Exception as e:
-    print(f"Error: {e}")
+def test_api():
+    try:
+        doc = Documento.objects.first()
+        if not doc:
+            print("No hay documentos en la base de datos.")
+            return
+        
+        factory = RequestFactory()
+        url = reverse('documentos:documento_detalle_json', args=[doc.id])
+        request = factory.get(url)
+        
+        # Simular usuario logueado
+        from django.contrib.auth.models import User
+        user = User.objects.filter(is_superuser=True).first()
+        request.user = user
+        
+        response = documento_detalle_json(request, doc.id)
+        print(f"Status: {response.status_code}")
+        print(f"Content: {response.content.decode('utf-8')}")
+    except Exception as e:
+        print(f"Error en el test: {str(e)}")
+
+if __name__ == "__main__":
+    test_api()
