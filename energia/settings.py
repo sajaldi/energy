@@ -66,8 +66,13 @@ if 'softcom.ccg.hn' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('softcom.ccg.hn')
 
 if not any('softcom.ccg.hn' in o for o in CSRF_TRUSTED_ORIGINS):
-    CSRF_TRUSTED_ORIGINS.append('https://softcom.ccg.hn')
-    CSRF_TRUSTED_ORIGINS.append('http://softcom.ccg.hn')
+    CSRF_TRUSTED_ORIGINS.extend([
+        'https://softcom.ccg.hn', 
+        'http://softcom.ccg.hn',
+        'https://*.ccg.hn'
+    ])
+
+print(f"[DEBUG] CSRF_TRUSTED_ORIGINS final: {CSRF_TRUSTED_ORIGINS}")
 
 # Configuracion para Proxy Inverso (Coolify/Nginx/Traefik)
 # Confía en la cabecera X-Forwarded-Proto para determinar si la conexión es segura
