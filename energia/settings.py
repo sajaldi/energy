@@ -62,15 +62,21 @@ if coolify_fqdn and not any(coolify_fqdn in o for o in CSRF_TRUSTED_ORIGINS):
     CSRF_TRUSTED_ORIGINS.append(f"https://{coolify_fqdn}")
 
 # Dominios adicionales explícitos
-if 'softcom.ccg.hn' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('softcom.ccg.hn')
+extra_hosts = ['softcom.ccg.hn', '10.30.1.11']
+for host in extra_hosts:
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
-if not any('softcom.ccg.hn' in o for o in CSRF_TRUSTED_ORIGINS):
-    CSRF_TRUSTED_ORIGINS.extend([
-        'https://softcom.ccg.hn', 
-        'http://softcom.ccg.hn',
-        'https://*.ccg.hn'
-    ])
+# CSRF Trusted Origins adicionales
+extra_origins = [
+    'https://softcom.ccg.hn', 
+    'http://softcom.ccg.hn',
+    'https://*.ccg.hn',
+    'http://10.30.1.11'
+]
+for origin in extra_origins:
+    if origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
 
 print(f"[DEBUG] CSRF_TRUSTED_ORIGINS final: {CSRF_TRUSTED_ORIGINS}")
 
