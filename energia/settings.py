@@ -274,10 +274,15 @@ AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://181.115.47.1
 AWS_S3_USE_SSL = os.environ.get('AWS_S3_USE_SSL', 'False').lower() == 'true'
 AWS_S3_VERIFY = False 
 
+# Forzamos a que las URLs públicas usen el dominio principal (Proxy Inverso)
+if not IS_LOCAL:
+    AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/minio-media'
+    AWS_S3_URL_PROTOCOL = 'https'
+
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
-AWS_QUERYSTRING_AUTH = True  # Mantener firmas de tiempo para seguridad extra
+AWS_QUERYSTRING_AUTH = True
 
 # Configuración de Import-Export
 # 'utf-8-sig' es más robusto para archivos CSV generados por Excel con BOM
