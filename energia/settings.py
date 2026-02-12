@@ -271,12 +271,13 @@ AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', 'rootminio')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', 'PasswordRoot07')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-media')
 AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://181.115.47.107:9000')
-AWS_S3_USE_SSL = False
-AWS_S3_VERIFY = False # Deshabilitar validación SSL para certificados autofirmados/internos
+AWS_S3_USE_SSL = os.environ.get('AWS_S3_USE_SSL', 'False').lower() == 'true'
+AWS_S3_VERIFY = False 
+
 AWS_S3_REGION_NAME = 'us-east-1'
-AWS_S3_SIGNATURE_VERSION = 's3v4'  # Necesario para compatibilidad con el Proxy de Apache
-AWS_QUERYSTRING_AUTH = True  # Para que las URLs de archivos sean públicas (si el bucket lo permite)
+AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
+AWS_QUERYSTRING_AUTH = True  # Mantener firmas de tiempo para seguridad extra
 
 # Configuración de Import-Export
 # 'utf-8-sig' es más robusto para archivos CSV generados por Excel con BOM
