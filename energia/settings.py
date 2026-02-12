@@ -272,17 +272,22 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', 'PasswordRoot07'
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-media')
 
 # Configuración de comunicación interna vs pública
-# SOLUCIÓN FINAL: Proxy de Medios a través de Django
-# Esto evita problemas de Mixed Content y Proxies externos
-MEDIA_URL = '/media-proxy/'
-AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/media-proxy'
-AWS_S3_URL_PROTOCOL = 'https'
-
-# Conexión interna a MinIO
-AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
-AWS_S3_USE_SSL = False
-AWS_QUERYSTRING_AUTH = False
-AWS_S3_FILE_OVERWRITE = False
+if IS_LOCAL:
+    # EN DESARROLLO: Usamos la IP directa (Sin Custom Domain para evitar errores)
+    MEDIA_URL = f'http://181.115.47.107:9000/{AWS_STORAGE_BUCKET_NAME}/'
+    AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
+    AWS_S3_CUSTOM_DOMAIN = None 
+    AWS_S3_URL_PROTOCOL = 'http:' # Importante el :
+    AWS_S3_USE_SSL = False
+    AWS_QUERYSTRING_AUTH = True
+else:
+    # EN PRODUCCIÓN: Proxy de Django
+    MEDIA_URL = '/media-proxy/'
+    AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/media-proxy'
+    AWS_S3_URL_PROTOCOL = 'https:' # Importante el : 
+    AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
+    AWS_S3_USE_SSL = False
+    AWS_QUERYSTRING_AUTH = False
 
 AWS_S3_VERIFY = False 
 AWS_S3_REGION_NAME = 'us-east-1'
