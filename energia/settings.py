@@ -280,7 +280,8 @@ else:
     AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio:9000')
     AWS_S3_USE_SSL = False
     # Dominio personalizado para generar las URLs públicas (Lo que ve el usuario)
-    AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/minio-media'
+    AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn'
+    AWS_LOCATION = 'minio-media'
     AWS_S3_URL_PROTOCOL = 'https'
 
 AWS_S3_VERIFY = False 
