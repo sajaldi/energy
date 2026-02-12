@@ -273,6 +273,9 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-med
 
 # Configuración de comunicación interna vs pública
 if IS_LOCAL:
+    AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
+    AWS_S3_USE_SSL = False
+else:
     # CONEXIÓN INTERNA (Para que Django suba archivos)
     AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
     AWS_S3_USE_SSL = False
