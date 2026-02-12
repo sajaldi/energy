@@ -6,6 +6,7 @@ from .models import Documento
 def documento_trazabilidad(request, doc_id):
     """
     Visualizador de trazabilidad de un documento (hacia atrás y hacia adelante).
+    Incluye vínculos transversales mediante pines (pines a otros documentos).
     """
     documento = get_object_or_404(Documento, id=doc_id)
     
@@ -34,11 +35,58 @@ def documento_trazabilidad(request, doc_id):
     
     tree = build_tree(root, documento.id)
     
+    # 3. Recopilar todos los IDs en el árbol para buscar sus vínculos
+    ids_en_arbol = set()
+    def collect_ids(node):
+        ids_en_arbol.add(node['id'])
+        for hijo in node['hijos']:
+            collect_ids(hijo)
+    collect_ids(tree)
+    
+    # 4. Buscar vínculos transversales (pines vinculados a otros documentos)
+    # Buscamos comentarios de los documentos en el árbol que tengan vinculos
+    from .models import ComentarioDocumento
+    vinc_comments = ComentarioDocumento.objects.filter(
+        models.Q(documento_id__in=ids_en_arbol) | 
+        models.Q(vinculos__documento_id__in=ids_en_arbol)
+    ).prefetch_related('vinculos__documento', 'vinculos__documento__tipo_documento')
+    
+    pines_vinculados = []
+    docs_externos = {}
+    
+    seen_links = set()
+    for c in vinc_comments:
+        for v in c.vinculos.all():
+            # Crear par único para evitar duplicados symmetrical
+            link_pair = tuple(sorted([c.id, v.id]))
+            if link_pair not in seen_links:
+                seen_links.add(link_pair)
+                pines_vinculados.append({
+                    'from_doc': c.documento.id,
+                    'to_doc': v.documento.id,
+                    'from_code': c.documento.codigo,
+                    'to_code': v.documento.codigo
+                })
+                
+                # Si el documento destino no está en el árbol, lo guardamos como externo
+                for doc in [c.documento, v.documento]:
+                    if doc.id not in ids_en_arbol and doc.id not in docs_externos:
+                        docs_externos[doc.id] = {
+                            'id': doc.id,
+                            'codigo': doc.codigo,
+                            'titulo': doc.titulo,
+                            'tipo': doc.tipo_documento.nombre if doc.tipo_documento else "S/T",
+                            'estado': doc.estado_actual,
+                            'fecha': doc.creado_en,
+                        }
+
     from django.contrib.auth.models import User
     context = {
         'documento': documento,
         'tree': tree,
         'root': root,
+        'pines_vinculados': pines_vinculados,
+        'docs_externos': list(docs_externos.values()),
         'usuarios': User.objects.filter(is_active=True).order_by('first_name')
     }
     return render(request, 'documentos/documento_trazabilidad.html', context)
