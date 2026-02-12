@@ -276,15 +276,14 @@ if IS_LOCAL:
     AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
     AWS_S3_USE_SSL = False
 else:
-    # URL interna de Coolify para que Django se conecte al contenedor de MinIO
+    # Solución de fuerza bruta: Definimos la URL base de los archivos manualmente
+    MEDIA_URL = f'https://softcom.ccg.hn/minio-media/{AWS_STORAGE_BUCKET_NAME}/'
     AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio:9000')
     AWS_S3_USE_SSL = False
-    # Configuración de URLs públicas con firmas de seguridad
-    AWS_S3_CUSTOM_DOMAIN = f'softcom.ccg.hn/minio-media/{AWS_STORAGE_BUCKET_NAME}'
-    AWS_S3_URL_PROTOCOL = 'https'
-    AWS_QUERYSTRING_AUTH = True  # Volvemos a habilitar firmas por seguridad
-    AWS_S3_SIGNATURE_VERSION = 's3v4'
-    AWS_S3_FILE_OVERWRITE = False
+    
+    # Desactivamos el CUSTOM_DOMAIN automático para usar nuestro MEDIA_URL manual
+    AWS_S3_CUSTOM_DOMAIN = None 
+    AWS_QUERYSTRING_AUTH = False  # Esto hará que las URLs sean limpias y sigan el MEDIA_URL
 
 AWS_S3_VERIFY = False 
 AWS_S3_REGION_NAME = 'us-east-1'
