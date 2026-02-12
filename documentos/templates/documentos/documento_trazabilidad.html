@@ -484,18 +484,34 @@
         animation: pulse 1.5s infinite;
     }
 
-    @keyframes pulse {
-        0% {
-            opacity: 0.6;
-        }
+    /* Estilos para Conexiones de Pines */
+    .pin-connection-svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 10;
+    }
 
-        50% {
-            opacity: 1;
-        }
+    .external-docs-container {
+        position: absolute;
+        right: 40px;
+        top: 150px;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        z-index: 5;
+    }
 
-        100% {
-            opacity: 0.6;
-        }
+    .doc-node.external {
+        border: 2px dashed var(--success);
+        background: #f0fdf4;
+    }
+
+    .doc-node.external .code {
+        color: var(--success);
     }
 </style>
 {% endblock %}
@@ -527,7 +543,10 @@
         </div>
     </div>
 
-    <div class="tree-wrapper">
+    <div class="tree-wrapper" id="canvas-container" style="position: relative;">
+        <!-- SVG para líneas de conexión curvas -->
+        <svg id="connections-svg" class="pin-connection-svg"></svg>
+
         <div class="tree">
             <ul>
                 <li>
@@ -535,6 +554,22 @@
                 </li>
             </ul>
         </div>
+
+        {% if docs_externos %}
+        <div class="external-docs-container">
+            <div class="section-title" style="margin-bottom: 10px;"><span>Vínculos de Referencia</span></div>
+            {% for doc in docs_externos %}
+            <div class="doc-node external" data-id="{{ doc.id }}" onclick="showDetails({{ doc.id }})">
+                <span class="code">{{ doc.codigo }}</span>
+                <span class="title" title="{{ doc.titulo }}">{{ doc.titulo }}</span>
+                <div class="meta">
+                    <span class="badge-status" style="background: #dcfce7; color: #166534;">EXTERNO</span>
+                    <span>{{ doc.fecha|date:"d/m/y" }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -554,7 +589,7 @@
     console.log("Trace script cargado");
     const sysUsers = [
         {% for u in usuarios %}
-    { id: {{ u.id }}, name: "{{ u.get_full_name|default:u.username|escapejs }}" },
+    { id: { { u.id } }, name: "{{ u.get_full_name|default:u.username|escapejs }}" },
     {% endfor %}
     ];
     let currentPdf = null;
@@ -564,6 +599,75 @@
     let isAddingComment = false;
     let pendingCoords = null;
     let allComments = [];
+
+    window.addEventListener('load', () => {
+        // Un pequeño delay asegura que el DOM y el árbol estén renderizados
+        setTimeout(drawConnections, 1000);
+    });
+
+    window.addEventListener('resize', drawConnections);
+
+    function drawConnections() {
+        const svg = document.getElementById('connections-svg');
+        const container = document.getElementById('canvas-container');
+        const linksDataEl = document.getElementById('pin-links-data');
+
+        if (!svg || !container || !linksDataEl) return;
+
+        // Limpiar conexiones anteriores
+        svg.innerHTML = '';
+
+        // Ajustar tamaño del SVG al tamaño completo del scroll
+        svg.setAttribute('width', container.scrollWidth);
+        svg.setAttribute('height', container.scrollHeight);
+
+        const links = JSON.parse(linksDataEl.textContent);
+
+        links.forEach(link => {
+            const fromEl = document.querySelector(`.doc-node[data-id="${link.from_doc}"]`);
+            const toEl = document.querySelector(`.doc-node[data-id="${link.to_doc}"]`);
+
+            if (fromEl && toEl) {
+                const rect1 = fromEl.getBoundingClientRect();
+                const rect2 = toEl.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+
+                // Centros de los nodos relativos al contenedor (considerando scroll)
+                const x1 = (rect1.left + rect1.width / 2) - containerRect.left + container.scrollLeft;
+                const y1 = (rect1.top + rect1.height / 2) - containerRect.top + container.scrollTop;
+                const x2 = (rect2.left + rect2.width / 2) - containerRect.left + container.scrollLeft;
+                const y2 = (rect2.top + rect2.height / 2) - containerRect.top + container.scrollTop;
+
+                // Crear curva de Bézier (Quadratic)
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+
+                // Calculamos un punto de control desplazado para la curva
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                // Punto medio con desplazamiento perpendicular
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+
+                // Desplazamiento perpendicular (0.2 de la distancia)
+                const cpX = midX - (dy / dist) * (dist * 0.25);
+                const cpY = midY + (dx / dist) * (dist * 0.25);
+
+                const d = `M ${x1} ${y1} Q ${cpX} ${cpY} ${x2} ${y2}`;
+
+                path.setAttribute('d', d);
+                path.setAttribute('stroke', '#3b82f6');
+                path.setAttribute('stroke-width', '3');
+                path.setAttribute('stroke-dasharray', '10,8');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('style', 'filter: drop-shadow(0 2px 4px rgba(59, 130, 246, 0.4));');
+                path.setAttribute('opacity', '0.6');
+
+                svg.appendChild(path);
+            }
+        });
+    }
 
     function toggleFullscreen(elementId) {
         const elem = document.getElementById(elementId);
