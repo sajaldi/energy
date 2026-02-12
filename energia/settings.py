@@ -281,11 +281,12 @@ if IS_LOCAL:
     AWS_S3_USE_SSL = False
     AWS_QUERYSTRING_AUTH = True
 else:
-    # EN PRODUCCIÓN: Proxy de Django
+    # EN PRODUCCIÓN: Proxy de Django para evitar Mixed Content
     MEDIA_URL = '/media-proxy/'
     AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/media-proxy'
-    AWS_S3_URL_PROTOCOL = 'https:' # Importante el : 
-    AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
+    AWS_S3_URL_PROTOCOL = 'https:' 
+    # Usamos el nombre del servicio interno de Coolify (minio)
+    AWS_S3_ENDPOINT_URL = 'http://minio:9000'
     AWS_S3_USE_SSL = False
     AWS_QUERYSTRING_AUTH = False
 
