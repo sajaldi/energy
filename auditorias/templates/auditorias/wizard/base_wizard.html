@@ -1,0 +1,99 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .wizard-progress {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 30px;
+        position: relative;
+    }
+
+    .wizard-step {
+        width: 30px;
+        height: 30px;
+        background: #e2e8f0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #64748b;
+        position: relative;
+        z-index: 2;
+    }
+
+    .wizard-step.active {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .wizard-step.completed {
+        background: #10b981;
+        color: white;
+    }
+
+    .progress-line {
+        position: absolute;
+        top: 15px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: #e2e8f0;
+        z-index: 1;
+    }
+
+    .step-label {
+        position: absolute;
+        top: 35px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.75rem;
+        white-space: nowrap;
+        color: #64748b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div
+    style="max-width: 800px; margin: 40px auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+
+    <div class="wizard-progress">
+        <div class="progress-line"></div>
+
+        <div class="wizard-step {% if step >= 1 %}active{% endif %} {% if step > 1 %}completed{% endif %}">
+            1
+            <span class="step-label">Información Básica</span>
+        </div>
+        <div class="wizard-step {% if step >= 2 %}active{% endif %} {% if step > 2 %}completed{% endif %}">
+            2
+            <span class="step-label">Alcance</span>
+        </div>
+        <div class="wizard-step {% if step >= 3 %}active{% endif %}">
+            3
+            <span class="step-label">Confirmación</span>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% block wizard_step_content %}{% endblock %}
+
+        <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+            {% if step > 1 %}
+            <a href="?step={{ step|add:'-1' }}" class="button" style="background: #94a3b8; color: white;">Anterior</a>
+            {% else %}
+            <div></div>
+            {% endif %}
+
+            <button type="submit" class="button" style="background: #3b82f6; color: white;">
+                {% if step == 3 %}Inciar Auditoría{% else %}Siguiente{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

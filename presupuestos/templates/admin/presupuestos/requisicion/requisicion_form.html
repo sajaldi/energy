@@ -57,6 +57,14 @@
         flex-direction: column;
         align-items: center;
         gap: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .step:hover .step-icon {
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: scale(1.1);
     }
 
     .step-icon {
@@ -600,19 +608,22 @@
 
     <!-- Stepper -->
     <div class="stepper">
-        <div class="step {% if current_step >= 1 %}active{% endif %} {% if current_step > 1 %}completed{% endif %}">
+        <div class="step {% if current_step >= 1 %}active{% endif %} {% if current_step > 1 %}completed{% endif %}"
+            data-step="1">
             <div class="step-icon">1</div>
             <div class="step-label">General</div>
         </div>
-        <div class="step {% if current_step >= 2 %}active{% endif %} {% if current_step > 2 %}completed{% endif %}">
+        <div class="step {% if current_step >= 2 %}active{% endif %} {% if current_step > 2 %}completed{% endif %}"
+            data-step="2">
             <div class="step-icon">2</div>
             <div class="step-label">Artículos</div>
         </div>
-        <div class="step {% if current_step >= 3 %}active{% endif %} {% if current_step > 3 %}completed{% endif %}">
+        <div class="step {% if current_step >= 3 %}active{% endif %} {% if current_step > 3 %}completed{% endif %}"
+            data-step="3">
             <div class="step-icon">3</div>
             <div class="step-label">Documentos</div>
         </div>
-        <div class="step {% if current_step >= 4 %}active{% endif %}">
+        <div class="step {% if current_step >= 4 %}active{% endif %}" data-step="4">
             <div class="step-icon">4</div>
             <div class="step-label">Finalizar</div>
         </div>
@@ -1157,9 +1168,27 @@
 
                 // Mensaje informativo
                 if ($('.alert-readonly').length === 0) {
-                    $('.form-container').prepend('<div class="alert-msg alert-error notify-readonly">🔒 Esta requisición está autorizada y no se puede editar.</div>');
+                    $('.form-container').prepend('<div class="alert-msg alert-error notify-readonly">🔒 Esta requisición fue enviada a aprobación y está bloqueada para edición.</div>');
                 }
             }
+
+            // Stepper click logic
+            $('.step').on('click', function () {
+                const step = $(this).data('step');
+                if (!step) return;
+
+                if (isReadOnly) {
+                    console.log('Navegando (Solo Lectura) vía stepper al paso:', step);
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('step', step);
+                    window.location.href = url.toString();
+                    return;
+                }
+
+                console.log('Stepper clic, navegando al paso:', step);
+                $('#target_step').val(step);
+                $('#wizard-form').submit();
+            });
 
             // Registrar eventos de botones
             $('.next-step').on('click', function (e) {
@@ -1838,13 +1867,18 @@
 
             // ========== READONLY MODE: Disable all inputs ==========
             {% if is_readonly %}
-            document.querySelectorAll('#wizard-form input, #wizard-form select, #wizard-form textarea, #wizard-form button[type="submit"]').forEach(el => el.disabled = true);
-            document.querySelectorAll('.next-step, .prev-step, .save-draft, #add-article, #add-document, #open-mayan-wizard').forEach(el => {
-                el.disabled = true;
-                el.style.opacity = '0.5';
-                el.style.cursor = 'not-allowed';
-                el.style.pointerEvents = 'none';
-            });
+            (function () {
+                const formInputs = document.querySelectorAll('#wizard-form input, #wizard-form select, #wizard-form textarea, #wizard-form button[type="submit"]');
+                formInputs.forEach(el => el.disabled = true);
+
+                const actionButtons = document.querySelectorAll('.next-step, .prev-step, .save-draft, #add-article, #add-document, #open-mayan-wizard');
+                actionButtons.forEach(el => {
+                    // el.disabled = true; // Algunos son div/a
+                    el.style.opacity = '0.5';
+                    el.style.cursor = 'not-allowed';
+                    el.style.pointerEvents = 'none';
+                });
+            })();
             {% endif %}
 
             console.log('Eventos del Wizard registrados correctamente');

@@ -54,7 +54,9 @@ def documento_visor_pines(request, doc_id):
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST
 from .models import Documento, ComentarioDocumento
+from django.db import models
 import json
 
 @login_required
@@ -84,8 +86,15 @@ def documento_detalle_json(request, doc_id):
                 'x': c.posicion_x,
                 'y': c.posicion_y,
                 'pagina': c.pagina,
-                'resuelto': c.resuelto
+                'resuelto': c.resuelto,
+                'responsable_id': c.responsable.id if c.responsable else None,
+                'responsable_nombre': c.responsable.get_full_name() or c.responsable.username if c.responsable else None,
+                'vinculos': [{'id': v.id, 'doc_id': v.documento.id, 'doc_codigo': v.documento.codigo} for v in c.vinculos.all()]
             })
+
+        # Lista de usuarios para asignación
+        from django.contrib.auth.models import User
+        usuarios = list(User.objects.filter(is_active=True).values('id', 'username', 'first_name', 'last_name').order_by('first_name'))
 
         # Info de archivo
         url_archivo = ""
@@ -108,6 +117,7 @@ def documento_detalle_json(request, doc_id):
             'url_archivo': url_archivo,
             'metadatos': metadatos,
             'comentarios': comentarios,
+            'usuarios_disponibles': usuarios,
         }
         return JsonResponse(data)
     except Exception as e:
@@ -131,15 +141,36 @@ def documento_comentar(request, doc_id):
         if not texto:
             return JsonResponse({'error': 'Comentario vacío'}, status=400)
             
+        # Asignar responsable si viene en el request
+        responsable_id = data.get('responsable_id')
+        responsable = None
+        if responsable_id:
+             try:
+                 from django.contrib.auth.models import User
+                 responsable = User.objects.get(id=responsable_id)
+             except User.DoesNotExist:
+                 pass
+
         comentario = ComentarioDocumento.objects.create(
             documento=doc,
             revision=doc.ultima_revision,
             usuario=request.user,
+            responsable=responsable,
             texto=texto,
             posicion_x=pos_x,
             posicion_y=pos_y,
             pagina=pagina
         )
+        
+        # Procesar vínculos si existen
+        vinculo_id = data.get('vinculo_id')
+        if vinculo_id:
+            try:
+                pin_origen = ComentarioDocumento.objects.get(id=vinculo_id)
+                comentario.vinculos.add(pin_origen)
+                # Al ser symmetrical=True, se añade automáticamente en el otro lado
+            except ComentarioDocumento.DoesNotExist:
+                pass
         
         return JsonResponse({
             'status': 'success',
@@ -150,11 +181,91 @@ def documento_comentar(request, doc_id):
                 'fecha': comentario.creado_en.strftime('%d/%m/%Y %H:%M'),
                 'x': comentario.posicion_x,
                 'y': comentario.posicion_y,
-                'pagina': comentario.pagina
+                'pagina': comentario.pagina,
+                'responsable_id': comentario.responsable.id if comentario.responsable else None,
+                'responsable_nombre': comentario.responsable.get_full_name() or comentario.responsable.username if comentario.responsable else None,
+                'vinculos': [{'id': v.id, 'doc_id': v.documento.id, 'doc_codigo': v.documento.codigo} for v in comentario.vinculos.all()]
             }
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def documento_eliminar_comentario(request, comentario_id):
+    """
+    Elimina un comentario específico.
+    Solo el autor o un superusuario pueden eliminarlo.
+    """
+    try:
+        comentario = get_object_or_404(ComentarioDocumento, id=comentario_id)
+        
+        # Validar permisos
+        if comentario.usuario != request.user and not request.user.is_superuser:
+            return JsonResponse({'error': 'No tiene permiso para eliminar este comentario'}, status=403)
+            
+        comentario.delete()
+        
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def documento_editar_comentario(request, comentario_id):
+    """
+    Edita el texto o responsable de un comentario existente.
+    """
+    try:
+        comentario = get_object_or_404(ComentarioDocumento, id=comentario_id)
+        
+        # Validar permisos (autor o superusuario para editar texto, quizás responsable para asignar)
+        # Por ahora simple: solo autor o admin
+        if comentario.usuario != request.user and not request.user.is_superuser:
+             return JsonResponse({'error': 'No tiene permiso para editar este comentario'}, status=403)
+
+        data = json.loads(request.body)
+        texto = data.get('texto')
+        responsable_id = data.get('responsable_id')
+        
+        # Actualizar texto
+        if texto:
+            comentario.texto = texto
+            
+        # Actualizar responsable (puede ser null/None para desasignar)
+        if 'responsable_id' in data: # Solo si viene en el payload explícitamente
+            if responsable_id:
+                try:
+                    from django.contrib.auth.models import User
+                    user = User.objects.get(id=responsable_id)
+                    comentario.responsable = user
+                except User.DoesNotExist:
+                     comentario.responsable = None
+            else:
+                comentario.responsable = None
+
+        comentario.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'comentario': {
+                'id': comentario.id,
+                'texto': comentario.texto,
+                'usuario': comentario.usuario.username,
+                'fecha': comentario.creado_en.strftime('%d/%m/%Y %H:%M'),
+                'x': comentario.posicion_x,
+                'y': comentario.posicion_y,
+                'pagina': comentario.pagina,
+                'resuelto': comentario.resuelto,
+                'responsable_id': comentario.responsable.id if comentario.responsable else None,
+                'responsable_nombre': comentario.responsable.get_full_name() or comentario.responsable.username if comentario.responsable else None,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 @login_required
 @require_POST
 def documento_actualizar_estado(request, doc_id):
@@ -200,3 +311,44 @@ def documento_actualizar_responsable(request, doc_id):
         return JsonResponse({'status': 'success', 'nuevo_responsable': nombre})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def documento_buscar(request):
+    """
+    Busca documentos por código o título.
+    """
+    q = request.GET.get('q', '')
+    if len(q) < 3:
+        return JsonResponse([], safe=False)
+        
+    docs = Documento.objects.filter(
+        models.Q(codigo__icontains=q) | models.Q(titulo__icontains=q)
+    ).values('id', 'codigo', 'titulo')[:10]
+    
+    return JsonResponse(list(docs), safe=False)
+
+@login_required
+def documento_proxy_pdf(request, doc_id):
+    """
+    Proxy para servir el PDF evitando problemas de CORS con MinIO.
+    """
+    import requests
+    from django.http import StreamingHttpResponse, Http404
+
+    doc = get_object_or_404(Documento, id=doc_id)
+    if not doc.ultima_revision or not doc.ultima_revision.archivo:
+        raise Http404("Documento sin archivo")
+
+    url = doc.ultima_revision.archivo.url
+    
+    try:
+        # Stream the file from MinIO
+        r = requests.get(url, stream=True)
+        response = StreamingHttpResponse(
+            streaming_content=r.iter_content(chunk_size=8192),
+            content_type=r.headers['Content-Type']
+        )
+        response['Content-Disposition'] = f'inline; filename="{doc.codigo}.pdf"'
+        return response
+    except Exception as e:
+        raise Http404(f"Error fetching PDF: {str(e)}")

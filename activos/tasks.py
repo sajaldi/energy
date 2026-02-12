@@ -405,3 +405,122 @@ def import_planos_task(self, file_path, file_format):
         'skipped': result.totals.get('skip', 0),
         'errors': len(result.base_errors) + len(result.row_errors()),
     }
+
+@shared_task(bind=True)
+def import_bienes_afectos_task(self, file_path, file_format, user_id=None, import_name="Importación Bienes Afectos", verification_mode=False, dry_run=False):
+    """
+    Tarea Celery para importar bienes afectos con seguimiento de progreso, soporte para verificación y dry-run.
+    """
+    from tablib import Dataset
+    import os
+    from django.contrib.auth.models import User
+    from django.core.cache import cache
+    from .models import BienAfecto
+    from django.core.files.storage import default_storage
+    from .resources import BienAfectoResource
+
+    user = User.objects.get(id=user_id) if user_id else None
+    cache_key = f"import_bienes_progress_{user_id}"
+
+    # Leer el archivo
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(file_content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(file_content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        error_res = {'status': 'error', 'message': str(e)}
+        cache.set(cache_key, error_res, 3600)
+        return error_res
+
+    total_rows = len(dataset)
+    resource = BienAfectoResource()
+    
+    # Estado inicial
+    progress_info = {
+        'status': 'Verificando archivo...' if verification_mode else 'Procesando importación...', 
+        'percent': 0,
+        'verification_mode': verification_mode,
+        'dry_run': dry_run,
+        'total': total_rows
+    }
+    cache.set(cache_key, progress_info, 3600)
+    self.update_state(state='PROGRESS', meta=progress_info)
+
+    if verification_mode:
+        dry_run = True
+
+    resource.before_import(dataset, user=user)
+    
+    try:
+        result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
+
+        detailed_messages = []
+        detailed_errors = []
+        
+        # Procesar errores globales
+        for error in result.base_errors:
+            detailed_errors.append(f"Error General: {str(error.error)}")
+
+        dataset_dict = dataset.dict
+        
+        for i, row_result in enumerate(result.rows):
+            row_idx = i + 1
+            data_row = dataset_dict[i]
+            nombre = str(data_row.get('nombre') or 'S/N').strip()
+            codigo = str(data_row.get('codigo_interno') or '---').strip()
+            
+            action = "SIN CAMBIOS"
+            details = ""
+            
+            if row_result.import_type == 'new':
+                action = "NUEVO"
+                details = "Se creará un nuevo bien afecto."
+            elif row_result.import_type == 'update':
+                action = "ACTUALIZAR"
+                if hasattr(row_result, 'changed_fields') and row_result.changed_fields:
+                    details = f"Cambios en: {', '.join(row_result.changed_fields)}"
+                else:
+                    details = "Actualización detectada."
+            elif row_result.import_type == 'error':
+                action = "ERROR"
+                err_msg = str(row_result.errors[0].error) if row_result.errors else "Error desconocido"
+                details = f"{err_msg}"
+                detailed_errors.append(f"Fila {row_idx}: {err_msg}")
+            
+            if verification_mode or dry_run:
+                msg = f"Fila {row_idx}: {codigo} ({nombre}) -> [{action}] {details}"
+                detailed_messages.append(msg)
+        
+        from celery import states
+        final_res = {
+            'status': 'completed',
+            'state': states.SUCCESS,
+            'total': total_rows,
+            'new': result.totals.get('new', 0),
+            'updated': result.totals.get('update', 0),
+            'skipped': result.totals.get('skip', 0),
+            'errors': len(detailed_errors),
+            'error_list': detailed_errors,
+            'results': detailed_messages,
+            'verification_mode': verification_mode,
+            'dry_run': dry_run,
+            'file_path': file_path
+        }
+        
+    except Exception as e:
+        final_res = {'status': 'error', 'message': f"Error crítico: {str(e)}"}
+
+    if not dry_run and not verification_mode:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
+        
+    cache.set(cache_key, final_res, 3600)
+    return final_res

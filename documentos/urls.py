@@ -12,8 +12,12 @@ urlpatterns = [
     # Trazabilidad
     path('trazabilidad/<int:doc_id>/', views.documento_trazabilidad, name='documento_trazabilidad'),
     path('visor-pines/<int:doc_id>/', views.documento_visor_pines, name='visor_pines'),
+    path('proxy/pdf/<int:doc_id>/', views.documento_proxy_pdf, name='documento_proxy_pdf'),
     path('api/detalle/<int:doc_id>/', views.documento_detalle_json, name='documento_detalle_json'),
     path('api/comentar/<int:doc_id>/', views.documento_comentar, name='documento_comentar'),
+    path('api/comentar/u/<int:comentario_id>/', views.documento_editar_comentario, name='documento_editar_comentario'),
+    path('api/comentar/d/<int:comentario_id>/', views.documento_eliminar_comentario, name='documento_eliminar_comentario'),
     path('api/actualizar-estado/<int:doc_id>/', views.documento_actualizar_estado, name='documento_actualizar_estado'),
     path('api/actualizar-responsable/<int:doc_id>/', views.documento_actualizar_responsable, name='documento_actualizar_responsable'),
+    path('api/buscar/', views.documento_buscar, name='documento_buscar'),
 ]

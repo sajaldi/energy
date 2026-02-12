@@ -13,6 +13,7 @@ from .models import InterfaceConsumo, Consumo, Medidor, PerfilUsuario
 import pandas as pd
 import logging
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.utils import timezone # Para fechas conscientes de zona horaria si es necesario
 from datetime import datetime, timedelta
 import io
@@ -26,6 +27,12 @@ import numpy as np
 import json
 
 logger = logging.getLogger(__name__)
+
+def landing_page(request):
+    """
+    Landing page de SoftCom CCG en la ruta principal.
+    """
+    return render(request, 'core/landing_page.html')
 
 @staff_member_required
 def import_excel(request):
@@ -539,7 +546,8 @@ def json_response(data):
     return HttpResponse(json.dumps(data), content_type="application/json")
 
 
-@staff_member_required
+
+@login_required
 def mobile_dashboard(request):
     """
     Dashboard optimizado para dispositivos móviles.
@@ -598,7 +606,7 @@ def mobile_dashboard(request):
     return render(request, 'core/mobile_dashboard.html', context)
 
 
-@staff_member_required
+@login_required
 def mobile_scanner(request):
     """
     Vista del escáner QR.
@@ -606,7 +614,7 @@ def mobile_scanner(request):
     return render(request, 'core/mobile_scanner.html')
 
 
-@staff_member_required
+@login_required
 def qr_resolver(request):
     """
     Resuelve el contenido de un código QR.
