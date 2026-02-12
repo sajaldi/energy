@@ -311,6 +311,72 @@
         background: #e2e8f0;
         margin: 5px 0;
     }
+
+    /* Modal de Búsqueda */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 3000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-box {
+        background: white;
+        width: 500px;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 1rem;
+        margin-bottom: 15px;
+    }
+
+    .search-results {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .search-result-item {
+        padding: 10px 15px;
+        border-bottom: 1px solid #f1f5f9;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .search-result-item:hover {
+        background: #f8fafc;
+    }
+
+    .link-mode-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: #f59e0b;
+        /* Amber 500 */
+        color: white;
+        text-align: center;
+        padding: 10px;
+        z-index: 2100;
+        font-weight: 700;
+        display: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
 </style>
 {% endblock %}
 
@@ -322,21 +388,110 @@
     </button>
 </div>
 
+<div class="link-mode-bar" id="link-mode-bar">
+    🔗 MODO VÍNCULO: Haga clic en el documento para establecer el destino del enlace
+    <button onclick="cancelLinkMode()"
+        style="background: rgba(0,0,0,0.2); border:none; color:white; padding: 2px 8px; margin-left: 10px; border-radius: 4px; cursor: pointer;">Cancelar</button>
+</div>
+
+<div id="document-search-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3 style="margin-top:0;">Vincular a otro documento</h3>
+        <p style="color:#64748b; font-size:0.9rem;">Busque el documento destino. Al seleccionarlo, se guardará este pin
+            y será redirigido para colocar el pin destino.</p>
+        <input type="text" id="doc-search-input" class="search-input" placeholder="Buscar por código o título..."
+            onkeyup="searchDocuments(this.value)">
+        <div id="search-results-list" class="search-results"></div>
+        <div style="text-align:right; margin-top:15px;">
+            <button onclick="closeSearchModal()" class="control-btn"
+                style="background:#f1f5f9; color:#1e293b;">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 <div id="main-content">
     <!-- Sidebar Izquierda: Comentarios -->
     <div class="sidebar">
         <div class="sidebar-header">
             <h2 style="margin:0; font-size: 1.25rem; font-weight:800;">Anotaciones</h2>
             <p style="margin:5px 0 0; font-size: 0.85rem; color: #94a3b8;">{{ documento.codigo }}</p>
+            <div style="margin-top: 15px;">
+                <input type="text" id="annotation-search" placeholder="🔍 Buscar en anotaciones o PDF..."
+                    style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; font-family: inherit;">
+                <div id="search-status" style="font-size: 0.75rem; color: #94a3b8; margin-top: 5px; height: 15px;">
+                </div>
+            </div>
         </div>
-        <div class="sidebar-content" id="comments-list">
-            <!-- Dynamic list -->
+        <div class="sidebar-content" id="sidebar-scroll-area">
+            <div id="comments-list">
+                <!-- Dynamic list -->
+            </div>
+            <div id="pdf-search-results"
+                style="display: none; border-top: 1px solid #334155; margin-top: 20px; padding-top: 20px;">
+                <h4
+                    style="margin: 0 0 10px; font-size: 0.9rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">
+                    Resultados en Documento</h4>
+                <div id="pdf-results-list"></div>
+            </div>
         </div>
         <div style="padding: 20px; background: rgba(0,0,0,0.1);">
             <button onclick="enableCommentMode()" id="btn-add-pin" class="control-btn"
                 style="width:100%; justify-content:center; background:var(--primary); font-weight:700;">
                 + Agregar Comentario
             </button>
+        </div>
+    </div>
+
+    <!-- Modal de Detalles del Pin (Nuevo) -->
+    <div id="pin-details-modal" class="modal-overlay" onclick="if(event.target === this) closePinDetails()">
+        <div class="modal-box" style="width: 400px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="margin:0; font-size:1.1rem;">Detalle de Anotación</h3>
+                <button onclick="closePinDetails()"
+                    style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <!-- Modo Vista -->
+            <div id="pin-view-mode">
+                <div style="margin-bottom:10px;">
+                    <span id="pin-detail-user" style="font-weight:700; color:var(--primary);"></span>
+                    <span style="color:#94a3b8; font-size:0.8rem;"> - </span>
+                    <span id="pin-detail-date" style="color:#94a3b8; font-size:0.8rem;"></span>
+                </div>
+                <div id="pin-detail-text"
+                    style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; white-space: pre-wrap;">
+                </div>
+                <div id="pin-detail-assigned" style="margin-bottom:15px;"></div>
+
+                <div id="pin-actions" style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button id="btn-delete-pin" onclick="deleteCurrentPin()" class="control-btn"
+                        style="background:#ef4444; color:white; display:none;">Eliminar</button>
+                    <button id="btn-edit-pin" onclick="enableEditMode()" class="control-btn"
+                        style="background:var(--primary); color:white; display:none;">Editar</button>
+                    <button onclick="closePinDetails()" class="control-btn">Cerrar</button>
+                </div>
+            </div>
+
+            <!-- Modo Edición -->
+            <div id="pin-edit-mode" style="display:none;">
+                <label style="display:block; margin-bottom:5px; font-weight:600; font-size:0.9rem;">Comentario:</label>
+                <textarea id="edit-pin-text"
+                    style="width:100%; height:100px; padding:10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:15px; font-family:inherit; resize:none;"></textarea>
+
+                <label style="display:block; margin-bottom:5px; font-weight:600; font-size:0.9rem;">Reasignar
+                    Responsable:</label>
+                <select id="edit-pin-responsible"
+                    style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:20px;">
+                    <option value="">-- Sin Responsable --</option>
+                </select>
+
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button onclick="cancelEditMode()" class="control-btn"
+                        style="background:#f1f5f9; color:#334155;">Cancelar</button>
+                    <button onclick="savePinEdit()" class="control-btn"
+                        style="background:var(--primary); color:white;">Guardar Cambios</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -366,12 +521,24 @@
                 <textarea id="comment-text"
                     style="width:100%; height:80px; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:12px; font-family:inherit; resize:none;"
                     placeholder="Escribe tu observación..."></textarea>
-                <div style="display:flex; gap:10px; justify-content:flex-end;">
-                    <button onclick="cancelComment()"
-                        style="background:#f1f5f9; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600;">Cancelar</button>
-                    <button onclick="submitComment()"
-                        style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600;">Guardar
-                        Pin</button>
+                <div style="margin-bottom: 12px;">
+                    <select id="comment-responsible"
+                        style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-family:inherit; background: #f8fafc; color: #334155;">
+                        <option value="">-- Asignar Responsable (Opcional) --</option>
+                        <!-- Options populated via JS -->
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px; justify-content:space-between; align-items:center;">
+                    <button onclick="openSearchModal()"
+                        style="background:transparent; color:#64748b; border:1px dashed #cbd5e1; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem; display:flex; gap:5px; align-items:center;">
+                        🔗 Vincular
+                    </button>
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="cancelComment()"
+                            style="background:#f1f5f9; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600;">Cancelar</button>
+                        <button onclick="submitComment()"
+                            style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600;">Guardar</button>
+                    </div>
                 </div>
             </div>
             <div id="pin-hover-card" class="pin-hover-card">
@@ -423,17 +590,52 @@
     let isAddingComment = false;
     let pendingCoords = null;
     let allComments = [];
+    let availableUsers = [];
+    let pendingLinkSourceId = null; // ID del pin origen si venimos referidos
+    let currentPinId = null; // ID del pin que se está viendo/editando
     const docId = "{{ documento.id }}";
+    const currentUsername = "{{ request.user.username }}";
+    const isSuperUser = "{{ request.user.is_superuser|yesno:'true,false' }}" === "true";
 
-    // Cargar datos iniciales
+    // Detectar si venimos en modo enlace
+    const urlParams = new URLSearchParams(window.location.search);
+    const linkSource = urlParams.get('link_source_pin');
+
+    // Global Error Handler for debugging
+    window.onerror = function (msg, url, line) {
+        console.error("Global Error:", msg, line);
+        // Descomentar si se necesita depurar con el usuario final
+        // alert("Error del sistema: " + msg);
+    };
+
+    if (linkSource) {
+        pendingLinkSourceId = linkSource;
+        const bar = document.getElementById('link-mode-bar');
+        if (bar) bar.style.display = 'block';
+        enableCommentMode(); // Auto-activar modo añadir
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Asegurar que el DOM esté listo antes de iniciar
+        console.log("DOM Ready");
+    });
+
     window.addEventListener('load', () => {
-        fetchComments();
-        const pdfUrl = "{% if documento.ultima_revision and documento.ultima_revision.archivo %}{{ documento.ultima_revision.archivo.url|safe }}{% endif %}";
-        if (pdfUrl) {
-            document.getElementById('pdf-download-link').href = pdfUrl;
-            initPDF(pdfUrl);
-        } else {
-            showPDFError("Este documento no tiene un archivo PDF cargado en su última revisión.");
+        console.log("Window Loaded");
+        try {
+            fetchComments();
+            // CHANGE: Use local proxy instead of direct MinIO URL to avoid CORS
+            const pdfUrl = "{% url 'documentos:documento_proxy_pdf' doc_id=documento.id %}";
+
+            if (pdfUrl && pdfUrl.length > 5) {
+                document.getElementById('pdf-download-link').href = pdfUrl;
+                initPDF(pdfUrl);
+            } else {
+                showPDFError("Este documento no tiene un archivo PDF cargado en su última revisión.");
+            }
+        } catch (e) {
+            console.error("Error en inicialización:", e);
+            alert("Error al iniciar el visor: " + e.message);
         }
     });
 
@@ -481,28 +683,157 @@
             .then(res => res.json())
             .then(data => {
                 allComments = data.comentarios || [];
+                availableUsers = data.usuarios_disponibles || [];
+                populateResponsibleSelect();
                 updateCommentsSidebar();
                 renderPins();
             });
     }
 
-    function updateCommentsSidebar() {
+    function populateResponsibleSelect() {
+        const select = document.getElementById('comment-responsible');
+        if (!select) return;
+
+        // Mantener la opción por defecto
+        const defaultOption = select.options[0];
+        select.innerHTML = '';
+        select.appendChild(defaultOption);
+
+        availableUsers.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            const fullName = `${u.first_name} ${u.last_name}`.trim() || u.username;
+            opt.text = fullName;
+            select.appendChild(opt);
+        });
+    }
+
+    // --- SEARCH LOGIC ---
+    // --- SEARCH LOGIC ---
+    // Envolvemos en try/catch para que un error en el buscador NO detenga la carga del PDF
+    try {
+        const searchInput = document.getElementById('annotation-search');
+        if (searchInput) {
+            let searchDebounce;
+            searchInput.addEventListener('keyup', (e) => {
+                const query = e.target.value.toLowerCase();
+                clearTimeout(searchDebounce);
+
+                // Filter Comments immediately
+                filterComments(query);
+
+                if (query.length > 2) {
+                    const statusEl = document.getElementById('search-status');
+                    if (statusEl) statusEl.innerText = "Buscando en PDF...";
+
+                    searchDebounce = setTimeout(() => {
+                        searchInPDF(query);
+                    }, 500);
+                } else {
+                    const resultsPanel = document.getElementById('pdf-search-results');
+                    const statusEl = document.getElementById('search-status');
+
+                    if (resultsPanel) resultsPanel.style.display = 'none';
+                    if (statusEl) statusEl.innerText = "";
+                }
+            });
+        } else {
+            console.warn("Search input not found in DOM");
+        }
+    } catch (err) {
+        console.error("Error initializing search logic:", err);
+    }
+
+    function filterComments(query) {
         const list = document.getElementById('comments-list');
-        if (allComments.length === 0) {
-            list.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Sin anotaciones</div>';
+        const filtered = allComments.filter(c =>
+            c.texto.toLowerCase().includes(query) ||
+            c.usuario.toLowerCase().includes(query)
+        );
+        renderCommentsList(filtered, list);
+    }
+
+    async function searchInPDF(query) {
+        if (!currentPdf) return;
+        const results = [];
+        const resultsContainer = document.getElementById('pdf-results-list');
+        const section = document.getElementById('pdf-search-results');
+
+        resultsContainer.innerHTML = '';
+        section.style.display = 'block';
+
+        for (let i = 1; i <= totalPages; i++) {
+            try {
+                const page = await currentPdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const textItems = textContent.items.map(item => item.str).join(' ');
+
+                if (textItems.toLowerCase().includes(query)) {
+                    // Simple snippet extraction
+                    const index = textItems.toLowerCase().indexOf(query);
+                    const snippet = textItems.substring(Math.max(0, index - 20), Math.min(textItems.length, index + 40));
+
+                    results.push({ page: i, snippet: snippet });
+
+                    // Progressive rendering
+                    const div = document.createElement('div');
+                    div.className = 'comment-card';
+                    div.style.borderLeft = '3px solid #f59e0b'; // Amber for PDF results
+                    div.onclick = () => {
+                        goToComment(i, 50, 50); // Center of page
+                    };
+                    div.innerHTML = `
+                        <div class="comment-meta">
+                            <strong>Texto en Página ${i}</strong>
+                            <span class="badge-page" style="background: #f59e0b;">Pág ${i}</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:#cbd5e1;">"...${snippet}..."</div>
+                    `;
+                    resultsContainer.appendChild(div);
+                }
+            } catch (e) {
+                console.error("Error searching page " + i, e);
+            }
+        }
+
+        document.getElementById('search-status').innerText = results.length > 0
+            ? `Encontrados ${results.length} resultados en PDF`
+            : "No se encontró texto en el PDF";
+    }
+
+    function updateCommentsSidebar() {
+        filterComments('');
+    }
+
+    function renderCommentsList(comments, container) {
+        if (comments.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8; font-size: 0.9rem;">Sin coincidencias en anotaciones</div>';
             return;
         }
 
-        list.innerHTML = allComments.map(c => `
+        container.innerHTML = comments.map(c => {
+            const linksHtml = c.vinculos && c.vinculos.length > 0
+                ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #475569;">
+                    ${c.vinculos.map(v => `<a href="/documentos/visor-pines/${v.doc_id}/?target_pin=${v.id}" class="control-btn" style="font-size:0.7rem; padding:2px 6px; background:rgba(255,255,255,0.1); display:inline-block; margin-right:5px; text-decoration:none;">🔗 ${v.doc_codigo}</a>`).join('')}
+                   </div>`
+                : '';
+
+            const asignadoHtml = c.responsable_nombre
+                ? `<div style="margin-top:5px; font-size:0.75rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:2px 5px; border-radius:4px; display:inline-block;">👤 Asignado a: <strong>${c.responsable_nombre}</strong></div>`
+                : '';
+
+            return `
             <div class="comment-card" onclick="goToComment(${c.pagina}, ${c.x}, ${c.y})">
                 <div class="comment-meta">
                     <strong>${c.usuario}</strong>
                     <span class="badge-page">Pág ${c.pagina}</span>
                 </div>
                 <div style="font-size:0.9rem; line-height:1.4;">${c.texto}</div>
+                ${asignadoHtml}
+                ${linksHtml}
                 <div style="font-size:0.7rem; margin-top:10px; color:#64748b;">${c.fecha}</div>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     function renderPins() {
@@ -525,8 +856,8 @@
             pin.onmouseenter = (e) => {
                 hUser.innerText = c.usuario;
                 hText.innerText = c.texto;
-                hoverCard.style.left = `calc(${c.x}% + 20px)`;
-                hoverCard.style.top = `calc(${c.y}% - 20px)`;
+                hoverCard.style.left = `calc(${c.x} % + 20px)`;
+                hoverCard.style.top = `calc(${c.y} % - 20px)`;
                 hoverCard.classList.add('active');
             };
 
@@ -536,8 +867,7 @@
 
             pin.onclick = (e) => {
                 e.stopPropagation();
-                // Alert is redundant but can stay as fallback
-                alert(`Revisión por ${c.usuario}:\n\n${c.texto}`);
+                openPinDetails(c);
             };
             layer.appendChild(pin);
         });
@@ -609,12 +939,27 @@
         document.getElementById('pins-layer').classList.remove('adding-comment');
         document.getElementById('comment-bubble').classList.remove('active');
         document.getElementById('comment-text').value = '';
+        const respSelect = document.getElementById('comment-responsible');
+        if (respSelect) respSelect.value = "";
         document.getElementById('btn-add-pin').innerText = "+ Agregar Comentario";
     }
 
-    function submitComment() {
+    function submitComment(callback) {
         const texto = document.getElementById('comment-text').value;
+        const responsibleId = document.getElementById('comment-responsible').value;
         if (!texto) return;
+
+        const payload = {
+            texto: texto,
+            responsable_id: responsibleId || null,
+            x: pendingCoords.x,
+            y: pendingCoords.y,
+            pagina: pendingCoords.pagina
+        };
+
+        if (pendingLinkSourceId) {
+            payload.vinculo_id = pendingLinkSourceId;
+        }
 
         fetch(`/documentos/api/comentar/${docId}/`, {
             method: 'POST',
@@ -622,22 +967,79 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: JSON.stringify({
-                texto: texto,
-                x: pendingCoords.x,
-                y: pendingCoords.y,
-                pagina: pendingCoords.pagina
-            })
+            body: JSON.stringify(payload)
         })
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
                     allComments.push(data.comentario);
-                    cancelComment();
+                    cancelComment(); // Resetea UI
+                    if (pendingLinkSourceId) {
+                        // Limpiar modo link si acabamos de completarlo
+                        pendingLinkSourceId = null;
+                        document.getElementById('link-mode-bar').style.display = 'none';
+                        // Limpiar URL
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        alert("¡Vínculo establecido exitosamente!");
+                    }
+
                     updateCommentsSidebar();
                     renderPins();
+
+                    if (callback && typeof callback === 'function') callback(data.comentario.id);
                 }
             });
+    }
+
+    // --- FUNCIONES DE BÚSQUEDA Y VINCULACIÓN ---
+
+    function openSearchModal() {
+        // Primero validar si hay texto para guardar el pin actual
+        const texto = document.getElementById('comment-text').value;
+        if (!texto) {
+            alert("Escriba primero el comentario antes de vincular.");
+            return;
+        }
+        document.getElementById('document-search-modal').style.display = 'flex';
+        document.getElementById('doc-search-input').focus();
+    }
+
+    function closeSearchModal() {
+        document.getElementById('document-search-modal').style.display = 'none';
+    }
+
+    let searchTimeout;
+    function searchDocuments(query) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            if (query.length < 3) return;
+            fetch(`/documentos/api/buscar/?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(docs => {
+                    const html = docs.map(d => `
+                        <div class="search-result-item" onclick="selectDocument(${d.id})">
+                            <div style="font-weight:700; color:#334155;">${d.codigo}</div>
+                            <div style="font-size:0.85rem; color:#64748b;">${d.titulo}</div>
+                        </div>
+                    `).join('');
+                    document.getElementById('search-results-list').innerHTML = html || '<div style="padding:10px; color:#94a3b8;">No se encontraron resultados</div>';
+                });
+        }, 300);
+    }
+
+    function selectDocument(targetDocId) {
+        // 1. Guardar el Pin Actual
+        submitComment((newPinId) => {
+            // 2. Redirigir al documento destino con el parámetro
+            window.location.href = `/documentos/visor-pines/${targetDocId}/?link_source_pin=${newPinId}`;
+        });
+    }
+
+    function cancelLinkMode() {
+        pendingLinkSourceId = null;
+        document.getElementById('link-mode-bar').style.display = 'none';
+        window.history.replaceState({}, document.title, window.location.pathname);
+        cancelComment();
     }
 
     function changePage(delta) {
@@ -656,11 +1058,17 @@
     }
 
     function goToComment(page, x, y) {
+        // Encontrar el comentario
+        const comment = allComments.find(c => c.pagina === page && (Math.abs(c.x - x) < 0.1) && (Math.abs(c.y - y) < 0.1));
         if (pageNum !== page) {
             pageNum = page;
-            renderPage(page).then(() => centerOn(x, y));
+            renderPage(page).then(() => {
+                centerOn(x, y);
+                if (comment) setTimeout(() => openPinDetails(comment), 300);
+            });
         } else {
             centerOn(x, y);
+            if (comment) openPinDetails(comment);
         }
     }
 
@@ -680,6 +1088,125 @@
             top: scrollY - area.clientHeight / 2,
             behavior: 'smooth'
         });
+    }
+
+    // --- LOGICA DE DETALLE / EDICION / ELIMINACION ---
+    let currentCommentData = null;
+
+    function openPinDetails(comment) {
+        currentCommentData = comment;
+        currentPinId = comment.id;
+
+        document.getElementById('pin-detail-user').innerText = comment.usuario;
+        document.getElementById('pin-detail-date').innerText = comment.fecha;
+        document.getElementById('pin-detail-text').innerText = comment.texto;
+
+        const assignedDiv = document.getElementById('pin-detail-assigned');
+        if (comment.responsable_nombre) {
+            assignedDiv.innerHTML = `<span style="font-size:0.85rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px;">👤 Responsable: <strong>${comment.responsable_nombre}</strong></span>`;
+        } else {
+            assignedDiv.innerHTML = '';
+        }
+
+        // Show/Hide actions based on ownership
+        const canEdit = (comment.usuario === currentUsername) || isSuperUser;
+        document.getElementById('btn-edit-pin').style.display = canEdit ? 'block' : 'none';
+        document.getElementById('btn-delete-pin').style.display = canEdit ? 'block' : 'none';
+
+        // Reset modes
+        document.getElementById('pin-view-mode').style.display = 'block';
+        document.getElementById('pin-edit-mode').style.display = 'none';
+
+        document.getElementById('pin-details-modal').style.display = 'flex';
+    }
+
+    function closePinDetails() {
+        document.getElementById('pin-details-modal').style.display = 'none';
+        currentPinId = null;
+        currentCommentData = null;
+    }
+
+    function enableEditMode() {
+        document.getElementById('pin-view-mode').style.display = 'none';
+        document.getElementById('pin-edit-mode').style.display = 'block';
+
+        document.getElementById('edit-pin-text').value = currentCommentData.texto;
+
+        // Populate edit select
+        const select = document.getElementById('edit-pin-responsible');
+        select.innerHTML = '<option value="">-- Sin Responsable --</option>';
+        availableUsers.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.text = `${u.first_name} ${u.last_name}`.trim() || u.username;
+            if (currentCommentData.responsable_id == u.id) {
+                opt.selected = true;
+            }
+            select.appendChild(opt);
+        });
+    }
+
+    function cancelEditMode() {
+        document.getElementById('pin-view-mode').style.display = 'block';
+        document.getElementById('pin-edit-mode').style.display = 'none';
+    }
+
+    function savePinEdit() {
+        const newText = document.getElementById('edit-pin-text').value;
+        const newResp = document.getElementById('edit-pin-responsible').value;
+
+        fetch(`/documentos/api/comentar/u/${currentPinId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                texto: newText,
+                responsable_id: newResp || null
+            })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update local data
+                    const idx = allComments.findIndex(c => c.id === currentPinId);
+                    if (idx !== -1) {
+                        // Update fields
+                        allComments[idx].texto = data.comentario.texto;
+                        allComments[idx].responsable_id = data.comentario.responsable_id;
+                        allComments[idx].responsable_nombre = data.comentario.responsable_nombre;
+                        // Trigger UI refresh
+                        openPinDetails(allComments[idx]);
+                    }
+
+                    cancelEditMode();
+                    updateCommentsSidebar();
+                    renderPins();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            });
+    }
+
+    function deleteCurrentPin() {
+        if (!confirm("¿Está seguro de que desea eliminar esta anotación? Esta acción no se puede deshacer.")) return;
+
+        fetch(`/documentos/api/comentar/d/${currentPinId}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    allComments = allComments.filter(c => c.id !== currentPinId);
+                    closePinDetails();
+                    updateCommentsSidebar();
+                    renderPins();
+                } else {
+                    alert("Error al eliminar: " + data.error);
+                }
+            });
     }
 </script>
 {% endblock %}

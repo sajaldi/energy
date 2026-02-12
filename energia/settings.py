@@ -500,3 +500,7 @@ if not DEBUG:
 # Configuración de Email para Desarrollo
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'notificaciones@energia.com'
+
+# Configuración de autenticación
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/app/'

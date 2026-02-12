@@ -40,6 +40,12 @@ urlpatterns = [
     path('celery-import/progress/', views_celery.import_activos_progress, name='celery_import_progress'),
     path('celery-cancel-task/<str:task_id>/', views_celery.celery_cancel_task, name='celery_cancel_task'),
     path('celery-download-template/', views_celery.download_activos_template, name='celery_download_template'),
+
+    # Celery Bienes Afectos Import
+    path('celery-import-bienes/', views_celery.import_bienes_afectos_view, name='celery_import_bienes'),
+    path('celery-import-bienes/process/', views_celery.import_bienes_afectos_process, name='celery_import_bienes_process'),
+    path('celery-import-bienes/progress/', views_celery.import_bienes_afectos_progress, name='celery_import_bienes_progress'),
+    path('celery-download-template-bienes/', views_celery.download_bienes_template, name='celery_download_template_bienes'),
     
     # Edición personalizada de activos
     path('editar-activo/<int:pk>/', views.activo_edit_view, name='activo_edit'),

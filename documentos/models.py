@@ -169,6 +169,12 @@ class ComentarioDocumento(models.Model):
     
     creado_en = models.DateTimeField(auto_now_add=True)
     resuelto = models.BooleanField(default=False, help_text="Marcar si el comentario ya ha sido atendido")
+    
+    # Vínculos entre pines (Navegación entre documentos)
+    vinculos = models.ManyToManyField('self', blank=True, symmetrical=True, help_text="Pines relacionados en otros documentos")
+    
+    # Responsable de la tarea (Asignación)
+    responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='comentarios_asignados', help_text="Usuario asignado para resolver este comentario")
 
     class Meta:
         verbose_name = "Comentario de Documento"

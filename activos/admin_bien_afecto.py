@@ -35,6 +35,7 @@ class BienAfectoAdmin(admin.ModelAdmin):
     autocomplete_fields = ('ubicacion', 'plano', 'familia', 'responsable')
     inlines = [HistorialBienAfectoInline, MayanDocumentInline]
     readonly_fields = ('creado_en', 'actualizado_en', 'get_activo_actual_detalle', 'get_estadisticas')
+    change_list_template = 'admin/activos/bienafecto/change_list.html'
     
     
     fieldsets = (

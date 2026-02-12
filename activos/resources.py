@@ -1,7 +1,7 @@
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, Disciplina
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, Disciplina, BienAfecto
 from documentos.models import Documento
 from .widgets import (
     SmartModeloWidget, SmartUserWidget, SmartActivoWidget, SmartFamiliaWidget, 
@@ -532,3 +532,145 @@ class ActivoResource(resources.ModelResource):
             # Usar caché de instancias pre-cargadas en before_import
             return self.activo_instance_cache.get(str(codigo))
         return None
+
+class BienAfectoResource(resources.ModelResource):
+    ubicacion_nombre = fields.Field(
+        column_name='ubicacion_nombre',
+        attribute='ubicacion',
+        widget=SmartUbicacionWidget(Ubicacion, field='nombre')
+    )
+    plano_nombre = fields.Field(
+        column_name='plano_nombre',
+        attribute='plano',
+        widget=SmartPlanoWidget(Plano, field='nombre')
+    )
+    familia_nombre = fields.Field(
+        column_name='familia_nombre',
+        attribute='familia',
+        widget=SmartFamiliaWidget(Familia, field='nombre')
+    )
+    responsable_username = fields.Field(
+        column_name='responsable_username',
+        attribute='responsable',
+        widget=SmartUserWidget(User, field='username')
+    )
+    
+    class Meta:
+        model = BienAfecto
+        import_id_fields = ('codigo_interno',)
+        fields = ('id', 'codigo_interno', 'nombre', 'ubicacion_nombre', 'plano_nombre', 'familia_nombre', 'responsable_username', 'creado_en', 'actualizado_en')
+        export_order = fields
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = True
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        # Vincular widgets
+        widgets_to_bind = ['ubicacion_nombre', 'plano_nombre', 'familia_nombre', 'responsable_username']
+        for field_name in widgets_to_bind:
+            if field_name in self.fields:
+                self.fields[field_name].widget.resource = self
+
+    def before_import(self, dataset, *args, **kwargs):
+        """Precarga cachés para velocidad y precisión en jerarquías"""
+        from django.core.cache import cache
+        from .models import Ubicacion, Familia, Plano
+        from django.contrib.auth.models import User
+        
+        # 0. Normalizar cabeceras
+        if dataset.headers:
+            dataset.headers = [str(h).lower() for h in dataset.headers]
+
+        self.dataset_dict = dataset.dict
+
+        # 0.1 Inicializar progreso detallado
+        user = kwargs.get('user')
+        self._import_user = user
+        if user:
+            cache.set(f"import_bienes_progress_{user.id}", 0, 600)
+            cache.set(f"import_bienes_progress_{user.id}_count", 0, 600)
+            self.total_rows = len(dataset)
+
+        # 1. Caché Ubicaciones
+        self.ubicacion_clave_cache = {}
+        self.ubicacion_nombre_cache = {}
+        
+        all_locs = {loc.id: loc for loc in Ubicacion.objects.all()}
+        nombres_count = {}
+        
+        for loc_id, loc in all_locs.items():
+            curr_path = []
+            curr = loc
+            visited = set()
+            while curr:
+                if curr.id in visited: break 
+                visited.add(curr.id)
+                curr_path.append(curr.nombre)
+                curr = all_locs.get(curr.padre_id)
+            
+            path = "|".join(reversed(curr_path)).upper()
+            self.ubicacion_clave_cache[path] = loc
+            nombres_count[loc.nombre.upper()] = nombres_count.get(loc.nombre.upper(), 0) + 1
+        
+        for loc_id, loc in all_locs.items():
+            if nombres_count.get(loc.nombre.upper()) == 1:
+                self.ubicacion_nombre_cache[loc.nombre.upper()] = loc
+        
+        self.fields['ubicacion_nombre'].widget.resource = self
+
+        # 2. Caché de Planos
+        self.plano_cache = {p.nombre.upper(): p for p in Plano.objects.all()}
+        for p in list(self.plano_cache.values()):
+            if p.numero_documento:
+                self.plano_cache[p.numero_documento.upper()] = p
+
+        # 3. Caché de Otros (User, Familia)
+        self.user_cache = {u.username: u for u in User.objects.all()}
+        self.familia_cache = {f.nombre.upper(): f for f in Familia.objects.all()}
+        
+        # Inicializar contadores
+        self._row_counter = 0
+
+    def after_import_row(self, row, row_result, **kwargs):
+        """Reporte de progreso ultra-ligero"""
+        if not hasattr(self, '_row_counter'): self._row_counter = 0
+        self._row_counter += 1
+        
+        if self._row_counter % 500 == 0 or self._row_counter == self.total_rows:
+            user = self._import_user
+            if user:
+                from django.core.cache import cache
+                percent = min(int((self._row_counter / self.total_rows) * 100), 100)
+                cache.set(f"import_bienes_progress_{user.id}", percent, 300)
+                cache.set(f"import_bienes_progress_{user.id}_count", self._row_counter, 300)
+
+    def import_row(self, row, instance_loader, **kwargs):
+        """Sobrescribe import_row para detectar qué campos cambiaron realmente"""
+        from import_export import resources
+        
+        instance, is_new = self.get_or_init_instance(instance_loader, row)
+        original_values = {}
+        if not is_new and instance:
+            for field in self.get_fields():
+                original_values[field.column_name] = field.get_value(instance)
+
+        row_result = super().import_row(row, instance_loader, **kwargs)
+
+        if row_result.import_type == resources.RowResult.IMPORT_TYPE_UPDATE:
+            changed_fields = []
+            for field in self.get_fields():
+                if field.column_name in row:
+                    old_val = original_values.get(field.column_name)
+                    new_val = field.get_value(row_result.instance)
+                    if old_val != new_val:
+                        changed_fields.append(field.column_name)
+            
+            row_result.changed_fields = changed_fields
+
+        return row_result
+
+    def dehydrate_ubicacion_nombre(self, obj):
+        if obj.ubicacion:
+            return obj.ubicacion.ruta_completa
+        return ""

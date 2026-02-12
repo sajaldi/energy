@@ -129,3 +129,119 @@ def download_activos_template(request):
         response['Content-Disposition'] = 'attachment; filename="plantilla_activos.xlsx"'
         
     return response
+
+# --------------------------
+# IMPORTACIÓN DE BIENES AFECTOS
+# --------------------------
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def import_bienes_afectos_view(request):
+    """Renders the upload form for Bienes Afectos background import."""
+    from django.contrib import admin
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Importación masiva de Bienes Afectos (Celery)',
+    }
+    return render(request, 'activos/celery_import_bienes_afectos.html', context)
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@csrf_exempt
+def import_bienes_afectos_process(request):
+    """Triggers the Celery task for importing genes."""
+    from .tasks import import_bienes_afectos_task
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    is_confirm = request.POST.get('confirm', '').lower() in ['true', 'on', '1']
+    existing_path = request.POST.get('file_path')
+    import_file = request.FILES.get('file')
+
+    if not is_confirm:
+        if not import_file:
+            return JsonResponse({'error': 'No se subió ningún archivo'}, status=400)
+            
+        file_ext = import_file.name.split('.')[-1].lower()
+        temp_name = f'tmp/import_bienes_{request.user.id}_{int(time.time())}.{file_ext}'
+        
+        try:
+            path = default_storage.save(temp_name, import_file)
+        except Exception as e:
+            return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
+    else:
+        if not existing_path:
+            return JsonResponse({'error': 'Falta la ruta del archivo para confirmar'}, status=400)
+        path = existing_path
+        file_ext = path.split('.')[-1].lower()
+    
+    # Limpiar cache de progreso anterior
+    cache_key = f"import_bienes_progress_{request.user.id}"
+    cache.delete(cache_key)
+    
+    # Trigger Celery task
+    v_val = request.POST.get('verification_mode', '').lower()
+    verification_mode = v_val in ['true', 'on', '1']
+    dry_run = (not verification_mode) and (not is_confirm) # Dry run on first upload
+    
+    import_name = request.POST.get('name') or f"Importación Bienes {int(time.time())}"
+    
+    task = import_bienes_afectos_task.delay(
+        path, 
+        file_ext, 
+        user_id=request.user.id, 
+        import_name=import_name,
+        verification_mode=verification_mode,
+        dry_run=dry_run
+    )
+    
+    return JsonResponse({
+        'status': 'started', 
+        'task_id': task.id, 
+        'dry_run': dry_run,
+        'verification_mode': verification_mode
+    })
+
+@login_required
+def import_bienes_afectos_progress(request):
+    """API to poll progress for bienes import."""
+    task_id = request.GET.get('task_id')
+    if not task_id:
+        return JsonResponse({'error': 'Falta task_id'}, status=400)
+        
+    cache_key = f"import_bienes_progress_{request.user.id}"
+    progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
+    
+    res = AsyncResult(task_id)
+    progress['state'] = res.state if res else 'PENDING'
+    
+    if res.state == 'SUCCESS':
+        if isinstance(res.result, dict):
+            progress.update(res.result)
+        progress['state'] = 'COMPLETED'
+        progress['percent'] = 100
+    elif res.state == 'FAILURE':
+        progress['error'] = str(res.result)
+        progress['state'] = 'FAILURE'
+        
+    return JsonResponse(progress)
+
+@login_required
+def download_bienes_template(request):
+    """Genera y descarga una plantilla Excel basada en BienAfectoResource."""
+    from .resources import BienAfectoResource
+    from django.http import HttpResponse
+    
+    resource = BienAfectoResource()
+    dataset = resource.export(queryset=[])
+    
+    export_format = request.GET.get('format', 'xlsx')
+    
+    if export_format == 'csv':
+        response = HttpResponse(dataset.csv, content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_bienes_afectos.csv"'
+    else:
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_bienes_afectos.xlsx"'
+        
+    return response

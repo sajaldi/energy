@@ -47,3 +47,124 @@ def extract_document_metadata(revision_id):
         except:
             pass
         return False
+
+@shared_task(bind=True)
+def import_comentarios_task(self, file_path, file_format, user_id=None, verification_mode=False, dry_run=False):
+    """
+    Tarea Celery para importar Comentarios de Documentos con seguimiento de progreso real.
+    """
+    from tablib import Dataset
+    from django.core.files.storage import default_storage
+    from .resources import ComentarioDocumentoResource
+    from django.core.cache import cache
+    
+    # Inicializar resource
+    resource = ComentarioDocumentoResource()
+    
+    # Marcador de progreso en caché
+    cache_key = f"import_comentarios_progress_{user_id}" if user_id else "import_comentarios_progress_system"
+
+    # Leer archivo
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_format == 'csv':
+                # Intentar decodificar con varios encodings
+                decoded = None
+                for enc in ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252']:
+                    try:
+                        decoded = file_content.decode(enc)
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                if not decoded: decoded = file_content.decode('utf-8', errors='ignore')
+                
+                dataset = Dataset().load(decoded, format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(file_content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        cache.set(cache_key, error_res, 3600)
+        return error_res
+
+    total_rows = len(dataset)
+    
+    # Estado inicial
+    progress_info = {
+        'current': 0, 
+        'total': total_rows, 
+        'status': 'Iniciando importación...', 
+        'percent': 0,
+        'new': 0,
+        'updated': 0,
+        'skipped': 0,
+        'errors': 0,
+        'verification_mode': verification_mode
+    }
+    cache.set(cache_key, progress_info, 3600)
+    self.update_state(state='PROGRESS', meta=progress_info)
+
+    if verification_mode:
+        # Modo Verificación (básico)
+        results = []
+        for i, row in enumerate(dataset.dict, start=1):
+            doc_code = row.get('documento_codigo')
+            status = "OK" if doc_code else "FALTA CODIGO DOCUMENTO"
+            results.append(f"Fila {i}: {doc_code} -> {status}")
+            
+            if i % 10 == 0 or i == total_rows:
+                progress_info.update({
+                    'current': i,
+                    'percent': int((i / total_rows) * 100)
+                })
+                cache.set(cache_key, progress_info, 3600)
+                self.update_state(state='PROGRESS', meta=progress_info)
+
+        final_res = {
+            'status': 'completed',
+            'total': total_rows,
+            'results': results,
+            'verification_mode': True
+        }
+    else:
+        # Modo Importación Real
+        try:
+            resource.before_import(dataset)
+            result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
+
+            detailed_errors = []
+            for error in result.base_errors:
+                detailed_errors.append(f"Error General: {str(error.error)}")
+            for line, errors in result.row_errors():
+                for error in errors:
+                    detailed_errors.append(f"Fila {line}: {str(error.error)}")
+            
+            final_res = {
+                'status': 'completed',
+                'total': total_rows,
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(detailed_errors),
+                'error_list': detailed_errors,
+                'dry_run': dry_run,
+                'file_path': file_path
+            }
+        except Exception as e:
+             error_msg = f"Error crítico: {str(e)}"
+             cache.set(cache_key, {'status': 'error', 'message': error_msg}, 3600)
+             return {'status': 'error', 'message': error_msg}
+
+    # Limpiar archivo si no es dry run
+    if not dry_run and not verification_mode:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
+
+    cache.set(cache_key, final_res, 3600)
+    return final_res
+

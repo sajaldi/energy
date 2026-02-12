@@ -7,6 +7,10 @@ import json
 from django.forms import TextInput, Textarea
 from django.db import models
 
+from import_export.admin import ImportExportModelAdmin
+from .resources import ComentarioDocumentoResource
+from .views_import import import_comentarios_background, import_comentarios_process, import_comentarios_progress, download_template
+
 class ComentarioDocumentoInline(admin.TabularInline):
     model = ComentarioDocumento
     extra = 0
@@ -175,7 +179,10 @@ class RevisionAdmin(admin.ModelAdmin):
     get_datos_preview.short_description = "Datos Extraídos"
 
 @admin.register(ComentarioDocumento)
-class ComentarioDocumentoAdmin(admin.ModelAdmin):
+class ComentarioDocumentoAdmin(ImportExportModelAdmin):
+    resource_class = ComentarioDocumentoResource
+    change_list_template = "admin/documentos/comentariodocumento/change_list.html"
+    
     list_display = ('documento', 'usuario', 'texto_resumen', 'pagina', 'creado_en', 'resuelto')
     list_filter = ('resuelto', 'creado_en', 'usuario')
     search_fields = ('documento__codigo', 'texto', 'usuario__username')
@@ -184,6 +191,17 @@ class ComentarioDocumentoAdmin(admin.ModelAdmin):
     def texto_resumen(self, obj):
         return obj.texto[:50] + "..." if len(obj.texto) > 50 else obj.texto
     texto_resumen.short_description = "Comentario"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        from django.urls import path
+        custom_urls = [
+            path('import-background/', self.admin_site.admin_view(import_comentarios_background), name='documentos_comentariodocumento_import_background'),
+            path('import-background/process/', self.admin_site.admin_view(import_comentarios_process), name='documentos_comentariodocumento_import_process'),
+            path('import-background/progress/', self.admin_site.admin_view(import_comentarios_progress), name='documentos_comentariodocumento_import_progress'),
+            path('import-background/template/', self.admin_site.admin_view(download_template), name='documentos_comentariodocumento_import_template'),
+        ]
+        return custom_urls + urls
 
 # Importar y registrar admins del sistema de firmas
 from . import admin_firmas

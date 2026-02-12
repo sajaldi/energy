@@ -1115,7 +1115,7 @@ from documentos.admin_mayan import MayanDocumentInline
 @admin.register(Aviso)
 class AvisoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('id', 'tipo', 'prioridad', 'estado', 'falla', 'descripcion_corta', 'ubicacion', 'activo', 'solicitante', 'creado_en')
+    list_display = ('id', 'tipo', 'prioridad', 'estado', 'falla', 'descripcion_corta', 'ubicacion', 'activo', 'solicitante', 'creado_en', 'enviar_whatsapp_button')
     list_filter = ('tipo', 'estado', 'prioridad', 'falla', 'creado_en')
     list_select_related = ('ubicacion', 'activo', 'solicitante', 'falla')
     search_fields = ('descripcion', 'ubicacion__nombre', 'activo__nombre')
@@ -1154,6 +1154,10 @@ class AvisoAdmin(admin.ModelAdmin):
     @admin.action(description="Generar Orden de Trabajo Correctiva")
     def generar_ot_action(self, request, queryset):
         count = 0
+        from datetime import timedelta
+        # Aseguramos que messages esté disponible
+        from django.contrib import messages
+        
         for aviso in queryset:
             if OrdenTrabajo.objects.filter(aviso=aviso).exists():
                 self.message_user(request, f"El aviso {aviso.id} ya tiene una OT asociada.", messages.WARNING)
@@ -1178,6 +1182,65 @@ class AvisoAdmin(admin.ModelAdmin):
             
         if count:
             self.message_user(request, f"Se han generado {count} Órdenes de Trabajo Correctivas.", messages.SUCCESS)
+
+    # --- WhatsApp Functions (Merged) ---
+
+    def enviar_whatsapp_button(self, obj):
+        from django.urls import reverse
+        from django.utils.safestring import mark_safe
+        if not obj.id: return '-'
+        # Usamos una URL personalizada dentro del admin
+        url = reverse('admin:aviso_enviar_whatsapp', args=[obj.id])
+        return mark_safe(f'<a class="button" href="{url}" style="background-color: #25D366; color: white; border-radius: 4px; padding: 5px 10px; font-weight: bold; text-decoration: none;">📱 Enviar WA</a>')
+    enviar_whatsapp_button.short_description = 'WhatsApp'
+    enviar_whatsapp_button.allow_tags = True
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        from django.urls import path
+        custom_urls = [
+            path('enviar-whatsapp/<int:aviso_id>/', self.admin_site.admin_view(self.enviar_whatsapp_view), name='aviso_enviar_whatsapp'),
+        ]
+        return custom_urls + urls
+
+    def enviar_whatsapp_view(self, request, aviso_id):
+        import requests
+        from django.contrib import messages
+        from django.http import HttpResponseRedirect
+        from django.shortcuts import get_object_or_404
+        
+        aviso = get_object_or_404(Aviso, id=aviso_id)
+            
+        texto = f"*🚨 AVISO #{aviso.id} - Energy ERP*\n"
+        texto += f"🗓️ *Fecha:* {aviso.creado_en.strftime('%d/%m/%Y %H:%M')}\n"
+        texto += f"📍 *Ubicación:* {str(aviso.ubicacion)}\n"
+        if aviso.activo:
+            texto += f"⚙️ *Activo:* {str(aviso.activo)}\n"
+        if aviso.falla:
+            texto += f"🔧 *Falla:* {str(aviso.falla)}\n"
+        
+        emoji_p = "🔴" if aviso.prioridad == 'CRITICA' else ("🟠" if aviso.prioridad == 'ALTA' else "🟡")
+        texto += f"{emoji_p} *Prioridad:* {aviso.get_prioridad_display()}\n"
+        texto += f"📝 *Descripción:* {aviso.descripcion}\n"
+        solicita = aviso.solicitante.username if aviso.solicitante else 'N/A'
+        texto += f"👤 *Solicitante:* {solicita}\n"
+        texto += f"📊 *Estado:* {aviso.get_estado_display()}"
+        
+        try:
+            # Enviamos al servicio local de Node
+            resp = requests.post('http://localhost:3005/send-message', json={
+                'number': '50488113195',
+                'message': texto
+            }, timeout=5)
+            
+            if resp.status_code == 200:
+                self.message_user(request, f"✅ Mensaje enviado correctamente al +50488113195 para Aviso #{aviso.id}")
+            else:
+                self.message_user(request, f"❌ Error del servicio WA: {resp.text}", level=messages.ERROR)
+        except Exception as e:
+            self.message_user(request, f"❌ Error conectando con servicio WA (¿está corriendo node index.js?): {str(e)}", level=messages.ERROR)
+            
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', '../'))
 
 class CierreOrdenTrabajoInline(admin.StackedInline):
     model = CierreOrdenTrabajo
@@ -1333,5 +1396,7 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = 'attachment; filename="formato_importacion_ots.xlsx"'
         return response
+
+
 
 

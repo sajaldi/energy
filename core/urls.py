@@ -1,10 +1,11 @@
 from django.urls import path
 from . import views
 
-# Define el namespace para evitar colisiones de nombres
 app_name = 'core'
 
 urlpatterns = [
+    # Landing page en la raíz
+    path('', views.landing_page, name='landing_page'),
     # Ruta para la página de inicio
     path('import-consumo/', views.import_excel, name='import_consumo'),
     path('reportes/consumo-mensual/', views.reporte_consumo_mensual, name='reporte_consumo_mensual'),

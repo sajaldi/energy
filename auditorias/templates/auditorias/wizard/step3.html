@@ -1,0 +1,49 @@
+{% extends "auditorias/wizard/base_wizard.html" %}
+
+{% block wizard_step_content %}
+<h2>Paso 3: Confirmación y Vista Previa</h2>
+<p class="help">Revisa los detalles antes de crear la auditoría.</p>
+
+<div style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 20px;">
+    <h3 style="margin-top: 0; color: #334155;">Resumen</h3>
+    <dl style="display: grid; grid-template-columns: 150px 1fr; gap: 10px;">
+        <dt style="font-weight: 600; color: #64748b;">Nombre:</dt>
+        <dd style="margin: 0;">{{ nombre }}</dd>
+
+        <dt style="font-weight: 600; color: #64748b;">Alcance:</dt>
+        <dd style="margin: 0;">
+            {{ ubicaciones_count }} Ubicaciones, {{ categorias_count }} Categorías
+        </dd>
+
+        <dt style="font-weight: 600; color: #64748b;">Estimación:</dt>
+        <dd style="margin: 0; color: #2563eb; font-weight: bold;">
+            ~{{ total_assets }} Activos encontrados para auditar
+        </dd>
+    </dl>
+</div>
+
+{% if sample_assets %}
+<div style="margin-top: 20px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
+    <h4 style="margin-top: 0; color: #475569;">Muestra de Activos Incluidos:</h4>
+    <ul style="color: #64748b; font-size: 0.9rem; padding-left: 20px;">
+        {% for asset in sample_assets %}
+        <li>{{ asset.nombre }} <span style="font-family: monospace; color: #3b82f6;">[{{ asset.codigo_interno }}]</span>
+            - <small>{{ asset.ubicacion }}</small></li>
+        {% endfor %}
+        {% if total_assets > 5 %}
+        <li>... y otros {{ total_assets|add:"-5" }} activos.</li>
+        {% endif %}
+    </ul>
+</div>
+{% else %}
+<div style="margin-top: 20px; padding: 15px; background: #fff1f2; color: #be123c; border-radius: 8px;">
+    ⚠️ No se encontraron activos con el alcance seleccionado.
+</div>
+{% endif %}
+
+<div style="margin-top: 20px;">
+    <p style="color: #ef4444; font-size: 0.85rem; text-align: right;">
+        Al confirmar, se generará la auditoría y se cerrará el alcance.
+    </p>
+</div>
+{% endblock %}
