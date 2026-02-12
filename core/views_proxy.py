@@ -11,8 +11,13 @@ def media_proxy(request, path):
     Resuelve el problema de Mixed Content y Proxies externos.
     """
     # Construimos la URL interna de MinIO
-    # Usamos la IP pública y puerto que sabemos que funciona
-    minio_url = f"http://181.115.47.107:9000/energia-media/{path}"
+    # En producción usamos el nombre del servicio 'minio', en local usamos la IP
+    if settings.IS_LOCAL:
+        base_url = "http://181.115.47.107:9000"
+    else:
+        base_url = "http://minio:9000"
+        
+    minio_url = f"{base_url}/energia-media/{path}"
     
     try:
         # Django descarga el archivo de MinIO (Comunicación Backend-Backend)
