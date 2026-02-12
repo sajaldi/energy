@@ -270,15 +270,20 @@ MEDIA_ROOT = BASE_DIR / 'media'
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', 'rootminio')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', 'PasswordRoot07')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-media')
-AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://181.115.47.107:9000')
-AWS_S3_USE_SSL = os.environ.get('AWS_S3_USE_SSL', 'False').lower() == 'true'
-AWS_S3_VERIFY = False 
 
-# Forzamos a que las URLs públicas usen el dominio principal (Proxy Inverso)
-if not IS_LOCAL:
+# Configuración de comunicación interna vs pública
+if IS_LOCAL:
+    AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
+    AWS_S3_USE_SSL = False
+else:
+    # URL interna de Coolify para que Django se conecte al contenedor de MinIO
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio:9000')
+    AWS_S3_USE_SSL = False
+    # Dominio personalizado para generar las URLs públicas (Lo que ve el usuario)
     AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/minio-media'
     AWS_S3_URL_PROTOCOL = 'https'
 
+AWS_S3_VERIFY = False 
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
