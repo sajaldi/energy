@@ -4,10 +4,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import re_path
 from django.views.static import serve
+from core.views_proxy import media_proxy
 
 urlpatterns = [
     # La ruta del admin oficial de Django
     path('admin/', admin.site.urls),
+    # Proxy de medios para MinIO (Solución a Mixed Content)
+    path('media-proxy/<path:path>', media_proxy, name='media_proxy'),
        # Incluye TODAS las URLs de tu app 'core' en la raíz del sitio.
     path('', include('core.urls', namespace='core')),
     path('activos/', include('activos.urls', namespace='activos')),
