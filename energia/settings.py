@@ -273,17 +273,18 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-med
 
 # Configuración de comunicación interna vs pública
 if IS_LOCAL:
+    # CONEXIÓN INTERNA (Para que Django suba archivos)
     AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
     AWS_S3_USE_SSL = False
-else:
-    # Solución de fuerza bruta: Definimos la URL base de los archivos manualmente
-    MEDIA_URL = f'https://softcom.ccg.hn/minio-media/{AWS_STORAGE_BUCKET_NAME}/'
-    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio:9000')
-    AWS_S3_USE_SSL = False
     
-    # Desactivamos el CUSTOM_DOMAIN automático para usar nuestro MEDIA_URL manual
-    AWS_S3_CUSTOM_DOMAIN = None 
-    AWS_QUERYSTRING_AUTH = False  # Esto hará que las URLs sean limpias y sigan el MEDIA_URL
+    # URL PÚBLICA (Lo que el navegador verá)
+    # Forzamos el dominio principal para evitar Mixed Content
+    AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/minio-media/energia-media'
+    AWS_S3_URL_PROTOCOL = 'https'
+    
+    AWS_QUERYSTRING_AUTH = True 
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_FILE_OVERWRITE = False
 
 AWS_S3_VERIFY = False 
 AWS_S3_REGION_NAME = 'us-east-1'
