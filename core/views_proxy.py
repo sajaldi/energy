@@ -10,14 +10,19 @@ def media_proxy(request, path):
     Actúa como un puente entre el navegador y MinIO.
     Resuelve el problema de Mixed Content y Proxies externos.
     """
-    # Construimos la URL interna de MinIO
-    # En producción usamos el nombre del servicio 'minio', en local usamos la IP
+    # Limpiamos el path para evitar dobles barras al inicio
+    clean_path = path.lstrip('/')
+    
     if settings.IS_LOCAL:
         base_url = "http://181.115.47.107:9000"
     else:
+        # En contenedor, el bucket a veces se requiere en el endpoint
         base_url = "http://minio:9000"
         
-    minio_url = f"{base_url}/energia-media/{path}"
+    minio_url = f"{base_url}/energia-media/{clean_path}"
+    
+    # LOG de depuración (Verás esto en los logs de Coolify)
+    print(f"[DEBUG] Proxy intentando acceder a: {minio_url}")
     
     try:
         # Django descarga el archivo de MinIO (Comunicación Backend-Backend)
