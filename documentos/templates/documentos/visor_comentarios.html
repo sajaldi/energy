@@ -640,35 +640,49 @@
             const proxyUrl = "{% url 'documentos:documento_proxy_pdf' doc_id=documento.id %}";
             const directUrl = "{{ documento.ultima_revision.archivo.url|default:'' }}";
 
-            console.log("Intentando cargar PDF...");
+            console.log("Iniciando carga de PDF. Intento 1: Proxy");
             initPDF(proxyUrl).catch(err => {
-                console.warn("Error cargando vía proxy, probando URL directa:", err);
+                console.warn("Intento 1 (Proxy) falló:", err);
                 if (directUrl && directUrl.startsWith('http')) {
-                    initPDF(directUrl).catch(err2 => {
-                        console.error("Fallo total al cargar PDF:", err2);
-                        showPDFError("No se pudo cargar el archivo PDF por ninguna vía. Verifique la conexión con el servidor de archivos (MinIO).");
-                    });
+                    console.log("Intento 2: URL Directa");
+                    // Pequeño delay para limpiar el estado
+                    setTimeout(() => {
+                        initPDF(directUrl).catch(err2 => {
+                            console.error("Fallo total al cargar PDF:", err2);
+                            showPDFError("No se pudo visualizar el PDF. El archivo podría estar dañado o el servidor de archivos es inaccesible. Detalles: " + err2.message);
+                        });
+                    }, 500);
                 } else {
-                    showPDFError("No se pudo cargar el archivo y no hay URL directa disponible.");
+                    showPDFError("Error al cargar por proxy y no hay URL alterna. Error: " + err.message);
                 }
             });
         } catch (e) {
-            console.error("Error en inicialización:", e);
+            console.error("Error crítico en inicialización:", e);
         }
     });
 
     async function initPDF(url) {
-        console.log("Iniciando carga de PDF desde:", url);
-        const loadingTask = pdfjsLib.getDocument({
-            url: url,
-            withCredentials: false
-        });
+        if (!url) throw new Error("URL de PDF no válida");
+        console.log("Cargando PDF desde:", url);
 
-        currentPdf = await loadingTask.promise;
-        totalPages = currentPdf.numPages;
-        const totalPagsEl = document.getElementById('total-pages');
-        if (totalPagsEl) totalPagsEl.innerText = totalPages;
-        renderPage(pageNum);
+        try {
+            const loadingTask = pdfjsLib.getDocument({
+                url: url,
+                withCredentials: false
+            });
+
+            currentPdf = await loadingTask.promise;
+            console.log("PDF cargado exitosamente. Páginas:", currentPdf.numPages);
+
+            totalPages = currentPdf.numPages;
+            const totalPagsEl = document.getElementById('total-pages');
+            if (totalPagsEl) totalPagsEl.innerText = totalPages;
+
+            renderPage(pageNum);
+        } catch (e) {
+            console.error("Error dentro de initPDF:", e);
+            throw e; // Relanzar para el .catch superior
+        }
     }
 
     function showPDFError(msg) {

@@ -384,24 +384,27 @@ def documento_buscar(request):
 def documento_proxy_pdf(request, doc_id):
     """
     Proxy para servir el PDF evitando problemas de CORS con MinIO.
+    Usa el motor de almacenamiento directamente para mayor confiabilidad.
     """
-    import requests
-    from django.http import StreamingHttpResponse, Http404
+    from django.http import FileResponse, Http404
 
     doc = get_object_or_404(Documento, id=doc_id)
     if not doc.ultima_revision or not doc.ultima_revision.archivo:
         raise Http404("Documento sin archivo")
-
-    url = doc.ultima_revision.archivo.url
     
     try:
-        # Stream the file from MinIO
-        r = requests.get(url, stream=True)
-        response = StreamingHttpResponse(
-            streaming_content=r.iter_content(chunk_size=8192),
-            content_type=r.headers['Content-Type']
-        )
+        # Abrir el archivo usando el driver de almacenamiento (S3/MinIO)
+        archivo = doc.ultima_revision.archivo
+        file_handle = archivo.open('rb')
+        
+        response = FileResponse(file_handle, content_type='application/pdf')
         response['Content-Disposition'] = f'inline; filename="{doc.codigo}.pdf"'
+        # Asegurar headers de seguridad y CORS para PDF.js
+        response["Access-Control-Allow-Origin"] = "*"
+        response["X-Frame-Options"] = "SAMEORIGIN"
         return response
     except Exception as e:
-        raise Http404(f"Error fetching PDF: {str(e)}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error en documento_proxy_pdf para doc {doc_id}: {str(e)}")
+        raise Http404(f"Error al abrir el PDF desde el almacenamiento.")
