@@ -162,9 +162,16 @@ class ComentarioDocumento(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     texto = models.TextField()
     
-    # Posicionamiento (Pins)
+    # Posicionamiento (Pins y Áreas)
+    TIPO_COMENTARIO = (
+        ('PIN', 'Pin (Punto)'),
+        ('AREA', 'Área (Rectángulo)'),
+    )
+    tipo = models.CharField(max_length=10, choices=TIPO_COMENTARIO, default='PIN')
     posicion_x = models.FloatField(default=0, help_text="Posición X en porcentaje (0-100)")
     posicion_y = models.FloatField(default=0, help_text="Posición Y en porcentaje (0-100)")
+    ancho = models.FloatField(default=0, help_text="Ancho en porcentaje (0-100) para áreas")
+    alto = models.FloatField(default=0, help_text="Alto en porcentaje (0-100) para áreas")
     pagina = models.PositiveIntegerField(default=1)
     
     creado_en = models.DateTimeField(auto_now_add=True)

@@ -1,6 +1,11 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from .models import Documento
+from django.contrib.auth.models import User
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.db import models
+import json
+from .models import Documento, ComentarioDocumento
 
 @login_required
 def documento_trazabilidad(request, doc_id):
@@ -45,7 +50,6 @@ def documento_trazabilidad(request, doc_id):
     
     # 4. Buscar vínculos transversales (pines vinculados a otros documentos)
     # Buscamos comentarios de los documentos en el árbol que tengan vinculos
-    from .models import ComentarioDocumento
     vinc_comments = ComentarioDocumento.objects.filter(
         models.Q(documento_id__in=ids_en_arbol) | 
         models.Q(vinculos__documento_id__in=ids_en_arbol)
@@ -100,12 +104,6 @@ def documento_visor_pines(request, doc_id):
     context = {'documento': documento}
     return render(request, 'documentos/visor_comentarios.html', context)
 
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
-from django.views.decorators.http import require_POST
-from .models import Documento, ComentarioDocumento
-from django.db import models
-import json
 
 @login_required
 def documento_detalle_json(request, doc_id):
@@ -133,6 +131,9 @@ def documento_detalle_json(request, doc_id):
                 'fecha': c.creado_en.strftime('%d/%m/%Y %H:%M'),
                 'x': c.posicion_x,
                 'y': c.posicion_y,
+                'ancho': c.ancho,
+                'alto': c.alto,
+                'tipo': c.tipo,
                 'pagina': c.pagina,
                 'resuelto': c.resuelto,
                 'responsable_id': c.responsable.id if c.responsable else None,
@@ -140,8 +141,6 @@ def documento_detalle_json(request, doc_id):
                 'vinculos': [{'id': v.id, 'doc_id': v.documento.id, 'doc_codigo': v.documento.codigo} for v in c.vinculos.all()]
             })
 
-        # Lista de usuarios para asignación
-        from django.contrib.auth.models import User
         usuarios = list(User.objects.filter(is_active=True).values('id', 'username', 'first_name', 'last_name').order_by('first_name'))
 
         # Info de archivo
@@ -205,8 +204,11 @@ def documento_comentar(request, doc_id):
             usuario=request.user,
             responsable=responsable,
             texto=texto,
+            tipo=data.get('tipo', 'PIN'),
             posicion_x=pos_x,
             posicion_y=pos_y,
+            ancho=float(data.get('ancho', 0)),
+            alto=float(data.get('alto', 0)),
             pagina=pagina
         )
         
@@ -229,6 +231,9 @@ def documento_comentar(request, doc_id):
                 'fecha': comentario.creado_en.strftime('%d/%m/%Y %H:%M'),
                 'x': comentario.posicion_x,
                 'y': comentario.posicion_y,
+                'ancho': comentario.ancho,
+                'alto': comentario.alto,
+                'tipo': comentario.tipo,
                 'pagina': comentario.pagina,
                 'responsable_id': comentario.responsable.id if comentario.responsable else None,
                 'responsable_nombre': comentario.responsable.get_full_name() or comentario.responsable.username if comentario.responsable else None,
