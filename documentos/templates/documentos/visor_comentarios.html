@@ -960,6 +960,40 @@
             pendingCoords = { x, y, ancho: w, alto: h, pagina: pageNum };
             showCommentBubble(x, y);
         };
+
+        layer.oncontextmenu = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = layer.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            pendingContextCoords = { x, y, pagina: pageNum };
+            showContextMenu(e.clientX, e.clientY);
+        };
+    }
+
+    let pendingContextCoords = null;
+    const contextMenu = document.getElementById('context-menu');
+
+    function showContextMenu(x, y) {
+        if (!contextMenu) return;
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = x + 'px';
+        contextMenu.style.top = y + 'px';
+    }
+
+    function hideContextMenu() {
+        if (contextMenu) contextMenu.style.display = 'none';
+    }
+
+    document.addEventListener('click', () => hideContextMenu());
+
+    function enableCommentModeAtContext() {
+        if (!pendingContextCoords) return;
+        isAddingComment = true;
+        document.getElementById('pins-layer').classList.add('adding-comment');
+        placePendingPin(pendingContextCoords.x, pendingContextCoords.y);
+        hideContextMenu();
     }
 
     function showCommentBubble(x, y) {
