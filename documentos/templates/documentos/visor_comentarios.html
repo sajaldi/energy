@@ -122,6 +122,30 @@
         font-weight: 800;
     }
 
+    .area-annotation {
+        position: absolute;
+        border: 2px solid #10b981;
+        background: rgba(16, 185, 129, 0.2);
+        cursor: pointer;
+        pointer-events: auto;
+        z-index: 90;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+
+    .area-annotation:hover {
+        background: rgba(16, 185, 129, 0.3);
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.5);
+    }
+
+    .drawing-rect {
+        position: absolute;
+        border: 2px dashed var(--primary);
+        background: rgba(79, 70, 229, 0.1);
+        pointer-events: none;
+        z-index: 1500;
+    }
+
     .pin-popover {
         position: absolute;
         background: white;
@@ -517,6 +541,15 @@
 
             <!-- UI Elements kept out of dynamic pins-layer -->
             <div id="comment-bubble" class="pin-popover" style="z-index: 2000;">
+                <div
+                    style="display: flex; gap: 5px; margin-bottom: 12px; background: #f1f5f9; padding: 4px; border-radius: 8px;">
+                    <button id="btn-type-pin" onclick="setAnnotationType('PIN')"
+                        style="flex: 1; border: none; padding: 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: var(--primary); color: white;">📍
+                        Pin</button>
+                    <button id="btn-type-area" onclick="setAnnotationType('AREA')"
+                        style="flex: 1; border: none; padding: 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">🟩
+                        Área</button>
+                </div>
                 <h4 style="margin: 0 0 10px; font-weight:700;">Nuevo Comentario</h4>
                 <textarea id="comment-text"
                     style="width:100%; height:80px; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:12px; font-family:inherit; resize:none;"
@@ -588,73 +621,54 @@
     let totalPages = 0;
     let scale = 1.5;
     let isAddingComment = false;
+    let annotationType = 'PIN'; // 'PIN' o 'AREA'
+    let isDrawing = false;
+    let startX, startY;
+    let drawingRect = null;
     let pendingCoords = null;
     let allComments = [];
     let availableUsers = [];
-    let pendingLinkSourceId = null; // ID del pin origen si venimos referidos
-    let currentPinId = null; // ID del pin que se está viendo/editando
+    let pendingLinkSourceId = null;
+    let currentPinId = null;
     const docId = "{{ documento.id }}";
     const currentUsername = "{{ request.user.username }}";
     const isSuperUser = "{{ request.user.is_superuser|yesno:'true,false' }}" === "true";
 
-    // Detectar si venimos en modo enlace
-    const urlParams = new URLSearchParams(window.location.search);
-    const linkSource = urlParams.get('link_source_pin');
-
-    // Global Error Handler for debugging
-    window.onerror = function (msg, url, line) {
-        console.error("Global Error:", msg, line);
-        // Descomentar si se necesita depurar con el usuario final
-        // alert("Error del sistema: " + msg);
-    };
-
-    if (linkSource) {
-        pendingLinkSourceId = linkSource;
-        const bar = document.getElementById('link-mode-bar');
-        if (bar) bar.style.display = 'block';
-        enableCommentMode(); // Auto-activar modo añadir
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        // Asegurar que el DOM esté listo antes de iniciar
-        console.log("DOM Ready");
-    });
-
     window.addEventListener('load', () => {
-        console.log("Window Loaded");
         try {
             fetchComments();
-            // CHANGE: Use local proxy instead of direct MinIO URL to avoid CORS
-            const pdfUrl = "{% url 'documentos:documento_proxy_pdf' doc_id=documento.id %}";
+            const proxyUrl = "{% url 'documentos:documento_proxy_pdf' doc_id=documento.id %}";
+            const directUrl = "{{ documento.ultima_revision.archivo.url|default:'' }}";
 
-            if (pdfUrl && pdfUrl.length > 5) {
-                document.getElementById('pdf-download-link').href = pdfUrl;
-                initPDF(pdfUrl);
-            } else {
-                showPDFError("Este documento no tiene un archivo PDF cargado en su última revisión.");
-            }
+            console.log("Intentando cargar PDF...");
+            initPDF(proxyUrl).catch(err => {
+                console.warn("Error cargando vía proxy, probando URL directa:", err);
+                if (directUrl && directUrl.startsWith('http')) {
+                    initPDF(directUrl).catch(err2 => {
+                        console.error("Fallo total al cargar PDF:", err2);
+                        showPDFError("No se pudo cargar el archivo PDF por ninguna vía. Verifique la conexión con el servidor de archivos (MinIO).");
+                    });
+                } else {
+                    showPDFError("No se pudo cargar el archivo y no hay URL directa disponible.");
+                }
+            });
         } catch (e) {
             console.error("Error en inicialización:", e);
-            alert("Error al iniciar el visor: " + e.message);
         }
     });
 
     async function initPDF(url) {
-        try {
-            console.log("Cargando PDF desde:", url);
-            const loadingTask = pdfjsLib.getDocument({
-                url: url,
-                withCredentials: false // Importante si MinIO está en otro dominio
-            });
+        console.log("Iniciando carga de PDF desde:", url);
+        const loadingTask = pdfjsLib.getDocument({
+            url: url,
+            withCredentials: false
+        });
 
-            currentPdf = await loadingTask.promise;
-            totalPages = currentPdf.numPages;
-            document.getElementById('total-pages').innerText = totalPages;
-            renderPage(pageNum);
-        } catch (e) {
-            console.error("PDFJS Error:", e);
-            showPDFError(e.message);
-        }
+        currentPdf = await loadingTask.promise;
+        totalPages = currentPdf.numPages;
+        const totalPagsEl = document.getElementById('total-pages');
+        if (totalPagsEl) totalPagsEl.innerText = totalPages;
+        renderPage(pageNum);
     }
 
     function showPDFError(msg) {
@@ -836,90 +850,119 @@
         `}).join('');
     }
 
+    function setAnnotationType(type) {
+        annotationType = type;
+        document.getElementById('btn-type-pin').style.background = type === 'PIN' ? 'var(--primary)' : 'transparent';
+        document.getElementById('btn-type-pin').style.color = type === 'PIN' ? 'white' : '#64748b';
+        document.getElementById('btn-type-area').style.background = type === 'AREA' ? 'var(--primary)' : 'transparent';
+        document.getElementById('btn-type-area').style.color = type === 'AREA' ? 'white' : '#64748b';
+    }
+
     function renderPins() {
         const layer = document.getElementById('pins-layer');
+        if (!layer) return;
         const hoverCard = document.getElementById('pin-hover-card');
         const hUser = document.getElementById('hover-user');
         const hText = document.getElementById('hover-text');
 
         layer.innerHTML = '';
-        // Re-append the bubbles since we cleared innerHTML
-
 
         allComments.filter(c => c.pagina === pageNum).forEach(c => {
-            const pin = document.createElement('div');
-            pin.className = 'pin';
-            pin.style.left = c.x + '%';
-            pin.style.top = c.y + '%';
-            pin.innerHTML = '<span>💬</span>';
+            const el = document.createElement('div');
+            if (c.tipo === 'AREA') {
+                el.className = 'area-annotation';
+                el.style.left = c.x + '%';
+                el.style.top = c.y + '%';
+                el.style.width = c.ancho + '%';
+                el.style.height = c.alto + '%';
+            } else {
+                el.className = 'pin';
+                el.style.left = c.x + '%';
+                el.style.top = c.y + '%';
+                el.innerHTML = '<span>💬</span>';
+            }
 
-            pin.onmouseenter = (e) => {
+            el.onmouseenter = (e) => {
                 hUser.innerText = c.usuario;
                 hText.innerText = c.texto;
-                hoverCard.style.left = `calc(${c.x} % + 20px)`;
-                hoverCard.style.top = `calc(${c.y} % - 20px)`;
+                hoverCard.style.left = `calc(${c.x}% + 20px)`;
+                hoverCard.style.top = `calc(${c.y}% - 20px)`;
                 hoverCard.classList.add('active');
             };
 
-            pin.onmouseleave = () => {
+            el.onmouseleave = () => {
                 hoverCard.classList.remove('active');
             };
 
-            pin.onclick = (e) => {
+            el.onclick = (e) => {
                 e.stopPropagation();
                 openPinDetails(c);
             };
-            layer.appendChild(pin);
+            layer.appendChild(el);
         });
 
-        layer.onclick = (e) => {
+        // Eventos de dibujo
+        layer.onmousedown = (e) => {
             if (!isAddingComment) return;
-            const rect = layer.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 100;
-            const y = ((e.clientY - rect.top) / rect.height) * 100;
-            placePendingPin(x, y);
+            if (annotationType === 'PIN') {
+                const rect = layer.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                placePendingPin(x, y);
+            } else {
+                isDrawing = true;
+                const rect = layer.getBoundingClientRect();
+                startX = ((e.clientX - rect.left) / rect.width) * 100;
+                startY = ((e.clientY - rect.top) / rect.height) * 100;
+
+                drawingRect = document.createElement('div');
+                drawingRect.className = 'drawing-rect';
+                drawingRect.style.left = startX + '%';
+                drawingRect.style.top = startY + '%';
+                layer.appendChild(drawingRect);
+            }
         };
 
-        layer.oncontextmenu = (e) => {
-            console.log("Right click on layer detected");
-            e.preventDefault();
-            e.stopPropagation();
+        layer.onmousemove = (e) => {
+            if (!isDrawing || !drawingRect) return;
             const rect = layer.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 100;
-            const y = ((e.clientY - rect.top) / rect.height) * 100;
-            pendingContextCoords = { x, y, pagina: pageNum };
-            showContextMenu(e.clientX, e.clientY);
+            const currentX = ((e.clientX - rect.left) / rect.width) * 100;
+            const currentY = ((e.clientY - rect.top) / rect.height) * 100;
+
+            const x = Math.min(startX, currentX);
+            const y = Math.min(startY, currentY);
+            const w = Math.abs(currentX - startX);
+            const h = Math.abs(currentY - startY);
+
+            drawingRect.style.left = x + '%';
+            drawingRect.style.top = y + '%';
+            drawingRect.style.width = w + '%';
+            drawingRect.style.height = h + '%';
+        };
+
+        layer.onmouseup = (e) => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            const rect = layer.getBoundingClientRect();
+            const currentX = ((e.clientX - rect.left) / rect.width) * 100;
+            const currentY = ((e.clientY - rect.top) / rect.height) * 100;
+
+            const x = Math.min(startX, currentX);
+            const y = Math.min(startY, currentY);
+            const w = Math.abs(currentX - startX);
+            const h = Math.abs(currentY - startY);
+
+            if (w < 0.5 || h < 0.5) {
+                if (drawingRect) drawingRect.remove();
+                return;
+            }
+
+            pendingCoords = { x, y, ancho: w, alto: h, pagina: pageNum };
+            showCommentBubble(x, y);
         };
     }
 
-    const contextMenu = document.getElementById('context-menu');
-    let pendingContextCoords = null;
-
-    if (!contextMenu) console.error("CRITICAL: context-menu element NOT FOUND in DOM");
-
-    function showContextMenu(x, y) {
-        console.log("Showing context menu at", x, y);
-        contextMenu.style.display = 'block';
-        contextMenu.style.left = x + 'px';
-        contextMenu.style.top = y + 'px';
-    }
-
-    function hideContextMenu() {
-        contextMenu.style.display = 'none';
-    }
-
-    document.addEventListener('click', () => hideContextMenu());
-
-    function enableCommentModeAtContext() {
-        if (!pendingContextCoords) return;
-        isAddingComment = true;
-        document.getElementById('pins-layer').classList.add('adding-comment');
-        placePendingPin(pendingContextCoords.x, pendingContextCoords.y);
-        hideContextMenu();
-    }
-
-    function placePendingPin(x, y) {
-        pendingCoords = { x, y, pagina: pageNum };
+    function showCommentBubble(x, y) {
         const bubble = document.getElementById('comment-bubble');
         bubble.style.left = x + '%';
         bubble.style.top = y + '%';
@@ -927,14 +970,24 @@
         document.getElementById('comment-text').focus();
     }
 
+    function placePendingPin(x, y) {
+        pendingCoords = { x, y, ancho: 0, alto: 0, pagina: pageNum };
+        showCommentBubble(x, y);
+    }
+
     function enableCommentMode() {
         isAddingComment = true;
         document.getElementById('pins-layer').classList.add('adding-comment');
-        document.getElementById('btn-add-pin').innerText = "Haga clic en el PDF...";
+        document.getElementById('btn-add-pin').innerText = "Dibuje o haga clic en el PDF...";
     }
 
     function cancelComment() {
         isAddingComment = false;
+        isDrawing = false;
+        if (drawingRect) {
+            drawingRect.remove();
+            drawingRect = null;
+        }
         pendingCoords = null;
         document.getElementById('pins-layer').classList.remove('adding-comment');
         document.getElementById('comment-bubble').classList.remove('active');
@@ -952,8 +1005,11 @@
         const payload = {
             texto: texto,
             responsable_id: responsibleId || null,
+            tipo: annotationType,
             x: pendingCoords.x,
             y: pendingCoords.y,
+            ancho: pendingCoords.ancho || 0,
+            alto: pendingCoords.alto || 0,
             pagina: pendingCoords.pagina
         };
 
@@ -973,12 +1029,10 @@
             .then(data => {
                 if (data.status === 'success') {
                     allComments.push(data.comentario);
-                    cancelComment(); // Resetea UI
+                    cancelComment();
                     if (pendingLinkSourceId) {
-                        // Limpiar modo link si acabamos de completarlo
                         pendingLinkSourceId = null;
                         document.getElementById('link-mode-bar').style.display = 'none';
-                        // Limpiar URL
                         window.history.replaceState({}, document.title, window.location.pathname);
                         alert("¡Vínculo establecido exitosamente!");
                     }
