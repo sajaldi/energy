@@ -364,6 +364,7 @@ JAZZMIN_SETTINGS = {
         {"name": "📦 Dashboard Requisiciones", "url": "/presupuestos/requisiciones/dashboard/", "permissions": ["presupuestos.view_requisicion"]},
         {"model": "auth.User"},
         {"name": "Asistente AI", "url": "/admin/chatbot_trigger/", "new_window": False},
+        {"name": "🔄 Sincronizar SIG", "url": "/admin/callcenter/solicitudticket/sync-tickets/", "permissions": ["callcenter.view_solicitudticket"]},
     ],
     "show_sidebar": True,
     "navigation_expanded": False,
