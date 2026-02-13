@@ -1,7 +1,6 @@
 import os
 import time
 from datetime import datetime, timedelta
-from playwright.sync_api import sync_playwright
 import pandas as pd
 
 def download_tickets_excel(username, password, company_name, days=2, download_dir="downloads"):
@@ -9,6 +8,12 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
     Descarga el archivo Excel de tickets desde la página de SIG GIA.
     Retorna la ruta al archivo descargado.
     """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("Error: Playwright no está instalado. Ejecute 'pip install playwright && playwright install chromium'")
+        return None
+
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
 
@@ -61,10 +66,10 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
             time.sleep(2) # Segundo extra para asegurar que el JS los habilitó
             
             # Tomar screenshot para depuración
-            page.screenshot(path="downloads/debug_busqueda_avanzada.png")
-            print("Screenshot guardado en downloads/debug_busqueda_avanzada.png")
+            # page.screenshot(path="downloads/debug_busqueda_avanzada.png")
+            # print("Screenshot guardado en downloads/debug_busqueda_avanzada.png")
         except Exception as e:
-            page.screenshot(path="downloads/error_busqueda_avanzada.png")
+            # page.screenshot(path="downloads/error_busqueda_avanzada.png")
             print(f"Error esperando campos de fecha: {e}")
             browser.close()
             return None
@@ -96,9 +101,9 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
                 page.keyboard.press("Enter")
                 
                 time.sleep(1)
-                page.screenshot(path="downloads/debug_fechas_aplicadas.png")
+                # page.screenshot(path="downloads/debug_fechas_aplicadas.png")
             except Exception as e:
-                page.screenshot(path="downloads/error_llenando_fechas.png")
+                # page.screenshot(path="downloads/error_llenando_fechas.png")
                 print(f"Error llenando fechas: {e}")
                 browser.close()
                 return None
@@ -112,30 +117,35 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
             try:
                 page.wait_for_selector("button#btnSolicitudesExcel", timeout=60000)
                 time.sleep(5) # Tiempo de gracia para que la tabla se pueble
-                page.screenshot(path="downloads/debug_tabla_cargada.png")
+                # page.screenshot(path="downloads/debug_tabla_cargada.png")
             except:
-                page.screenshot(path="downloads/error_esperando_excel.png")
+                # page.screenshot(path="downloads/error_esperando_excel.png")
                 print("El botón de Excel no apareció a tiempo.")
                 browser.close()
                 return None
             
             # Exportar Excel
             print("Iniciando descarga de Excel...")
-            with page.expect_download(timeout=120000) as download_info:
-                # A veces el botón está deshabilitado mientras carga
-                page.click("button#btnSolicitudesExcel", force=True)
-            
-            download = download_info.value
-            file_name = f"tickets_sync_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            file_path = os.path.join(download_dir, file_name)
-            download.save_as(file_path)
-            
-            print(f"Archivo descargado en: {file_path}")
-            browser.close()
-            return file_path
+            try:
+                with page.expect_download(timeout=120000) as download_info:
+                    # A veces el botón está deshabilitado mientras carga
+                    page.click("button#btnSolicitudesExcel", force=True)
+                
+                download = download_info.value
+                file_name = f"tickets_sync_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                file_path = os.path.join(download_dir, file_name)
+                download.save_as(file_path)
+                
+                print(f"Archivo descargado en: {file_path}")
+                browser.close()
+                return file_path
+            except Exception as e:
+                print(f"Error durante la descarga: {e}")
+                browser.close()
+                return None
         else:
             print(f"No se encontraron suficientes campos de fecha. Encontrados: {len(inputs)}")
-            page.screenshot(path="downloads/error_inputs_insuficientes.png")
+            # page.screenshot(path="downloads/error_inputs_insuficientes.png")
             browser.close()
             return None
 
