@@ -283,18 +283,22 @@ if IS_LOCAL:
 else:
     # EN PRODUCCIÓN: Proxy de Django para evitar Mixed Content
     MEDIA_URL = '/media-proxy/'
+    # CUSTOM_DOMAIN se usa para generar URLs públicas. 
+    # Apuntamos al proxy de Django para evitar problemas de SSL/CORS.
     AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/media-proxy'
     AWS_S3_URL_PROTOCOL = 'https:' 
-    # Usamos el nombre del servicio interno de Coolify (minio)
-    AWS_S3_ENDPOINT_URL = 'http://minio:9000'
+    # Usamos el nombre del servicio interno de Coolify (minio) para UPLOADS
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio:9000')
     AWS_S3_USE_SSL = False
     AWS_QUERYSTRING_AUTH = False
 
+# Configuración general de S3/MinIO
 AWS_S3_VERIFY = False 
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
-AWS_QUERYSTRING_AUTH = True
+AWS_S3_ADDRESSING_STYLE = 'path' # Crítico para compatibilidad con MinIO
+AWS_S3_SECURE_URLS = not IS_LOCAL # Generar https:// en producción
 
 # Configuración de Import-Export
 # 'utf-8-sig' es más robusto para archivos CSV generados por Excel con BOM
@@ -318,8 +322,10 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Configuración para aumentar el límite de campos en solicitudes POST
+# Configuración para aumentar el límite de campos y tamaño en solicitudes POST
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 100000
+DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100 MB
 
 # Configuración de Logging (ejemplo básico, puedes expandir según necesites)
 LOGGING = {
