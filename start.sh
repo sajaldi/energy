@@ -9,5 +9,5 @@ if [ "$SERVICE_TYPE" = "worker" ]; then
 else
     echo "[WEB] Iniciando Django Web Server..."
     python manage.py migrate
-    gunicorn energia.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 300
+    gunicorn energia.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 600
 fi
