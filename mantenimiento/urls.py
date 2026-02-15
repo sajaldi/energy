@@ -46,5 +46,9 @@ urlpatterns = [
     path('import-rutinas/', import_rutinas.import_rutinas_background, name='rutina_import_background'),
     path('import-rutinas/process/', import_rutinas.import_rutinas_process, name='rutina_import_process'),
     path('import-rutinas/progress/', import_rutinas.import_rutinas_progress, name='rutina_import_progress'),
+    # Importación de Procedimientos
+    path('import-procedimientos/', views.import_procedimientos.import_procedimientos_background, name='procedimiento_import_background'),
+    path('import-procedimientos/process/', views.import_procedimientos.import_procedimientos_process, name='procedimiento_import_process'),
+    path('import-procedimientos/progress/', views.import_procedimientos.import_procedimientos_progress, name='procedimiento_import_progress'),
     path('api/search-ordenes/', views.api_search_ordenes, name='api_search_ordenes'),
 ]

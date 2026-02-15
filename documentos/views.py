@@ -3,8 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.db import models
 import json
+import requests
 from .models import Documento, ComentarioDocumento
 
 @login_required
@@ -408,3 +410,30 @@ def documento_proxy_pdf(request, doc_id):
         logger = logging.getLogger(__name__)
         logger.error(f"Error en documento_proxy_pdf para doc {doc_id}: {str(e)}")
         raise Http404(f"Error al abrir el PDF desde el almacenamiento.")
+
+@csrf_exempt
+@require_POST
+def documento_chat_ia(request):
+    """
+    Proxy para comunicar el chat del frontend con el webhook de n8n interno.
+    """
+    try:
+        data = json.loads(request.body)
+        
+        # URL interna del servicio n8n en Coolify (Docker network)
+        # Nombre del contenedor: n8n-z8wscww488scgs84oo4os008
+        # Puerto interno: 5678
+        n8n_url = "http://n8n-z8wscww488scgs84oo4os008:5678/webhook/chat-documento"
+        
+        # Reenviar la petición a n8n
+        response = requests.post(f"{n8n_url}", json=data, timeout=30)
+        
+        if response.status_code == 200:
+            return JsonResponse(response.json())
+        else:
+            return JsonResponse({'error': f'Error en n8n: {response.text}'}, status=response.status_code)
+            
+    except requests.exceptions.ConnectionError:
+        return JsonResponse({'error': 'No se pudo conectar con el servicio de IA (n8n offline o inalcanzable).'}, status=503)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
