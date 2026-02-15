@@ -33,3 +33,4 @@ from .mobile import (
 )
 from .dashboard import dashboard_cargas
 from . import import_personal
+from . import import_procedimientos

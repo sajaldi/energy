@@ -521,3 +521,84 @@ def import_personal_task(self, file_path, file_format, user_id=None, verificatio
         
     cache.set(cache_key, final_res, 3600)
     return final_res
+@shared_task(bind=True)
+def import_procedimientos_task(self, file_path, file_format, user_id=None, verification_mode=False, dry_run=False):
+    """
+    Tarea Celery para importar PROCEDIMIENTOS y PASOS.
+    """
+    from tablib import Dataset
+    from django.core.files.storage import default_storage
+    from .admin import PasoProcedimientoResource
+    from django.core.cache import cache
+    from .models import Procedimiento
+    import sys
+
+    resource = PasoProcedimientoResource()
+    cache_key = f"import_procedimientos_progress_{user_id}" if user_id else "import_procedimientos_progress_system"
+
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(file_content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(file_content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        cache.set(cache_key, error_res, 3600)
+        return error_res
+
+    total_rows = len(dataset)
+    progress_info = {
+        'current': 0, 
+        'total': total_rows, 
+        'status': 'Procesando archivo...', 
+        'percent': 0,
+        'new': 0,
+        'updated': 0,
+        'skipped': 0,
+        'errors': 0,
+        'verification_mode': verification_mode
+    }
+    cache.set(cache_key, progress_info, 3600)
+    self.update_state(state='PROGRESS', meta=progress_info)
+
+    try:
+        # Usamos PasoProcedimientoResource porque permite crear Procedimiento y Pasos
+        result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
+        
+        detailed_errors = []
+        for error in result.base_errors:
+            detailed_errors.append(f"Error General: {str(error.error)}")
+        for line, errors in result.row_errors():
+            for error in errors:
+                detailed_errors.append(f"Fila {line}: {str(error.error)}")
+
+        final_res = {
+            'status': 'completed',
+            'status_code': 'completed',
+            'total': total_rows,
+            'new': result.totals.get('new', 0),
+            'updated': result.totals.get('update', 0),
+            'skipped': result.totals.get('skip', 0),
+            'errors': len(detailed_errors),
+            'error_list': detailed_errors,
+            'verification_mode': False,
+            'dry_run': dry_run,
+            'file_path': file_path
+        }
+    except Exception as e:
+        error_msg = f"Error crítico: {str(e)}"
+        cache.set(cache_key, {'status': 'error', 'message': error_msg}, 3600)
+        return {'status': 'error', 'message': error_msg}
+
+    if not dry_run:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except: pass
+        
+    cache.set(cache_key, final_res, 3600)
+    return final_res

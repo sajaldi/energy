@@ -141,6 +141,44 @@ class EmpresaAdmin(ImportExportModelAdmin):
     search_fields = ('nombre',)
     list_filter = ('activo',)
 
+# --- RESOURCES PARA PROCEDIMIENTOS ---
+class ProcedimientoResource(resources.ModelResource):
+    class Meta:
+        model = Procedimiento
+        fields = ('id', 'nombre', 'descripcion', 'creado_en')
+        export_order = ('id', 'nombre', 'descripcion', 'creado_en')
+        import_id_fields = ('nombre',) # Usar nombre como clave
+        skip_unchanged = True
+
+class PasoProcedimientoResource(resources.ModelResource):
+    procedimiento_nombre = fields.Field(
+        column_name='procedimiento',
+        attribute='procedimiento',
+        widget=ForeignKeyWidget(Procedimiento, field='nombre')
+    )
+    
+    class Meta:
+        model = PasoProcedimiento
+        fields = ('id', 'procedimiento_nombre', 'orden', 'descripcion', 'tipo_respuesta', 
+                  'unidad_medida', 'valor_objetivo', 'rango_min', 'rango_max', 
+                  'verificacion', 'punto_medicion_codigo')
+        export_order = fields
+        import_id_fields = ('id',) # Opcional si se quiere actualizar específicos
+        skip_unchanged = True
+
+    def before_import_row(self, row, **kwargs):
+        """Asegurar que el procedimiento existe o crearlo"""
+        nombre_proc = row.get('procedimiento')
+        desc_proc = row.get('descripcion_procedimiento') or ''
+        if nombre_proc:
+            proc, created = Procedimiento.objects.get_or_create(
+                nombre=str(nombre_proc).strip(),
+                defaults={'descripcion': desc_proc}
+            )
+            if not created and desc_proc and not proc.descripcion:
+                proc.descripcion = desc_proc
+                proc.save()
+
 # --- RESOURCE PERSONALIZADO PARA TÉCNICOS ---
 class TecnicoPuestoResource(resources.ModelResource):
     """
@@ -777,11 +815,44 @@ class PasoProcedimientoInline(admin.TabularInline):
     fields = ('orden', 'descripcion', 'tipo_respuesta', 'unidad_medida', 'valor_objetivo', 'rango_min', 'rango_max', 'punto_medicion_exacto', 'punto_medicion_codigo')
 
 @admin.register(Procedimiento)
-class ProcedimientoAdmin(admin.ModelAdmin):
+class ProcedimientoAdmin(ImportExportModelAdmin):
+    resource_class = ProcedimientoResource
     list_per_page = 50
-    list_display = ('nombre', 'descripcion', 'creado_en')
+    list_display = ('nombre', 'descripcion', 'creado_en', 'import_link')
     search_fields = ('nombre',)
     inlines = [PasoProcedimientoInline]
+    change_list_template = "admin/mantenimiento/procedimiento/change_list.html"
+
+    def import_link(self, obj=None):
+        url = reverse('mantenimiento:procedimiento_import_background')
+        return mark_safe(f'<a class="button" href="{url}" style="background: #2563eb; color: white; font-weight: 700;">📥 IMPORTAR MASIVO</a>')
+    import_link.short_description = 'Acciones'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        from .views.import_procedimientos import (
+            import_procedimientos_background, 
+            import_procedimientos_process, 
+            import_procedimientos_progress
+        )
+        custom_urls = [
+            path('import-background/', self.admin_site.admin_view(import_procedimientos_background), name='mantenimiento_procedimiento_import_background'),
+            path('import-background/process/', csrf_exempt(self.admin_site.admin_view(import_procedimientos_process)), name='mantenimiento_procedimiento_import_process'),
+            path('import-background/progress/', self.admin_site.admin_view(import_procedimientos_progress), name='mantenimiento_procedimiento_import_progress'),
+            path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_procedimiento_import_template'),
+        ]
+        return custom_urls + urls
+
+    def download_template_view(self, request):
+        """Genera un archivo Excel con las cabeceras para Pasos de Procedimiento"""
+        dataset = PasoProcedimientoResource().export(queryset=PasoProcedimiento.objects.none())
+        # Añadir columna de descripción de procedimiento si no está
+        if 'descripcion_procedimiento' not in dataset.headers:
+            dataset.insert_col(1, lambda x: '', header='descripcion_procedimiento')
+            
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_procedimientos.xlsx"'
+        return response
 
 class OrdenTrabajoInline(admin.TabularInline):
     model = OrdenTrabajo
