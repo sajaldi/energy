@@ -423,7 +423,8 @@ def documento_chat_ia(request):
         # URL interna del servicio n8n en Coolify (Docker network)
         # Nombre del contenedor: n8n-z8wscww488scgs84oo4os008
         # Puerto interno: 5678
-        n8n_url = "http://n8n-z8wscww488scgs84oo4os008:5678/webhook/chat-documento"
+        # URL pública del servicio n8n
+        n8n_url = "http://181.115.47.107:5678/webhook/chat-documento"
         
         # Reenviar la petición a n8n
         response = requests.post(f"{n8n_url}", json=data, timeout=30)
