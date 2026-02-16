@@ -107,6 +107,12 @@ N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', 'http://181.115.47
 # En local: IP pública. En producción: usar URL interna vía variable de entorno
 N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook-test/extract-text')
 
+# URL base del sitio para callbacks de n8n
+# En producción usa COOLIFY_FQDN, en local usa localhost
+if os.environ.get('COOLIFY_FQDN'):
+    SITE_URL = f"https://{os.environ.get('COOLIFY_FQDN')}"
+else:
+    SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
 
 
 # Configuracion de subida de archivos
