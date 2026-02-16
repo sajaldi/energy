@@ -103,6 +103,11 @@ N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://181.115.47.107:5678/
 # Por defecto usa la IP pública, pero permite override para usar la red interna (ej: http://n8n:5678/webhook/...)
 N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook/chat-documento')
 
+# Webhook para extracción de texto de PDFs
+# En local: IP pública. En producción: usar URL interna vía variable de entorno
+N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook/extract-text')
+
+
 # Configuracion de subida de archivos
 # Aumentar limites para evitar errores en subidas grandes (Proxy Error / Request Too Large)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB (Default 2.5 MB)
