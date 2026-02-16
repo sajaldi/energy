@@ -4,7 +4,11 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.db import models
+from django.conf import settings
+import logging
 import json
 import requests
 from .models import Documento, ComentarioDocumento
@@ -420,21 +424,24 @@ def documento_chat_ia(request):
     try:
         data = json.loads(request.body)
         
-        # URL interna del servicio n8n en Coolify (Docker network)
-        # Nombre del contenedor: n8n-z8wscww488scgs84oo4os008
-        # Puerto interno: 5678
-        # URL pública del servicio n8n
-        n8n_url = "http://181.115.47.107:5678/webhook/chat-documento"
+        # Obtener URL desde settings (permite override por variables de entorno)
+        n8n_url = getattr(settings, 'N8N_CHAT_WEBHOOK_URL', "http://n8n-z8wscww488scgs84oo4os008:5678/webhook/chat-documento")
         
-        # Reenviar la petición a n8n
-        response = requests.post(f"{n8n_url}", json=data, timeout=30)
+        # Timeout aumentado para dar tiempo a la IA de responder
+        response = requests.post(f"{n8n_url}", json=data, timeout=60)
         
         if response.status_code == 200:
             return JsonResponse(response.json())
         else:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error n8n ({response.status_code}): {response.text}")
             return JsonResponse({'error': f'Error en n8n: {response.text}'}, status=response.status_code)
             
     except requests.exceptions.ConnectionError:
+        logger = logging.getLogger(__name__)
+        logger.error(f"ConnectionError a n8n: {settings.N8N_CHAT_WEBHOOK_URL}")
         return JsonResponse({'error': 'No se pudo conectar con el servicio de IA (n8n offline o inalcanzable).'}, status=503)
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Excepcion en chat IA: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
