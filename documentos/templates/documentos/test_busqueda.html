@@ -1,0 +1,262 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Búsqueda de Documentos - Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .search-box {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 50px 16px 20px;
+            font-size: 1.1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+        }
+
+        .info-box {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .results {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .results-header {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .result-item {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #f8fafc;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .result-item:hover {
+            background: #e0e7ff;
+            transform: translateX(5px);
+        }
+
+        .result-codigo {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .result-titulo {
+            color: #1e293b;
+            font-size: 1rem;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .stats {
+            background: #f0f9ff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #0369a1;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Búsqueda de Documentos</h1>
+            <p>Busca por código, título o contenido del PDF</p>
+        </div>
+
+        <div class="search-box">
+            <div class="search-input-wrapper">
+                <input type="text" id="searchInput" class="search-input"
+                    placeholder="Escribe para buscar... (mínimo 3 caracteres)" autocomplete="off">
+                <span class="search-icon">🔎</span>
+            </div>
+
+            <div class="info-box">
+                <strong>💡 Tip:</strong> La búsqueda incluye el contenido extraído de los PDFs.
+                Prueba buscar palabras que aparezcan dentro de tus documentos.
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="results-header">
+                Resultados de búsqueda
+            </div>
+            <div class="stats" id="stats"></div>
+            <div id="resultsList"></div>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const results = document.getElementById('results');
+        const resultsList = document.getElementById('resultsList');
+        const stats = document.getElementById('stats');
+
+        let searchTimeout;
+
+        searchInput.addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+
+            if (query.length < 3) {
+                results.classList.remove('show');
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                buscarDocumentos(query);
+            }, 300);
+        });
+
+        async function buscarDocumentos(query) {
+            results.classList.add('show');
+            resultsList.innerHTML = '<div class="loading">⏳ Buscando...</div>';
+            stats.style.display = 'none';
+
+            const startTime = performance.now();
+
+            try {
+                const response = await fetch(`/documentos/api/buscar/?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(3);
+
+                if (data.length === 0) {
+                    resultsList.innerHTML = `
+                        <div class="no-results">
+                            <div style="font-size: 3rem; margin-bottom: 10px;">📭</div>
+                            <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 5px;">No se encontraron resultados</div>
+                            <div style="font-size: 0.9rem;">Intenta con otros términos de búsqueda</div>
+                        </div>
+                    `;
+                    stats.style.display = 'none';
+                } else {
+                    stats.innerHTML = `✨ Se encontraron <strong>${data.length}</strong> documento(s) en <strong>${duration}s</strong>`;
+                    stats.style.display = 'block';
+
+                    resultsList.innerHTML = data.map(doc => `
+                        <div class="result-item" onclick="window.location.href='/admin/documentos/documento/${doc.id}/change/'">
+                            <div class="result-codigo">${doc.codigo}</div>
+                            <div class="result-titulo">${doc.titulo}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                resultsList.innerHTML = `
+                    <div class="no-results">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">❌</div>
+                        <div style="font-size: 1.1rem; font-weight: 600; color: #dc2626;">Error al buscar</div>
+                        <div style="font-size: 0.9rem; color: #64748b;">${error.message}</div>
+                    </div>
+                `;
+                stats.style.display = 'none';
+            }
+        }
+
+        // Focus automático
+        searchInput.focus();
+    </script>
+</body>
+
+</html>

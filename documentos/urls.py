@@ -23,4 +23,5 @@ urlpatterns = [
     path('api/chat-ia/', views.documento_chat_ia, name='documento_chat_ia'),
     path('api/trigger-extraction/<int:doc_id>/', views.trigger_n8n_extraction, name='trigger_n8n_extraction'),
     path('api/update-texto/<int:doc_id>/', views.update_documento_texto, name='update_documento_texto'),
+    path('busqueda-avanzada/', views.documento_busqueda_avanzada, name='busqueda_avanzada'),
 ]

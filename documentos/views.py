@@ -462,6 +462,82 @@ def documento_buscar(request):
     
     return JsonResponse(list(docs_exactos), safe=False)
 
+@login_required
+def documento_busqueda_avanzada(request):
+    """
+    Búsqueda avanzada de documentos con múltiples filtros.
+    """
+    # Obtener parámetros de búsqueda
+    q = request.GET.get('q', '').strip()
+    tipo_id = request.GET.get('tipo')
+    disciplina_id = request.GET.get('disciplina')
+    estado = request.GET.get('estado')
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    buscar_contenido = request.GET.get('buscar_contenido', 'false') == 'true'
+    
+    from django.contrib.postgres.search import TrigramSimilarity
+    from django.db.models import Q
+    
+    # Iniciar queryset
+    docs = Documento.objects.all()
+    
+    # Filtro por texto (código, título, o contenido)
+    if q and len(q) >= 3:
+        if buscar_contenido:
+            # Búsqueda en contenido con trigram similarity
+            docs = docs.annotate(
+                similarity=TrigramSimilarity('contenido_texto', q)
+            ).filter(
+                Q(codigo__icontains=q) | 
+                Q(titulo__icontains=q) | 
+                Q(similarity__gt=0.1)
+            ).order_by('-similarity')
+        else:
+            # Solo código y título
+            docs = docs.filter(
+                Q(codigo__icontains=q) | Q(titulo__icontains=q)
+            )
+    
+    # Filtros adicionales
+    if tipo_id:
+        docs = docs.filter(tipo_documento_id=tipo_id)
+    
+    if disciplina_id:
+        docs = docs.filter(disciplina_id=disciplina_id)
+    
+    if estado:
+        docs = docs.filter(estado_actual=estado)
+    
+    if fecha_desde:
+        docs = docs.filter(creado_en__gte=fecha_desde)
+    
+    if fecha_hasta:
+        docs = docs.filter(creado_en__lte=fecha_hasta)
+    
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(docs.select_related('tipo_documento', 'disciplina', 'responsable'), 20)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    # Preparar contexto
+    context = {
+        'page_obj': page_obj,
+        'tipos': TipoDocumento.objects.all(),
+        'disciplinas': Disciplina.objects.all(),
+        'estados': Documento.ESTADOS,
+        'query': q,
+        'tipo_id': tipo_id,
+        'disciplina_id': disciplina_id,
+        'estado': estado,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'buscar_contenido': buscar_contenido,
+    }
+    
+    return render(request, 'documentos/busqueda_avanzada.html', context)
+
 
 @login_required
 def documento_proxy_pdf(request, doc_id):
