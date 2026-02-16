@@ -128,6 +128,14 @@ class Documento(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
+    # Campo para búsqueda por contenido
+    contenido_texto = models.TextField(
+        _("Contenido Texto"), 
+        blank=True, 
+        null=True,
+        help_text="Texto extraído del documento para búsquedas."
+    )
+
     def __str__(self):
         return f"{self.codigo} - {self.titulo}"
 
