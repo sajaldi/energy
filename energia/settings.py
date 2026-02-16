@@ -110,7 +110,9 @@ N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', 
 # URL base del sitio para callbacks de n8n
 # En producción usa COOLIFY_FQDN, en local usa localhost
 if os.environ.get('COOLIFY_FQDN'):
-    SITE_URL = f"https://{os.environ.get('COOLIFY_FQDN')}"
+    # Temporalmente usando HTTP para evitar problemas de SSL en testing
+    # TODO: Cambiar a HTTPS cuando el certificado esté configurado
+    SITE_URL = f"http://{os.environ.get('COOLIFY_FQDN')}"
 else:
     SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
 
