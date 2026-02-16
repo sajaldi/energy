@@ -11,7 +11,7 @@ from django.conf import settings
 import logging
 import json
 import requests
-from .models import Documento, ComentarioDocumento
+from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina
 
 @login_required
 def documento_trazabilidad(request, doc_id):
