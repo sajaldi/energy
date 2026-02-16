@@ -432,17 +432,36 @@ def documento_actualizar_responsable(request, doc_id):
 @login_required
 def documento_buscar(request):
     """
-    Busca documentos por código o título.
+    Busca documentos por código, título o contenido del PDF.
+    Usa búsqueda de texto completo para el contenido.
     """
     q = request.GET.get('q', '')
     if len(q) < 3:
         return JsonResponse([], safe=False)
-        
-    docs = Documento.objects.filter(
-        models.Q(codigo__icontains=q) | models.Q(titulo__icontains=q)
+    
+    from django.contrib.postgres.search import TrigramSimilarity
+    from django.db.models import Q, F
+    
+    # Búsqueda en código y título (exacta)
+    docs_exactos = Documento.objects.filter(
+        Q(codigo__icontains=q) | Q(titulo__icontains=q)
     ).values('id', 'codigo', 'titulo')[:10]
     
-    return JsonResponse(list(docs), safe=False)
+    # Búsqueda en contenido (si no hay resultados exactos)
+    if len(docs_exactos) < 5:
+        # Usar trigram similarity para búsqueda fuzzy en contenido
+        docs_contenido = Documento.objects.annotate(
+            similarity=TrigramSimilarity('contenido_texto', q),
+        ).filter(
+            similarity__gt=0.1  # Umbral de similitud
+        ).order_by('-similarity').values('id', 'codigo', 'titulo')[:5]
+        
+        # Combinar resultados
+        resultados = list(docs_exactos) + [d for d in docs_contenido if d not in docs_exactos]
+        return JsonResponse(resultados[:10], safe=False)
+    
+    return JsonResponse(list(docs_exactos), safe=False)
+
 
 @login_required
 def documento_proxy_pdf(request, doc_id):

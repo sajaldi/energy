@@ -185,11 +185,43 @@ class Documento(models.Model):
     def __str__(self):
         return f"{self.codigo} - {self.titulo}"
 
+    class Meta:
+        verbose_name = "Documento"
+        verbose_name_plural = "Documentos"
+        indexes = [
+            models.Index(fields=['codigo']),
+            models.Index(fields=['estado_actual']),
+            models.Index(fields=['creado_en']),
+            # Índice GIN para búsqueda de texto completo en PostgreSQL
+            models.Index(
+                name='contenido_texto_gin_idx',
+                fields=['contenido_texto'],
+                opclasses=['gin_trgm_ops']
+            ),
+        ]
+
     def save(self, *args, **kwargs):
         # Auto-mayúsculas para código
         if self.codigo:
             self.codigo = self.codigo.upper()
         super().save(*args, **kwargs)
+    
+    @classmethod
+    def buscar_por_contenido(cls, query):
+        """
+        Búsqueda de texto completo en el contenido extraído.
+        Usa PostgreSQL Full-Text Search para búsquedas rápidas.
+        """
+        from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+        
+        search_vector = SearchVector('contenido_texto', config='spanish')
+        search_query = SearchQuery(query, config='spanish')
+        
+        return cls.objects.annotate(
+            search=search_vector,
+            rank=SearchRank(search_vector, search_query)
+        ).filter(search=search_query).order_by('-rank')
+
 
 class MetadatoValor(models.Model):
     """
