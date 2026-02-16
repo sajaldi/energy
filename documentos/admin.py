@@ -77,9 +77,13 @@ class DocumentoAdmin(admin.ModelAdmin):
         ('Relaciones', {
             'fields': ('activos', 'ubicaciones')
         }),
+        ('Contenido para Búsqueda', {
+            'fields': ('contenido_texto_display',),
+            'classes': ('collapse',)
+        }),
     )
     
-    readonly_fields = ('ultima_revision', 'extraer_datos_button', 'trazabilidad_link') 
+    readonly_fields = ('ultima_revision', 'extraer_datos_button', 'trazabilidad_link', 'contenido_texto_display') 
 
     def trazabilidad_link(self, obj):
         if not obj.pk: return "-"
@@ -89,6 +93,57 @@ class DocumentoAdmin(admin.ModelAdmin):
             url
         )
     trazabilidad_link.short_description = "Flujo / Trazabilidad"
+    
+    def contenido_texto_display(self, obj):
+        if not obj.pk: return "-"
+        
+        texto = obj.contenido_texto or "Sin contenido extraído."
+        
+        return format_html(
+            '''
+            <div style="margin-bottom: 10px;">
+                <button type="button" onclick="triggerExtraction({})" 
+                        id="btn-extract-{}"
+                        style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                    ⚡ Extraer Texto con n8n
+                </button>
+            </div>
+            <textarea readonly style="width: 100%; height: 150px; font-family: monospace; font-size: 0.85rem; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; color: #334155; resize: vertical;">{}</textarea>
+            <script>
+            function triggerExtraction(docId) {{
+                const btn = document.getElementById('btn-extract-' + docId);
+                const originalText = btn.innerText;
+                btn.innerText = "Enviando...";
+                btn.disabled = true;
+                
+                fetch('/documentos/api/trigger-extraction/' + docId + '/', {{
+                    method: 'POST',
+                    headers: {{
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }}
+                }})
+                .then(res => res.json())
+                .then(data => {{
+                    if (data.error) {{
+                        alert('Error: ' + data.error);
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    }} else {{
+                        alert('Solicitud enviada a n8n. Recargue la página en unos segundos para ver el texto extraído.');
+                        btn.innerText = "Enviado ✓";
+                    }}
+                }})
+                .catch(err => {{
+                    alert('Error de red: ' + err);
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }});
+            }}
+            </script>
+            ''',
+            obj.pk, obj.pk, texto
+        )
+    contenido_texto_display.short_description = "Contenido Texto"
     
     def save_formset(self, request, form, formset, change):
         # Asignar usuario automáticamente a las revisiones nuevas
