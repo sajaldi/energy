@@ -425,7 +425,13 @@ def documento_chat_ia(request):
         data = json.loads(request.body)
         
         # Obtener URL desde settings (permite override por variables de entorno)
-        n8n_url = getattr(settings, 'N8N_CHAT_WEBHOOK_URL', "http://n8n-z8wscww488scgs84oo4os008:5678/webhook/chat-documento")
+        # Default a la IP pública, pero RECOMIENDO usar la url interna en producción (http://n8n:5678/...)
+        n8n_url = getattr(settings, 'N8N_CHAT_WEBHOOK_URL', "http://181.115.47.107:5678/webhook/chat-documento")
+        
+        # LOGGING DE DEBUG (Importante para producción)
+        print(f"-------- DEBUG PROXY AI CHAT --------")
+        print(f"Target URL: {n8n_url}")
+        print(f"Payload keys: {list(data.keys())}")
         
         # Timeout aumentado para dar tiempo a la IA de responder
         response = requests.post(f"{n8n_url}", json=data, timeout=60)
@@ -433,15 +439,19 @@ def documento_chat_ia(request):
         if response.status_code == 200:
             return JsonResponse(response.json())
         else:
+            print(f"Error n8n Status: {response.status_code}")
+            print(f"Error n8n Body: {response.text}")
             logger = logging.getLogger(__name__)
             logger.error(f"Error n8n ({response.status_code}): {response.text}")
             return JsonResponse({'error': f'Error en n8n: {response.text}'}, status=response.status_code)
             
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
+        print(f"ConnectionError: {str(e)}")
         logger = logging.getLogger(__name__)
-        logger.error(f"ConnectionError a n8n: {settings.N8N_CHAT_WEBHOOK_URL}")
-        return JsonResponse({'error': 'No se pudo conectar con el servicio de IA (n8n offline o inalcanzable).'}, status=503)
+        logger.error(f"ConnectionError a n8n: {settings.N8N_CHAT_WEBHOOK_URL} - {str(e)}")
+        return JsonResponse({'error': f'No se pudo conectar con n8n. Verifique la URL y que el servicio esté activo. Detalle: {str(e)}'}, status=503)
     except Exception as e:
+        print(f"Exception General: {str(e)}")
         logger = logging.getLogger(__name__)
         logger.error(f"Excepcion en chat IA: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
