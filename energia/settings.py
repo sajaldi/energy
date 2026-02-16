@@ -105,7 +105,8 @@ N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', 'http://181.115.47
 
 # Webhook para extracción de texto de PDFs
 # En local: IP pública. En producción: usar URL interna vía variable de entorno
-N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook/extract-text')
+N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook-test/extract-text')
+
 
 
 # Configuracion de subida de archivos
