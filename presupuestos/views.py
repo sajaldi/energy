@@ -175,7 +175,7 @@ def exportar_cronograma_excel(request, pk):
     from django.http import HttpResponse
 
     presupuesto = get_object_or_404(PresupuestoAnual, pk=pk)
-    data = _get_cronograma_data(presupuesto)
+    data = _get_cronograma_data([presupuesto])
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -274,7 +274,7 @@ def exportar_cronograma_pdf(request, pk):
     from django.http import HttpResponse
 
     presupuesto = get_object_or_404(PresupuestoAnual, pk=pk)
-    data = _get_cronograma_data(presupuesto)
+    data = _get_cronograma_data([presupuesto])
     
     context = {
         'presupuesto': presupuesto,
