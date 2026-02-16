@@ -212,7 +212,10 @@ def exportar_cronograma_excel(request, pk):
 
     # 3. Datos
     current_row = 4
-    for pd in data['partidas_data']:
+    # Obtener las partidas del primer (y único) presupuesto
+    partidas_list = data['presupuestos_data'][0]['partidas'] if data['presupuestos_data'] else []
+    
+    for pd in partidas_list:
         # Fila Partida
         ws.cell(row=current_row, column=1, value=pd['disciplina']).font = sub_header_font
         ws.cell(row=current_row, column=1).fill = sub_header_fill
@@ -278,7 +281,7 @@ def exportar_cronograma_pdf(request, pk):
     
     context = {
         'presupuesto': presupuesto,
-        'partidas_data': data['partidas_data'],
+        'partidas_data': data['presupuestos_data'][0]['partidas'] if data['presupuestos_data'] else [],
         'meses_nombres': data['meses_nombres'],
         'global_proyectado_mes': data['global_proyectado_mes'],
         'global_ejecutado_mes': data['global_ejecutado_mes'],
