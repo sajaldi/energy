@@ -1,0 +1,430 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Búsqueda Avanzada de Documentos{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .search-container {
+        max-width: 1400px;
+        margin: 20px auto;
+        padding: 0 20px;
+    }
+
+    .search-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .search-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 2rem;
+        font-weight: 800;
+    }
+
+    .search-header p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+
+    .filters-card {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-group label {
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        padding: 10px 14px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .checkbox-group label {
+        margin: 0;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .search-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .btn-secondary:hover {
+        background: #e2e8f0;
+    }
+
+    .results-card {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .results-count {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .document-item {
+        padding: 20px;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .document-item:hover {
+        border-color: #667eea;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+        transform: translateX(5px);
+    }
+
+    .doc-codigo {
+        font-weight: 700;
+        color: #667eea;
+        font-size: 1.1rem;
+        margin-bottom: 8px;
+    }
+
+    .doc-titulo {
+        font-size: 1rem;
+        color: #1e293b;
+        margin-bottom: 12px;
+    }
+
+    .doc-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+
+    .doc-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-recibido {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .badge-borrador {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .badge-enviado {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-completado {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 30px;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 8px 16px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .pagination a:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .pagination .current {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 60px 20px;
+        color: #64748b;
+    }
+
+    .no-results-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <div class="search-header">
+        <h1>🔍 Búsqueda Avanzada de Documentos</h1>
+        <p>Busca documentos por múltiples criterios incluyendo contenido de PDFs</p>
+    </div>
+
+    <form method="get" action="{% url 'documentos:busqueda_avanzada' %}">
+        <div class="filters-card">
+            <div class="filter-row">
+                <div class="filter-group" style="grid-column: 1 / -1;">
+                    <label for="q">🔎 Búsqueda por texto</label>
+                    <input type="text" id="q" name="q" value="{{ query }}"
+                        placeholder="Código, título o contenido del documento..." autocomplete="off">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="buscar_contenido" name="buscar_contenido" value="true" {% if
+                            buscar_contenido %}checked{% endif %}>
+                        <label for="buscar_contenido">
+                            ⚡ Buscar también en el contenido extraído de los PDFs
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="tipo">📄 Tipo de Documento</label>
+                    <select id="tipo" name="tipo">
+                        <option value="">Todos los tipos</option>
+                        {% for tipo in tipos %}
+                        <option value="{{ tipo.id }}" {% if tipo_id==tipo.id|stringformat:"s" %}selected{% endif %}>
+                            {{ tipo.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="disciplina">🏗️ Disciplina</label>
+                    <select id="disciplina" name="disciplina">
+                        <option value="">Todas las disciplinas</option>
+                        {% for disc in disciplinas %}
+                        <option value="{{ disc.id }}" {% if disciplina_id==disc.id|stringformat:"s" %}selected{% endif
+                            %}>
+                            {{ disc.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="estado">📊 Estado</label>
+                    <select id="estado" name="estado">
+                        <option value="">Todos los estados</option>
+                        {% for est_code, est_label in estados %}
+                        <option value="{{ est_code }}" {% if estado==est_code %}selected{% endif %}>
+                            {{ est_label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="fecha_desde">📅 Fecha desde</label>
+                    <input type="date" id="fecha_desde" name="fecha_desde" value="{{ fecha_desde }}">
+                </div>
+
+                <div class="filter-group">
+                    <label for="fecha_hasta">📅 Fecha hasta</label>
+                    <input type="date" id="fecha_hasta" name="fecha_hasta" value="{{ fecha_hasta }}">
+                </div>
+            </div>
+
+            <div class="search-actions">
+                <a href="{% url 'documentos:busqueda_avanzada' %}" class="btn btn-secondary">
+                    🔄 Limpiar filtros
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    🔍 Buscar
+                </button>
+            </div>
+        </div>
+    </form>
+
+    {% if page_obj %}
+    <div class="results-card">
+        <div class="results-header">
+            <div class="results-count">
+                ✨ {{ page_obj.paginator.count }} documento(s) encontrado(s)
+            </div>
+        </div>
+
+        {% if page_obj.object_list %}
+        {% for doc in page_obj %}
+        <div class="document-item" onclick="window.location.href='/admin/documentos/documento/{{ doc.id }}/change/'">
+            <div class="doc-codigo">{{ doc.codigo }}</div>
+            <div class="doc-titulo">{{ doc.titulo }}</div>
+            <div class="doc-meta">
+                <div class="doc-meta-item">
+                    <span>📄</span>
+                    <span>{{ doc.tipo_documento.nombre }}</span>
+                </div>
+                {% if doc.disciplina %}
+                <div class="doc-meta-item">
+                    <span>🏗️</span>
+                    <span>{{ doc.disciplina.nombre }}</span>
+                </div>
+                {% endif %}
+                <div class="doc-meta-item">
+                    <span class="badge badge-{{ doc.estado_actual|lower }}">
+                        {{ doc.get_estado_actual_display }}
+                    </span>
+                </div>
+                <div class="doc-meta-item">
+                    <span>📅</span>
+                    <span>{{ doc.creado_en|date:"d/m/Y" }}</span>
+                </div>
+                {% if doc.responsable %}
+                <div class="doc-meta-item">
+                    <span>👤</span>
+                    <span>{{ doc.responsable.get_full_name|default:doc.responsable.username }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if page_obj.has_other_pages %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+            <a
+                href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">«
+                Primera</a>
+            <a
+                href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">‹
+                Anterior</a>
+            {% endif %}
+
+            <span class="current">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+            <a
+                href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Siguiente
+                ›</a>
+            <a
+                href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">Última
+                »</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="no-results">
+            <div class="no-results-icon">📭</div>
+            <h2>No se encontraron resultados</h2>
+            <p>Intenta ajustar los filtros de búsqueda</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
