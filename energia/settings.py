@@ -95,9 +95,19 @@ MAYAN_EDMS_TOKEN = os.environ.get('MAYAN_API_TOKEN', '')
 MAYAN_EDMS_PASSWORD = os.environ.get('MAYAN_PASSWORD', '3vPW7RPyUk')
 
 # n8n Automation Configuration
-# Nota: Crea un nodo 'Webhook' en n8n y pega aquí la URL que te genere.
-# Por ahora uso una URL de ejemplo basada en tu IP.
+# n8n Automation Configuration
+# Webhook para notificar nuevo documento
 N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook/nuevo-documento')
+
+# Webhook para el Chat con IA (Documentos)
+# Por defecto usa la IP pública, pero permite override para usar la red interna (ej: http://n8n:5678/webhook/...)
+N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook/chat-documento')
+
+# Configuracion de subida de archivos
+# Aumentar limites para evitar errores en subidas grandes (Proxy Error / Request Too Large)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB (Default 2.5 MB)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50 MB
+
 
 
 INSTALLED_APPS = [
