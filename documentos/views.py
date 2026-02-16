@@ -171,8 +171,66 @@ def documento_detalle_json(request, doc_id):
             'metadatos': metadatos,
             'comentarios': comentarios,
             'usuarios_disponibles': usuarios,
+            'contenido_texto': doc.contenido_texto,
         }
         return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def trigger_n8n_extraction(request, doc_id):
+    """
+    Dispara el webhook de n8n para extraer texto del PDF.
+    Envía el ID del documento y la URL del archivo.
+    """
+    try:
+        doc = get_object_or_404(Documento, id=doc_id)
+        
+        if not doc.ultima_revision or not doc.ultima_revision.archivo:
+             return JsonResponse({'error': 'El documento no tiene archivo asociado'}, status=400)
+
+        # URL del webhook para extracción de texto
+        # Se puede configurar en settings o usar variable de entorno
+        n8n_url = getattr(settings, 'N8N_EXTRACT_TEXTO_WEBHOOK_URL', "http://181.115.47.107:5678/webhook/extract-text")
+        
+        # Enviar payload a n8n
+        payload = {
+            'documento_id': doc.id,
+            'codigo': doc.codigo,
+            'filepath': doc.ultima_revision.archivo.name, # Para que n8n lo baje de S3/MinIO
+            'callback_url': f"{settings.SITE_URL}/documentos/api/update-texto/{doc.id}/" # Donde n8n responderá
+        }
+        
+        # Opcional: Ejecutar asíncronamente con Celery si tarda mucho, 
+        # pero aquí solo disparamos el webhook, debería ser rápido.
+        try:
+            requests.post(n8n_url, json=payload, timeout=5)
+        except Exception as e:
+             # Loguear error pero no detener, o retornar error
+             pass
+
+        return JsonResponse({'status': 'ok', 'message': 'Solicitud de extracción enviada'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
+def update_documento_texto(request, doc_id):
+    """
+    API endpoint para que n8n actualice el contenido_texto del documento.
+    """
+    try:
+        doc = get_object_or_404(Documento, id=doc_id)
+        data = json.loads(request.body)
+        
+        texto = data.get('texto')
+        if texto:
+            doc.contenido_texto = texto
+            doc.save()
+            return JsonResponse({'status': 'ok'})
+        
+        return JsonResponse({'error': 'No se recibió texto'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
