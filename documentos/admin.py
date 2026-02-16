@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento
+from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory
 import json
 
 from django.forms import TextInput, Textarea
@@ -257,6 +257,22 @@ class ComentarioDocumentoAdmin(ImportExportModelAdmin):
             path('import-background/template/', self.admin_site.admin_view(download_template), name='documentos_comentariodocumento_import_template'),
         ]
         return custom_urls + urls
+
+@admin.register(N8nChatHistory)
+class N8nChatHistoryAdmin(admin.ModelAdmin):
+    list_display = ('session_id', 'usuario', 'mensaje_preview', 'respuesta_preview', 'timestamp', 'documento')
+    list_filter = ('timestamp', 'usuario', 'modelo')
+    search_fields = ('session_id', 'mensaje_usuario', 'respuesta_ia', 'usuario__username')
+    readonly_fields = ('timestamp',)
+    date_hierarchy = 'timestamp'
+    
+    def mensaje_preview(self, obj):
+        return obj.mensaje_usuario[:50] + "..." if len(obj.mensaje_usuario) > 50 else obj.mensaje_usuario
+    mensaje_preview.short_description = "Mensaje"
+    
+    def respuesta_preview(self, obj):
+        return obj.respuesta_ia[:50] + "..." if len(obj.respuesta_ia) > 50 else obj.respuesta_ia
+    respuesta_preview.short_description = "Respuesta"
 
 # Importar y registrar admins del sistema de firmas
 from . import admin_firmas
