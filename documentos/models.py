@@ -64,6 +64,52 @@ class Disciplina(models.Model):
     def __str__(self):
         return self.nombre
 
+class N8nChatHistory(models.Model):
+    """
+    Historial de conversaciones con el chat de IA (n8n).
+    Almacena mensajes del usuario y respuestas de la IA para mantener contexto.
+    """
+    session_id = models.CharField(
+        max_length=100, 
+        db_index=True,
+        help_text="ID de sesión para agrupar mensajes de una conversación"
+    )
+    usuario = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE,
+        related_name='chat_histories'
+    )
+    documento = models.ForeignKey(
+        'Documento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='chat_histories',
+        help_text="Documento sobre el que se está conversando (opcional)"
+    )
+    
+    # Mensaje
+    mensaje_usuario = models.TextField(help_text="Pregunta o mensaje del usuario")
+    respuesta_ia = models.TextField(help_text="Respuesta generada por la IA")
+    
+    # Metadata
+    timestamp = models.DateTimeField(auto_now_add=True)
+    tokens_usados = models.IntegerField(null=True, blank=True, help_text="Tokens consumidos en esta interacción")
+    modelo = models.CharField(max_length=50, blank=True, help_text="Modelo de IA utilizado (ej: gpt-4)")
+    
+    class Meta:
+        verbose_name = "Historial de Chat IA"
+        verbose_name_plural = "Historiales de Chat IA"
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['session_id', '-timestamp']),
+            models.Index(fields=['usuario', '-timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.usuario.username} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+
 class Documento(models.Model):
     """
     Documento Maestro. 
