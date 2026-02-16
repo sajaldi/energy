@@ -1,4 +1,4 @@
-{% load presupuesto_tags humanize %}
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="es">
 
@@ -7,11 +7,10 @@
     <title>Cronograma {{ presupuesto.anio }}</title>
     <style>
         @page {
-            size: a4 landscape;
+            size: a3 landscape;
             margin: 1cm;
 
             @frame footer_frame {
-                /* Static Frame */
                 -pdf-frame-content: footer_content;
                 bottom: 0cm;
                 height: 1cm;
@@ -22,7 +21,7 @@
 
         body {
             font-family: Helvetica, Arial, sans-serif;
-            font-size: 8px;
+            font-size: 9px;
             color: #1e293b;
         }
 
@@ -32,62 +31,47 @@
         }
 
         .header h1 {
-            font-size: 14px;
+            font-size: 18px;
             margin: 0;
             color: #0f172a;
             text-transform: uppercase;
         }
 
         .header p {
-            font-size: 9px;
+            font-size: 10px;
             color: #64748b;
             margin: 5px 0 15px 0;
         }
 
-        /* Table Layout */
         table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed;
-            /* Force fixed table layout */
         }
 
         th {
             background-color: #1e293b;
             color: #ffffff;
             font-weight: bold;
-            font-size: 7px;
+            font-size: 8px;
             text-align: center;
-            padding: 4px 2px;
-            border: 0.2pt solid #475569;
+            padding: 6px 4px;
+            border: 1px solid #000;
             vertical-align: middle;
         }
 
         td {
-            font-size: 7px;
-            padding: 3px 2px;
-            border: 0.2pt solid #cbd5e1;
+            font-size: 8px;
+            padding: 4px 4px;
+            border: 1px solid #cbd5e1;
             vertical-align: middle;
             text-align: right;
-            /* Default align numbers right */
         }
 
-        /* Specific Column Styles */
-        .col-concept {
-            text-align: left;
-            overflow: hidden;
-            white-space: nowrap;
-        }
-
-        .col-data {
-            text-align: center;
-        }
-
-        /* Rows */
+        /* Row Styles */
         .partida-row {
-            background-color: #f1f5f9;
-            color: #0f172a;
+            background-color: #e2e8f0;
             font-weight: bold;
+            color: #0f172a;
         }
 
         .partida-title {
@@ -97,31 +81,31 @@
 
         .item-row td {
             background-color: #ffffff;
+            color: #334155;
         }
 
         .item-concept {
             text-align: left;
-            padding-left: 15px;
-            color: #475569;
+            padding-left: 20px;
         }
 
         .total-row {
-            background-color: #0f172a;
+            background-color: #1e293b;
             color: #ffffff;
             font-weight: bold;
         }
 
         .total-row td {
-            border-top: 1px solid #3b82f6;
+            border: 1px solid #000;
         }
 
         .stat-box {
             text-align: center;
             margin-bottom: 20px;
-            font-size: 9px;
+            font-size: 10px;
             background-color: #f8fafc;
             border: 1px solid #cbd5e1;
-            padding: 8px;
+            padding: 10px;
             border-radius: 4px;
         }
     </style>
@@ -135,31 +119,24 @@
 
     <div class="stat-box">
         <strong>TOTAL PROYECTADO:</strong> {{ total_general_proyectado|floatformat:2|intcomma }} &nbsp;|&nbsp;
-        <strong>TOTAL EJECUTADO:</strong> {{ total_general_ejecutado|floatformat:2|intcomma }} &nbsp;|&nbsp;
-        <strong>EJECUCIÓN:</strong>
-        {% if total_general_proyectado > 0 %}
-        {{ total_general_ejecutado|div:total_general_proyectado|mul:100|floatformat:1 }}%
-        {% else %}
-        0%
-        {% endif %}
+        <strong>TOTAL EJECUTADO:</strong> {{ total_general_ejecutado|floatformat:2|intcomma }}
     </div>
 
-    <!-- Define column widths explicitly for xhtml2pdf -->
     <table>
         <thead>
             <tr>
-                <th width="22%">DISCIPLINA / ITEM</th>
+                <th width="25%">DISCIPLINA / ITEM</th>
                 {% for mes in meses_nombres %}
-                <th width="5.5%">{{ mes|slice:":3"|upper }}</th>
+                <th width="5%">{{ mes|slice:":3"|upper }}</th>
                 {% endfor %}
-                <th width="12%">TOTAL</th>
+                <th width="15%">TOTAL</th>
             </tr>
         </thead>
         <tbody>
             {% for pd in partidas_data %}
-            <!-- Partida Header -->
+            <!-- Partida -->
             <tr class="partida-row">
-                <td class="partida-title">{{ pd.disciplina|truncatechars:35 }}</td>
+                <td class="partida-title">{{ pd.disciplina }}</td>
                 {% for val in pd.proyeccion_total_mensual %}
                 <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
                 {% endfor %}
@@ -169,18 +146,19 @@
             <!-- Items -->
             {% for item in pd.items %}
             <tr class="item-row">
-                <td class="item-concept">{{ item.concepto|truncatechars:40 }}</td>
+                <td class="item-concept">{{ item.concepto }}</td>
                 {% for val in item.proyeccion %}
-                <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% endif %}</td>
+                <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% else %}<span style="color:#cbd5e1">-</span>{%
+                    endif %}</td>
                 {% endfor %}
                 <td>{{ item.total_anual|floatformat:2|intcomma }}</td>
             </tr>
             {% endfor %}
             {% endfor %}
 
-            <!-- Global Totals -->
+            <!-- Totals -->
             <tr class="total-row">
-                <td style="text-align: left; padding-left: 5px;">TOTAL MENSUAL</td>
+                <td style="text-align: left; padding-left: 5px;">TOTAL FINAL</td>
                 {% for val in global_proyectado_mes %}
                 <td>{{ val|floatformat:2|intcomma }}</td>
                 {% endfor %}
