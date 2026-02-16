@@ -4,6 +4,7 @@ from . import views, views_import, views_autorizar, views_webhook, views_mayan, 
 app_name = 'presupuestos'
 
 urlpatterns = [
+    path('cronograma/<int:pk>/', views.cronograma_presupuesto, name='cronograma_detalle'),
     path('cronograma/grupo/<int:pk>/', views.cronograma_grupal, name='cronograma_grupal'),
     path('api/update_monto/', views.api_update_monto_mensual, name='api_update_monto'),
     path('api/update_item/', views.api_update_item, name='api_update_item'),
