@@ -94,7 +94,11 @@ else:
      N8N_BASE_URL = os.environ.get('N8N_INTERNAL_URL', 'http://n8n-z8wscww488scgs84oo4os008:5678')
 
 # Webhook para notificar nuevo documento
-N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook/nuevo-documento')
+if IS_LOCAL:
+    _default_new_doc_webhook = f'{N8N_BASE_URL}/webhook-test/nuevo-documento'
+else:
+    _default_new_doc_webhook = f'{N8N_BASE_URL}/webhook/nuevo-documento'
+N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', _default_new_doc_webhook)
 
 # Webhook para el Chat con IA (Documentos)
 N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook-test/chat-documento')
@@ -104,11 +108,14 @@ if IS_LOCAL:
     _default_process_webhook = f'{N8N_BASE_URL}/webhook-test/process-document'
 else:
     _default_process_webhook = f'{N8N_BASE_URL}/webhook/process-document'
-
 N8N_PROCESS_DOCUMENT_WEBHOOK_URL = os.environ.get('N8N_PROCESS_DOCUMENT_WEBHOOK_URL', _default_process_webhook)
 
 # Webhook para extracción de texto de PDFs
-N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook-test/extract-text')
+if IS_LOCAL:
+    _default_extract_webhook = f'{N8N_BASE_URL}/webhook-test/extract-text'
+else:
+    _default_extract_webhook = f'{N8N_BASE_URL}/webhook/extract-text'
+N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', _default_extract_webhook)
 
 # URL base del sitio para callbacks de n8n y comunicación interna
 if os.environ.get('COOLIFY_FQDN'):
@@ -119,7 +126,11 @@ if os.environ.get('COOLIFY_FQDN'):
     INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://kgogwsw00cwcw8g0wk0gsogg:8000')
 else:
     SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
-    INTERNAL_SITE_URL = SITE_URL
+    if IS_LOCAL:
+        # En local, n8n es remoto (181.115.47.107), necesita la IP pública para el callback
+        INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://181.115.47.107:8000')
+    else:
+        INTERNAL_SITE_URL = SITE_URL
 
 
 # Configuracion de subida de archivos

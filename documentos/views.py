@@ -191,8 +191,7 @@ def trigger_n8n_extraction(request, doc_id):
              return JsonResponse({'error': 'El documento no tiene archivo asociado'}, status=400)
 
         # URL del webhook para extracción de texto
-        # Se puede configurar en settings o usar variable de entorno
-        n8n_url = getattr(settings, 'N8N_EXTRACT_TEXTO_WEBHOOK_URL', "http://181.115.47.107:5678/webhook/extract-text")
+        n8n_url = settings.N8N_EXTRACT_TEXTO_WEBHOOK_URL
         
         # Enviar payload a n8n
         payload = {
@@ -645,9 +644,8 @@ def documento_chat_ia(request):
             except Exception as e:
                 print(f"Error al inyectar texto: {str(e)}")
 
-        # Obtener URL desde settings (permite override por variables de entorno)
-        # Default actualizado a webhook-test según requerimiento
-        n8n_url = getattr(settings, 'N8N_CHAT_WEBHOOK_URL', "http://181.115.47.107:5678/webhook-test/chat-documento")
+        # Obtener URL desde settings
+        n8n_url = settings.N8N_CHAT_WEBHOOK_URL
         
         # LOGGING DE DEBUG (Importante para producción)
         print(f"-------- DEBUG PROXY AI CHAT --------")
