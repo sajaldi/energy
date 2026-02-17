@@ -485,19 +485,22 @@ def documento_busqueda_avanzada(request):
     # Filtro por texto (código, título, o contenido)
     if q and len(q) >= 3:
         if buscar_contenido:
-            # Búsqueda en contenido con trigram similarity
+            # Búsqueda en contenido: Código, Título o Subcadena en texto
+            # Usamos icontains para asegurar que si la palabra existe se encuentre, 
+            # y TrigramSimilarity solo para ordenar por relevancia.
             docs = docs.annotate(
                 similarity=TrigramSimilarity('contenido_texto', q)
             ).filter(
                 Q(codigo__icontains=q) | 
                 Q(titulo__icontains=q) | 
-                Q(similarity__gt=0.1)
+                Q(contenido_texto__icontains=q)
             ).order_by('-similarity')
         else:
             # Solo código y título
             docs = docs.filter(
                 Q(codigo__icontains=q) | Q(titulo__icontains=q)
             )
+
     
     # Filtros adicionales
     if tipo_id:
