@@ -182,6 +182,20 @@ class Documento(models.Model):
         help_text="Texto extraído del documento para búsquedas."
     )
 
+    fecha_inicio = models.DateField(
+        _("Fecha Inicio/Emisión"), 
+        blank=True, 
+        null=True,
+        help_text="Fecha de inicio o emisión del documento."
+    )
+
+    fecha_vencimiento = models.DateField(
+        _("Fecha de Vencimiento"), 
+        blank=True, 
+        null=True,
+        help_text="Fecha en que expira la validez del documento."
+    )
+
     def __str__(self):
         return f"{self.codigo} - {self.titulo}"
 
