@@ -25,7 +25,6 @@ class HistorialBienAfectoInline(admin.TabularInline):
             )
     get_estado_badge.short_description = "Estado"
 
-from documentos.admin_mayan import MayanDocumentInline
 
 @admin.register(BienAfecto)
 class BienAfectoAdmin(admin.ModelAdmin):
@@ -33,7 +32,7 @@ class BienAfectoAdmin(admin.ModelAdmin):
     list_filter = ('familia', 'ubicacion', 'plano', 'responsable')
     search_fields = ('codigo_interno', 'nombre', 'plano__nombre')
     autocomplete_fields = ('ubicacion', 'plano', 'familia', 'responsable')
-    inlines = [HistorialBienAfectoInline, MayanDocumentInline]
+    inlines = [HistorialBienAfectoInline]
     readonly_fields = ('creado_en', 'actualizado_en', 'get_activo_actual_detalle', 'get_estadisticas')
     change_list_template = 'admin/activos/bienafecto/change_list.html'
     

@@ -26,20 +26,19 @@ def documento_reprocesar_verificacion(request, doc_id):
         if 'doc_wizard_data' in request.session:
             del request.session['doc_wizard_data']
             
-        # Realizar extracción síncrona
-        with revision.archivo.open('rb') as f:
-            content = f.read()
-            extracted_data = extract_metadata_from_file(content, revision.archivo.name)
+        # Cambiar estado a PENDIENTE para disparar la animación de espera en la UI
+        revision.estado_extraccion = 'PENDIENTE'
+        revision.save()
+        
+        # Disparar tarea Celery
+        from .tasks import extract_document_metadata
+        extract_document_metadata.delay(revision.id)
             
-            revision.datos_extraidos = extracted_data
-            revision.estado_extraccion = 'COMPLETADO'
-            revision.save()
-            
-        messages.info(request, "Análisis completado. Por favor, verifique los datos.")
-        return redirect(f'/documentos/nuevo/?step=3&doc_id={doc_id}')
+        messages.info(request, "Análisis reiniciado. Por favor, espere a que se complete.")
+        return redirect(f'/documentos/nuevo/?step=2.5&doc_id={doc_id}')
         
     except Exception as e:
-        messages.error(request, f"Error durante el re-procesamiento: {str(e)}")
+        messages.error(request, f"Error al iniciar re-procesamiento: {str(e)}")
         return redirect(f'/admin/documentos/documento/{doc_id}/change/')
 
 @login_required
@@ -50,18 +49,20 @@ def documento_wizard(request):
     Paso 2: Carga y Extracción Inteligente
     Paso 3: Verificación sugiriendo Código y Título extraídos
     """
-    step = int(request.GET.get('step', 1))
+    step = float(request.GET.get('step', 1))
     doc_id = request.GET.get('doc_id')
+    
+    titles = {
+        1: 'Identificación del Documento',
+        2: 'Carga y Análisis',
+        2.5: 'Procesando Análisis',
+        3: 'Verificación y Metadatos'
+    }
     
     context = {
         'step': step,
         'doc_id': doc_id,
-        'title': [
-            '', 
-            'Identificación del Documento', 
-            'Carga y Análisis', 
-            'Verificación y Metadatos'
-        ][step]
+        'title': titles.get(step, '')
     }
 
     if step == 1:
@@ -146,49 +147,47 @@ def documento_wizard(request):
                             disciplina_id=data.get('disciplina_id') or None
                         )
                     
-                    # Guardar revisión y extraer datos
-                    content = archivo.read()
-                    archivo.seek(0)
-                    extracted_data = extract_metadata_from_file(content, archivo.name)
-                    
-                    # LOG DE DEPURACIÓN PARA EL USUARIO
-                    print(f"DEBUG: Extracción para {archivo.name}")
-                    print(f"DEBUG: Páginas: {extracted_data.get('pages')}")
-                    print(f"DEBUG: Texto (primeros 100 char): {extracted_data.get('text_preview', '')[:100]}")
-
-                    Revision.objects.update_or_create(
+                    # Guardar revisión y disparar extracción ASÍNCRONA
+                    revision, created = Revision.objects.update_or_create(
                         documento=documento,
                         revision='0',
                         defaults={
                             'archivo': archivo,
                             'creado_por': request.user,
-                            'datos_extraidos': extracted_data,
-                            'estado_extraccion': 'COMPLETADO'
+                            'estado_extraccion': 'PENDIENTE'
                         }
                     )
                     
-                    # 4. Vincular con Mayan si la extracción fue exitosa por ese motor
-                    if 'mayan_id' in extracted_data:
-                        from .models import MayanDocumentLink
-                        from django.contrib.contenttypes.models import ContentType
-                        
-                        MayanDocumentLink.objects.update_or_create(
-                            content_type=ContentType.objects.get_for_model(documento),
-                            object_id=documento.id,
-                            defaults={
-                                'mayan_document_id': extracted_data['mayan_id'],
-                                'document_label': archivo.name,
-                                'description': f"Sincronizado desde Wizard - {documento.codigo}",
-                                'uploaded_by': request.user
-                            }
-                        )
-                
-                return redirect(f'/documentos/nuevo/?step=3&doc_id={documento.id}')
+                    # Disparar tarea Celery
+                    from .tasks import extract_document_metadata
+                    extract_document_metadata.delay(revision.id)
+                    
+                    # 4. Procesamiento de Metadatos
+                    # La tarea maneje la extracción y análisis de contenido
+                    
+                messages.info(request, "Archivo cargado. Procesando análisis inteligente...")
+                return redirect(f'/documentos/nuevo/?step=2.5&doc_id={documento.id}')
             except Exception as e:
                 import traceback
                 print(traceback.format_exc())
-                messages.error(request, f"Error en procesamiento: {str(e)}")
+                messages.error(request, f"Error en carga: {str(e)}")
                 return render(request, 'documentos/documento_wizard.html', context)
+
+    elif step == 2.5: # NUEVO PASO: Espera de Procesamiento
+        if not doc_id:
+            return redirect('/documentos/nuevo/?step=1')
+            
+        documento = get_object_or_404(Documento, id=doc_id)
+        revision = documento.revisiones.filter(revision='0').first() or documento.ultima_revision
+        
+        if revision.estado_extraccion == 'COMPLETADO':
+            return redirect(f'/documentos/nuevo/?step=3&doc_id={doc_id}')
+        elif revision.estado_extraccion == 'ERROR':
+            messages.error(request, f"Error en análisis: {revision.datos_extraidos.get('error', 'Error desconocido')}")
+            return redirect(f'/documentos/nuevo/?step=2&doc_id={doc_id}')
+            
+        context.update({'documento': documento, 'revision': revision})
+        return render(request, 'documentos/documento_wizard_waiting.html', context)
 
     elif step == 3:
         if not doc_id:
@@ -296,3 +295,17 @@ def documento_wizard(request):
             return redirect('admin:documentos_documento_changelist')
 
     return render(request, 'documentos/documento_wizard.html', context)
+
+@login_required
+def documento_wizard_status(request, doc_id):
+    """
+    Endpoint JSON para consultar el estado de extracción de la revisión
+    """
+    documento = get_object_or_404(Documento, id=doc_id)
+    revision = documento.revisiones.filter(revision='0').first() or documento.ultima_revision
+    
+    return JsonResponse({
+        'id': documento.id,
+        'estado': revision.estado_extraccion if revision else 'PENDIENTE',
+        'datos': revision.datos_extraidos if revision else {}
+    })

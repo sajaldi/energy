@@ -17,7 +17,7 @@ urlpatterns = [
     path('mantenimiento/', include('mantenimiento.urls', namespace='mantenimiento')),
     # Sistema de firmas electrónicas
     path('firmas/', include('documentos.urls_firmas', namespace='firmas')),
-    # Sistema gestión documental (Mayan)
+    # Gestión Documental y Firmas
     path('documentos/', include('documentos.urls', namespace='documentos')),
     # Sistema de comunicaciones (Transmittals)
     path('comunicaciones/', include('comunicaciones.urls', namespace='comunicaciones')),

@@ -20,50 +20,7 @@ def extract_metadata_from_file(file_content, filename):
         logger.warning(f"Extracción fallida: Archivo {filename} vacío.")
         return extracted_data
 
-    # FALLBACK 0: Mayan EDMS OCR (Nuevo motor principal)
-    if file_ext == '.pdf':
-        try:
-            from django.conf import settings
-            from .mayan_client import MayanEDMSClient
-            
-            # Solo si el cliente está configurado (tiene password o token)
-            if hasattr(settings, 'MAYAN_EDMS_PASSWORD') or hasattr(settings, 'MAYAN_EDMS_TOKEN'):
-                client = MayanEDMSClient()
-                # 1. Obtener el ID de tipo de documento (usamos el primero por defecto o uno genérico)
-                types = client.get_document_types()
-                if types.get('results'):
-                    dt_id = types['results'][0]['id']
-                    doc_resp = client.upload_document(
-                        file_data=(filename, io.BytesIO(file_content)),
-                        document_type_id=dt_id,
-                        label=filename,
-                        description='Análisis temporal Wizard'
-                    )
-                    
-                    if doc_resp.get('id'):
-                        mayan_id = doc_resp['id']
-                        print(f"DEBUG: Documento subido a Mayan ID: {mayan_id}. Iniciando espera de OCR (proceso asíncrono en Mayan)...")
-                        
-                        # 3. Reintento progresivo: Mayan procesa OCR en background (Celery)
-                        text = ""
-                        for attempt in range(8): # 8 intentos de 3 seg = 24 segundos
-                            time.sleep(3) 
-                            text = client.get_document_ocr_content(mayan_id)
-                            if text and len(text.strip()) > 5: # Validar que tenga contenido real
-                                print(f"DEBUG: OCR detectado exitosamente en intento {attempt+1}")
-                                break
-                            print(f"DEBUG: Intento {attempt+1} - texto aún no disponible o muy corto.")
-                        
-                        if text:
-                            extracted_data['text_preview'] = "(MAYAN OCR) " + text[:5000]
-                            extracted_data['mayan_id'] = mayan_id
-                            logger.info(f"Texto extraído exitosamente con MAYAN para {filename} (ID: {mayan_id})")
-                        else:
-                            print(f"DEBUG: Mayan NO devolvió texto después de 24 segundos para ID {mayan_id}. Es posible que la cola de OCR en Mayan esté saturada o el archivo no sea legible.")
-        except Exception as e:
-            logger.error(f"Error procesando en motor MAYAN para {filename}: {e}")
-
-    # Si Mayan no obtuvo nada, continuar con los motores locales
+    # Los motores locales (PyMuPDF, pdfplumber, Tesseract) son ahora los únicos activos
     if not extracted_data.get('text_preview') and file_ext == '.pdf':
         try:
             import fitz  # PyMuPDF

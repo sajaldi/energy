@@ -1180,8 +1180,6 @@ class FotoAvisoInline(admin.TabularInline):
     model = FotoAviso
     extra = 1
 
-# Importar inline de Mayan
-from documentos.admin_mayan import MayanDocumentInline
 
 @admin.register(Aviso)
 class AvisoAdmin(admin.ModelAdmin):
@@ -1193,7 +1191,7 @@ class AvisoAdmin(admin.ModelAdmin):
     autocomplete_fields = ('activo', 'ubicacion', 'solicitante', 'falla')
     actions = ['generar_ot_action']
     raw_id_fields = ('activo', 'ubicacion', 'solicitante', 'falla')
-    inlines = [FotoAvisoInline, MayanDocumentInline]
+    inlines = [FotoAvisoInline]
 
     def add_view(self, request, form_url='', extra_context=None):
         """Redirigir a la interfaz móvil renovada"""
@@ -1363,8 +1361,6 @@ class ValorPasoOrdenInline(admin.TabularInline):
     fields = ('paso', 'valor_texto', 'valor_numerico', 'valor_bool', 'no_aplica', 'comentarios')
     readonly_fields = ('paso', 'capturado_por', 'creado_en')
 
-# ... imports al inicio del archivo o aqui mismo ...
-from documentos.admin_mayan import MayanDocumentInline
 
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
