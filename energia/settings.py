@@ -115,7 +115,8 @@ if os.environ.get('COOLIFY_FQDN'):
     # URL pública
     SITE_URL = f"http://{os.environ.get('COOLIFY_FQDN')}"
     # URL interna para que n8n llame a Django (usualmente el nombre del servicio en Docker)
-    INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://kgogwsw00cwcw8g0wk0gsogg-223636508640:8000')
+    # Usamos el prefijo (UUID de Coolify) que es estable para comunicación interna entre contenedores
+    INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://kgogwsw00cwcw8g0wk0gsogg:8000')
 else:
     SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
     INTERNAL_SITE_URL = SITE_URL
