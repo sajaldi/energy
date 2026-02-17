@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Requisición {{ requisicion.cr8ca_requisicion }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            margin: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #333;
+        }
+
+        .header h2 {
+            margin: 5px 0;
+            color: #666;
+            font-weight: normal;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #666;
+            font-size: 10px;
+        }
+
+        .info-value {
+            font-size: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .total-row {
+            font-weight: bold;
+            background: #f9f9f9;
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+        }
+
+        .qr-section {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            border: 2px solid #333;
+        }
+
+        .qr-section img {
+            width: 150px;
+            height: 150px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>REQUISICIÓN DE COMPRA</h1>
+        <h2>{{ requisicion.cr8ca_requisicion }}</h2>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-label">SOLICITANTE</div>
+            <div class="info-value">{{
+                requisicion.usuario_solicitante.get_full_name|default:requisicion.usuario_solicitante.username|default:"-"
+                }}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">FECHA</div>
+            <div class="info-value">{{ requisicion.fecha|default:"-" }}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">ASUNTO</div>
+            <div class="info-value">{{ requisicion.cr8ca_asunto|default:"-" }}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">PRIORIDAD</div>
+            <div class="info-value">{{ requisicion.get_cr8ca_prioridad_display|default:"-" }}</div>
+        </div>
+        <div class="info-item" style="grid-column: span 2;">
+            <div class="info-label">MOTIVO</div>
+            <div class="info-value">{{ requisicion.cr8ca_motivo|default:"-" }}</div>
+        </div>
+        {% if requisicion.cr8ca_comentarios %}
+        <div class="info-item" style="grid-column: span 2;">
+            <div class="info-label">COMENTARIOS</div>
+            <div class="info-value">{{ requisicion.cr8ca_comentarios }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <h3>Artículos</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Descripción</th>
+                <th class="text-right">Cantidad</th>
+                <th class="text-right">Costo Unit.</th>
+                <th class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for articulo in articulos %}
+            <tr>
+                <td>{{ articulo.cr8ca_articulo|default:articulo.material.nombre|default:"-" }}</td>
+                <td class="text-right">{{ articulo.cr8ca_cantidad|default:"0" }}</td>
+                <td class="text-right">$ {{ articulo.cr8ca_costoaproximado|default:"0"|floatformat:2 }}</td>
+                <td class="text-right">$ {% widthratio articulo.cr8ca_cantidad 1 articulo.cr8ca_costoaproximado %}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="3" class="text-right">TOTAL</td>
+                <td class="text-right">$ {{ requisicion.cr8ca_totalenarticulos|default:"0"|floatformat:2 }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {% if documentos %}
+    <h3>Documentos Adjuntos</h3>
+    <ul>
+        {% for doc in documentos %}
+        <li>{{ doc.nombre|default:doc.archivo.name }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="qr-section">
+        <p><strong>Código de Verificación</strong></p>
+        <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
+        <p style="font-size: 10px; margin-top: 10px;">Escanee para verificar la autenticidad de esta requisición</p>
+    </div>
+
+    <div class="footer">
+        <p>Generado el {% now "d/m/Y H:i" %} - SoftCom CCG</p>
+    </div>
+</body>
+
+</html>

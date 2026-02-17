@@ -112,37 +112,25 @@ def api_get_material_stock(request, material_id):
     incluyendo detalles completos del material.
     """
     material = get_object_or_404(Material, id=material_id)
-    materiales_qs = Material.objects.all().prefetch_related('existencias').order_by('nombre')
-
-    if q:
-        materiales_qs = materiales_qs.filter(
-            Q(nombre__icontains=q) | 
-            Q(sku__icontains=q)
-        )
     
-    if category_id:
-        materiales_qs = materiales_qs.filter(categoria_id=category_id)
-
-    paginator = Paginator(materiales_qs, 12) # 12 items por página
-    page_obj = paginator.get_page(page)
-
-    results = []
-    for m in page_obj:
-        stock_total = m.get_stock_total()
-        results.append({
-            'id': m.id,
-            'nombre': m.nombre,
-            'sku': m.sku,
-            'unidad': m.unidad_medida,
-            'stock': float(stock_total),
-            'image_url': m.imagen.url if m.imagen else '/static/img/no-image.png'
-        })
+    # Obtener stock detallado por ubicación
+    existencias = material.existencias.select_related('ubicacion').values(
+        'ubicacion__nombre', 'cantidad', 'ubicacion_especifica'
+    )
     
     return JsonResponse({
-        'results': results,
-        'has_next': page_obj.has_next(),
-        'num_pages': paginator.num_pages,
-        'current_page': page_obj.number
+        'id': material.id,
+        'nombre': material.nombre,
+        'sku': material.sku,
+        'unidad': material.get_unidad_medida_display(),
+        'stock_total': float(material.get_stock_total()),
+        'existencias': [
+            {
+                'ubicacion': e['ubicacion__nombre'],
+                'cantidad': float(e['cantidad']),
+                'detalle': e['ubicacion_especifica']
+            } for e in existencias
+        ]
     })
 
 @login_required
@@ -451,3 +439,109 @@ def import_materiales_progress(request):
         progress['state'] = 'FAILURE'
         
     return JsonResponse(progress)
+
+@login_required
+def imprimir_etiquetas_view(request):
+    """Vista para seleccionar materiales y cantidades para etiquetas."""
+    from django.contrib import admin
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Impresión de Etiquetas',
+    }
+    return render(request, 'inventarios/imprimir_etiquetas.html', context)
+
+@login_required
+def generar_pdf_etiquetas(request):
+    """Genera el PDF con las etiquetas seleccionadas."""
+    import io
+    import qrcode
+    import base64
+    from django.http import HttpResponse
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+    from django.urls import reverse
+    
+    if request.method != 'POST':
+        return HttpResponse('Method not allowed', status=405)
+
+    # getlist returns list of material IDs
+    material_ids = request.POST.getlist('materials[]')
+    if not material_ids:
+        return HttpResponse('No materials selected', status=400)
+
+    # Pre-fetch materials
+    materials = Material.objects.filter(id__in=material_ids).select_related('categoria')
+    materials_map = {str(m.id): m for m in materials}
+
+    labels_data = []
+
+    for mid in material_ids:
+        qty_key = f'qty_{mid}'
+        quantity_str = request.POST.get(qty_key, '1')
+        try:
+            quantity = int(quantity_str)
+        except ValueError:
+            quantity = 1
+        
+        material = materials_map.get(str(mid))
+        if not material: 
+            continue
+
+        # Generar QR
+        try:
+             # Try to get absolute URL if get_absolute_url is defined, otherwise fallback
+             if hasattr(material, 'get_absolute_url'):
+                 url = material.get_absolute_url()
+             else:
+                 # Assuming standard admin url pattern
+                 url = reverse('admin:inventarios_material_change', args=[material.id])
+                 
+             link = request.build_absolute_uri(url)
+        except:
+             link = str(material.id)
+        
+        qr = qrcode.QRCode(version=1, box_size=10, border=0)
+        qr.add_data(link)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        qr_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+        # Procesar imagen del material si existe
+        img_b64 = None
+        if material.imagen:
+            try:
+                # Abrir imagen desde el storage
+                with material.imagen.open('rb') as f:
+                    img_data = f.read()
+                    img_b64 = base64.b64encode(img_data).decode('utf-8')
+            except Exception:
+                pass
+
+        # Repetir la etiqueta según la cantidad solicitada
+        for _ in range(quantity):
+            labels_data.append({
+                'sku': material.sku,
+                'nombre': material.nombre,
+                'unidad': material.get_unidad_medida_display(),
+                'ubicacion': 'General', 
+                'qr_code': qr_b64,
+                'image_data': img_b64
+            })
+    
+    # Contexto para el template
+    context = {'labels': labels_data}
+    template = get_template('inventarios/etiquetas_pdf.html')
+    html = template.render(context)
+    
+    response = HttpResponse(content_type='application/pdf')
+    # inline para ver en navegador, attachment para descargar
+    response['Content-Disposition'] = 'inline; filename="etiquetas.pdf"'
+    
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    if pisa_status.err:
+        return HttpResponse(f'Error generating PDF: {pisa_status.err}', status=500)
+        
+    return response

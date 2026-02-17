@@ -168,6 +168,7 @@ class MaterialAdmin(ImportExportModelAdmin):
     list_display = ('sku', 'nombre', 'categoria', 'tipo_material', 'unidad_medida', 'get_stock_total', 'imagen_preview')
     search_fields = ('nombre', 'sku', 'descripcion')
     list_filter = ('categoria', 'tipo_material', 'unidad_medida')
+    list_select_related = ('categoria', 'marca')
     inlines = [StockRecordInline]
     readonly_fields = ('imagen_preview',)
 

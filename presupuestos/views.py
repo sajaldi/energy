@@ -306,6 +306,443 @@ def exportar_cronograma_pdf(request, pk):
     return response
 
 @login_required
+def exportar_cronograma_grupal_excel(request, pk):
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+
+    grupo = get_object_or_404(PresupuestoAgrupado, pk=pk)
+    presupuestos = grupo.presupuestos.all()
+
+    if not presupuestos:
+        return HttpResponse('El grupo no tiene presupuestos.', status=400)
+
+    data = _get_cronograma_data(presupuestos)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Análisis Grupal"
+
+    # Estilos
+    header_font = Font(bold=True, size=12, color="FFFFFF")
+    header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
+    budget_font = Font(bold=True, size=11, color="FFFFFF")
+    budget_fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
+    disciplina_font = Font(bold=True, size=11)
+    disciplina_fill = PatternFill(start_color="f1f5f9", end_color="f1f5f9", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # 1. Título General
+    ws['A1'] = f"ANÁLISIS GRUPAL: {grupo.nombre}"
+    ws['A1'].font = Font(bold=True, size=14)
+    ws.merge_cells('A1:O1')
+
+    # 2. Totales Generales
+    ws['A3'] = "TOTAL PROYECTADO:"
+    ws['A3'].font = Font(bold=True)
+    ws['B3'] = data['total_general_proyectado']
+    ws['B3'].number_format = '#,##0.00'
+
+    ws['A4'] = "TOTAL EJECUTADO:"
+    ws['A4'].font = Font(bold=True)
+    ws['B4'] = data['total_general_ejecutado']
+    ws['B4'].number_format = '#,##0.00'
+
+    if data['total_general_proyectado'] > 0:
+        eficiencia = (data['total_general_ejecutado'] / data['total_general_proyectado']) * 100
+        ws['A5'] = "EFICIENCIA:"
+        ws['A5'].font = Font(bold=True)
+        ws['B5'] = f"{eficiencia:.1f}%"
+        ws['B5'].number_format = '0.0%'
+
+    # 3. Encabezados de Tabla
+    headers = ["Jerarquía"] + data['meses_nombres'] + ["TOTAL", "EJECUTADO"]
+    ws.append([])  # Espacio
+    ws.append(headers)
+
+    # Aplicar estilo al encabezado
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=7, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+
+        # Ajustar ancho columnas
+        if col_num == 1:
+            ws.column_dimensions[get_column_letter(col_num)].width = 40
+        else:
+            ws.column_dimensions[get_column_letter(col_num)].width = 14
+
+    # 4. Datos
+    current_row = 8
+
+    # Totales mensuales agrupados (fila principal)
+    ws.cell(row=current_row, column=1, value="TOTAL MENSUAL AGRUPADO").font = budget_font
+    ws.cell(row=current_row, column=1).fill = budget_fill
+    ws.cell(row=current_row, column=1).border = thin_border
+
+    for m_idx, val in enumerate(data['global_proyectado_mes']):
+        c = ws.cell(row=current_row, column=m_idx + 2, value=val)
+        c.number_format = '#,##0'
+        c.font = budget_font
+        c.fill = budget_fill
+        c.alignment = Alignment(horizontal='right')
+        c.border = thin_border
+
+    c_total = ws.cell(row=current_row, column=14, value=data['total_general_proyectado'])
+    c_total.number_format = '#,##0'
+    c_total.font = budget_font
+    c_total.fill = budget_fill
+    c_total.border = thin_border
+
+    c_ejec = ws.cell(row=current_row, column=15, value=data['total_general_ejecutado'])
+    c_ejec.number_format = '#,##0'
+    c_ejec.font = budget_font
+    c_ejec.fill = budget_fill
+    c_ejec.border = thin_border
+
+    current_row += 1
+
+    # Por cada presupuesto
+    for bd in data['presupuestos_data']:
+        # Fila Presupuesto
+        ws.cell(row=current_row, column=1, value=bd['presupuesto'].nombre).font = budget_font
+        ws.cell(row=current_row, column=1).fill = budget_fill
+        ws.cell(row=current_row, column=1).border = thin_border
+
+        for m_idx, val in enumerate(bd['total_mensual_proyectado']):
+            c = ws.cell(row=current_row, column=m_idx + 2, value=val if val > 0 else 0)
+            c.number_format = '#,##0'
+            c.font = budget_font
+            c.fill = budget_fill
+            c.alignment = Alignment(horizontal='right')
+            c.border = thin_border
+
+        c_total = ws.cell(row=current_row, column=14, value=bd['total_anual_proyectado'])
+        c_total.number_format = '#,##0'
+        c_total.font = budget_font
+        c_total.fill = budget_fill
+        c_total.border = thin_border
+
+        c_ejec = ws.cell(row=current_row, column=15, value=bd['total_anual_ejecutado'])
+        c_ejec.number_format = '#,##0'
+        c_ejec.font = budget_font
+        c_ejec.fill = budget_fill
+        c_ejec.border = thin_border
+
+        current_row += 1
+
+        # Por cada partida (disciplina)
+        for pd in bd['partidas']:
+            # Fila Disciplina
+            ws.cell(row=current_row, column=1, value=pd['disciplina']).font = disciplina_font
+            ws.cell(row=current_row, column=1).fill = disciplina_fill
+            ws.cell(row=current_row, column=1).border = thin_border
+
+            for m_idx, val in enumerate(pd['proyeccion_total_mensual']):
+                c = ws.cell(row=current_row, column=m_idx + 2, value=val if val > 0 else 0)
+                c.number_format = '#,##0'
+                c.font = disciplina_font
+                c.fill = disciplina_fill
+                c.alignment = Alignment(horizontal='right')
+                c.border = thin_border
+
+            c_total = ws.cell(row=current_row, column=14, value=pd['total_proyectado'])
+            c_total.number_format = '#,##0'
+            c_total.font = disciplina_font
+            c_total.fill = disciplina_fill
+            c_total.border = thin_border
+
+            c_ejec = ws.cell(row=current_row, column=15, value=pd['total_ejecutado'])
+            c_ejec.number_format = '#,##0'
+            c_ejec.font = disciplina_font
+            c_ejec.fill = disciplina_fill
+            c_ejec.border = thin_border
+
+            current_row += 1
+
+            # Items
+            for item in pd['items']:
+                ws.cell(row=current_row, column=1, value=f"   {item['concepto']}")
+                ws.cell(row=current_row, column=1).border = thin_border
+
+                for m_idx, val in enumerate(item['proyeccion']):
+                    c = ws.cell(row=current_row, column=m_idx + 2, value=val if val > 0 else 0)
+                    c.number_format = '#,##0'
+                    c.alignment = Alignment(horizontal='right')
+                    c.border = thin_border
+
+                c_annual = ws.cell(row=current_row, column=14, value=item['total_anual'])
+                c_annual.number_format = '#,##0'
+                c_annual.border = thin_border
+
+                c_ejec = ws.cell(row=current_row, column=15, value=item.get('total_ejecutado', 0))
+                c_ejec.number_format = '#,##0'
+                c_ejec.border = thin_border
+
+                current_row += 1
+
+    # Ajustar anchos de columnas adicionales
+    ws.column_dimensions['N'].width = 16
+    ws.column_dimensions['O'].width = 16
+
+    # Response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"Analisis_Grupal_{grupo.nombre.replace(' ', '_')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    wb.save(response)
+    return response
+
+@login_required
+def exportar_cronograma_grupal_excel_pivot(request, pk):
+    """
+    Exporta los datos en formato plano para tabla pivote.
+    Estructura: Presupuesto | Disciplina | Item | Concepto | Mes | Proyectado | Ejecutado
+    """
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+
+    grupo = get_object_or_404(PresupuestoAgrupado, pk=pk)
+    presupuestos = grupo.presupuestos.all()
+
+    if not presupuestos:
+        return HttpResponse('El grupo no tiene presupuestos.', status=400)
+
+    data = _get_cronograma_data(presupuestos)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Datos Pivote"
+
+    # Encabezados
+    headers = ["Presupuesto", "Disciplina", "Item", "Concepto", "Mes", "Proyectado", "Ejecutado"]
+    ws.append(headers)
+
+    # Estilo encabezado
+    header_font = Font(bold=True, size=11, color="FFFFFF")
+    header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
+
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+
+    # Ancho columnas
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 40
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 15
+    ws.column_dimensions['G'].width = 15
+
+    meses_nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+    # Datos - por cada presupuesto
+    for bd in data['presupuestos_data']:
+        presupuesto_nombre = bd['presupuesto'].nombre
+        presupuesto_ejecutado = bd['total_anual_ejecutado']
+
+        # Por cada partida (disciplina)
+        for pd in bd['partidas']:
+            disciplina = pd['disciplina']
+            partida_proyeccion = pd['proyeccion_total_mensual']
+            partida_ejecutado = pd['total_ejecutado']
+
+            # Fila de disciplina (sin item)
+            for m_idx, mes_nombre in enumerate(meses_nombres):
+                ws.append([
+                    presupuesto_nombre,
+                    disciplina,
+                    "",
+                    f"TOTAL {disciplina.upper()}",
+                    mes_nombre,
+                    partida_proyeccion[m_idx] if partida_proyeccion[m_idx] > 0 else 0,
+                    0  # La ejecución se muestra a nivel de item, no de partida
+                ])
+
+            # Por cada item
+            for item in pd['items']:
+                item_concepto = item['concepto']
+                item_proyeccion = item['proyeccion']
+                item_ejecutado = item.get('total_ejecutado', 0)
+
+                for m_idx, mes_nombre in enumerate(meses_nombres):
+                    ws.append([
+                        presupuesto_nombre,
+                        disciplina,
+                        item.get('codigo', ''),
+                        item_concepto,
+                        mes_nombre,
+                        item_proyeccion[m_idx] if item_proyeccion[m_idx] > 0 else 0,
+                        0  # Ejecutado mensual no está en item_data, sería 0
+                    ])
+
+                # Fila de total anual del item
+                ws.append([
+                    presupuesto_nombre,
+                    disciplina,
+                    item.get('codigo', ''),
+                    f"TOTAL {item_concepto}",
+                    "ANUAL",
+                    item['total_anual'],
+                    item_ejecutado
+                ])
+
+    # Totales mensuales agrupados
+    ws.append([])
+    ws.append(["TOTALES AGRUPADOS", "", "", "", "", "", ""])
+    total_row = ws.max_row + 1
+
+    for m_idx, mes_nombre in enumerate(meses_nombres):
+        ws.append([
+            "",
+            "",
+            "",
+            f"TOTAL {mes_nombre.upper()}",
+            "",
+            data['global_proyectado_mes'][m_idx],
+            data['global_ejecutado_mes'][m_idx]
+        ])
+
+    # Total anual
+    ws.append([
+        "",
+        "",
+        "",
+        "TOTAL GENERAL",
+        "",
+        data['total_general_proyectado'],
+        data['total_general_ejecutado']
+    ])
+
+    # Response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"Analisis_Grupal_Pivot_{grupo.nombre.replace(' ', '_')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    wb.save(response)
+    return response
+
+@login_required
+def exportar_cronograma_grupal_excel_pivot(request, pk):
+    """
+    Exporta cronograma grupal en formato plano para tabla pivote.
+    Estructura: Presupuesto | Disciplina | Item | Concepto | Mes | Valor
+    Una fila por cada mes con valor.
+    """
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+
+    grupo = get_object_or_404(PresupuestoAgrupado, pk=pk)
+    presupuestos = grupo.presupuestos.all()
+
+    if not presupuestos:
+        return HttpResponse('El grupo no tiene presupuestos.', status=400)
+
+    data = _get_cronograma_data(presupuestos)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Datos Pivote"
+
+    # Estilos
+    header_font = Font(bold=True, size=11, color="FFFFFF")
+    header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # 1. Título
+    ws['A1'] = f"ANÁLISIS GRUPAL: {grupo.nombre} - Datos para Pivote"
+    ws['A1'].font = Font(bold=True, size=14)
+    ws.merge_cells('A1:E1')
+
+    # 2. Encabezados - formato plano (una fila por mes)
+    headers = ["Presupuesto", "Disciplina", "Item", "Concepto", "Mes", "Valor"]
+    ws.append([])  # Espacio
+    ws.append(headers)
+
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 10
+    ws.column_dimensions['D'].width = 30
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 15
+
+    # 3. Datos - formato plano (una fila por cada mes con valor)
+    current_row = 4
+
+    for bd in data['presupuestos_data']:
+        presupuesto_nombre = bd['presupuesto'].nombre
+
+        for pd in bd['partidas']:
+            disciplina = pd['disciplina']
+
+            # Items
+            for item in pd['items']:
+                item_id = item.get('id', '')
+                concepto = item['concepto']
+
+                # Una fila por cada mes
+                for m_idx, val in enumerate(item['proyeccion']):
+                    # Columna A: Presupuesto
+                    ws.cell(row=current_row, column=1, value=presupuesto_nombre).border = thin_border
+
+                    # Columna B: Disciplina
+                    ws.cell(row=current_row, column=2, value=disciplina).border = thin_border
+
+                    # Columna C: Item ID
+                    ws.cell(row=current_row, column=3, value=str(item_id)).border = thin_border
+
+                    # Columna D: Concepto
+                    ws.cell(row=current_row, column=4, value=concepto).border = thin_border
+
+                    # Columna E: Mes
+                    ws.cell(row=current_row, column=5, value=data['meses_nombres'][m_idx]).border = thin_border
+
+                    # Columna F: Valor
+                    c = ws.cell(row=current_row, column=6, value=val if val > 0 else 0)
+                    c.number_format = '#,##0'
+                    c.alignment = Alignment(horizontal='right')
+                    c.border = thin_border
+
+                    current_row += 1
+
+    # Response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"Analisis_Grupal_{grupo.nombre.replace(' ', '_')}_Pivote.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    wb.save(response)
+    return response
+
+
+@login_required
 def api_update_monto_mensual(request):
     if request.method == "POST":
         import json

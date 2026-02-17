@@ -1,0 +1,682 @@
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    (function () {
+        // Aseguramos que tenemos un símbolo $ válido
+        const waitJQuery = setInterval(() => {
+            if (typeof jQuery !== 'undefined' || typeof $ !== 'undefined') {
+                clearInterval(waitJQuery);
+                initWizard(jQuery || $);
+            }
+        }, 100);
+
+        function initWizard($) {
+            console.log('Iniciando Wizard JS...');
+
+            // Inicializar Select2 con precaución
+            try {
+                if ($.fn.select2) {
+                    $('.select2-material').select2({ width: '100%' });
+                    console.log('Select2 inicializado');
+                } else {
+                    console.warn('Select2 no está disponible en $.fn');
+                }
+            } catch (e) {
+                console.error('Error al inicializar Select2:', e);
+            }
+
+            // ReadOnly Check
+            const isReadOnly = "{{ is_readonly|yesno:'true,false' }}" === "true";
+
+            if (isReadOnly) {
+                console.log('Modo Solo Lectura Activado');
+                // Deshabilitar todos los inputs
+                $('#wizard-form :input').prop('disabled', true);
+
+                // Ocultar botones de acción de guardado/edición
+                $('.save-draft, #add-article, #add-document, .delete-row, .remove-new-row, #btn-finish, #btn-authorize').hide();
+
+                // Habilitar botones de navegación (aunque los inputs estén disabled)
+                $('.next-step, .prev-step').prop('disabled', false).show();
+
+                // Mensaje informativo
+                if ($('.alert-readonly').length === 0) {
+                    $('.form-container').prepend('<div class="alert-msg alert-error notify-readonly">🔒 Esta requisición fue enviada a aprobación y está bloqueada para edición.</div>');
+                }
+            }
+
+            // Stepper click logic
+            $('.step').on('click', function () {
+                const step = $(this).data('step');
+                if (!step) return;
+
+                if (isReadOnly) {
+                    console.log('Navegando (Solo Lectura) vía stepper al paso:', step);
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('step', step);
+                    window.location.href = url.toString();
+                    return;
+                }
+
+                console.log('Stepper clic, navegando al paso:', step);
+                $('#target_step').val(step);
+                $('#wizard-form').submit();
+            });
+
+            // Registrar eventos de botones
+            $('.next-step').on('click', function (e) {
+                const nextStep = $(this).data('next');
+
+                if (isReadOnly) {
+                    // Navegación GET para modo lectura
+                    e.preventDefault();
+                    console.log('Navegando (Solo Lectura) al paso:', nextStep);
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('step', nextStep);
+                    window.location.href = url.toString();
+                    return;
+                }
+
+                console.log('Navegando al paso:', nextStep);
+                $('#target_step').val(nextStep);
+                $('#wizard-form').submit();
+            });
+
+            $('.prev-step').on('click', function () {
+                const prevStep = $(this).data('prev');
+                console.log('Regresando al paso:', prevStep);
+                const pk = "{{ instance.pk|default:'' }}";
+                if (pk) {
+                    const urlTemplate = "{% url 'presupuestos:requisicion_editar' pk='00000000-0000-0000-0000-000000000000' %}";
+                    window.location.href = urlTemplate.replace('00000000-0000-0000-0000-000000000000', pk) + "?step=" + prevStep;
+                }
+            });
+
+            $('#btn-finish').on('click', function () {
+                if (isReadOnly) return;
+                console.log('Finalizando requisición');
+                $('#final_save').val('true');
+                $('#wizard-form').submit();
+            });
+
+            $('.save-draft').on('click', function () {
+                if (isReadOnly) return;
+                console.log('Guardando borrador');
+                $('#final_save').val('true');
+                $('#wizard-form').submit();
+            });
+
+            // Lógica de Formsets
+            function addRow(prefix, containerId, emptyRowId) {
+                const totalForms = $(`#id_${prefix}-TOTAL_FORMS`);
+                const count = parseInt(totalForms.val());
+                const newRow = $(`#${emptyRowId}`).html().replace(/__prefix__/g, count);
+                $(`#${containerId}`).append(newRow);
+                totalForms.val(count + 1);
+
+                if (prefix === 'articulos') {
+                    try {
+                        if ($.fn.select2) $(`#${containerId} .article-row:last-child .select2-material`).select2({ width: '100%' });
+                    } catch (e) { }
+                }
+            }
+
+            // Agregar fila vacía solo si no hay artículos existentes
+            $(document).ready(function() {
+                const totalArticulos = parseInt($('#id_articulos-TOTAL_FORMS').val()) || 0;
+                // Si no hay artículos, agregar uno vacío al cargar
+                if (totalArticulos === 0) {
+                    addRow('articulos', 'article-formset', 'empty-article-row');
+                }
+            });
+
+            $('#add-article').on('click', () => addRow('articulos', 'article-formset', 'empty-article-row'));
+            $('#add-document').on('click', () => addRow('documentos', 'document-formset', 'empty-document-row'));
+            $(document).on('click', '.remove-new-row', function () { $(this).closest('.formset-row').remove(); });
+            $(document).on('click', '.delete-row', function () {
+                const row = $(this).closest('.formset-row');
+                const deleteCheckbox = row.find('input[type="checkbox"][name$="-DELETE"]');
+                if (deleteCheckbox.length) {
+                    deleteCheckbox.prop('checked', true);
+                    row.hide();
+                }
+            });
+
+            // Toggle "En nombre de"
+            $('#toggle-behalf').on('click', function () {
+                const container = $('#on-behalf-container');
+                if (container.is(':visible')) {
+                    container.slideUp();
+                } else {
+                    container.slideDown();
+                }
+            });
+
+            // Botón Solicitar Autorización
+            $('#btn-authorize').on('click', function () {
+                const pk = "{{ instance.pk|default:'' }}";
+                if (!pk) return;
+
+                Swal.fire({
+                    title: '¿Solicitar Autorización?',
+                    text: 'Esto enviará la requisición al flujo de aprobación.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: '🚀 Sí, solicitar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({ title: 'Enviando...', didOpen: () => Swal.showLoading() });
+
+                        const urlTemplate = "{% url 'presupuestos:requisicion_autorizar' pk='00000000-0000-0000-0000-000000000000' %}";
+                        const url = urlTemplate.replace('00000000-0000-0000-0000-000000000000', pk);
+
+                        $.ajax({
+                            url: url,
+                            type: 'POST',
+                            data: {
+                                'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+                            },
+                            success: function (response) {
+                                Swal.fire('¡Enviado!', response.message, 'success').then(() => {
+                                    location.reload();
+                                });
+                            },
+                            error: function (xhr) {
+                                Swal.fire('Error', xhr.responseJSON ? xhr.responseJSON.message : 'Error al conectar con Power Automate', 'error');
+                            }
+                        });
+                    }
+                });
+            });
+
+            // ========== MATERIAL SELECTOR MODAL ==========
+            const materialModal = {
+                currentPage: 1,
+                currentCategory: '',
+                searchQuery: '',
+
+                init() {
+                    this.loadCategories();
+                    this.bindEvents();
+                },
+
+                bindEvents() {
+                    $('#open-material-selector').on('click', () => this.open());
+                    $('#close-modal').on('click', () => this.close());
+                    $('.modal-overlay').on('click', (e) => {
+                        if (e.target.id === 'material-modal') this.close();
+                    });
+
+                    $('#material-search').on('input', (e) => {
+                        this.searchQuery = e.target.value;
+                        this.currentPage = 1;
+                        this.loadMaterials();
+                    });
+
+                    // New Material Form Events
+                    $('#btn-show-new-mat-form').on('click', (e) => {
+                        e.preventDefault();
+                        this.toggleNewMaterialForm(true);
+                    });
+
+                    $('#cancel-new-mat').on('click', () => {
+                        this.toggleNewMaterialForm(false);
+                    });
+
+                    $('#add-new-mat-btn').on('click', () => {
+                        this.addNewMaterial();
+                    });
+
+                    // Event delegation for category tree
+                    $(document).on('click', '.category-row', (e) => {
+                        e.stopPropagation();
+                        if ($(e.target).hasClass('cat-caret')) return;
+
+                        $('.category-row').removeClass('active');
+                        $('.category-label').removeClass('active');
+
+                        const row = $(e.currentTarget);
+                        const label = row.find('.category-label');
+
+                        label.addClass('active');
+
+                        this.currentCategory = label.data('category');
+                        this.currentPage = 1;
+                        this.toggleNewMaterialForm(false);
+                        this.loadMaterials();
+                    });
+
+                    $(document).on('click', '.cat-caret', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const caret = $(e.currentTarget);
+                        const subtree = caret.closest('.tree-node').children('.subtree');
+                        subtree.slideToggle(200);
+                        caret.toggleClass('collapsed');
+                    });
+
+                    $(document).on('click', '.material-card', (e) => {
+                        if ($(e.target).is('button, input')) return;
+                        const card = $(e.currentTarget);
+                        const wasSelected = card.hasClass('selected');
+                        $('.material-card').removeClass('selected');
+                        if (!wasSelected) {
+                            card.addClass('selected');
+                            card.find('.quantity-input').focus();
+                        }
+                    });
+
+                    $(document).on('click', '.qty-btn', (e) => {
+                        e.stopPropagation();
+                        const input = $(e.target).siblings('.quantity-input');
+                        const current = parseFloat(input.val()) || 1;
+                        const change = $(e.target).data('change');
+                        const newVal = Math.max(0.01, current + change);
+                        input.val(newVal.toFixed(2));
+                    });
+
+                    $(document).on('click', '.add-to-cart-btn', (e) => {
+                        e.stopPropagation();
+                        const card = $(e.target).closest('.material-card');
+                        const quantity = card.find('.quantity-input').val();
+
+                        this.addToFormset({
+                            id: card.data('id'),
+                            nombre: card.data('nombre'),
+                            sku: card.data('sku'),
+                            precio: card.data('precio')
+                        }, quantity, '');
+
+                        card.removeClass('selected');
+                        card.css('background', 'rgba(16, 185, 129, 0.2)');
+                        setTimeout(() => card.css('background', ''), 500);
+                    });
+
+                    $('#prev-page').on('click', () => {
+                        if (this.currentPage > 1) {
+                            this.currentPage--;
+                            this.loadMaterials();
+                        }
+                    });
+
+                    $('#next-page').on('click', () => {
+                        this.currentPage++;
+                        this.loadMaterials();
+                    });
+                },
+
+                open() {
+                    $('#material-modal').addClass('active');
+                    this.loadMaterials();
+                },
+
+                close() {
+                    $('#material-modal').removeClass('active');
+                },
+
+                toggleNewMaterialForm(show) {
+                    if (show) {
+                        $('#materials-grid').hide();
+                        $('#pagination-controls').hide();
+                        $('#new-material-form').show();
+                        $('#btn-show-new-mat-form').hide();
+                        $('#new-mat-name').focus();
+                    } else {
+                        $('#new-material-form').hide();
+                        $('#materials-grid').show();
+                        if (this.currentPage > 0) $('#pagination-controls').show();
+                        $('#btn-show-new-mat-form').show();
+                    }
+                },
+
+                addNewMaterial() {
+                    const name = $('#new-mat-name').val();
+                    const qty = $('#new-mat-qty').val();
+                    const price = $('#new-mat-price').val();
+                    const desc = $('#new-mat-desc').val();
+
+                    if (!name) {
+                        Swal.fire({ title: 'Error', text: 'Debe ingresar un nombre para el material.', icon: 'error', confirmButtonColor: '#EF4444' });
+                        return;
+                    }
+                    if (!qty || parseFloat(qty) <= 0) {
+                        Swal.fire({ title: 'Error', text: 'La cantidad debe ser mayor a 0.', icon: 'error', confirmButtonColor: '#EF4444' });
+                        return;
+                    }
+
+                    const manualMaterial = {
+                        id: '',
+                        nombre: name,
+                        sku: 'SOLICITUD',
+                        precio: price || 0
+                    };
+
+                    const fullDesc = `[NUEVO] ${name}` + (desc ? ` - ${desc}` : '');
+                    this.addToFormset(manualMaterial, qty, fullDesc);
+
+                    $('#new-mat-name').val('');
+                    $('#new-mat-desc').val('');
+                    $('#new-mat-qty').val('1');
+                    $('#new-mat-price').val('0');
+
+                    this.toggleNewMaterialForm(false);
+
+                    Swal.fire({
+                        title: '¡Solicitud Agregada!',
+                        text: 'Se ha agregado el nuevo material a la lista.',
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                },
+
+                loadCategories() {
+                    $.get('/inventarios/api/categories/', (data) => {
+                        const list = $('#category-tree-root');
+                        list.empty();
+                        list.append(`
+                            <li class="tree-node">
+                                <div class="category-row all-categories active">
+                                    <span class="cat-spacer"></span>
+                                    <span class="category-label" data-category="">Todas</span>
+                                </div>
+                            </li>
+                        `);
+
+                        function buildTreeHtml(nodes) {
+                            if (!nodes || nodes.length === 0) return '';
+                            let html = '';
+                            nodes.forEach(node => {
+                                const hasChildren = node.children && node.children.length > 0;
+                                html += `<li class="tree-node">`;
+                                html += `<div class="category-row">`;
+                                if (hasChildren) {
+                                    html += `<span class="cat-caret">▼</span>`;
+                                } else {
+                                    html += `<span class="cat-spacer"></span>`;
+                                }
+                                html += `<span class="category-label" data-category="${node.id}">${node.nombre}</span>`;
+                                html += `</div>`;
+                                if (hasChildren) {
+                                    html += `<ul class="subtree" style="display:none;">`;
+                                    html += buildTreeHtml(node.children);
+                                    html += `</ul>`;
+                                }
+                                html += `</li>`;
+                            });
+                            return html;
+                        }
+                        list.append(buildTreeHtml(data.results));
+                    });
+                },
+
+                loadMaterials() {
+                    const params = {
+                        page: this.currentPage,
+                        q: this.searchQuery,
+                        category: this.currentCategory
+                    };
+
+                    $.get('/inventarios/api/materials/', params, (data) => {
+                        const grid = $('#materials-grid');
+                        grid.empty();
+
+                        if (data.results.length === 0) {
+                            grid.html('<p style="text-align: center; color: var(--text-muted); padding: 40px;">No se encontraron materiales.</p>');
+                            $('#pagination-controls').hide();
+                            return;
+                        }
+
+                        data.results.forEach(material => {
+                            grid.append(`
+                                <div class="material-card" 
+                                     data-id="${material.id}" 
+                                     data-nombre="${material.nombre}"
+                                     data-sku="${material.sku}"
+                                     data-precio="${material.precio_estimado}">
+                                    <img src="${material.image_url}" class="material-image" alt="${material.nombre}">
+                                    <div class="material-name">${material.nombre}</div>
+                                    <div class="material-sku">SKU: ${material.sku}</div>
+                                    <div class="material-stock">Stock: ${material.stock} ${material.unidad}</div>
+                                    <div class="quantity-controls">
+                                        <button class="qty-btn" data-change="-1" type="button">−</button>
+                                        <input type="number" class="quantity-input" value="1" min="0.01" step="0.01">
+                                        <button class="qty-btn" data-change="1" type="button">+</button>
+                                        <button class="add-to-cart-btn" type="button">✓ Agregar</button>
+                                    </div>
+                                </div>
+                            `);
+                        });
+
+                        if (data.num_pages > 1) {
+                            $('#pagination-controls').show();
+                            $('#page-info').text(`Página ${data.current_page} de ${data.num_pages}`);
+                            $('#prev-page').prop('disabled', data.current_page === 1);
+                            $('#next-page').prop('disabled', !data.has_next);
+                        } else {
+                            $('#pagination-controls').hide();
+                        }
+                    });
+                },
+
+                addToFormset(material, quantity, description) {
+                    if (material.id) {
+                        let existingRowIndex = -1;
+                        const totalForms = parseInt($('#id_articulos-TOTAL_FORMS').val());
+
+                        for (let i = 0; i < totalForms; i++) {
+                            const row = $(`#article-${i}`);
+                            if (row.length && row.is(':visible')) {
+                                const rowMaterialVal = $(`#id_articulos-${i}-material`).val();
+                                if (rowMaterialVal == material.id) {
+                                    existingRowIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (existingRowIndex !== -1) {
+                            Swal.fire({
+                                title: '¡Material ya agregado!',
+                                text: `El material "${material.nombre}" ya está en tu lista. ¿Quieres sumar la cantidad ingresada a la existente?`,
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonColor: '#10b981',
+                                cancelButtonColor: '#64748b',
+                                confirmButtonText: '➕ Sumar Cantidad',
+                                cancelButtonText: 'Cancelar'
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    const qtyInput = $(`#id_articulos-${existingRowIndex}-cr8ca_cantidad`);
+                                    const currentQty = parseFloat(qtyInput.val()) || 0;
+                                    const addQty = parseFloat(quantity) || 0;
+                                    const newTotal = currentQty + addQty;
+                                    qtyInput.val(newTotal.toFixed(2));
+
+                                    const row = $(`#article-${existingRowIndex}`);
+                                    const originalBg = row.css('background-color');
+                                    row.css('background-color', '#dcfce7');
+                                    row.css('transition', 'background-color 0.5s');
+                                    setTimeout(() => row.css('background-color', originalBg || ''), 1500);
+
+                                    Swal.fire({ title: '¡Cantidad Actualizada!', text: `Total acumulado: ${newTotal.toFixed(2)}`, icon: 'success', timer: 1500, showConfirmButton: false });
+                                }
+                            });
+                            return;
+                        }
+                    }
+                    this._itemAddLogic(material, quantity, description);
+                },
+
+                _itemAddLogic(material, quantity, description) {
+                    const totalForms = $('#id_articulos-TOTAL_FORMS');
+                    const count = parseInt(totalForms.val());
+                    const newRow = $('#empty-article-row').html().replace(/__prefix__/g, count);
+                    $('#article-formset').append(newRow);
+
+                    if (material.id) {
+                        $(`#id_articulos-${count}-material`).val(material.id).trigger('change');
+                    } else {
+                        $(`#id_articulos-${count}-material`).val(null).trigger('change');
+                    }
+
+                    $(`#id_articulos-${count}-cr8ca_articulo`).val(description || material.nombre);
+                    $(`#id_articulos-${count}-cr8ca_cantidad`).val(quantity);
+                    $(`#id_articulos-${count}-cr8ca_costoaproximado`).val(material.precio);
+
+                    try {
+                        if ($.fn.select2) $(`#id_articulos-${count}-material`).select2({ width: '100%' });
+                    } catch (e) { }
+
+                    totalForms.val(count + 1);
+                }
+            };
+            materialModal.init();
+
+            // ========== DOCUMENT PREVIEW MODAL ==========
+            const documentModal = {
+                init() { this.bindEvents(); },
+                bindEvents() {
+                    $(document).on('click', '.document-preview-item', function () {
+                        const url = $(this).data('url');
+                        const name = $(this).data('name');
+                        documentModal.open(url, name);
+                    });
+                    $('#close-document-modal').on('click', () => documentModal.close());
+                    $('#document-modal').on('click', (e) => { if (e.target.id === 'document-modal') documentModal.close(); });
+                },
+                open(url, name) {
+                    $('#document-modal-title').text(`📄 ${name}`);
+                    $('#document-iframe').attr('src', url);
+                    $('#document-modal').fadeIn(200);
+                },
+                close() {
+                    $('#document-modal').fadeOut(200);
+                    setTimeout(() => $('#document-iframe').attr('src', ''), 300);
+                }
+            };
+            documentModal.init();
+
+            // ========== MAYAN UPLOAD WIZARD ==========
+            const mayanWizard = {
+                init() {
+                    this.modal = $('#mayan-wizard-modal');
+                    this.form = $('#mayan-upload-form');
+                    this.progressBar = $('#mayan-progress-bar');
+                    this.progressContainer = $('#mayan-upload-progress');
+                    this.statusText = $('#mayan-status-text');
+                    this.submitBtn = $('#submit-mayan-upload');
+                    this.bindEvents();
+                },
+                bindEvents() {
+                    $('#open-mayan-wizard').on('click', () => this.open());
+                    $('#close-mayan-wizard, #cancel-mayan-upload').on('click', () => this.close());
+                    this.modal.on('click', (e) => { if (e.target.id === 'mayan-wizard-modal') this.close(); });
+                    this.form.on('submit', (e) => { e.preventDefault(); this.upload(); });
+                },
+                open() {
+                    const reqId = "{{ instance.pk }}";
+                    if (!reqId || reqId === "None") {
+                        Swal.fire({ icon: 'warning', title: '¡Espera!', text: 'Debes completar el Paso 1 y 2 para poder subir documentos a Mayan.', confirmButtonColor: 'var(--primary)' });
+                        return;
+                    }
+                    this.form[0].reset();
+                    this.progressContainer.hide();
+                    this.progressBar.css('width', '0%');
+                    this.submitBtn.prop('disabled', false);
+                    this.modal.fadeIn(200);
+                },
+                close() { this.modal.fadeOut(200); },
+                upload() {
+                    const formData = new FormData();
+                    formData.append('file', $('#mayan-file')[0].files[0]);
+                    formData.append('title', $('#mayan-title').val());
+                    formData.append('description', $('#mayan-description').val());
+                    formData.append('requisicion_id', "{{ instance.pk }}");
+                    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+                    this.progressContainer.show();
+                    this.submitBtn.prop('disabled', true);
+                    this.statusText.text('Subiendo documento...');
+
+                    $.ajax({
+                        url: "{% url 'presupuestos:mayan_upload_requisition_document' %}",
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        xhr: () => {
+                            const xhr = new window.XMLHttpRequest();
+                            xhr.upload.addEventListener("progress", (evt) => {
+                                if (evt.lengthComputable) {
+                                    const percentComplete = (evt.loaded / evt.total) * 100;
+                                    this.progressBar.css('width', percentComplete + '%');
+                                    if (percentComplete === 100) this.statusText.text('Procesando en Mayan...');
+                                }
+                            }, false);
+                            return xhr;
+                        },
+                        success: (response) => {
+                            Swal.fire({ icon: 'success', title: '¡Documento Subido!', text: response.message, confirmButtonColor: 'var(--primary)' }).then(() => {
+                                this.close();
+                                window.location.reload();
+                            });
+                        },
+                        error: (xhr) => {
+                            const errorMsg = xhr.responseJSON ? xhr.responseJSON.error : 'Ocurrió un error inesperado al subir a Mayan.';
+                            Swal.fire({ icon: 'error', title: 'Error', text: errorMsg, confirmButtonColor: 'var(--primary)' });
+                            this.progressContainer.hide();
+                            this.submitBtn.prop('disabled', false);
+                        }
+                    });
+                }
+            };
+            mayanWizard.init();
+
+            // ========== UNLOCK EDIT BUTTON ==========
+            {% if instance and can_unlock %}
+            document.getElementById('btn-unlock-edit').addEventListener('click', function () {
+                Swal.fire({
+                    title: '⚠️ ¿Desbloquear esta requisición?',
+                    html: '<p style="text-align: left; padding: 0 20px;">Si desbloquea esta requisición para editarla, <strong>volverá al estado de Borrador</strong> y deberá:<br><br>' +
+                        '✓ Realizar los cambios necesarios<br>' +
+                        '✓ Guardar la requisición<br>' +
+                        '✓ <strong>Solicitar nuevamente la autorización</strong><br><br>' +
+                        '¿Está de acuerdo en continuar?</p>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ff9800',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, Desbloquear',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true,
+                    width: '600px'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = "{% url 'presupuestos:requisicion_unlock_edit' pk=instance.pk %}";
+                    }
+                });
+            });
+            {% endif %}
+
+            // ========== READONLY MODE: Disable all inputs ==========
+            {% if is_readonly %}
+            (function () {
+                const formInputs = document.querySelectorAll('#wizard-form input, #wizard-form select, #wizard-form textarea, #wizard-form button[type="submit"]');
+                formInputs.forEach(el => el.disabled = true);
+
+                const actionButtons = document.querySelectorAll('.next-step, .prev-step, .save-draft, #add-article, #add-document, #open-mayan-wizard');
+                actionButtons.forEach(el => {
+                    el.style.opacity = '0.5';
+                    el.style.cursor = 'not-allowed';
+                    el.style.pointerEvents = 'none';
+                });
+            })();
+            {% endif %}
+
+            console.log('Eventos del Wizard registrados correctamente');
+        }
+    })();
+</script>

@@ -101,7 +101,7 @@ N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://181.115.47.107:5678/
 
 # Webhook para el Chat con IA (Documentos)
 # Por defecto usa la IP pública, pero permite override para usar la red interna (ej: http://n8n:5678/webhook/...)
-N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook/chat-documento')
+N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook-test/chat-documento')
 
 # Webhook para extracción de texto de PDFs
 # En local: IP pública. En producción: usar URL interna vía variable de entorno

@@ -14,7 +14,13 @@ def api_list_materials(request):
     category_id = request.GET.get('category')
     page_number = request.GET.get('page', 1)
     
-    materials = Material.objects.all().order_by('nombre')
+    from django.db.models import Sum
+    
+    # Optimizamos con annotate para el stock y select_related para la categoria
+    # Esto evita N+1 queries (una por cada fila del loop)
+    materials = Material.objects.annotate(
+        stock_total=Sum('existencias__cantidad')
+    ).select_related('categoria').order_by('nombre')
     
     if query:
         materials = materials.filter(
@@ -31,7 +37,7 @@ def api_list_materials(request):
     
     data = []
     for m in page_obj:
-        if  hasattr(m, 'imagen') and m.imagen:
+        if hasattr(m, 'imagen') and m.imagen:
              image_url = m.imagen.url
         else:
              # SVG de una cajita de inventario
@@ -43,7 +49,7 @@ def api_list_materials(request):
             'sku': m.sku,
             'unidad': m.get_unidad_medida_display(),
             'precio_estimado': float(m.precio_estimado),
-            'stock': float(m.get_stock_total()),
+            'stock': float(m.stock_total or 0),
             'categoria': m.categoria.nombre if m.categoria else 'General',
             'image_url': image_url 
         })

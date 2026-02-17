@@ -9,6 +9,7 @@ from celery.result import AsyncResult
 from .tasks import import_requisiciones_task
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
+from django.urls import reverse
 
 @staff_member_required
 def import_requisiciones_background(request):
@@ -142,16 +143,18 @@ def requisicion_upsert(request, pk=None):
     from django.urls import reverse
 
     instance = get_object_or_404(Requisicion, pk=pk) if pk else None
-    
+
+    # Si es nueva o no tiene solicitante, asignar el usuario actual
+    if not instance:
+        instance = Requisicion(usuario_solicitante=request.user)
+        instance.save()  # Guardar para obtener PK
+    elif not instance.usuario_solicitante:
+        instance.usuario_solicitante = request.user
+        instance.save(update_fields=['usuario_solicitante'])
+
     # Determinamos el paso actual
     # Prioridad: Parámetro GET > wizard_step guardado > Default 1
     current_step = int(request.GET.get('step', instance.wizard_step if instance else 1))
-
-    if instance and not instance.usuario_solicitante:
-        instance.usuario_solicitante = request.user
-    elif not instance:
-        # Para nuevas requisiciones, creamos una instancia temporal para el form
-        instance = Requisicion(usuario_solicitante=request.user)
 
     # Bloquear edición si ya está enviada a aprobar o en estado final
     is_readonly = False
@@ -202,8 +205,29 @@ def requisicion_upsert(request, pk=None):
             else:
                 pass
         elif current_step == 3:
-            if documento_formset.is_valid():
-                documento_formset.save()
+            # Validar que haya al menos un documento cargado (ya sea nuevo o existente)
+            documento_formset_is_valid = documento_formset.is_valid()
+
+            has_files = False
+            if documento_formset_is_valid:
+                # Formset válido - verificar si hay documentos
+                for form in documento_formset:
+                    archivo = form.cleaned_data.get('archivo')
+                    es_eliminado = form.cleaned_data.get('DELETE', False)
+                    tiene_pk = form.instance.pk
+
+                    # Contar si: tiene archivo nuevo O tiene documento existente (pk) Y no está marcado para eliminar
+                    if (archivo) or (tiene_pk and not es_eliminado):
+                        has_files = True
+                        break
+
+            if not has_files:
+                messages.error(request, "Debe cargar al menos un documento para continuar.")
+                success = False
+            else:
+                # Tiene documentos - guardar y continuar
+                if documento_formset_is_valid:
+                    documento_formset.save()
                 success = True
         elif current_step == 4:
             success = True
@@ -264,10 +288,88 @@ def requisicion_upsert(request, pk=None):
     }
     return render(request, 'admin/presupuestos/requisicion/requisicion_form.html', context)
 
+@login_required
+def requisicion_qr(request, pk):
+    """Genera un código QR para la requisición"""
+    import qrcode
+    import io
+    import base64
+    from django.http import HttpResponse
+    from .models import Requisicion
+
+    requisicion = get_object_or_404(Requisicion, pk=pk)
+
+    # URL que will contain the QR code
+    relative_url = reverse('presupuestos:requisicion_editar', kwargs={'pk': requisicion.cr8ca_requisicionid})
+    qr_data = request.build_absolute_uri(relative_url)
+
+    # Generate QR code
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # Convert to binary to display in img src
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    return HttpResponse(buffer.getvalue(), content_type="image/png")
+
+@login_required
+def requisicion_pdf(request, pk):
+    """Genera un PDF de la requisición"""
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+    from .models import Requisicion, ArticuloRequisicion, DocumentoRequisicion
+    import io
+    import qrcode
+    import base64
+    from django.http import HttpResponse
+
+    requisicion = get_object_or_404(Requisicion, pk=pk)
+
+    # Generar QR code
+    relative_url = reverse('presupuestos:requisicion_editar', kwargs={'pk': requisicion.cr8ca_requisicionid})
+    qr_data = request.build_absolute_uri(relative_url)
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    buffer.seek(0)
+    qr_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+    # Obtener artículos y documentos
+    articulos = requisicion.articulos.all()
+    documentos = requisicion.documentos.all()
+
+    context = {
+        'requisicion': requisicion,
+        'articulos': articulos,
+        'documentos': documentos,
+        'qr_code': qr_base64,
+    }
+
+    template = get_template('admin/presupuestos/requisicion/requisicion_pdf.html')
+    html = template.render(context)
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Requisicion_{requisicion.cr8ca_requisicion}.pdf"'
+
+    pisa_status = pisa.CreatePDF(html, dest=response)
+
+    if pisa_status.err:
+        return HttpResponse('Error creating PDF', status=500)
+
+    return response
+
+
 @staff_member_required
 @login_required
 def requisicion_dashboard(request):
-    """Vista de dashboard moderno para Requisiciones"""
+    """Vista de dashboard  para Requisiciones"""
     from .models import Requisicion
     from django.db.models import Sum, Count, Q
     from django.utils import timezone

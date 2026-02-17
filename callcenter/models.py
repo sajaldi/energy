@@ -50,6 +50,9 @@ class SolicitudTicket(models.Model):
     clasificacion_falla_final = models.CharField(max_length=255, blank=True, null=True, verbose_name="Clasificación Falla Final")
     categoria_falla = models.CharField(max_length=255, blank=True, null=True, verbose_name="Categoría Falla")
 
+    # Vinculación con Activos (Energía)
+    activo = models.ForeignKey('activos.Activo', on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets', verbose_name="Activo Relacionado")
+
     # Auditoría Interna
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
