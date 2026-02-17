@@ -208,17 +208,20 @@ def documento_wizard(request):
         
         # Sugerencia inteligente de Código y Título
         import re
-        text = revision.datos_extraidos.get('text_preview', '') if revision.datos_extraidos else ''
+        datos_ext = revision.datos_extraidos or {}
+        text = datos_ext.get('text_preview', '')
         
-        # 1. Buscar Código
-        suggested_code = None
-        if 'TMP-' in documento.codigo:
-            # Patrones comunes de códigos de documentos
+        # Prioridad a sugerencias de IA (n8n)
+        suggested_code = datos_ext.get('suggested_code')
+        suggested_title = datos_ext.get('suggested_title')
+
+        # 1. Fallback Búsqueda Código (si no hay IA o es TMP)
+        if not suggested_code and 'TMP-' in documento.codigo:
             patterns = [
-                r'[A-Z]{2,5}-[A-Z0-9]-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-\d{2}-\d{2}', # Original complejo
-                r'[A-Z]{2,4}-\d{3,6}-[A-Z0-9-]{3,10}', # Proyectos (ej: PROY-1234-ABC)
-                r'[A-Z]{2,4}-\d{4,8}', # Seriales (ej: DOC-123456)
-                r'(?i)Código[:\s]+([A-Z0-9-]{5,25})', # Etiqueta explícita "Código: XXX"
+                r'[A-Z]{2,5}-[A-Z0-9]-[A-Z0-9]{2,5}-[A-Z0-9]{2,5}-\d{2}-\d{2}', 
+                r'[A-Z]{2,4}-\d{3,6}-[A-Z0-9-]{3,10}',
+                r'[A-Z]{2,4}-\d{4,8}', 
+                r'(?i)Código[:\s]+([A-Z0-9-]{5,25})',
             ]
             for pat in patterns:
                 m = re.search(pat, text)
@@ -227,35 +230,40 @@ def documento_wizard(request):
                     break
         context['suggested_code'] = suggested_code
         
-        # 2. Buscar Título (si el documento tiene el título genérico del paso 1)
-        if documento.titulo == 'Documento sin título (Wizard)':
+        # 2. Fallback Búsqueda Título
+        if not suggested_title and documento.titulo == 'Documento sin título (Wizard)':
             lines = [l.strip() for l in text.split('\n') if len(l.strip()) > 10]
             if lines:
-                # El título suele ser una de las primeras líneas largas, evitando códigos
                 for line in lines[:5]:
                     if not re.search(r'\d{5,}', line) and not '@' in line:
                         documento.titulo = line[:255]
                         break
+        elif suggested_title:
+            documento.titulo = suggested_title
         
         # Preparar metadatos dinámicos pre-llenados
         metadatos_config = MetadatoConfig.objects.filter(tipo_documento=documento.tipo_documento)
         metadatos_prefilled = []
+        ia_metadata = datos_ext.get('ia_metadata', {})
+
         for config in metadatos_config:
-            suggested_value = ""
-            if config.tipo_campo == 'FECHA':
-                # Buscar fechas en formatos comunes
-                m = re.search(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}', text)
-                if m:
-                    raw_date = m.group(0).replace('/', '-')
-                    parts = raw_date.split('-')
-                    if len(parts) == 3:
-                        if len(parts[2]) == 4: # DD-MM-YYYY
-                            suggested_value = f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
-                        elif len(parts[0]) == 4: # YYYY-MM-DD
-                            suggested_value = raw_date
-            elif config.tipo_campo == 'EMAIL':
-                m = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
-                if m: suggested_value = m.group(0)
+            # Prioridad 1: IA n8n, Prioridad 2: Regex local
+            suggested_value = ia_metadata.get(config.nombre, "")
+            
+            if not suggested_value:
+                if config.tipo_campo == 'FECHA':
+                    m = re.search(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}', text)
+                    if m:
+                        raw_date = m.group(0).replace('/', '-')
+                        parts = raw_date.split('-')
+                        if len(parts) == 3:
+                            if len(parts[2]) == 4: # DD-MM-YYYY
+                                suggested_value = f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
+                            elif len(parts[0]) == 4: # YYYY-MM-DD
+                                suggested_value = raw_date
+                elif config.tipo_campo == 'EMAIL':
+                    m = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+                    if m: suggested_value = m.group(0)
                 
             metadatos_prefilled.append({
                 'config': config, 
