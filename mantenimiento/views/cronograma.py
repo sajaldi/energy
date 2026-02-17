@@ -304,6 +304,18 @@ def detalle_mes(request, year, month):
     view_mode = request.GET.get('view_mode', 'sistema')
     filter_q = request.GET.get('filter_q')
     
+    def parse_ids(param):
+        val = request.GET.getlist(param)
+        if not val:
+            val = request.GET.get(param, '')
+            if ',' in val: return [to_int(x) for x in val.split(',') if to_int(x)]
+            p = to_int(val)
+            return [p] if p else []
+        return [to_int(x) for x in val if to_int(x)]
+
+    ubi_ids = parse_ids('ubicacion_id')
+    cat_ids = parse_ids('categoria_id')
+
     # Crear cache key basado en parámetros
     cache_params = {
         'year': year,
@@ -311,7 +323,8 @@ def detalle_mes(request, year, month):
         'view_mode': view_mode,
         'programacion_id': programacion_id,
         'filter_q': filter_q,
-        # No incluir ubicacion_id ni categoria_id en cache para evitar cache bloat
+        'ubi_ids': ubi_ids,
+        'cat_ids': cat_ids
     }
     cache_key = f"detalle_mes_{hashlib.md5(json.dumps(cache_params, sort_keys=True).encode()).hexdigest()}"
     
@@ -336,11 +349,30 @@ def detalle_mes(request, year, month):
 
     # Get Data from Service based on View Mode
     if view_mode == 'ubicacion':
-        tree = WorkOrderService.get_location_grouped_tree(year, month)
+        tree = WorkOrderService.get_location_grouped_tree(year, month, ubicacion_ids=ubi_ids, categoria_ids=cat_ids)
     else:
         # Legacy Logic for 'sistema' view - OPTIMIZED with select_related/prefetch_related
         filtros = {'inicio_programado__year': year, 'inicio_programado__month': month}
         if programacion_id: filtros['programacion_id'] = programacion_id
+        
+        # BRUTAL OPTIMIZATION: Filter by IDs in DB
+        if ubi_ids:
+            all_ids = set()
+            for uid in ubi_ids:
+                try:
+                    area = Ubicacion.objects.get(id=uid)
+                    all_ids.update(area.get_descendants(include_self=True).values_list('id', flat=True))
+                except: pass
+            filtros['ubicacion_id__in'] = list(all_ids)
+            
+        if cat_ids:
+            all_cat_ids = set()
+            for cid in cat_ids:
+                try:
+                    cat = Categoria.objects.get(id=cid)
+                    all_cat_ids.update(cat.get_descendants(include_self=True).values_list('id', flat=True))
+                except: pass
+            filtros['rutina__categoria_id__in'] = list(all_cat_ids)
         
         # BRUTAL OPTIMIZATION: Single optimized query instead of N+1
         ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
@@ -358,8 +390,13 @@ def detalle_mes(request, year, month):
         month_start = date(year, month, 1)
         month_end = date(year, month, num_days)
         
-        proyecciones_qs = Programacion.objects.filter(fecha_inicio__lte=month_end).select_related('rutina__categoria', 'rutina__frecuencia', 'horario').prefetch_related('areas')
-        if programacion_id: proyecciones_qs = proyecciones_qs.filter(id=programacion_id)
+        proy_filtros = {'fecha_inicio__lte': month_end}
+        if programacion_id: proy_filtros['id'] = programacion_id
+        if cat_ids: proy_filtros['rutina__categoria_id__in'] = list(all_cat_ids)
+        
+        proyecciones_qs = Programacion.objects.filter(**proy_filtros).select_related('rutina__categoria', 'rutina__frecuencia', 'horario').prefetch_related('areas')
+        if ubi_ids:
+            proyecciones_qs = proyecciones_qs.filter(areas__id__in=list(all_ids)).distinct()
         
         ghost_ots = []
         working_days_cache = {}
@@ -512,3 +549,37 @@ def visualizador_proyecciones(request, pk):
     while fc <= lim:
         fechas.append({'fecha': fc, 'es_festivo': fc in restr, 'es_fin_semana': fc.weekday() >= 5, 'dias_frecuencia': fd}); fc += timedelta(days=fd)
     return render(request, 'mantenimiento/visualizador_proyecciones.html', {'prog': prog, 'fechas': fechas})
+
+@staff_member_required
+def wizard_mensual(request):
+    """Asistente premium para configurar la matriz mensual con filtros de raíz."""
+    from activos.models import Ubicacion
+    from ..models import Categoria
+    context = {
+        'ubicaciones': Ubicacion.objects.filter(padre__isnull=True).order_by('nombre'),
+        'categorias': Categoria.objects.filter(padre__isnull=True).order_by('nombre'),
+        'current_year': timezone.now().year,
+        'current_month': timezone.now().month
+    }
+    return render(request, 'mantenimiento/wizard_mensual.html', context)
+
+@staff_member_required
+def cronograma_mensual_matriz(request):
+    """
+    Procesa el wizard mensual y redirige al detalle filtrado.
+    """
+    year = to_int(request.GET.get('year'), timezone.now().year)
+    month = to_int(request.GET.get('month'), timezone.now().month)
+    view_mode = request.GET.get('view_mode', 'sistema')
+    
+    ubi_ids = request.GET.getlist('ubicacion_ids')
+    cat_ids = request.GET.getlist('categoria_ids')
+    
+    # Construir query string para detalle_mes
+    query_parts = [f"view_mode={view_mode}", "nocache=1"]
+    for uid in ubi_ids: query_parts.append(f"ubicacion_id={uid}")
+    for cid in cat_ids: query_parts.append(f"categoria_id={cid}")
+    
+    from django.urls import reverse
+    url = reverse('mantenimiento:detalle_mes', kwargs={'year': year, 'month': month})
+    return redirect(f"{url}?{'&'.join(query_parts)}")
