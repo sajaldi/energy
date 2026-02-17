@@ -203,9 +203,6 @@
             <div class="card-header">
                 <h3 class="card-title">📂 Paso 3: Documentos Adjuntos</h3>
                 <div style="display: flex; gap: 10px;">
-                    <button type="button" class="btn-custom btn-outline-custom" id="open-mayan-wizard"
-                        style="padding: 6px 12px; font-size: 0.8rem; background: #e8f5e9; border-color: #2e7d32; color: #1b5e20;">☁️
-                        Subir a Mayan</button>
                     <button type="button" class="btn-custom btn-outline-custom" id="add-document"
                         style="padding: 6px 12px; font-size: 0.8rem;">➕ Adjuntar Local</button>
                 </div>
@@ -216,22 +213,6 @@
                     💡 <strong>Nota:</strong> Cargue aquí cotizaciones, documentos de referencia y otros que le sirvan a
                     procura.
                 </p>
-                {% if instance.pk and instance.mayan_documents %}
-                <div style="margin-bottom: 20px;">
-                    <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Documentos en Mayan
-                    </h4>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        {% for doc in instance.mayan_documents %}
-                        <div class="document-preview-item" data-url="{{ doc.download_url }}"
-                            data-name="{{ doc.document_label }}"
-                            style="padding: 8px 12px; border: 1px solid #b7e1cd; border-radius: 4px; font-size: 0.8rem; background: #e8f5e9; cursor: pointer; transition: all 0.2s;">
-                            ☁️ {{ doc.document_label }}
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border);">
-                {% endif %}
 
                 <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">Documentos Locales</h4>
                 {{ documento_formset.management_form }}
@@ -382,20 +363,13 @@
                 <h4 style="color: var(--primary);">Documentos</h4>
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                     {% if instance.pk %}
-                    {% for doc in instance.mayan_documents %}
-                    <div class="document-preview-item" data-url="{{ doc.download_url }}"
-                        data-name="{{ doc.document_label }}"
-                        style="padding: 8px 12px; border: 1px solid #b7e1cd; border-radius: 4px; font-size: 0.8rem; background: #e8f5e9; cursor: pointer; transition: all 0.2s;">
-                        ☁️ {{ doc.document_label }}</div>
-                    {% endfor %}
                     {% for doc in instance.documentos.all %}
                     <div class="document-preview-item" data-url="{{ doc.archivo.url }}"
                         data-name="{{ doc.nombre|default:doc.archivo.name }}"
                         style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem; background: #f8fafc; cursor: pointer; transition: all 0.2s;">
                         📄 {{ doc.nombre|default:doc.archivo.name }}</div>
                     {% empty %}
-                    {% if not instance.mayan_documents %}<p style="color: var(--text-muted); font-style: italic;">Sin
-                        documentos adjuntos.</p>{% endif %}
+                    <p style="color: var(--text-muted); font-style: italic;">Sin documentos adjuntos.</p>
                     {% endfor %}
                     {% else %}
                     <p style="color: var(--text-muted); font-style: italic;">Guarda el borrador para adjuntar

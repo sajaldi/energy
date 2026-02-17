@@ -123,7 +123,7 @@
             }
 
             // Agregar fila vacía solo si no hay artículos existentes
-            $(document).ready(function() {
+            $(document).ready(function () {
                 const totalArticulos = parseInt($('#id_articulos-TOTAL_FORMS').val()) || 0;
                 // Si no hay artículos, agregar uno vacío al cargar
                 if (totalArticulos === 0) {
@@ -559,82 +559,6 @@
             };
             documentModal.init();
 
-            // ========== MAYAN UPLOAD WIZARD ==========
-            const mayanWizard = {
-                init() {
-                    this.modal = $('#mayan-wizard-modal');
-                    this.form = $('#mayan-upload-form');
-                    this.progressBar = $('#mayan-progress-bar');
-                    this.progressContainer = $('#mayan-upload-progress');
-                    this.statusText = $('#mayan-status-text');
-                    this.submitBtn = $('#submit-mayan-upload');
-                    this.bindEvents();
-                },
-                bindEvents() {
-                    $('#open-mayan-wizard').on('click', () => this.open());
-                    $('#close-mayan-wizard, #cancel-mayan-upload').on('click', () => this.close());
-                    this.modal.on('click', (e) => { if (e.target.id === 'mayan-wizard-modal') this.close(); });
-                    this.form.on('submit', (e) => { e.preventDefault(); this.upload(); });
-                },
-                open() {
-                    const reqId = "{{ instance.pk }}";
-                    if (!reqId || reqId === "None") {
-                        Swal.fire({ icon: 'warning', title: '¡Espera!', text: 'Debes completar el Paso 1 y 2 para poder subir documentos a Mayan.', confirmButtonColor: 'var(--primary)' });
-                        return;
-                    }
-                    this.form[0].reset();
-                    this.progressContainer.hide();
-                    this.progressBar.css('width', '0%');
-                    this.submitBtn.prop('disabled', false);
-                    this.modal.fadeIn(200);
-                },
-                close() { this.modal.fadeOut(200); },
-                upload() {
-                    const formData = new FormData();
-                    formData.append('file', $('#mayan-file')[0].files[0]);
-                    formData.append('title', $('#mayan-title').val());
-                    formData.append('description', $('#mayan-description').val());
-                    formData.append('requisicion_id', "{{ instance.pk }}");
-                    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
-                    this.progressContainer.show();
-                    this.submitBtn.prop('disabled', true);
-                    this.statusText.text('Subiendo documento...');
-
-                    $.ajax({
-                        url: "{% url 'presupuestos:mayan_upload_requisition_document' %}",
-                        type: 'POST',
-                        data: formData,
-                        processData: false,
-                        contentType: false,
-                        xhr: () => {
-                            const xhr = new window.XMLHttpRequest();
-                            xhr.upload.addEventListener("progress", (evt) => {
-                                if (evt.lengthComputable) {
-                                    const percentComplete = (evt.loaded / evt.total) * 100;
-                                    this.progressBar.css('width', percentComplete + '%');
-                                    if (percentComplete === 100) this.statusText.text('Procesando en Mayan...');
-                                }
-                            }, false);
-                            return xhr;
-                        },
-                        success: (response) => {
-                            Swal.fire({ icon: 'success', title: '¡Documento Subido!', text: response.message, confirmButtonColor: 'var(--primary)' }).then(() => {
-                                this.close();
-                                window.location.reload();
-                            });
-                        },
-                        error: (xhr) => {
-                            const errorMsg = xhr.responseJSON ? xhr.responseJSON.error : 'Ocurrió un error inesperado al subir a Mayan.';
-                            Swal.fire({ icon: 'error', title: 'Error', text: errorMsg, confirmButtonColor: 'var(--primary)' });
-                            this.progressContainer.hide();
-                            this.submitBtn.prop('disabled', false);
-                        }
-                    });
-                }
-            };
-            mayanWizard.init();
-
             // ========== UNLOCK EDIT BUTTON ==========
             {% if instance and can_unlock %}
             document.getElementById('btn-unlock-edit').addEventListener('click', function () {
@@ -667,7 +591,7 @@
                 const formInputs = document.querySelectorAll('#wizard-form input, #wizard-form select, #wizard-form textarea, #wizard-form button[type="submit"]');
                 formInputs.forEach(el => el.disabled = true);
 
-                const actionButtons = document.querySelectorAll('.next-step, .prev-step, .save-draft, #add-article, #add-document, #open-mayan-wizard');
+                const actionButtons = document.querySelectorAll('.next-step, .prev-step, .save-draft, #add-article, #add-document');
                 actionButtons.forEach(el => {
                     el.style.opacity = '0.5';
                     el.style.cursor = 'not-allowed';

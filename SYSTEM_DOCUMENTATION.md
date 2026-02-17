@@ -64,7 +64,7 @@ Seguimiento de CAPEX y mejoras capitales.
 ## 7. Gestión Documental (`documentos`)
 Repositorio técnico de alto nivel.
 - **Control de Versiones**: Gestión de revisiones de planos y manuales.
-- **Integración EDMS**: Conexión nativa con gestores documentales como Mayan.
+- **Análisis Inteligente**: Extracción automática de metadatos y contenido de texto mediante n8n e IA.
 - **Transmittals**: Control de envío y recepción formal de información técnica.
 
 ## 8. Call Center / MAO (`callcenter`)
