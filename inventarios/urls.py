@@ -22,4 +22,8 @@ urlpatterns = [
     # Mobile Views
     path('mobile/pedidos/', views.mobile_lista_pedidos, name='mobile_lista_pedidos'),
     path('mobile/pedidos/<int:pk>/', views.mobile_detalle_pedido, name='mobile_detalle_pedido'),
+
+    # Impresión de Etiquetas
+    path('etiquetas/', views.imprimir_etiquetas_view, name='imprimir_etiquetas'),
+    path('etiquetas/generar-pdf/', views.generar_pdf_etiquetas, name='generar_pdf_etiquetas'),
 ]

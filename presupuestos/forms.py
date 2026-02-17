@@ -14,7 +14,7 @@ class RequisicionForm(forms.ModelForm):
             'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'cr8ca_asunto': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Asunto de la requisición'}),
             'cr8ca_prioridad': forms.Select(attrs={'class': 'form-control'}),
-            'cr8ca_motivo': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'cr8ca_motivo': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Explica por qué se requiere la compra', 'title': 'Explica el por qué se requiere la compra'}),
             'cr8ca_comentarios': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'usuario_solicitante': forms.Select(attrs={'class': 'form-control', 'disabled': 'disabled'}),
             'usuario_en_nombre_de': forms.Select(attrs={'class': 'form-control select2-material'}),
@@ -56,7 +56,7 @@ class ArticuloRequisicionForm(forms.ModelForm):
 ArticuloFormSet = forms.inlineformset_factory(
     Requisicion, ArticuloRequisicion,
     form=ArticuloRequisicionForm,
-    extra=1,
+    extra=0,
     can_delete=True
 )
 

@@ -15,11 +15,16 @@ urlpatterns = [
     path('exportar_excel/<int:pk>/', views.exportar_cronograma_excel, name='exportar_excel'),
     path('exportar_pdf/<int:pk>/', views.exportar_cronograma_pdf, name='exportar_pdf'),
     path('exportar_grupo_pdf/<int:pk>/', views.exportar_cronograma_grupal_pdf, name='exportar_cronograma_grupal_pdf'),
+    path('exportar_grupo_excel/<int:pk>/', views.exportar_cronograma_grupal_excel, name='exportar_cronograma_grupal_excel'),
+    path('exportar_grupo_excel_pivot/<int:pk>/', views.exportar_cronograma_grupal_excel_pivot, name='exportar_cronograma_grupal_excel_pivot'),
+    path('exportar_grupo_excel_pivot/<int:pk>/', views.exportar_cronograma_grupal_excel_pivot, name='exportar_cronograma_grupal_excel_pivot'),
     
     # Requisiciones Dashboard & Import
     path('requisiciones/dashboard/', views_import.requisicion_dashboard, name='requisicion_dashboard'),
     path('requisiciones/nuevo/', views_import.requisicion_upsert, name='requisicion_nuevo'),
     path('requisiciones/editar/<uuid:pk>/', views_import.requisicion_upsert, name='requisicion_editar'),
+    path('requisiciones/<uuid:pk>/qr/', views_import.requisicion_qr, name='requisicion_qr'),
+    path('requisiciones/<uuid:pk>/pdf/', views_import.requisicion_pdf, name='requisicion_pdf'),
     path('requisiciones/<uuid:pk>/unlock/', views_import.requisicion_unlock_edit, name='requisicion_unlock_edit'),
     path('requisiciones/autorizar/<uuid:pk>/', views_autorizar.requisicion_autorizar, name='requisicion_autorizar'),
     path('api/requisicion/webhook/update/', views_webhook.requisicion_webhook_update, name='requisicion_webhook_update'),

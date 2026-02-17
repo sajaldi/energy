@@ -576,13 +576,32 @@ def documento_proxy_pdf(request, doc_id):
 def documento_chat_ia(request):
     """
     Proxy para comunicar el chat del frontend con el webhook de n8n interno.
+    Inyecta el contenido de texto del documento para que la IA tenga contexto.
     """
     try:
         data = json.loads(request.body)
         
+        # Inyectar contenido de texto si tenemos el ID del documento
+        doc_id = data.get('documento_id')
+        if doc_id:
+            try:
+                # Buscar documento y obtener contenido
+                # Usamos only() para optimizar si el contenido es grande
+                doc = Documento.objects.only('contenido_texto').get(id=doc_id)
+                
+                # Agregar contenido al payload
+                # Si contenido_texto es None, enviamos cadena vacía o indicamos que no hay texto
+                data['contenido_texto'] = doc.contenido_texto if doc.contenido_texto else ""
+                
+                print(f"Inyectado texto de documento {doc_id} (longitud: {len(data['contenido_texto'])})")
+            except Documento.DoesNotExist:
+                print(f"Documento ID {doc_id} no encontrado para inyectar texto")
+            except Exception as e:
+                print(f"Error al inyectar texto: {str(e)}")
+
         # Obtener URL desde settings (permite override por variables de entorno)
-        # Default a la IP pública, pero RECOMIENDO usar la url interna en producción (http://n8n:5678/...)
-        n8n_url = getattr(settings, 'N8N_CHAT_WEBHOOK_URL', "http://181.115.47.107:5678/webhook/chat-documento")
+        # Default actualizado a webhook-test según requerimiento
+        n8n_url = getattr(settings, 'N8N_CHAT_WEBHOOK_URL', "http://181.115.47.107:5678/webhook-test/chat-documento")
         
         # LOGGING DE DEBUG (Importante para producción)
         print(f"-------- DEBUG PROXY AI CHAT --------")
@@ -590,6 +609,7 @@ def documento_chat_ia(request):
         print(f"Payload keys: {list(data.keys())}")
         
         # Timeout aumentado para dar tiempo a la IA de responder
+        # Enviamos 'data' que ahora incluye 'contenido_texto'
         response = requests.post(f"{n8n_url}", json=data, timeout=60)
         
         if response.status_code == 200:
