@@ -278,11 +278,8 @@
                     <input type="text" id="q" name="q" value="{{ query }}"
                         placeholder="Código, título o contenido del documento..." autocomplete="off">
                     <div class="checkbox-group">
-                        <input type="checkbox" id="buscar_contenido" name="buscar_contenido" value="true" {% if
-                            buscar_contenido %}checked{% endif %}>
-                        <label for="buscar_contenido">
-                            ⚡ Buscar también en el contenido extraído de los PDFs
-                        </label>
+                        <input type="checkbox" id="buscar_contenido" name="buscar_contenido" value="true" {% if buscar_contenido %}checked{% endif %}>
+                        <label for="buscar_contenido">⚡ Buscar también en el contenido extraído de los PDFs</label>
                     </div>
                 </div>
             </div>
@@ -293,9 +290,7 @@
                     <select id="tipo" name="tipo">
                         <option value="">Todos los tipos</option>
                         {% for tipo in tipos %}
-                        <option value="{{ tipo.id }}" {% if tipo_id==tipo.id|stringformat:"s" %}selected{% endif %}>
-                            {{ tipo.nombre }}
-                        </option>
+                        <option value="{{ tipo.id }}" {% if tipo_id == tipo.id|stringformat:"s" %}selected{% endif %}>{{ tipo.nombre }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -305,10 +300,7 @@
                     <select id="disciplina" name="disciplina">
                         <option value="">Todas las disciplinas</option>
                         {% for disc in disciplinas %}
-                        <option value="{{ disc.id }}" {% if disciplina_id==disc.id|stringformat:"s" %}selected{% endif
-                            %}>
-                            {{ disc.nombre }}
-                        </option>
+                        <option value="{{ disc.id }}" {% if disciplina_id == disc.id|stringformat:"s" %}selected{% endif %}>{{ disc.nombre }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -318,13 +310,12 @@
                     <select id="estado" name="estado">
                         <option value="">Todos los estados</option>
                         {% for est_code, est_label in estados %}
-                        <option value="{{ est_code }}" {% if estado==est_code %}selected{% endif %}>
-                            {{ est_label }}
-                        </option>
+                        <option value="{{ est_code }}" {% if estado == est_code %}selected{% endif %}>{{ est_label }}</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
+
 
             <div class="filter-row">
                 <div class="filter-group">
@@ -339,12 +330,8 @@
             </div>
 
             <div class="search-actions">
-                <a href="{% url 'documentos:busqueda_avanzada' %}" class="btn btn-secondary">
-                    🔄 Limpiar filtros
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    🔍 Buscar
-                </button>
+                <a href="{% url 'documentos:busqueda_avanzada' %}" class="btn btn-secondary">🔄 Limpiar filtros</a>
+                <button type="submit" class="btn btn-primary">🔍 Buscar</button>
             </div>
         </div>
     </form>
@@ -352,9 +339,7 @@
     {% if page_obj %}
     <div class="results-card">
         <div class="results-header">
-            <div class="results-count">
-                ✨ {{ page_obj.paginator.count }} documento(s) encontrado(s)
-            </div>
+            <div class="results-count">✨ {{ page_obj.paginator.count }} documento(s) encontrado(s)</div>
         </div>
 
         {% if page_obj.object_list %}
@@ -374,9 +359,7 @@
                 </div>
                 {% endif %}
                 <div class="doc-meta-item">
-                    <span class="badge badge-{{ doc.estado_actual|lower }}">
-                        {{ doc.get_estado_actual_display }}
-                    </span>
+                    <span class="badge badge-{{ doc.estado_actual|lower }}">{{ doc.get_estado_actual_display }}</span>
                 </div>
                 <div class="doc-meta-item">
                     <span>📅</span>
@@ -403,9 +386,7 @@
                 Anterior</a>
             {% endif %}
 
-            <span class="current">
-                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-            </span>
+            <span class="current">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
 
             {% if page_obj.has_next %}
             <a
