@@ -26,11 +26,6 @@ def notify_n8n_document_created(documento):
             'url_admin': f"{settings.SITE_URL}/admin/documentos/documento/{documento.id}/change/",
         }
 
-        # Incluir datos de Mayan si existen
-        if hasattr(documento, 'mayan_document_link'):
-            data['mayan_id'] = documento.mayan_document_link.mayan_document_id
-            data['mayan_url'] = documento.mayan_document_link.mayan_url
-
         response = requests.post(webhook_url, json=data, timeout=5)
         response.raise_for_status()
         

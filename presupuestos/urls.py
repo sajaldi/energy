@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, views_import, views_autorizar, views_webhook, views_mayan, views_pagos
+from . import views, views_import, views_autorizar, views_webhook, views_pagos
 
 app_name = 'presupuestos'
 
@@ -22,7 +22,7 @@ urlpatterns = [
     # Requisiciones Dashboard & Import
     path('requisiciones/dashboard/', views_import.requisicion_dashboard, name='requisicion_dashboard'),
     path('requisiciones/nuevo/', views_import.requisicion_upsert, name='requisicion_nuevo'),
-    path('requisiciones/editar/<uuid:pk>/', views_import.requisicion_upsert, name='requisicion_editar'),
+    path('requisiciones/editar/<uuid:pk>/', views_import.requisicion_upsert, name='requisicion_upsert'),
     path('requisiciones/<uuid:pk>/qr/', views_import.requisicion_qr, name='requisicion_qr'),
     path('requisiciones/<uuid:pk>/pdf/', views_import.requisicion_pdf, name='requisicion_pdf'),
     path('requisiciones/<uuid:pk>/unlock/', views_import.requisicion_unlock_edit, name='requisicion_unlock_edit'),
@@ -44,7 +44,4 @@ urlpatterns = [
     path('pagos/solicitud/<int:pk>/import/', views_pagos.import_items_pago_background, name='import_items_pago'),
     path('api/pagos/import/process/', views_pagos.import_items_pago_process, name='import_items_pago_process'),
     path('api/pagos/import/progress/', views_pagos.import_items_pago_progress, name='import_items_pago_progress'),
-    
-    # Mayan Integration
-    path('api/mayan/upload-requisition-document/', views_mayan.upload_requisition_document_to_mayan, name='mayan_upload_requisition_document'),
 ]

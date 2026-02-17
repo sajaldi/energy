@@ -206,12 +206,6 @@ class Documento(models.Model):
             models.Index(fields=['codigo']),
             models.Index(fields=['estado_actual']),
             models.Index(fields=['creado_en']),
-            # Índice GIN para búsqueda de texto completo en PostgreSQL
-            models.Index(
-                name='contenido_texto_gin_idx',
-                fields=['contenido_texto'],
-                opclasses=['gin_trgm_ops']
-            ),
         ]
 
     def save(self, *args, **kwargs):
@@ -359,64 +353,3 @@ from .models_firmas import (
     AuditoriaFirmas
 )
 
-# --- Integración Mayan EDMS ---
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
-
-class MayanDocumentLink(models.Model):
-    """
-    Vincula documentos de Mayan EDMS con cualquier modelo de Django
-    usando Generic Foreign Keys
-    """
-    # Documento en Mayan
-    mayan_document_id = models.IntegerField(
-        help_text="ID del documento en Mayan EDMS"
-    )
-    document_label = models.CharField(
-        max_length=255,
-        help_text="Nombre/etiqueta del documento"
-    )
-    document_type = models.CharField(
-        max_length=100,
-        blank=True,
-        help_text="Tipo de documento (Manual, Certificado, etc.)"
-    )
-    
-    # Vinculación genérica con cualquier modelo
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
-    content_object = GenericForeignKey('content_type', 'object_id')
-    
-    # Metadatos
-    uploaded_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True
-    )
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-    description = models.TextField(blank=True)
-    
-    class Meta:
-        verbose_name = "Vínculo de Documento Mayan"
-        verbose_name_plural = "Vínculos de Documentos Mayan"
-        ordering = ['-uploaded_at']
-        indexes = [
-            models.Index(fields=['content_type', 'object_id']),
-            models.Index(fields=['mayan_document_id']),
-        ]
-    
-    def __str__(self):
-        return f"{self.document_label} -> {self.content_object}"
-    
-    @property
-    def mayan_url(self):
-        """URL para ver el documento en Mayan"""
-        from django.conf import settings
-        return f"{settings.MAYAN_EDMS_URL}/documents/{self.mayan_document_id}/"
-    
-    @property
-    def download_url(self):
-        """URL para descargar el documento"""
-        from .mayan_client import MayanEDMSClient
-        client = MayanEDMSClient()
-        return client.get_document_file_url(self.mayan_document_id)

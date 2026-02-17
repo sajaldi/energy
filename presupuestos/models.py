@@ -520,13 +520,6 @@ class Requisicion(models.Model):
     def total_estimado(self):
         return sum(item.subtotal for item in self.articulos.all())
 
-    @property
-    def mayan_documents(self):
-        """Retorna los documentos vinculados de Mayan EDMS"""
-        from documentos.models import MayanDocumentLink
-        from django.contrib.contenttypes.models import ContentType
-        ct = ContentType.objects.get_for_model(self.__class__)
-        return MayanDocumentLink.objects.filter(content_type=ct, object_id=self.pk)
 
     @property
     def monto_pagado(self):
