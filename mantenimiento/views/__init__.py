@@ -4,7 +4,9 @@ from .cronograma import (
     cronograma_mantenimiento_visual, 
     detalle_mes, 
     visualizador_proyecciones,
-    wizard_cronograma
+    wizard_cronograma,
+    wizard_mensual,
+    cronograma_mensual_matriz
 )
 from .api import (
     api_update_ot_date,

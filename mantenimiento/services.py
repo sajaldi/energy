@@ -278,7 +278,7 @@ class WorkOrderService:
             })
         return tree
     @staticmethod
-    def get_location_grouped_tree(year, month):
+    def get_location_grouped_tree(year, month, ubicacion_ids=None, categoria_ids=None):
         """
         Agrupa órdenes por:
         1. Ubicación Raíz (Edificio) -> Mapeado a 'sys' en template
@@ -287,13 +287,34 @@ class WorkOrderService:
         4. Rutina                    -> Mapeado a 'ubi' en template (key: ubicaciones)
         5. Activo                    -> Mapeado a 'asset' en template (key: activos)
         """
+        from activos.models import Ubicacion
         _, num_days = calendar.monthrange(year, month)
         days_range = range(1, num_days + 1)
         
-        ordenes = OrdenTrabajo.objects.filter(
-            inicio_programado__year=year,
-            inicio_programado__month=month
-        ).select_related(
+        filtros = {
+            'inicio_programado__year': year,
+            'inicio_programado__month': month
+        }
+        
+        if ubicacion_ids:
+            all_ids = set()
+            for uid in ubicacion_ids:
+                try:
+                    area = Ubicacion.objects.get(id=uid)
+                    all_ids.update(area.get_descendants(include_self=True).values_list('id', flat=True))
+                except Ubicacion.DoesNotExist: pass
+            filtros['ubicacion_id__in'] = list(all_ids)
+            
+        if categoria_ids:
+            all_cat_ids = set()
+            for cid in categoria_ids:
+                try:
+                    cat = Categoria.objects.get(id=cid)
+                    all_cat_ids.update(cat.get_descendants(include_self=True).values_list('id', flat=True))
+                except Categoria.DoesNotExist: pass
+            filtros['rutina__categoria_id__in'] = list(all_cat_ids)
+
+        ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
             'rutina__categoria', 'rutina__frecuencia', 'ubicacion', 'programacion__horario'
         ).prefetch_related('programacion__horario__dias', 'activos')
         
