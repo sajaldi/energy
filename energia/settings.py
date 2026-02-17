@@ -100,7 +100,12 @@ N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook/nue
 N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook-test/chat-documento')
 
 # Webhook para procesamiento de documentos (PDF Conversion + Metadata)
-N8N_PROCESS_DOCUMENT_WEBHOOK_URL = os.environ.get('N8N_PROCESS_DOCUMENT_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook/process-document')
+if IS_LOCAL:
+    _default_process_webhook = f'{N8N_BASE_URL}/webhook-test/process-document'
+else:
+    _default_process_webhook = f'{N8N_BASE_URL}/webhook/process-document'
+
+N8N_PROCESS_DOCUMENT_WEBHOOK_URL = os.environ.get('N8N_PROCESS_DOCUMENT_WEBHOOK_URL', _default_process_webhook)
 
 # Webhook para extracción de texto de PDFs
 N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook-test/extract-text')
