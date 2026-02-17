@@ -87,26 +87,33 @@ USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
 
 # n8n Automation Configuration
-# n8n Automation Configuration
+if IS_LOCAL:
+     N8N_BASE_URL = 'http://181.115.47.107:5678'
+else:
+     # URL interna para comunicación entre contenedores
+     N8N_BASE_URL = os.environ.get('N8N_INTERNAL_URL', 'http://n8n-z8wscww488scgs84oo4os008:5678')
+
 # Webhook para notificar nuevo documento
-N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook/nuevo-documento')
+N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook/nuevo-documento')
 
 # Webhook para el Chat con IA (Documentos)
-# Por defecto usa la IP pública, pero permite override para usar la red interna (ej: http://n8n:5678/webhook/...)
-N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook-test/chat-documento')
+N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook-test/chat-documento')
+
+# Webhook para procesamiento de documentos (PDF Conversion + Metadata)
+N8N_PROCESS_DOCUMENT_WEBHOOK_URL = os.environ.get('N8N_PROCESS_DOCUMENT_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook/process-document')
 
 # Webhook para extracción de texto de PDFs
-# En local: IP pública. En producción: usar URL interna vía variable de entorno
-N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook-test/extract-text')
+N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook-test/extract-text')
 
-# URL base del sitio para callbacks de n8n
-# En producción usa COOLIFY_FQDN, en local usa localhost
+# URL base del sitio para callbacks de n8n y comunicación interna
 if os.environ.get('COOLIFY_FQDN'):
-    # Temporalmente usando HTTP para evitar problemas de SSL en testing
-    # TODO: Cambiar a HTTPS cuando el certificado esté configurado
+    # URL pública
     SITE_URL = f"http://{os.environ.get('COOLIFY_FQDN')}"
+    # URL interna para que n8n llame a Django (usualmente el nombre del servicio en Docker)
+    INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://kgogwsw00cwcw8g0wk0gsogg-221051795715:8000')
 else:
     SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
+    INTERNAL_SITE_URL = SITE_URL
 
 
 # Configuracion de subida de archivos
@@ -304,7 +311,7 @@ else:
     AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/media-proxy'
     AWS_S3_URL_PROTOCOL = 'https:' 
     # Usamos el nombre del servicio interno de Coolify (minio) para UPLOADS
-    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio:9000')
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio-cksckkgkcoogow4o4kg0gsog:9000')
     AWS_S3_USE_SSL = False
     AWS_QUERYSTRING_AUTH = False
 
@@ -452,7 +459,7 @@ else:
     # Producción: Redis interno de Coolify (usa nombre del servicio)
     CELERY_BROKER_URL = os.environ.get(
         'CELERY_BROKER_URL', 
-        'redis://default:saul123@redis:6379/0'  # Nombre del servicio en Coolify
+        'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'  # Nombre del servicio en Coolify
     )
     print(f"[DEBUG] Entorno PRODUCCION detectado. Redis: {CELERY_BROKER_URL}")
 

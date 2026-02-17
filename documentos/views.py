@@ -11,7 +11,7 @@ from django.conf import settings
 import logging
 import json
 import requests
-from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina
+from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina, Revision, MetadatoConfig
 
 @login_required
 def documento_trazabilidad(request, doc_id):
@@ -199,7 +199,7 @@ def trigger_n8n_extraction(request, doc_id):
             'documento_id': doc.id,
             'codigo': doc.codigo,
             'filepath': doc.ultima_revision.archivo.name, # Para que n8n lo baje de S3/MinIO
-            'callback_url': f"{settings.SITE_URL}/documentos/api/update-texto/{doc.id}/" # Donde n8n responderá
+            'callback_url': f"{settings.INTERNAL_SITE_URL}/documentos/api/update-texto/{doc.id}/" # Donde n8n responderá
         }
         
         # Opcional: Ejecutar asíncronamente con Celery si tarda mucho, 
@@ -232,6 +232,52 @@ def update_documento_texto(request, doc_id):
         
         return JsonResponse({'error': 'No se recibió texto'}, status=400)
     except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
+def callback_n8n_procesamiento(request, revision_id):
+    """
+    Callback para que n8n devuelva los resultados del procesamiento (Conversión PDF + Metadatos IA).
+    Actualiza la revisión y el documento maestro.
+    """
+    try:
+        revision = get_object_or_404(Revision, id=revision_id)
+        data = json.loads(request.body)
+        
+        # 1. Actualizar PDF si n8n lo convirtió/optimizó
+        # Nota: n8n debería enviar una URL o el contenido base64 si es pequeño, 
+        # pero idealmente n8n lo sube directo a S3 y aquí solo recibimos el path.
+        pdf_path = data.get('pdf_path')
+        if pdf_path:
+            revision.archivo.name = pdf_path
+        
+        # 2. Actualizar Metadatos Extraídos
+        metadatos_ia = data.get('metadatos', {})
+        if metadatos_ia:
+            if not revision.datos_extraidos:
+                revision.datos_extraidos = {}
+            revision.datos_extraidos['ia_metadata'] = metadatos_ia
+            
+            # Si n8n sugiere un código o título, guardarlos en text_preview para que el wizard los tome
+            if metadatos_ia.get('codigo'):
+                revision.datos_extraidos['suggested_code'] = metadatos_ia.get('codigo')
+            if metadatos_ia.get('titulo'):
+                revision.datos_extraidos['suggested_title'] = metadatos_ia.get('titulo')
+
+        # 3. Actualizar contenido de texto completo
+        texto_completo = data.get('texto_completo')
+        if texto_completo:
+            revision.documento.contenido_texto = texto_completo
+            revision.documento.save()
+
+        revision.estado_extraccion = 'COMPLETADO'
+        revision.save()
+        
+        return JsonResponse({'status': 'ok', 'message': 'Resultados procesados correctamente'})
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error en callback_n8n_procesamiento: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 @login_required

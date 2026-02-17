@@ -25,16 +25,47 @@ def extract_document_metadata(revision_id):
             return
 
         from .utils_extraer import extract_metadata_from_file
+        import requests
+        from django.conf import settings
         
+        # 1. Extracción Local (PyMuPDF)
         with revision.archivo.open('rb') as f:
             content = f.read()
-            extracted_data = extract_metadata_from_file(content, revision.archivo.name)
+            local_data = extract_metadata_from_file(content, revision.archivo.name)
 
-        revision.datos_extraidos = extracted_data
-        revision.estado_extraccion = 'COMPLETADO'
+        # 2. Consultar n8n para Conversión a PDF y Metadatos IA
+        n8n_url = getattr(settings, 'N8N_PROCESS_DOCUMENT_WEBHOOK_URL', None)
+        if n8n_url:
+            try:
+                # Construir URLs internas para n8n
+                internal_file_url = f"{settings.AWS_S3_ENDPOINT_URL}/{settings.AWS_STORAGE_BUCKET_NAME}/{revision.archivo.name}"
+                internal_callback_url = f"{settings.INTERNAL_SITE_URL}/documentos/api/callback-procesamiento/{revision.id}/"
+
+                payload = {
+                    'revision_id': revision.id,
+                    'documento_id': revision.documento.id,
+                    'filename': os.path.basename(revision.archivo.name),
+                    'file_url': internal_file_url,
+                    'tipo_documento': revision.documento.tipo_documento.nombre,
+                    'callback_url': internal_callback_url,
+                    'metadatos_requeridos': list(revision.documento.tipo_documento.metadatos_config.values_list('nombre', flat=True))
+                }
+                # Llamada asíncrona hacia n8n - n8n responderá al callback para finalizar
+                requests.post(n8n_url, json=payload, timeout=5)
+                logger.info(f"Revision {revision_id}: Enviada a n8n por red interna. Callback: {internal_callback_url}")
+            except Exception as e_n8n:
+                logger.error(f"Error llamando a n8n: {e_n8n}")
+        
+        # Guardar resultados locales
+        revision.datos_extraidos = local_data
+        
+        # Si no hubo n8n, marcamos como completado. Si hubo, esperamos el callback (PROCESANDO)
+        if not n8n_url:
+            revision.estado_extraccion = 'COMPLETADO'
+            
         revision.save()
         
-        logger.info(f"Extracción completada para Revisión {revision_id}")
+        logger.info(f"Extracción local completada para Revisión {revision_id}. Esperando n8n: {bool(n8n_url)}")
         return True
 
     except Exception as e:
