@@ -212,7 +212,7 @@ WSGI_APPLICATION = 'energia.wsgi.application'
 import dj_database_url
 
 # En producción (Coolify), usa DATABASE_URL de variables de entorno
-# En desarrollo local, usa la configuración hardcodeada
+# En desarrollo local, usa la configuración hardcodeada apuntando al servidor Coolify
 if os.environ.get('DATABASE_URL'):
     # Producción: Coolify proporciona DATABASE_URL automáticamente
     DATABASES = {
@@ -223,15 +223,15 @@ if os.environ.get('DATABASE_URL'):
         )
     }
 else:
-    # Desarrollo local
+    # Desarrollo local (Apuntando al nuevo servidor Coolify vía puerto mapeado)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'db',
+            'NAME': 'postgres',        # Nombre por defecto en Coolify
             'USER': 'postgres',
-            'PASSWORD': 'PasswordRoot07',
-            'HOST': '181.115.47.107',
-            'PORT': '5432',
+            'PASSWORD': 'admin123',   # Contraseña configurada
+            'HOST': '181.115.47.107', # IP de la VM
+            'PORT': '3000',           # Puerto público mapeado en Coolify
             'CONN_MAX_AGE': 600,
             'CONN_HEALTH_CHECKS': True,
         }
