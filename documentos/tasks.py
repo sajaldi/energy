@@ -37,8 +37,8 @@ def extract_document_metadata(revision_id):
         n8n_url = getattr(settings, 'N8N_PROCESS_DOCUMENT_WEBHOOK_URL', None)
         if n8n_url:
             try:
-                # Construir URLs internas para n8n
-                internal_file_url = f"{settings.AWS_S3_ENDPOINT_URL}/{settings.AWS_STORAGE_BUCKET_NAME}/{revision.archivo.name}"
+                # Usar la URL firmada de S3/MinIO para que n8n no necesite credenciales adicionales
+                internal_file_url = revision.archivo.url
                 internal_callback_url = f"{settings.INTERNAL_SITE_URL}/documentos/api/callback-procesamiento/{revision.id}/"
 
                 payload = {
@@ -46,14 +46,22 @@ def extract_document_metadata(revision_id):
                     'documento_id': revision.documento.id,
                     'filename': os.path.basename(revision.archivo.name),
                     'file_url': internal_file_url,
+                    'file_key': revision.archivo.name,
+                    'file_path': revision.archivo.name,
                     'tipo_documento': revision.documento.tipo_documento.nombre,
                     'callback_url': internal_callback_url,
                     'metadatos_requeridos': list(revision.documento.tipo_documento.metadatos_config.values_list('nombre', flat=True))
                 }
+                print(f"-------- DEBUG N8N CALL --------")
+                print(f"URL: {n8n_url}")
+                print(f"Payload: {json.dumps(payload, indent=2)}")
+                
                 # Llamada asíncrona hacia n8n - n8n responderá al callback para finalizar
-                requests.post(n8n_url, json=payload, timeout=5)
-                logger.info(f"Revision {revision_id}: Enviada a n8n por red interna. Callback: {internal_callback_url}")
+                resp = requests.post(n8n_url, json=payload, timeout=10)
+                print(f"Response Status: {resp.status_code}")
+                logger.info(f"Revision {revision_id}: Enviada a n8n. Status: {resp.status_code}")
             except Exception as e_n8n:
+                print(f"Error llamando a n8n: {str(e_n8n)}")
                 logger.error(f"Error llamando a n8n: {e_n8n}")
         
         # Guardar resultados locales
