@@ -226,15 +226,15 @@ if os.environ.get('DATABASE_URL'):
     DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = 'disable'
     print(f"[DEBUG] DB Producción: {DATABASES['default'].get('HOST')} - Puerto: {DATABASES['default'].get('PORT')} - SSL: Disabled")
 else:
-    # Desarrollo local (Apuntando al nuevo servidor Coolify vía puerto mapeado)
+    # Desarrollo local (Apuntando al nuevo servidor Coolify vía túnel netsh)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': 'postgres',        # Nombre por defecto en Coolify
             'USER': 'postgres',
             'PASSWORD': 'admin123',   # Contraseña configurada
-            'HOST': '181.115.47.107', # IP de la VM
-            'PORT': '3000',           # Puerto público mapeado en Coolify
+            'HOST': '181.115.47.107', # IP pública del servidor físico
+            'PORT': '5432',           # Puerto expuesto vía netsh
             'CONN_MAX_AGE': 600,
             'CONN_HEALTH_CHECKS': True,
         }
