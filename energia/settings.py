@@ -222,6 +222,9 @@ if os.environ.get('DATABASE_URL'):
             conn_health_checks=True,
         )
     }
+    # Forzar sslmode disable para la red interna de contenedores y evitar errores de handshake
+    DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = 'disable'
+    print(f"[DEBUG] DB Producción: {DATABASES['default'].get('HOST')} - Puerto: {DATABASES['default'].get('PORT')} - SSL: Disabled")
 else:
     # Desarrollo local (Apuntando al nuevo servidor Coolify vía puerto mapeado)
     DATABASES = {
