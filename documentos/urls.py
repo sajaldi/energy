@@ -20,6 +20,7 @@ urlpatterns = [
     path('api/actualizar-responsable/<int:doc_id>/', views.documento_actualizar_responsable, name='documento_actualizar_responsable'),
     path('api/buscar/', views.documento_buscar, name='documento_buscar'),
     path('api/chat-ia/', views.documento_chat_ia, name='documento_chat_ia'),
+    path('api/test-n8n/', views.test_n8n_ping, name='test_n8n_ping'),
     path('api/trigger-extraction/<int:doc_id>/', views.trigger_n8n_extraction, name='trigger_n8n_extraction'),
     path('api/update-texto/<int:doc_id>/', views.update_documento_texto, name='update_documento_texto'),
     path('api/callback-procesamiento/<int:revision_id>/', views.callback_n8n_procesamiento, name='callback_n8n_procesamiento'),

@@ -195,6 +195,12 @@ def documento_wizard(request):
             
         documento = get_object_or_404(Documento, id=doc_id)
         revision = documento.revisiones.filter(revision='0').first() or documento.ultima_revision
+        
+        # Parche de seguridad: Si no hay revisión, volver al paso 2
+        if not revision:
+            messages.warning(request, "No se encontró el archivo del documento. Por favor súbelo nuevamente.")
+            return redirect(f'/documentos/nuevo/?step=2&doc_id={doc_id}')
+
         documentos_link = Documento.objects.exclude(id=doc_id).order_by('-creado_en')[:50]
         
         for dl in documentos_link:

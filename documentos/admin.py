@@ -101,15 +101,30 @@ class DocumentoAdmin(admin.ModelAdmin):
         
         return format_html(
             '''
-            <div style="margin-bottom: 10px;">
+            <div style="margin-bottom: 10px; display: flex; gap: 10px;">
                 <button type="button" onclick="triggerExtraction({})" 
                         id="btn-extract-{}"
                         style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
                     ⚡ Extraer Texto con n8n
                 </button>
+                <button type="button" onclick="testN8nPing()" 
+                        style="background: #64748b; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                    📡 Test Ping
+                </button>
             </div>
             <textarea readonly style="width: 100%; height: 150px; font-family: monospace; font-size: 0.85rem; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; color: #334155; resize: vertical;">{}</textarea>
             <script>
+            function testN8nPing() {{
+                if(!confirm('¿Enviar Ping de prueba a n8n?')) return;
+                fetch('/documentos/api/test-n8n/', {{
+                    method: 'POST',
+                    headers: {{ 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }}
+                }})
+                .then(res => res.json())
+                .then(data => alert('Respuesta n8n: ' + JSON.stringify(data)))
+                .catch(err => alert('Error: ' + err));
+            }}
+
             function triggerExtraction(docId) {{
                 const btn = document.getElementById('btn-extract-' + docId);
                 const originalText = btn.innerText;

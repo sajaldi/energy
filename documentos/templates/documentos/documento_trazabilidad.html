@@ -11,6 +11,9 @@
 <!-- DOCX Preview Library -->
 <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
 <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
+<!-- Export PDF Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
     .pin {
         position: absolute;
@@ -228,6 +231,8 @@
         position: relative;
         transition: all 0.5s;
         display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
     .tree li {
@@ -241,54 +246,78 @@
     }
 
     .tree li::before,
-    .tree li::after {
+    .tree li::after,
+    .tree ul ul::before {
+        display: none !important;
+    }
+
+    /* Arrow above the first child of a list */
+    .tree ul::before {
+        content: '';
+        position: absolute;
+        top: -30px;
+        left: 50%;
+        width: 6px;
+        height: 30px;
+        background: #0e7490;
+        /* Thick Cyan/Blue */
+        transform: translateX(-50%);
+        z-index: 1;
+    }
+
+    .tree ul::after {
         content: '';
         position: absolute;
         top: 0;
-        right: 50%;
-        border-top: 2px solid var(--border);
-        width: 50%;
-        height: 20px;
-    }
-
-    .tree li::after {
-        right: auto;
         left: 50%;
-        border-left: 2px solid var(--border);
+        transform: translateX(-50%);
+        border-left: 12px solid transparent;
+        border-right: 12px solid transparent;
+        border-top: 15px solid #0e7490;
+        z-index: 1;
     }
 
-    .tree li:only-child::after,
-    .tree li:only-child::before {
+    /* Arrow between siblings in a vertical list */
+    .tree ul>li:not(:first-child) {
+        margin-top: 60px;
+    }
+
+    /* Re-purposing li:before/after for arrows between siblings since they are now display:flex col */
+    .tree ul>li:not(:first-child):not(.is-external) {
+        position: relative;
+    }
+
+    /* We need to use a different selector because li::before is blocked by !important above */
+    .tree ul>li:not(:first-child)>.node-row::before {
+        content: '';
+        position: absolute;
+        top: -55px;
+        left: 50%;
+        width: 6px;
+        height: 40px;
+        background: #0e7490;
+        transform: translateX(-50%);
+        z-index: 1;
+    }
+
+    .tree ul>li:not(:first-child)>.node-row::after {
+        content: '';
+        position: absolute;
+        top: -15px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 12px solid transparent;
+        border-right: 12px solid transparent;
+        border-top: 15px solid #0e7490;
+        z-index: 1;
+    }
+
+    .tree>ul::before,
+    .tree>ul::after {
         display: none;
     }
 
-    .tree li:only-child {
-        padding-top: 0;
-    }
 
-    .tree li:first-child::before,
-    .tree li:last-child::after {
-        border: 0 none;
-    }
-
-    .tree li:last-child::before {
-        border-right: 2px solid var(--border);
-        border-radius: 0 5px 0 0;
-    }
-
-    .tree li:first-child::after {
-        border-radius: 5px 0 0 0;
-    }
-
-    .tree ul ul::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 50%;
-        border-left: 2px solid var(--border);
-        width: 0;
-        height: 20px;
-    }
 
     /* Node Card */
     .doc-node {
@@ -564,7 +593,7 @@
     }
 
     .doc-node.external {
-        border: 2px dashed var(--success);
+        border: 2px solid var(--success);
         background: #f0fdf4;
         width: 200px;
         padding: 12px;
@@ -584,6 +613,123 @@
 
     .doc-node.external .meta {
         padding-top: 8px;
+    }
+
+    /* Sibling arrows are handled by .node-row::before/after in CSS */
+    /* External chain arrows are handled by SVG in HTML */
+
+    /* Override tree li padding to accommodate side nodes */
+    .tree li {
+        padding: 40px 20px 0 20px;
+    }
+
+    .node-row {
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    /* Zoom Controls */
+    .zoom-controls {
+        position: fixed;
+        bottom: 30px;
+        left: 30px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: white;
+        padding: 10px;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--border);
+    }
+
+    .zoom-btn {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        cursor: pointer;
+        color: #475569;
+        font-size: 1.2rem;
+        font-weight: bold;
+        transition: all 0.2s;
+    }
+
+    .zoom-btn:hover {
+        background: #f1f5f9;
+        color: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .tree-wrapper {
+        overflow: hidden !important;
+        /* Prevent default scrolling */
+        cursor: grab;
+        user-select: none;
+    }
+
+    .tree-wrapper:active {
+        cursor: grabbing;
+    }
+
+    /* Context Menu */
+    .context-menu {
+        position: fixed;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        z-index: 3000;
+        display: none;
+        padding: 6px;
+        min-width: 180px;
+        animation: scaleIn 0.15s ease-out;
+    }
+
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .context-menu-item {
+        padding: 10px 15px;
+        font-size: 0.85rem;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+
+    .context-menu-item:hover {
+        background: #f1f5f9;
+        color: var(--primary);
+    }
+
+    .context-menu-item i {
+        font-size: 1rem;
+        width: 20px;
+        text-align: center;
+    }
+
+    .context-menu-divider {
+        height: 1px;
+        background: #f1f5f9;
+        margin: 6px;
     }
 </style>
 
@@ -756,6 +902,10 @@
             </div>
         </div>
         <div style="display: flex; gap: 10px;">
+            <button onclick="exportToPDF()" class="button"
+                style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <span>💾</span> Exportar PDF
+            </button>
             <button onclick="toggleFullscreen('main-trace-container')" class="button"
                 style="background: #f1f5f9; color: #475569; border: 1px solid var(--border); padding: 10px 20px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
                 <span>⛶</span> Pantalla Completa
@@ -766,33 +916,40 @@
         </div>
     </div>
 
+    <!-- Context Menu -->
+    <div id="tree-context-menu" class="context-menu">
+        <div class="context-menu-item" onclick="contextAction('trace')">
+            <span>🔍</span> Abrir Nodo (Trazabilidad)
+        </div>
+        <div class="context-menu-item" onclick="contextAction('view')">
+            <span>📄</span> Ver Documento (Pines)
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="contextAction('edit')" style="color: #6366f1;">
+            <span>✏️</span> Editar Detalles (Admin)
+        </div>
+    </div>
+
+    <!-- Zoom and Pan Controls -->
+    <div class="zoom-controls">
+        <button class="zoom-btn" onclick="adjustZoom(1.1)" title="Acercar">+</button>
+        <div id="zoom-level-text" style="text-align:center; font-size:0.7rem; color:#64748b; font-weight:bold;">100%
+        </div>
+        <button class="zoom-btn" onclick="resetZoom()" title="Reiniciar Zoom">1:1</button>
+        <button class="zoom-btn" onclick="adjustZoom(0.9)" title="Alejar">-</button>
+    </div>
+
     <div class="tree-wrapper" id="canvas-container"
-        style="position: relative; display: flex; align-items: flex-start; gap: 150px; padding: 60px; min-width: 100%; width: max-content;">
-        <!-- SVG para líneas de conexión curvas -->
-        <svg id="connections-svg" class="pin-connection-svg" style="z-index: 0;"></svg>
-
-        <div class="tree" style="flex: 0 0 auto; z-index: 1;">
-            <ul>
-                <li>
-                    {% include "documentos/partials/tree_node.html" with node=tree %}
-                </li>
-            </ul>
-        </div>
-
-        {% if docs_externos %}
-        <div class="external-docs-container">
-            {% for doc in docs_externos %}
-            <div class="doc-node external" data-id="{{ doc.id }}" onclick="showDetails({{ doc.id }})">
-                <span class="code">{{ doc.codigo }}</span>
-                <span class="title" title="{{ doc.titulo }}">{{ doc.titulo }}</span>
-                <div class="meta">
-                    <span class="badge-status" style="background: #dcfce7; color: #166534;">EXTERNO</span>
-                    <span>{{ doc.fecha|date:"d/m/y" }}</span>
-                </div>
+        style="position: relative; padding: 10Vw 20vw; background: #f8fafc; overflow: hidden; height: calc(100vh - 100px);">
+        <div id="zoom-content" style="transform-origin: 0 0; transition: transform 0.1s ease-out; width: max-content;">
+            <div class="tree" style="z-index: 1;">
+                <ul>
+                    <li>
+                        {% include "documentos/partials/tree_node.html" with node=tree %}
+                    </li>
+                </ul>
             </div>
-            {% endfor %}
         </div>
-        {% endif %}
     </div>
 
     <!-- Premium Sidebar for details -->
@@ -823,70 +980,253 @@
     let pendingCoords = null;
     let allComments = [];
 
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let isPanning = false;
+
     window.addEventListener('load', () => {
-        setTimeout(drawConnections, 1000);
+        initPanZoom();
+        initNodeDragging();
     });
 
-    window.addEventListener('resize', drawConnections);
+    async function exportToPDF() {
+        const btn = event.currentTarget || document.querySelector('button[onclick="exportToPDF()"]');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span>⏳</span> Generando PDF...';
+        btn.disabled = true;
 
-    function drawConnections() {
-        const svg = document.getElementById('connections-svg');
-        const container = document.getElementById('canvas-container');
-        const linksDataEl = document.getElementById('pin-links-data');
+        try {
+            const content = document.getElementById('zoom-content');
+            const oldScale = scale;
+            const oldTX = translateX;
+            const oldTY = translateY;
 
-        if (!svg || !container || !linksDataEl) return;
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
 
-        // Limpiar conexiones anteriores
-        svg.innerHTML = '';
+            await new Promise(r => setTimeout(r, 100));
 
-        // Ajustar tamaño del SVG al tamaño completo del scroll
-        svg.setAttribute('width', container.scrollWidth);
-        svg.setAttribute('height', container.scrollHeight);
+            const canvas = await html2canvas(content, {
+                useCORS: true,
+                scale: 2,
+                backgroundColor: '#f8fafc',
+                width: content.scrollWidth,
+                height: content.scrollHeight
+            });
 
-        const links = JSON.parse(linksDataEl.textContent);
+            scale = oldScale;
+            translateX = oldTX;
+            translateY = oldTY;
+            updateTransform();
 
-        const lineOffsets = {};
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: canvas.width > canvas.height ? 'l' : 'p',
+                unit: 'px',
+                format: [canvas.width, canvas.height]
+            });
 
-        links.forEach((link, idx) => {
-            const fromEl = document.querySelector(`.doc-node[data-id="${link.from_doc}"]`);
-            const toEl = document.querySelector(`.doc-node[data-id="${link.to_doc}"]`);
-
-            if (fromEl && toEl) {
-                const rect1 = fromEl.getBoundingClientRect();
-                const rect2 = toEl.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-
-                // Tracking de líneas por origen para separarlas
-                const fromId = link.from_doc;
-                lineOffsets[fromId] = (lineOffsets[fromId] || 0) + 1;
-                const offset = lineOffsets[fromId] * 12;
-
-                const x1 = rect1.right - containerRect.left + container.scrollLeft;
-                const y1 = (rect1.top + rect1.height / 2) - containerRect.top + container.scrollTop;
-
-                const x2 = (rect2.left + rect2.width / 2) - containerRect.left + container.scrollLeft;
-                const y2 = rect2.bottom - containerRect.top + container.scrollTop;
-
-                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-
-                // Punto de quiebre dinámico con offset
-                const breakingPointX = x1 + 20 + offset;
-
-                const d = `M ${x1} ${y1} L ${breakingPointX} ${y1} L ${breakingPointX} ${y2} L ${x2} ${y2}`;
-
-                path.setAttribute('d', d);
-                path.setAttribute('stroke', '#16a34a');
-                path.setAttribute('stroke-width', '2');
-                path.setAttribute('stroke-dasharray', '6,4');
-                path.setAttribute('fill', 'none');
-                path.setAttribute('opacity', '0.7');
-                path.setAttribute('style', 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));');
-
-                svg.appendChild(path);
-            }
-        });
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`Trazabilidad_{{ documento.codigo }}.pdf`);
+        } catch (err) {
+            console.error(err);
+            alert('Error al exportar PDF');
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 
+    function initPanZoom() {
+        const container = document.getElementById('canvas-container');
+        const content = document.getElementById('zoom-content');
+
+        // Context Menu Handlers
+        container.addEventListener('contextmenu', (e) => {
+            const node = e.target.closest('.doc-node');
+            if (node) {
+                e.preventDefault();
+                contextDocId = node.getAttribute('data-id');
+                showContextMenu(e.clientX, e.clientY);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#tree-context-menu')) {
+                hideContextMenu();
+            }
+        });
+
+        let startPanX, startPanY;
+
+        container.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.doc-node')) return; // Don't pan if clicking a node
+            isPanning = true;
+            startPanX = e.clientX - translateX;
+            startPanY = e.clientY - translateY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            translateX = e.clientX - startPanX;
+            translateY = e.clientY - startPanY;
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isPanning = false;
+        });
+
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            adjustZoom(delta, e.clientX, e.clientY);
+        }, { passive: false });
+
+        // Initial centering
+        setTimeout(() => {
+            const rect = content.getBoundingClientRect();
+            translateX = (container.clientWidth - rect.width) / 2;
+            translateY = 50;
+            updateTransform();
+        }, 100);
+    }
+
+    function initNodeDragging() {
+        const container = document.getElementById('canvas-container');
+        let draggedNode = null;
+        let startX, startY;
+        let initialDX = 0, initialDY = 0;
+        let moveThreshold = false;
+
+        container.addEventListener('mousedown', (e) => {
+            const node = e.target.closest('.doc-node');
+            if (!node || e.button !== 0) return;
+
+            let holdTimer = setTimeout(() => {
+                draggedNode = node;
+                moveThreshold = false;
+                node.style.cursor = 'grabbing';
+                node.style.zIndex = '1000';
+
+                startX = e.clientX;
+                startY = e.clientY;
+
+                initialDX = parseFloat(node.getAttribute('data-dx')) || 0;
+                initialDY = parseFloat(node.getAttribute('data-dy')) || 0;
+            }, 250);
+
+            const cancelHold = () => clearTimeout(holdTimer);
+            window.addEventListener('mouseup', cancelHold, { once: true });
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!draggedNode) return;
+            moveThreshold = true;
+
+            const dx = (e.clientX - startX) / scale;
+            const dy = (e.clientY - startY) / scale;
+
+            const finalDX = initialDX + dx;
+            const finalDY = initialDY + dy;
+
+            draggedNode.setAttribute('data-dx', finalDX);
+            draggedNode.setAttribute('data-dy', finalDY);
+            draggedNode.style.transform = `translate(${finalDX}px, ${finalDY}px)`;
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (draggedNode) {
+                if (moveThreshold) {
+                    // Prevent immediate click details if moved significantly
+                    e.stopPropagation();
+                }
+                draggedNode.style.cursor = '';
+                draggedNode.style.zIndex = '';
+                draggedNode = null;
+            }
+        }, true);
+    }
+
+    let contextDocId = null;
+
+    function showContextMenu(x, y) {
+        const menu = document.getElementById('tree-context-menu');
+        menu.style.display = 'block';
+
+        // Adjust for window boundaries
+        const menuWidth = 180;
+        const menuHeight = 150;
+        let finalX = x;
+        let finalY = y;
+
+        if (x + menuWidth > window.innerWidth) finalX = x - menuWidth;
+        if (y + menuHeight > window.innerHeight) finalY = y - menuHeight;
+
+        menu.style.left = `${finalX}px`;
+        menu.style.top = `${finalY}px`;
+    }
+
+    function hideContextMenu() {
+        document.getElementById('tree-context-menu').style.display = 'none';
+        contextDocId = null;
+    }
+
+    function contextAction(type) {
+        if (!contextDocId) return;
+
+        if (type === 'trace') {
+            window.location.href = `/documentos/trazabilidad/${contextDocId}/`;
+        } else if (type === 'view') {
+            window.location.href = `/documentos/visor-pines/${contextDocId}/`;
+        } else if (type === 'edit') {
+            window.open(`/admin/documentos/documento/${contextDocId}/change/`, '_blank');
+        }
+
+        hideContextMenu();
+    }
+
+    function updateTransform() {
+        const content = document.getElementById('zoom-content');
+        content.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+
+        const zoomText = document.getElementById('zoom-level-text');
+        if (zoomText) zoomText.innerText = Math.round(scale * 100) + '%';
+    }
+
+    function adjustZoom(delta, mouseX, mouseY) {
+        const container = document.getElementById('canvas-container');
+        const content = document.getElementById('zoom-content');
+
+        const oldScale = scale;
+        scale *= delta;
+        scale = Math.min(Math.max(0.1, scale), 3); // Limit scale
+
+        if (mouseX !== undefined && mouseY !== undefined) {
+            const rect = container.getBoundingClientRect();
+            const x = mouseX - rect.left;
+            const y = mouseY - rect.top;
+
+            translateX = x - (x - translateX) * (scale / oldScale);
+            translateY = y - (y - translateY) * (scale / oldScale);
+        }
+
+        updateTransform();
+    }
+
+    function resetZoom() {
+        const container = document.getElementById('canvas-container');
+        const content = document.getElementById('zoom-content');
+        scale = 1;
+        const rect = content.querySelector('.tree').getBoundingClientRect();
+        translateX = (container.clientWidth - rect.width / scale) / 2;
+        translateY = 50;
+        updateTransform();
+    }
     function toggleFullscreen(elementId) {
         const elem = document.getElementById(elementId);
         if (!document.fullscreenElement) {

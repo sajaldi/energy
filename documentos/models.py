@@ -298,7 +298,7 @@ class Revision(models.Model):
         help_text="Ej: A, B, 0, 1, 2..."
     )
     
-    archivo = models.FileField(upload_to=documento_upload_path, storage=minio_storage)
+    archivo = models.FileField(upload_to=documento_upload_path, storage=minio_storage, max_length=255)
     fecha_revision = models.DateField(default=datetime.date.today)
     
     creado_por = models.ForeignKey(User, on_delete=models.PROTECT)

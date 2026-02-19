@@ -226,15 +226,59 @@ if os.environ.get('DATABASE_URL'):
     DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = 'disable'
     print(f"[DEBUG] DB Producción: {DATABASES['default'].get('HOST')} - Puerto: {DATABASES['default'].get('PORT')} - SSL: Disabled")
 else:
-    # Desarrollo local (Apuntando al nuevo servidor Coolify vía túnel netsh)
+    # Desarrollo local - Túnel SSH automático usando sshtunnel
+    from sshtunnel import SSHTunnelForwarder
+    import socket
+    import sys
+
+    SSH_USER = 'vboxuser'
+    SSH_PASS = 'PasswordRoot07'
+    SSH_HOST = '181.115.47.107'
+    SSH_PORT = 3456
+    LOCAL_DB_PORT = 5433
+    REMOTE_DB_HOST = '10.30.1.11'
+    REMOTE_DB_PORT = 5432
+
+    def _is_port_in_use(port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(('127.0.0.1', port)) == 0
+
+    # Evitar múltiples túneles si el reloader de Django se reinicia
+    if not _is_port_in_use(LOCAL_DB_PORT):
+        print(f"[SSH] 🕒 Levantando túnel a {SSH_HOST}...")
+        try:
+            import logging
+            logging.getLogger('sshtunnel').setLevel(logging.ERROR)
+            
+            tunnel = SSHTunnelForwarder(
+                (SSH_HOST, SSH_PORT),
+                ssh_username=SSH_USER,
+                ssh_password=SSH_PASS,
+                remote_bind_address=(REMOTE_DB_HOST, REMOTE_DB_PORT),
+                local_bind_address=('127.0.0.1', LOCAL_DB_PORT),
+                set_keepalive=30.0
+            )
+            tunnel.start()
+            if tunnel.is_active:
+                print(f"[SSH] ✅ Túnel OK: localhost:{LOCAL_DB_PORT} -> {REMOTE_DB_HOST}")
+            else:
+                print(f"[SSH] ⚠️  Túnel iniciado pero no activo.")
+        except Exception as e:
+            print(f"[SSH] ❌ Fallo al conectar: {e}")
+    else:
+        print(f"[SSH] ✅ Túnel ya detectado en {LOCAL_DB_PORT}")
+
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'postgres',        # Nombre por defecto en Coolify
+            'NAME': 'postgres',
             'USER': 'postgres',
-            'PASSWORD': 'admin123',   # Contraseña configurada
-            'HOST': '181.115.47.107', # IP pública del servidor físico
-            'PORT': '5432',           # Puerto expuesto vía netsh
+            'PASSWORD': 'admin123',
+            'HOST': '127.0.0.1',
+            'PORT': str(LOCAL_DB_PORT),
+            'OPTIONS': {
+                'sslmode': 'disable',
+            },
             'CONN_MAX_AGE': 600,
             'CONN_HEALTH_CHECKS': True,
         }
@@ -572,3 +616,7 @@ DEFAULT_FROM_EMAIL = 'notificaciones@energia.com'
 # Configuración de autenticación
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/app/'
+
+# N8N Integration
+N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook-test/process-document')
+INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://10.30.1.11:8000')

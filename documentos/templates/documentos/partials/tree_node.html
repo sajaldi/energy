@@ -1,10 +1,90 @@
-<div class="doc-node {% if node.is_current %}active{% endif %}" data-id="{{ node.id }}"
-    onclick="showDetails({{ node.id }})">
-    <span class="code">{{ node.codigo }}</span>
-    <span class="title" title="{{ node.titulo }}">{{ node.titulo }}</span>
-    <div class="meta">
-        <span class="badge-status status-{{ node.estado|lower }}">{{ node.estado }}</span>
-        <span>{{ node.fecha|date:"d/m/y" }}</span>
+{% if node.is_external %}
+<!-- Renderizado simplificado para Docs Externos (Cadena Horizontal) -->
+<div class="external-branch" style="display: flex; align-items: center; gap: 0; position: relative;">
+    <div class="doc-node external" data-id="{{ node.id }}" onclick="showDetails({{ node.id }})"
+        style="width: 180px; padding: 10px; border-style: solid; border-color: #10b981; background: #f0fdf4; position: relative; flex-shrink: 0; z-index: 2;">
+        <span class="code" style="color: #10b981; font-size: 0.75rem;">{{ node.codigo }}</span>
+        <span class="title" style="font-size: 0.7rem;">{{ node.titulo }}</span>
+        <div class="meta" style="margin-top: 5px; border:none; padding:0;">
+            <span class="badge-status" style="background: #dcfce7; color: #166534; font-size: 0.5rem;">EXTERNO</span>
+        </div>
+    </div>
+
+    {% if node.hijos %}
+    <!-- Thick Green Arrow pointing right -->
+    <div class="horizontal-arrow"
+        style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #16a34a; font-size: 24px; font-weight: bold; flex-shrink: 0;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+        </svg>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0;">
+        {% for hijo in node.hijos %}
+        {% include "documentos/partials/tree_node.html" with node=hijo %}
+        {% if not forloop.last %}
+        <div class="horizontal-arrow"
+            style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #16a34a; font-size: 24px; font-weight: bold; flex-shrink: 0;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+            </svg>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<!-- Nodo Principal con Columnas Laterales -->
+<div class="node-row" style="display: flex; align-items: center; justify-content: center; gap: 0; position: relative;">
+
+    <!-- Vinculos Externos (Lado Izquierdo) -->
+    <div class="external-aside side-left"
+        style="display: flex; flex-direction: column; gap: 20px; min-width: 200px; align-items: flex-end;">
+        {% for ext in node.vinculos_externos %}
+        {% if forloop.counter|divisibleby:2 %}
+        <div style="display: flex; align-items: center; gap: 0;">
+            {% include "documentos/partials/tree_node.html" with node=ext %}
+            <!-- Green Arrow pointing left (from main to left) -->
+            <div class="lateral-arrow"
+                style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #84cc16; flex-shrink: 0;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(180deg);">
+                    <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+                </svg>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Nodo Principal -->
+    <div class="doc-node {% if node.is_current %}active{% endif %}" data-id="{{ node.id }}"
+        onclick="showDetails({{ node.id }})" style="z-index: 2; margin: 0 40px;">
+        <span class="code">{{ node.codigo }}</span>
+        <span class="title" title="{{ node.titulo }}">{{ node.titulo }}</span>
+        <div class="meta">
+            <span class="badge-status status-{{ node.estado|lower }}">{{ node.estado }}</span>
+            <span>{{ node.fecha|date:"d/m/y" }}</span>
+        </div>
+    </div>
+
+    <!-- Vinculos Externos (Lado Derecho) -->
+    <div class="external-aside side-right"
+        style="display: flex; flex-direction: column; gap: 20px; min-width: 200px; align-items: flex-start;">
+        {% for ext in node.vinculos_externos %}
+        {% if not forloop.counter|divisibleby:2 %}
+        <div style="display: flex; align-items: center; gap: 0;">
+            <!-- Green Arrow pointing right (from main to right) -->
+            <div class="lateral-arrow"
+                style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #84cc16; flex-shrink: 0;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+                </svg>
+            </div>
+            {% include "documentos/partials/tree_node.html" with node=ext %}
+        </div>
+        {% endif %}
+        {% endfor %}
     </div>
 </div>
 
@@ -16,4 +96,5 @@
     </li>
     {% endfor %}
 </ul>
+{% endif %}
 {% endif %}
