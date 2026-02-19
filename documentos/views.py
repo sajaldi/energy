@@ -11,6 +11,7 @@ from django.conf import settings
 import logging
 import json
 import requests
+import datetime
 from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina, Revision, MetadatoConfig
 
 @login_required
@@ -30,44 +31,25 @@ def documento_trazabilidad(request, doc_id):
         root = root.respuesta_a
         visited.add(root.id)
     
-    # 2. Función recursiva para construir el árbol hacia adelante
-    def build_tree(doc, current_doc_id):
-        children = doc.respuestas.all().select_related('tipo_documento', 'ultima_revision')
-        return {
-            'id': doc.id,
-            'codigo': doc.codigo,
-            'titulo': doc.titulo,
-            'tipo': doc.tipo_documento.nombre if doc.tipo_documento else "S/T",
-            'estado': doc.estado_actual,
-            'fecha': doc.creado_en,
-            'is_current': doc.id == current_doc_id,
-            'hijos': [build_tree(child, current_doc_id) for child in children]
-        }
-    
-    tree = build_tree(root, documento.id)
-    
-    # 3. Recopilar todos los IDs en el árbol para buscar sus vínculos
-    ids_en_arbol = set()
-    def collect_ids(node):
-        ids_en_arbol.add(node['id'])
-        for hijo in node['hijos']:
-            collect_ids(hijo)
-    collect_ids(tree)
-    
-    # 4. Buscar vínculos transversales (pines vinculados a otros documentos)
-    # Buscamos comentarios de los documentos en el árbol que tengan vinculos
+    # 2. Recopilar vínculos transversales primero para integrarlos en el árbol
+    ids_provisorios = set()
+    def get_all_ids(doc):
+        ids_provisorios.add(doc.id)
+        for hijo in doc.respuestas.all():
+            get_all_ids(hijo)
+    get_all_ids(root)
+
     vinc_comments = ComentarioDocumento.objects.filter(
-        models.Q(documento_id__in=ids_en_arbol) | 
-        models.Q(vinculos__documento_id__in=ids_en_arbol)
+        models.Q(documento_id__in=ids_provisorios) | 
+        models.Q(vinculos__documento_id__in=ids_provisorios)
     ).prefetch_related('vinculos__documento', 'vinculos__documento__tipo_documento')
-    
+
+    links_por_doc = {} # doc_id -> list of external docs linked
     pines_vinculados = []
-    docs_externos = {}
-    
     seen_links = set()
+    
     for c in vinc_comments:
         for v in c.vinculos.all():
-            # Crear par único para evitar duplicados symmetrical
             link_pair = tuple(sorted([c.id, v.id]))
             if link_pair not in seen_links:
                 seen_links.add(link_pair)
@@ -78,25 +60,48 @@ def documento_trazabilidad(request, doc_id):
                     'to_code': v.documento.codigo
                 })
                 
-                # Si el documento destino no está en el árbol, lo guardamos como externo
-                for doc in [c.documento, v.documento]:
-                    if doc.id not in ids_en_arbol and doc.id not in docs_externos:
-                        docs_externos[doc.id] = {
-                            'id': doc.id,
-                            'codigo': doc.codigo,
-                            'titulo': doc.titulo,
-                            'tipo': doc.tipo_documento.nombre if doc.tipo_documento else "S/T",
-                            'estado': doc.estado_actual,
-                            'fecha': doc.creado_en,
-                        }
+                # Identificar cuál es externo al árbol principal
+                d1, d2 = c.documento, v.documento
+                if d1.id in ids_provisorios and d2.id not in ids_provisorios:
+                    if d1.id not in links_por_doc: links_por_doc[d1.id] = []
+                    links_por_doc[d1.id].append(d2)
+                elif d2.id in ids_provisorios and d1.id not in ids_provisorios:
+                    if d2.id not in links_por_doc: links_por_doc[d2.id] = []
+                    links_por_doc[d2.id].append(d1)
 
+    # 3. Función recursiva para construir el árbol e integrar los vínculos
+    def build_tree(doc, current_doc_id, is_external=False):
+        children = doc.respuestas.all().select_related('tipo_documento', 'ultima_revision')
+        
+        vinculos_externos = []
+        # Solo buscamos vínculos transversales para documentos que están en el árbol principal
+        # para evitar recursión infinita o ramificaciones excesivas en los laterales
+        if not is_external and doc.id in links_por_doc:
+            for ext in links_por_doc[doc.id]:
+                # Para el documento vinculado, construimos su propio árbol de respuestas
+                vinculos_externos.append(build_tree(ext, current_doc_id, is_external=True))
+
+        return {
+            'id': doc.id,
+            'codigo': doc.codigo,
+            'titulo': doc.titulo,
+            'tipo': doc.tipo_documento.nombre if doc.tipo_documento else "S/T",
+            'estado': doc.estado_actual,
+            'fecha': doc.creado_en,
+            'is_current': doc.id == current_doc_id,
+            'is_external': is_external,
+            'vinculos_externos': vinculos_externos,
+            'hijos': [build_tree(child, current_doc_id, is_external=is_external) for child in children]
+        }
+    
+    tree = build_tree(root, documento.id)
+    
     from django.contrib.auth.models import User
     context = {
         'documento': documento,
         'tree': tree,
         'root': root,
         'pines_vinculados': pines_vinculados,
-        'docs_externos': list(docs_externos.values()),
         'usuarios': User.objects.filter(is_active=True).order_by('first_name')
     }
     return render(request, 'documentos/documento_trazabilidad.html', context)
@@ -174,6 +179,26 @@ def documento_detalle_json(request, doc_id):
             'contenido_texto': doc.contenido_texto,
         }
         return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def test_n8n_ping(request):
+    """
+    Endpoint simple para probar conectividad con n8n.
+    """
+    try:
+        n8n_url = settings.N8N_EXTRACT_TEXTO_WEBHOOK_URL
+        payload = {'test': True, 'message': 'Ping desde Django Local', 'timestamp': str(datetime.datetime.now())}
+        
+        response = requests.post(n8n_url, json=payload, timeout=5)
+        
+        return JsonResponse({
+            'status': 'ok', 
+            'n8n_status': response.status_code,
+            'n8n_response': response.text[:200]
+        })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

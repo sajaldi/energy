@@ -49,6 +49,7 @@ def extract_document_metadata(revision_id):
                     'file_key': revision.archivo.name,
                     'file_path': revision.archivo.name,
                     'tipo_documento': revision.documento.tipo_documento.nombre,
+                    'todos_los_tipos': list(revision.documento.tipo_documento.__class__.objects.values_list('nombre', flat=True)),
                     'callback_url': internal_callback_url,
                     'metadatos_requeridos': list(revision.documento.tipo_documento.metadatos_config.values_list('nombre', flat=True))
                 }
