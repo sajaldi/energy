@@ -29,6 +29,9 @@ def import_tickets_from_df(df):
             try:
                 dt = pd.to_datetime(val)
                 if pd.isna(dt): return None
+                # Evitar RuntimeWarning de datetimes "ingenuos" (naive)
+                if timezone.is_naive(dt):
+                    return timezone.make_aware(dt)
                 return dt
             except:
                 return None
