@@ -3,10 +3,10 @@ from django.db import models
 class SolicitudTicket(models.Model):
     # Identificadores
     id_solicitud = models.BigIntegerField(unique=True, verbose_name="ID Solicitud Servicio")
-    folio = models.CharField(max_length=100, blank=True, null=True, verbose_name="Folio")
+    folio = models.CharField(max_length=100, blank=True, null=True, verbose_name="Folio", db_index=True)
     
     # Personas
-    solicitante = models.CharField(max_length=255, blank=True, null=True)
+    solicitante = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     responsable = models.CharField(max_length=255, blank=True, null=True, verbose_name="Responsable de Atención")
     
     # Descripciones
@@ -15,15 +15,15 @@ class SolicitudTicket(models.Model):
     falla_clasificacion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Clasificación Falla")
     
     # Clasificación Jerárquica
-    servicio = models.CharField(max_length=255, blank=True, null=True)
+    servicio = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     subservicio = models.CharField(max_length=255, blank=True, null=True)
     unidad = models.CharField(max_length=255, blank=True, null=True)
-    area = models.CharField(max_length=255, blank=True, null=True)
+    area = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     grupo = models.CharField(max_length=255, blank=True, null=True)
     nivel = models.CharField(max_length=255, blank=True, null=True)
     
     # Fechas
-    fecha_solicitud = models.DateTimeField(blank=True, null=True, verbose_name="Fecha Solicitud")
+    fecha_solicitud = models.DateTimeField(blank=True, null=True, verbose_name="Fecha Solicitud", db_index=True)
     tipo_recepcion = models.CharField(max_length=100, blank=True, null=True, verbose_name="Tipo Recepción")
     fecha_tipo_recepcion = models.DateTimeField(blank=True, null=True, verbose_name="Fecha Tipo Recepción")
     fecha_suspension = models.DateTimeField(blank=True, null=True, verbose_name="Fecha Suspensión")
@@ -52,6 +52,7 @@ class SolicitudTicket(models.Model):
 
     # Vinculación con Activos (Energía)
     activo = models.ForeignKey('activos.Activo', on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets', verbose_name="Activo Relacionado")
+    ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets', verbose_name="Ubicación Física")
 
     # Auditoría Interna
     creado_en = models.DateTimeField(auto_now_add=True)
