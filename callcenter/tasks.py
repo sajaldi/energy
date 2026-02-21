@@ -38,6 +38,12 @@ def sync_tickets_task(days=2):
             logger.error(error_msg)
             return {"status": "error", "message": error_msg}
 
+        from django.db import connection, close_old_connections
+        # Asegurar conexión limpia para el worker tras el scraping largo
+        close_old_connections()
+        if connection.connection:
+            connection.close() 
+            
         df = pd.read_excel(file_path)
         creados, actualizados = import_tickets_from_df(df)
         
