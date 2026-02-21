@@ -3,6 +3,7 @@
 
 {% block extrahead %}
 {{ block.super }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bootstrap-4/bootstrap-4.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
     .btn-sync-tickets {
@@ -15,6 +16,7 @@
         align-items: center !important;
         gap: 8px !important;
         transition: all 0.3s ease !important;
+        cursor: pointer;
     }
 
     .btn-sync-tickets:hover {
@@ -22,12 +24,17 @@
         transform: translateY(-1px);
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
+
+    /* Asegurar que el modal esté por encima de todo en Jazzmin */
+    .swal2-container {
+        z-index: 999999 !important;
+    }
 </style>
 {% endblock %}
 
 {% block object-tools-items %}
 <li>
-    <a href="javascript:void(0);" onclick="confirmSyncTickets()" class="btn-sync-tickets">
+    <a href="#" id="sync-tickets-btn" class="btn-sync-tickets">
         <i class="fas fa-sync-alt"></i> {% trans "Sincronizar SIG GIA" %}
     </a>
 </li>
@@ -37,41 +44,64 @@
 {% block extrajs %}
 {{ block.super }}
 <script>
-    function confirmSyncTickets() {
-        Swal.fire({
-            title: 'Sincronizar Tickets',
-            text: "¿Cuántos días hacia atrás desea sincronizar?",
-            icon: 'question',
-            input: 'number',
-            inputValue: 2,
-            inputAttributes: {
-                min: 1,
-                max: 30,
-                step: 1
-            },
-            showCancelButton: true,
-            confirmButtonColor: '#28a745',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fas fa-play"></i> Iniciar',
-            cancelButtonText: 'Cancelar',
-            inputValidator: (value) => {
-                if (!value || value < 1) {
-                    return 'Por favor ingrese al menos 1 día'
+    document.addEventListener('DOMContentLoaded', function () {
+        const syncBtn = document.getElementById('sync-tickets-btn');
+        if (syncBtn) {
+            syncBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                if (typeof Swal === 'undefined') {
+                    console.error('SweetAlert2 no cargó correctamente');
+                    const days = prompt("¿Cuántos días hacia atrás desea sincronizar?", "2");
+                    if (days) window.location.href = `sync-tickets/?days=${days}`;
+                    return;
                 }
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const days = result.value;
+
                 Swal.fire({
-                    title: 'Iniciando Sincronización',
-                    text: `Se enviará la solicitud para sincronizar los últimos ${days} días.`,
-                    icon: 'info',
-                    timer: 2000,
-                    showConfirmButton: false
+                    title: 'Sincronizar Tickets',
+                    text: "¿Cuántos días hacia atrás desea sincronizar?",
+                    icon: 'question',
+                    input: 'number',
+                    inputValue: 2,
+                    inputAttributes: {
+                        min: 1,
+                        max: 30,
+                        step: 1
+                    },
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="fas fa-play"></i> Iniciar',
+                    cancelButtonText: 'Cancelar',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Por favor ingrese un número'
+                        }
+                        if (parseInt(value) < 1) {
+                            return 'Por favor ingrese al menos 1 día'
+                        }
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const days = result.value;
+                        Swal.fire({
+                            title: 'Iniciando Sincronización',
+                            text: `Se enviará la solicitud para sincronizar los últimos ${days} días.`,
+                            icon: 'info',
+                            timer: 2000,
+                            showConfirmButton: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                        // Redirección con un pequeño delay para que se vea el mensaje
+                        setTimeout(() => {
+                            window.location.href = `sync-tickets/?days=${days}`;
+                        }, 1000);
+                    }
                 });
-                window.location.href = `sync-tickets/?days=${days}`;
-            }
-        })
-    }
+            });
+        }
+    });
 </script>
 {% endblock %}
