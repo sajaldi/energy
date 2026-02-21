@@ -639,3 +639,42 @@ def qr_resolver(request):
         })
 
     return JsonResponse({'success': False, 'error': 'Código no reconocido en el sistema'}, status=404)
+@staff_member_required
+def global_search(request):
+    """
+    Búsqueda unificada en todo el sistema (Activos y Tickets).
+    """
+    query = request.GET.get('q', '').strip()
+    activos = []
+    tickets = []
+    
+    if query:
+        from activos.models.activo import Activo
+        from callcenter.models import SolicitudTicket
+        
+        # Buscar Activos
+        activos = Activo.objects.filter(
+            Q(nombre__icontains=query) |
+            Q(codigo_interno__icontains=query) |
+            Q(serie__icontains=query) |
+            Q(epc__icontains=query) |
+            Q(descripcion__icontains=query)
+        ).select_related('ubicacion', 'modelo__marca')[:20]
+        
+        # Buscar Tickets
+        tickets = SolicitudTicket.objects.filter(
+            Q(folio__icontains=query) |
+            Q(id_solicitud__icontains=query) |
+            Q(solicitante__icontains=query) |
+            Q(solicitud_descripcion__icontains=query)
+        )[:20]
+
+    context = {
+        'query': query,
+        'activos': activos,
+        'tickets': tickets,
+        'total_results': len(activos) + len(tickets),
+        'title': f'Búsqueda Global: {query}',
+        **admin.site.each_context(request),
+    }
+    return render(request, 'admin/global_search_results.html', context)

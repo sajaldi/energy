@@ -465,7 +465,7 @@ JAZZMIN_SETTINGS = {
     "site_brand": "SoftCom-CCG",
     "welcome_sign": "Bienvenido al panel de administración",
     "copyright": "SoftCom-CCG Ltd",
-    "search_model": ["activos.Activo", "callcenter.SolicitudTicket", "auth.User"],
+    "search_model": ["activos.Activo"],
     "user_avatar": None,
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
@@ -489,7 +489,7 @@ JAZZMIN_SETTINGS = {
     "default_icon_children": "fas fa-circle",
     "related_modal_active": False,
     "custom_css": "core/css/admin_custom.css",
-    # "custom_js": "core/js/onboarding.js",
+    "custom_js": "core/js/admin_search.js",
     "use_google_fonts_cdn": True,
     "show_ui_builder": True,
 }

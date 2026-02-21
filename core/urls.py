@@ -15,4 +15,5 @@ urlpatterns = [
     path('app/', views.mobile_dashboard, name='mobile_dashboard'),
     path('app/scanner/', views.mobile_scanner, name='mobile_scanner'),
     path('app/qr/', views.qr_resolver, name='qr_resolver'),
+    path('admin/global-search/', views.global_search, name='global_search'),
 ]
