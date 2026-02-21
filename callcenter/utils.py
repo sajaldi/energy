@@ -18,9 +18,16 @@ def import_tickets_from_df(df):
     df = df.dropna(subset=['id_sol_int'])
     all_ids = df['id_sol_int'].unique().astype(int).tolist()
 
-    # 2. Consultar registros existentes para decidir qué es nuevo y qué es actualización
-    existing_tickets = SolicitudTicket.objects.filter(id_solicitud__in=all_ids)
-    existing_map = {t.id_solicitud: t for t in existing_tickets}
+    # 2. Consultar registros existentes por ID o por Folio (para unificar los de webhook)
+    from django.db.models import Q
+    folios_in_excel = df['foliosolicitudservicio'].dropna().unique().tolist()
+    
+    existing_tickets = SolicitudTicket.objects.filter(
+        Q(id_solicitud__in=all_ids) | Q(folio__in=folios_in_excel)
+    )
+    
+    existing_by_id = {t.id_solicitud: t for t in existing_tickets}
+    existing_by_folio = {t.folio: t for t in existing_tickets if t.folio}
 
     # 3. Pre-cargar Ubicaciones para mapeo inteligente
     # Tickets 'Nivel' -> Ubicacion 'EDIFICIO'
@@ -102,43 +109,36 @@ def import_tickets_from_df(df):
         }
 
         # --- Resolución de Ubicación Normalizada ---
-        nombre_edificio = data['nivel'] # En Tickets es Edificio
-        nombre_nivel = data['grupo']   # En Tickets es Nivel (Grupo)
-        resolved_ubicacion = None
+        data['ubicacion'] = resolve_ticket_ubicacion(data['nivel'], data['grupo'])
 
-        if nombre_edificio:
-            key_edif = nombre_edificio.upper()
-            edif_obj = edificios_map.get(key_edif)
-            if not edif_obj:
-                # Crear edificio si no existe
-                edif_obj = Ubicacion.objects.create(nombre=nombre_edificio, tipo='EDIFICIO')
-                edificios_map[key_edif] = edif_obj
-            
-            resolved_ubicacion = edif_obj # Default al edificio if no nivel
+        # Lógica de emparejamiento inteligente
+        obj = existing_by_id.get(id_sol_int)
+        if not obj and data['folio']:
+            obj = existing_by_folio.get(data['folio'])
+            if obj:
+                # Si lo encontramos por Folio pero no por ID, actualizamos el ID 
+                # al oficial que viene del Excel de GIA
+                obj.id_solicitud = id_sol_int
 
-            if nombre_nivel:
-                key_nivel = (nombre_nivel.upper(), edif_obj.id)
-                nivel_obj = niveles_map.get(key_nivel)
-                if not nivel_obj:
-                    # Crear nivel bajo el edificio
-                    nivel_obj = Ubicacion.objects.create(nombre=nombre_nivel, tipo='NIVEL', padre=edif_obj)
-                    niveles_map[key_nivel] = nivel_obj
-                
-                resolved_ubicacion = nivel_obj
-
-        data['ubicacion'] = resolved_ubicacion
-
-        if id_sol_int in existing_map:
+        if obj:
             # Actualizar objeto existente en memoria
-            obj = existing_map[id_sol_int]
             for field, val in data.items():
                 setattr(obj, field, val)
             to_update.append(obj)
             actualizados += 1
+            # Actualizar los mapas para evitar duplicados en el mismo loop
+            existing_by_id[id_sol_int] = obj
+            if data['folio']:
+                existing_by_folio[data['folio']] = obj
         else:
             # Crear instancia nueva
-            to_create.append(SolicitudTicket(id_solicitud=id_sol_int, **data))
+            new_ticket = SolicitudTicket(id_solicitud=id_sol_int, **data)
+            to_create.append(new_ticket)
             creados += 1
+            # Registrar en mapas para filas duplicadas en el excel
+            existing_by_id[id_sol_int] = new_ticket
+            if data['folio']:
+                existing_by_folio[data['folio']] = new_ticket
 
     # 3. Ejecutar operaciones en lotes
     if to_create:
@@ -148,3 +148,30 @@ def import_tickets_from_df(df):
         SolicitudTicket.objects.bulk_update(to_update, update_fields, batch_size=500)
 
     return creados, actualizados
+
+def resolve_ticket_ubicacion(nombre_edificio, nombre_nivel):
+    """
+    Resuelve o crea objetos de Ubicacion basados en la jerarquía de Tickets.
+    nombre_edificio: En Tickets suele venir en el campo 'nivel'
+    nombre_nivel: En Tickets suele venir en el campo 'grupo'
+    """
+    if not nombre_edificio:
+        return None
+        
+    # Buscar o crear Edificio
+    edif_obj, _ = Ubicacion.objects.get_or_create(
+        nombre=nombre_edificio.strip(), 
+        tipo='EDIFICIO'
+    )
+    
+    if not nombre_nivel:
+        return edif_obj
+        
+    # Buscar o crear Nivel/Piso bajo el edificio
+    nivel_obj, _ = Ubicacion.objects.get_or_create(
+        nombre=nombre_nivel.strip(),
+        tipo='NIVEL',
+        padre=edif_obj
+    )
+    
+    return nivel_obj
