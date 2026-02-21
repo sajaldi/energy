@@ -1,8 +1,10 @@
 import pandas as pd
+from django.db import transaction
 from .models import SolicitudTicket
 from django.utils import timezone
 import math
 
+@transaction.atomic
 def import_tickets_from_df(df):
     """
     Importa tickets desde un DataFrame de pandas.

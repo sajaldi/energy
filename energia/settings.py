@@ -235,20 +235,22 @@ else:
     SSH_PASS = 'PasswordRoot07'
     SSH_HOST = '181.115.47.107'
     SSH_PORT = 3456
-    LOCAL_DB_PORT = 5433
+    LOCAL_DB_PORT = 5434  # Puerto cambiado para evitar conflictos
     REMOTE_DB_HOST = '10.30.1.11'
     REMOTE_DB_PORT = 5432
 
     def _is_port_in_use(port):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.2)
             return s.connect_ex(('127.0.0.1', port)) == 0
 
     # Evitar múltiples túneles si el reloader de Django se reinicia
     if not _is_port_in_use(LOCAL_DB_PORT):
-        print(f"[SSH] 🕒 Levantando túnel a {SSH_HOST}...")
+        print(f"[SSH] 🕒 Levantando túnel a {SSH_HOST} en puerto {LOCAL_DB_PORT}...")
         try:
             import logging
-            logging.getLogger('sshtunnel').setLevel(logging.ERROR)
+            import traceback
+            # logging.getLogger('sshtunnel').setLevel(logging.DEBUG) # Para ver todo
             
             tunnel = SSHTunnelForwarder(
                 (SSH_HOST, SSH_PORT),
@@ -256,17 +258,29 @@ else:
                 ssh_password=SSH_PASS,
                 remote_bind_address=(REMOTE_DB_HOST, REMOTE_DB_PORT),
                 local_bind_address=('127.0.0.1', LOCAL_DB_PORT),
-                set_keepalive=30.0
+                set_keepalive=30.0,
             )
             tunnel.start()
             if tunnel.is_active:
-                print(f"[SSH] ✅ Túnel OK: localhost:{LOCAL_DB_PORT} -> {REMOTE_DB_HOST}")
+                print(f"[SSH] ✅ Túnel OK: 127.0.0.1:{LOCAL_DB_PORT}")
+                # TEST DE CONEXIÓN INMEDIATO
+                try:
+                    import psycopg
+                    conn = psycopg.connect(
+                        dbname='postgres', user='postgres', password='admin123',
+                        host='127.0.0.1', port=LOCAL_DB_PORT, connect_timeout=3
+                    )
+                    conn.close()
+                    print("[SSH] ✅ Prueba de DB exitosa desde settings.py")
+                except Exception as db_err:
+                    print(f"[SSH] ❌ Túnel activo pero DB falló: {db_err}")
             else:
-                print(f"[SSH] ⚠️  Túnel iniciado pero no activo.")
+                print(f"[SSH] ⚠️  Túnel NO activo tras start().")
         except Exception as e:
-            print(f"[SSH] ❌ Fallo al conectar: {e}")
+            print(f"[SSH] ❌ Error fatal iniciando túnel:")
+            traceback.print_exc()
     else:
-        print(f"[SSH] ✅ Túnel ya detectado en {LOCAL_DB_PORT}")
+        print(f"[SSH] ✅ Túnel detectado en puerto {LOCAL_DB_PORT}")
 
     DATABASES = {
         'default': {
@@ -278,6 +292,7 @@ else:
             'PORT': str(LOCAL_DB_PORT),
             'OPTIONS': {
                 'sslmode': 'disable',
+                'connect_timeout': 10,
             },
             'CONN_MAX_AGE': 600,
             'CONN_HEALTH_CHECKS': True,
