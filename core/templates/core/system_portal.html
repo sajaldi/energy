@@ -1,0 +1,1053 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Principal - SoftCom CCG</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <style>
+        :root {
+            --bg-color: #020617;
+            --card-bg: rgba(15, 23, 42, 0.4);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --card-hover: rgba(30, 41, 59, 0.6);
+
+            --accent-brand: #3b82f6;
+            --accent-mant: #f59e0b;
+            --accent-inv: #10b981;
+            --accent-pres: #8b5cf6;
+            --accent-docs: #ef4444;
+            --accent-proj: #0ea5e9;
+            --accent-sec: #f43f5e;
+            --accent-comms: #06b6d4;
+            --accent-app: #ec4899;
+
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        .ambient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background: radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.15), transparent 40%),
+                radial-gradient(circle at 85% 60%, rgba(139, 92, 246, 0.1), transparent 40%),
+                radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.1), transparent 50%);
+            filter: blur(60px);
+        }
+
+        .header {
+            padding: 1.5rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(2, 6, 23, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            font-size: 2rem;
+            color: var(--text-main);
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .user-actions {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.4rem 1rem 0.4rem 0.4rem;
+            border-radius: 50px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-brand), var(--accent-pres));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .btn-text {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .btn-text:hover {
+            color: var(--text-main);
+        }
+
+        .main-content {
+            padding: 3rem 4rem;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+        }
+
+        .bento-container {
+            width: 100%;
+            max-width: 1280px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: minmax(280px, auto);
+            /* Increased base height for better content fit */
+            gap: 1.5rem;
+            perspective: 1500px;
+        }
+
+        /* FLIP CONTAINER SETUP */
+        .flip-card {
+            background-color: transparent;
+            position: relative;
+            outline: none;
+            display: flex;
+            min-height: 200px;
+            /* Base height for all grid items */
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: left;
+            transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform-style: preserve-3d;
+            border-radius: 28px;
+            cursor: pointer;
+            min-height: 100%;
+            display: grid;
+            /* Stack them in a grid overlay */
+            grid-template-areas: "card";
+        }
+
+        .flip-card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-front,
+        .card-back {
+            grid-area: card;
+            /* Both occupy the exact same dynamic space */
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 28px;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            transition: all 0.4s;
+        }
+
+        .card-front {
+            overflow: hidden;
+        }
+
+        .card-back {
+            overflow-y: auto;
+        }
+
+        .card-back::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .card-back::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .card-front::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.06), transparent 40%);
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .flip-card:hover:not(.flipped) .card-front {
+            transform: translateY(-5px);
+            background: var(--card-hover);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+        }
+
+        .flip-card:hover:not(.flipped) .card-front::before {
+            opacity: 1;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+            border-color: var(--accent-brand);
+            /* will be overridden per card */
+        }
+
+        .card-back-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin: 0 0 1rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-close-flip {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-close-flip:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .submenu-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex-grow: 1;
+        }
+
+        .submenu-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .submenu-list li a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .submenu-list li a:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(5px);
+        }
+
+        .submenu-list li a ion-icon {
+            font-size: 1.1rem;
+        }
+
+        .bento-content {
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+        }
+
+        .bento-icon-wrapper {
+            width: 50px;
+            height: 50px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .flip-card:hover .bento-icon-wrapper {
+            transform: scale(1.1) rotate(-5deg);
+        }
+
+        .bento-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 1.5rem 0 0.5rem 0;
+            letter-spacing: -0.5px;
+        }
+
+        .bento-desc {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin: 0;
+            margin-bottom: auto;
+        }
+
+        .bento-arrow {
+            position: absolute;
+            top: 0rem;
+            right: 0rem;
+            font-size: 1.5rem;
+            opacity: 0;
+            transform: translate(-10px, 10px);
+            transition: all 0.3s ease;
+            color: var(--text-muted);
+        }
+
+        .flip-card:hover .bento-arrow {
+            opacity: 1;
+            transform: translate(0, 0);
+            color: var(--text-main);
+        }
+
+        /* Welcome Card */
+        .card-welcome {
+            grid-column: span 2;
+            grid-row: span 2;
+            justify-content: flex-end;
+            padding: 3rem;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+            border-color: rgba(59, 130, 246, 0.3);
+            border-radius: 28px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-welcome .bento-title-main {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin: 0 0 1rem 0;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Grid Layouts & Colors */
+        .card-mant {
+            grid-column: span 2;
+            grid-row: span 1;
+        }
+
+        .card-mant .card-front:hover {
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .card-mant:hover .bento-icon-wrapper {
+            background: var(--accent-mant);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .card-mant .bento-icon-wrapper {
+            color: var(--accent-mant);
+        }
+
+        .card-mant .card-back {
+            border-color: var(--accent-mant);
+        }
+
+        .card-inv {
+            grid-column: span 1;
+            grid-row: span 2;
+        }
+
+        .card-inv .card-front:hover {
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        .card-inv:hover .bento-icon-wrapper {
+            background: var(--accent-inv);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .card-inv .bento-icon-wrapper {
+            color: var(--accent-inv);
+        }
+
+        .card-inv .card-back {
+            border-color: var(--accent-inv);
+        }
+
+        .card-act {
+            grid-column: span 1;
+            grid-row: span 1;
+        }
+
+        .card-act .card-front:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .card-act:hover .bento-icon-wrapper {
+            background: var(--accent-brand);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .card-act .bento-icon-wrapper {
+            color: var(--accent-brand);
+        }
+
+        .card-act .card-back {
+            border-color: var(--accent-brand);
+        }
+
+        .card-pres {
+            grid-column: span 1;
+            grid-row: span 1;
+        }
+
+        .card-pres .card-front:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+
+        .card-pres:hover .bento-icon-wrapper {
+            background: var(--accent-pres);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+        }
+
+        .card-pres .bento-icon-wrapper {
+            color: var(--accent-pres);
+        }
+
+        .card-pres .card-back {
+            border-color: var(--accent-pres);
+        }
+
+        .card-docs {
+            grid-column: span 1;
+            grid-row: span 1;
+        }
+
+        .card-docs .card-front:hover {
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .card-docs:hover .bento-icon-wrapper {
+            background: var(--accent-docs);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .card-docs .bento-icon-wrapper {
+            color: var(--accent-docs);
+        }
+
+        .card-docs .card-back {
+            border-color: var(--accent-docs);
+        }
+
+        .card-proj {
+            grid-column: span 1;
+            grid-row: span 1;
+        }
+
+        .card-proj .card-front:hover {
+            border-color: rgba(14, 165, 233, 0.4);
+        }
+
+        .card-proj:hover .bento-icon-wrapper {
+            background: var(--accent-proj);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.4);
+        }
+
+        .card-proj .bento-icon-wrapper {
+            color: var(--accent-proj);
+        }
+
+        .card-proj .card-back {
+            border-color: var(--accent-proj);
+        }
+
+        .card-comms {
+            grid-column: span 2;
+            grid-row: span 1;
+        }
+
+        .card-comms .card-front:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+        }
+
+        .card-comms:hover .bento-icon-wrapper {
+            background: var(--accent-comms);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+
+        .card-comms .bento-icon-wrapper {
+            color: var(--accent-comms);
+        }
+
+        .card-comms .card-back {
+            border-color: var(--accent-comms);
+        }
+
+        .card-audi {
+            grid-column: span 1;
+            grid-row: span 1;
+        }
+
+        .card-audi .card-front:hover {
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .card-audi:hover .bento-icon-wrapper {
+            background: var(--accent-mant);
+            color: #fff;
+        }
+
+        .card-audi .bento-icon-wrapper {
+            color: var(--accent-mant);
+        }
+
+        .card-audi .card-back {
+            border-color: var(--accent-mant);
+        }
+
+        .card-sec {
+            grid-column: span 1;
+            grid-row: span 1;
+        }
+
+        .card-sec .card-front:hover {
+            border-color: rgba(244, 63, 94, 0.4);
+        }
+
+        .card-sec:hover .bento-icon-wrapper {
+            background: var(--accent-sec);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+        }
+
+        .card-sec .bento-icon-wrapper {
+            color: var(--accent-sec);
+        }
+
+        .card-sec .card-back {
+            border-color: var(--accent-sec);
+        }
+
+        @media (max-width: 1200px) {
+            .bento-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .card-welcome {
+                grid-column: span 3;
+            }
+
+            .card-mant,
+            .card-comms {
+                grid-column: span 2;
+            }
+
+            .card-inv {
+                grid-column: span 1;
+                grid-row: span 1;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .bento-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .card-welcome {
+                grid-column: span 2;
+            }
+
+            .card-welcome .bento-title-main {
+                font-size: 2.2rem;
+            }
+
+            .card-mant,
+            .card-comms {
+                grid-column: span 2;
+            }
+
+            .header {
+                padding: 1.5rem 2rem;
+            }
+
+            .main-content {
+                padding: 2rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .bento-container {
+                grid-template-columns: 1fr;
+            }
+
+            .card-welcome,
+            .card-mant,
+            .card-comms {
+                grid-column: span 1;
+            }
+
+            .header {
+                flex-direction: column;
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .card-welcome .bento-title-main {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="ambient-bg"></div>
+    <header class="header">
+        <div class="logo-container">
+            <ion-icon name="grid" class="logo-icon"></ion-icon>
+            <div class="logo-text">SoftCom CCG</div>
+        </div>
+        <div class="user-actions">
+            <a href="{% url 'admin:index' %}" class="btn-text" title="Modo Operador">
+                <ion-icon name="options-outline" style="font-size: 1.2rem;"></ion-icon> Panel Clásico
+            </a>
+            <div class="user-profile">
+                {% if request.user.is_authenticated %}
+                <div class="user-avatar">{{ request.user.username|make_list|first|upper }}</div>
+                <span style="font-weight: 500; font-size: 0.95rem;">{{
+                    request.user.get_full_name|default:request.user.username }}</span>
+                {% else %}
+                <div class="user-avatar">?</div>
+                <span style="font-weight: 500; font-size: 0.95rem;">Invitado</span>
+                {% endif %}
+            </div>
+            {% if request.user.is_authenticated %}
+            <a href="{% url 'admin:logout' %}" class="btn-text btn-icon-hover" title="Cerrar Sessión">
+                <ion-icon name="log-out-outline" style="font-size: 1.4rem;"></ion-icon>
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="bento-container" id="bento-board">
+
+            <!-- 1. Welcome Header (2x2) NORMAL DIV -->
+            <div class="card-welcome">
+                <h1 class="bento-title-main">¿Qué deseas gestionar hoy?</h1>
+                <p style="color: var(--text-muted); font-size: 1.1rem; max-width: 80%; line-height: 1.5;">Bienvenido al
+                    portal inteligente de SoftCom CCG. Haz clic en cualquier módulo para revelar sus áreas internas.</p>
+            </div>
+
+            <!-- 2. Mantenimiento (2x1) FLIP -->
+            <div class="flip-card card-mant" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="bento-content">
+                            <div class="bento-icon-wrapper"><ion-icon name="construct"></ion-icon></div>
+                            <h2 class="bento-title">Mantenimiento</h2>
+                            <p class="bento-desc">Planes preventivos, rutinas, ejecución de OT y control de incidencias.
+                            </p>
+                            <ion-icon name="reload-outline" class="bento-arrow"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="card-back-title">
+                            <span style="color: var(--accent-mant);">Mantenimiento</span>
+                            <button class="btn-close-flip"
+                                onclick="this.closest('.flip-card').classList.remove('flipped')"><ion-icon
+                                    name="close"></ion-icon></button>
+                        </div>
+                        <ul class="submenu-list">
+                            <li><a href="/admin/mantenimiento/ordentrabajo/"><ion-icon name="hammer-outline"></ion-icon>
+                                    Órdenes de Trabajo</a></li>
+                            <li><a href="/admin/mantenimiento/rutinapreventiva/"><ion-icon
+                                        name="calendar-outline"></ion-icon> Planes Preventivos</a></li>
+                            <li><a href="/admin/mantenimiento/aviso/"><ion-icon name="warning-outline"></ion-icon>
+                                    Avisos / Fallas</a></li>
+                            <li><a href="/admin/mantenimiento/tecnicopuesto/"><ion-icon
+                                        name="people-outline"></ion-icon> Personal / Técnicos</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Inventarios (1x2) FLIP -->
+            <div class="flip-card card-inv" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="bento-content">
+                            <div class="bento-icon-wrapper"><ion-icon name="layers"></ion-icon></div>
+                            <h2 class="bento-title">Inventario</h2>
+                            <p class="bento-desc">Stock, solicitudes de material y kardex.</p>
+                            <ion-icon name="reload-outline" class="bento-arrow"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="card-back-title">
+                            <span style="color: var(--accent-inv);">Inventarios</span>
+                            <button class="btn-close-flip"
+                                onclick="this.closest('.flip-card').classList.remove('flipped')"><ion-icon
+                                    name="close"></ion-icon></button>
+                        </div>
+                        <ul class="submenu-list">
+                            <li><a href="/admin/inventarios/material/"><ion-icon name="cube-outline"></ion-icon>
+                                    Materiales (Bodega)</a></li>
+                            <li><a href="/admin/inventarios/solicitudmaterial/"><ion-icon
+                                        name="cart-outline"></ion-icon> Requisiciones Directas</a></li>
+                            <li><a href="/admin/inventarios/stockrecord/"><ion-icon name="analytics-outline"></ion-icon>
+                                    Kardex de Bodega</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Activos (1x1) FLIP -->
+            <div class="flip-card card-act" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="bento-content">
+                            <div class="bento-icon-wrapper"><ion-icon name="desktop"></ion-icon></div>
+                            <h2 class="bento-title">Activos</h2>
+                            <p class="bento-desc">Directorio de equipos.</p>
+                            <ion-icon name="reload-outline" class="bento-arrow"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="card-back-title">
+                            <span style="color: var(--accent-brand);">Activos</span>
+                            <button class="btn-close-flip"
+                                onclick="this.closest('.flip-card').classList.remove('flipped')"><ion-icon
+                                    name="close"></ion-icon></button>
+                        </div>
+                        <ul class="submenu-list">
+                            <li><a href="/admin/activos/activo/"><ion-icon name="list-outline"></ion-icon> Lista de
+                                    Equipos</a></li>
+                            <li><a href="/admin/activos/ubicacion/"><ion-icon name="business-outline"></ion-icon> Árbol
+                                    de Ubicaciones</a></li>
+                            <li><a href="/admin/activos/plano/"><ion-icon name="map-outline"></ion-icon> Mapas y
+                                    Planos</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Presupuestos (1x1) FLIP -->
+            <div class="flip-card card-pres" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="bento-content">
+                            <div class="bento-icon-wrapper"><ion-icon name="wallet"></ion-icon></div>
+                            <h2 class="bento-title">Gastos</h2>
+                            <p class="bento-desc">Aprobaciones financieras.</p>
+                            <ion-icon name="reload-outline" class="bento-arrow"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="card-back-title">
+                            <span style="color: var(--accent-pres);">Presupuestos</span>
+                            <button class="btn-close-flip"
+                                onclick="this.closest('.flip-card').classList.remove('flipped')"><ion-icon
+                                    name="close"></ion-icon></button>
+                        </div>
+                        <ul class="submenu-list">
+                            <li><a href="/admin/presupuestos/requisicion/"><ion-icon name="cash-outline"></ion-icon>
+                                    Requisiciones de Compra</a></li>
+                            <li><a href="/presupuestos/requisiciones/dashboard/"><ion-icon
+                                        name="stats-chart-outline"></ion-icon> Tablero de Control</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. Documentos (1x1) FLIP -->
+            <div class="flip-card card-docs" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="bento-content">
+                            <div class="bento-icon-wrapper"><ion-icon name="document-lock"></ion-icon></div>
+                            <h2 class="bento-title">Docs & FPE</h2>
+                            <p class="bento-desc">Firmas electrónicas.</p>
+                            <ion-icon name="reload-outline" class="bento-arrow"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="card-back-title">
+                            <span style="color: var(--accent-docs);">Legal & Firmas</span>
+                            <button class="btn-close-flip"
+                                onclick="this.closest('.flip-card').classList.remove('flipped')"><ion-icon
+                                    name="close"></ion-icon></button>
+                        </div>
+                        <ul class="submenu-list">
+                            <li><a href="/admin/documentos/documento/"><ion-icon name="folder-open-outline"></ion-icon>
+                                    Centro Documental</a></li>
+                            <li><a href="/firmas/bandeja/"><ion-icon name="create-outline"></ion-icon> Bandeja de
+                                    Firmas</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. Comunicaciones (2x1) FLIP -->
+            <div class="flip-card card-comms" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="bento-content">
+                            <div class="bento-icon-wrapper"><ion-icon name="mail-unread"></ion-icon></div>
+                            <h2 class="bento-title">Comunicaciones</h2>
+                            <p class="bento-desc">Transmittals, seguimiento oficial con stakeholders y minutas.</p>
+                            <ion-icon name="reload-outline" class="bento-arrow"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="card-back-title">
+                            <span style="color: var(--accent-comms);">Gestión de Stakeholders</span>
+                            <button class="btn-close-flip"
+                                onclick="this.closest('.flip-card').classList.remove('flipped')"><ion-icon
+                                    name="close"></ion-icon></button>
+                        </div>
+                        <ul class="submenu-list">
+                            <li><a href="/admin/comunicaciones/comunicado/"><ion-icon name="send-outline"></ion-icon>
+                                    Nuevo Comunicado Oficial</a></li>
+                            <li><a href="/admin/comunicaciones/transmittal/"><ion-icon
+                                        name="document-attach-outline"></ion-icon> Transmittals Generados</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 8. Proyectos (1x1) FLIP -->
+            <div class="flip-card card-proj" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="bento-content">
+                            <div class="bento-icon-wrapper"><ion-icon name="briefcase"></ion-icon></div>
+                            <h2 class="bento-title">Proyectos</h2>
+                            <p class="bento-desc">Avance físico.</p>
+                            <ion-icon name="reload-outline" class="bento-arrow"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="card-back-title">
+                            <span style="color: var(--accent-proj);">Gestión Obras</span>
+                            <button class="btn-close-flip"
+                                onclick="this.closest('.flip-card').classList.remove('flipped')"><ion-icon
+                                    name="close"></ion-icon></button>
+                        </div>
+                        <ul class="submenu-list">
+                            <li><a href="/admin/proyectos/proyecto/"><ion-icon name="git-network-outline"></ion-icon>
+                                    Directorio Proyectos</a></li>
+                            <li><a href="/admin/proyectos/actividad/"><ion-icon name="flag-outline"></ion-icon> Desglose
+                                    Actividades</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 9. Auditorías (1x1) FLIP -->
+            <div class="flip-card card-audi" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="bento-content">
+                            <div class="bento-icon-wrapper"><ion-icon name="checkbox"></ion-icon></div>
+                            <h2 class="bento-title">Auditoría</h2>
+                            <p class="bento-desc">QA/QC en obra.</p>
+                            <ion-icon name="reload-outline" class="bento-arrow"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="card-back-title">
+                            <span style="color: var(--accent-mant);">QA/QC</span>
+                            <button class="btn-close-flip"
+                                onclick="this.closest('.flip-card').classList.remove('flipped')"><ion-icon
+                                    name="close"></ion-icon></button>
+                        </div>
+                        <ul class="submenu-list">
+                            <li><a href="/admin/auditorias/auditoria/"><ion-icon name="clipboard-outline"></ion-icon>
+                                    Visitas de Inspección</a></li>
+                            <li><a href="/admin/auditorias/hallazgo/"><ion-icon name="search-outline"></ion-icon>
+                                    Gestión de Hallazgos</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 10. Seguridad (1x1) FLIP -->
+            <div class="flip-card card-sec" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <div class="bento-content">
+                            <div class="bento-icon-wrapper"><ion-icon name="shield-checkmark"></ion-icon></div>
+                            <h2 class="bento-title">SST</h2>
+                            <p class="bento-desc">Riesgos y reportes.</p>
+                            <ion-icon name="reload-outline" class="bento-arrow"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="card-back" onclick="event.stopPropagation()">
+                        <div class="card-back-title">
+                            <span style="color: var(--accent-sec);">Riesgos Laborales</span>
+                            <button class="btn-close-flip"
+                                onclick="this.closest('.flip-card').classList.remove('flipped')"><ion-icon
+                                    name="close"></ion-icon></button>
+                        </div>
+                        <ul class="submenu-list">
+                            <li><a href="/admin/seguridad/incidente/"><ion-icon name="medical-outline"></ion-icon>
+                                    Reportes de Incidente</a></li>
+                            <li><a href="/admin/seguridad/riesgo/"><ion-icon name="warning-outline"></ion-icon> Matrices
+                                    de Riesgo</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 11. App Móvil (1x1) NORMAL DIV -->
+            <a href="{% url 'core:mobile_dashboard' %}" class="bento-card"
+                style="grid-column: span 1; grid-row: span 1; display:flex; flex-direction:column; padding:2rem; border-radius: 28px; background:var(--card-bg); border: 1px solid var(--card-border); text-decoration:none; color:var(--text-main); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); transition:all 0.4s;">
+                <div class="bento-content">
+                    <div class="bento-icon-wrapper"
+                        style="color: #ec4899; width: 50px; height: 50px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: auto; background: rgba(255,255,255,0.05); transition: all 0.3s ease;">
+                        <ion-icon name="phone-portrait"></ion-icon>
+                    </div>
+                    <h2 class="bento-title"
+                        style="font-size: 1.5rem; font-weight: 600; margin: 1.5rem 0 0.5rem 0; letter-spacing: -0.5px;">
+                        App Móvil</h2>
+                    <p class="bento-desc"
+                        style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5; margin: 0;">App Web PWA
+                        Campo.</p>
+                    <ion-icon name="arrow-forward" class="bento-arrow"></ion-icon>
+                </div>
+            </a>
+            <style>
+                .bento-card:hover {
+                    transform: translateY(-5px);
+                    background: var(--card-hover);
+                    border-color: rgba(255, 255, 255, 0.15);
+                    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+                }
+
+                .bento-card:hover .bento-icon-wrapper {
+                    transform: scale(1.1) rotate(-5deg);
+                    color: #fff !important;
+                    background: #ec4899 !important;
+                    box-shadow: 0 0 20px rgba(236, 72, 153, 0.4);
+                }
+
+                .bento-card:hover .bento-arrow {
+                    opacity: 1;
+                    transform: translate(0, 0);
+                    color: var(--text-main);
+                }
+
+                .bento-card .bento-arrow {
+                    position: absolute;
+                    top: 0rem;
+                    right: 0rem;
+                    font-size: 1.5rem;
+                    opacity: 0;
+                    transform: translate(-10px, 10px);
+                    transition: all 0.3s ease;
+                    color: var(--text-muted);
+                }
+            </style>
+
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cards = document.querySelectorAll('.flip-card, .card-welcome, .bento-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(30px)';
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                    card.style.transition = 'all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                }, 80 * index);
+            });
+        });
+
+        document.getElementById('bento-board').addEventListener('mousemove', e => {
+            for (const card of document.querySelectorAll('.card-front, .bento-card')) {
+                const rect = card.getBoundingClientRect(),
+                    x = e.clientX - rect.left,
+                    y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            }
+        });
+    </script>
+</body>
+
+</html>
