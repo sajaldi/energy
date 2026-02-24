@@ -524,3 +524,96 @@ def import_bienes_afectos_task(self, file_path, file_format, user_id=None, impor
         
     cache.set(cache_key, final_res, 3600)
     return final_res
+@shared_task(bind=True)
+def import_submittals_task(self, file_path, file_format, user_id=None, import_name="Importación Submittals"):
+    """
+    Tarea Celery para importar CONTROL DE SUBMITTALS con seguimiento de progreso real y registro histórico.
+    """
+    from tablib import Dataset
+    from .resources import ControlSubmittalResource
+    from import_export import resources
+    from django.core.files.storage import default_storage
+    from .models import RegistroImportacion
+    from django.contrib.auth.models import User
+    from django.core.cache import cache
+
+    user = User.objects.get(id=user_id) if user_id else None
+    cache_key = f"import_submittals_progress_{user_id}" if user_id else "import_submittals_progress_system"
+    
+    registro = RegistroImportacion.objects.create(
+        nombre=import_name,
+        tipo='Submittals',
+        usuario=user,
+        estado='PROCESANDO'
+    )
+    
+    # Leer archivo
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(file_content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(file_content, format=file_format)
+            elif file_format == 'json':
+                dataset = Dataset().load(file_content, format='json')
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        registro.estado = 'ERROR'
+        registro.detalles_error = str(e)
+        registro.save()
+        return {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+
+    total_rows = len(dataset)
+    registro.total_rows = total_rows
+    registro.save()
+    
+    resource = ControlSubmittalResource()
+    result = resources.Result()
+    
+    for i, row in enumerate(dataset.dict, start=1):
+        try:
+            if i % 5 == 0 or i == total_rows:
+                progress = int((i / total_rows) * 100)
+                meta = {
+                    'current': i, 
+                    'total': total_rows, 
+                    'status': f'Procesando submittal {i}/{total_rows}', 
+                    'percent': progress
+                }
+                self.update_state(state='PROGRESS', meta=meta)
+                cache.set(cache_key, meta, 3600)
+            
+            from import_export.instance_loaders import ModelInstanceLoader
+            instance_loader = ModelInstanceLoader(resource, dataset)
+            row_result = resource.import_row(row, instance_loader, row_number=i, dry_run=False)
+            result.append_row_result(row_result)
+        except Exception as e:
+            result.append_base_error(resources.Error(error=e, traceback=str(e), row=row))
+            
+    # Actualizar registro final
+    registro.filas_nuevas = result.totals.get('new', 0)
+    registro.filas_actualizadas = result.totals.get('update', 0)
+    registro.filas_omitidas = result.totals.get('skip', 0)
+    registro.filas_error = len(result.base_errors) + len(result.row_errors())
+    registro.estado = 'COMPLETADO'
+    registro.save()
+
+    # Limpiar archivo temporal
+    try:
+        if default_storage.exists(file_path):
+            default_storage.delete(file_path)
+    except:
+        pass
+        
+    final_res = {
+        'status': 'completed',
+        'total': total_rows,
+        'new': result.totals.get('new', 0),
+        'updated': result.totals.get('update', 0),
+        'skipped': result.totals.get('skip', 0),
+        'errors': registro.filas_error,
+    }
+    cache.set(cache_key, final_res, 3600)
+    return final_res

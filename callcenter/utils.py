@@ -142,8 +142,22 @@ def import_tickets_from_df(df):
 
     # 3. Ejecutar operaciones en lotes
     if to_create:
-        SolicitudTicket.objects.bulk_create(to_create, batch_size=500)
-    
+        # ignore_conflicts=True evita que un duplicate key aborte toda la transacción.
+        # Los tickets ya existentes (por race condition o webhook previo) son ignorados aquí
+        # y se tratan con update_or_create a continuación para garantizar que sus datos
+        # estén actualizados.
+        created_objs = SolicitudTicket.objects.bulk_create(
+            to_create, batch_size=500, ignore_conflicts=True
+        )
+        # Detectar cuáles NO se insertaron (ya existían) y actualizarlos individualmente
+        created_ids = {obj.id_solicitud for obj in created_objs if obj.pk}
+        conflicts = [obj for obj in to_create if obj.id_solicitud not in created_ids]
+        for obj in conflicts:
+            data_fields = {f: getattr(obj, f) for f in update_fields}
+            SolicitudTicket.objects.filter(id_solicitud=obj.id_solicitud).update(**data_fields)
+            actualizados += 1
+            creados -= 1  # No era un nuevo registro, ajustar contador
+
     if to_update:
         SolicitudTicket.objects.bulk_update(to_update, update_fields, batch_size=500)
 

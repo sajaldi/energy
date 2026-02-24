@@ -7,3 +7,4 @@ from .plano import Plano, VisorPlano, PinPlano, PinFoto
 from .medicion import PuntoMedicion, DocumentoMedicion
 from .importacion import RegistroImportacion
 from .bien_afecto import BienAfecto, HistorialBienAfecto
+from .control_submittal import ControlSubmittal

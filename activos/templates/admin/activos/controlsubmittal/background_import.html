@@ -30,7 +30,7 @@
 
     .progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+        background: linear-gradient(90deg, #10b981, #059669);
         width: 0%;
         transition: width 0.3s ease;
         display: flex;
@@ -58,8 +58,8 @@
     }
 
     .file-upload-zone:hover {
-        border-color: #3b82f6;
-        background-color: #eff6ff;
+        border-color: #10b981;
+        background-color: #ecfdf5;
     }
 
     .error-details-container {
@@ -96,14 +96,21 @@
 {% block content %}
 <div class="import-container">
     <h2 style="margin-bottom: 20px; color: #1e293b;">
-        <span style="color: #3b82f6">🗺️</span> Importación de Planos
+        <span style="color: #10b981">📋</span> Importación Masiva de Submittals
     </h2>
 
-    <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin-bottom: 25px;">
-        <p style="margin: 0; color: #1e3a8a;">
-            <strong>Proceso en Bloques:</strong> Este módulo procesa archivos Excel (.xlsx) o CSV con planos
-            mediante fragmentos en segundo plano para evitar colgar el servidor.
+    <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 15px; margin-bottom: 25px;">
+        <p style="margin: 0; color: #065f46;">
+            <strong>Proceso en Bloques:</strong> Este módulo procesa el archivo de Matriz de Seguimiento en
+            bloques para evitar colgar el servidor. Además, se registrará el historial directamente en el Dashboard.
         </p>
+    </div>
+
+    <div style="margin-bottom: 25px; text-align: center;">
+        <a href="{% url 'admin:activos_controlsubmittal_download_template' %}" class="button"
+            style="background: #059669; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.2rem;">📥</span> Descargar Formato Excel
+        </a>
     </div>
 
     <form id="importForm" enctype="multipart/form-data">
@@ -111,16 +118,16 @@
         <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()">
             <input type="file" id="fileInput" name="file" style="display: none;" accept=".xlsx, .xls, .csv">
             <div style="font-size: 3rem; color: #94a3b8; margin-bottom: 15px;">📁</div>
-            <h3 style="color: #475569; margin: 0;">Selecciona archivo de Planos</h3>
+            <h3 style="color: #475569; margin: 0;">Selecciona archivo de Submittals</h3>
             <p style="color: #94a3b8; margin-top: 5px;">Excel (.xlsx) y CSV con el formato requerido</p>
-            <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #3b82f6;"></div>
+            <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #10b981;"></div>
         </div>
 
         <div style="margin-top: 25px; text-align: right;">
-            <a href="/admin/activos/plano/" class="button"
+            <a href="/admin/activos/controlsubmittal/" class="button"
                 style="background-color: #cbd5e1; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px;">Cancelar</a>
             <button type="submit" class="button"
-                style="background-color: #3b82f6; color: white; padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem;">
+                style="background-color: #10b981; color: white; padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem;">
                 🚀 Iniciar Importación
             </button>
         </div>
@@ -150,10 +157,6 @@
                 <div style="font-size: 0.75rem; color: #64748b; text-transform:uppercase;">Filas Procesadas</div>
                 <div style="font-size: 1.5rem; font-weight:bold; color: #64748b;"><span id="stats-current">0</span> /
                     <span id="stats-total">0</span></div>
-            </div>
-            <div style="text-align:center;">
-                <div style="font-size: 0.75rem; color: #64748b; text-transform:uppercase;">Total Sistema</div>
-                <div style="font-size: 1.5rem; font-weight:bold; color: #3b82f6;" id="stats-dbtotal">--</div>
             </div>
         </div>
 
@@ -195,7 +198,7 @@
         const formData = new FormData(this);
 
         try {
-            const response = await fetch('/admin/activos/plano/import-process/', {
+            const response = await fetch('/admin/activos/controlsubmittal/import-process/', {
                 method: 'POST',
                 body: formData,
                 headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
@@ -229,7 +232,7 @@
         const size = 1000;
 
         try {
-            const response = await fetch(`/admin/activos/plano/import-progress/?import_id=${importId}&start=${start}&size=${size}&format=${format}`);
+            const response = await fetch(`/admin/activos/controlsubmittal/import-progress/?import_id=${importId}&start=${start}&size=${size}&format=${format}`);
 
             if (!response.ok) {
                 const text = await response.text();
@@ -257,7 +260,6 @@
             document.getElementById('stats-new').textContent = data.new || 0;
             document.getElementById('stats-updated').textContent = data.updated || 0;
             document.getElementById('stats-errors').textContent = data.errors || 0;
-            if (data.db_total) document.getElementById('stats-dbtotal').textContent = data.db_total;
 
             if (data.error_list && data.error_list.length > 0) {
                 accumulatedErrors = accumulatedErrors.concat(data.error_list);
@@ -297,7 +299,7 @@
                 setTimeout(() => processChunk(current), 100);
             }
         } catch (error) {
-            Swal.fire('Error', 'Error de red o procesamiento: ' + error.message, 'error');
+            Swal.fire('Error', 'Error de red: ' + error.message, 'error');
             resetUI();
         }
     }

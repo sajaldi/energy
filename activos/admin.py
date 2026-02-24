@@ -9,7 +9,7 @@ from import_export.admin import ImportExportModelAdmin, ImportExportMixin, Impor
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal
 
 # ... (resto de registros)
 from auditorias.models import ResultadoAuditoria
@@ -31,7 +31,7 @@ from .filters import ActivoFaltantesFilter, UbicacionHierarchyFilter
 from .inlines import (SubFamiliaInline, ActivoFamiliaInline, PinPlanoInline, CompatibilidadMaterialInline, 
                       ModeloInline, UbicacionHijaInline, PlanoInline, UbicacionEnPlanosInline, 
                       ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline, AuditoriasActivoInline)
-from .resources import (PlanoResource, DisciplinaResource, FamiliaResource, UbicacionResource, ModeloResource, ActivoResource)
+from .resources import (PlanoResource, DisciplinaResource, FamiliaResource, UbicacionResource, ModeloResource, ActivoResource, ControlSubmittalResource)
 
 
 
@@ -1877,3 +1877,172 @@ try:
 except:
     pass
 admin.site.register(Activo, ActivoAdminCustom)
+@admin.register(ControlSubmittal)
+class ControlSubmittalAdmin(ImportExportModelAdmin):
+    resource_class = ControlSubmittalResource
+    change_list_template = 'admin/activos/controlsubmittal/change_list.html'
+    list_display = (
+        'codigo_ficha', 'codigo_submittal', 'num_submittal', 
+        'especialidad', 'fecha_recibido', 'estatus_ccg', 'dictamen_sup'
+    )
+    list_filter = ('estatus_ccg', 'dictamen_sup', 'estatus_aconex')
+    search_fields = ('codigo_ficha', 'codigo_submittal', 'descripcion', 'especialidad', 'trab_act_n')
+    date_hierarchy = 'fecha_recibido'
+    
+    fieldsets = (
+        ('Información General', {
+            'fields': ('descripcion', 'especialidad', 'trab_act_n', 'fecha_recibido', 'codigo_ficha', 'codigo_submittal', 'num_submittal')
+        }),
+        ('EPC (Revisión)', {
+            'fields': ('fecha_revisado_epc', 'comentario_epc', 'observacion_epc')
+        }),
+        ('Supervisión', {
+            'fields': (
+                'fecha_envio_sup', 'transmision_epc_sup', 'transmision_sup_epc', 
+                'fecha_recepcion_sup', 'dictamen_sup', 'observacion_sup'
+            )
+        }),
+        ('Constructora (CCC)', {
+            'fields': ('enviado_constructora', 'fecha_envio_ccc', 'transmitido_a_ccc', 'fecha_envio_ccc_final')
+        }),
+        ('Estatus y Control', {
+            'fields': ('estatus_aconex', 'estatus_ccg', 'carpeta')
+        }),
+    )
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-background/', self.admin_site.admin_view(self.import_background), name='activos_controlsubmittal_import_background'),
+            path('import-process/', self.admin_site.admin_view(self.import_process), name='activos_controlsubmittal_import_process'),
+            path('import-progress/', self.admin_site.admin_view(self.import_progress), name='activos_controlsubmittal_import_progress'),
+            path('download-template/', self.admin_site.admin_view(self.download_template), name='activos_controlsubmittal_download_template'),
+        ]
+        return custom_urls + urls
+
+    def import_background(self, request):
+        context = {
+            'title': 'Importación masiva de Submittals',
+        }
+        return render(request, 'admin/activos/controlsubmittal/background_import.html', context)
+
+    @csrf_exempt
+    def import_process(self, request):
+        if request.method == 'POST' and request.FILES.get('file'):
+            import os, uuid
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            from django.http import JsonResponse
+            from tablib import Dataset
+            
+            myfile = request.FILES['file']
+            file_name = myfile.name
+            file_format = file_name.split('.')[-1].lower()
+            import_id = str(uuid.uuid4())
+            temp_path = f'tmp/sub_imp_{import_id}.{file_format}'
+            path = default_storage.save(temp_path, ContentFile(myfile.read()))
+            
+            try:
+                with default_storage.open(path, 'rb') as f:
+                    file_content = f.read()
+                    if file_format == 'csv':
+                        from .tasks import try_decode
+                        dataset = Dataset().load(try_decode(file_content), format='csv')
+                    else:
+                        dataset = Dataset().load(file_content, format=file_format)
+                
+                # Normalizar encabezados
+                import unicodedata
+                def normalize(text):
+                    text = str(text).strip().lower()
+                    text = "".join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+                    return text.replace(' ', '_').replace('.', '_')
+
+                dataset.headers = [normalize(h) for h in dataset.headers]
+                
+                # Guardar JSON
+                json_path = f'tmp/sub_imp_{import_id}.json'
+                json_data = dataset.json.encode('utf-8')
+                default_storage.save(json_path, ContentFile(json_data))
+                
+                try:
+                    default_storage.delete(path)
+                except:
+                    pass
+
+                return JsonResponse({
+                    'status': 'started',
+                    'import_id': import_id,
+                    'total': len(dataset),
+                    'file_format': 'json'
+                })
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': f'Error: {str(e)}'}, status=400)
+        return JsonResponse({'status': 'error', 'message': 'No hay archivo'}, status=400)
+
+    def import_progress(self, request):
+        from django.http import JsonResponse
+        from django.core.files.storage import default_storage
+        from tablib import Dataset
+        import_id = request.GET.get('import_id')
+        start = int(request.GET.get('start', 0))
+        chunk_size = int(request.GET.get('size', 50))
+        
+        temp_path = f'tmp/sub_imp_{import_id}.json'
+        if not default_storage.exists(temp_path):
+            return JsonResponse({'status': 'error', 'message': 'No encontrado'}, status=404)
+
+        resource = ControlSubmittalResource()
+        try:
+            with default_storage.open(temp_path, 'rb') as f:
+                dataset = Dataset().load(f.read(), format='json')
+            
+            total = len(dataset)
+            end = min(start + chunk_size, total)
+            chunk = dataset[start:end]
+            
+            # Ejecutar importación del chunk
+            res = resource.import_data(chunk, dry_run=False, raise_errors=False)
+            
+            # Recopilar errores
+            error_list = []
+            for row_res in res.rows:
+                if row_res.errors:
+                    error_list.append({
+                        'row': start + row_res.row_number,
+                        'message': str(row_res.errors[0].error)
+                    })
+
+            # Guardar acumulados en cache/session si fuera necesario, aquí lo hacemos simple
+            # para que el JS los maneje
+            
+            is_last = end >= total
+            if is_last:
+                try:
+                    default_storage.delete(temp_path)
+                except:
+                    pass
+
+            return JsonResponse({
+                'status': 'success',
+                'current': end,
+                'total': total,
+                'new': res.totals.get('new', 0),
+                'updated': res.totals.get('update', 0),
+                'errors': len(error_list),
+                'error_list': error_list,
+                'is_last': is_last
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+    def download_template(self, request):
+        from django.http import HttpResponse
+        from tablib import Dataset
+        resource = ControlSubmittalResource()
+        dataset = resource.export(queryset=ControlSubmittal.objects.none())
+        
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="formato_submittals.xlsx"'
+        return response

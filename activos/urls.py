@@ -40,6 +40,7 @@ urlpatterns = [
     path('celery-import/progress/', views_celery.import_activos_progress, name='celery_import_progress'),
     path('celery-cancel-task/<str:task_id>/', views_celery.celery_cancel_task, name='celery_cancel_task'),
     path('celery-download-template/', views_celery.download_activos_template, name='celery_download_template'),
+    path('import-dashboard/', views_celery.imports_dashboard, name='imports_dashboard'),
 
     # Celery Bienes Afectos Import
     path('celery-import-bienes/', views_celery.import_bienes_afectos_view, name='celery_import_bienes'),

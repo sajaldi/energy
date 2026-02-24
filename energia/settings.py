@@ -226,62 +226,8 @@ if os.environ.get('DATABASE_URL'):
     DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = 'disable'
     print(f"[DEBUG] DB Producción: {DATABASES['default'].get('HOST')} - Puerto: {DATABASES['default'].get('PORT')} - SSL: Disabled")
 else:
-    # Desarrollo local - Túnel SSH automático usando sshtunnel
-    from sshtunnel import SSHTunnelForwarder
-    import socket
-    import sys
-
-    SSH_USER = 'vboxuser'
-    SSH_PASS = 'PasswordRoot07'
-    SSH_HOST = '181.115.47.107'
-    SSH_PORT = 3456
-    LOCAL_DB_PORT = 5434  # Puerto cambiado para evitar conflictos
-    REMOTE_DB_HOST = '10.30.1.11'
-    REMOTE_DB_PORT = 5432
-
-    def _is_port_in_use(port):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(0.2)
-            return s.connect_ex(('127.0.0.1', port)) == 0
-
-    # Evitar múltiples túneles si el reloader de Django se reinicia
-    if not _is_port_in_use(LOCAL_DB_PORT):
-        print(f"[SSH] 🕒 Levantando túnel a {SSH_HOST} en puerto {LOCAL_DB_PORT}...")
-        try:
-            import logging
-            import traceback
-            # logging.getLogger('sshtunnel').setLevel(logging.DEBUG) # Para ver todo
-            
-            tunnel = SSHTunnelForwarder(
-                (SSH_HOST, SSH_PORT),
-                ssh_username=SSH_USER,
-                ssh_password=SSH_PASS,
-                remote_bind_address=(REMOTE_DB_HOST, REMOTE_DB_PORT),
-                local_bind_address=('127.0.0.1', LOCAL_DB_PORT),
-                set_keepalive=30.0,
-            )
-            tunnel.start()
-            if tunnel.is_active:
-                print(f"[SSH] ✅ Túnel OK: 127.0.0.1:{LOCAL_DB_PORT}")
-                # TEST DE CONEXIÓN INMEDIATO
-                try:
-                    import psycopg
-                    conn = psycopg.connect(
-                        dbname='postgres', user='postgres', password='admin123',
-                        host='127.0.0.1', port=LOCAL_DB_PORT, connect_timeout=3
-                    )
-                    conn.close()
-                    print("[SSH] ✅ Prueba de DB exitosa desde settings.py")
-                except Exception as db_err:
-                    print(f"[SSH] ❌ Túnel activo pero DB falló: {db_err}")
-            else:
-                print(f"[SSH] ⚠️  Túnel NO activo tras start().")
-        except Exception as e:
-            print(f"[SSH] ❌ Error fatal iniciando túnel:")
-            traceback.print_exc()
-    else:
-        print(f"[SSH] ✅ Túnel detectado en puerto {LOCAL_DB_PORT}")
-
+    # Desarrollo local - Conexión manual vía Túnel (dist/Softcom_DB_Tunnel.exe)
+    LOCAL_DB_PORT = 5434
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -469,10 +415,12 @@ JAZZMIN_SETTINGS = {
     "user_avatar": None,
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "🌟 Menu Principal", "url": "/portal/", "permissions": ["auth.view_user"]},
         {"name": "📦 Dashboard Requisiciones", "url": "/presupuestos/requisiciones/dashboard/", "permissions": ["presupuestos.view_requisicion"]},
         {"model": "auth.User"},
         {"name": "Asistente AI", "url": "/admin/chatbot_trigger/", "new_window": False},
         {"name": "🔄 Sincronizar SIG", "url": "/admin/callcenter/solicitudticket/sync-tickets/", "permissions": ["callcenter.view_solicitudticket"]},
+        {"name": "📊 Dashboard Importaciones", "url": "/activos/import-dashboard/", "permissions": ["activos.view_registroimportacion"]},
     ],
     "show_sidebar": True,
     "navigation_expanded": False,

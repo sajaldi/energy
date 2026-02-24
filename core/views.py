@@ -669,6 +669,7 @@ def global_search(request):
             Q(solicitud_descripcion__icontains=query)
         )[:20]
 
+    from django.contrib import admin
     context = {
         'query': query,
         'activos': activos,
@@ -678,3 +679,21 @@ def global_search(request):
         **admin.site.each_context(request),
     }
     return render(request, 'admin/global_search_results.html', context)
+
+
+@login_required
+def system_portal(request):
+    """
+    Menú general del sistema interactivo y visual (Portal).
+    """
+    from django.contrib import admin
+    context = {
+        'title': 'Portal del Sistema',
+    }
+    try:
+        context.update(admin.site.each_context(request))
+    except Exception:
+        pass
+        
+    return render(request, 'core/system_portal.html', context)
+

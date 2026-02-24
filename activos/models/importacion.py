@@ -11,6 +11,7 @@ class RegistroImportacion(models.Model):
     ]
 
     nombre = models.CharField(max_length=200, help_text="Nombre descriptivo de esta importación")
+    tipo = models.CharField(max_length=100, default='Activos', help_text="Tipo de datos (Activos, Planos, Submittals, etc.)")
     fecha = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     

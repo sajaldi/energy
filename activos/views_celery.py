@@ -245,3 +245,31 @@ def download_bienes_template(request):
         response['Content-Disposition'] = 'attachment; filename="plantilla_bienes_afectos.xlsx"'
         
     return response
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def imports_dashboard(request):
+    """
+    Dashboard unificado para ver el historial de todas las importaciones (Celery).
+    """
+    from .models import RegistroImportacion
+    from django.contrib import admin
+    from django.db.models import Count, Q
+    
+    # Obtener todas las importaciones, ordenadas por fecha descendente
+    importaciones = RegistroImportacion.objects.all().select_related('usuario')[:100]
+    
+    # Estadísticas globales
+    stats = RegistroImportacion.objects.aggregate(
+        total=Count('id'),
+        completadas=Count('id', filter=Q(estado='COMPLETADO')),
+        errores=Count('id', filter=Q(estado='ERROR') | Q(filas_error__gt=0))
+    )
+    
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Dashboard de Importaciones (Celery)',
+        'importaciones': importaciones,
+        'stats': stats,
+    }
+    return render(request, 'activos/import_dashboard.html', context)

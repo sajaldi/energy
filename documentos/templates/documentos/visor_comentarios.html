@@ -487,7 +487,10 @@
                 </div>
                 <div id="pin-detail-assigned" style="margin-bottom:15px;"></div>
 
-                <div id="pin-actions" style="display:flex; gap:10px; justify-content:flex-end;">
+                <div id="pin-actions" style="display:flex; gap:10px; justify-content:flex-end; flex-wrap: wrap;">
+                    <button id="btn-copy-url" onclick="copyPinUrl()" class="control-btn"
+                        style="background:transparent; border:1px solid #10b981; color:#10b981;">📋
+                        Copiar Link</button>
                     <button id="btn-link-pin" onclick="openSearchModal()" class="control-btn"
                         style="background:transparent; border:1px solid var(--primary); color:var(--primary);">🔗
                         Vincular</button>
@@ -1276,6 +1279,40 @@
         document.getElementById('pin-details-modal').style.display = 'none';
         currentPinId = null;
         currentCommentData = null;
+    }
+
+    function copyPinUrl() {
+        if (!currentPinId) return;
+        const url = `${window.location.origin}/documentos/visor-pines/${docId}/?target_pin=${currentPinId}`;
+
+        navigator.clipboard.writeText(url).then(() => {
+            const btn = document.getElementById('btn-copy-url');
+            if (!btn) return;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "✅ ¡Copiado!";
+            btn.style.backgroundColor = "#10b981";
+            btn.style.color = "white";
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.backgroundColor = "transparent";
+                btn.style.color = "#10b981";
+            }, 2000);
+        }).catch(err => {
+            console.error('Error al copiar:', err);
+            // Fallback para navegadores antiguos
+            const textArea = document.createElement("textarea");
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert("Link copiado al portapapeles");
+            } catch (e) {
+                alert("No se pudo copiar el link.");
+            }
+            document.body.removeChild(textArea);
+        });
     }
 
     function enableEditMode() {

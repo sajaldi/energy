@@ -1,7 +1,7 @@
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, Disciplina, BienAfecto
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, Disciplina, BienAfecto, ControlSubmittal
 from documentos.models import Documento
 from .widgets import (
     SmartModeloWidget, SmartUserWidget, SmartActivoWidget, SmartFamiliaWidget, 
@@ -674,3 +674,19 @@ class BienAfectoResource(resources.ModelResource):
         if obj.ubicacion:
             return obj.ubicacion.ruta_completa
         return ""
+
+class ControlSubmittalResource(resources.ModelResource):
+    class Meta:
+        model = ControlSubmittal
+        import_id_fields = ('codigo_ficha',)
+        fields = (
+            'descripcion', 'especialidad', 'trab_act_n',
+            'fecha_recibido', 'codigo_ficha', 'codigo_submittal', 'num_submittal',
+            'fecha_revisado_epc', 'comentario_epc', 'observacion_epc',
+            'fecha_envio_sup', 'transmision_epc_sup', 'transmision_sup_epc',
+            'fecha_recepcion_sup', 'dictamen_sup', 'observacion_sup',
+            'enviado_constructora', 'fecha_envio_ccc', 'estatus_aconex',
+            'estatus_ccg', 'carpeta', 'transmitido_a_ccc', 'fecha_envio_ccc_final'
+        )
+        skip_unchanged = True
+        report_skipped = True

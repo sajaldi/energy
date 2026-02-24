@@ -1301,7 +1301,14 @@
                         return `
                             <div class="comment-item" onclick="goToComment(${c.id}, ${c.x}, ${c.y}, ${c.pagina})">
                                 <div class="comment-meta">
-                                    <strong>${c.usuario}</strong>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <strong>${c.usuario}</strong>
+                                        <button onclick="event.stopPropagation(); copyCommentUrl(${docId}, ${c.id}, this)" 
+                                                title="Copiar URL directa al pin"
+                                                style="background:none; border:none; cursor:pointer; font-size:12px; padding:2px; display:flex; align-items:center; opacity:0.6; transition:opacity 0.2s;">
+                                            📋
+                                        </button>
+                                    </div>
                                     <span>${c.fecha}</span>
                                 </div>
                                 <div style="font-size: 0.9rem; color: #1e293b;">${c.texto}</div>
@@ -1488,6 +1495,7 @@
 
     function renderPins() {
         const layer = document.getElementById('pins-layer');
+        if (!layer) return;
         layer.innerHTML = '';
         allComments.filter(c => c.pagina === pageNum).forEach(c => {
             if (c.tipo === 'AREA') {
@@ -1707,7 +1715,36 @@
 
     function closeDetails() {
         document.getElementById('doc-details').classList.remove('open');
+        currentDocId = null;
         document.querySelectorAll('.doc-node').forEach(n => n.classList.remove('active'));
+    }
+
+    function copyCommentUrl(idDoc, idPin, btn) {
+        const url = `${window.location.origin}/documentos/visor-pines/${idDoc}/?target_pin=${idPin}`;
+
+        navigator.clipboard.writeText(url).then(() => {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "✅";
+            btn.style.opacity = "1";
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.opacity = "0.6";
+            }, 2000);
+        }).catch(err => {
+            console.error('Error al copiar:', err);
+            const textArea = document.createElement("textarea");
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                btn.innerHTML = "✅";
+                setTimeout(() => { btn.innerHTML = "📋"; }, 2000);
+            } catch (e) {
+                alert("No se pudo copiar el link.");
+            }
+            document.body.removeChild(textArea);
+        });
     }
 </script>
 <style>
