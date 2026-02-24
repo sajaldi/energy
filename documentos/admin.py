@@ -10,6 +10,7 @@ from django.db import models
 from import_export.admin import ImportExportModelAdmin
 from .resources import ComentarioDocumentoResource
 from .views_import import import_comentarios_background, import_comentarios_process, import_comentarios_progress, download_template
+from plantillas.admin import TemplateExportMixin
 
 class ComentarioDocumentoInline(admin.TabularInline):
     model = ComentarioDocumento
@@ -54,8 +55,8 @@ class MetadatoValorInline(admin.TabularInline):
         return False # Se crean dinámicamente
 
 @admin.register(Documento)
-class DocumentoAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'get_ultima_revision_info', 'trazabilidad_link', 'extraer_datos_button', 'solicitar_firmas_link')
+class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
+    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'get_word_templates_buttons', 'get_ultima_revision_info', 'trazabilidad_link', 'extraer_datos_button', 'solicitar_firmas_link')
     list_filter = ('tipo_documento', 'disciplina', 'estado_actual')
     search_fields = ('codigo', 'titulo', 'revisiones__comentarios')
     
@@ -72,7 +73,7 @@ class DocumentoAdmin(admin.ModelAdmin):
             'fields': (('codigo', 'titulo'), ('tipo_documento', 'disciplina'), ('respuesta_a', 'trazabilidad_link'))
         }),
         ('Estado', {
-            'fields': ('estado_actual', 'ultima_revision', 'extraer_datos_button')
+            'fields': ('estado_actual', 'ultima_revision', 'extraer_datos_button', 'get_word_templates_buttons')
         }),
         ('Relaciones', {
             'fields': ('activos', 'ubicaciones')
@@ -83,7 +84,7 @@ class DocumentoAdmin(admin.ModelAdmin):
         }),
     )
     
-    readonly_fields = ('ultima_revision', 'extraer_datos_button', 'trazabilidad_link', 'contenido_texto_display') 
+    readonly_fields = ('ultima_revision', 'extraer_datos_button', 'trazabilidad_link', 'contenido_texto_display', 'get_word_templates_buttons') 
 
     def trazabilidad_link(self, obj):
         if not obj.pk: return "-"

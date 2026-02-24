@@ -1,0 +1,307 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Generador de Plantillas Word{% endblock %}
+
+{% block content %}
+<style>
+    .plantilla-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem 0;
+    }
+
+    .search-box {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 0.85rem 1.2rem 0.85rem 3rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.3s;
+        box-sizing: border-box;
+    }
+
+    .search-box input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .search-box .icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 1.1rem;
+    }
+
+    .modelos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 1rem;
+    }
+
+    .modelo-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.2rem;
+        cursor: pointer;
+        transition: all 0.25s;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .modelo-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .modelo-card.selected {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .modelo-app {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .modelo-nombre {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .modelo-campos {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+
+    .panel-campos {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+        display: none;
+    }
+
+    .campos-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .campo-badge {
+        background: #1e293b;
+        color: #94a3b8;
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: all;
+    }
+
+    .campo-badge:hover {
+        background: #3b82f6;
+        color: #fff;
+    }
+
+    .campo-badge .tipo {
+        font-size: 0.65rem;
+        opacity: 0.6;
+        margin-left: 4px;
+    }
+
+    .btn-descargar {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.8rem 2rem;
+        background: linear-gradient(135deg, #3b82f6, #6366f1);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.3s;
+        margin-top: 1.5rem;
+    }
+
+    .btn-descargar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        color: #fff;
+    }
+
+    .btn-descargar:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .hint {
+        background: #fef9c3;
+        border: 1px solid #fde68a;
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+        color: #713f12;
+    }
+
+    .copied-toast {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: #1e293b;
+        color: #fff;
+        padding: 0.8rem 1.4rem;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 9999;
+        pointer-events: none;
+    }
+
+    .copied-toast.show {
+        opacity: 1;
+    }
+</style>
+
+<div class="plantilla-container">
+    <h1>📄 Generador de Plantillas Word</h1>
+
+    <div class="hint">
+        💡 <strong>Flujo:</strong>
+        1. Selecciona un modelo → 2. Copia los marcadores <code>{{ campo }}</code> que necesites →
+        3. Descarga la plantilla en blanco → 4. Diseña en Word → 5. Súbela en <a
+            href="{% url 'admin:plantillas_plantillaword_add' %}">Admin → Plantillas</a>
+    </div>
+
+    <!-- Buscador -->
+    <div class="search-box">
+        <span class="icon">🔍</span>
+        <input type="text" id="buscador" placeholder="Buscar modelo... (ej: Documento, Activo, Ticket)">
+    </div>
+
+    <!-- Grid de modelos -->
+    <div class="modelos-grid" id="modelos-grid">
+        <div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding: 2rem;">
+            Cargando modelos...
+        </div>
+    </div>
+
+    <!-- Panel de campos del modelo seleccionado -->
+    <div class="panel-campos" id="panel-campos">
+        <h3 id="panel-titulo" style="margin:0 0 0.3rem 0; color:#1e293b;"></h3>
+        <p style="color:#64748b; font-size:0.85rem; margin:0;">
+            Haz clic en un marcador para copiarlo al portapapeles. Úsalos en tu documento Word.
+        </p>
+        <div class="campos-grid" id="campos-grid"></div>
+        <a id="btn-descargar" class="btn-descargar" href="#" target="_blank">
+            ⬇️ Descargar Plantilla en Blanco (.docx)
+        </a>
+    </div>
+</div>
+
+<div class="copied-toast" id="toast">✅ Copiado al portapapeles</div>
+
+<script>
+    let modelosData = [];
+    let ctSeleccionado = null;
+
+    async function cargarModelos() {
+        const res = await fetch("{% url 'plantillas:api_modelos' %}");
+        const data = await res.json();
+        modelosData = data.modelos;
+        renderModelos(modelosData);
+    }
+
+    function renderModelos(lista) {
+        const grid = document.getElementById('modelos-grid');
+        if (!lista.length) {
+            grid.innerHTML = '<p style="color:#94a3b8;grid-column:1/-1;text-align:center;">Sin resultados</p>';
+            return;
+        }
+        grid.innerHTML = lista.map(m => `
+        <div class="modelo-card" onclick="seleccionarModelo(${m.id}, '${m.nombre}', '${m.app}')"
+             data-id="${m.id}">
+            <div class="modelo-app">${m.app}</div>
+            <div class="modelo-nombre">${m.nombre}</div>
+            <div class="modelo-campos" id="count-${m.id}">Haz clic para ver campos</div>
+        </div>
+    `).join('');
+    }
+
+    async function seleccionarModelo(ctId, nombre, app) {
+        ctSeleccionado = ctId;
+
+        // Marcar seleccionada
+        document.querySelectorAll('.modelo-card').forEach(c => c.classList.remove('selected'));
+        document.querySelector(`.modelo-card[data-id="${ctId}"]`).classList.add('selected');
+
+        // Cargar campos
+        const res = await fetch(`{% url 'plantillas:api_modelos' %}`.replace('api/modelos/', `api/campos/${ctId}/`));
+        const data = await res.json();
+
+        document.getElementById('panel-titulo').textContent = `Marcadores de ${nombre} (${app})`;
+        document.getElementById('count-' + ctId).textContent = `${data.campos.length} campos disponibles`;
+
+        const grid = document.getElementById('campos-grid');
+        grid.innerHTML = data.campos.map(c => `
+        <span class="campo-badge" onclick="copiar('${c.placeholder}')" title="${c.etiqueta} (${c.tipo})">
+            ${c.placeholder}<span class="tipo">${c.tipo}</span>
+        </span>
+    `).join('');
+
+        // URL de descarga
+        const url = "{% url 'plantillas:generar' 0 %}".replace('/0/', `/${ctId}/`);
+        document.getElementById('btn-descargar').href = url;
+
+        document.getElementById('panel-campos').style.display = 'block';
+        document.getElementById('panel-campos').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function copiar(texto) {
+        navigator.clipboard.writeText(texto).then(() => {
+            const toast = document.getElementById('toast');
+            toast.textContent = `✅ Copiado: ${texto}`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        });
+    }
+
+    // Buscador en tiempo real
+    document.getElementById('buscador').addEventListener('input', e => {
+        const q = e.target.value.toLowerCase();
+        const filtrados = modelosData.filter(m =>
+            m.nombre.toLowerCase().includes(q) ||
+            m.app.toLowerCase().includes(q) ||
+            m.modelo.toLowerCase().includes(q)
+        );
+        renderModelos(filtrados);
+    });
+
+    cargarModelos();
+</script>
+{% endblock %}

@@ -14,8 +14,11 @@ def sync_tickets_task(days=2):
     Tarea de Celery para sincronizar tickets desde SIG GIA.
     """
     # Estas credenciales deberían estar en variables de entorno o settings por seguridad
-    username = os.environ.get('CALLCENTER_USER', 'saul.alvarado')
-    password = os.environ.get('CALLCENTER_PASS', '***REMOVED***')
+    username = os.environ.get('CALLCENTER_USER')
+    password = os.environ.get('CALLCENTER_PASS')
+    if not username or not password:
+        logger.error("CALLCENTER_USER o CALLCENTER_PASS no están configurados en las variables de entorno.")
+        return {"status": "error", "message": "Credenciales no configuradas (ver CALLCENTER_USER / CALLCENTER_PASS)"}
     company = "Centro Cívico Gubernamental de Honduras"
     
     logger.info(f"Iniciando sincronización de tickets de los últimos {days} días...")

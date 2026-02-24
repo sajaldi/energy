@@ -144,6 +144,7 @@ INSTALLED_APPS = [
     'storages',
     'core',  # Mover al inicio para que sus templates (overrides) tengan prioridad
     'documentos', # Nueva gestión documental
+    'plantillas', # Sistema de plantillas Word
     'comunicaciones', # Nuevo sistema de mail/transmittals
     'proyectos', # Gestión de proyectos y actividades
     'jazzmin',
