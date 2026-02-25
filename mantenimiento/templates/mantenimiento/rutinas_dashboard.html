@@ -895,6 +895,55 @@
                 if (onc && onc.includes(tab)) btn.classList.add('active');
             });
         }
+
+        // --- FUNCIONES DEL SELECTOR DE PROCEDIMIENTOS ---
+        function openProcedureSelector() {
+            const modal = document.getElementById('selectorModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                document.getElementById('selector-search').value = '';
+                filterSelectorItems('');
+                document.getElementById('selector-search').focus();
+            }
+        }
+
+        function closeProcedureSelector() {
+            const modal = document.getElementById('selectorModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function filterSelectorItems(term) {
+            const items = document.querySelectorAll('.selector-item');
+            const lowerTerm = term.toLowerCase();
+            items.forEach(item => {
+                const text = item.innerText.toLowerCase();
+                if (text.includes(lowerTerm)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        function selectFromModal(id, name) {
+            const procHiddenInput = document.getElementById('f-procedimiento');
+            const procSearchInput = document.getElementById('proc-search-input');
+            const procResultsList = document.getElementById('proc-results-list');
+
+            if (procHiddenInput) procHiddenInput.value = id;
+            if (procSearchInput) procSearchInput.value = name;
+
+            // Cerrar lista dropdown si estaba abierta
+            if (procResultsList) procResultsList.style.display = 'none';
+
+            // Cargar los pasos
+            loadProcedureSteps(id);
+
+            // Cerrar modal selector
+            closeProcedureSelector();
+
+            showToast('Procedimiento seleccionado: ' + (name || 'Ninguno'), 'success');
+        }
     </script>
 </body>
 

@@ -22,11 +22,9 @@ class Servicio(models.Model):
 
 class KPI(models.Model):
     """Modelo para Key Performance Indicators (Indicadores Clave de Desempeño)"""
-    TIPO_CHOICES = [
-        ('porcentaje', 'Porcentaje'),
-        ('numero', 'Número'),
-        ('tiempo', 'Tiempo'),
-        ('costo', 'Costo'),
+    CATEGORIA_CHOICES = [
+        ('MEJORA', 'Mejora'),
+        ('MAYOR', 'Mayor'),
     ]
     
     servicio = models.ForeignKey(
@@ -34,12 +32,11 @@ class KPI(models.Model):
         on_delete=models.CASCADE, 
         related_name='kpis'
     )
-    nombre = models.CharField(max_length=200)
-    descripcion = models.TextField(blank=True)
-    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='numero')
-    meta = models.DecimalField(max_digits=10, decimal_places=2, help_text="Meta u objetivo del KPI")
-    valor_actual = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    unidad_medida = models.CharField(max_length=50, blank=True, help_text="Ej: %, horas, USD, etc.")
+    nombre = models.CharField(max_length=200, blank=True, default='')
+    descripcion = models.TextField(blank=True, default='')
+    forma_de_cumplimiento = models.TextField(blank=True, default='', help_text="Forma de cumplimiento (Texto)")
+    metodo_de_supervision = models.TextField(blank=True, default='', help_text="Método de Supervisión (Texto)")
+    categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, default='MAYOR')
     
     # Fechas
     fecha_medicion = models.DateField(default=timezone.now)
@@ -52,11 +49,4 @@ class KPI(models.Model):
         ordering = ['-fecha_medicion', 'servicio']
         
     def __str__(self):
-        return f"{self.servicio.nombre} - {self.nombre}"
-    
-    @property
-    def porcentaje_cumplimiento(self):
-        """Calcula el porcentaje de cumplimiento respecto a la meta"""
-        if self.meta > 0:
-            return (self.valor_actual / self.meta) * 100
-        return 0
+        return f"{self.servicio.nombre} - {self.categoria}"

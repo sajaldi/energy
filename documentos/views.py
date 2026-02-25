@@ -278,12 +278,13 @@ def callback_n8n_procesamiento(request, revision_id):
         
         # 2. Actualizar Metadatos Extraídos
         metadatos_ia = data.get('metadatos', {})
+        if not revision.datos_extraidos:
+            revision.datos_extraidos = {}
+            
         if metadatos_ia:
-            if not revision.datos_extraidos:
-                revision.datos_extraidos = {}
             revision.datos_extraidos['ia_metadata'] = metadatos_ia
             
-            # Si n8n sugiere un código o título, guardarlos en text_preview para que el wizard los tome
+            # Si n8n sugiere un código o título, guardarlos para que el wizard los tome
             if metadatos_ia.get('codigo'):
                 revision.datos_extraidos['suggested_code'] = metadatos_ia.get('codigo')
             if metadatos_ia.get('titulo'):
@@ -294,6 +295,8 @@ def callback_n8n_procesamiento(request, revision_id):
         if texto_completo:
             revision.documento.contenido_texto = texto_completo
             revision.documento.save()
+            # Guardar también en la revisión para el visor del Wizard
+            revision.datos_extraidos['text_preview'] = texto_completo[:5000]
 
         revision.estado_extraccion = 'COMPLETADO'
         revision.save()
@@ -700,3 +703,32 @@ def documento_chat_ia(request):
         logger = logging.getLogger(__name__)
         logger.error(f"Excepcion en chat IA: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
+@login_required
+def documento_sync_metadatos(request, doc_id):
+    """
+    Sincroniza los metadatos de un documento con la configuración actual
+    del su TipoDocumento. Crea registros vacíos para campos faltantes.
+    """
+    from django.contrib import messages
+    from django.shortcuts import redirect
+    from .models import MetadatoValor
+    
+    doc = get_object_or_404(Documento, id=doc_id)
+    configs = MetadatoConfig.objects.filter(tipo_documento=doc.tipo_documento)
+    
+    creados = 0
+    for config in configs:
+        obj, created = MetadatoValor.objects.get_or_create(
+            documento=doc,
+            config=config,
+            defaults={'valor': ''}
+        )
+        if created:
+            creados += 1
+            
+    if creados > 0:
+        messages.success(request, f"Se generaron {creados} campos de metadatos nuevos.")
+    else:
+        messages.info(request, "Los metadatos ya están sincronizados.")
+        
+    return redirect(f'/admin/documentos/documento/{doc_id}/change/')

@@ -17,4 +17,6 @@ urlpatterns = [
     path('app/qr/', views.qr_resolver, name='qr_resolver'),
     path('admin/global-search/', views.global_search, name='global_search'),
     path('portal/', views.system_portal, name='system_portal'),
+    path('vistas/guardar/', views.guardar_vista_personalizada, name='guardar_vista'),
+    path('vistas/eliminar/<int:vista_id>/', views.eliminar_vista_personalizada, name='eliminar_vista'),
 ]

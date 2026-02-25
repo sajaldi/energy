@@ -26,6 +26,234 @@
                 console.error('Error al inicializar Select2:', e);
             }
 
+            // ========== CUSTOM PROVIDER SEARCH LOGIC ==========
+            const providerSearch = {
+                allProviders: [],
+                selectedIds: [],
+
+                init() {
+                    console.log('Iniciando buscador de proveedores...');
+                    this.cacheProviders();
+                    this.bindEvents();
+                    this.renderSelected();
+                },
+
+                cacheProviders() {
+                    // Cargar proveedores desde el select oculto de Django
+                    $('#provider-hidden-select select option').each((i, el) => {
+                        const val = $(el).val();
+                        if (val) {
+                            // Usar .prop('innerHTML') o similar si .text() falla con encoding
+                            const rawName = $(el).html();
+                            // Decodificar entidades HTML si las hay
+                            const decodedName = $('<div/>').html(rawName).text();
+
+                            this.allProviders.push({
+                                id: val,
+                                name: decodedName || $(el).text()
+                            });
+                            if ($(el).is(':selected')) {
+                                this.selectedIds.push(val);
+                            }
+                        }
+                    });
+                },
+
+                bindEvents() {
+                    const $input = $('#provider-search-input');
+                    const $results = $('#provider-search-results');
+
+                    $input.on('input', (e) => {
+                        const query = e.target.value.toLowerCase().trim();
+                        if (query.length < 2) {
+                            $results.hide();
+                            return;
+                        }
+                        this.showResults(query);
+                    });
+
+                    $input.on('focus', (e) => {
+                        const query = e.target.value.toLowerCase().trim();
+                        if (query.length >= 2) this.showResults(query);
+                    });
+
+                    $(document).on('click', (e) => {
+                        if (!$(e.target).closest('.provider-search-wrapper').length) {
+                            $results.hide();
+                        }
+                    });
+
+                    $results.on('click', '.search-result-item', (e) => {
+                        const id = $(e.currentTarget).data('id');
+                        this.toggleProvider(id);
+                        $input.val('');
+                        $results.hide();
+                    });
+
+                    $('#selected-providers-list').on('click', '.remove-tag', (e) => {
+                        const id = $(e.currentTarget).data('id').toString();
+                        this.toggleProvider(id);
+                    });
+                },
+
+                showResults(query) {
+                    const $results = $('#provider-search-results');
+                    const filtered = this.allProviders.filter(p => p.name.toLowerCase().includes(query));
+
+                    if (filtered.length === 0) {
+                        $results.html('<div class="search-result-item">No se encontraron resultados</div>').show();
+                        return;
+                    }
+
+                    const html = filtered.map(p => `
+                        <div class="search-result-item ${this.selectedIds.includes(p.id) ? 'selected' : ''}" data-id="${p.id}">
+                            <span>${p.name}</span>
+                            ${this.selectedIds.includes(p.id) ? '<span>✅</span>' : ''}
+                        </div>
+                    `).join('');
+
+                    $results.html(html).show();
+                },
+
+                toggleProvider(id) {
+                    const index = this.selectedIds.indexOf(id);
+                    if (index === -1) {
+                        this.selectedIds.push(id);
+                    } else {
+                        this.selectedIds.splice(index, 1);
+                    }
+
+                    this.syncWithHiddenSelect();
+                    this.renderSelected();
+
+                    // Actualizar agrupación en Paso 2 si estamos ahí
+                    if (typeof refreshArticleGrouping === 'function') {
+                        refreshArticleGrouping();
+                    }
+                },
+
+                syncWithHiddenSelect() {
+                    const $select = $('#provider-hidden-select select');
+                    $select.val(this.selectedIds).trigger('change');
+                },
+
+                renderSelected() {
+                    const $list = $('#selected-providers-list');
+                    if (this.selectedIds.length === 0) {
+                        $list.html('<small style="color:var(--text-muted); font-style:italic;">Ningún proveedor seleccionado</small>');
+                        return;
+                    }
+
+                    const html = this.selectedIds.map(id => {
+                        const p = this.allProviders.find(prov => prov.id === id);
+                        if (!p) return '';
+                        return `
+                            <div class="provider-tag">
+                                🏢 ${p.name}
+                                <span class="remove-tag" data-id="${id}">✕</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    $list.html(html);
+                }
+            };
+            providerSearch.init();
+
+            // ========== ON-BEHALF USER SEARCH LOGIC ==========
+            const onBehalfSearch = {
+                allUsers: [],
+
+                init() {
+                    console.log('Iniciando buscador de usuarios (En nombre de)...');
+                    this.cacheUsers();
+                    this.bindEvents();
+
+                    // Si ya hay un valor, mostrarlo en el input
+                    const currentVal = $('#on-behalf-hidden-select select').val();
+                    if (currentVal) {
+                        const user = this.allUsers.find(u => u.id === currentVal);
+                        if (user) $('#on-behalf-search-input').val(user.name);
+                    }
+                },
+
+                cacheUsers() {
+                    const $container = $('#on-behalf-hidden-select');
+                    const $select = $container.find('select');
+
+                    if ($select.length === 0) {
+                        console.error('No se encontró el select de usuarios en #on-behalf-hidden-select');
+                        return;
+                    }
+
+                    $select.find('option').each((i, el) => {
+                        const val = $(el).val();
+                        if (val) {
+                            const rawName = $(el).html();
+                            const decodedName = $('<div/>').html(rawName).text();
+                            this.allUsers.push({
+                                id: val,
+                                name: (decodedName || $(el).text()).trim()
+                            });
+                        }
+                    });
+                    console.log(`Buscador de usuarios: ${this.allUsers.length} usuarios cargados.`);
+                },
+
+                bindEvents() {
+                    const $input = $('#on-behalf-search-input');
+                    const $results = $('#on-behalf-search-results');
+
+                    $input.on('input', (e) => {
+                        const query = e.target.value.toLowerCase().trim();
+                        if (query.length < 2) {
+                            $results.hide();
+                            return;
+                        }
+                        this.showResults(query);
+                    });
+
+                    $input.on('focus', (e) => {
+                        const query = e.target.value.toLowerCase().trim();
+                        if (query.length >= 2) this.showResults(query);
+                    });
+
+                    $(document).on('click', (e) => {
+                        if (!$(e.target).closest('.on-behalf-search-wrapper').length) {
+                            $results.hide();
+                        }
+                    });
+
+                    $results.on('click', '.search-result-item', (e) => {
+                        const id = $(e.currentTarget).data('id').toString();
+                        const name = $(e.currentTarget).find('span').first().text();
+
+                        $input.val(name);
+                        $('#on-behalf-hidden-select select').val(id).trigger('change');
+                        $results.hide();
+                    });
+                },
+
+                showResults(query) {
+                    const $results = $('#on-behalf-search-results');
+                    const filtered = this.allUsers.filter(u => u.name.toLowerCase().includes(query));
+
+                    if (filtered.length === 0) {
+                        $results.html('<div class="search-result-item">No se encontraron usuarios</div>').show();
+                        return;
+                    }
+
+                    const html = filtered.map(u => `
+                        <div class="search-result-item" data-id="${u.id}">
+                            <span>👤 ${u.name}</span>
+                        </div>
+                    `).join('');
+
+                    $results.html(html).show();
+                }
+            };
+            onBehalfSearch.init();
+
             // ReadOnly Check
             const isReadOnly = "{{ is_readonly|yesno:'true,false' }}" === "true";
 
@@ -107,39 +335,126 @@
                 $('#wizard-form').submit();
             });
 
+            // Lógica de Agrupación de Artículos por Proveedor
+            function refreshArticleGrouping() {
+                const step2Card = $('#card-step-2');
+                if (!step2Card.length) return;
+
+                console.log('Refrescando agrupación por proveedor...');
+
+                // 1. Obtener proveedores seleccionados
+                const selectedProviders = providerSearch.selectedIds;
+                const providerNames = {};
+
+                providerSearch.allProviders.forEach(p => {
+                    if (selectedProviders.includes(p.id)) {
+                        providerNames[p.id] = p.name;
+                    }
+                });
+
+                // 2. Asegurarnos que existan los contenedores por proveedor
+                let container = $('#articles-container');
+                if (!container.length) return;
+
+                // Limpiar headers viejos si los hubiera (solo los headers internos de agrupación)
+                container.find('.provider-group-wrapper').each(function () {
+                    // Mover los hijos de vuelta al contenedor principal antes de borrar
+                    $(this).find('.article-row').appendTo(container);
+                    $(this).remove();
+                });
+
+                // Crear secciones para cada proveedor seleccionado
+                selectedProviders.forEach(id => {
+                    let section = $(`<div class="provider-group-wrapper" data-group-id="${id}">
+                        <div class="provider-header">
+                            <span>🏢 Proveedor: ${providerNames[id]}</span>
+                            <button type="button" class="btn-custom btn-primary-custom add-to-provider" data-provider-id="${id}" style="padding: 4px 10px; font-size: 0.7rem;">+ Agregar aquí</button>
+                        </div>
+                        <div class="items-container" id="group-container-${id}"></div>
+                    </div>`);
+                    container.append(section);
+                });
+
+                // Sección "Otros / Sin Asignar"
+                let othersSection = $(`<div class="provider-group-wrapper" data-group-id="others">
+                    <div class="provider-header" style="background: #f8fafc; border-left-color: #94a3b8; color: #64748b;">
+                        <span>❓ Otros / Sin Proveedor</span>
+                    </div>
+                    <div class="items-container" id="group-container-others"></div>
+                </div>`);
+                container.append(othersSection);
+
+                // 3. Mover filas a sus contenedores
+                container.find('> .article-row').each(function () {
+                    const row = $(this);
+                    // Buscar el valor del select de proveedor dentro de la fila
+                    const provSelect = row.find('select[name$="-proveedor"]');
+                    const currentVal = provSelect.val();
+
+                    if (currentVal && selectedProviders.includes(currentVal)) {
+                        row.appendTo($(`#group-container-${currentVal}`));
+                    } else {
+                        row.appendTo($('#group-container-others'));
+                    }
+                });
+
+                console.log('Agrupación completada.');
+            }
+
+            // Delegación de eventos para el botón "Agregar aquí" de cada proveedor
+            $(document).on('click', '.add-to-provider', function () {
+                const providerId = $(this).data('provider-id');
+                materialModal.open(providerId);
+            });
+
+            // Re-agrupar cuando cambie el proveedor en una fila
+            $(document).on('change', 'select[name$="-proveedor"]', function () {
+                // Pequeño delay para no interrumpir la interacción
+                setTimeout(refreshArticleGrouping, 100);
+            });
+
             // Lógica de Formsets
             function addRow(prefix, containerId, emptyRowId) {
                 const totalForms = $(`#id_${prefix}-TOTAL_FORMS`);
                 const count = parseInt(totalForms.val());
-                const newRow = $(`#${emptyRowId}`).html().replace(/__prefix__/g, count);
+                const newRowHtml = $(`#${emptyRowId}`).html().replace(/__prefix__/g, count);
+                const newRow = $(newRowHtml);
                 $(`#${containerId}`).append(newRow);
                 totalForms.val(count + 1);
 
                 if (prefix === 'articulos') {
                     try {
-                        if ($.fn.select2) $(`#${containerId} .article-row:last-child .select2-material`).select2({ width: '100%' });
+                        if ($.fn.select2) newRow.find('.select2-material').select2({ width: '100%' });
                     } catch (e) { }
+                    refreshArticleGrouping();
                 }
+                return newRow;
             }
 
             // Agregar fila vacía solo si no hay artículos existentes
             $(document).ready(function () {
                 const totalArticulos = parseInt($('#id_articulos-TOTAL_FORMS').val()) || 0;
-                // Si no hay artículos, agregar uno vacío al cargar
                 if (totalArticulos === 0) {
-                    addRow('articulos', 'article-formset', 'empty-article-row');
+                    addRow('articulos', 'articles-container', 'empty-article-row');
+                } else {
+                    refreshArticleGrouping();
                 }
             });
 
-            $('#add-article').on('click', () => addRow('articulos', 'article-formset', 'empty-article-row'));
+            $('#add-article').on('click', () => addRow('articulos', 'articles-container', 'empty-article-row'));
             $('#add-document').on('click', () => addRow('documentos', 'document-formset', 'empty-document-row'));
-            $(document).on('click', '.remove-new-row', function () { $(this).closest('.formset-row').remove(); });
+            $(document).on('click', '.remove-new-row', function () {
+                const row = $(this).closest('.article-row');
+                row.remove();
+                refreshArticleGrouping();
+            });
             $(document).on('click', '.delete-row', function () {
                 const row = $(this).closest('.formset-row');
                 const deleteCheckbox = row.find('input[type="checkbox"][name$="-DELETE"]');
                 if (deleteCheckbox.length) {
                     deleteCheckbox.prop('checked', true);
                     row.hide();
+                    refreshArticleGrouping();
                 }
             });
 
@@ -196,6 +511,7 @@
                 currentPage: 1,
                 currentCategory: '',
                 searchQuery: '',
+                targetProvider: '', // ID del proveedor al que se agregarán los items
 
                 init() {
                     this.loadCategories();
@@ -307,8 +623,19 @@
                     });
                 },
 
-                open() {
+                open(providerId) {
+                    this.targetProvider = providerId || '';
                     $('#material-modal').addClass('active');
+
+                    // Actualizar título o subtítulo si hay proveedor
+                    const $title = $('#material-modal .modal-title');
+                    if (this.targetProvider) {
+                        const providerName = $(`[name="proveedores_sugeridos"] option[value="${this.targetProvider}"]`).text() || 'Proveedor';
+                        $title.html(`🛒 Selección para: <span style="color:var(--primary);">${providerName}</span>`);
+                    } else {
+                        $title.text('🛒 Seleccionar Materiales');
+                    }
+
                     this.loadMaterials();
                 },
 
@@ -514,12 +841,17 @@
                     const totalForms = $('#id_articulos-TOTAL_FORMS');
                     const count = parseInt(totalForms.val());
                     const newRow = $('#empty-article-row').html().replace(/__prefix__/g, count);
-                    $('#article-formset').append(newRow);
+                    $('#articles-container').append(newRow);
 
                     if (material.id) {
                         $(`#id_articulos-${count}-material`).val(material.id).trigger('change');
                     } else {
                         $(`#id_articulos-${count}-material`).val(null).trigger('change');
+                    }
+
+                    // Asignar proveedor activo si existe
+                    if (this.targetProvider) {
+                        $(`#id_articulos-${count}-proveedor`).val(this.targetProvider).trigger('change');
                     }
 
                     $(`#id_articulos-${count}-cr8ca_articulo`).val(description || material.nombre);
@@ -531,6 +863,7 @@
                     } catch (e) { }
 
                     totalForms.val(count + 1);
+                    refreshArticleGrouping();
                 }
             };
             materialModal.init();

@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from decimal import Decimal
 from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import datetime
+from django.utils import timezone
 import uuid
 from django.db.models import Max
 
@@ -451,7 +452,7 @@ class Requisicion(models.Model):
     _ownerid_value = models.UUIDField(null=True, blank=True)
     
     # Fechas y Metadatos
-    fecha = models.DateField(null=True, blank=True, verbose_name="Fecha")
+    fecha = models.DateField(default=timezone.now, null=True, blank=True, verbose_name="Fecha")
     cr8ca_fechadegasto = models.DateTimeField(null=True, blank=True)
     createdon = models.DateTimeField(null=True, blank=True, verbose_name="Creado en Dynamics")
     modifiedon = models.DateTimeField(null=True, blank=True, verbose_name="Modificado en Dynamics")
@@ -484,6 +485,18 @@ class Requisicion(models.Model):
         blank=True,
         related_name='requisiciones_asignadas',
         verbose_name="Proveedor Asignado"
+    )
+    proveedores_sugeridos = models.ManyToManyField(
+        'mantenimiento.Empresa',
+        blank=True,
+        related_name='requisiciones_sugeridas',
+        verbose_name="Proveedores Sugeridos"
+    )
+    proveedores_sugeridos_notas = models.TextField(
+        null=True, 
+        blank=True, 
+        verbose_name="Detalle por Proveedor",
+        help_text="Especifique qué artículos corresponden a cada proveedor sugerido."
     )
 
     def save(self, *args, **kwargs):
@@ -518,13 +531,37 @@ class Requisicion(models.Model):
 
     @property
     def total_estimado(self):
-        return sum(item.subtotal for item in self.articulos.all())
+        return sum((item.cr8ca_cantidad or 0) * (item.cr8ca_costoaproximado or 0) for item in self.articulos.all())
+
+    def get_total_by_provider(self, provider):
+        """Calcula el subtotal para un proveedor específico"""
+        articles = self.articulos.filter(proveedor=provider) if provider else self.articulos.filter(proveedor__isnull=True)
+        return sum((item.cr8ca_cantidad or 0) * (item.cr8ca_costoaproximado or 0) for item in articles)
 
 
     @property
     def monto_pagado(self):
         """Suma de montos en solicitudes de pago con estatus PAGADO"""
         return sum(item.monto_solicitado for item in self.items_pago.filter(estatus='PAGADO'))
+
+    @property
+    def resumen_por_proveedor(self):
+        """Retorna una lista de diccionarios con proveedor, sus artículos y el subtotal"""
+        from mantenimiento.models import Empresa
+        resumen = []
+        # Obtener IDs de proveedores únicos vinculados a artículos de esta requisición
+        provider_ids = self.articulos.values_list('proveedor', flat=True).distinct()
+        
+        for p_id in provider_ids:
+            provider = Empresa.objects.get(pk=p_id) if p_id else None
+            articles = self.articulos.filter(proveedor=p_id)
+            subtotal = sum(a.subtotal for a in articles)
+            resumen.append({
+                'proveedor': provider,
+                'articulos': articles,
+                'subtotal': subtotal
+            })
+        return resumen
 
     class Meta:
         verbose_name = "Requisición"
@@ -544,6 +581,14 @@ class ArticuloRequisicion(models.Model):
         related_name='articulos',
         verbose_name="Requisición"
     )
+    proveedor = models.ForeignKey(
+        'mantenimiento.Empresa',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='articulos_requisicion',
+        verbose_name="Proveedor sugerido para este artículo"
+    )
     material = models.ForeignKey(
         'inventarios.Material',
         on_delete=models.SET_NULL,
@@ -562,6 +607,10 @@ class ArticuloRequisicion(models.Model):
     # Lookups
     _cr8ca_edificiozona_value = models.UUIDField(null=True, blank=True)
     _cr8ca_activo_value = models.UUIDField(null=True, blank=True)
+
+    @property
+    def subtotal(self):
+        return (self.cr8ca_cantidad or 0) * (self.cr8ca_costoaproximado or 0)
     _cr8ca_catalogo_value = models.UUIDField(null=True, blank=True)
     _cr8ca_unidad_value = models.UUIDField(null=True, blank=True)
     

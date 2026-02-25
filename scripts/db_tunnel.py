@@ -1,55 +1,141 @@
 import time
 import sys
 import os
-from sshtunnel import SSHTunnelForwarder
+import threading
+import socket
+import paramiko
 import logging
+import webbrowser
+from sshtunnel import SSHTunnelForwarder
 
-# Configuración del Túnel (Basada en tus settings de Django)
+# Configuración SSH
 SSH_HOST = '181.115.47.107'
 SSH_PORT = 3456
 SSH_USER = 'vboxuser'
 SSH_PASS = 'PasswordRoot07'
-REMOTE_DB_HOST = '10.30.1.11'
-REMOTE_DB_PORT = 5432
-LOCAL_DB_PORT = 5434
+
+# IPs y Puertos
+VM_IP = '10.30.1.11'
+LOCAL_IP = '127.0.0.1'
+
+# Forward (Local -> Remoto)
+DB_REMOTE, DB_LOCAL = 5432, 5434
+N8N_REMOTE, N8N_LOCAL = 5678, 5678
+APP_REMOTE, APP_LOCAL = 8070, 8070
+
+# Reverse (Remoto -> Local)
+REV_REMOTE = 9001  # Cambiado a 9001
+REV_LOCAL  = 8000  # Tu Django
+
+def handler(chan, host, port):
+    print(f"› [CALLBACK] ¡Actividad detectada! Redirigiendo a Django local...")
+    sock = socket.socket()
+    try:
+        sock.connect((host, port))
+    except Exception as e:
+        print(f"❌ No se pudo conectar a Django local: {e}")
+        return
+
+    def pipe(src, dst):
+        try:
+            while True:
+                data = src.recv(4096)
+                if not data: break
+                dst.send(data)
+        except: pass
+        finally:
+            src.close()
+            dst.close()
+
+    threading.Thread(target=pipe, args=(chan, sock), daemon=True).start()
+    threading.Thread(target=pipe, args=(sock, chan), daemon=True).start()
+
+def reverse_forward_tunnel(server_port, remote_host, remote_port, transport):
+    # Intentamos bindear a 127.0.0.1 en el server para saltar restricciones de GatewayPorts
+    try:
+        transport.request_port_forward("127.0.0.1", server_port)
+    except Exception as e:
+        print(f"❌ Error pidiendo Forward al servidor: {e}")
+        return
+
+    while True:
+        chan = transport.accept(1000)
+        if chan is None:
+            continue
+        threading.Thread(target=handler, args=(chan, remote_host, remote_port), daemon=True).start()
 
 def start_tunnel():
     print("==========================================")
-    print("      SOFTCOM - DB TUNNEL MANAGER         ")
+    print("      SOFTCOM - ULTIMATE TUNNEL V7        ")
     print("==========================================")
-    print(f"SSH Host:     {SSH_HOST}:{SSH_PORT}")
-    print(f"Remote DB:    {REMOTE_DB_HOST}:{REMOTE_DB_PORT}")
-    print(f"Local Port:   127.0.0.1:{LOCAL_DB_PORT}")
-    print("------------------------------------------")
+    
+    first_run = True
 
     while True:
         try:
-            print(f"[{time.strftime('%H:%M:%S')}] Intentando conectar...")
+            print(f"[{time.strftime('%H:%M:%S')}] Conectando SSH...")
             
+            # 1. Cliente Base 
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.connect(SSH_HOST, SSH_PORT, SSH_USER, SSH_PASS, timeout=10)
+            
+            # Limpiar y Crear puente netsh en el servidor físico
+            print("› Configurando puente de red remota...")
+            client.exec_command(f"netsh interface portproxy delete v4tov4 listenport={REV_REMOTE} listenaddress=0.0.0.0")
+            client.exec_command(f"netsh interface portproxy add v4tov4 listenport={REV_REMOTE} listenaddress=0.0.0.0 connectport={REV_REMOTE} connectaddress=127.0.0.1")
+            
+            transport = client.get_transport()
+            
+            # 2. Hilo para el Túnel Reverso manual (Paramiko puro)
+            rev_thread = threading.Thread(
+                target=reverse_forward_tunnel, 
+                args=(REV_REMOTE, LOCAL_IP, REV_LOCAL, transport), 
+                daemon=True
+            )
+            rev_thread.start()
+
+            # 3. SSHTunnelForwarder para los de salida (DB, n8n)
+            # Solo usamos lo básico que sabemos que funciona en la versión 0.4.0
             with SSHTunnelForwarder(
                 (SSH_HOST, SSH_PORT),
                 ssh_username=SSH_USER,
                 ssh_password=SSH_PASS,
-                remote_bind_address=(REMOTE_DB_HOST, REMOTE_DB_PORT),
-                local_bind_address=('127.0.0.1', LOCAL_DB_PORT),
+                remote_bind_addresses=[
+                    (VM_IP, DB_REMOTE), 
+                    (VM_IP, N8N_REMOTE), 
+                    (VM_IP, APP_REMOTE)
+                ],
+                local_bind_addresses=[
+                    (LOCAL_IP, DB_LOCAL), 
+                    (LOCAL_IP, N8N_LOCAL), 
+                    (LOCAL_IP, APP_LOCAL)
+                ],
                 set_keepalive=30.0
             ) as tunnel:
-                print(f"[{time.strftime('%H:%M:%S')}] ✅ TÚNEL ACTIVO!")
-                print(">>> Puedes usar la base de datos en localhost:5434")
-                print(">>> Presiona Ctrl+C para cerrar.")
+                print(f"[{time.strftime('%H:%M:%S')}] ✅ TODO LISTO")
+                print(f"› DB:       localhost:{DB_LOCAL}")
+                print(f"› n8n:      http://localhost:{N8N_LOCAL}")
+                print(f"› Web 8070: http://localhost:{APP_LOCAL}")
+                print(f"› CALLBACK: {SSH_HOST}:{REV_REMOTE} -> L:8000")
+                print("==========================================")
+                
+                if first_run:
+                    try: webbrowser.open(f"http://localhost:{N8N_LOCAL}")
+                    except: pass
+                    first_run = False
                 
                 while tunnel.is_active:
                     time.sleep(5)
+            
+            client.close()
                     
         except KeyboardInterrupt:
-            print("\nCerrando túnel por petición del usuario...")
             break
         except Exception as e:
-            print(f"[{time.strftime('%H:%M:%S')}] ❌ ERROR: {e}")
-            print("Reintentando en 5 segundos...")
+            print(f"❌ ERROR: {e}")
             time.sleep(5)
 
 if __name__ == "__main__":
-    # Desactivar logs innecesarios de sshtunnel para una consola limpia
     logging.getLogger('sshtunnel').setLevel(logging.CRITICAL)
     start_tunnel()

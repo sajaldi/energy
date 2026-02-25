@@ -534,6 +534,11 @@ class ActivoResource(resources.ModelResource):
         return None
 
 class BienAfectoResource(resources.ModelResource):
+    activo_actual_codigo = fields.Field(
+        column_name='activo_actual_codigo',
+        attribute='activo_actual',
+        widget=SmartActivoWidget(Activo, field='codigo_interno')
+    )
     ubicacion_nombre = fields.Field(
         column_name='ubicacion_nombre',
         attribute='ubicacion',
@@ -558,7 +563,7 @@ class BienAfectoResource(resources.ModelResource):
     class Meta:
         model = BienAfecto
         import_id_fields = ('codigo_interno',)
-        fields = ('id', 'codigo_interno', 'nombre', 'ubicacion_nombre', 'plano_nombre', 'familia_nombre', 'responsable_username', 'creado_en', 'actualizado_en')
+        fields = ('id', 'codigo_interno', 'nombre', 'activo_actual_codigo', 'ubicacion_nombre', 'plano_nombre', 'familia_nombre', 'responsable_username', 'creado_en', 'actualizado_en')
         export_order = fields
         skip_unchanged = True
         report_skipped = True
@@ -567,7 +572,7 @@ class BienAfectoResource(resources.ModelResource):
     def __init__(self, **kwargs):
         super().__init__()
         # Vincular widgets
-        widgets_to_bind = ['ubicacion_nombre', 'plano_nombre', 'familia_nombre', 'responsable_username']
+        widgets_to_bind = ['activo_actual_codigo', 'ubicacion_nombre', 'plano_nombre', 'familia_nombre', 'responsable_username']
         for field_name in widgets_to_bind:
             if field_name in self.fields:
                 self.fields[field_name].widget.resource = self
@@ -575,7 +580,7 @@ class BienAfectoResource(resources.ModelResource):
     def before_import(self, dataset, *args, **kwargs):
         """Precarga cachés para velocidad y precisión en jerarquías"""
         from django.core.cache import cache
-        from .models import Ubicacion, Familia, Plano
+        from .models import Ubicacion, Familia, Plano, Activo
         from django.contrib.auth.models import User
         
         # 0. Normalizar cabeceras
@@ -625,9 +630,13 @@ class BienAfectoResource(resources.ModelResource):
             if p.numero_documento:
                 self.plano_cache[p.numero_documento.upper()] = p
 
-        # 3. Caché de Otros (User, Familia)
+        # 3. Caché de Otros (User, Familia, Activo)
         self.user_cache = {u.username: u for u in User.objects.all()}
         self.familia_cache = {f.nombre.upper(): f for f in Familia.objects.all()}
+        
+        # Caché de activos para SmartActivoWidget
+        activos_codigos = {str(row.get('activo_actual_codigo')).strip() for row in self.dataset_dict if row.get('activo_actual_codigo')}
+        self.activo_full_cache = {a.codigo_interno: a for a in Activo.objects.filter(codigo_interno__in=activos_codigos) if a.codigo_interno}
         
         # Inicializar contadores
         self._row_counter = 0
@@ -674,6 +683,33 @@ class BienAfectoResource(resources.ModelResource):
         if obj.ubicacion:
             return obj.ubicacion.ruta_completa
         return ""
+
+    def dehydrate_activo_actual_codigo(self, obj):
+        activo = obj.activo_actual
+        return activo.codigo_interno if activo else ""
+
+    def after_save_instance(self, instance, dry_run, **kwargs):
+        """Manejar la vinculación del activo físico si se especificó en el archivo."""
+        if not dry_run:
+            row = kwargs.get('row')
+            activo_codigo = row.get('activo_actual_codigo')
+            if activo_codigo:
+                activo_codigo = str(activo_codigo).strip()
+                # Buscar el activo en el caché
+                activo = self.activo_full_cache.get(activo_codigo)
+                if not activo:
+                    from .models import Activo
+                    activo = Activo.objects.filter(codigo_interno=activo_codigo).first()
+                
+                if activo:
+                    # Verificar si ya es el activo actual
+                    if instance.activo_actual != activo:
+                        instance.reemplazar_activo(
+                            nuevo_activo=activo,
+                            motivo_baja='REEMPLAZO',
+                            usuario=self._import_user,
+                            observaciones="Asignado vía importación masiva"
+                        )
 
 class ControlSubmittalResource(resources.ModelResource):
     class Meta:

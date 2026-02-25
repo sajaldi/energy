@@ -102,46 +102,82 @@
                     <strong>Errores:</strong>{{ form.errors }}
                 </div>
                 {% endif %}
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-                    <div class="form-group">
-                        <label class="form-label">Número de Requisición</label>
-                        {{ form.cr8ca_requisicion }}
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label"
-                            style="display: flex; justify-content: space-between; align-items: center;">
-                            Solicitante
-                            <button type="button" class="btn-toggle-on-behalf" id="toggle-behalf"
-                                style="font-size: 0.7rem; padding: 2px 8px; background: var(--secondary); color: white; border: none; border-radius: 4px; cursor: pointer;">👤
-                                En nombre de...</button>
-                        </label>
-                        {{ form.usuario_solicitante }}
-                    </div>
-                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <!-- Columna Izquierda: Datos Básicos -->
+                    <div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label class="form-label">Número de Requisición</label>
+                                {{ form.cr8ca_requisicion }}
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"
+                                    style="display: flex; justify-content: space-between; align-items: center;">
+                                    Solicitante
+                                    <button type="button" id="toggle-behalf"
+                                        style="font-size: 0.7rem; padding: 2px 8px; background: var(--secondary); color: white; border: none; border-radius: 4px; cursor: pointer;">👤
+                                        En nombre de...</button>
+                                </label>
+                                {{ form.usuario_solicitante }}
+                            </div>
+                        </div>
 
-                <div id="on-behalf-container"
-                    style="display: {% if form.usuario_en_nombre_de.value %}block{% else %}none{% endif %}; margin-top: -10px; margin-bottom: 20px; padding: 15px; background: rgba(0,0,0,0.03); border-radius: 8px; border-left: 4px solid var(--secondary);">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label">👤 Realizar solicitud en nombre de:</label>
-                        {{ form.usuario_en_nombre_de }}
-                        <small style="color: #666; margin-top: 5px; display: block;">Selecciona al usuario que realmente
-                            solicita los materiales.</small>
+                        <div id="on-behalf-container"
+                            style="display: {% if form.usuario_en_nombre_de.value %}block{% else %}none{% endif %}; margin-bottom: 20px; padding: 15px; background: rgba(0,0,0,0.03); border-radius: 8px; border-left: 4px solid var(--secondary);">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label">👤 En nombre de:</label>
+                                <div class="on-behalf-search-wrapper" style="position: relative;">
+                                    <input type="text" id="on-behalf-search-input" class="form-control"
+                                        placeholder="🔍 Buscar usuario..." autocomplete="off">
+                                    <div id="on-behalf-search-results" class="search-results-dropdown"></div>
+                                    <div id="on-behalf-hidden-select" style="display:none">{{ form.usuario_en_nombre_de
+                                        }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group"><label class="form-label">Fecha</label>{{ form.fecha }}</div>
+                            <div class="form-group"><label class="form-label">Prioridad</label>{{ form.cr8ca_prioridad
+                                }}</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Costo Aproximado</label>
+                            {{ form.cr8ca_totalenarticulos }}
+                        </div>
+
+                        <div class="form-group"><label class="form-label">Asunto</label>{{ form.cr8ca_asunto }}</div>
+
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label">Motivo</label>
+                            {{ form.cr8ca_motivo }}
+                            <small class="form-hint">Explica por qué se requiere la compra</small>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Comentarios y Proveedores -->
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">Comentarios</label>
+                            {{ form.cr8ca_comentarios }}
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Proveedores Sugeridos</label>
+                            <div class="provider-search-wrapper">
+                                <input type="text" id="provider-search-input" class="form-control"
+                                    placeholder="🔍 Escribe para buscar proveedores...">
+                                <div id="provider-search-results" class="search-results-dropdown"></div>
+                                <div id="provider-hidden-select" style="display:none">{{ form.proveedores_sugeridos }}
+                                </div>
+                            </div>
+                            <div id="selected-providers-list" class="selected-providers-list">
+                                <!-- Tags will appear here -->
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-                    <div class="form-group"><label class="form-label">Fecha</label>{{ form.fecha }}</div>
-                    <div class="form-group"><label class="form-label">Prioridad</label>{{ form.cr8ca_prioridad }}</div>
-                    <div class="form-group"><label class="form-label">Costo Aproximado</label>{{
-                        form.cr8ca_totalenarticulos }}</div>
-                </div>
-                <div class="form-group"><label class="form-label">Asunto</label>{{ form.cr8ca_asunto }}</div>
-                <div class="form-group">
-                    <label class="form-label">Motivo</label>
-                    {{ form.cr8ca_motivo }}
-                    <small class="form-hint">Explica por qué se requiere la compra</small>
-                </div>
-                <div class="form-group"><label class="form-label">Comentarios</label>{{ form.cr8ca_comentarios }}</div>
                 <div style="display:none">{{ form.wizard_step }}</div>
             </div>
             <div class="card-body"
@@ -162,28 +198,32 @@
                 {{ articulo_formset.management_form }}
                 <div class="inline-labels inline-row"
                     style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 8px;">
-                    <span>Material</span><span>Descripción / Detalle</span><span>Cantidad</span><span>Costo
-                        Unit.</span><span></span>
+                    <span>Proveedor</span><span>Material</span><span>Descripción /
+                        Detalle</span><span>Cantidad</span><span>Costo Unit.</span><span></span>
                 </div>
-                {% for a_form in articulo_formset %}
-                <div class="article-row inline-row formset-row" id="article-{{ forloop.counter0 }}">
-                    {{ a_form.cr8ca_itemderequisicionid }}
-                    <div>{{ a_form.material }}</div>
-                    <div>{{ a_form.cr8ca_articulo }}</div>
-                    <div>{{ a_form.cr8ca_cantidad }}</div>
-                    <div>{{ a_form.cr8ca_costoaproximado }}</div>
-                    <div style="text-align: right;">
-                        {% if a_form.instance.pk %}
-                        <div style="display:none">{{ a_form.DELETE }}</div>
-                        <button type="button" class="btn-custom btn-danger-custom delete-row"
-                            style="padding: 8px;">🗑️</button>
-                        {% else %}
-                        <button type="button" class="btn-custom btn-danger-custom remove-new-row"
-                            style="padding: 8px;">✕</button>
-                        {% endif %}
+                <div id="articles-container">
+                    {% for a_form in articulo_formset %}
+                    <div class="article-row inline-row formset-row" id="article-{{ forloop.counter0 }}"
+                        data-provider="{{ a_form.proveedor.value|default:'' }}">
+                        {{ a_form.cr8ca_itemderequisicionid }}
+                        <div>{{ a_form.proveedor }}</div>
+                        <div>{{ a_form.material }}</div>
+                        <div>{{ a_form.cr8ca_articulo }}</div>
+                        <div>{{ a_form.cr8ca_cantidad }}</div>
+                        <div>{{ a_form.cr8ca_costoaproximado }}</div>
+                        <div style="text-align: right;">
+                            {% if a_form.instance.pk %}
+                            <div style="display:none">{{ a_form.DELETE }}</div>
+                            <button type="button" class="btn-custom btn-danger-custom delete-row"
+                                style="padding: 8px;">🗑️</button>
+                            {% else %}
+                            <button type="button" class="btn-custom btn-danger-custom remove-new-row"
+                                style="padding: 8px;">✕</button>
+                            {% endif %}
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
 
 
@@ -261,15 +301,16 @@
                     </div>
                     <div class="review-item">
                         <span class="review-label">Solicitante</span>
-                        <span class="review-value">{% firstof instance.usuario_solicitante.get_full_name
-                            instance.usuario_solicitante.username request.user.get_full_name request.user.username "-"
-                            %}</span>
+                        <span class="review-value">{% if instance.usuario_solicitante %}{{
+                            instance.usuario_solicitante.get_full_name|default:instance.usuario_solicitante.username
+                            }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}</span>
                     </div>
                     {% if instance.usuario_en_nombre_de %}
                     <div class="review-item">
                         <span class="review-label">En nombre de</span>
-                        <span class="review-value">{% firstof instance.usuario_en_nombre_de.get_full_name
-                            instance.usuario_en_nombre_de.username %}</span>
+                        <span class="review-value">{{
+                            instance.usuario_en_nombre_de.get_full_name|default:instance.usuario_en_nombre_de.username
+                            }}</span>
                     </div>
                     {% endif %}
                     <div class="review-item">
@@ -285,10 +326,30 @@
                         <span class="review-value" style="font-weight: bold; color: var(--primary);">{{
                             instance.get_estado_requisicion_display|default:"Borrador" }}</span>
                     </div>
-                    <div class="review-item">
-                        <span class="review-label">Asunto</span>
-                        <span class="review-value">{{ instance.cr8ca_asunto }}</span>
+                </div> <!-- Cierre de grid de info general -->
+
+                <div style="margin-bottom: 24px; padding-top: 15px; border-top: 1px solid var(--border);">
+                    <div class="review-item" style="margin-bottom: 15px;">
+                        <span class="review-label">Proveedores Sugeridos:</span>
+                        <div class="review-value" style="padding-top: 8px;">
+                            {% for prov in instance.proveedores_sugeridos.all %}
+                            <span
+                                style="background: var(--bg-body); padding: 4px 10px; border-radius: 15px; margin-right: 5px; border: 1px solid var(--border); font-size: 0.8rem; display: inline-block; margin-bottom: 4px;">{{
+                                prov.nombre }}</span>
+                            {% empty %}
+                            <span style="color: var(--text-muted); font-style: italic;">Sin proveedores
+                                seleccionados</span>
+                            {% endfor %}
+                        </div>
                     </div>
+
+                    {% if instance.proveedores_sugeridos_notas %}
+                    <div class="review-item">
+                        <span class="review-label">Detalle por Proveedor:</span>
+                        <div class="review-value" style="padding-top: 8px; white-space: pre-wrap;">{{
+                            instance.proveedores_sugeridos_notas }}</div>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <!-- QR y PDF para requisiciones autorizadas -->
@@ -326,39 +387,67 @@
                 </div>
                 {% endif %}
 
-                <h4 style="color: var(--primary);">Artículos Seleccionados</h4>
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 24px;">
-                    <thead>
-                        <tr style="text-align: left; border-bottom: 2px solid var(--border);">
-                            <th style="padding: 10px 5px;">Material</th>
-                            <th style="padding: 10px 5px;">Descripción</th>
-                            <th style="padding: 10px 5px;">Cant.</th>
-                            <th style="padding: 10px 5px;">Costo Est.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if instance.pk %}
-                        {% for art in instance.articulos.all %}
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <td style="padding: 10px 5px;">{{ art.material.nombre|default:"-" }}</td>
-                            <td style="padding: 10px 5px;">{{ art.cr8ca_articulo }}</td>
-                            <td style="padding: 10px 5px;">{{ art.cr8ca_cantidad }}</td>
-                            <td style="padding: 10px 5px;">L. {{ art.cr8ca_costoaproximado|floatformat:2 }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" style="padding: 20px; text-align: center; color: var(--text-muted);">No hay
-                                artículos registrados.</td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr>
-                            <td colspan="4" style="padding: 20px; text-align: center; color: var(--text-muted);">
-                                Completa el Paso 1 para registrar artículos.</td>
-                        </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+                <h4
+                    style="color: var(--primary); margin-top: 30px; border-bottom: 2px solid var(--primary); padding-bottom: 8px;">
+                    Artículos Seleccionados</h4>
+                {% if instance.pk %}
+                {% for item in instance.resumen_por_proveedor %}
+                <div style="margin-top: 25px; margin-bottom: 20px;">
+                    <div
+                        style="background: #f1f5f9; padding: 10px 15px; border-radius: 6px; font-weight: 700; color: var(--primary-dark); font-size: 1rem; border-left: 4px solid var(--primary); display: flex; align-items: center; justify-content: space-between;">
+                        <span>🏢 {{ item.proveedor.nombre|default:"Sin Proveedor Asignado" }}</span>
+                    </div>
+
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 10px;">
+                        <thead>
+                            <tr style="text-align: left; background: #fafafa; border-bottom: 2px solid var(--border);">
+                                <th style="padding: 12px 10px; width: 30%;">Material</th>
+                                <th style="padding: 12px 10px; width: 40%;">Descripción</th>
+                                <th style="padding: 12px 10px; width: 10%; text-align: center;">Cant.</th>
+                                <th style="padding: 12px 10px; width: 20%; text-align: right;">Costo Est.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for art in item.articulos %}
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <td style="padding: 12px 10px; font-weight: 500;">{{ art.material.nombre|default:"-" }}
+                                </td>
+                                <td style="padding: 12px 10px; color: var(--text-muted);">{{ art.cr8ca_articulo }}</td>
+                                <td style="padding: 12px 10px; text-align: center;">{{ art.cr8ca_cantidad }}</td>
+                                <td style="padding: 12px 10px; text-align: right; font-weight: 600;">L. {{
+                                    art.cr8ca_costoaproximado|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f8fafc;">
+                                <td colspan="3" style="padding: 12px 10px; text-align: right; font-weight: 700;">
+                                    Subtotal Proveedor:</td>
+                                <td
+                                    style="padding: 12px 10px; text-align: right; font-weight: 800; color: var(--primary-dark);">
+                                    L. {{ item.subtotal|floatformat:2 }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% endfor %}
+
+                <div
+                    style="margin-top: 30px; padding: 20px; background: var(--bg-body); border-radius: 8px; border: 2px solid var(--primary); display: flex; justify-content: flex-end; align-items: center; gap: 40px;">
+                    <div style="text-align: right;">
+                        <span
+                            style="display: block; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total
+                            Estimado Requisición</span>
+                        <span style="font-size: 2rem; font-weight: 800; color: var(--primary-dark);">L. {{
+                            instance.total_estimado|default:0|floatformat:2 }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div
+                    style="padding: 20px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 8px;">
+                    Completa los pasos anteriores para visualizar los artículos.
+                </div>
+                {% endif %}
 
                 <h4 style="color: var(--primary);">Documentos</h4>
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">

@@ -7,7 +7,8 @@ class RequisicionForm(forms.ModelForm):
         model = Requisicion
         fields = [
             'cr8ca_requisicion', 'fecha', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
-            'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos'
+            'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos',
+            'proveedores_sugeridos'
         ]
         widgets = {
             'cr8ca_requisicion': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
@@ -21,6 +22,10 @@ class RequisicionForm(forms.ModelForm):
             'cr8ca_id_oc': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ID de Orden de Compra'}),
             'estado_requisicion': forms.Select(attrs={'class': 'form-control', 'disabled': 'disabled'}),
             'cr8ca_totalenarticulos': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
+            'proveedores_sugeridos': forms.SelectMultiple(attrs={
+                'class': 'form-control select2-material',
+                'multiple': 'multiple'
+            }),
         }
         labels = {
             'cr8ca_totalenarticulos': 'Costo Aproximado'
@@ -32,13 +37,16 @@ class RequisicionForm(forms.ModelForm):
             self.fields['cr8ca_requisicion'].required = False
         if 'estado_requisicion' in self.fields:
             self.fields['estado_requisicion'].required = False
+        if 'usuario_solicitante' in self.fields:
+            self.fields['usuario_solicitante'].required = False
 
 class ArticuloRequisicionForm(forms.ModelForm):
     class Meta:
         model = ArticuloRequisicion
-        fields = ['cr8ca_itemderequisicionid', 'material', 'cr8ca_articulo', 'cr8ca_cantidad', 'cr8ca_costoaproximado']
+        fields = ['cr8ca_itemderequisicionid', 'proveedor', 'material', 'cr8ca_articulo', 'cr8ca_cantidad', 'cr8ca_costoaproximado']
         widgets = {
             'cr8ca_itemderequisicionid': forms.HiddenInput(),
+            'proveedor': forms.Select(attrs={'class': 'form-control select2-material'}),
             'material': forms.Select(attrs={'class': 'form-control select2-material'}),
             'cr8ca_articulo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Descripción del artículo'}),
             'cr8ca_cantidad': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
@@ -48,10 +56,19 @@ class ArticuloRequisicionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # PK must be non-required for new rows in formsets
-        for field_name in ['cr8ca_itemderequisicionid', 'id']:
-            if field_name in self.fields:
-                self.fields[field_name].required = False
-                self.fields[field_name].widget = forms.HiddenInput()
+        if 'cr8ca_itemderequisicionid' in self.fields:
+            self.fields['cr8ca_itemderequisicionid'].required = False
+            self.fields['cr8ca_itemderequisicionid'].widget = forms.HiddenInput()
+            
+            # Si la instancia no ha sido guardada (no existe en DB),
+            # limpiamos el valor inicial del UUID para evitar que el 'empty_form'
+            # del formset use el mismo UUID para todas las filas nuevas.
+            if self.instance._state.adding:
+                self.initial['cr8ca_itemderequisicionid'] = ''
+        
+        if 'id' in self.fields:
+            self.fields['id'].required = False
+            self.fields['id'].widget = forms.HiddenInput()
 
 ArticuloFormSet = forms.inlineformset_factory(
     Requisicion, ArticuloRequisicion,

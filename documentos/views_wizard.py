@@ -209,7 +209,8 @@ def documento_wizard(request):
         context.update({
             'documento': documento, 
             'revision': revision,
-            'documentos_link': documentos_link
+            'documentos_link': documentos_link,
+            'text_preview': revision.datos_extraidos.get('text_preview', '') if revision.datos_extraidos else ''
         })
         
         # Sugerencia inteligente de Código y Título
@@ -220,6 +221,14 @@ def documento_wizard(request):
         # Prioridad a sugerencias de IA (n8n)
         suggested_code = datos_ext.get('suggested_code')
         suggested_title = datos_ext.get('suggested_title')
+        
+        # Si ya hay un título en el documento maestro y NO es el genérico, mantener el maestro
+        if suggested_title and documento.titulo == 'Documento sin título (Wizard)':
+             documento.titulo = suggested_title
+        
+        # Si ya hay un código en el documento maestro y NO es un TMP, mantener el maestro
+        if suggested_code and 'TMP-' in documento.codigo:
+             documento.codigo = suggested_code
 
         # 1. Fallback Búsqueda Código (si no hay IA o es TMP)
         if not suggested_code and 'TMP-' in documento.codigo:

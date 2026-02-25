@@ -134,12 +134,29 @@ class EmpresaResource(resources.ModelResource):
         report_skipped = True
         import_id_fields = ('id',)
 
+class PersonalInline(admin.TabularInline):
+    model = TecnicoPuesto
+    extra = 0
+    fields = ('get_nombre_completo', 'puesto', 'dni', 'disponible')
+    readonly_fields = ('get_nombre_completo',)
+    show_change_link = True
+    verbose_name = "Miembro"
+    verbose_name_plural = "Miembros de la Empresa"
+
+    def get_nombre_completo(self, obj):
+        if not obj.pk: return "-"
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.username
+        return f"{obj.nombre} {obj.apellido}".strip() or "Sin nombre"
+    get_nombre_completo.short_description = 'Nombre'
+
 @admin.register(Empresa)
 class EmpresaAdmin(ImportExportModelAdmin):
     resource_class = EmpresaResource
     list_display = ('nombre', 'activo', 'creado_en')
     search_fields = ('nombre',)
     list_filter = ('activo',)
+    inlines = [PersonalInline]
 
 # --- RESOURCES PARA PROCEDIMIENTOS ---
 class ProcedimientoResource(resources.ModelResource):
@@ -188,11 +205,11 @@ class TecnicoPuestoResource(resources.ModelResource):
     Busca/Asigna PuestoTrabajo y Empresa por nombre.
     """
     # Campos directos de TecnicoPuesto
+    nombre = fields.Field(attribute='nombre', column_name='nombre')
+    apellido = fields.Field(attribute='apellido', column_name='apellido')
     dni = fields.Field(attribute='dni', column_name='dni')
     fecha_nacimiento = fields.Field(attribute='fecha_nacimiento', column_name='fecha_nacimiento')
     tipo_sangre = fields.Field(attribute='tipo_sangre', column_name='tipo_sangre')
-    hora_entrada = fields.Field(attribute='hora_entrada', column_name='hora_entrada')
-    hora_salida = fields.Field(attribute='hora_salida', column_name='hora_salida')
     horas_semanales_max = fields.Field(attribute='horas_semanales_max', column_name='horas_semanales_max')
     disponible = fields.Field(attribute='disponible', column_name='disponible')
     
@@ -208,12 +225,10 @@ class TecnicoPuestoResource(resources.ModelResource):
         widget=ForeignKeyWidget(Empresa, field='nombre')
     )
     
-    # Campos virtuales para crear/actualizar el USER
+    # Campos virtuales para vincular el USER (Opcional)
     username = fields.Field(column_name='username', attribute='user', widget=ForeignKeyWidget(User, 'username'))
-    first_name = fields.Field(column_name='nombre', attribute='user__first_name') # Mapeamos 'nombre' excel -> first_name modelo
-    last_name = fields.Field(column_name='apellido', attribute='user__last_name')
-    email = fields.Field(column_name='email', attribute='user__email')
-    password = fields.Field(column_name='password', attribute='user__password') # Opcional
+    email = fields.Field(column_name='email') # Se maneja manualmente en before_import_row
+    password = fields.Field(column_name='password') # Se maneja manualmente en before_import_row
 
     class Meta:
         model = TecnicoPuesto
@@ -245,56 +260,61 @@ class TecnicoPuestoResource(resources.ModelResource):
         email = str(row.get('email') or '').strip()
         dni = str(row.get('dni') or '').strip()
         
-        # 1. Validaciones básicas
-        if not username and not dni:
-            # Si no hay username, intentar generarlo con DNI o Nombre
-            if dni: username = dni
-            elif row.get('nombre'): username = f"{row.get('nombre')}.{row.get('apellido') or ''}".lower().replace(' ', '')
-            row['username'] = username
-
-        if not username: return # Se caerá más adelante, pero evitamos error aquí
-
-        # 2. Buscar/Crear Usuario
-        user = User.objects.filter(username=username).first()
-        if not user and email:
-            user = User.objects.filter(email=email).first()
-            
-        if not user:
-            # CREAR USUARIO NUEVO
-            print(f"[Import Personal] Creando usuario nuevo: {username}")
-            try:
-                first_name = row.get('nombre') or ''
-                last_name = row.get('apellido') or ''
-                password = row.get('password') or dni or '123456' # Password default = DNI o 123456
+        # 1. Si no hay username, simplemente aseguramos que el campo 'user' esté nulo en el row
+        # para que el ForeignKeyWidget lo limpie o lo deje nulo.
+        if not username or username.lower() in ['none', 'nan', 'null', '']:
+            row['username'] = None
+            # No retornamos, para que se procesen el resto de los campos (nombre, apellido, etc)
+            user = None
+        else:
+            # 2. Buscar/Crear Usuario
+            user = User.objects.filter(username=username).first()
+            if not user and email:
+                user = User.objects.filter(email=email).first()
                 
-                user = User.objects.create_user(
-                    username=username, 
-                    email=email, 
-                    password=str(password),
-                    first_name=first_name,
-                    last_name=last_name
-                )
-                user.is_staff = True # Asumimos que es staff técnico
-                user.save()
-            except Exception as e:
-                print(f"[Import Personal] Error creando usuario {username}: {e}")
-                
-        # 3. Inyectar el ID real del usuario en la fila para que ForeignKeyWidget funcione si es necesario,
-        # aunque como usamos 'username' como campo de lookup en el widget, debería estar bien.
-        # Pero aseguramos actualizacion de datos del usuario:
+            if not user:
+                # CREAR USUARIO NUEVO
+                try:
+                    first_name = row.get('nombre') or ''
+                    last_name = row.get('apellido') or ''
+                    password = row.get('password') or dni or '123456'
+                    
+                    user = User.objects.create_user(
+                        username=username, 
+                        email=email, 
+                        password=str(password),
+                        first_name=str(first_name),
+                        last_name=str(last_name)
+                    )
+                    user.is_staff = True
+                    user.save()
+                    print(f"[Import Personal] Usuario creado: {username}")
+                except Exception as e:
+                    print(f"[Import Personal] Error creando usuario {username}: {e}")
+                    user = None
+
+        # 3. Sincronización de datos del usuario si existe
         if user:
-            # Actualizar nombres si vienen en el excel (solo si NO están vacíos)
             changed = False
-            if row.get('nombre') and user.first_name != row.get('nombre'):
-                user.first_name = row.get('nombre')
+            nombre_row = row.get('nombre')
+            apellido_row = row.get('apellido')
+            email_row = row.get('email')
+            
+            if nombre_row and user.first_name != str(nombre_row):
+                user.first_name = str(nombre_row)
                 changed = True
-            if row.get('apellido') and user.last_name != row.get('apellido'):
-                user.last_name = row.get('apellido')
+            if apellido_row and user.last_name != str(apellido_row):
+                user.last_name = str(apellido_row)
                 changed = True
-            if row.get('email') and user.email != row.get('email'):
-                user.email = row.get('email')
+            if email_row and user.email != str(email_row):
+                user.email = str(email_row)
                 changed = True
-            if changed: user.save()
+            
+            if changed:
+                user.save()
+            
+            # Inyectar el username real por si acaso el widget lo necesita
+            row['username'] = user.username
 
     def get_instance(self, instance_loader, row):
         # Intentar coincidencia por DNI primero (más seguro)
@@ -314,17 +334,20 @@ class TecnicoPuestoAdmin(ImportExportModelAdmin):
     resource_class = TecnicoPuestoResource
     change_list_template = 'admin/mantenimiento/tecnicopuesto/change_list.html' # Template custom con botón
 
-    list_display = ('user', 'get_nombre_completo', 'puesto', 'empresa', 'dni', 'get_carga_semanal', 'disponible')
+    list_display = ('get_nombre_completo', 'puesto', 'empresa', 'dni', 'get_carga_semanal', 'disponible')
     list_filter = ('empresa', 'puesto', 'disponible', 'tipo_sangre')
-    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'puesto__nombre', 'dni', 'empresa__nombre')
+    search_fields = ('nombre', 'apellido', 'user__username', 'user__first_name', 'user__last_name', 'puesto__nombre', 'dni', 'empresa__nombre')
     autocomplete_fields = ('user', 'puesto', 'empresa')
     
     fieldsets = (
-        ('Información de Usuario', {
-            'fields': ('user', 'puesto', 'empresa', 'disponible')
+        ('Información de Identidad', {
+            'fields': ('user', 'nombre', 'apellido', 'dni')
+        }),
+        ('Información Profesional', {
+            'fields': ('puesto', 'empresa', 'disponible')
         }),
         ('Información Personal', {
-            'fields': ('dni', 'fecha_nacimiento', 'tipo_sangre', 'fecha_alta')
+            'fields': ('fecha_nacimiento', 'tipo_sangre', 'fecha_alta')
         }),
         ('Capacidad', {
             'fields': ('horas_semanales_max',)
@@ -332,9 +355,11 @@ class TecnicoPuestoAdmin(ImportExportModelAdmin):
     )
 
     def get_nombre_completo(self, obj):
-        return obj.user.get_full_name() or obj.user.username
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.username
+        return f"{obj.nombre} {obj.apellido}".strip() or "Sin nombre"
     get_nombre_completo.short_description = 'Nombre Completo'
-    get_nombre_completo.admin_order_field = 'user__first_name'
+    get_nombre_completo.admin_order_field = 'nombre'
 
     def get_carga_semanal(self, obj):
         from .models import OrdenTrabajo
@@ -1181,10 +1206,25 @@ class FotoAvisoInline(admin.TabularInline):
     extra = 1
 
 
+class AvisoResource(resources.ModelResource):
+    activo = fields.Field(column_name='activo', attribute='activo', widget=ForeignKeyWidget(Activo, field='codigo_interno'))
+    ubicacion = fields.Field(column_name='ubicacion', attribute='ubicacion', widget=ForeignKeyWidget(Ubicacion, field='nombre'))
+    falla = fields.Field(column_name='falla', attribute='falla', widget=ForeignKeyWidget(Falla, field='nombre'))
+    solicitante = fields.Field(column_name='solicitante', attribute='solicitante', widget=ForeignKeyWidget(User, field='username'))
+
+    class Meta:
+        model = Aviso
+        fields = ('id', 'activo', 'ubicacion', 'falla', 'descripcion', 'prioridad', 'tipo', 'estado', 'solicitante', 'creado_en', 'actualizado_en')
+        export_order = fields
+        skip_unchanged = True
+        report_skipped = True
+
 @admin.register(Aviso)
-class AvisoAdmin(admin.ModelAdmin):
+class AvisoAdmin(ImportExportModelAdmin):
+    resource_class = AvisoResource
+    change_list_template = "admin/mantenimiento/procedimiento/change_list.html"
     list_per_page = 50
-    list_display = ('id', 'tipo', 'prioridad', 'estado', 'falla', 'descripcion_corta', 'ubicacion', 'activo', 'solicitante', 'creado_en', 'enviar_whatsapp_button')
+    list_display = ('id', 'tipo', 'prioridad', 'estado', 'falla', 'descripcion_corta', 'ubicacion', 'activo', 'solicitante', 'creado_en', 'enviar_whatsapp_button', 'import_link')
     list_filter = ('tipo', 'estado', 'prioridad', 'falla', 'creado_en')
     list_select_related = ('ubicacion', 'activo', 'solicitante', 'falla')
     search_fields = ('descripcion', 'ubicacion__nombre', 'activo__nombre')
@@ -1192,6 +1232,36 @@ class AvisoAdmin(admin.ModelAdmin):
     actions = ['generar_ot_action']
     raw_id_fields = ('activo', 'ubicacion', 'solicitante', 'falla')
     inlines = [FotoAvisoInline]
+
+    def import_link(self, obj=None):
+        url = reverse('admin:mantenimiento_aviso_import_background')
+        return mark_safe(f'<a class="button" href="{url}" style="background: #2563eb; color: white; font-weight: 700;">📥 IMPORTAR MASIVO</a>')
+    import_link.short_description = 'Acciones'
+
+    # --- Funcionalidades Combinadas: Importación y WhatsApp ---
+
+    def get_urls(self):
+        urls = super().get_urls()
+        from django.urls import path
+        from .views.import_avisos import import_avisos_background, import_avisos_process, import_avisos_progress
+        
+        custom_urls = [
+            # URLs de Importación
+            path('import-background/', self.admin_site.admin_view(import_avisos_background), name='mantenimiento_aviso_import_background'),
+            path('import-background/process/', csrf_exempt(self.admin_site.admin_view(import_avisos_process)), name='mantenimiento_aviso_import_process'),
+            path('import-background/progress/', self.admin_site.admin_view(import_avisos_progress), name='mantenimiento_aviso_import_progress'),
+            path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_aviso_import_template'),
+            
+            # URL de WhatsApp
+            path('enviar-whatsapp/<int:aviso_id>/', self.admin_site.admin_view(self.enviar_whatsapp_view), name='aviso_enviar_whatsapp'),
+        ]
+        return custom_urls + urls
+
+    def download_template_view(self, request):
+        dataset = AvisoResource().export(queryset=Aviso.objects.none())
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_avisos.xlsx"'
+        return response
 
     def add_view(self, request, form_url='', extra_context=None):
         """Redirigir a la interfaz móvil renovada"""
@@ -1252,8 +1322,6 @@ class AvisoAdmin(admin.ModelAdmin):
         if count:
             self.message_user(request, f"Se han generado {count} Órdenes de Trabajo Correctivas.", messages.SUCCESS)
 
-    # --- WhatsApp Functions (Merged) ---
-
     def enviar_whatsapp_button(self, obj):
         from django.urls import reverse
         from django.utils.safestring import mark_safe
@@ -1263,14 +1331,6 @@ class AvisoAdmin(admin.ModelAdmin):
         return mark_safe(f'<a class="button" href="{url}" style="background-color: #25D366; color: white; border-radius: 4px; padding: 5px 10px; font-weight: bold; text-decoration: none;">📱 Enviar WA</a>')
     enviar_whatsapp_button.short_description = 'WhatsApp'
     enviar_whatsapp_button.allow_tags = True
-    
-    def get_urls(self):
-        urls = super().get_urls()
-        from django.urls import path
-        custom_urls = [
-            path('enviar-whatsapp/<int:aviso_id>/', self.admin_site.admin_view(self.enviar_whatsapp_view), name='aviso_enviar_whatsapp'),
-        ]
-        return custom_urls + urls
 
     def enviar_whatsapp_view(self, request, aviso_id):
         import requests

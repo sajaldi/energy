@@ -238,3 +238,25 @@ def guardar_perfil_usuario(sender, instance, **kwargs):
         instance.perfil.save()
     else:
         PerfilUsuario.objects.get_or_create(usuario=instance)
+
+
+class VistaPersonalizada(models.Model):
+    """Permite guardar filtros del admin como vistas personalizadas."""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vistas_personalizadas')
+    nombre = models.CharField(max_length=100)
+    app_label = models.CharField(max_length=100)
+    model_name = models.CharField(max_length=100)
+    query_string = models.TextField(help_text="Query string del filtro (ej: ?empresa__id=1)")
+    es_publica = models.BooleanField(default=False, verbose_name="¿Es pública?")
+    color = ColorField(default='#4f46e5', verbose_name="Color de la etiqueta")
+    icono = models.CharField(max_length=50, default='fas fa-filter', verbose_name="Icono FontAwesome")
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.nombre} ({self.model_name})"
+
+    class Meta:
+        verbose_name = "Vista Personalizada"
+        verbose_name_plural = "Vistas Personalizadas"
+        ordering = ['nombre']
+        unique_together = ['usuario', 'nombre', 'app_label', 'model_name']

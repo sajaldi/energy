@@ -5,6 +5,7 @@ from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConf
 import json
 
 from django.forms import TextInput, Textarea
+from django import forms
 from django.db import models
 
 from import_export.admin import ImportExportModelAdmin
@@ -41,8 +42,34 @@ class RevisionInline(admin.TabularInline):
     def has_change_permission(self, request, obj=None):
         return True
 
+class MetadatoValorForm(forms.ModelForm):
+    class Meta:
+        model = MetadatoValor
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Cambiar el widget dinámicamente según la configuración del metadato
+        if hasattr(self, 'instance') and self.instance.pk and self.instance.config:
+            tipo = self.instance.config.tipo_campo
+            if tipo == 'FECHA':
+                self.fields['valor'].widget = forms.DateInput(attrs={'type': 'date', 'class': 'vDateField'})
+            elif tipo == 'HORA':
+                self.fields['valor'].widget = forms.TimeInput(attrs={'type': 'time', 'class': 'vTimeField'})
+            elif tipo == 'NUMERO':
+                self.fields['valor'].widget = forms.NumberInput(attrs={'style': 'width: 120px;'})
+            elif tipo == 'EMAIL':
+                self.fields['valor'].widget = forms.EmailInput(attrs={'style': 'width: 300px;'})
+            else:
+                # Para TEXTO o cualquier otro, usamos un input de una sola línea en lugar de textarea
+                self.fields['valor'].widget = forms.TextInput(attrs={'style': 'width: 90%; min-width: 400px;'})
+        else:
+            # Fallback seguro
+            self.fields['valor'].widget = forms.TextInput(attrs={'style': 'width: 90%;'})
+
 class MetadatoValorInline(admin.TabularInline):
     model = MetadatoValor
+    form = MetadatoValorForm
     extra = 0
     fields = ('get_etiqueta', 'valor')
     readonly_fields = ('get_etiqueta',)
@@ -56,10 +83,14 @@ class MetadatoValorInline(admin.TabularInline):
 
 @admin.register(Documento)
 class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
-    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'get_word_templates_buttons', 'get_ultima_revision_info', 'trazabilidad_link', 'extraer_datos_button', 'solicitar_firmas_link')
-    list_filter = ('tipo_documento', 'disciplina', 'estado_actual')
+    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'fecha_inicio', 'get_respuesta_a_codigo', 'analizar_ia_button', 'trazabilidad_link')
+    list_filter = ('tipo_documento', 'disciplina', 'estado_actual', 'fecha_inicio')
     search_fields = ('codigo', 'titulo', 'revisiones__comentarios')
-    
+
+    def get_respuesta_a_codigo(self, obj):
+        return obj.respuesta_a.codigo if obj.respuesta_a else "-"
+    get_respuesta_a_codigo.short_description = "Responde a"
+
     inlines = [MetadatoValorInline, ComentarioDocumentoInline, RevisionInline]
     autocomplete_fields = ('activos', 'ubicaciones')
     change_list_template = "admin/documentos/documento/change_list.html"
@@ -70,10 +101,10 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
 
     fieldsets = (
         ('Identificación', {
-            'fields': (('codigo', 'titulo'), ('tipo_documento', 'disciplina'), ('respuesta_a', 'trazabilidad_link'))
+            'fields': (('codigo', 'titulo'), ('tipo_documento', 'disciplina'), ('respuesta_a', 'fecha_inicio'), 'trazabilidad_link')
         }),
-        ('Estado', {
-            'fields': ('estado_actual', 'ultima_revision', 'extraer_datos_button', 'get_word_templates_buttons')
+        ('Estado e IA', {
+            'fields': (('estado_actual', 'ultima_revision'), ('analizar_ia_button', 'sync_metadatos_button', 'get_word_templates_buttons'))
         }),
         ('Relaciones', {
             'fields': ('activos', 'ubicaciones')
@@ -84,7 +115,7 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         }),
     )
     
-    readonly_fields = ('ultima_revision', 'extraer_datos_button', 'trazabilidad_link', 'contenido_texto_display', 'get_word_templates_buttons') 
+    readonly_fields = ('ultima_revision', 'analizar_ia_button', 'trazabilidad_link', 'contenido_texto_display', 'get_word_templates_buttons', 'sync_metadatos_button') 
 
     def trazabilidad_link(self, obj):
         if not obj.pk: return "-"
@@ -94,6 +125,24 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
             url
         )
     trazabilidad_link.short_description = "Flujo / Trazabilidad"
+
+    def analizar_ia_button(self, obj):
+        if not obj.pk: return "-"
+        url = reverse('documentos:documento_reprocesar', args=[obj.pk])
+        return format_html(
+            '<a class="button" href="{}" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem; display: inline-block;">🤖 Analizar IA</a>',
+            url
+        )
+    analizar_ia_button.short_description = "IA"
+
+    def sync_metadatos_button(self, obj):
+        if not obj.pk: return "-"
+        url = reverse('documentos:documento_sync_metadatos', args=[obj.pk])
+        return format_html(
+            '<a class="button" href="{}" style="background: #0ea5e9; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem;">⚙️ Sincronizar Campos</a>',
+            url
+        )
+    sync_metadatos_button.short_description = "Metadatos"
     
     def contenido_texto_display(self, obj):
         if not obj.pk: return "-"

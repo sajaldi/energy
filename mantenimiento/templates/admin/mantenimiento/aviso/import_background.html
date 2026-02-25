@@ -1,0 +1,348 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    .import-container {
+        max-width: 800px;
+        margin: 40px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-wrapper {
+        margin-top: 30px;
+        display: none;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 25px;
+        background-color: #f0f0f0;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+        /* Blue for routines */
+        width: 0%;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .status-text {
+        margin-top: 10px;
+        text-align: center;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .file-upload-zone {
+        border: 2px dashed #cbd5e1;
+        padding: 40px;
+        text-align: center;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .file-upload-zone:hover {
+        border-color: #3b82f6;
+        background-color: #eff6ff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <h2 style="margin-bottom: 20px; color: #1e293b;">
+        <span style="color: #2563eb">📋</span> Importación de Avisos (Aislada)
+    </h2>
+
+    <div style="background: #eff6ff; border-left: 4px solid #2563eb; padding: 15px; margin-bottom: 25px;">
+        <p style="margin: 0; color: #1e3a8a;">
+            <strong>Modo Seguro:</strong> Esta importación utiliza un motor independiente para garantizar la integridad
+            de los datos masivos.
+        </p>
+    </div>
+
+    <div style="margin-bottom: 25px; text-align: center;">
+        <a href="template/" class="button"
+            style="background: #059669; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.2);">
+            <span style="font-size: 1.2rem;">📊</span> Descargar Formato de Importación de Avisos
+        </a>
+    </div>
+
+    <form id="importForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" name="import_file" style="display: none;" accept=".xlsx, .xls, .csv">
+            <div style="font-size: 3rem; color: #94a3b8; margin-bottom: 15px;">📄</div>
+            <h3 style="color: #475569; margin: 0;">Selecciona tu archivo de Avisos</h3>
+            <p style="color: #94a3b8; margin-top: 5px;">Soporta Excel (.xlsx) y CSV</p>
+            <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #2563eb;"></div>
+        </div>
+
+        <div
+            style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="verificationMode" name="verification_mode"
+                style="width: 20px; height: 20px; cursor: pointer;">
+            <label for="verificationMode" style="cursor: pointer; font-weight: 600; color: #1e293b;">
+                🔍 Solo verificar previos (No importar nada)
+            </label>
+        </div>
+
+        <div style="margin-top: 25px; text-align: right;">
+            <a href="../" class="button"
+                style="background-color: #cbd5e1; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px;">Cancelar</a>
+            <button type="submit" class="button"
+                style="background-color: #2563eb; color: white; padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem;">
+                🚀 Iniciar Proceso
+            </button>
+        </div>
+    </form>
+
+    <div class="progress-wrapper" id="progressWrapper">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill">0%</div>
+        </div>
+        <div class="status-text" id="statusText">Iniciando proceso...</div>
+        <div style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: #94a3b8;">
+            ID de Tarea: <span id="taskIdDisplay" style="font-family: monospace;">...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const importForm = document.getElementById('importForm');
+    const verificationMode = document.getElementById('verificationMode');
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressFill = document.getElementById('progressFill');
+    const statusText = document.getElementById('statusText');
+    const taskIdDisplay = document.getElementById('taskIdDisplay');
+
+    fileInput.addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+            fileName.textContent = this.files[0].name;
+            fileName.style.display = 'block';
+        }
+    });
+
+    importForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        if (!fileInput.files.length) {
+            Swal.fire('Error', 'Selecciona un archivo primero', 'error');
+            return;
+        }
+
+        importForm.style.opacity = '0.5';
+        importForm.style.pointerEvents = 'none';
+        progressWrapper.style.display = 'block';
+
+        const formData = new FormData(this);
+        formData.set('verification_mode', verificationMode.checked ? 'true' : 'false');
+
+        fetch('process/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Error del servidor (${response.status}): ${text.slice(0, 100)}...`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.task_id) {
+                    taskIdDisplay.textContent = data.task_id;
+                    startPolling(data.task_id);
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo iniciar la tarea', 'error');
+                    resetUI();
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire('Error', err.message || 'Error de conexión', 'error');
+                resetUI();
+            });
+    });
+
+    function startPolling(taskId) {
+        const interval = setInterval(() => {
+            fetch(`progress/?task_id=${taskId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const percent = data.percent || 0;
+                    progressFill.style.width = percent + '%';
+                    progressFill.textContent = percent + '%';
+                    statusText.textContent = data.status || 'Procesando...';
+
+                    if (data.status_code === 'completed' || data.state === 'SUCCESS') {
+                        clearInterval(interval);
+                        progressFill.style.width = '100%';
+
+                        if (data.verification_mode) {
+                            Swal.fire({
+                                title: '¡Verificación Completada!',
+                                html: `<div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;"><p>✅ <b>Encontrados (Ya existen):</b> ${data.found}</p><p>🆕 <b>No encontrados (Nuevos):</b> ${data.not_found}</p><p>⚠️ <b>Repetidos en archivo:</b> ${data.duplicates || 0}</p><hr><div style="max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: monospace;">${data.results.join('<br>')}</div></div>`,
+                                icon: 'info',
+                                confirmButtonText: 'Cerrar'
+                            });
+                            resetUI();
+                        } else if (data.dry_run) {
+                            Swal.fire({
+                                title: '🔍 Análisis del Archivo',
+                                html: `
+                                <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                    <p style="color: #2563eb; font-weight: bold; margin-bottom: 10px;">Se detectaron los siguientes cambios:</p>
+                                    <p>🆕 <b>Nuevas (Se crearán):</b> ${data.new}</p>
+                                    <p>🔄 <b>Existentes (Se actualizarán):</b> ${data.updated}</p>
+                                    <p>⏭️ <b>Sin cambios:</b> ${data.skipped}</p>
+                                    
+                                    ${data.errors > 0 ? `
+                                        <div style="margin-top: 15px; border-top: 1px solid #fee2e2; pt-3">
+                                            <p style="color: #ef4444; font-weight: bold;">⚠️ Errores Encontrados (${data.errors}):</p>
+                                            <div style="max-height: 100px; overflow-y: auto; font-size: 0.75rem; color: #b91c1c; background: #fff5f5; padding: 5px; border-radius: 4px;">
+                                                ${data.error_list.join('<br>')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    <p style="margin-top: 15px; font-size: 0.9rem; color: #475569;">¿Deseas proceder con la importación y actualización de estos registros?</p>
+                                </div>
+                                `,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: '✅ Sí, Importar todo',
+                                cancelButtonText: '❌ Cancelar',
+                                confirmButtonColor: '#2563eb',
+                                reverseButtons: true
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    confirmImport(data.file_path);
+                                } else {
+                                    resetUI();
+                                }
+                            });
+                        } else {
+                            Swal.fire({
+                                title: '¡Importación Finalizada!',
+                                html: `
+                                <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                    <p>✅ <b>Nuevas:</b> ${data.new}</p>
+                                    <p>🔄 <b>Actualizadas:</b> ${data.updated}</p>
+                                    <p>⏭️ <b>Omitidas:</b> ${data.skipped}</p>
+                                    <p>❌ <b>Errores:</b> ${data.errors}</p>
+                                    ${data.error_list && data.error_list.length > 0 ? `
+                                        <div style="margin-top: 15px;">
+                                            <p style="margin: 0 0 5px 0; font-weight: bold; color: #ef4444; font-size: 0.9rem;">Detalle de Errores:</p>
+                                            <div style="max-height: 150px; overflow-y: auto; font-size: 0.8rem; font-family: monospace; color: #b91c1c; border: 1px solid #fecaca; padding: 8px; border-radius: 4px; background: #fff5f5;">
+                                                ${data.error_list.join('<br>')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `,
+                                icon: data.errors > 0 ? 'warning' : 'success',
+                                confirmButtonText: 'Ver Avisos'
+                            }).then(() => {
+                                window.location.href = '../';
+                            });
+                        }
+                    } else if (data.status_code === 'error' || data.state === 'FAILURE' || data.status === 'error') {
+                        clearInterval(interval);
+                        progressFill.style.background = '#ef4444';
+                        statusText.textContent = 'Falló la importación';
+
+                        // Construir HTML del error con detalle técnico expandible
+                        const rawMsg = data.message || 'La tarea falló inesperadamente.';
+                        const lines = rawMsg.split('\n');
+                        const mainMsg = lines[0];
+                        const detail = lines.slice(1).join('\n').trim();
+                        const detailHtml = detail
+                            ? `<details style="margin-top:12px;text-align:left;">
+                                <summary style="cursor:pointer;color:#b91c1c;font-size:0.85rem;">&#9656; Ver detalle técnico</summary>
+                                <pre style="background:#fff5f5;border:1px solid #fecaca;padding:8px;border-radius:4px;font-size:0.75rem;max-height:200px;overflow:auto;white-space:pre-wrap;color:#7f1d1d;">${detail.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                              </details>`
+                            : '';
+
+                        Swal.fire({
+                            title: '&#10060; Error en la importación',
+                            html: `<div style="text-align:left;"><p style="color:#ef4444;font-weight:600;">${mainMsg}</p>${detailHtml}</div>`,
+                            icon: 'error',
+                            confirmButtonText: 'Cerrar',
+                            confirmButtonColor: '#ef4444',
+                        }).then(() => resetUI());
+                    }
+                })
+                .catch(err => console.error('Error de sondeo:', err));
+        }, 1000);
+    }
+
+    function confirmImport(filePath) {
+        progressFill.style.width = '0%';
+        statusText.textContent = 'Iniciando importación real...';
+
+        const formData = new FormData();
+        formData.append('confirm', 'true');
+        formData.append('file_path', filePath);
+        formData.append('verification_mode', 'false');
+
+        fetch('process/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Error del servidor (${response.status}): ${text.slice(0, 100)}...`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.task_id) {
+                    startPolling(data.task_id);
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo iniciar la tarea', 'error');
+                    resetUI();
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire('Error', 'No se pudo iniciar la confirmación: ' + err.message, 'error');
+                resetUI();
+            });
+    }
+
+    function resetUI() {
+        importForm.style.opacity = '1';
+        importForm.style.pointerEvents = 'auto';
+        progressWrapper.style.display = 'none';
+        progressFill.style.width = '0%';
+    }
+</script>
+{% endblock %}

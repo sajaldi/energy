@@ -39,7 +39,9 @@ def extract_document_metadata(revision_id):
             try:
                 # Usar la URL firmada de S3/MinIO para que n8n no necesite credenciales adicionales
                 internal_file_url = revision.archivo.url
-                internal_callback_url = f"{settings.INTERNAL_SITE_URL}/documentos/api/callback-procesamiento/{revision.id}/"
+                # Forzamos a que el callback use el Túnel Reverso (localhost:8080) que n8n sí puede ver
+                base_callback_url = getattr(settings, 'INTERNAL_SITE_URL', 'http://localhost:8080')
+                internal_callback_url = f"{base_callback_url}/documentos/api/callback-procesamiento/{revision.id}/"
 
                 payload = {
                     'revision_id': revision.id,

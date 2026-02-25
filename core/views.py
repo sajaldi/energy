@@ -697,3 +697,62 @@ def system_portal(request):
         
     return render(request, 'core/system_portal.html', context)
 
+
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.contenttypes.models import ContentType
+from .models import VistaPersonalizada
+
+@login_required
+@csrf_exempt
+@staff_member_required
+def guardar_vista_personalizada(request):
+    """Guarda una vista personalizada (URL con filtros) para el admin."""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            nombre = data.get('nombre')
+            app_label = data.get('app_label')
+            model_name = data.get('model_name')
+            query_string = data.get('query_string')
+            es_publica = data.get('es_publica', False)
+
+            if not all([nombre, app_label, model_name, query_string]):
+                return JsonResponse({'status': 'error', 'message': 'Faltan datos requeridos'}, status=400)
+
+            vista, created = VistaPersonalizada.objects.update_or_create(
+                usuario=request.user,
+                nombre=nombre,
+                app_label=app_label,
+                model_name=model_name,
+                defaults={
+                    'query_string': query_string,
+                    'es_publica': es_publica
+                }
+            )
+
+            return JsonResponse({
+                'status': 'success', 
+                'message': 'Vista guardada correctamente',
+                'id': vista.id,
+                'created': created
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+@login_required
+@csrf_exempt
+@staff_member_required
+def eliminar_vista_personalizada(request, vista_id):
+    """Elimina una vista personalizada."""
+    if request.method == 'POST':
+        try:
+            vista = VistaPersonalizada.objects.get(id=vista_id, usuario=request.user)
+            vista.delete()
+            return JsonResponse({'status': 'success', 'message': 'Vista eliminada'})
+        except VistaPersonalizada.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Vista no encontrada'}, status=404)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+

@@ -47,7 +47,7 @@ if not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['*']
 
 # Diagnostico en el log
-print(f"[DEBUG] ALLOWED_HOSTS final: {ALLOWED_HOSTS}")
+print(f"[DEBUG] ALLOWED_HOSTS final: {ALLOWED_HOSTS} ")
 
 # URL base para el sitio
 SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
@@ -582,5 +582,6 @@ LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/app/'
 
 # N8N Integration
-N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://181.115.47.107:5678/webhook-test/process-document')
-INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://10.30.1.11:8000')
+N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://localhost:5678/webhook/process-document')
+N8N_PROCESS_DOCUMENT_WEBHOOK_URL = N8N_EXTRACT_TEXTO_WEBHOOK_URL
+INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'https://b52aeb243e6033.lhr.life')

@@ -872,63 +872,9 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
     search_fields = ('nombre', 'descripcion', 'codigo_interno', 'epc', 'serie', 'referencia', 'familia__nombre', 'plano__nombre', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
     autocomplete_fields = ('familia', 'modelo', 'ubicacion', 'responsable', 'padre', 'plano')
 
-    # Configuración de campos (Fieldsets)
-    fieldsets = (
-        ('Información Crítica (Obligatoria)', {
-            'fields': (
-                ('nombre', 'codigo_interno'), 
-                'estado'
-            ),
-            'description': 'Estos campos son requeridos para identificar el activo.'
-        }),
-        ('Ubicación y Responsable', {
-            'fields': (
-                'ubicacion', 
-                ('responsable', 'plano'),
-                'ver_en_plano'
-            )
-        }),
-        ('Clasificación', {
-            'fields': (
-                ('familia', 'modelo'),
-                'padre'
-            )
-        }),
-        ('Detalles Técnicos', {
-            'fields': (
-                ('serie', 'epc'),
-                'referencia',
-                'descripcion'
-            ),
-            'classes': ('collapse',)
-        }),
-        ('Financiero y Adquisición', {
-            'fields': (
-                ('fecha_compra', 'costo'),
-            ),
-            'classes': ('collapse',)
-        }),
-        ('Multimedia e Imagen', {
-            'fields': ('foto', 'get_modelo_img'),
-            'classes': ('collapse',)
-        }),
-        ('Información de Auditoría y Estado', {
-            'fields': (
-                'ultima_auditoria_display',
-                ('rutinas_aplicables', 'ordenes_programadas'),
-                'historial_ordenes',
-                'crear_aviso_link'
-            ),
-            'classes': ('collapse',)
-        }),
-        ('Datos Legacy (Solo lectura)', {
-            'fields': ('marca_legacy', 'modelo_legacy', 'ubicacion_legacy'),
-            'classes': ('collapse',),
-        })
-    )
 
     inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline, AuditoriasActivoInline]
-    readonly_fields = ('ultima_auditoria_display', 'get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'crear_aviso_link', 'get_puntos_medicion_summary')
+    readonly_fields = ('ultima_auditoria_display', 'get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'tickets_asociados', 'crear_aviso_link', 'get_puntos_medicion_summary')
     actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv', 'limpiar_todo_el_inventario']
 
     @admin.action(description="BORRADO RÁPIDO: Eliminar selección actual (evita error de límites)")
@@ -1387,6 +1333,66 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
         return format_html(html)
     historial_ordenes.short_description = "Historial de Órdenes de Trabajo"
 
+    def tickets_asociados(self, obj):
+        from mantenimiento.models import Aviso
+        avisos = Aviso.objects.filter(activo=obj).order_by('-creado_en')
+        
+        if not avisos.exists():
+            return format_html('<div style="color: #94a3b8; font-style: italic; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">No hay avisos/tickets reportados para este equipo.</div>')
+
+        html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 10px;">'
+        html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
+        html += '<thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">'
+        html += '<tr>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">Ticket #</th>'
+        html += '<th style="text-align: left; padding: 12px 15px; color: #475569; font-weight: 700;">Descripción</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Prioridad</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Estado</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Fecha</th>'
+        html += '<th style="text-align: center; padding: 12px 15px; color: #475569; font-weight: 700;">Acción</th>'
+        html += '</tr></thead><tbody>'
+
+        for av in avisos:
+            fecha = av.creado_en.strftime('%d/%m/%Y')
+            
+            # Colores para prioridad
+            prio_color = {
+                'BAJA': '#64748b',
+                'MEDIA': '#3b82f6',
+                'ALTA': '#f59e0b',
+                'CRITICA': '#ef4444'
+            }.get(av.prioridad, '#000')
+            
+            # Colores para estado
+            est_color = {
+                'ABIERTO': '#ef4444',
+                'PROCESO': '#3b82f6',
+                'CERRADO': '#10b981',
+                'CANCELADO': '#64748b'
+            }.get(av.estado, '#000')
+
+            html += f'<tr style="border-bottom: 1px solid #f1f5f9;">'
+            html += f'<td style="padding: 12px 15px; font-weight: 700; color: #1e293b;">AV-{av.id}</td>'
+            html += f'<td style="padding: 12px 15px;">'
+            html += f'<div style="font-weight: 600; color: #1e293b;">{av.get_tipo_display()}</div>'
+            html += f'<div style="font-size: 0.75rem; color: #64748b;">{av.descripcion[:100]}{"..." if len(av.descripcion) > 100 else ""}</div>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<span style="color: {prio_color}; font-weight: 700;">{av.get_prioridad_display()}</span>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<span style="background: {est_color}15; color: {est_color}; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 0.75rem;">{av.get_estado_display()}</span>'
+            html += f'</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center; color: #475569;">{fecha}</td>'
+            html += f'<td style="padding: 12px 15px; text-align: center;">'
+            html += f'<a href="/admin/mantenimiento/aviso/{av.id}/change/" target="_blank" style="background: #f1f5f9; color: #475569; padding: 5px; border-radius: 4px; display: inline-flex; align-items: center; border: 1px solid #e2e8f0; text-decoration: none;">'
+            html += f'<ion-icon name="open-outline" style="font-size: 1rem;"></ion-icon>'
+            html += '</a></td></tr>'
+
+        html += '</tbody></table></div>'
+        return format_html(html)
+    tickets_asociados.short_description = "Avisos / Tickets Asociados"
+
     def crear_aviso_link(self, obj):
         if not obj.id: return "-"
         url = f"/admin/mantenimiento/aviso/add/?activo={obj.id}"
@@ -1572,12 +1578,18 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             )
         }),
         ('Detalles Adicionales', {
-            'fields': ('descripcion', 'foto', 'marca_legacy', 'modelo_legacy', 'crear_aviso_link', 'ultima_auditoria_display'),
+            'fields': ('descripcion', 'foto', 'marca_legacy', 'modelo_legacy'),
             'classes': ('collapse',)
         }),
         ('Mantenimiento Preventivo', {
-            'fields': ('rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes'),
-            'description': 'Información sobre rutinas aplicables, órdenes pendientes e historial de mantenimiento.'
+            'fields': (
+                ('rutinas_aplicables', 'ordenes_programadas'), 
+                'historial_ordenes', 
+                'tickets_asociados',
+                'ultima_auditoria_display',
+                'crear_aviso_link'
+            ),
+            'description': 'Información sobre rutinas aplicables, órdenes pendientes, historial de mantenimiento y avisos/tickets.'
         }),
     )
 

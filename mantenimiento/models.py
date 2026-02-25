@@ -119,7 +119,9 @@ class TecnicoPuesto(models.Model):
         ('O+', 'O+'), ('O-', 'O-'),
     ]
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil_tecnico')
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='perfil_tecnico')
+    nombre = models.CharField(max_length=150, blank=True, null=True, verbose_name="Nombre(s)")
+    apellido = models.CharField(max_length=150, blank=True, null=True, verbose_name="Apellido(s)")
     puesto = models.ForeignKey(PuestoTrabajo, on_delete=models.SET_NULL, null=True, blank=True, related_name='tecnicos')
     empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados')
     
@@ -132,11 +134,13 @@ class TecnicoPuesto(models.Model):
     horas_semanales_max = models.DecimalField(max_length=5, max_digits=5, decimal_places=2, default=40.00, help_text="Capacidad máxima de horas por semana")
 
     def __str__(self):
-        return f"{self.user.get_full_name() or self.user.username} - {self.puesto}"
+        if self.user:
+            return f"{self.user.get_full_name() or self.user.username} - {self.puesto}"
+        return f"{self.nombre} {self.apellido} - {self.puesto or 'Sin Puesto'}"
 
     class Meta:
-        verbose_name = "Personal de Mantenimiento"
-        verbose_name_plural = "Personal de Mantenimiento"
+        verbose_name = "Personal"
+        verbose_name_plural = "Personal"
 
 class Procedimiento(models.Model):
     nombre = models.CharField(max_length=200, unique=True)

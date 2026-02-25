@@ -473,6 +473,7 @@ def import_bienes_afectos_task(self, file_path, file_format, user_id=None, impor
             data_row = dataset_dict[i]
             nombre = str(data_row.get('nombre') or 'S/N').strip()
             codigo = str(data_row.get('codigo_interno') or '---').strip()
+            activo_vinculado = str(data_row.get('activo_actual_codigo') or '').strip()
             
             action = "SIN CAMBIOS"
             details = ""
@@ -493,7 +494,8 @@ def import_bienes_afectos_task(self, file_path, file_format, user_id=None, impor
                 detailed_errors.append(f"Fila {row_idx}: {err_msg}")
             
             if verification_mode or dry_run:
-                msg = f"Fila {row_idx}: {codigo} ({nombre}) -> [{action}] {details}"
+                vinculo = f" [Activo: {activo_vinculado}]" if activo_vinculado else ""
+                msg = f"Fila {row_idx}: {codigo} ({nombre}){vinculo} -> [{action}] {details}"
                 detailed_messages.append(msg)
         
         from celery import states

@@ -144,11 +144,14 @@ def requisicion_upsert(request, pk=None):
 
     instance = get_object_or_404(Requisicion, pk=pk) if pk else None
 
-    # Si es nueva o no tiene solicitante, asignar el usuario actual
+    # Si es nueva, la creamos y redirigimos a la vista de edición para evitar duplicados en POST y conflictos de unicidad
     if not instance:
         instance = Requisicion(usuario_solicitante=request.user)
         instance.save()  # Guardar para obtener PK
-    elif not instance.usuario_solicitante:
+        return redirect(reverse('presupuestos:requisicion_editar', kwargs={'pk': instance.pk}))
+    
+    # Si no tiene solicitante, asignar el usuario actual
+    if not instance.usuario_solicitante:
         instance.usuario_solicitante = request.user
         instance.save(update_fields=['usuario_solicitante'])
 
