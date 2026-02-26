@@ -441,6 +441,16 @@ JAZZMIN_SETTINGS = {
     "custom_js": "core/js/admin_search.js",
     "use_google_fonts_cdn": True,
     "show_ui_builder": True,
+    "custom_links": {
+        "documentos": [
+            {
+                "name": "📁 Carga Masiva",
+                "url": "/documentos/carga-masiva/",
+                "icon": "fas fa-upload",
+                "permissions": ["documentos.add_documento"],
+            },
+        ],
+    },
 }
 
 JAZZMIN_UI_TWEAKS = {

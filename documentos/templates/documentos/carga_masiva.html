@@ -603,6 +603,50 @@
   });
 
   // ============================================================
+  //  Parsear código y título desde el nombre del archivo
+  //  Ejemplo: "AH-CCG-270-2024 - Revisión de algo.pdf"
+  //           → codigo: "AH-CCG-270-2024"   titulo: "Revisión de algo"
+  // ============================================================
+  function parsearNombreArchivo(nombreConExt) {
+    // Quitar extensión
+    const nombre = nombreConExt.replace(/\.[^.]+$/, '').trim();
+
+    // Caso 1: contiene " - " → separar en código y título
+    const sepIdx = nombre.indexOf(' - ');
+    if (sepIdx !== -1) {
+      return {
+        codigo: nombre.substring(0, sepIdx).trim().toUpperCase(),
+        titulo: nombre.substring(sepIdx + 3).trim(),
+      };
+    }
+
+    // Caso 2: contiene " – " (guión largo)
+    const sepIdxLargo = nombre.indexOf(' – ');
+    if (sepIdxLargo !== -1) {
+      return {
+        codigo: nombre.substring(0, sepIdxLargo).trim().toUpperCase(),
+        titulo: nombre.substring(sepIdxLargo + 3).trim(),
+      };
+    }
+
+    // Caso 3: primer espacio → antes es código, después es título
+    const espIdx = nombre.indexOf(' ');
+    if (espIdx !== -1) {
+      const posibleCodigo = nombre.substring(0, espIdx).trim();
+      // Solo usar como código si parece un código (contiene guión o es todo mayúsculas/números)
+      if (/[-_]/.test(posibleCodigo) || /^[A-Z0-9]+$/.test(posibleCodigo)) {
+        return {
+          codigo: posibleCodigo.toUpperCase(),
+          titulo: nombre.substring(espIdx + 1).trim(),
+        };
+      }
+    }
+
+    // Fallback: sin separador claro → título = nombre completo, código vacío
+    return { codigo: '', titulo: nombre };
+  }
+
+  // ============================================================
   //  Agregar archivos al estado y re-renderizar
   // ============================================================
   function agregarArchivos(nuevos) {
@@ -611,7 +655,8 @@
       // Evitar duplicados por nombre+tamaño
       const existe = files.some(x => x.file.name === f.name && x.file.size === f.size);
       if (!existe) {
-        files.push({ file: f, codigo: '', titulo: '' });
+        const { codigo, titulo } = parsearNombreArchivo(f.name);
+        files.push({ file: f, codigo, titulo });
         cambiaron = true;
       }
     });
