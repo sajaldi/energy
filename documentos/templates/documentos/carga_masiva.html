@@ -1,0 +1,888 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Carga Masiva de Documentos{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  /* ============================================================
+     CARGA MASIVA — ESTILOS
+  ============================================================ */
+  :root {
+    --primary: #0d6efd;
+    --primary-light: #e8f0fe;
+    --success: #198754;
+    --danger: #dc3545;
+    --warning: #ffc107;
+    --border: #dee2e6;
+    --radius: 10px;
+  }
+
+  .cm-page {
+    max-width: 1200px;
+    margin: 24px auto;
+    padding: 0 16px;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* ---- Breadcrumb / Header ---- */
+  .cm-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .cm-header-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #0d6efd, #6610f2);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .cm-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .cm-header p {
+    font-size: .875rem;
+    color: #6c757d;
+    margin: 0;
+  }
+
+  /* ---- Card base ---- */
+  .cm-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+  }
+
+  .cm-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ---- Config global (tipo / disciplina) ---- */
+  .cm-config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 600px) {
+    .cm-config-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .cm-field label {
+    display: block;
+    font-size: .8rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 6px;
+  }
+
+  .cm-field select,
+  .cm-field input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: .9rem;
+    transition: border-color .2s;
+    background: #fff;
+  }
+
+  .cm-field select:focus,
+  .cm-field input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, .12);
+  }
+
+  /* ---- Drop Zone ---- */
+  .cm-dropzone {
+    border: 2.5px dashed #adb5bd;
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .25s;
+    background: #f8f9fa;
+    position: relative;
+  }
+
+  .cm-dropzone.drag-over {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    transform: scale(1.01);
+  }
+
+  .cm-dropzone-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    display: block;
+    user-select: none;
+  }
+
+  .cm-dropzone h3 {
+    font-size: 1.1rem;
+    color: #343a40;
+    margin: 0 0 6px;
+  }
+
+  .cm-dropzone p {
+    font-size: .875rem;
+    color: #6c757d;
+    margin: 0 0 16px;
+  }
+
+  .cm-dropzone #hidden-file-input {
+    display: none;
+  }
+
+  .btn-select-files {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s;
+  }
+
+  .btn-select-files:hover {
+    background: #0b5ed7;
+  }
+
+  /* ---- Tabla de archivos ---- */
+  .cm-table-wrapper {
+    overflow-x: auto;
+  }
+
+  table.cm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .875rem;
+  }
+
+  table.cm-table thead th {
+    background: #f1f3f5;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+
+  table.cm-table tbody tr {
+    border-bottom: 1px solid #f1f3f5;
+    transition: background .15s;
+  }
+
+  table.cm-table tbody tr:hover {
+    background: #f8f9fa;
+  }
+
+  table.cm-table td {
+    padding: 8px 12px;
+    vertical-align: middle;
+  }
+
+  /* Celda del nombre del archivo */
+  .file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f1f3f5;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    max-width: 320px;
+    overflow: hidden;
+  }
+
+  .file-chip-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .file-chip-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: .8rem;
+    font-weight: 500;
+  }
+
+  .file-chip-size {
+    font-size: .75rem;
+    color: #6c757d;
+    flex-shrink: 0;
+  }
+
+  /* Inputs dentro de la tabla */
+  .cm-table input[type="text"] {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-size: .85rem;
+    transition: border-color .2s;
+    box-sizing: border-box;
+  }
+
+  .cm-table input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, .1);
+  }
+
+  /* Botón quitar fila */
+  .btn-remove-row {
+    background: none;
+    border: none;
+    color: #adb5bd;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color .2s;
+    line-height: 1;
+  }
+
+  .btn-remove-row:hover {
+    color: var(--danger);
+  }
+
+  /* Estado resultado por fila */
+  .row-status {
+    font-size: 1.2rem;
+  }
+
+  .row-status.ok {
+    color: var(--success);
+  }
+
+  .row-status.error {
+    color: var(--danger);
+  }
+
+  /* ---- Barra de acción inferior ---- */
+  .cm-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .cm-counter {
+    font-size: .9rem;
+    color: #6c757d;
+  }
+
+  .cm-counter strong {
+    color: #212529;
+  }
+
+  .btn-upload {
+    background: linear-gradient(135deg, #198754, #0f5132);
+    color: #fff;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-upload:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(25, 135, 84, .4);
+  }
+
+  .btn-upload:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ---- Progress overlay ---- */
+  .cm-progress-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .5);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cm-progress-overlay.active {
+    display: flex;
+  }
+
+  .cm-progress-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 36px 44px;
+    text-align: center;
+    width: 360px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .2);
+  }
+
+  .cm-progress-box h3 {
+    font-size: 1.2rem;
+    margin: 0 0 8px;
+  }
+
+  .cm-progress-box p {
+    color: #6c757d;
+    font-size: .9rem;
+    margin: 0 0 20px;
+  }
+
+  .progress-bar-track {
+    background: #e9ecef;
+    border-radius: 99px;
+    height: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0d6efd, #6610f2);
+    border-radius: 99px;
+    width: 0%;
+    transition: width .4s ease;
+  }
+
+  .progress-label {
+    font-size: .8rem;
+    color: #6c757d;
+  }
+
+  /* ---- Resultado final ---- */
+  .cm-result-card {
+    display: none;
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    border: 1px solid;
+  }
+
+  .cm-result-card.success {
+    background: #d1e7dd;
+    border-color: #a3cfbb;
+    color: #0a3622;
+  }
+
+  .cm-result-card.partial {
+    background: #fff3cd;
+    border-color: #ffda6a;
+    color: #664d03;
+  }
+
+  .cm-result-card.error {
+    background: #f8d7da;
+    border-color: #f1aeb5;
+    color: #58151c;
+  }
+
+  .cm-result-card h4 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+  }
+
+  .cm-result-card p {
+    margin: 0;
+    font-size: .9rem;
+  }
+
+  /* Empty state */
+  .cm-empty-state {
+    text-align: center;
+    padding: 40px 0;
+    color: #6c757d;
+    font-size: .9rem;
+  }
+
+  .cm-empty-state span {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 8px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cm-page">
+
+  <!-- Header -->
+  <div class="cm-header">
+    <div class="cm-header-icon">📁</div>
+    <div>
+      <h1>Carga Masiva de Documentos</h1>
+      <p>Arrastra varios archivos, completa los metadatos y súbelos todos de una vez.</p>
+    </div>
+  </div>
+
+  <!-- Resultado final (oculto hasta terminar) -->
+  <div id="result-card" class="cm-result-card">
+    <h4 id="result-title"></h4>
+    <p id="result-body"></p>
+  </div>
+
+  <!-- Configuración Global -->
+  <div class="cm-card">
+    <h2 class="cm-card-title">⚙️ Configuración Global</h2>
+    <div class="cm-config-grid">
+      <div class="cm-field">
+        <label for="tipo-select">Tipo de Documento <span style="color:red">*</span></label>
+        <select id="tipo-select" required>
+          <option value="">— Seleccione el tipo —</option>
+          {% for tipo in tipos %}
+          <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="cm-field">
+        <label for="disciplina-select">Disciplina (opcional)</label>
+        <select id="disciplina-select">
+          <option value="">— Sin disciplina —</option>
+          {% for d in disciplinas %}
+          <option value="{{ d.id }}">{{ d.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zona de Drop -->
+  <div class="cm-card" id="dropzone-card">
+    <h2 class="cm-card-title">📂 Seleccionar Archivos</h2>
+
+    <div class="cm-dropzone" id="dropzone">
+      <span class="cm-dropzone-icon">🗂️</span>
+      <h3>Arrastra tus documentos aquí</h3>
+      <p>PDF, Word, Excel, imágenes… cualquier tipo de archivo</p>
+      <input type="file" id="hidden-file-input" multiple>
+      <button type="button" class="btn-select-files" onclick="document.getElementById('hidden-file-input').click()">
+        Seleccionar archivos
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabla de archivos (oculta hasta añadir archivos) -->
+  <div class="cm-card" id="table-card" style="display:none;">
+    <h2 class="cm-card-title">
+      📋 Listado de Documentos
+      <span id="files-counter" style="margin-left:auto;font-size:.85rem;font-weight:400;color:#6c757d;"></span>
+    </h2>
+
+    <div class="cm-table-wrapper">
+      <table class="cm-table">
+        <thead>
+          <tr>
+            <th style="width:36%">Archivo</th>
+            <th style="width:22%">Código</th>
+            <th style="width:33%">Descripción / Título</th>
+            <th style="width:9%;text-align:center">Acción</th>
+          </tr>
+        </thead>
+        <tbody id="files-tbody">
+          <!-- Se llena desde JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Zona para añadir más archivos (mini dropzone) -->
+    <div
+      style="margin-top:12px; padding:12px 16px; background:#f8f9fa; border-radius:8px; border:1.5px dashed #ced4da; cursor:pointer; text-align:center; font-size:.85rem; color:#6c757d;"
+      id="add-more-btn">
+      ＋ Arrastra más archivos aquí o <span style="color:#0d6efd;font-weight:600;">haz clic para añadir</span>
+    </div>
+
+    <!-- Acción principal -->
+    <div class="cm-action-bar" style="margin-top: 20px;">
+      <div>
+        <div class="cm-counter">
+          <strong id="count-total">0</strong> archivos listos para subir
+        </div>
+        <div style="font-size:.8rem;color:#6c757d;margin-top:2px;">
+          Los campos en blanco se rellenarán automáticamente.
+        </div>
+      </div>
+      <button class="btn-upload" id="btn-upload" onclick="iniciarSubida()">
+        <span>☁️</span> Subir todos a MinIO
+      </button>
+    </div>
+  </div>
+
+</div><!-- /cm-page -->
+
+<!-- Overlay de progreso -->
+<div class="cm-progress-overlay" id="progress-overlay">
+  <div class="cm-progress-box">
+    <div style="font-size:2.5rem;margin-bottom:12px;">⬆️</div>
+    <h3>Subiendo documentos…</h3>
+    <p id="progress-text">Preparando archivos…</p>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+    <div class="progress-label" id="progress-label">0 / 0</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script>
+  // ============================================================
+  //  Estado global
+  // ============================================================
+  let files = [];   // Array de { file: File, codigo: '', titulo: '' }
+
+  // ============================================================
+  //  Drag & Drop en zona principal
+  // ============================================================
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('hidden-file-input');
+  const addMoreBtn = document.getElementById('add-more-btn');
+
+  // Zona principal
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    agregarArchivos([...e.dataTransfer.files]);
+  });
+
+  // Zona "añadir más"
+  addMoreBtn.addEventListener('dragover', e => { e.preventDefault(); addMoreBtn.style.borderColor = '#0d6efd'; });
+  addMoreBtn.addEventListener('dragleave', () => addMoreBtn.style.borderColor = '#ced4da');
+  addMoreBtn.addEventListener('drop', e => {
+    e.preventDefault();
+    addMoreBtn.style.borderColor = '#ced4da';
+    agregarArchivos([...e.dataTransfer.files]);
+  });
+  addMoreBtn.addEventListener('click', () => fileInput.click());
+
+  // Input nativo
+  fileInput.addEventListener('change', () => {
+    agregarArchivos([...fileInput.files]);
+    fileInput.value = '';
+  });
+
+  // ============================================================
+  //  Agregar archivos al estado y re-renderizar
+  // ============================================================
+  function agregarArchivos(nuevos) {
+    let cambiaron = false;
+    nuevos.forEach(f => {
+      // Evitar duplicados por nombre+tamaño
+      const existe = files.some(x => x.file.name === f.name && x.file.size === f.size);
+      if (!existe) {
+        files.push({ file: f, codigo: '', titulo: '' });
+        cambiaron = true;
+      }
+    });
+    if (cambiaron) renderTabla();
+  }
+
+  // ============================================================
+  //  Renderizar tabla
+  // ============================================================
+  function renderTabla() {
+    const tbody = document.getElementById('files-tbody');
+    tbody.innerHTML = '';
+
+    if (files.length === 0) {
+      document.getElementById('table-card').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('table-card').style.display = 'block';
+    document.getElementById('count-total').textContent = files.length;
+    document.getElementById('files-counter').textContent = files.length + ' archivo(s)';
+
+    files.forEach((item, idx) => {
+      const ext = item.file.name.split('.').pop().toLowerCase();
+      const icon = iconForExt(ext);
+      const size = formatSize(item.file.size);
+      const tr = document.createElement('tr');
+      tr.id = `row-${idx}`;
+      tr.innerHTML = `
+        <td>
+          <div class="file-chip">
+            <span class="file-chip-icon">${icon}</span>
+            <span class="file-chip-name" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</span>
+            <span class="file-chip-size">${size}</span>
+          </div>
+        </td>
+        <td>
+          <input type="text"
+            id="codigo-${idx}"
+            placeholder="Ej: CCG-I-T1-IAA-07-02"
+            value="${escapeHtml(item.codigo)}"
+            onchange="files[${idx}].codigo = this.value"
+            oninput="files[${idx}].codigo = this.value"
+          >
+        </td>
+        <td>
+          <input type="text"
+            id="titulo-${idx}"
+            placeholder="${escapeHtml(item.file.name.replace(/\.[^.]+$/, ''))}"
+            value="${escapeHtml(item.titulo)}"
+            onchange="files[${idx}].titulo = this.value"
+            oninput="files[${idx}].titulo = this.value"
+          >
+        </td>
+        <td style="text-align:center">
+          <span class="row-status" id="status-${idx}"></span>
+          <button class="btn-remove-row" onclick="quitarArchivo(${idx})" title="Quitar">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function quitarArchivo(idx) {
+    files.splice(idx, 1);
+    renderTabla();
+  }
+
+  // ============================================================
+  //  Subida
+  // ============================================================
+  async function iniciarSubida() {
+    const tipoId = document.getElementById('tipo-select').value;
+    const disciplinaId = document.getElementById('disciplina-select').value;
+
+    if (!tipoId) {
+      alert('⚠️ Debes seleccionar el Tipo de Documento antes de subir.');
+      document.getElementById('tipo-select').focus();
+      return;
+    }
+    if (files.length === 0) {
+      alert('⚠️ No hay archivos para subir.');
+      return;
+    }
+
+    // Guardar valores actuales de los inputs
+    files.forEach((item, i) => {
+      const codInput = document.getElementById(`codigo-${i}`);
+      const titInput = document.getElementById(`titulo-${i}`);
+      if (codInput) item.codigo = codInput.value;
+      if (titInput) item.titulo = titInput.value;
+    });
+
+    // Deshabilitar botón y mostrar overlay
+    document.getElementById('btn-upload').disabled = true;
+    mostrarOverlay(0, files.length);
+
+    // Construir FormData con TODOS los archivos de una vez
+    const formData = new FormData();
+    formData.append('tipo_id', tipoId);
+    formData.append('disciplina_id', disciplinaId);
+
+    files.forEach(item => {
+      formData.append('archivos', item.file);
+      formData.append('codigos', item.codigo);
+      formData.append('titulos', item.titulo || item.file.name.replace(/\.[^.]+$/, ''));
+    });
+
+    // Animación de progreso simulada (la subida es una sola req)
+    animarProgreso(files.length);
+
+    try {
+      const resp = await fetch('{% url "documentos:carga_masiva_submit" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        body: formData,
+      });
+
+      const data = await resp.json();
+      ocultarOverlay();
+
+      if (data.error) {
+        mostrarResultado('error', '❌ Error', data.error);
+        document.getElementById('btn-upload').disabled = false;
+        return;
+      }
+
+      // Marcar estados por fila
+      mostrarEstadosPorFila(data.resultados);
+
+      // Mostrar resultado global
+      const tipo = data.fallidos === 0 ? 'success'
+        : data.exitosos === 0 ? 'error'
+          : 'partial';
+      const icono = tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : '⚠️';
+      mostrarResultado(
+        tipo,
+        `${icono} ${data.exitosos} de ${data.total} documento(s) subido(s) correctamente`,
+        data.fallidos > 0
+          ? `${data.fallidos} archivo(s) tuvieron error. Revisa el detalle en la tabla.`
+          : 'Todos los archivos fueron procesados correctamente.'
+      );
+
+      // Si todo OK, limpiar archivos exitosos después de 2 s
+      if (data.fallidos === 0) {
+        setTimeout(() => {
+          files = [];
+          renderTabla();
+        }, 2000);
+      } else {
+        // Dejar solo los fallidos
+        const idsExitosos = data.resultados
+          .filter(r => r.ok)
+          .map(r => r.archivo);
+        files = files.filter(f => !idsExitosos.includes(f.file.name));
+        setTimeout(renderTabla, 2000);
+      }
+
+    } catch (err) {
+      ocultarOverlay();
+      mostrarResultado('error', '❌ Error de red', err.toString());
+    } finally {
+      document.getElementById('btn-upload').disabled = false;
+    }
+  }
+
+  function mostrarEstadosPorFila(resultados) {
+    // Mapear por nombre de archivo
+    const mapa = {};
+    resultados.forEach(r => { mapa[r.archivo] = r; });
+
+    files.forEach((item, i) => {
+      const r = mapa[item.file.name];
+      const span = document.getElementById(`status-${i}`);
+      if (!span) return;
+      if (r && r.ok) {
+        span.textContent = '✅';
+        span.className = 'row-status ok';
+        span.title = r.mensaje;
+      } else if (r && !r.ok) {
+        span.textContent = '❌';
+        span.className = 'row-status error';
+        span.title = r.mensaje;
+      }
+    });
+  }
+
+  // ============================================================
+  //  Overlay / Progreso
+  // ============================================================
+  let _progressInterval = null;
+
+  function mostrarOverlay(actual, total) {
+    document.getElementById('progress-overlay').classList.add('active');
+    document.getElementById('progress-text').textContent = `Subiendo ${total} archivo(s)…`;
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('progress-label').textContent = `0 / ${total}`;
+  }
+
+  function animarProgreso(total) {
+    // Simula progreso suavemente hasta 90% (el 100% se pone al recibir respuesta)
+    let pct = 0;
+    _progressInterval = setInterval(() => {
+      pct = Math.min(pct + (Math.random() * 8), 90);
+      document.getElementById('progress-fill').style.width = pct + '%';
+      const aprox = Math.round((pct / 100) * total);
+      document.getElementById('progress-label').textContent = `${aprox} / ${total}`;
+    }, 350);
+  }
+
+  function ocultarOverlay() {
+    clearInterval(_progressInterval);
+    document.getElementById('progress-fill').style.width = '100%';
+    document.getElementById('progress-label').textContent = 'Completado';
+    setTimeout(() => {
+      document.getElementById('progress-overlay').classList.remove('active');
+    }, 600);
+  }
+
+  // ============================================================
+  //  Resultado
+  // ============================================================
+  function mostrarResultado(tipo, titulo, cuerpo) {
+    const card = document.getElementById('result-card');
+    card.className = `cm-result-card ${tipo}`;
+    document.getElementById('result-title').textContent = titulo;
+    document.getElementById('result-body').textContent = cuerpo;
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // ============================================================
+  //  Helpers
+  // ============================================================
+  function iconForExt(ext) {
+    const map = {
+      pdf: '📄', doc: '📝', docx: '📝',
+      xls: '📊', xlsx: '📊', csv: '📊',
+      png: '🖼️', jpg: '🖼️', jpeg: '🖼️',
+      ppt: '📑', pptx: '📑',
+      zip: '🗜️', rar: '🗜️',
+      txt: '📃',
+    };
+    return map[ext] || '📎';
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      document.cookie.split(';').forEach(c => {
+        c = c.trim();
+        if (c.startsWith(name + '=')) {
+          cookieValue = decodeURIComponent(c.substring(name.length + 1));
+        }
+      });
+    }
+    return cookieValue;
+  }
+</script>
+{% endblock %}

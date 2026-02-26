@@ -1,9 +1,12 @@
 from django.urls import path
-from . import views, views_wizard
+from . import views, views_wizard, views_bulk
 
 app_name = 'documentos'
 
 urlpatterns = [
+    # Carga masiva (drag & drop)
+    path('carga-masiva/', views_bulk.documento_carga_masiva, name='carga_masiva'),
+    path('carga-masiva/submit/', views_bulk.documento_carga_masiva_submit, name='carga_masiva_submit'),
     # Wizard de creación de documentos
     path('nuevo/', views_wizard.documento_wizard, name='documento_wizard'),
     path('nuevo/status/<int:doc_id>/', views_wizard.documento_wizard_status, name='documento_wizard_status'),

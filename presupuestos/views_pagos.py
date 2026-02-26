@@ -17,7 +17,7 @@ import os
 @login_required
 def dashboard_pagos(request):
     """
-    Dashboard moderno para visualizar Solicitudes de Pago.
+    Dashboard para visualizar Solicitudes de Pago.
     """
     # Filtros capturados de GET
     estado_filter = request.GET.get('estado')
