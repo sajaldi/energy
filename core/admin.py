@@ -51,7 +51,7 @@ class PerfilUsuarioInline(admin.StackedInline):
 
 @admin.register(PerfilUsuario)
 class PerfilUsuarioAdmin(admin.ModelAdmin):
-    list_display = ('usuario', 'visto_tutorial', 'ubicacion_defecto')
+    list_display = ('usuario', 'telefono', 'visto_tutorial', 'ubicacion_defecto')
     list_filter = ('visto_tutorial', 'ubicacion_defecto')
     search_fields = ('usuario__username', 'usuario__email')
     raw_id_fields = ('ubicacion_defecto',)

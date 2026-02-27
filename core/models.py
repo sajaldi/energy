@@ -217,6 +217,7 @@ from django.dispatch import receiver
 class PerfilUsuario(models.Model):
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
     visto_tutorial = models.BooleanField(default=False, verbose_name="Visto tutorial")
+    telefono = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono")
     ubicacion_defecto = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Ubicación por Defecto")
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='subordinados', verbose_name="Responsable / Jefe Directo")
     

@@ -54,3 +54,47 @@ def notify_n8n_solicitud_material(solicitud):
     except Exception as e:
         logger.error(f"Error al enviar notificación a n8n por solicitud #{solicitud.id}: {e}")
         return False
+
+def notify_n8n_despacho_material(solicitud):
+    """
+    Envía una notificación a n8n cuando se despacha una solicitud de materiales.
+    Indica que los materiales ya están listos para ser retirados.
+    """
+    webhook_url = getattr(settings, 'N8N_SOLICITUD_WEBHOOK_URL', None)
+    if not webhook_url:
+        return False
+
+    try:
+        # Detalles de lo entregado
+        items_entregados = []
+        for mov in solicitud.items.filter(estado='APROBADO'):
+            items_entregados.append({
+                'material': mov.material.nombre,
+                'cantidad': float(mov.cantidad),
+                'unidad': mov.material.unidad_medida.nombre if mov.material.unidad_medida else "Unidad",
+            })
+
+        # Datos del usuario (con su nuevo campo teléfono si existe)
+        perfil = getattr(solicitud.usuario, 'perfil', None)
+        telefono = perfil.telefono if perfil else "N/A"
+
+        data = {
+            'event': 'solicitud_material_despachada',
+            'solicitud_id': solicitud.id,
+            'fecha_entrega': solicitud.fecha_entrega.isoformat() if solicitud.fecha_entrega else None,
+            'usuario_solicitante': solicitud.usuario.username,
+            'usuario_nombre': f"{solicitud.usuario.first_name} {solicitud.usuario.last_name}".strip(),
+            'usuario_telefono': telefono,
+            'almacenista': solicitud.entregado_por.get_full_name() if solicitud.entregado_por else "Sistema",
+            'ubicacion_almacen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else "Almacén",
+            'comentarios_almacen': solicitud.comentarios_almacen or "",
+            'items': items_entregados,
+            'url_app': f"{settings.SITE_URL}/inventarios/mobile/pedidos/{solicitud.id}/",
+        }
+
+        response = requests.post(webhook_url, json=data, timeout=5)
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        logger.error(f"Error en webhook de despacho para solicitud #{solicitud.id}: {e}")
+        return False

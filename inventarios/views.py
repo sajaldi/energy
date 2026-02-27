@@ -556,6 +556,10 @@ def api_despachar_solicitud(request, pk):
             solicitud.entregado_por = request.user
             solicitud.comentarios_almacen = comentarios_almacen
             solicitud.save()
+
+        # Notificar éxito vía Webhook a n8n para que avise al técnico
+        from .utils_n8n import notify_n8n_despacho_material
+        notify_n8n_despacho_material(solicitud)
     
     if errores:
         return JsonResponse({
