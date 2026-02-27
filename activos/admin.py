@@ -540,9 +540,9 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     Admin para ubicaciones jerárquicas con estructura premium.
     """
     list_per_page = 50
-    list_display = ('nombre_con_indentacion', 'tipo', 'padre', 'orden', 'total_hijos')
+    list_display = ('nombre_con_indentacion', 'tipo', 'es_almacen', 'padre', 'orden', 'total_hijos')
     list_display_links = ('nombre_con_indentacion',)
-    list_editable = ('orden', 'tipo')
+    list_editable = ('orden', 'tipo', 'es_almacen')
     search_fields = ('nombre',)
     
     class RaizFilter(admin.SimpleListFilter):
@@ -563,7 +563,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
 
     fieldsets = (
         ('Datos Principales', {
-            'fields': (('nombre', 'tipo'), ('padre', 'orden'), 'categoria')
+            'fields': (('nombre', 'tipo'), ('padre', 'orden'), ('categoria', 'es_almacen'))
         }),
         ('Detalles', {
             'fields': ('descripcion',)

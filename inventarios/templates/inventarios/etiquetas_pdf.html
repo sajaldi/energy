@@ -3,57 +3,32 @@
 
 <head>
     <style>
-        /* PDF Size: 2 inches x 1.5 inches */
         @page {
             size: 2in 1.5in;
-            margin: 0.05in;
-            padding: 0;
+            margin: 0;
         }
 
         body {
             font-family: 'Helvetica', sans-serif;
             margin: 0;
             padding: 0;
-            font-size: 6pt;
+            width: 2in;
+            height: 1.5in;
         }
 
-        /* 
-           Wrapper: 1.9in x 1.4in (due to 0.05in margin)
-           We use a table-like structure via absolute positioning for precision 
-        */
-        .wrapper {
-            position: relative;
+        .label-outer {
+            width: 1.9in;
+            height: 1.4in;
+            margin: 0.05in;
+            border: 1.5pt solid #0f172a;
+            border-radius: 10pt;
+            background: white;
+            padding: 5pt;
+        }
+
+        table {
             width: 100%;
-            height: 100%;
-            border: 1px solid #000;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        /* LEFT: Product Image (Approx 28%) */
-        .col-left {
-            position: absolute;
-            top: 0.05in;
-            left: 0.02in;
-            width: 0.55in;
-            height: 1.3in;
-            text-align: center;
-        }
-
-        .product-img {
-            width: 100%;
-            height: auto;
-            max-height: 1.25in;
-            object-fit: contain;
-        }
-
-        /* CENTER: QR (Approx 26%) */
-        .col-center {
-            position: absolute;
-            top: 0.1in;
-            left: 0.60in;
-            width: 0.5in;
-            text-align: center;
+            border-collapse: collapse;
         }
 
         .qr-img {
@@ -61,115 +36,39 @@
             height: 0.5in;
         }
 
-        .barcode-box {
-            margin-top: 5px;
-            text-align: center;
-        }
-
-        .barcode-bars {
-            font-size: 6pt;
-            letter-spacing: -1px;
-            font-weight: bold;
-            line-height: 0.6;
-        }
-
-        .barcode-text {
-            font-size: 5pt;
-            font-family: 'Courier New', Courier, monospace;
-            margin-top: 2px;
-        }
-
-        /* RIGHT: Details (Approx 46% - maximized for text) */
-        .col-right {
-            position: absolute;
-            top: 0.05in;
-            left: 1.12in;
-            width: 0.76in;
-            height: 1.35in;
-        }
-
-        .header {
-            font-weight: bold;
-            font-size: 5pt;
-            text-transform: uppercase;
-            border-bottom: 0.5px solid #000;
-            margin-bottom: 2pt;
-            padding-bottom: 1pt;
-            white-space: nowrap;
-        }
-
-        .row {
-            margin-bottom: 2pt;
-        }
-
-        .label {
-            font-size: 4pt;
-            color: #444;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .value {
-            font-size: 4.5pt;
-            line-height: 1.1;
-            word-wrap: break-word;
-        }
-
-        .desc {
-            font-size: 4pt;
-            line-height: 1;
-            max-height: 0.5in;
-            overflow: hidden;
-            text-align: left;
+        /* Contenedor de la descripción con borde */
+        .desc-container {
+            border: 1pt solid #000;
+            padding: 3pt;
+            margin-top: 4pt;
         }
     </style>
 </head>
 
 <body>
     {% for label in labels %}
-    <div class="wrapper">
+    <div class="label-outer">
+        <table style="margin-bottom: 2pt;">
+            <tr>
+                <td style="width: 0.6in; vertical-align: middle;">
+                    <img src="data:image/png;base64,{{ label.qr_code }}" class="qr-img">
+                </td>
+                <td style="text-align: center; vertical-align: middle; font-size: 14pt; font-weight: bold;">
+                    {{ label.sku }}
+                </td>
+            </tr>
+        </table>
 
-        <!-- LEFT: Image -->
-        <div class="col-left">
-            {% if label.image_data %}
-            <img src="data:image/jpeg;base64,{{ label.image_data }}" class="product-img">
-            {% else %}
-            <!-- Placeholder if no image -->
-            <div style="font-size: 6pt; color: #ccc; margin-top: 0.3in;">NO IMG</div>
-            {% endif %}
-        </div>
-
-        <!-- CENTER: QR & SKU Barcode representation -->
-        <div class="col-center">
-            <img src="data:image/png;base64,{{ label.qr_code }}" class="qr-img">
-            <div class="barcode-box">
-                <div class="barcode-bars">||| |||| || |||</div>
-                <div class="barcode-text">{{ label.sku }}</div>
+        <div class="desc-container">
+            <div style="font-size: 7pt; margin-bottom: 2pt;">Descripción</div>
+            <div style="font-size: 9pt; font-weight: bold; line-height: 1.1;">
+                {{ label.nombre|truncatechars:65 }}
             </div>
         </div>
-
-        <!-- RIGHT: Details -->
-        <div class="col-right">
-            <div class="header">ENERGY CR8</div>
-
-            <div class="row">
-                <div class="label">SKU:</div>
-                <div class="value">{{ label.sku }}</div>
-            </div>
-
-            <div class="row">
-                <div class="label">DESCRIPCIÓN:</div>
-                <div class="desc">{{ label.nombre|truncatechars:60 }}</div>
-            </div>
-
-            <div class="row">
-                <div class="label">UBICACIÓN:</div>
-                <div class="value">{{ label.ubicacion|default:"Gral." }}</div>
-            </div>
-        </div>
-
-        <pdf:nextpage />
     </div>
+    {% if not forloop.last %}
+    <pdf:nextpage />
+    {% endif %}
     {% endfor %}
 </body>
 

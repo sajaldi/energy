@@ -1,9 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from decimal import Decimal
 from django.contrib.auth.decorators import login_required
-from .models import Material, StockRecord, MovimientoInventario, SolicitudMaterial
+from .models import Material, StockRecord, MovimientoInventario, SolicitudMaterial, Lote
 from django.db import transaction
 from mantenimiento.models import OrdenTrabajo
 from activos.models import Ubicacion, Categoria
@@ -17,6 +17,32 @@ from celery.result import AsyncResult
 from .tasks import import_materiales_task
 from django.views.decorators.csrf import csrf_exempt
 from .models import CategoriaMaterial
+
+@login_required
+def inventario_dashboard(request):
+    """
+    Menú interactivo y centro de control para la aplicación de Inventarios.
+    """
+    from activos.models import Ubicacion
+    from .models import CategoriaMaterial
+    
+    # Datos para el menú/dashboard
+    from django.db.models import Q
+    ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
+    categorias = CategoriaMaterial.objects.all().order_by('nombre')
+    
+    # Estadísticas rápidas
+    total_materiales = Material.objects.count()
+    pedidos_pendientes = SolicitudMaterial.objects.count()
+    
+    context = {
+        'ubicaciones': ubicaciones,
+        'categorias': categorias,
+        'total_materiales': total_materiales,
+        'pedidos_pendientes': pedidos_pendientes,
+        'title': 'Gestión de Inventarios'
+    }
+    return render(request, 'inventarios/dashboard.html', context)
 
 @login_required
 def crear_solicitud_dashboard(request):
@@ -118,11 +144,29 @@ def api_get_material_stock(request, material_id):
         'ubicacion__nombre', 'cantidad', 'ubicacion_especifica'
     )
     
+    image_url = ""
+    if hasattr(material, 'imagen') and material.imagen:
+        image_url = material.imagen.url
+    else:
+        # SVG de respaldo
+        image_url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
+
+    # Obtener últimos movimientos
+    from .models import MovimientoInventario
+    movimientos = MovimientoInventario.objects.filter(material=material).order_by('-fecha_movimiento')[:10]
+    
     return JsonResponse({
         'id': material.id,
         'nombre': material.nombre,
         'sku': material.sku,
-        'unidad': material.get_unidad_medida_display(),
+        'marca': material.marca.nombre if material.marca else "N/A",
+        'descripcion': material.descripcion or "Sin descripción disponible.",
+        'categoria': material.categoria.nombre if material.categoria else "GENERAL",
+        'unidad': material.unidad_medida.nombre if material.unidad_medida else "Unidad",
+        'precio_estimado': float(material.precio_estimado),
+        'stock_minimo': float(material.stock_minimo),
+        'tipo_material': material.get_tipo_material_display() if hasattr(material, 'get_tipo_material_display') else "N/A",
+        'image_url': image_url,
         'stock_total': float(material.get_stock_total()),
         'existencias': [
             {
@@ -130,6 +174,15 @@ def api_get_material_stock(request, material_id):
                 'cantidad': float(e['cantidad']),
                 'detalle': e['ubicacion_especifica']
             } for e in existencias
+        ],
+        'movimientos': [
+            {
+                'fecha': m.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
+                'tipo': m.tipo,
+                'cantidad': float(m.cantidad),
+                'usuario': m.usuario.username if m.usuario else 'Sistema',
+                'comentarios': m.comentarios or ''
+            } for m in movimientos
         ]
     })
 
@@ -344,7 +397,7 @@ def mobile_lista_pedidos(request):
 def mobile_detalle_pedido(request, pk):
     """Detalle móvil de una solicitud de material."""
     pedido = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
-    items = pedido.movimientos.select_related('material').all()
+    items = pedido.items.select_related('material').all()
     return render(request, 'inventarios/mobile_detalle_pedido.html', {
         'pedido': pedido,
         'items': items
@@ -525,7 +578,7 @@ def generar_pdf_etiquetas(request):
             labels_data.append({
                 'sku': material.sku,
                 'nombre': material.nombre,
-                'unidad': material.get_unidad_medida_display(),
+                'unidad': material.unidad_medida.nombre if material.unidad_medida else 'Unidad',
                 'ubicacion': 'General', 
                 'qr_code': qr_b64,
                 'image_data': img_b64
@@ -545,3 +598,260 @@ def generar_pdf_etiquetas(request):
         return HttpResponse(f'Error generating PDF: {pisa_status.err}', status=500)
         
     return response
+@login_required
+def master_catalog(request):
+    """
+    Vista para el catálogo maestro visual en formato de tarjetas (cuadritos).
+    """
+    from activos.models import Ubicacion
+    from django.db.models import Q
+    
+    categorias = CategoriaMaterial.objects.all().order_by('nombre')
+    ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
+    
+    context = {
+        'categorias': categorias,
+        'ubicaciones': ubicaciones,
+        'title': 'Catálogo Maestro'
+    }
+    return render(request, 'inventarios/master_catalog.html', context)
+@login_required
+def api_print_label(request, material_id):
+    import io
+    import base64
+    import qrcode
+    from xhtml2pdf import pisa
+    from django.template.loader import get_template
+    from django.urls import reverse
+    
+    material = get_object_or_404(Material, id=material_id)
+    quantity = int(request.GET.get('qty', 1))
+    
+    # El usuario pide que el QR sea el código (SKU)
+    qr_data = material.sku
+    
+    qr = qrcode.QRCode(version=1, box_size=3, border=1) # QR más pequeño para etiqueta pequeña
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    qr_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+    # Procesar imagen del material
+    img_b64 = None
+    if material.imagen:
+        try:
+            with material.imagen.open('rb') as f:
+                img_data = f.read()
+                img_b64 = base64.b64encode(img_data).decode('utf-8')
+        except:
+            pass
+
+    labels_data = []
+    for _ in range(quantity):
+        labels_data.append({
+            'sku': material.sku,
+            'nombre': material.nombre,
+            'unidad': material.unidad_medida.nombre if material.unidad_medida else 'Unidad',
+            'ubicacion': 'General', 
+            'qr_code': qr_b64,
+            'image_data': img_b64
+        })
+    
+    context = {'labels': labels_data}
+    template = get_template('inventarios/etiquetas_pdf.html')
+    html = template.render(context)
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="etiqueta_{material.sku}.pdf"'
+    
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    if pisa_status.err:
+        return HttpResponse(f'Error generating PDF: {pisa_status.err}', status=500)
+        
+    return response
+@login_required
+def api_ingreso_lote(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            items = data.get('items', [])
+            ubicacion_id = data.get('ubicacion_destino')
+            comentarios = data.get('comentarios', 'Ingreso por lote')
+            requisicion_id = data.get('requisicion_id') # UUID de la requisición si existe
+            
+            if not ubicacion_id or not items:
+                return JsonResponse({'status': 'error', 'message': 'Datos incompletos'}, status=400)
+                
+            ubicacion = get_object_or_404(Ubicacion, id=ubicacion_id)
+            
+            # Buscamos la requisición si se proporcionó un ID
+            requisicion_obj = None
+            if requisicion_id:
+                from presupuestos.models import Requisicion
+                requisicion_obj = Requisicion.objects.filter(cr8ca_requisicionid=requisicion_id).first()
+
+            with transaction.atomic():
+                # 1. Creamos la cabecera del ingreso para trazabilidad
+                from inventarios.models import IngresoInventario
+                ingreso_header = IngresoInventario.objects.create(
+                    usuario=request.user,
+                    ubicacion_destino=ubicacion,
+                    requisicion_origen=requisicion_obj,
+                    comentarios=comentarios
+                )
+
+                for item in items:
+                    material = get_object_or_404(Material, id=item['id'])
+                    cantidad = Decimal(str(item['quantity']))
+                    lote_codigo = item.get('lote')
+                    comentario_item = item.get('comentario', '')
+                    
+                    lote_obj = None
+                    if lote_codigo and str(lote_codigo).strip():
+                        lote_obj, _ = Lote.objects.get_or_create(
+                            material=material,
+                            codigo=lote_codigo.strip()
+                        )
+                    
+                    # El comentario del movimiento será el específico del ítem, 
+                    # si no hay, usamos el general del formulario.
+                    comentario_final = comentario_item if comentario_item else comentarios
+
+                    MovimientoInventario.objects.create(
+                        material=material,
+                        tipo='ENTRADA',
+                        cantidad=cantidad,
+                        lote=lote_obj,
+                        ubicacion_destino=ubicacion,
+                        usuario=request.user,
+                        comentarios=comentario_final,
+                        ingreso=ingreso_header # Vinculamos al nuevo modelo de Ingreso
+                    )
+            
+            return JsonResponse({'status': 'success', 'message': 'Ingreso registrado correctamente'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+@login_required
+def api_list_solicitudes(request):
+    from django.db.models import Q
+    from presupuestos.models import Requisicion
+    query = request.GET.get('q', '')
+    
+    # Buscamos en Requisiciones de la app presupuestos
+    requisiciones = Requisicion.objects.all().order_by('-fecha')
+    
+    if query:
+        requisiciones = requisiciones.filter(
+            Q(cr8ca_requisicion__icontains=query) |
+            Q(cr8ca_asunto__icontains=query) |
+            Q(usuario_solicitante__username__icontains=query) |
+            Q(usuario_solicitante__first_name__icontains=query)
+        )
+    
+    results = []
+    for r in requisiciones[:20]:
+        solicitante = r.usuario_solicitante.get_full_name() if r.usuario_solicitante else "Desconocido"
+        fecha_str = r.fecha.strftime('%d/%m/%y') if r.fecha else "S/F"
+        count = r.articulos.count()
+        results.append({
+            'id': str(r.cr8ca_requisicionid),
+            'text': f"{r.cr8ca_requisicion} | {solicitante} | {fecha_str}",
+            'asunto': r.cr8ca_asunto or "Sin asunto",
+            'count': count
+        })
+    return JsonResponse({'results': results})
+
+@login_required
+def api_get_solicitud_items(request, pk):
+    from presupuestos.models import Requisicion
+    # El pk aquí será el UUID cr8ca_requisicionid
+    requisicion = get_object_or_404(Requisicion, cr8ca_requisicionid=pk)
+    items = []
+    
+    for item in requisicion.articulos.all():
+        m = item.material
+        if m:
+            image_url = m.imagen.url if m.imagen else "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
+            items.append({
+                'id': m.id,
+                'nombre': m.nombre,
+                'sku': m.sku,
+                'cantidad': float(item.cr8ca_cantidad),
+                'unidad': m.unidad_medida.nombre if m.unidad_medida else 'Unidad',
+                'image_url': image_url
+            })
+        else:
+            # Si el artículo no está vinculado a un material del catálogo, 
+            # podrías manejarlo aquí, pero el dashboard de inventario necesita materiales reales.
+            pass
+            
+    return JsonResponse({'items': items})
+
+@login_required
+def api_create_material(request):
+    """
+    Crea un nuevo material desde un modal rápido en el dashboard.
+    Maneja FormData (archivos y texto) y opcionalmente añade un stock inicial.
+    """
+    if request.method == 'POST':
+        try:
+            nombre = request.POST.get('nombre')
+            sku = request.POST.get('sku')
+            descripcion = request.POST.get('descripcion', '')
+            
+            stock_inicial = request.POST.get('stock_inicial')
+            ubicacion_id = request.POST.get('ubicacion_id')
+            imagen = request.FILES.get('imagen')
+            
+            if not nombre or not sku:
+                return JsonResponse({'status': 'error', 'message': 'El Nombre y SKU son obligatorios.'}, status=400)
+                
+            if Material.objects.filter(sku=sku).exists():
+                return JsonResponse({'status': 'error', 'message': f'El SKU {sku} ya existe en el sistema.'}, status=400)
+                
+            with transaction.atomic():
+                # Crear Material
+                material = Material.objects.create(
+                    nombre=nombre.strip(),
+                    sku=sku.strip(),
+                    descripcion=descripcion.strip()
+                )
+                
+                if imagen:
+                    material.imagen = imagen
+                    material.save()
+                    
+                # Crear stock inicial si aplica
+                if stock_inicial and ubicacion_id:
+                    cantidad = Decimal(stock_inicial)
+                    if cantidad > 0:
+                        ubicacion = Ubicacion.objects.get(id=ubicacion_id)
+                        
+                        MovimientoInventario.objects.create(
+                            material=material,
+                            tipo='ENTRADA',
+                            cantidad=cantidad,
+                            ubicacion_destino=ubicacion,
+                            estado='APROBADO',
+                            usuario=request.user,
+                            comentarios="Inventario/Stock Inicial (Carga Rápida)"
+                        )
+
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Material creado correctamente.',
+                'material': {
+                    'id': material.id,
+                    'nombre': material.nombre,
+                    'sku': material.sku
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)

@@ -12,15 +12,20 @@ def api_list_materials(request):
     """
     query = request.GET.get('q', '')
     category_id = request.GET.get('category')
+    ubicacion_id = request.GET.get('ubicacion')
     page_number = request.GET.get('page', 1)
     
-    from django.db.models import Sum
+    from django.db.models import Sum, Q
     
-    # Optimizamos con annotate para el stock y select_related para la categoria
-    # Esto evita N+1 queries (una por cada fila del loop)
-    materials = Material.objects.annotate(
-        stock_total=Sum('existencias__cantidad')
-    ).select_related('categoria').order_by('nombre')
+    # Pre-filtramos el stock si se especifica ubicación
+    if ubicacion_id:
+        materials = Material.objects.annotate(
+            stock_total=Sum('existencias__cantidad', filter=Q(existencias__ubicacion_id=ubicacion_id))
+        ).filter(stock_total__gt=0).select_related('categoria').order_by('nombre')
+    else:
+        materials = Material.objects.annotate(
+            stock_total=Sum('existencias__cantidad')
+        ).select_related('categoria').order_by('nombre')
     
     if query:
         materials = materials.filter(
@@ -32,7 +37,7 @@ def api_list_materials(request):
     if category_id:
         materials = materials.filter(categoria_id=category_id)
         
-    paginator = Paginator(materials, 12) # 12 items per page for grid
+    paginator = Paginator(materials, 24) # 24 items per page for full-screen grid
     page_obj = paginator.get_page(page_number)
     
     data = []
@@ -47,7 +52,7 @@ def api_list_materials(request):
             'id': m.id,
             'nombre': m.nombre,
             'sku': m.sku,
-            'unidad': m.get_unidad_medida_display(),
+            'unidad': m.unidad_medida.nombre if m.unidad_medida else 'Unidad',
             'precio_estimado': float(m.precio_estimado),
             'stock': float(m.stock_total or 0),
             'categoria': m.categoria.nombre if m.categoria else 'General',

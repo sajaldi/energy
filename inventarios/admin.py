@@ -7,7 +7,7 @@ from django.utils.html import mark_safe
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from import_export.admin import ImportExportModelAdmin
-from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial, Lote
+from .models import Material, StockRecord, MovimientoInventario, CategoriaMaterial, SolicitudMaterial, Lote, UnidadMedida, IngresoInventario
 from activos.models import Marca
 
 class StockRecordInline(admin.TabularInline):
@@ -27,6 +27,11 @@ class LoteAdmin(admin.ModelAdmin):
     search_fields = ('codigo', 'material__nombre', 'material__sku')
     list_filter = ('fecha_vencimiento',)
 
+@admin.register(UnidadMedida)
+class UnidadMedidaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'abreviatura')
+    search_fields = ('nombre', 'abreviatura')
+
 class MovimientoInventarioInline(admin.TabularInline):
     model = MovimientoInventario
     extra = 0
@@ -39,6 +44,17 @@ class SolicitudMaterialAdmin(admin.ModelAdmin):
     search_fields = ('usuario__username', 'items__material__nombre')
     inlines = [MovimientoInventarioInline]
 
+@admin.register(IngresoInventario)
+class IngresoInventarioAdmin(admin.ModelAdmin):
+    list_display = ('id', 'fecha_ingreso', 'usuario', 'ubicacion_destino', 'get_requisicion')
+    list_filter = ('fecha_ingreso', 'usuario', 'ubicacion_destino')
+    search_fields = ('usuario__username', 'requisicion_origen__cr8ca_requisicion', 'comentarios')
+    inlines = [MovimientoInventarioInline]
+
+    def get_requisicion(self, obj):
+        return obj.requisicion_origen.cr8ca_requisicion if obj.requisicion_origen else "--"
+    get_requisicion.short_description = "Requisición"
+
 class MaterialResource(resources.ModelResource):
     categoria = fields.Field(
         column_name='categoria',
@@ -49,6 +65,11 @@ class MaterialResource(resources.ModelResource):
         column_name='marca',
         attribute='marca',
         widget=ForeignKeyWidget(Marca, 'nombre')
+    )
+    unidad_medida = fields.Field(
+        column_name='unidad_medida',
+        attribute='unidad_medida',
+        widget=ForeignKeyWidget(UnidadMedida, 'nombre')
     )
 
     class Meta:
@@ -83,6 +104,14 @@ class MaterialResource(resources.ModelResource):
         if marca_nombre:
             Marca.objects.get_or_create(nombre=marca_nombre.strip())
 
+        # Auto-crear Unidad de Medida
+        unidad_nombre = row.get('unidad_medida')
+        if unidad_nombre:
+            UnidadMedida.objects.get_or_create(
+                nombre=unidad_nombre.strip(),
+                defaults={'abreviatura': unidad_nombre.strip()[:10]}
+            )
+
     def after_import_row(self, row, instance, **kwargs):
         """
         Procesa stock inicial y compatibilidades de repuestos.
@@ -112,18 +141,9 @@ class MaterialResource(resources.ModelResource):
                                 defaults={'fecha_vencimiento': vencimiento}
                             )
 
-                        # Crear o actualizar registro de stock
-                        stock, created = StockRecord.objects.get_or_create(
-                            material=instance,
-                            lote=lote_obj,
-                            ubicacion=ubicacion
-                        )
-                        if created:
-                            stock.cantidad = cantidad
-                        else:
-                            # Si ya existía, sumamos la carga inicial
-                            stock.cantidad += cantidad
-                        stock.save()
+                        # El registro de movimiento ahora se encarga de crear el StockRecord automáticamente
+                        # mediante la señal post_save que ejecuta recalcular_stock()
+
                         
                         # Registrar movimiento de entrada si estamos en importación real (no dry run)
                         if not kwargs.get('dry_run'):

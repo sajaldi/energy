@@ -5,6 +5,7 @@ class Ubicacion(models.Model):
         ('EDIFICIO', 'Edificio'),
         ('NIVEL', 'Nivel/Piso'),
         ('ESPACIO', 'Espacio/Área'),
+        ('BODEGA', 'Bodega'),
         ('OTRO', 'Otro'),
     ]
     
@@ -13,6 +14,7 @@ class Ubicacion(models.Model):
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='NIVEL', help_text="Tipo de ubicación")
     descripcion = models.TextField(blank=True, null=True)
     orden = models.PositiveIntegerField(default=0, help_text="Orden de visualización y programación")
+    es_almacen = models.BooleanField(default=False, help_text="Marcar si esta ubicación funciona como bodega/almacén de materiales")
     categoria = models.ForeignKey('Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='ubicaciones', help_text="Categoría asociada para rutinas de mantenimiento")
 
     def get_ruta_completa(self, separador=' → '):

@@ -1,0 +1,1458 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+    :root {
+        --primary: #3b82f6;
+        --primary-dark: #1d4ed8;
+        --accent: #8b5cf6;
+        --bg-body: #f8fafc;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --glass: rgba(255, 255, 255, 0.75);
+        --card-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        --radius-xl: 4px;
+        --radius-lg: 3px;
+        --radius-md: 2px;
+    }
+
+    body {
+        font-family: 'Outfit', sans-serif !important;
+        background-color: var(--bg-body) !important;
+        background-image: radial-gradient(at 0% 0%, hsla(217, 100%, 97%, 1) 0, transparent 50%),
+            radial-gradient(at 50% 0%, hsla(225, 100%, 98%, 1) 0, transparent 50%),
+            radial-gradient(at 100% 0%, hsla(217, 100%, 97%, 1) 0, transparent 50%);
+    }
+
+    /* Forzar ancho total absoluto eliminando restricciones de contenedores padre */
+    html,
+    body,
+    .wrapper,
+    .content-wrapper,
+    .content,
+    .container-fluid,
+    .row,
+    .col-12,
+    #content,
+    #content-main,
+    .main-content {
+        max-width: none !important;
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .inventory-dashboard {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 40px !important;
+        /* Espacio interno para que no pegue a los bordes */
+        box-sizing: border-box !important;
+    }
+
+    .hero-section {
+        margin-bottom: 60px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .hero-title h1 {
+        font-size: 3.2rem;
+        font-weight: 800;
+        color: var(--text-main);
+        margin: 0;
+        letter-spacing: -2px;
+        background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .hero-title p {
+        color: var(--text-muted);
+        font-size: 1.2rem;
+        margin-top: 5px;
+    }
+
+    /* Stats Row */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 30px;
+        margin-bottom: 50px;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 30px;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--card-shadow);
+        border: 1px solid rgba(255, 255, 255, 1);
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 30px 40px -10px rgba(0, 0, 0, 0.08);
+    }
+
+    .stat-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+    }
+
+    .stat-blue {
+        background: #eff6ff;
+        color: #3b82f6;
+        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+    }
+
+    .stat-indigo {
+        background: #f5f3ff;
+        color: #8b5cf6;
+        box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.2);
+    }
+
+    .stat-emerald {
+        background: #ecfdf5;
+        color: #10b981;
+        box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);
+    }
+
+    .stat-info h3 {
+        margin: 0;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: var(--text-main);
+        line-height: 1;
+    }
+
+    .stat-info p {
+        margin: 4px 0 0 0;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        font-weight: 700;
+    }
+
+    /* Menu Grid */
+    .menu-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+        width: 100% !important;
+    }
+
+    .menu-card {
+        background: white;
+        border-radius: var(--radius-md);
+        padding: 50px 40px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 1);
+        box-shadow: var(--card-shadow);
+        cursor: pointer;
+        transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        position: relative;
+        overflow: hidden;
+        text-decoration: none !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .menu-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 6px;
+        background: linear-gradient(90deg, var(--primary), var(--accent));
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .menu-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 40px 70px -15px rgba(59, 130, 246, 0.15);
+    }
+
+    .menu-card:hover::after {
+        opacity: 1;
+    }
+
+    .menu-card ion-icon {
+        font-size: 4.5rem;
+        margin-bottom: 30px;
+        color: var(--primary);
+        filter: drop-shadow(0 10px 10px rgba(59, 130, 246, 0.2));
+        transition: all 0.5s ease;
+    }
+
+    .menu-card:hover ion-icon {
+        transform: scale(1.1) rotate(5deg);
+        color: var(--accent);
+    }
+
+    .menu-card h2 {
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: var(--text-main);
+        margin-bottom: 15px;
+    }
+
+    .menu-card p {
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    /* Modal Styling - Ultimate Glassmorphism */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.4);
+        z-index: 10000;
+        backdrop-filter: blur(12px) saturate(180%);
+        -webkit-backdrop-filter: blur(12px) saturate(180%);
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+
+    /* Fix SweetAlert z-index on top of modal */
+    .swal2-container {
+        z-index: 20000 !important;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 1;
+    }
+
+    .modal-window {
+        background: rgba(255, 255, 255, 0.95);
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        border-radius: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transform: translateY(100%);
+        transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        border: none;
+        box-shadow: none;
+    }
+
+    .modal-overlay.active .modal-window {
+        transform: translateY(0);
+    }
+
+    .modal-header {
+        padding: 40px 60px;
+        background: white;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 50px 60px;
+        background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+    }
+
+    .close-btn {
+        background: #1e293b;
+        border: none;
+        width: 54px;
+        height: 54px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 1.5rem;
+        transition: all 0.2s;
+        color: white;
+    }
+
+    .close-btn:hover {
+        background: #ef4444;
+        color: white;
+        transform: rotate(180deg);
+    }
+
+    /* Form UI Enhancements */
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 40px;
+        margin-bottom: 50px;
+    }
+
+    .form-label {
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+        color: #0f172a;
+        /* Color más oscuro para etiquetas */
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 18px 24px;
+        border: 2px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 1.1rem;
+        background: #ffffff;
+        transition: all 0.3s;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+        color: #0f172a !important;
+        /* Forzar color oscuro */
+        font-family: inherit;
+    }
+
+    .form-control::placeholder {
+        color: #94a3b8;
+        opacity: 1;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.15);
+        outline: none;
+        background: #fdfdfd;
+        color: #000000 !important;
+    }
+
+    .warehouse-select-container {
+        position: relative;
+    }
+
+    .warehouse-select-container ion-icon {
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: var(--primary);
+        font-size: 1.5rem;
+    }
+
+    select.form-control {
+        appearance: none;
+        -webkit-appearance: none;
+        padding-right: 50px;
+    }
+
+    /* Items Visualization */
+    .items-container {
+        background: white;
+        border-radius: 4px;
+        padding: 40px;
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04);
+        border: 1px solid #f1f5f9;
+        margin-bottom: 40px;
+    }
+
+    .items-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 15px;
+    }
+
+    .items-table th {
+        text-align: left;
+        padding: 0 20px 10px;
+        color: #94a3b8;
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+    }
+
+    .items-table td {
+        background: #f8fafc;
+        padding: 24px 20px;
+    }
+
+    .items-table tr {
+        transition: transform 0.2s;
+    }
+
+    .items-table tr:hover td {
+        background: #f1f5f9;
+    }
+
+    .items-table td:first-child {
+        border-radius: 2px 0 0 2px;
+        border-left: 2px solid transparent;
+    }
+
+    .items-table td:last-child {
+        border-radius: 0 2px 2px 0;
+    }
+
+    .items-table tr.has-item td:first-child {
+        border-left-color: var(--primary);
+    }
+
+    .qty-input {
+        width: 100px;
+        padding: 12px;
+        border-radius: 2px;
+        border: 2px solid #e2e8f0;
+        text-align: center;
+        font-weight: 800;
+        font-size: 1.1rem;
+        background: white;
+        color: #0f172a;
+        /* Color oscuro para cantidad */
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        color: white;
+        padding: 22px 50px;
+        border-radius: 4px;
+        font-weight: 800;
+        border: none;
+        cursor: pointer;
+        font-size: 1.2rem;
+        box-shadow: 0 15px 30px -10px rgba(59, 130, 246, 0.5);
+        display: inline-flex;
+        align-items: center;
+        gap: 15px;
+        transition: all 0.4s;
+    }
+
+    .btn-submit:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 25px 40px -10px rgba(59, 130, 246, 0.6);
+    }
+
+    .btn-outline-custom {
+        background: white;
+        border: 2px solid #e2e8f0;
+        color: #475569;
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s;
+    }
+
+    .btn-outline-custom:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: #f0f7ff;
+    }
+
+    /* Catalog Cards */
+    .catalog-card {
+        background: white;
+        border: 2px solid #f1f5f9;
+        border-radius: 4px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .catalog-card:hover {
+        border-color: var(--primary);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Responsividad */
+    @media (max-width: 1024px) {
+        .inventory-dashboard {
+            padding: 30px !important;
+        }
+
+        .hero-title h1 {
+            font-size: 2.5rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .inventory-dashboard {
+            padding: 20px !important;
+        }
+
+        .hero-section {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .hero-title h1 {
+            font-size: 2rem;
+            letter-spacing: -1px;
+        }
+
+        .stats-row {
+            grid-template-columns: 1fr;
+            /* Una columna en móvil */
+            gap: 15px;
+        }
+
+        .stat-card {
+            padding: 20px;
+        }
+
+        .menu-grid {
+            grid-template-columns: 1fr;
+            /* Una columna para que las tarjetas sean legibles */
+        }
+
+        .modal-header,
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .modal-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .close-btn {
+            width: 44px;
+            height: 44px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .hero-title h1 {
+            font-size: 1.7rem;
+        }
+
+        .btn-submit {
+            width: 100%;
+            justify-content: center;
+            padding: 15px;
+        }
+    }
+
+    .catalog-card.selected {
+        border-color: var(--primary);
+        background: #eff6ff;
+    }
+
+    .catalog-card.selected::before {
+        content: '✓';
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: var(--primary);
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.8rem;
+    }
+</style>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="inventory-dashboard">
+    <div class="hero-section">
+        <div class="hero-title">
+            <h1>📦 Centro de Inventarios</h1>
+            <p>Gestiona materiales, repuestos y suministros operativos.</p>
+        </div>
+        <div>
+            <button id="btn-nuevo-material-modal" class="btn-submit"
+                style="margin-top:0; padding:12px 24px; font-size: 0.9rem; background: #1e293b; box-shadow:none; border:none; cursor:pointer;">
+                <ion-icon name="add-outline"></ion-icon> Nuevo Material Rápido
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon stat-blue"><ion-icon name="layers-outline"></ion-icon></div>
+            <div class="stat-info">
+                <h3>{{ total_materiales }}</h3>
+                <p>Materiales Registrados</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-indigo"><ion-icon name="hourglass-outline"></ion-icon></div>
+            <div class="stat-info">
+                <h3>{{ pedidos_pendientes }}</h3>
+                <p>Pedidos en Curso</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon stat-emerald"><ion-icon name="checkmark-circle-outline"></ion-icon></div>
+            <div class="stat-info">
+                <h3>100%</h3>
+                <p>Disponibilidad Críticos</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Menu -->
+    <div class="menu-grid">
+        <div class="menu-card" id="btn-nueva-solicitud">
+            <ion-icon name="cart-outline"></ion-icon>
+            <h2>Solicitud de Materiales</h2>
+            <p>Crea un nuevo pedido de materiales para tus tareas diarias o mantenimientos.</p>
+        </div>
+
+        <div class="menu-card" id="btn-ingreso-inventario" style="border-color: #10b981;">
+            <ion-icon name="add-circle-outline" style="color: #10b981;"></ion-icon>
+            <h2>Ingreso de Inventario</h2>
+            <p>Registra la entrada de nuevos materiales, compras o devoluciones al almacén.</p>
+        </div>
+
+        <a href="{% url 'inventarios:scanner' %}" class="menu-card">
+            <ion-icon name="barcode-outline"></ion-icon>
+            <h2>Escáner de Almacén</h2>
+            <p>Registra entradas y salidas rápidamente escaneando códigos QR o de barras.</p>
+        </a>
+
+        <a href="{% url 'inventarios:mobile_lista_pedidos' %}" class="menu-card">
+            <ion-icon name="list-outline"></ion-icon>
+            <h2>Mis Solicitudes</h2>
+            <p>Consulta el historial y seguimiento de los materiales que has solicitado.</p>
+        </a>
+
+        <a href="{% url 'inventarios:imprimir_etiquetas' %}" class="menu-card">
+            <ion-icon name="pricetags-outline"></ion-icon>
+            <h2>Etiquetado</h2>
+            <p>Genera e imprime etiquetas QR para identificar materiales en los estantes.</p>
+        </a>
+
+        <a href="{% url 'inventarios:master_catalog' %}" class="menu-card">
+            <ion-icon name="search-outline"></ion-icon>
+            <h2>Catálogo Maestro</h2>
+            <p>Explora la lista completa de artículos, existencias y costos unitarios en cuadrícula visual.</p>
+        </a>
+
+        <a href="/admin/inventarios/ingresoinventario/" class="menu-card" style="border-color: #8b5cf6;">
+            <ion-icon name="analytics-outline" style="color: #8b5cf6;"></ion-icon>
+            <h2>Ingresos de Materiales (Trazabilidad)</h2>
+            <p>Consulta el historial detallado de todas las recepciones realizadas, lotes y folios vinculados.</p>
+        </a>
+
+        <a href="/admin/inventarios/" class="menu-card">
+            <ion-icon name="settings-outline"></ion-icon>
+            <h2>Administración</h2>
+            <p>Gestiona categorías, ubicaciones físicas y parámetros del sistema.</p>
+        </a>
+    </div>
+</div>
+
+<!-- NUEVO MATERIAL MÁGICO MODAL -->
+<div class="modal-overlay" id="nuevo-material-modal">
+    <div class="modal-window"
+        style="max-width: 600px; height: auto; max-height: 90vh; border-radius: 12px; margin: auto;">
+        <div class="modal-header" style="padding: 20px 30px;">
+            <h2 style="margin:0; font-weight: 800; display: flex; align-items: center; gap: 15px;">
+                <div
+                    style="background: #e0e7ff; width: 50px; height: 50px; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+                    <ion-icon name="cube-outline" style="font-size: 1.5rem;"></ion-icon>
+                </div>
+                Alta Rápida de Material
+            </h2>
+            <button class="close-btn" id="close-nuevo-material"
+                style="width: 40px; height: 40px; font-size: 1.2rem;">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 30px;">
+            <form id="nuevo-material-form">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Nombre del Material</label>
+                    <input type="text" id="nm-nombre" class="form-control" required
+                        placeholder="Ej: Foco LED 15W, Motor 2HP...">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">SKU / Código de Barras</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="nm-sku" class="form-control" required placeholder="Escribe o escanea..."
+                            style="flex: 1;">
+                        <button type="button" id="btn-nm-escanear" class="btn-submit"
+                            style="margin: 0; padding: 0 15px; width: auto;">
+                            <ion-icon name="camera-outline"></ion-icon>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="nm-reader-container" style="display:none; margin-bottom: 20px;">
+                    <div id="nm-reader"
+                        style="width: 100%; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary);">
+                    </div>
+                    <button type="button" id="btn-nm-cancel-scan" class="btn-submit"
+                        style="margin-top: 10px; background: #ef4444; width: 100%; justify-content: center;">
+                        <ion-icon name="close-circle-outline"></ion-icon> Cancelar Escáner
+                    </button>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label">Imagen / Foto del Material (Opcional)</label>
+                    <input type="file" id="nm-imagen" class="form-control" accept="image/*" style="padding: 10px;">
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Stock Inicial</label>
+                        <input type="number" id="nm-stock" class="form-control" placeholder="Ej: 10" min="0"
+                            step="0.01">
+                    </div>
+
+                    <div class="form-group" style="flex: 1;">
+                        <label class="form-label">Bodega (Si hay stock)</label>
+                        <select id="nm-ubicacion" class="form-control">
+                            <option value="">-- Seleccionar --</option>
+                            {% for u in ubicaciones %}
+                            <option value="{{ u.id }}">{{ u.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 30px;">
+                    <label class="form-label">Descripción Breve (Opcional)</label>
+                    <textarea id="nm-descripcion" class="form-control" rows="2"
+                        placeholder="Detalles técnicos o notas"></textarea>
+                </div>
+
+                <button type="submit" class="btn-submit"
+                    style="width: 100%; justify-content: center; font-size: 1.1rem; padding: 15px;">
+                    Guardar Material <ion-icon name="checkmark-circle-outline"></ion-icon>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- SOLICITUD DE MATERIALES MODAL -->
+<div class="modal-overlay" id="solicitud-modal">
+    <div class="modal-window">
+        <div class="modal-header">
+            <h2 style="margin:0; font-weight: 800; display: flex; align-items: center; gap: 20px;">
+                <div
+                    style="background: #eff6ff; width: 60px; height: 60px; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--primary); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);">
+                    <ion-icon name="cart" style="font-size: 2rem;"></ion-icon>
+                </div>
+                Nueva Solicitud de Materiales
+            </h2>
+            <button class="close-btn" id="close-solicitud">✕</button>
+        </div>
+        <div class="modal-body">
+            <form id="solicitud-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label"><ion-icon name="business-outline"></ion-icon> Bodega de Origen</label>
+                        <div class="warehouse-select-container">
+                            <select id="ubicacion_origen" class="form-control" required>
+                                <option value="">-- Selecciona Bodega --</option>
+                                {% for u in ubicaciones %}
+                                <option value="{{ u.id }}">📦 {{ u.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                            <ion-icon name="chevron-down-outline"></ion-icon>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><ion-icon name="build-outline"></ion-icon> Orden de Trabajo
+                            (OT)</label>
+                        <div style="position: relative;">
+                            <input type="text" id="otSearch" class="form-control"
+                                placeholder="🔍 Escribe número o descripción de OT..." autocomplete="off">
+                            <input type="hidden" id="selectedOtId">
+                            <div id="otResults"
+                                style="position: absolute; width: 100%; max-height: 250px; background:white; z-index:100; border-radius:4px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); display:none; overflow-y: auto; margin-top: 10px; border: 2px solid #e2e8f0;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 50px;">
+                    <label class="form-label"><ion-icon name="chatbox-ellipses-outline"></ion-icon> Justificación del
+                        Pedido</label>
+                    <textarea id="comentarios" class="form-control" rows="3"
+                        placeholder="Describe brevemente el uso de estos materiales..."></textarea>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                    <h3 style="margin:0; font-weight: 800; font-size: 1.4rem; color: #1e293b;">📋 Lista de Materiales
+                    </h3>
+                    <button type="button" class="btn-outline-custom" id="open-catalog">
+                        <ion-icon name="apps-outline" style="font-size: 1.2rem;"></ion-icon> Seleccionar del Catálogo
+                    </button>
+                </div>
+
+                <div class="items-container">
+                    <table class="items-table" id="items-table">
+                        <thead>
+                            <tr>
+                                <th>Material / Descripción</th>
+                                <th style="text-align: center;">Cantidad</th>
+                                <th style="text-align: right;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-body">
+                            <tr>
+                                <td colspan="3" style="text-align: center; padding: 60px; color: #94a3b8;">
+                                    <ion-icon name="basket-outline"
+                                        style="font-size: 3rem; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto; opacity: 0.5;"></ion-icon>
+                                    Tu lista está vacía actualmente.<br>Abre el catálogo para añadir artículos.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div
+                    style="display: flex; justify-content: flex-end; gap: 20px; border-top: 1px solid #f1f5f9; padding-top: 40px;">
+                    <button type="submit" class="btn-submit">
+                        <ion-icon name="send"></ion-icon> Procesar Solicitud de Salida
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- INGRESO DE INVENTARIO MODAL -->
+<div class="modal-overlay" id="ingreso-modal">
+    <div class="modal-window">
+        <div class="modal-header" style="border-bottom: 2px solid #10b981;">
+            <h2 style="margin:0; font-weight: 800; display: flex; align-items: center; gap: 20px;">
+                <div
+                    style="background: #ecfdf5; width: 60px; height: 60px; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #10b981; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);">
+                    <ion-icon name="add-circle" style="font-size: 2rem;"></ion-icon>
+                </div>
+                Nuevo Ingreso de Inventario (Entrada)
+            </h2>
+            <button class="close-btn" id="close-ingreso" style="background: #10b981;">✕</button>
+        </div>
+        <div class="modal-body">
+            <form id="ingreso-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label"><ion-icon name="business-outline"></ion-icon> Bodega de
+                            Destino</label>
+                        <select id="ubicacion_destino" class="form-control" required>
+                            <option value="">-- Selecciona Bodega --</option>
+                            {% for ub in ubicaciones %}
+                            <option value="{{ ub.id }}">{{ ub.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label"><ion-icon name="document-text-outline"></ion-icon> Comentarios /
+                            Referencia (OC, Factura)</label>
+                        <input type="text" id="comentarios_ingreso" class="form-control"
+                            placeholder="Ejem: Ingreso por Compra #1234, Devolución de obra...">
+                    </div>
+                    <!-- Nuevo campo para importar requisition -->
+                    <div class="form-group">
+                        <label class="form-label"><ion-icon name="copy-outline"></ion-icon> Importar de Requisición
+                            (Opcional)</label>
+                        <div style="position: relative;">
+                            <input type="hidden" id="selectedSolicitudId">
+                            <input type="text" id="solicitudSearch" class="form-control"
+                                placeholder="🔍 Buscar por Folio o Solicitante..." autocomplete="off"
+                                style="border-color: #10b981;">
+                            <div id="solicitudResults"
+                                style="position: absolute; width: 100%; max-height: 250px; background:white; z-index:100; border-radius:2px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); display:none; overflow-y: auto; margin-top: 10px; border: 2px solid #10b981;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    style="margin-top: 40px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin:0; font-weight: 800; color: #1e293b;">Materiales a Ingresar</h3>
+                    <button type="button" id="open-catalog-ingreso" class="btn-submit"
+                        style="background: #10b981; margin:0;">
+                        <ion-icon name="search"></ion-icon> Buscar en Catálogo
+                    </button>
+                </div>
+
+                <div class="table-container shadow-sm"
+                    style="border: 1px solid #e2e8f0; border-radius: 4px; overflow: hidden; background: #f8fafc;">
+                    <table style="width: 100%; border-collapse: collapse; background: white;">
+                        <thead>
+                            <tr style="background: #f1f5f9; text-align: left;">
+                                <th
+                                    style="padding: 20px; color: #475569; font-weight: 800; font-size: 0.75rem; text-transform: uppercase;">
+                                    Material / Producto</th>
+                                <th
+                                    style="padding: 20px; color: #475569; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; text-align: center; width: 150px;">
+                                    Cantidad</th>
+                                <th
+                                    style="padding: 20px; color: #475569; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; text-align: center; width: 130px;">
+                                    Lote (Opcional)</th>
+                                <th
+                                    style="padding: 20px; color: #475569; font-weight: 800; font-size: 0.75rem; text-transform: uppercase;">
+                                    Comentarios por Material</th>
+                                <th
+                                    style="padding: 20px; color: #475569; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; text-align: right; width: 100px;">
+                                    Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ingreso-items-body">
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 60px; color: #94a3b8;">
+                                    <ion-icon name="add-outline"
+                                        style="font-size: 3rem; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto; opacity: 0.5;"></ion-icon>
+                                    No has añadido materiales para el ingreso.<br>Usa el botón "Buscar en Catálogo" para
+                                    seleccionarlos.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div
+                    style="display: flex; justify-content: flex-end; gap: 20px; border-top: 1px solid #f1f5f9; padding-top: 40px; margin-top: 40px;">
+                    <button type="submit" class="btn-submit" style="background: #10b981;">
+                        <ion-icon name="checkmark-done"></ion-icon> Registrar Entrada de Inventario
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- INTERNAL CATALOG MODAL (Nested or Separate Overlay) -->
+<div class="modal-overlay" id="catalog-modal" style="z-index: 10001; background: rgba(0,0,0,0.4);">
+    <div class="modal-window">
+        <div class="modal-header" style="background: #f8fafc;">
+            <h3 style="margin:0; font-weight:800;">📑 Catálogo Maestro</h3>
+            <button class="close-btn" id="close-catalog">✕</button>
+        </div>
+        <div style="padding: 20px; border-bottom: 1px solid #f1f5f9; display: flex; gap: 20px;">
+            <input type="text" id="catalog-search" class="form-control" placeholder="🔍 Buscar por nombre o SKU..."
+                style="flex:1;">
+            <select id="catalog-category" class="form-control" style="width: 250px;">
+                <option value="">Todas las Categorías</option>
+                {% for cat in categorias %}
+                <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <div id="materials-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
+                <!-- Dynamically loaded -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    (function ($) {
+        let activeMode = 'solicitud';
+        let solicitudMaterials = new Map();
+        let ingresoMaterials = new Map();
+
+        // 1. Modal Logic
+        $('#btn-nueva-solicitud').on('click', () => {
+            activeMode = 'solicitud';
+            $('#solicitud-modal').addClass('active');
+        });
+        $('#close-solicitud').on('click', () => $('#solicitud-modal').removeClass('active'));
+
+        $('#btn-ingreso-inventario').on('click', () => {
+            activeMode = 'ingreso';
+            $('#ingreso-modal').addClass('active');
+        });
+        $('#close-ingreso').on('click', () => $('#ingreso-modal').removeClass('active'));
+
+        $('#open-catalog, #open-catalog-ingreso').on('click', () => {
+            $('#catalog-modal').addClass('active');
+            loadMaterials();
+        });
+        $('#close-catalog').on('click', () => $('#catalog-modal').removeClass('active'));
+
+        $('#ubicacion_origen').on('change', function () {
+            if (selectedMaterials.size > 0) {
+                Swal.fire({
+                    title: '¿Cambiar de bodega?',
+                    text: 'Al cambiar la bodega se limpiará tu lista actual de materiales para asegurar que haya existencias suficientes.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, cambiar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        selectedMaterials.clear();
+                        renderItems();
+                    } else {
+                        // Revert selection if user cancels
+                        $(this).val($(this).data('prev-val'));
+                    }
+                });
+            }
+            $(this).data('prev-val', $(this).val());
+        });
+
+        // 2. Load Materials from API
+        async function loadMaterials() {
+            const query = $('#catalog-search').val();
+            const category = $('#catalog-category').val();
+            const ubicacion = activeMode === 'solicitud' ? $('#ubicacion_origen').val() : '';
+            const grid = $('#materials-grid');
+
+            if (activeMode === 'solicitud' && !ubicacion) {
+                grid.html('<div style="grid-column: 1/-1; text-align:center; padding:50px; color:#ef4444; font-weight:800;"><ion-icon name="warning-outline" style="font-size:3rem; display:block; margin:0 auto 15px;"></ion-icon>DEBES SELECCIONAR UNA BODEGA DE ORIGEN PRIMERO</div>');
+                return;
+            }
+
+            grid.html('<div style="grid-column: 1/-1; text-align:center; padding:50px;">Buscando artículos...</div>');
+
+            try {
+                const res = await fetch(`/inventarios/api/materials/?q=${query}&category=${category}&ubicacion=${ubicacion}`);
+                const data = await res.json();
+                const selectedMap = activeMode === 'solicitud' ? solicitudMaterials : ingresoMaterials;
+
+                grid.empty();
+                data.results.forEach(m => {
+                    const isSelected = selectedMap.has(m.id);
+                    grid.append(`
+                        <div class="catalog-card ${isSelected ? 'selected' : ''}" id="card-mat-${m.id}">
+                            <div style="background: #f1f5f9; border-radius: 2px; padding: 10px; margin-bottom: 15px; position:relative;">
+                                <img src="${m.image_url}" style="width:100%; height:80px; object-fit:contain;">
+                                ${isSelected ? '<div style="position:absolute; top:5px; right:5px; background:var(--primary); color:white; padding:2px 8px; font-size:0.6rem; font-weight:800; border-radius:2px;">AÑADIDO</div>' : ''}
+                            </div>
+                            <div style="font-weight:800; color:var(--text-main); font-size: 0.85rem; height: 2.4em; overflow: hidden;">${m.nombre}</div>
+                            <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:10px;">${m.sku}</div>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="number" id="qty-${m.id}" class="form-control" value="1" min="1" style="padding:5px; font-size:0.8rem; height:35px; text-align:center;">
+                                <button onclick="addToCart(${m.id}, '${m.nombre}', '${m.sku}')" style="background: ${activeMode === 'solicitud' ? 'var(--primary)' : '#10b981'}; color: white; border: none; width:35px; height:35px; border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                                    <ion-icon name="add-outline"></ion-icon>
+                                </button>
+                            </div>
+                        </div>
+                    `);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        window.addToCart = (id, name, sku) => {
+            const qty = parseFloat($(`#qty-${id}`).val()) || 1;
+            const selectedMap = activeMode === 'solicitud' ? solicitudMaterials : ingresoMaterials;
+
+            if (selectedMap.has(id)) {
+                selectedMap.get(id).quantity += qty;
+            } else {
+                selectedMap.set(id, { id, name, sku, quantity: qty });
+            }
+
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Agregado', showConfirmButton: false, timer: 1000 });
+            renderItems();
+            loadMaterials();
+        };
+
+        window.toggleMaterial = (id) => {
+            const selectedMap = activeMode === 'solicitud' ? solicitudMaterials : ingresoMaterials;
+            selectedMap.delete(id);
+            renderItems();
+            loadMaterials();
+        };
+
+        window.updateQty = (id, val) => {
+            const selectedMap = activeMode === 'solicitud' ? solicitudMaterials : ingresoMaterials;
+            if (selectedMap.has(id)) selectedMap.get(id).quantity = parseFloat(val);
+        };
+
+        window.updateLote = (id, val) => {
+            if (ingresoMaterials.has(id)) ingresoMaterials.get(id).lote = val;
+        };
+
+        window.updateComment = (id, val) => {
+            if (ingresoMaterials.has(id)) ingresoMaterials.get(id).comentario = val;
+        };
+
+        $('#catalog-search, #catalog-category').on('change input', loadMaterials);
+
+        function renderItems() {
+            const body = activeMode === 'solicitud' ? $('#items-body') : $('#ingreso-items-body');
+            const selectedMap = activeMode === 'solicitud' ? solicitudMaterials : ingresoMaterials;
+
+            if (selectedMap.size === 0) {
+                if (activeMode === 'solicitud') {
+                    body.html('<tr><td colspan="3" style="text-align: center; padding: 40px; color: #94a3b8;">Lista vacía</td></tr>');
+                } else {
+                    body.html('<tr><td colspan="4" style="text-align: center; padding: 40px; color: #94a3b8;">Sin materiales seleccionados</td></tr>');
+                }
+                return;
+            }
+
+            body.empty();
+            selectedMap.forEach(item => {
+                if (activeMode === 'solicitud') {
+                    body.append(`
+                        <tr>
+                            <td><div style="font-weight:800;">${item.name}</div><div style="font-size:0.75rem;">${item.sku}</div></td>
+                            <td style="text-align:center;"><input type="number" class="qty-input" value="${item.quantity}" min="1" onchange="updateQty(${item.id}, this.value)"></td>
+                            <td style="text-align:right;"><button onclick="toggleMaterial(${item.id})" style="color:red; background:none; border:none; cursor:pointer;"><ion-icon name="trash-outline" style="font-size:1.5rem;"></ion-icon></button></td>
+                        </tr>
+                    `);
+                } else {
+                    body.append(`
+                        <tr>
+                            <td style="padding:15px;"><div style="font-weight:800;">${item.name}</div><div style="font-size:0.75rem;">${item.sku}</div></td>
+                            <td style="text-align:center; padding:15px;"><input type="number" class="qty-input" value="${item.quantity}" min="1" onchange="updateQty(${item.id}, this.value)" style="width:80px; height:40px; text-align:center;"></td>
+                            <td style="text-align:center; padding:15px;"><input type="text" class="form-control" placeholder="Lote..." value="${item.lote || ''}" onchange="updateLote(${item.id}, this.value)" style="height:40px;"></td>
+                            <td style="padding:15px;"><input type="text" class="form-control" placeholder="Ej: Llegó incompleto, caja dañada..." value="${item.comentario || ''}" onchange="updateComment(${item.id}, this.value)" style="height:40px;"></td>
+                            <td style="text-align:right; padding:15px;"><button onclick="toggleMaterial(${item.id})" style="color:red; background:none; border:none; cursor:pointer; font-size:1.5rem;"><ion-icon name="trash-outline"></ion-icon></button></td>
+                        </tr>
+                    `);
+                }
+            });
+        }
+
+        // 3. Search OTs
+        $('#otSearch').on('input', async function () {
+            const q = $(this).val();
+            const results = $('#otResults');
+            if (q.length < 2) { results.hide(); return; }
+
+            try {
+                const res = await fetch(`/mantenimiento/api/search-ordenes/?q=${q}`);
+                const data = await res.json();
+                results.empty().show();
+                data.results.forEach(ot => {
+                    results.append(`<div onclick="selectOt(${ot.id}, '${ot.text}')" style="padding:15px; cursor:pointer; border-bottom:1px solid #f1f5f9; color: #0f172a; font-weight: 600;">${ot.text}</div>`);
+                });
+            } catch (err) { }
+        });
+
+        window.selectOt = (id, text) => {
+            $('#selectedOtId').val(id);
+            $('#otSearch').val(text);
+            $('#otResults').hide();
+        };
+
+        // 4. Search Requisitions (Ingreso)
+        $('#solicitudSearch').on('input', async function () {
+            const q = $(this).val();
+            const results = $('#solicitudResults');
+            if (q.length < 1) { results.hide(); return; }
+
+            try {
+                const res = await fetch(`/inventarios/api/solicitudes/search/?q=${q}`);
+                const data = await res.json();
+                results.empty().show();
+                data.results.forEach(s => {
+                    results.append(`
+                        <div onclick="importSolicitud('${s.id}', '${s.text}')" 
+                             style="padding:15px; cursor:pointer; border-bottom:1px solid #f1f5f9; color: #0f172a; font-weight: 600;">
+                            <div style="color:var(--primary); font-family:monospace; font-size:1rem;">${s.text}</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">Asunto: ${s.asunto} | ${s.count} materiales</div>
+                        </div>
+                    `);
+                });
+            } catch (err) { }
+        });
+
+        window.importSolicitud = async (id, text) => {
+            $('#selectedSolicitudId').val(id);
+            $('#solicitudResults').hide();
+            $('#solicitudSearch').val(text);
+
+            Swal.fire({
+                title: 'Cargando Requisición...',
+                text: 'Extrayendo lista de materiales',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            try {
+                const res = await fetch(`/inventarios/api/solicitudes/${id}/items/`);
+                const data = await res.json();
+
+                let addedCount = 0;
+                data.items.forEach(item => {
+                    if (!ingresoMaterials.has(item.id)) {
+                        ingresoMaterials.set(item.id, {
+                            id: item.id,
+                            name: item.nombre,
+                            sku: item.sku,
+                            quantity: item.cantidad
+                        });
+                        addedCount++;
+                    }
+                });
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Materiales Importados!',
+                    text: `Se han cargado ${addedCount} artículos a la lista de ingreso.`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                renderItems();
+            } catch (err) {
+                Swal.fire('Error', 'No se pudieron importar los materiales', 'error');
+            }
+        };
+
+        // 4. Form Submit
+        // 4. Solicitud Submit
+        $('#solicitud-form').on('submit', async function (e) {
+            e.preventDefault();
+            if (solicitudMaterials.size === 0) {
+                Swal.fire('Faltan materiales', 'Debes seleccionar al menos uno', 'warning');
+                return;
+            }
+
+            const itemsArr = Array.from(solicitudMaterials.values()).map(it => ({
+                material_id: it.id,
+                cantidad: it.quantity
+            }));
+
+            Swal.fire({
+                title: '¿Confirmar Solicitud?',
+                text: 'Se enviará la orden de salida para su procesamiento.',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, enviar',
+                allowOutsideClick: false
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.showLoading();
+                    const fd = new FormData();
+                    fd.append('ubicacion_origen', $('#ubicacion_origen').val());
+                    fd.append('orden_trabajo', $('#selectedOtId').val());
+                    fd.append('comentarios', $('#comentarios').val());
+                    fd.append('items_json', JSON.stringify(itemsArr));
+                    fd.append('ajax_mode', 'true');
+                    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+                    try {
+                        const res = await fetch('{% url "inventarios:cart_checkout" %}', {
+                            method: 'POST',
+                            body: fd
+                        });
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            Swal.fire('¡Éxito!', data.message, 'success').then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    } catch (err) {
+                        Swal.fire('Error', 'No se pudo procesar la solicitud', 'error');
+                    }
+                }
+            });
+        });
+
+        // 5. Ingreso Submit
+        $('#ingreso-form').on('submit', async function (e) {
+            e.preventDefault();
+            if (ingresoMaterials.size === 0) {
+                Swal.fire('Faltan materiales', 'Debes seleccionar al menos un artículo para ingresar', 'warning');
+                return;
+            }
+
+            const itemsArr = Array.from(ingresoMaterials.values()).map(it => ({
+                id: it.id,
+                quantity: it.quantity,
+                lote: it.lote || '',
+                comentario: it.comentario || ''
+            }));
+
+            Swal.fire({
+                title: '¿Registrar Entrada?',
+                text: `Se registrará el ingreso de ${ingresoMaterials.size} artículos a la bodega.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Confirmar Ingreso',
+                confirmButtonColor: '#10b981',
+                allowOutsideClick: false
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                    try {
+                        const res = await fetch('/inventarios/api/ingreso-lote/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({
+                                items: itemsArr,
+                                ubicacion_destino: $('#ubicacion_destino').val(),
+                                comentarios: $('#comentarios_ingreso').val(),
+                                requisicion_id: $('#selectedSolicitudId').val()
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            Swal.fire('Registrado', 'El ingreso de inventario se ha procesado correctamente.', 'success')
+                                .then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    } catch (err) {
+                        Swal.fire('Error', 'No se pudo completar el registro de entrada', 'error');
+                    }
+                }
+            });
+        });
+
+        // 6. Nuevo Material Rápido (Modal y Escáner)
+        const modalNuevoMaterial = $('#nuevo-material-modal');
+        let nmScanner = null;
+
+        $('#btn-nuevo-material-modal').on('click', function (e) {
+            e.preventDefault();
+            modalNuevoMaterial.addClass('active');
+        });
+
+        $('#close-nuevo-material').on('click', async function () {
+            modalNuevoMaterial.removeClass('active');
+            if (nmScanner) {
+                try { await nmScanner.stop(); } catch (e) { }
+            }
+            $('#nm-reader-container').hide();
+        });
+
+        $('#btn-nm-escanear').on('click', async function () {
+            if (!window.isSecureContext && location.hostname !== "localhost") {
+                Swal.fire('Atención', 'El uso de cámara requiere conexión segura (HTTPS)', 'warning');
+                return;
+            }
+            $('#nm-reader-container').show();
+            if (!nmScanner) {
+                nmScanner = new Html5Qrcode("nm-reader");
+            }
+            try {
+                await nmScanner.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    (decodedText) => {
+                        if (navigator.vibrate) navigator.vibrate(100);
+                        $('#nm-sku').val(decodedText);
+                        nmScanner.stop().then(() => {
+                            $('#nm-reader-container').hide();
+                        });
+                    },
+                    (error) => { }
+                );
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo activar la cámara.', 'error');
+                $('#nm-reader-container').hide();
+            }
+        });
+
+        $('#btn-nm-cancel-scan').on('click', async function () {
+            if (nmScanner) {
+                try { await nmScanner.stop(); } catch (e) { }
+            }
+            $('#nm-reader-container').hide();
+        });
+
+        $('#nuevo-material-form').on('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData();
+            formData.append('nombre', $('#nm-nombre').val());
+            formData.append('sku', $('#nm-sku').val());
+            formData.append('descripcion', $('#nm-descripcion').val());
+
+            const stock = $('#nm-stock').val();
+            const ubicacion = $('#nm-ubicacion').val();
+
+            if (stock && parseFloat(stock) > 0) {
+                if (!ubicacion) {
+                    Swal.fire('Atención', 'Debes seleccionar una bodega para el stock inicial.', 'warning');
+                    return;
+                }
+                formData.append('stock_inicial', stock);
+                formData.append('ubicacion_id', ubicacion);
+            }
+
+            const imgFile = document.getElementById('nm-imagen').files[0];
+            if (imgFile) {
+                formData.append('imagen', imgFile);
+            }
+
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                const res = await fetch('/inventarios/api/material/quick-create/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    Swal.fire('¡Éxito!', 'Material registrado correctamente en el catálogo.', 'success');
+                    $('#nm-nombre').val('');
+                    $('#nm-sku').val('');
+                    $('#nm-descripcion').val('');
+                    $('#nm-stock').val('');
+                    $('#nm-ubicacion').val('');
+                    $('#nm-imagen').val('');
+                    $('#close-nuevo-material').click();
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'No se conectó con el servidor.', 'error');
+            }
+        });
+
+    })(jQuery);
+</script>
+{% endblock %}
