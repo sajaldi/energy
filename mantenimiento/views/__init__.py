@@ -34,5 +34,6 @@ from .mobile import (
     mobile_aviso_detalle
 )
 from .dashboard import dashboard_cargas
+from .dashboard_general import mantenimiento_dashboard
 from . import import_personal
 from . import import_procedimientos

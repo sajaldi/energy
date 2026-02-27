@@ -410,7 +410,7 @@
                         <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:60px;">
                             <div>
                                 <div style="background:#f8fafc; padding:40px; border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; border: 2px solid #e2e8f0; margin-bottom: 30px;">
-                                    <img src="${data.image_url || ''}" style="width:100%; max-height:450px; object-fit:contain;">
+                                    <img src="${data.image_url || ''}" class="expandable-img" style="width:100%; max-height:450px; object-fit:contain; cursor:zoom-in;">
                                 </div>
                                 
                                 <div class="detail-grid">
@@ -588,6 +588,26 @@
         $('#category, #warehouse').on('change', () => loadCatalog(1));
 
         loadCatalog();
+
+        // Manejador para expandir imágenes
+        $(document).on('click', '.expandable-img', function () {
+            const src = $(this).attr('src');
+            if (!src || src.includes('placeholder')) return;
+
+            Swal.fire({
+                imageUrl: src,
+                imageAlt: 'Imagen del Material',
+                showCloseButton: true,
+                showConfirmButton: false,
+                width: 'auto',
+                padding: '0',
+                background: 'rgba(0,0,0,0.8)',
+                backdrop: 'rgba(0,0,0,0.9)',
+                customClass: {
+                    image: 'img-fluid rounded shadow-2xl'
+                }
+            });
+        });
     })(jQuery);
 </script>
 {% endblock %}

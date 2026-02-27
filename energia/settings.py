@@ -222,19 +222,35 @@ import dj_database_url
 
 # En producción (Coolify), usa DATABASE_URL de variables de entorno
 # En desarrollo local, usa la configuración hardcodeada apuntando al servidor Coolify
-if os.environ.get('DATABASE_URL'):
+db_url = os.environ.get('DATABASE_URL')
+if db_url:
     # Producción: Coolify proporciona DATABASE_URL automáticamente
     DATABASES = {
         'default': dj_database_url.config(
-            default=os.environ.get('DATABASE_URL'),
+            default=db_url,
             conn_max_age=600,
             conn_health_checks=True,
         )
     }
     # Forzar sslmode disable para la red interna de contenedores y evitar errores de handshake
-    DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = 'disable'
+    # Aumentar connect_timeout para dar margen en redes internas cargadas
+    if 'OPTIONS' not in DATABASES['default']:
+        DATABASES['default']['OPTIONS'] = {}
+    
+    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
+    DATABASES['default']['OPTIONS']['connect_timeout'] = 10
+    
     print(f"[DEBUG] DB Producción: {DATABASES['default'].get('HOST')} - Puerto: {DATABASES['default'].get('PORT')} - SSL: Disabled")
 else:
+    # Diagnóstico: Si no hay DATABASE_URL pero no es local, algo está mal configurado en Coolify
+    if not IS_LOCAL:
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("[CRITICAL] DATABASE_URL NO DETECTADA EN PRODUCCION")
+        print("El worker o la web fallarán al intentar conectar a localhost")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        import sys
+        sys.stdout.flush()
+
     # Desarrollo local - Conexión manual vía Túnel (dist/Softcom_DB_Tunnel.exe)
     LOCAL_DB_PORT = 5434
     DATABASES = {
@@ -527,6 +543,22 @@ JAZZMIN_SETTINGS = {
     "use_google_fonts_cdn": True,
     "show_ui_builder": True,
     "custom_links": {
+        "mantenimiento": [
+            {
+                "name": "📊 Dashboard Mantenimiento",
+                "url": "/mantenimiento/",
+                "icon": "fas fa-chart-line",
+                "permissions": ["mantenimiento.view_ordentrabajo"],
+            },
+        ],
+        "inventarios": [
+            {
+                "name": "📦 Dashboard Inventarios",
+                "url": "/inventarios/",
+                "icon": "fas fa-warehouse",
+                "permissions": ["inventarios.view_material"],
+            },
+        ],
         "documentos": [
             {
                 "name": "📁 Carga Masiva",

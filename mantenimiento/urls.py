@@ -6,6 +6,7 @@ from .views.rutinas_dashboard import rutinas_dashboard, rutina_detail_api, rutin
 app_name = 'mantenimiento'
 
 urlpatterns = [
+    path('', views.mantenimiento_dashboard, name='dashboard'),
     path('calendario/', views.calendario_mantenimiento, name='calendario'),
     path('calendario/detallado/', views.calendario_detallado, name='detallado'),
     path('cronograma/', views.cronograma_mantenimiento_visual, name='cronograma'),

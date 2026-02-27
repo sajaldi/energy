@@ -346,8 +346,13 @@ def api_get_material_by_sku(request):
         return JsonResponse({'status': 'error', 'message': 'SKU no proporcionado'}, status=400)
     
     material = Material.objects.filter(sku=sku).first()
+    
+    # Si no lo encuentra por SKU, intentar por ID si es numérico
+    if not material and sku.isdigit():
+        material = Material.objects.filter(id=int(sku)).first()
+
     if not material:
-        return JsonResponse({'status': 'error', 'message': 'Material no encontrado'}, status=404)
+        return JsonResponse({'status': 'error', 'message': f'Material con código "{sku}" no encontrado'}, status=404)
     
     existencias = material.existencias.select_related('ubicacion').values(
         'ubicacion_id', 'ubicacion__nombre', 'cantidad'

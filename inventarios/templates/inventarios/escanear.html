@@ -409,12 +409,35 @@
 
         async function lookupSKU(sku) {
             if (!sku) return;
-            console.log("Buscando SKU:", sku);
+
+            let originalSku = sku.trim();
+            let processedSku = originalSku;
+
+            // 1. Intentar limpiar si viene con prefijos comunes de etiquetas
+            // Ejemplo: "CODIGO: 12345" o "SKU: 12345"
+            processedSku = processedSku.replace(/^(CODIGO|SKU|CODE):\s*/i, '');
+
+            // 2. Intentar parsear como JSON por si el QR es un objeto
             try {
-                const resp = await fetch('{% url "inventarios:api_get_material_by_sku" %}?sku=' + encodeURIComponent(sku));
+                if (processedSku.startsWith('{')) {
+                    const obj = JSON.parse(processedSku);
+                    processedSku = obj.sku || obj.codigo || obj.code || obj.id || processedSku;
+                }
+            } catch (e) { }
+
+            console.log("Buscando SKU procesado:", processedSku);
+
+            try {
+                const resp = await fetch('{% url "inventarios:api_get_material_by_sku" %}?sku=' + encodeURIComponent(processedSku));
                 const data = await resp.json();
 
                 if (data.status === 'error') {
+                    // Si falló por SKU, intentar buscar por ID si el código es numérico
+                    if (!isNaN(processedSku)) {
+                        // Tal vez el usuario se refiere al ID real del material
+                        // Podríamos intentar otra búsqueda o simplemente mostrar el error
+                        console.log("No encontrado por SKU, intentando por ID...");
+                    }
                     showToast(data.message, 'var(--danger)');
                     return;
                 }
@@ -440,7 +463,7 @@
 
         function displayMaterial(mat) {
             document.getElementById('mat-name').innerText = mat.nombre;
-            document.getElementById('mat-sku').innerText = `SKU: ${mat.sku}`;
+            document.getElementById('mat-sku').innerText = `Código: ${mat.sku}`;
             document.getElementById('mat-unit').innerText = mat.unidad || mat.unit;
 
             const list = document.getElementById('stock-list');
