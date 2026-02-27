@@ -120,7 +120,7 @@ N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', 
 
 # Webhook para solicitudes de materiales
 if IS_LOCAL:
-    _default_solicitud_webhook = f'{N8N_BASE_URL}/webhook-test/solicitud-material'
+    _default_solicitud_webhook = f'{N8N_BASE_URL}/webhook/solicitud-material'
 else:
     _default_solicitud_webhook = f'{N8N_BASE_URL}/webhook/solicitud-material'
 N8N_SOLICITUD_WEBHOOK_URL = os.environ.get('N8N_SOLICITUD_WEBHOOK_URL', _default_solicitud_webhook)
