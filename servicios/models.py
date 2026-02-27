@@ -23,8 +23,9 @@ class Servicio(models.Model):
 class KPI(models.Model):
     """Modelo para Key Performance Indicators (Indicadores Clave de Desempeño)"""
     CATEGORIA_CHOICES = [
-        ('MEJORA', 'Mejora'),
         ('MAYOR', 'Mayor'),
+        ('MEDIA', 'Media'),
+        ('MENOR', 'Menor'),
     ]
     ESTADO_CHOICES = [
         ('CUMPLIMIENTO', 'En Cumplimiento'),
