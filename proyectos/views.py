@@ -2,7 +2,8 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import Actividad, Proyecto
+from .models import Actividad, Proyecto, DocumentoProyecto
+from documentos.models import Documento
 import json
 from datetime import datetime, timedelta
 from core.ai_utils import ask_gemini
@@ -196,3 +197,22 @@ def chatbot_asistente(request):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
     return render(request, 'proyectos/chatbot_asistente.html')
+
+@staff_member_required
+def repositorio_documentos(request, proyecto_id):
+    """
+    Vista de galería para visualizar todos los documentos vinculados a un proyecto.
+    """
+    proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    # Obtener documentos a través de la relación ManyToMany inversa definida en DocumentoProyecto
+    documentos_vinculados = proyecto.documentos_proyecto.all().select_related('documento__tipo_documento')
+    
+    # Extraer los objetos documento reales
+    documentos = [dv.documento for dv in documentos_vinculados]
+    
+    context = {
+        'proyecto': proyecto,
+        'documentos': documentos,
+        'estados': Documento.ESTADOS,
+    }
+    return render(request, 'proyectos/repositorio_documentos.html', context)

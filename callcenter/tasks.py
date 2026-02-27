@@ -62,3 +62,36 @@ def sync_tickets_task(days=2):
     except Exception as e:
         logger.error(f"Error en sync_tickets_task: {e}")
         return {"status": "error", "message": str(e)}
+
+@shared_task(name='callcenter.tasks.sync_single_ticket_task')
+def sync_single_ticket_task(ticket_id):
+    """
+    Tarea de Celery para sincronizar un único ticket de forma asíncrona.
+    """
+    from .models import SolicitudTicket
+    from .scraper import sync_individual_ticket
+    
+    try:
+        ticket = SolicitudTicket.objects.get(id=ticket_id)
+        
+        username = os.environ.get('CALLCENTER_USER')
+        password = os.environ.get('CALLCENTER_PASS')
+        company = "Centro Cívico Gubernamental de Honduras"
+
+        if not username or not password:
+            return {"status": "error", "message": "Credenciales no configuradas."}
+
+        # Ejecutar el robot scraper
+        result = sync_individual_ticket(
+            username=username, 
+            password=password, 
+            company_name=company, 
+            ticket_folio=ticket.folio, 
+            fecha_solicitud=ticket.fecha_solicitud
+        )
+        
+        return result
+
+    except Exception as e:
+        logger.error(f"Error en sync_single_ticket_task para ticket {ticket_id}: {e}")
+        return {"status": "error", "message": str(e)}

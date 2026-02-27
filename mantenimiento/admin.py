@@ -562,6 +562,54 @@ class RutinaResource(resources.ModelResource):
             return rutina.categoria.get_ruta_completa()
         return ''
 
+class CachedForeignKeyWidget(ForeignKeyWidget):
+    """
+    ForeignKeyWidget que usa un caché en memoria para evitar queries por fila.
+    El caché se inyecta externamente via set_cache().
+    """
+    _cache = None
+
+    def set_cache(self, cache_dict):
+        self._cache = cache_dict
+
+    def clean(self, value, row=None, *args, **kwargs):
+        if not value:
+            return None
+        val = str(value).strip()
+        if not val or val.lower() in ('none', 'nan', 'null'):
+            return None
+        if self._cache is not None:
+            result = self._cache.get(val) or self._cache.get(val.lower())
+            if result:
+                return result
+            raise ValueError(f"'{val}' no encontrado en {self.model.__name__}")
+        return super().clean(value, row, *args, **kwargs)
+
+
+class CachedManyToManyCodeWidget(ManyToManyWidget):
+    """
+    Widget M2M que usa caché en memoria para resolver codigos_internos.
+    """
+    _cache = None
+
+    def set_cache(self, cache_dict):
+        self._cache = cache_dict
+
+    def clean(self, value, row=None, *args, **kwargs):
+        if not value:
+            return self.model.objects.none()
+        codes = [c.strip() for c in str(value).split(',') if c.strip()]
+        if self._cache is not None:
+            pks = [self._cache[c].pk for c in codes if c in self._cache]
+            return self.model.objects.filter(pk__in=pks)
+        return self.model.objects.filter(codigo_interno__in=codes)
+
+    def render(self, value, obj=None):
+        if not value:
+            return ""
+        return ", ".join([str(o.codigo_interno) for o in value.all()])
+
+
 class ManyToManyCodeWidget(ManyToManyWidget):
     """
     Widget para ManyToMany que usa codigo_interno en lugar de ID.
@@ -578,6 +626,56 @@ class ManyToManyCodeWidget(ManyToManyWidget):
         if not value:
             return ""
         return ", ".join([str(obj.codigo_interno) for obj in value.all()])
+
+class CachedHierarchicalWidget(ForeignKeyWidget):
+    """
+    Widget de ubicación con caché. Pre-carga todas las ubicaciones y resuelve
+    jerárquicamente sin queries adicionales.
+    """
+    _cache_by_name = None  # nombre_lower -> [lista de ubicaciones]
+    _parent_map = None     # ubicacion_id -> nombre_padre
+
+    def set_cache(self, ubicaciones_by_name, parent_map):
+        self._cache_by_name = ubicaciones_by_name
+        self._parent_map = parent_map
+
+    def clean(self, value, row=None, *args, **kwargs):
+        val_str = str(value).strip()
+        if not val_str:
+            return None
+        
+        # Si no hay caché, fallback a query directa
+        if self._cache_by_name is None:
+            return super().clean(value, row, *args, **kwargs)
+            
+        import re
+        parts = [p.strip() for p in re.split(r'\s*(?:->|\||-)\s*', val_str) if p.strip()]
+        
+        if not parts:
+            return None
+            
+        leaf_name = parts[-1].lower()
+        candidates = self._cache_by_name.get(leaf_name, [])
+        
+        if not candidates:
+            raise ValueError(f"No existe ubicación con nombre '{parts[-1]}'")
+            
+        if len(candidates) == 1:
+            return candidates[0]
+            
+        # Desambiguación por padre
+        if len(parts) > 1:
+            parent_name = parts[-2].lower()
+            filtered = [c for c in candidates if self._parent_map.get(c.id, '').lower() == parent_name]
+            if len(filtered) == 1:
+                return filtered[0]
+            if len(filtered) > 1:
+                raise ValueError(f"Ambigüedad persistente: {len(filtered)} ubicaciones '{parts[-1]}' tienen padre '{parts[-2]}'.")
+            raise ValueError(f"Conflicto: Se encontró '{parts[-1]}' pero ninguno pertenece a '{parts[-2]}'.")
+            
+        names = [f"{c.nombre} (Padre: {self._parent_map.get(c.id, 'N/A')})" for c in candidates[:3]]
+        raise ValueError(f"Ambigüedad: '{parts[-1]}' existe {len(candidates)} veces. Usa formato 'Padre -> Hijo'. Ejemplos: {', '.join(names)}...")
+
 
 class SmartHierarchicalWidget(ForeignKeyWidget):
     """
@@ -631,22 +729,22 @@ class OrdenTrabajoResource(resources.ModelResource):
     rutina_codigo = fields.Field(
         column_name='rutina_codigo',
         attribute='rutina',
-        widget=ForeignKeyWidget(Rutina, field='codigo_rutina')
+        widget=CachedForeignKeyWidget(Rutina, field='codigo_rutina')
     )
     ubicacion_nombre = fields.Field(
         column_name='ubicacion_nombre',
         attribute='ubicacion',
-        widget=SmartHierarchicalWidget(Ubicacion, field='nombre')
+        widget=CachedHierarchicalWidget(Ubicacion, field='nombre')
     )
     tecnico_usuario = fields.Field(
         column_name='tecnico_usuario',
         attribute='tecnico',
-        widget=ForeignKeyWidget(User, field='username')
+        widget=CachedForeignKeyWidget(User, field='username')
     )
     activos_codigos = fields.Field(
         column_name='activos_codigos',
         attribute='activos',
-        widget=ManyToManyCodeWidget(Activo, field='codigo_interno')
+        widget=CachedManyToManyCodeWidget(Activo, field='codigo_interno')
     )
     
     inicio_programado = fields.Field(
@@ -660,15 +758,23 @@ class OrdenTrabajoResource(resources.ModelResource):
         widget=DateTimeWidget(format='%Y-%m-%d %H:%M:%S')
     )
 
+    # Cachés internas (se llenan en before_import)
+    _rutina_cache = None       # codigo_rutina -> Rutina
+    _ot_cache = None           # codigo_de_orden -> OrdenTrabajo
+
     def get_instance(self, instance_loader, row):
-        """Coincidencia por codigo_de_orden si está presente"""
+        """Coincidencia por codigo_de_orden usando caché pre-cargado"""
         codigo = row.get('codigo_de_orden')
         if codigo:
-            return self.Meta.model.objects.filter(codigo_de_orden=str(codigo).strip()).first()
+            codigo = str(codigo).strip()
+            if self._ot_cache is not None:
+                return self._ot_cache.get(codigo)
+            return self.Meta.model.objects.filter(codigo_de_orden=codigo).first()
         return None
 
     def before_import(self, dataset, *args, **kwargs):
-        """Normalizar cabeceras: minúsculas, sin acentos y mapeo de sinónimos"""
+        """Normalizar cabeceras + PRE-CARGAR todos los lookups en memoria"""
+        import sys
         if not dataset.headers:
             return
 
@@ -677,15 +783,12 @@ class OrdenTrabajoResource(resources.ModelResource):
 
         def normalize(text):
             if not text: return ""
-            # Quitar acentos
             text = unicodedata.normalize('NFD', str(text))
             text = "".join([c for c in text if unicodedata.category(c) != 'Mn'])
-            # A minúsculas y quitar caracteres raros, espacios por guiones bajos
             text = text.lower().strip()
             text = re.sub(r'[\s-]+', '_', text)
             return text
 
-        # Mapeo de nombres "amigables" a nombres técnicos del resource
         header_map = {
             'codigo': 'codigo_de_orden',
             'orden': 'codigo_de_orden',
@@ -708,52 +811,62 @@ class OrdenTrabajoResource(resources.ModelResource):
         new_headers = []
         for h in dataset.headers:
             norm_h = normalize(h)
-            # Si el normalizado coincide con un mapeo, usar el técnico
             mapped_h = header_map.get(norm_h, norm_h)
             new_headers.append(mapped_h)
 
         dataset.headers = new_headers
-        print(f"[DEBUG] [Import] Headers normalizados: {dataset.headers}")
+        print(f"[DEBUG] [Import OT] Headers normalizados: {dataset.headers}")
 
-    def import_row(self, row, instance_loader, **kwargs):
-        """Sobrescribe import_row para detectar qué campos cambiaron realmente, incluyendo M2M"""
-        from import_export import resources, widgets
-        
-        # Obtenemos la instancia y los valores originales para comparar después
-        instance, is_new = self.get_or_init_instance(instance_loader, row)
-        original_values = {}
-        if not is_new and instance:
-            for field in self.get_fields():
-                val = field.get_value(instance)
-                # Para campos M2M, renderizamos a string para comparar
-                if isinstance(field.widget, widgets.ManyToManyWidget):
-                    original_values[field.column_name] = field.widget.render(val, instance)
-                else:
-                    original_values[field.column_name] = val
+        # === PRE-CARGA MASIVA DE LOOKUPS ===
+        total = len(dataset)
+        print(f"[DEBUG] [Import OT] Pre-cargando cachés para {total} filas...")
+        sys.stdout.flush()
 
-        # Procesar la fila normalmente
-        row_result = super().import_row(row, instance_loader, **kwargs)
+        # 1. Caché de Rutinas (codigo_rutina -> Rutina con tiempo_estimado)
+        self._rutina_cache = {}
+        for r in Rutina.objects.only('id', 'codigo_rutina', 'tiempo_estimado'):
+            self._rutina_cache[r.codigo_rutina] = r
+        # Inyectar en el widget
+        rutina_field = self.fields.get('rutina_codigo')
+        if rutina_field and hasattr(rutina_field.widget, 'set_cache'):
+            rutina_field.widget.set_cache(self._rutina_cache)
+        print(f"[DEBUG] [Import OT]   Rutinas cacheadas: {len(self._rutina_cache)}")
 
-        # Si fue un update exitoso, comparamos valores
-        if row_result.import_type == resources.RowResult.IMPORT_TYPE_UPDATE:
-            changed_fields = []
-            for field in self.get_fields():
-                if field.column_name in row:
-                    old_val = original_values.get(field.column_name)
-                    new_val_raw = field.get_value(row_result.instance)
-                    
-                    if isinstance(field.widget, widgets.ManyToManyWidget):
-                        new_val = field.widget.render(new_val_raw, row_result.instance)
-                    else:
-                        new_val = new_val_raw
+        # 2. Caché de Usuarios (username -> User)
+        user_cache = {u.username: u for u in User.objects.only('id', 'username')}
+        tecnico_field = self.fields.get('tecnico_usuario')
+        if tecnico_field and hasattr(tecnico_field.widget, 'set_cache'):
+            tecnico_field.widget.set_cache(user_cache)
+        print(f"[DEBUG] [Import OT]   Usuarios cacheados: {len(user_cache)}")
 
-                    if old_val != new_val:
-                        changed_fields.append(field.column_name)
-            
-            # Guardamos los campos cambiados en el row_result para que la tarea los pueda leer
-            row_result.changed_fields = changed_fields
+        # 3. Caché de Ubicaciones (jerárquica, con padre)
+        from collections import defaultdict
+        ubicaciones_by_name = defaultdict(list)
+        parent_map = {}
+        for ub in Ubicacion.objects.select_related('padre').only('id', 'nombre', 'padre__id', 'padre__nombre'):
+            ubicaciones_by_name[ub.nombre.lower()].append(ub)
+            parent_map[ub.id] = ub.padre.nombre if ub.padre else ''
+        ubicacion_field = self.fields.get('ubicacion_nombre')
+        if ubicacion_field and hasattr(ubicacion_field.widget, 'set_cache'):
+            ubicacion_field.widget.set_cache(dict(ubicaciones_by_name), parent_map)
+        print(f"[DEBUG] [Import OT]   Ubicaciones cacheadas: {sum(len(v) for v in ubicaciones_by_name.values())}")
 
-        return row_result
+        # 4. Caché de Activos (codigo_interno -> Activo)
+        activo_cache = {a.codigo_interno: a for a in Activo.objects.only('id', 'codigo_interno') if a.codigo_interno}
+        activos_field = self.fields.get('activos_codigos')
+        if activos_field and hasattr(activos_field.widget, 'set_cache'):
+            activos_field.widget.set_cache(activo_cache)
+        print(f"[DEBUG] [Import OT]   Activos cacheados: {len(activo_cache)}")
+
+        # 5. Caché de OTs existentes (codigo_de_orden -> OrdenTrabajo) para get_instance
+        self._ot_cache = {}
+        for ot in OrdenTrabajo.objects.only('id', 'codigo_de_orden'):
+            if ot.codigo_de_orden:
+                self._ot_cache[ot.codigo_de_orden] = ot
+        print(f"[DEBUG] [Import OT]   OTs existentes cacheadas: {len(self._ot_cache)}")
+
+        print(f"[DEBUG] [Import OT] Cachés listas. Iniciando importación de {total} filas...")
+        sys.stdout.flush()
 
     class Meta:
         model = OrdenTrabajo
@@ -766,7 +879,7 @@ class OrdenTrabajoResource(resources.ModelResource):
                         'descripcion_corta', 'descripcion_detallada', 'estado', 'notas')
 
     def before_import_row(self, row, **kwargs):
-        """Limpieza de datos y cálculo automático de campos faltantes"""
+        """Limpieza de datos y cálculo automático de campos faltantes (optimizado)"""
         # 1. Limpieza básica de strings y nulos
         for key in list(row.keys()):
             val = row.get(key)
@@ -774,12 +887,10 @@ class OrdenTrabajoResource(resources.ModelResource):
                 val_str = str(val).strip()
                 if val_str in ['None', 'nan', 'NULL', '']:
                     row[key] = None
-                else:
-                    # Si es un string, quitar espacios
-                    if isinstance(val, str):
-                        row[key] = val_str
+                elif isinstance(val, str):
+                    row[key] = val_str
 
-        # 1.5. Asignar valores por defecto para campos requeridos si faltan
+        # 1.5. Valores por defecto
         if not row.get('tipo'):
             row['tipo'] = 'PREVENTIVA'
         if not row.get('prioridad'):
@@ -787,7 +898,7 @@ class OrdenTrabajoResource(resources.ModelResource):
         if not row.get('estado'):
             row['estado'] = 'ESPERA'
 
-        # 2. Cálculo automático de fin_programado si falta
+        # 2. Cálculo automático de fin_programado (usando caché de rutinas)
         inicio_val = row.get('inicio_programado')
         fin_val = row.get('fin_programado')
         rutina_code = row.get('rutina_codigo')
@@ -797,42 +908,49 @@ class OrdenTrabajoResource(resources.ModelResource):
                 from datetime import datetime, timedelta
                 inicio_dt = None
                 
-                # Caso A: Ya es un objeto datetime (común con openpyxl/tablib)
                 if isinstance(inicio_val, datetime):
                     inicio_dt = inicio_val
-                # Caso B: Es un string, intentar parsear
                 elif isinstance(inicio_val, str):
-                    formats = [
-                        '%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M:%S',
-                        '%Y-%m-%d %H:%M', '%d/%m/%Y %H:%M',
-                        '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f'
-                    ]
-                    for fmt in formats:
+                    for fmt in ['%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M:%S',
+                                '%Y-%m-%d %H:%M', '%d/%m/%Y %H:%M',
+                                '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f']:
                         try:
                             inicio_dt = datetime.strptime(inicio_val.strip(), fmt)
                             break
-                        except ValueError: continue
+                        except ValueError:
+                            continue
                 
                 if inicio_dt:
-                    # Intentar obtener duración de la rutina
-                    duration = timedelta(hours=1) # Default
-                    if rutina_code:
-                        rutina = Rutina.objects.filter(codigo_rutina=str(rutina_code).strip()).first()
+                    duration = timedelta(hours=1)
+                    # Usar caché en vez de query
+                    if rutina_code and self._rutina_cache:
+                        rutina = self._rutina_cache.get(str(rutina_code).strip())
                         if rutina and rutina.tiempo_estimado:
                             duration = rutina.tiempo_estimado
                     
-                    fin_dt = inicio_dt + duration
-                    # Si el recurso espera string para el widget DateTime, o si lo dejamos como dt
-                    # import-export suele manejar bien objetos datetime si el widget es compatible
-                    row['fin_programado'] = fin_dt
-                    print(f"[DEBUG] [Import] Autocalculado fin_programado: {inicio_dt} + {duration} -> {fin_dt}")
-                else:
-                    print(f"[DEBUG] [Import] No se pudo determinar inicio_dt para valor: {repr(inicio_val)}")
+                    row['fin_programado'] = inicio_dt + duration
                     
             except Exception as e:
-                print(f"[DEBUG] [Import] Error calculando fin_programado: {str(e)}")
+                print(f"[DEBUG] [Import OT] Error calculando fin_programado: {str(e)}")
 
-        print(f"[DEBUG] [Import] Fila lista para procesar: {row}")
+    def after_import(self, dataset, result, using_transactions, *args, **kwargs):
+        """Generar códigos de orden faltantes usando bulk_update"""
+        from django.db import transaction
+        
+        new_instances = []
+        for row in result.rows:
+            if hasattr(row, 'instance') and row.instance:
+                new_instances.append(row.instance)
+        
+        ot_without_code = [ot for ot in new_instances if not ot.codigo_de_orden]
+        
+        if ot_without_code:
+            print(f"[DEBUG] [Import OT] Generando códigos para {len(ot_without_code)} OTs...")
+            for i, ot in enumerate(ot_without_code):
+                ot.codigo_de_orden = f"OT-{str(ot.id).zfill(9)}"
+            
+            with transaction.atomic():
+                OrdenTrabajo.objects.bulk_update(ot_without_code, ['codigo_de_orden'], batch_size=500)
 
 class PasoProcedimientoInline(admin.TabularInline):
     model = PasoProcedimiento

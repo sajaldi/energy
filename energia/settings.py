@@ -143,6 +143,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50 MB
 INSTALLED_APPS = [
     'storages',
     'core',  # Mover al inicio para que sus templates (overrides) tengan prioridad
+    'callcenter',
     'documentos', # Nueva gestión documental
     'plantillas', # Sistema de plantillas Word
     'comunicaciones', # Nuevo sistema de mail/transmittals
@@ -165,7 +166,6 @@ INSTALLED_APPS = [
     'almacen',
     'seguridad',
     'django.contrib.humanize',
-    'callcenter',
     'corsheaders',
     'servicios',
 ]
@@ -433,7 +433,29 @@ JAZZMIN_SETTINGS = {
         "auth.Group": "fas fa-users",
         "presupuestos": "fas fa-file-invoice-dollar",
         "presupuestos.presupuesto": "fas fa-file-invoice-dollar",
+        "documentos": "fas fa-file-alt",
+        "activos": "fas fa-building",
+        "mantenimiento": "fas fa-tools",
+        "inventarios": "fas fa-boxes",
+        "callcenter": "fas fa-headset",
+        "callcenter.SolicitudTicket": "fas fa-ticket-alt",
+        "callcenter.GrupoTicket": "fas fa-layer-group",
+        "proyectos": "fas fa-project-diagram",
+        "seguridad": "fas fa-hard-hat",
+        "servicios": "fas fa-concierge-bell",
+        "core": "fas fa-bolt",
+        "plantillas": "fas fa-file-word",
+        "django_celery_results": "fas fa-clock",
     },
+    "order_with_respect_to": [
+        "core", "activos", "documentos", "proyectos", "mantenimiento", 
+        "inventarios", "callcenter", "presupuestos", "seguridad",
+        "auth", "servicios", "plantillas", "django_celery_results"
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": False,
+    "hide_apps": [],
+    "hide_models": [],
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",
     "related_modal_active": False,
@@ -451,6 +473,7 @@ JAZZMIN_SETTINGS = {
             },
         ],
     },
+    "changeform_format": "horizontal_tabs",
 }
 
 JAZZMIN_UI_TWEAKS = {

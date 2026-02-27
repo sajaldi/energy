@@ -732,3 +732,109 @@ def documento_sync_metadatos(request, doc_id):
         messages.info(request, "Los metadatos ya están sincronizados.")
         
     return redirect(f'/admin/documentos/documento/{doc_id}/change/')
+@login_required
+def api_bibliotecas_list(request, doc_id):
+    """
+    Retorna la lista de bibliotecas y si el documento pertenece a ellas.
+    """
+    from .models import Biblioteca
+    documento = get_object_or_404(Documento, id=doc_id)
+    bibliotecas = Biblioteca.objects.all().order_by('nombre')
+    
+    data = []
+    for b in bibliotecas:
+        data.append({
+            'id': b.id,
+            'nombre': b.nombre,
+            'descripcion': b.descripcion or "",
+            'pertenece': b.documentos.filter(id=doc_id).exists(),
+            'count': b.documentos.count()
+        })
+    
+    return JsonResponse({'status': 'success', 'bibliotecas': data})
+
+@require_POST
+@login_required
+def api_biblioteca_toggle(request, doc_id, bib_id):
+    """
+    Agrega o quita un documento de una biblioteca.
+    """
+    from .models import Biblioteca
+    documento = get_object_or_404(Documento, id=doc_id)
+    biblioteca = get_object_or_404(Biblioteca, id=bib_id)
+    
+    if biblioteca.documentos.filter(id=doc_id).exists():
+        biblioteca.documentos.remove(documento)
+        accion = 'removido'
+    else:
+        biblioteca.documentos.add(documento)
+        accion = 'agregado'
+        
+    return JsonResponse({
+        'status': 'success', 
+        'accion': accion,
+        'count': biblioteca.documentos.count()
+    })
+
+@login_required
+def api_biblioteca_documentos(request, bib_id):
+    """
+    Lista documentos y marca los que pertenecen a esta biblioteca.
+    """
+    from .models import Biblioteca, Documento
+    biblioteca = get_object_or_404(Biblioteca, id=bib_id)
+    
+    query = request.GET.get('q', '')
+    documentos = Documento.objects.all()
+    if query:
+        documentos = documentos.filter(
+            models.Q(codigo__icontains=query) | 
+            models.Q(titulo__icontains=query)
+        )
+    
+    documentos = documentos.order_by('-actualizado_en')[:100]
+    docs_en_bib = set(biblioteca.documentos.values_list('id', flat=True))
+    
+    data = []
+    for d in documentos:
+        data.append({
+            'id': d.id,
+            'codigo': d.codigo,
+            'titulo': d.titulo,
+            'pertenece': d.id in docs_en_bib,
+            'tipo': d.tipo_documento.nombre if d.tipo_documento else ""
+        })
+    
+    return JsonResponse({'status': 'success', 'documentos': data})
+
+@login_required
+def biblioteca_visualizar(request, bib_id):
+    """
+    Vista profesional para visualizar todos los documentos de una biblioteca.
+    """
+    from .models import Biblioteca
+    biblioteca = get_object_or_404(Biblioteca, id=bib_id)
+    documentos = biblioteca.documentos.all().order_by('-actualizado_en')
+    
+    return render(request, 'documentos/biblioteca_visualizar.html', {
+        'biblioteca': biblioteca,
+        'documentos': documentos,
+        'estados': Documento.ESTADOS
+    })
+
+@require_POST
+@login_required
+def api_documento_update_status(request, doc_id):
+    """
+    Actualiza el estado de un documento via AJAX.
+    """
+    documento = get_object_or_404(Documento, id=doc_id)
+    nuevo_estado = request.POST.get('estado')
+    
+    valid_status = [s[0] for s in Documento.ESTADOS]
+    if nuevo_estado in valid_status:
+        documento.estado_actual = nuevo_estado
+        documento.save()
+        return JsonResponse({'status': 'success', 'nuevo_estado': nuevo_estado})
+    
+    return JsonResponse({'status': 'error', 'message': 'Estado inválido'}, status=400)

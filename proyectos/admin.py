@@ -38,18 +38,18 @@ class ActividadInline(admin.TabularInline):
 
 @admin.register(Proyecto)
 class ProyectoAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'nombre', 'estado_badge', 'responsable', 'avance_bar', 'ver_cronograma', 'total_docs', 'abrir_visores')
+    list_display = ('codigo', 'nombre', 'estado_badge', 'responsable', 'avance_bar', 'ver_cronograma', 'ver_repositorio_docs', 'total_docs', 'abrir_visores')
     list_filter = ('estado', 'responsable', 'ubicacion')
     search_fields = ('codigo', 'nombre', 'descripcion', 'visores__nombre')
     autocomplete_fields = ('responsable', 'ubicacion')
-    readonly_fields = ('creado_en', 'actualizado_en', 'resumen_actividades', 'ver_cronograma_btn', 'visor_planos_dinamico', 'cronograma_interactivo')
+    readonly_fields = ('creado_en', 'actualizado_en', 'resumen_actividades', 'ver_cronograma_btn', 'ver_repositorio_docs_btn', 'visor_planos_dinamico', 'cronograma_interactivo')
     inlines = [ActividadInline, DocumentoProyectoInline]
     
     filter_horizontal = ('visores',)
     
     fieldsets = (
         ('Información General', {
-            'fields': ('codigo', 'nombre', 'estado', 'responsable', 'ubicacion', 'descripcion', 'ver_cronograma_btn')
+            'fields': ('codigo', 'nombre', 'estado', 'responsable', 'ubicacion', 'descripcion', ('ver_cronograma_btn', 'ver_repositorio_docs_btn'))
         }),
         ('Planificación Interactiva (Gantt)', {
             'fields': ('cronograma_interactivo',),
@@ -462,6 +462,27 @@ class ProyectoAdmin(admin.ModelAdmin):
             url
         )
     ver_cronograma.short_description = 'Cronograma'
+    
+    def ver_repositorio_docs(self, obj):
+        if not obj.pk: return "-"
+        url = reverse('proyectos:repositorio_documentos', args=[obj.id])
+        return format_html(
+            '<a href="{}" target="_blank" style="background: #4f46e5; color: white; '
+            'padding: 4px 10px; border-radius: 6px; text-decoration: none; font-weight: 600;">'
+            '📁 Consultar Docs</a>',
+            url
+        )
+    ver_repositorio_docs.short_description = 'Repositorio'
+
+    def ver_repositorio_docs_btn(self, obj):
+        if not obj.id: return "-"
+        url = reverse('proyectos:repositorio_documentos', args=[obj.id])
+        return format_html(
+            '<a href="{}" target="_blank" class="button" style="background: #4f46e5; color: white;">'
+            '📁 Abrir Repositorio de Documentos del Proyecto</a>',
+            url
+        )
+    ver_repositorio_docs_btn.short_description = 'Repositorio Visual'
 
     def ver_cronograma_btn(self, obj):
         if not obj.id: return "-"

@@ -65,3 +65,75 @@ class SolicitudTicket(models.Model):
         verbose_name = "Solicitud de Ticket"
         verbose_name_plural = "Solicitudes de Tickets"
         ordering = ['-fecha_solicitud']
+
+
+class GrupoTicket(models.Model):
+    """
+    Agrupa múltiples tickets de Call Center bajo un mismo correlativo y descripción.
+    Relación muchos a muchos.
+    """
+    correlativo = models.CharField(
+        max_length=20, 
+        unique=True, 
+        editable=False, 
+        verbose_name="Correlativo"
+    )
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    descripcion = models.TextField(verbose_name="Descripción del Grupo")
+    
+    tickets = models.ManyToManyField(
+        SolicitudTicket, 
+        related_name="grupos", 
+        verbose_name="Tickets"
+    )
+
+    def save(self, *args, **kwargs):
+        if not self.correlativo:
+            # Obtener el último número y sumar 1
+            last_group = GrupoTicket.objects.all().order_by('id').last()
+            if not last_group:
+                new_id = 1
+            else:
+                new_id = last_group.id + 1
+            self.correlativo = f"GT-{new_id:04d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.correlativo} - {self.descripcion[:30]}..."
+
+    class Meta:
+        verbose_name = "Grupo de Ticket"
+        verbose_name_plural = "Grupos de Tickets"
+        ordering = ['-fecha']
+
+
+class EvidenciaTicket(models.Model):
+    """
+    Repositorio de imágenes, fotos o documentos adjuntos para un ticket específico.
+    """
+    ticket = models.ForeignKey(
+        SolicitudTicket, 
+        on_delete=models.CASCADE, 
+        related_name='evidencias',
+        verbose_name="Ticket"
+    )
+    archivo = models.FileField(
+        upload_to='callcenter/evidencias/%Y/%m/%d/', 
+        verbose_name="Archivo/Foto"
+    )
+    descripcion = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        verbose_name="Descripción Corta"
+    )
+    fecha_carga = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Evidencia de {self.ticket.folio or self.ticket.id_solicitud}"
+
+    class Meta:
+        verbose_name = "Evidencia de Ticket"
+        verbose_name_plural = "Evidencias de tickets"
+
+

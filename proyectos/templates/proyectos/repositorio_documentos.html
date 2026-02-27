@@ -1,0 +1,442 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    :root {
+        --primary: #4f46e5;
+        --secondary: #0ea5e9;
+        --ia-color: #8b5cf6;
+        --bg: #f8fafc;
+        --card-bg: #ffffff;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+        /* Colores de estatus */
+        --status-recibido: #8b5cf6;
+        --status-proceso: #3b82f6;
+        --status-nocontestado: #ef4444;
+        --status-completado: #10b981;
+    }
+
+    body {
+        background-color: var(--bg);
+    }
+
+    #content {
+        padding: 0;
+    }
+
+    .bib-container {
+        max-width: 98%;
+        margin: 0 auto;
+        padding: 40px 40px;
+    }
+
+    .bib-header {
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 20px;
+    }
+
+    .bib-title h1 {
+        margin: 0;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: var(--text-main);
+        letter-spacing: -0.025em;
+    }
+
+    .bib-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 24px;
+        width: 100%;
+    }
+
+    .doc-card {
+        background: var(--card-bg);
+        border-radius: 24px;
+        padding: 24px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        cursor: pointer;
+        position: relative;
+    }
+
+    .doc-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary);
+    }
+
+    .doc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+
+    .doc-type-badge {
+        padding: 4px 12px;
+        background: #f1f5f9;
+        color: var(--text-muted);
+        border-radius: 99px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .status-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+    }
+
+    .status-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+    }
+
+    .status-select {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 10px;
+        color: white;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-RECIBIDO {
+        background-color: var(--status-recibido);
+    }
+
+    .status-EN_PROCESO {
+        background-color: var(--status-proceso);
+    }
+
+    .status-NO_CONTESTADO {
+        background-color: var(--status-nocontestado);
+    }
+
+    .status-COMPLETADO {
+        background-color: var(--status-completado);
+    }
+
+    .doc-content {
+        flex-grow: 1;
+        margin-bottom: 24px;
+    }
+
+    .doc-code {
+        font-size: 1.4rem;
+        font-weight: 900;
+        color: var(--primary);
+        line-height: 1;
+        margin-bottom: 10px;
+    }
+
+    .doc-title {
+        font-size: 1.05rem;
+        color: var(--text-main);
+        line-height: 1.4;
+        font-weight: 600;
+    }
+
+    .doc-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border-top: 1px solid #f1f5f9;
+        padding-top: 16px;
+    }
+
+    .action-row {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .btn-main-action {
+        flex: 1;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 10px;
+        border-radius: 12px;
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-main-action:hover {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+        transform: translateY(-2px);
+    }
+
+    .btn-special {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        color: white;
+        font-weight: 700;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-ia {
+        background: var(--ia-color);
+        box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+    }
+
+    .btn-ia:hover {
+        transform: scale(1.1) rotate(5deg);
+        background: #7c3aed;
+    }
+
+    .btn-sync {
+        background: var(--secondary);
+        box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3);
+    }
+
+    .btn-sync:hover {
+        transform: scale(1.1) rotate(-5deg);
+        background: #0284c7;
+    }
+
+    .btn-admin-config {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+
+    .btn-admin-config:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+
+    .save-toast {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-10px);
+        background: #10b981;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        opacity: 0;
+        transition: all 0.3s;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    .save-toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .btn-back {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        padding: 10px 20px;
+        border-radius: 10px;
+        color: var(--text-main);
+        text-decoration: none;
+        font-weight: 700;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-back:hover {
+        background: #f1f5f9;
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="bib-container">
+    <div class="bib-header">
+        <div class="bib-title">
+            <div style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center;">
+                <a href="/admin/proyectos/proyecto/{{ proyecto.id }}/change/" class="btn-back">
+                    ⬅ Volver al Proyecto
+                </a>
+            </div>
+            <h1>Repositorio: {{ proyecto.nombre }}</h1>
+            <div class="bib-stats" style="margin-top: 10px;">
+                <span
+                    style="background:var(--primary); color:white; padding: 4px 15px; border-radius:12px; font-size:0.95rem; font-weight: 800;">
+                    📁 {{ documentos|length }} Documentos en el Proyecto
+                </span>
+                <span style="margin-left: 10px; color: var(--text-muted); font-weight: 600;">
+                    Código: {{ proyecto.codigo }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    {% if documentos %}
+    <div class="bib-grid">
+        {% for doc in documentos %}
+        <div class="doc-card" onclick="openDocModal('{% url 'documentos:documento_proxy_pdf' doc.id %}')">
+            <div class="save-toast" id="loader-{{ doc.id }}">ESTADO GUARDADO ✓</div>
+
+            <div class="doc-header">
+                <div class="doc-type-badge">{{ doc.tipo_documento.nombre|default:"SIN TIPO" }}</div>
+
+                <div class="status-wrapper" onclick="event.stopPropagation()">
+                    <span class="status-label">Estado Actual</span>
+                    <select class="status-select status-{{ doc.estado_actual }}"
+                        onchange="updateDocStatus({{ doc.id }}, this)">
+                        {% for key, val in estados %}
+                        <option value="{{ key }}" {% if doc.estado_actual==key %}selected{% endif %}>{{ val }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="doc-content">
+                <div class="doc-code">{{ doc.codigo }}</div>
+                <div class="doc-title">{{ doc.titulo }}</div>
+            </div>
+
+            <div class="doc-actions" onclick="event.stopPropagation()">
+                <div class="action-row">
+                    <button class="btn-main-action"
+                        onclick="openDocModal('{% url 'documentos:documento_proxy_pdf' doc.id %}')">
+                        📄 Visualizar PDF
+                    </button>
+                    <a href="{% url 'documentos:documento_reprocesar' doc.id %}" class="btn-special btn-ia"
+                        title="Analizar IA">
+                        🤖
+                    </a>
+                </div>
+                <div class="action-row">
+                    <a href="{% url 'documentos:documento_sync_metadatos' doc.id %}" class="btn-main-action"
+                        style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">
+                        ⚙️ Sincronizar
+                    </a>
+                    <a href="/admin/documentos/documento/{{ doc.id }}/change/" target="_blank"
+                        class="btn-special btn-admin-config" title="Configuración Admin">
+                        🛠
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div
+        style="text-align:center; padding: 100px 20px; background: white; border-radius: 32px; border: 3px dashed #e2e8f0; margin-top: 40px;">
+        <div style="font-size: 5rem; margin-bottom: 20px;">📁</div>
+        <h2 style="color: var(--text-main); font-weight: 800;">Sin Documentos Vinculados</h2>
+        <p style="color: var(--text-muted); font-size: 1.1rem;">Agregue documentos desde la sección "Documentos del
+            Proyecto" en el panel administrativo.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal para Visor -->
+<div id="visor-modal-overlay"
+    style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.9); backdrop-filter:blur(16px); z-index:99999; display:none; align-items:center; justify-content:center; opacity:0; transition:opacity 0.3s ease;">
+    <div id="visor-modal-content"
+        style="width:96%; height:96%; background:white; border-radius:28px; overflow:hidden; transform:translateY(40px) scale(0.98); transition:all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); display:flex; flex-direction:column; position:relative; box-shadow: 0 40px 80px -15px rgba(0,0,0,0.6);">
+
+        <div
+            style="padding: 12px 25px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: flex-end; align-items: center;">
+            <button onclick="closeDocModal()"
+                style="background:#fff; border:1px solid #e2e8f0; width:44px; height:44px; border-radius:14px; font-size:1.8rem; cursor:pointer; color:#64748b; display:flex; align-items:center; justify-content:center; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                &times;
+            </button>
+        </div>
+
+        <iframe id="visor-iframe" style="width:100%; flex-grow:1; border:none;" src=""></iframe>
+    </div>
+</div>
+
+<script>
+    async function updateDocStatus(docId, selectEl) {
+        const nuevoEstado = selectEl.value;
+        const toast = document.getElementById('loader-' + docId);
+        selectEl.className = 'status-select status-' + nuevoEstado;
+ try {
+            const formData = new FormData();
+            formData.append('estado', nuevoEstado);
+            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+            const res = await fetch('/documentos/api/documento/status/' + docId + '/', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2500);
+            } else {
+                alert('Error al actualizar el estado');
+            }
+        } catch (e) {
+            alert('Error de conexión');
+        }
+    }
+
+    function openDocModal(url) {
+        const overlay = document.getElementById('visor-modal-overlay');
+        const content = document.getElementById('visor-modal-content');
+        const iframe = document.getElementById('visor-iframe');
+        iframe.src = url;
+        overlay.style.display = 'flex';
+        setTimeout(() => { overlay.style.opacity = '1'; content.style.transform = 'translateY(0) scale(1)'; }, 10);
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDocModal() {
+        const overlay = document.getElementById('visor-modal-overlay');
+        const content = document.getElementById('visor-modal-content');
+        const iframe = document.getElementById('visor-iframe');
+        overlay.style.opacity = '0';
+        content.style.transform = 'translateY(40px) scale(0.98)';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            iframe.src = '';
+            document.body.style.overflow = 'auto';
+        }, 300);
+    }
+
+    document.getElementById('visor-modal-overlay').addEventListener('click', function (e) { i f (e.target === this) closeDocModal(); });
+    document.addEventListener('keydown', function (e) {  if (e.key === "Escape") closeDocModal(); });
+</script>
+{% endblock %}

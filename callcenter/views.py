@@ -117,3 +117,35 @@ def webhook_new_ticket(request):
     except Exception as e:
         logger.error(f"Error in webhook_new_ticket: {e}", exc_info=True)
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+from .scraper import sync_individual_ticket
+import os
+
+@staff_member_required
+def sync_single_ticket(request, ticket_id):
+    """
+    Vista impulsada por el botón de "Sincronizar este Ticket" en el admin.
+    """
+    from .models import SolicitudTicket
+    ticket = SolicitudTicket.objects.get(id=ticket_id)
+    
+    username = os.environ.get('CALLCENTER_USER')
+    password = os.environ.get('CALLCENTER_PASS')
+    company = "Centro Cívico Gubernamental de Honduras"
+
+    if not username or not password:
+        messages.error(request, "Credenciales (CALLCENTER_USER/PASS) no configuradas.")
+        return redirect('admin:callcenter_solicitudticket_change', ticket_id)
+
+    try:
+        # Enviamos la tarea a Celery
+        from .tasks import sync_single_ticket_task
+        sync_single_ticket_task.delay(ticket_id)
+        
+        messages.info(request, f"Se ha iniciado la sincronización del ticket {ticket.folio} en segundo plano. El robot tardará unos segundos.")
+            
+    except Exception as e:
+        messages.error(request, f"Error al enviar la tarea a Celery: {e}")
+
+    return redirect('admin:callcenter_solicitudticket_change', ticket_id)
+

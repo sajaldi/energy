@@ -723,7 +723,7 @@ class OrdenTrabajo(models.Model):
         ('CRITICA', 'Crítica'),
     ]
     
-    codigo_de_orden = models.CharField(max_length=20, unique=True, blank=True, null=True, verbose_name="Código de Orden", db_index=True)
+    codigo_de_orden = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name="Código de Orden", db_index=True)
     
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES, default='PREVENTIVA', db_index=True)
     prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA', db_index=True)
@@ -757,12 +757,12 @@ class OrdenTrabajo(models.Model):
         Garantiza que la orden tenga un código único.
         Si no viene en el import, usa OT-000000ID.
         """
+        from_bulk = kwargs.pop('_from_bulk', False)
         is_new = self.pk is None
         super().save(*args, **kwargs)
         
-        if not self.codigo_de_orden:
+        if not self.codigo_de_orden and not from_bulk:
             self.codigo_de_orden = f"OT-{str(self.id).zfill(9)}"
-            # Update single field to avoid recursion and update only what's necessary
             OrdenTrabajo.objects.filter(pk=self.pk).update(codigo_de_orden=self.codigo_de_orden)
 
     class Meta:

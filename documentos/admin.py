@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory
+from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca
 import json
 
 from django.forms import TextInput, Textarea
@@ -83,7 +83,7 @@ class MetadatoValorInline(admin.TabularInline):
 
 @admin.register(Documento)
 class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
-    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'fecha_inicio', 'get_respuesta_a_codigo', 'analizar_ia_button', 'trazabilidad_link')
+    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'fecha_inicio', 'analizar_ia_button', 'trazabilidad_link')
     list_filter = ('tipo_documento', 'disciplina', 'estado_actual', 'fecha_inicio')
     search_fields = ('codigo', 'titulo', 'revisiones__comentarios')
 
@@ -115,7 +115,151 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         }),
     )
     
-    readonly_fields = ('ultima_revision', 'analizar_ia_button', 'trazabilidad_link', 'contenido_texto_display', 'get_word_templates_buttons', 'sync_metadatos_button') 
+    readonly_fields = ('ultima_revision', 'gestionar_bibliotecas_button', 'analizar_ia_button', 'trazabilidad_link', 'contenido_texto_display', 'get_word_templates_buttons', 'sync_metadatos_button') 
+
+    def gestionar_bibliotecas_button(self, obj):
+        if not obj.pk: return "-"
+        
+        return format_html(
+            '''
+            <button type="button" onclick="openBibliotecaModal({})" class="button" 
+                    style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: 700; font-size: 0.8rem;">
+                📚 Gestionar Bibliotecas
+            </button>
+            <div id="bib-modal-root"></div>
+            
+            <style>
+                .bib-modal-overlay {{
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+                    display: flex; align-items: center; justify-content: center;
+                    z-index: 9999; opacity: 0; transition: opacity 0.3s ease;
+                }}
+                .bib-modal-content {{
+                    background: #ffffff; width: 90%; max-width: 600px;
+                    border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+                    overflow: hidden; transform: translateY(20px); transition: transform 0.3s ease;
+                }}
+                .bib-modal-header {{
+                    padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+                    display: flex; justify-content: space-between; align-items: center;
+                }}
+                .bib-modal-body {{
+                    padding: 20px; max-height: 400px; overflow-y: auto;
+                }}
+                .bib-card {{
+                    display: flex; align-items: center; justify-content: space-between;
+                    padding: 12px; margin-bottom: 10px; border-radius: 8px;
+                    border: 1px solid #e2e8f0; transition: all 0.2s;
+                }}
+                .bib-card:hover {{ border-color: #10b981; background: #f0fdf4; }}
+                .bib-card.active {{ border-left: 4px solid #10b981; background: #f0fdf4; }}
+                .bib-info b {{ display: block; color: #1e293b; }}
+                .bib-info span {{ font-size: 0.75rem; color: #64748b; }}
+                
+                .bib-toggle {{
+                    width: 44px; height: 24px; background: #cbd5e1; border-radius: 12px;
+                    position: relative; cursor: pointer; transition: background 0.3s;
+                }}
+                .bib-toggle::after {{
+                    content: ""; position: absolute; top: 2px; left: 2px;
+                    width: 20px; height: 20px; background: white; border-radius: 50%;
+                    transition: left 0.3s;
+                }}
+                .bib-toggle.active {{ background: #10b981; }}
+                .bib-toggle.active::after {{ left: 22px; }}
+            </style>
+            
+            <script>
+                function openBibliotecaModal(docId) {{
+                    const root = document.getElementById('bib-modal-root');
+                    root.innerHTML = `
+                        <div class="bib-modal-overlay" id="bib-overlay">
+                            <div class="bib-modal-content">
+                                <div class="bib-modal-header">
+                                    <h3 style="margin:0; font-size:1.2rem;">📁 Bibliotecas Disponibles</h3>
+                                    <button onclick="closeBibModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                                </div>
+                                <div class="bib-modal-body" id="bib-list">
+                                    <p style="text-align:center;">Cargando bibliotecas...</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    setTimeout(() => {{
+                        document.getElementById('bib-overlay').style.opacity = '1';
+                        document.querySelector('.bib-modal-content').style.transform = 'translateY(0)';
+                    }}, 10);
+                    
+                    fetchBibliotecas(docId);
+                }}
+                
+                function closeBibModal() {{
+                    const overlay = document.getElementById('bib-overlay');
+                    overlay.style.opacity = '0';
+                    document.querySelector('.bib-modal-content').style.transform = 'translateY(20px)';
+                    setTimeout(() => overlay.remove(), 300);
+                }}
+                
+                async function fetchBibliotecas(docId) {{
+                    try {{
+                        const res = await fetch(\`/documentos/api/bibliotecas/${{docId}}/\`);
+                        const data = await res.json();
+                        renderBibliotecas(docId, data.bibliotecas);
+                    }} catch(e) {{
+                        document.getElementById('bib-list').innerHTML = '<p style="color:red;">Error al cargar.</p>';
+                    }}
+                }}
+                
+                function renderBibliotecas(docId, bibliotecas) {{
+                    const list = document.getElementById('bib-list');
+                    if(bibliotecas.length === 0) {{
+                        list.innerHTML = '<p style="text-align:center; color:#64748b;">No hay bibliotecas creadas.</p>';
+                        return;
+                    }}
+                    
+                    list.innerHTML = bibliotecas.map(b => `
+                        <div class="bib-card ${{b.pertenece ? 'active' : ''}}">
+                            <div class="bib-info">
+                                <b>${{b.nombre}}</b>
+                                <span>${{b.count}} documentos vinculados</span>
+                            </div>
+                            <div class="bib-toggle ${{b.pertenece ? 'active' : ''}}" 
+                                 onclick="toggleBib(${{docId}}, ${{b.id}}, this)">
+                            </div>
+                        </div>
+                    `).join('');
+                }}
+                
+                async function toggleBib(docId, bibId, el) {{
+                    el.style.opacity = '0.5';
+                    el.style.pointerEvents = 'none';
+                    try {{
+                        const res = await fetch(\`/documentos/api/bibliotecas/toggle/${{docId}}/${{bibId}}/\`, {{
+                            method: 'POST',
+                            headers: {{ 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }}
+                        }});
+                        const data = await res.json();
+                        el.classList.toggle('active', data.accion === 'agregado');
+                        el.closest('.bib-card').classList.toggle('active', data.accion === 'agregado');
+                        
+                        // Actualizar contador
+                        const span = el.closest('.bib-card').querySelector('span');
+                        span.innerText = data.count + ' documentos vinculados';
+                        
+                    }} catch(e) {{
+                        alert('Error al actualizar.');
+                    }} finally {{
+                        el.style.opacity = '1';
+                        el.style.pointerEvents = 'auto';
+                    }}
+                }}
+            </script>
+            ''',
+            obj.pk
+        )
+    gestionar_bibliotecas_button.short_description = "Bibliotecas"
 
     def trazabilidad_link(self, obj):
         if not obj.pk: return "-"
@@ -338,6 +482,263 @@ class N8nChatHistoryAdmin(admin.ModelAdmin):
     def respuesta_preview(self, obj):
         return obj.respuesta_ia[:50] + "..." if len(obj.respuesta_ia) > 50 else obj.respuesta_ia
     respuesta_preview.short_description = "Respuesta"
+
+
+@admin.register(Biblioteca)
+class BibliotecaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'cantidad_documentos', 'gestionar_biblioteca_button', 'visualizar_biblioteca_link', 'creado_por', 'creado_en')
+    list_filter = ('creado_en', 'actualizado_en')
+    search_fields = ('nombre', 'descripcion', 'documentos__codigo', 'documentos__titulo')
+    filter_horizontal = ('documentos',)
+    readonly_fields = ('creado_en', 'actualizado_en', 'gestionar_biblioteca_button')
+
+    fieldsets = (
+        ('Información', {
+            'fields': ('nombre', 'descripcion', 'gestionar_biblioteca_button')
+        }),
+        ('Documentos (Estándar)', {
+            'fields': ('documentos',),
+            'classes': ('collapse',),
+            'description': 'Aquí puedes usar el selector estándar de Django.'
+        }),
+        ('Auditoría', {
+            'fields': ('creado_por', 'creado_en', 'actualizado_en'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+
+    def visualizar_biblioteca_link(self, obj):
+        if not obj.pk: return "-"
+        url = f"/documentos/biblioteca/visualizar/{obj.pk}/"
+        return format_html(
+            f'<a href="{url}" class="button" style="background:#64748b; color:white; padding:6px 15px; border-radius:6px; font-weight:700; text-decoration:none;">👁️ Ver Galería</a>'
+        )
+    visualizar_biblioteca_link.short_description = "Vista Pública"
+
+    def gestionar_biblioteca_button(self, obj):
+        if not obj.pk: return "-"
+        
+        return format_html(
+            '''
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button type="button" data-bib-id="{0}" onclick="openDocBibliotecaModal(this)" class="button" 
+                        style="background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%); color: white; padding: 6px 15px; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; font-size: 0.85rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">
+                    📑 Gestionar Documentos
+                </button>
+                <a href="/documentos/biblioteca/visualizar/{0}/" class="button" style="background:#f1f5f9; color:#475569; padding:6px 15px; border-radius:6px; border:1px solid #e2e8f0; text-decoration:none; font-weight:700; font-size: 0.85rem;">
+                    👁️ Ver Biblioteca Completa
+                </a>
+            </div>
+            <div id="doc-bib-modal-root"></div>
+            
+            <style>
+                #doc-bib-overlay {{
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(8px);
+                    display: flex; align-items: center; justify-content: center;
+                    z-index: 99999; opacity: 0; transition: opacity 0.3s ease;
+                }}
+                .doc-bib-modal-content {{
+                    background: #ffffff; width: 95%; max-width: 850px;
+                    border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+                    overflow: hidden; transform: translateY(30px) scale(0.98); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                    display: flex; flex-direction: column; max-height: 85vh;
+                    border: 1px solid rgba(255,255,255,0.1);
+                }}
+                .doc-bib-header {{
+                    padding: 24px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+                    display: flex; justify-content: space-between; align-items: center;
+                }}
+                .doc-bib-search {{
+                    padding: 16px 24px; border-bottom: 1px solid #f1f5f9; background: #fff;
+                    display: flex; align-items: center; gap: 15px;
+                }}
+                .doc-bib-search input {{
+                    flex-grow: 1; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px;
+                    font-size: 0.95rem; outline: none; transition: border-color 0.2s;
+                }}
+                .doc-bib-search input:focus {{ border-color: #4f46e5; }}
+                
+                .doc-bib-body {{
+                    padding: 12px 24px 24px; overflow-y: auto; flex-grow: 1; background: #fff;
+                }}
+                .doc-card {{
+                    display: flex; align-items: center; gap: 18px;
+                    padding: 14px 18px; margin-bottom: 10px; border-radius: 12px;
+                    border: 1px solid #f1f5f9; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    background: #f8fafc; cursor: pointer; user-select: none;
+                    position: relative;
+                }}
+                .doc-card:hover {{ border-color: #c7d2fe; background: #f5f3ff; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08); }}
+                .doc-card.active {{ background: #eff6ff; border-color: #bfdbfe; }}
+                
+                /* Estilo Checkbox */
+                .doc-check-ui {{
+                    width: 24px; height: 24px; border: 2px solid #cbd5e1; border-radius: 6px;
+                    display: flex; align-items: center; justify-content: center;
+                    background: #fff; transition: all 0.2s; flex-shrink: 0;
+                }}
+                .doc-card.active .doc-check-ui {{
+                    background: #4f46e5; border-color: #4f46e5;
+                }}
+                .doc-check-ui::after {{
+                    content: "✓"; color: #fff; font-weight: bold; font-size: 14px; display: none;
+                }}
+                .doc-card.active .doc-check-ui::after {{ display: block; }}
+
+                .doc-info {{ flex-grow: 1; pointer-events: none; }}
+                .doc-info b {{ display: block; color: #1e293b; font-size: 1rem; margin-bottom: 2px; }}
+                .doc-info span {{ font-size: 0.8rem; color: #64748b; line-height: 1.4; }}
+                
+                .doc-actions {{
+                    display: flex; align-items: center; gap: 8px;
+                }}
+                .btn-view-doc {{
+                    width: 38px; height: 38px; border-radius: 8px; border: none;
+                    background: #fff; color: #64748b; cursor: pointer;
+                    display: flex; align-items: center; justify-content: center;
+                    transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                }}
+                .btn-view-doc:hover {{ background: #4f46e5; color: #fff; transform: translateY(-2px); }}
+
+                .save-badge {{
+                    font-size: 0.7rem; background: #dcfce7; color: #166534;
+                    padding: 2px 8px; border-radius: 99px; opacity: 0; transition: opacity 0.3s;
+                }}
+                .save-badge.show {{ opacity: 1; }}
+            </style>
+            
+            <script>
+                function openDocBibliotecaModal(btn) {{
+                    const bibId = btn.getAttribute('data-bib-id');
+                    const root = document.getElementById('doc-bib-modal-root');
+                    if (!root) return;
+
+                    root.innerHTML = `
+                        <div id="doc-bib-overlay">
+                            <div class="doc-bib-modal-content">
+                                <div class="doc-bib-header">
+                                    <div>
+                                        <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:#1e293b;">📑 Selección de Documentos</h3>
+                                        <p style="margin:0; font-size:0.85rem; color:#64748b;">Marca para añadir/eliminar. Usa el ojo para visualizar individual.</p>
+                                    </div>
+                                    <div style="display:flex; gap:10px;">
+                                        <a href="/documentos/biblioteca/visualizar/${{bibId}}/" class="button" style="background:var(--primary); color:white; padding:8px 15px; border-radius:8px; text-decoration:none; font-weight:700; font-size:0.85rem; display:flex; align-items:center; gap:5px;">👁️ Vista Galería</a>
+                                        <button type="button" onclick="closeDocBibModal()" style="background:#f1f5f9; border:none; width:36px; height:36px; border-radius:10px; font-size:1.2rem; cursor:pointer; color:#64748b; display:flex; align-items:center; justify-content:center;">&times;</button>
+                                    </div>
+                                </div>
+                                <div class="doc-bib-search">
+                                    <input type="text" placeholder="Buscar por código o título..." id="doc-bib-search-input" autofocus>
+                                    <div id="save-status-global" class="save-badge">Guardado automático activo</div>
+                                </div>
+                                <div class="doc-bib-body" id="doc-bib-list-container">
+                                    <div style="text-align:center; padding: 40px; color:#64748b;">
+                                        <p>Cargando documentos...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    const overlay = document.getElementById('doc-bib-overlay');
+                    const content = overlay.querySelector('.doc-bib-modal-content');
+                    
+                    setTimeout(() => {{
+                        overlay.style.opacity = '1';
+                        content.style.transform = 'translateY(0) scale(1)';
+                    }}, 10);
+                    
+                    const searchInput = document.getElementById('doc-bib-search-input');
+                    let searchTimer;
+                    searchInput.addEventListener('input', (e) => {{
+                        clearTimeout(searchTimer);
+                        searchTimer = setTimeout(() => fetchDocsInBib(bibId, e.target.value), 350);
+                    }});
+                    
+                    fetchDocsInBib(bibId);
+                }}
+                
+                function closeDocBibModal() {{
+                    const overlay = document.getElementById('doc-bib-overlay');
+                    if (!overlay) return;
+                    const content = overlay.querySelector('.doc-bib-modal-content');
+                    overlay.style.opacity = '0';
+                    content.style.transform = 'translateY(30px) scale(0.95)';
+                    setTimeout(() => overlay.remove(), 300);
+                }}
+                
+                async function fetchDocsInBib(bibId, q = '') {{
+                    const listContainer = document.getElementById('doc-bib-list-container');
+                    try {{
+                        const res = await fetch('/documentos/api/bibliotecas/documentos/' + bibId + '/?q=' + encodeURIComponent(q));
+                        const data = await res.json();
+                        
+                        if(data.documentos.length === 0) {{
+                            listContainer.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;"><p>No se encontraron resultados.</p></div>';
+                            return;
+                        }}
+                        
+                        listContainer.innerHTML = data.documentos.map(d => `
+                            <div class="doc-card ${{d.pertenece ? 'active' : ''}}" 
+                                 onclick="execToggleDoc(${{d.id}}, ${{bibId}}, this)">
+                                <div class="doc-check-ui"></div>
+                                <div class="doc-info">
+                                    <b>${{d.codigo}}</b>
+                                    <span>${{d.titulo}} <br> <small>${{d.tipo}}</small></span>
+                                </div>
+                                <div class="doc-actions">
+                                    <div class="save-badge-item save-badge">✓ Guardado</div>
+                                    <a href="/admin/documentos/documento/${{d.id}}/change/" target="_blank" class="btn-view-doc" onclick="event.stopPropagation()" title="Ver detalles">
+                                        👁️
+                                    </a>
+                                </div>
+                            </div>
+                        `).join('');
+                    }} catch(e) {{
+                        listContainer.innerHTML = '<div style="text-align:center; padding:40px; color:#ef4444;"><p>Error al sincronizar con el servidor.</p></div>';
+                    }}
+                }}
+                
+                async function execToggleDoc(docId, bibId, cardEl) {{
+                    const badge = cardEl.querySelector('.save-badge-item');
+                    cardEl.style.opacity = '0.7';
+                    cardEl.style.pointerEvents = 'none';
+                    
+                    try {{
+                        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                        const res = await fetch('/documentos/api/bibliotecas/toggle/' + docId + '/' + bibId + '/', {{
+                            method: 'POST',
+                            headers: {{ 'X-CSRFToken': csrfToken }}
+                        }});
+                        const data = await res.json();
+                        
+                        const isAdded = data.accion === 'agregado';
+                        cardEl.classList.toggle('active', isAdded);
+                        
+                        // Mostrar confirmación de guardado
+                        badge.classList.add('show');
+                        setTimeout(() => badge.classList.remove('show'), 1200);
+                        
+                    }} catch(e) {{
+                        alert('Error al guardar.');
+                    }} finally {{
+                        cardEl.style.opacity = '1';
+                        cardEl.style.pointerEvents = 'auto';
+                    }}
+                }}
+            </script>
+            ''',
+            obj.pk
+        )
+    gestionar_biblioteca_button.short_description = "Gestión Visual"
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.creado_por = request.user
+        super().save_model(request, obj, form, change)
+
 
 # Importar y registrar admins del sistema de firmas
 from . import admin_firmas

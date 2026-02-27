@@ -118,8 +118,8 @@ class Documento(models.Model):
     """
     ESTADOS = (
         ('RECIBIDO', 'Recibido'),
-        ('BORRADOR', 'Borrador'),
-        ('ENVIADO', 'Enviado'),
+        ('EN_PROCESO', 'En Proceso'),
+        ('NO_CONTESTADO', 'No Contestado'),
         ('COMPLETADO', 'Completado'),
     )
 
@@ -146,7 +146,7 @@ class Documento(models.Model):
     )
     
     # Metadatos de estado actual
-    estado_actual = models.CharField(max_length=20, choices=ESTADOS, default='BORRADOR')
+    estado_actual = models.CharField(max_length=20, choices=ESTADOS, default='RECIBIDO')
     
     # Relaciones
     activos = models.ManyToManyField(Activo, blank=True, related_name='documentos')
@@ -343,6 +343,43 @@ class Revision(models.Model):
         if not self.documento.ultima_revision or self.creado_en >= self.documento.ultima_revision.creado_en:
              self.documento.ultima_revision = self
              self.documento.save()
+
+class Biblioteca(models.Model):
+    """
+    Colección de documentos agrupados temáticamente.
+    Relación muchos a muchos con Documento.
+    """
+    nombre = models.CharField(_("Nombre"), max_length=200)
+    descripcion = models.TextField(_("Descripción"), blank=True, null=True)
+    documentos = models.ManyToManyField(
+        Documento,
+        blank=True,
+        related_name='bibliotecas',
+        verbose_name=_("Documentos")
+    )
+    creado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bibliotecas_creadas',
+        verbose_name=_("Creado por")
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Biblioteca"
+        verbose_name_plural = "Bibliotecas"
+        ordering = ['-actualizado_en']
+
+    def __str__(self):
+        return self.nombre
+
+    def cantidad_documentos(self):
+        return self.documentos.count()
+    cantidad_documentos.short_description = "Documentos"
+
 
 # Importar modelos del sistema de firmas electrónicas
 from .models_firmas import (

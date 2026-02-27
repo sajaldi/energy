@@ -9,4 +9,5 @@ urlpatterns = [
     path('cronograma/<int:proyecto_id>/', views.cronograma_proyecto, name='cronograma'),
     path('gantt/<int:proyecto_id>/', views.gantt_proyecto, name='gantt_proyecto'),
     path('chatbot-asistente/', views.chatbot_asistente, name='chatbot_asistente'),
+    path('repositorio-documentos/<int:proyecto_id>/', views.repositorio_documentos, name='repositorio_documentos'),
 ]

@@ -28,5 +28,9 @@ urlpatterns = [
     path('api/update-texto/<int:doc_id>/', views.update_documento_texto, name='update_documento_texto'),
     path('api/callback-procesamiento/<int:revision_id>/', views.callback_n8n_procesamiento, name='callback_n8n_procesamiento'),
     path('sync-metadatos/<int:doc_id>/', views.documento_sync_metadatos, name='documento_sync_metadatos'),
-    path('busqueda-avanzada/', views.documento_busqueda_avanzada, name='busqueda_avanzada'),
+    path('api/bibliotecas/<int:doc_id>/', views.api_bibliotecas_list, name='api_bibliotecas_list'),
+    path('api/bibliotecas/toggle/<int:doc_id>/<int:bib_id>/', views.api_biblioteca_toggle, name='api_biblioteca_toggle'),
+    path('api/bibliotecas/documentos/<int:bib_id>/', views.api_biblioteca_documentos, name='api_biblioteca_documentos'),
+    path('api/documento/status/<int:doc_id>/', views.api_documento_update_status, name='api_documento_update_status'),
+    path('biblioteca/visualizar/<int:bib_id>/', views.biblioteca_visualizar, name='biblioteca_visualizar'),
 ]

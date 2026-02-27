@@ -1,0 +1,53 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+{% if original.pk %}
+<li>
+    <a href="../sync-singular/" class="addlink" style="background-color: #007bff !important; color: white !important;">
+        <i class="fas fa-sync"></i>
+        Sincronizar este Ticket (SIG)
+    </a>
+</li>
+{% endif %}
+{{ block.super }}
+{% endblock %}
+
+{# Inyectamos el botón en la barra Dynamics personalizada si existe #}
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .btn-sync-sig {
+        background-color: #0078d4 !important;
+        color: white !important;
+        border: none !important;
+    }
+
+    .btn-sync-sig:hover {
+        background-color: #106ebe !important;
+    }
+</style>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Buscamos la barra de herramientas "Dynamics" personalizada del proyecto
+        var submitRow = document.querySelector('.submit-row');
+        if (submitRow && !document.querySelector('#btn-sync-dynamic')) {
+            var ticketId = "{{ original.pk }}";
+            if (ticketId && ticketId !== "None") {
+                var btn = document.createElement('a');
+                btn.id = 'btn-sync-dynamic';
+                btn.href = '../sync-singular/';
+                btn.className = 'btn-dynamics btn-sync-sig';
+                btn.innerHTML = '<i class="fas fa-sync"></i> <span>Sincronizar SIG</span>';
+
+                // Lo insertamos después del primer botón (usualmente Guardar)
+                if (submitRow.firstChild) {
+                    submitRow.appendChild(btn);
+                } else {
+                    submitRow.appendChild(btn);
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
