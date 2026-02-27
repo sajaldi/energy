@@ -16,7 +16,7 @@ class ServicioAdmin(ImportExportModelAdmin):
 class KPIAdmin(ImportExportModelAdmin):
     resource_class = KPIResource
     change_list_template = "admin/mantenimiento/procedimiento/change_list.html" 
-    list_display = ('nombre', 'servicio', 'descripcion')
+    list_display = ('nombre', 'servicio', 'descripcion', 'forma_de_cumplimiento')
     list_filter = ('servicio', 'categoria', 'fecha_medicion')
     search_fields = ('nombre', 'descripcion', 'servicio__nombre', 'forma_de_cumplimiento', 'metodo_de_supervision')
     readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
