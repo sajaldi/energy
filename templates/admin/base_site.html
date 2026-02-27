@@ -37,6 +37,7 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     }
 
     .modal-header {
@@ -45,12 +46,14 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        background: white;
     }
 
     .modal-body {
         padding: 30px;
         overflow-y: auto;
         flex: 1;
+        background: #f8fafc;
     }
 
     .close-btn {
@@ -61,6 +64,12 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .close-btn:hover {
+        background: #e2e8f0;
+        color: #ef4444;
     }
 
     @keyframes pulse {
@@ -77,13 +86,27 @@
         }
     }
 
+    .gs-pedido-row {
+        background: white;
+        transition: all 0.2s;
+        border: 1px solid #e2e8f0 !important;
+    }
+
     .gs-pedido-row:hover {
-        background: #f8fafc;
-        border-color: #f59e0b !important;
+        background: #f0f7ff;
+        border-color: #3b82f6 !important;
+        transform: translateX(5px);
     }
 
     #gs-admin-link {
         position: relative;
+    }
+
+    .gs-badge-status {
+        padding: 2px 8px;
+        border-radius: 99px;
+        font-size: 0.75rem;
+        font-weight: 600;
     }
 </style>
 {% endblock %}
@@ -92,6 +115,7 @@
 {{ block.super }}
 
 {% if user.is_superuser or user.groups.all %}
+<!-- UNIFIED MODAL FOR GESTIÓN DE SALIDAS -->
 <div class="modal-overlay" id="gestion-salidas-modal">
     <div class="modal-window">
         <div class="modal-header">
@@ -110,34 +134,63 @@
             </div>
         </div>
         <div class="modal-body">
+            <!-- VISTA LISTA -->
             <div id="gs-vista-lista">
                 <div id="gs-lista-container"></div>
             </div>
+
+            <!-- VISTA DETALLE -->
             <div id="gs-vista-detalle" style="display:none;">
-                <div style="background:#f8fafc; border-radius:8px; padding:16px; margin-bottom:20px; color: #1e293b;">
-                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                        <div><strong>Solicitante:</strong> <span id="gs-det-solicitante"></span></div>
-                        <div><strong>Fecha:</strong> <span id="gs-det-fecha"></span></div>
-                        <div><strong>Almacén:</strong> <span id="gs-det-almacen"></span></div>
+                <div
+                    style="background:white; border-radius:8px; padding:20px; margin-bottom:20px; border: 1px solid #e2e8f0; color: #1e293b;">
+                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:15px;">
+                        <div>
+                            <p
+                                style="margin:0; font-size:0.75rem; color:#64748b; text-transform:uppercase; font-weight:700;">
+                                Solicitante</p>
+                            <span id="gs-det-solicitante" style="font-weight:700;"></span>
+                        </div>
+                        <div>
+                            <p
+                                style="margin:0; font-size:0.75rem; color:#64748b; text-transform:uppercase; font-weight:700;">
+                                Fecha</p>
+                            <span id="gs-det-fecha"></span>
+                        </div>
+                        <div>
+                            <p
+                                style="margin:0; font-size:0.75rem; color:#64748b; text-transform:uppercase; font-weight:700;">
+                                Almacén</p>
+                            <span id="gs-det-almacen"></span>
+                        </div>
                     </div>
                 </div>
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Material</th>
-                            <th>Sol.</th>
-                            <th>Disp.</th>
-                            <th>Ent.</th>
-                            <th>Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody id="gs-items-body"></tbody>
-                </table>
-                <div class="form-group"><label>Notas</label><textarea id="gs-comentarios-almacen" class="form-control"
-                        rows="2"></textarea></div>
-                <div style="display:flex; gap:15px;">
-                    <button type="button" id="gs-btn-despachar" class="btn btn-success btn-block">Despachar</button>
-                    <button type="button" id="gs-btn-rechazar" class="btn btn-danger btn-block">Rechazar</button>
+
+                <div class="table-responsive">
+                    <table class="table table-hover" style="background:white; border-radius:8px; overflow:hidden;">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Material</th>
+                                <th class="text-center">Sol.</th>
+                                <th class="text-center">Disp.</th>
+                                <th class="text-center">Entregar</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gs-items-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="form-group" style="margin-top:20px;">
+                    <label style="font-weight:700;">Comentarios del Almacén</label>
+                    <textarea id="gs-comentarios-almacen" class="form-control" rows="2"
+                        placeholder="Notas sobre el despacho..."></textarea>
+                </div>
+
+                <div style="display:flex; gap:15px; margin-top:20px;">
+                    <button type="button" id="gs-btn-despachar" class="btn btn-success"
+                        style="flex:1; height:50px; font-weight:700;">✅ Despachar Materiales</button>
+                    <button type="button" id="gs-btn-rechazar" class="btn btn-danger"
+                        style="flex:1; height:50px; font-weight:700;">❌ Rechazar Solicitud</button>
                 </div>
             </div>
         </div>
@@ -147,50 +200,96 @@
 <script>
     (function ($) {
         $(document).ready(function () {
-            // Validación estricta de grupo en JS
             const userGroups = [{% for g in user.groups.all %}"{{ g.name }}", {% endfor %}];
     const isAlmacen = {% if user.is_superuser %}true{% else %} userGroups.includes("Almacenes"){% endif %};
 
     if (!isAlmacen) return;
 
+    // Inyectar icono en Navbar de Jazzmin si existe
     const navbar = $('.navbar-nav.ml-auto');
     if (navbar.length) {
         const notifyItem = $(`
-                        <li class="nav-item dropdown" id="gs-admin-link">
-                            <a class="nav-link" href="#" title="Gestión de Salidas">
-                                <i class="fas fa-shipping-fast"></i>
-                                <span class="badge badge-warning navbar-badge" id="gs-badge-count" style="display:none; animation: pulse 1.5s infinite;">0</span>
-                            </a>
-                        </li>
-                    `);
+                    <li class="nav-item dropdown" id="gs-admin-link">
+                        <a class="nav-link" href="#" title="Gestión de Salidas">
+                            <i class="fas fa-shipping-fast"></i>
+                            <span class="badge badge-warning navbar-badge" id="gs-badge-count" style="display:none; animation: pulse 1.5s infinite;">0</span>
+                        </a>
+                    </li>
+                `);
         navbar.prepend(notifyItem);
-        notifyItem.on('click', function (e) { e.preventDefault(); $('#gestion-salidas-modal').addClass('active'); gsLoadPedidos(); });
+        notifyItem.on('click', function (e) {
+            e.preventDefault();
+            openGSM();
+        });
     }
 
-    $('#close-gestion-salidas').on('click', function () { $('#gestion-salidas-modal').removeClass('active'); });
-    $('#gs-btn-back').on('click', function () { $('#gs-vista-lista').show(); $('#gs-vista-detalle').hide(); $('#gs-btn-back').hide(); });
+    // Función Global para abrir el modal
+    window.openGSM = function () {
+        $('#gestion-salidas-modal').addClass('active');
+        gsLoadPedidos();
+    };
+
+    // Interceptar clicks en botones de Dashboard y links de Admin
+    $(document).on('click', '#btn-gestion-salidas', function (e) {
+        e.preventDefault();
+        openGSM();
+    });
+
+    // Cerrar modal
+    $('#close-gestion-salidas').on('click', function () {
+        $('#gestion-salidas-modal').removeClass('active');
+    });
+
+    $('#gs-btn-back').on('click', function () {
+        $('#gs-vista-lista').show();
+        $('#gs-vista-detalle').hide();
+        $('#gs-btn-back').hide();
+        $('#gs-title').text('Solicitudes Pendientes');
+    });
 
     let gsCurrentPedidoId = null;
+
     async function gsLoadPedidos() {
-        $('#gs-lista-container').html('<p class="text-center py-3">Cargando...</p>');
+        const container = $('#gs-lista-container');
+        container.html('<p class="text-center py-5"><i class="fas fa-sync fa-spin fa-2x"></i><br>Cargando...</p>');
         try {
             const res = await fetch('/inventarios/api/pedidos-pendientes/');
             const data = await res.json();
             $('#gs-badge-count').text(data.count).toggle(data.count > 0);
-            if (data.count === 0) { $('#gs-lista-container').html('<p class="text-center py-3">No hay pendientes.</p>'); return; }
+
+            if (data.count === 0) {
+                container.html('<div class="text-center py-5" style="color:#64748b;"><ion-icon name="checkmark-done-circle-outline" style="font-size:4rem; color:#10b981;"></ion-icon><p style="font-weight:700; font-size:1.2rem; margin-top:10px;">¡Todo procesado!</p><p>No hay solicitudes pendientes.</p></div>');
+                return;
+            }
+
             let html = '';
             data.pedidos.forEach(p => {
-                html += `<div class="gs-pedido-row" data-id="${p.id}" style="border: 1px solid #ddd; padding:10px; margin-bottom:5px; cursor:pointer; border-radius:5px;">
-                                <strong>${p.solicitante}</strong> (${p.items_count} ítems)<br><small>${p.fecha} | OT: ${p.ot}</small></div>`;
+                html += `
+                            <div class="gs-pedido-row" data-id="${p.id}" style="padding:16px; margin-bottom:12px; cursor:pointer; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <div style="font-weight:700; color:#1e293b;">${p.solicitante} <span class="badge badge-secondary" style="margin-left:8px;">${p.items_count} ítems</span></div>
+                                    <div style="font-size:0.85rem; color:#64748b;">${p.fecha} | OT: ${p.ot} | ${p.almacen}</div>
+                                </div>
+                                <ion-icon name="chevron-forward-outline" style="font-size:1.5rem; color:#cbd5e1;"></ion-icon>
+                            </div>
+                        `;
             });
-            $('#gs-lista-container').html(html);
-            $('.gs-pedido-row').click(function () { gsCurrentPedidoId = $(this).data('id'); gsShowDetalle(gsCurrentPedidoId); });
-        } catch (e) { }
+            container.html(html);
+            $('.gs-pedido-row').click(function () {
+                gsCurrentPedidoId = $(this).data('id');
+                gsShowDetalle(gsCurrentPedidoId);
+            });
+        } catch (e) {
+            container.html('<p class="text-center text-danger">Error al cargar pedidos.</p>');
+        }
     }
 
     async function gsShowDetalle(id) {
-        $('#gs-vista-lista').hide(); $('#gs-vista-detalle').show(); $('#gs-btn-back').show();
-        const tbody = $('#gs-items-body').html('<tr><td colspan="5">Cargando...</td></tr>');
+        $('#gs-vista-lista').hide();
+        $('#gs-vista-detalle').show();
+        $('#gs-btn-back').show();
+        $('#gs-title').text(`Pedido #${id}`);
+        const tbody = $('#gs-items-body').html('<tr><td colspan="5" class="text-center">Cargando ítems...</td></tr>');
         try {
             const res = await fetch(`/inventarios/api/pedidos/${id}/detalle/`);
             const data = await res.json();
@@ -200,15 +299,28 @@
             tbody.empty();
             data.items.forEach(item => {
                 const max = Math.min(item.cantidad_solicitada, item.stock_disponible);
-                tbody.append(`<tr><td>${item.nombre}</td><td class="text-center">${item.cantidad_solicitada}</td><td class="text-center">${item.stock_disponible}</td>
-                                <td><input type="number" class="gs-qty" data-mov="${item.mov_id}" value="${max}" max="${item.stock_disponible}" style="width:60px"></td>
-                                <td>${item.stock_disponible >= item.cantidad_solicitada ? 'OK' : 'Parcial'}</td></tr>`);
+                const isPartial = item.stock_disponible < item.cantidad_solicitada;
+                tbody.append(`
+                            <tr>
+                                <td><div style="font-weight:600;">${item.nombre}</div><div style="font-size:0.75rem; color:#64748b;">${item.id_material}</div></td>
+                                <td class="text-center">${item.cantidad_solicitada}</td>
+                                <td class="text-center">${item.stock_disponible}</td>
+                                <td class="text-center">
+                                    <input type="number" class="gs-qty form-control form-control-sm" data-mov="${item.mov_id}" value="${max}" max="${item.stock_disponible}" min="0" style="width:70px; margin:0 auto; font-weight:700;">
+                                </td>
+                                <td>
+                                    <span class="gs-badge-status ${isPartial ? 'bg-warning text-dark' : 'bg-success text-white'}">${isPartial ? 'Parcial' : 'OK'}</span>
+                                </td>
+                            </tr>
+                        `);
             });
-        } catch (e) { }
+        } catch (e) {
+            tbody.html('<tr><td colspan="5" class="text-center text-danger">Error al cargar detalle.</td></tr>');
+        }
     }
 
     $('#gs-btn-despachar').click(async function () {
-        const btn = $(this).prop('disabled', true);
+        const btn = $(this).prop('disabled', true).text('Procesando...');
         try {
             const res = await fetch(`/inventarios/api/pedidos/${gsCurrentPedidoId}/despachar/`, {
                 method: 'POST',
@@ -220,39 +332,63 @@
                 })
             });
             const data = await res.json();
-            alert(data.message);
-            if (data.status === 'success') { $('#gs-btn-back').click(); gsLoadPedidos(); }
-        } catch (e) { }
-        btn.prop('disabled', false);
+            if (data.status === 'success') {
+                Swal.fire('¡Éxito!', data.message, 'success');
+                $('#gs-btn-back').click();
+                gsLoadPedidos();
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        } catch (e) {
+            Swal.fire('Error', 'Fallo de conexión.', 'error');
+        }
+        btn.prop('disabled', false).text('✅ Despachar Materiales');
     });
 
     $('#gs-btn-rechazar').click(async function () {
-        const m = prompt('Motivo:'); if (!m) return;
-        try {
-            const res = await fetch(`/inventarios/api/pedidos/${gsCurrentPedidoId}/despachar/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                body: JSON.stringify({ accion: 'rechazar', comentarios: m })
-            });
-            const data = await res.json(); alert(data.message); $('#gs-btn-back').click(); gsLoadPedidos();
-        } catch (e) { }
+        const { value: m } = await Swal.fire({
+            title: '¿Rechazar solicitud?',
+            input: 'textarea',
+            inputLabel: 'Motivo del rechazo',
+            inputPlaceholder: 'Escribe el motivo aquí...',
+            showCancelButton: true
+        });
+
+        if (m) {
+            try {
+                const res = await fetch(`/inventarios/api/pedidos/${gsCurrentPedidoId}/despachar/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ accion: 'rechazar', comentarios: m })
+                });
+                const data = await res.json();
+                Swal.fire('Procesado', data.message, 'info');
+                $('#gs-btn-back').click();
+                gsLoadPedidos();
+            } catch (e) {
+                Swal.fire('Error', 'Fallo de conexión.', 'error');
+            }
+        }
     });
 
-    let lastC = -1;
+    let lastCount = -1;
     setInterval(async () => {
         try {
             const res = await fetch('/inventarios/api/pedidos-pendientes/');
             const data = await res.json();
             $('#gs-badge-count').text(data.count).toggle(data.count > 0);
-            if (data.count > lastC && lastC >= 0) {
-                new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YV9vT18A').play().catch(() => { });
-                if (Notification.permission === 'granted') new Notification('📦 Nueva Solicitud', { body: `Hay ${data.count} pedidos.` });
+            if (data.count > lastCount && lastCount >= 0) {
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                audio.play().catch(() => { });
+                if (Notification.permission === 'granted') {
+                    new Notification('📦 Nueva Solicitud de Material', { body: `Hay ${data.count} pedidos pendientes por atender.` });
+                }
             }
-            lastC = data.count;
+            lastCount = data.count;
         } catch (e) { }
-    }, 15000);
-            });
-        }) (django.jQuery || jQuery);
+    }, 30000);
+        });
+    }) (django.jQuery || jQuery);
 </script>
 {% endif %}
 {% endblock %}
