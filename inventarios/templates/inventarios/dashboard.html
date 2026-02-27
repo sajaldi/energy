@@ -23,6 +23,20 @@
     }
 </script>
 <style>
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.2);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
     :root {
         --primary: #3b82f6;
         --primary-dark: #1d4ed8;
@@ -1864,17 +1878,93 @@
             Notification.requestPermission();
         }
 
-        // Polling cada 60 seg para pedidos nuevos
+        // ── Sonido de Notificación (Web Audio API - sin archivos externos) ──
+        function playNotificationSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const notas = [523.25, 659.25, 783.99]; // Do-Mi-Sol (acorde mayor ascendente)
+                notas.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.4);
+                    osc.start(ctx.currentTime + i * 0.15);
+                    osc.stop(ctx.currentTime + i * 0.15 + 0.4);
+                });
+            } catch (e) { console.log('Audio not supported'); }
+        }
+
+        // ── Badge visual en el botón de Gestión de Salidas ──
+        function updateBadge(count) {
+            let badge = document.getElementById('gs-badge-count');
+            if (count > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.id = 'gs-badge-count';
+                    badge.style.cssText = 'position:absolute; top:-8px; right:-8px; background:#ef4444; color:white; font-size:0.75rem; font-weight:800; min-width:22px; height:22px; border-radius:99px; display:flex; align-items:center; justify-content:center; padding:0 6px; box-shadow:0 2px 6px rgba(239,68,68,0.4); animation: pulse 1.5s infinite;';
+                    const btn = document.getElementById('btn-gestion-salidas');
+                    if (btn) {
+                        btn.style.position = 'relative';
+                        btn.appendChild(badge);
+                    }
+                }
+                badge.textContent = count;
+            } else if (badge) {
+                badge.remove();
+            }
+        }
+
+        // ── Polling cada 10 seg para detección casi inmediata ──
         let lastPedidoCount = 0;
         async function checkNuevosPedidos() {
             try {
                 const res = await fetch('/inventarios/api/pedidos-pendientes/');
                 const data = await res.json();
-                if (data.count > lastPedidoCount && lastPedidoCount > 0) {
-                    if (Notification.permission === 'granted') {
-                        new Notification('🔔 Nueva Solicitud de Material', {
-                            body: `Tienes ${data.count} solicitudes pendientes por despachar.`,
-                            icon: '/static/core/img/icon-512.png'
+
+                updateBadge(data.count);
+
+                if (data.count > lastPedidoCount && lastPedidoCount >= 0) {
+                    const esNuevo = lastPedidoCount > 0; // Solo sonar si no es la carga inicial
+
+                    if (esNuevo) {
+                        // 🔊 Sonar
+                        playNotificationSound();
+
+                        // 📱 Notificación del navegador
+                        if ('Notification' in window && Notification.permission === 'granted') {
+                            const n = new Notification('🔔 Nueva Solicitud de Material', {
+                                body: `Tienes ${data.count} solicitudes pendientes por despachar.`,
+                                icon: '/static/core/img/icon-512.png',
+                                requireInteraction: true,
+                                tag: 'solicitud-nueva'
+                            });
+                            n.onclick = function () {
+                                window.focus();
+                                $('#btn-gestion-salidas').click();
+                                n.close();
+                            };
+                        }
+
+                        // 🔔 SweetAlert visual por si el navegador no soporta notificaciones
+                        const Toast = Swal.mixin({
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: true,
+                            confirmButtonText: 'Ver solicitudes',
+                            timer: 15000,
+                            timerProgressBar: true,
+                        });
+                        Toast.fire({
+                            icon: 'warning',
+                            title: `🔔 ${data.count - lastPedidoCount} nueva(s) solicitud(es)`
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                $('#btn-gestion-salidas').click();
+                            }
                         });
                     }
                 }
@@ -1882,7 +1972,7 @@
             } catch (e) { }
         }
         checkNuevosPedidos();
-        setInterval(checkNuevosPedidos, 60000);
+        setInterval(checkNuevosPedidos, 10000);
 
         {% endif %}
 
