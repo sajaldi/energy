@@ -254,6 +254,7 @@
         container.html('<p class="text-center py-5"><i class="fas fa-sync fa-spin fa-2x"></i><br>Cargando...</p>');
         try {
             const res = await fetch('/inventarios/api/pedidos-pendientes/');
+            if (!res.ok) throw new Error(`Status: ${res.status}`);
             const data = await res.json();
             $('#gs-badge-count').text(data.count).toggle(data.count > 0);
 
@@ -280,7 +281,8 @@
                 gsShowDetalle(gsCurrentPedidoId);
             });
         } catch (e) {
-            container.html('<p class="text-center text-danger">Error al cargar pedidos.</p>');
+            console.error(e);
+            container.html(`<p class="text-center text-danger">Error al cargar pedidos.<br><small>${e.message}</small></p>`);
         }
     }
 
@@ -302,7 +304,7 @@
                 const isPartial = item.stock_disponible < item.cantidad_solicitada;
                 tbody.append(`
                             <tr>
-                                <td><div style="font-weight:600;">${item.nombre}</div><div style="font-size:0.75rem; color:#64748b;">${item.id_material}</div></td>
+                                <td><div style="font-weight:600;">${item.nombre}</div><div style="font-size:0.75rem; color:#64748b;">${item.sku}</div></td>
                                 <td class="text-center">${item.cantidad_solicitada}</td>
                                 <td class="text-center">${item.stock_disponible}</td>
                                 <td class="text-center">
