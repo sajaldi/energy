@@ -1571,34 +1571,18 @@
         });
 
         async function submitMaterial(payloadObj, formElement) {
-            // Check network status
+            // Si definitivamente offline, guardar local directo
             if (!navigator.onLine) {
-                try {
-                    await saveToSyncQueue(payloadObj);
-
-                    // Comprobar Background Sync
-                    if ('serviceWorker' in navigator && 'SyncManager' in window) {
-                        const reg = await navigator.serviceWorker.ready;
-                        await reg.sync.register('sync-nuevo-material');
-                    }
-
-                    Swal.fire({
-                        title: 'Sin Conexión',
-                        text: 'El material se guardó en tu teléfono y se subirá automáticamente cuando recuperes la señal.',
-                        icon: 'info'
-                    });
-
-                    // Limpiar Modal
-                    $('#nm-nombre, #nm-sku, #nm-descripcion, #nm-stock, #nm-ubicacion, #nm-imagen').val('');
-                    $('#close-nuevo-material').click();
-                } catch (e) {
-                    Swal.fire('Error', 'No se pudo guardar localmente.', 'error');
-                }
+                await guardarOffline(payloadObj);
                 return;
             }
 
-            // Online submit
+            // Online submit con timeout de 8 seg (señal débil = fallback offline)
             Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
             try {
                 // Convert back from simple objects to FormData
                 const finalFd = new FormData();
@@ -1608,16 +1592,19 @@
                     }
                 }
                 if (payloadObj.imagen_base64) {
-                    const res = await fetch(payloadObj.imagen_base64);
-                    const blob = await res.blob();
+                    const blobRes = await fetch(payloadObj.imagen_base64);
+                    const blob = await blobRes.blob();
                     finalFd.append('imagen', blob, payloadObj.imagen_name);
                 }
 
                 const res = await fetch('/inventarios/api/material/quick-create/', {
                     method: 'POST',
                     headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-                    body: finalFd
+                    body: finalFd,
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
+
                 const data = await res.json();
                 if (data.status === 'success') {
                     Swal.fire('¡Éxito!', 'Material registrado correctamente en el catálogo.', 'success');
@@ -1627,7 +1614,31 @@
                     Swal.fire('Error', data.message, 'error');
                 }
             } catch (e) {
-                Swal.fire('Error', 'Error de red.', 'error');
+                clearTimeout(timeoutId);
+                // Timeout o error de red → guardar offline automáticamente
+                await guardarOffline(payloadObj);
+            }
+        }
+
+        async function guardarOffline(payloadObj) {
+            try {
+                await saveToSyncQueue(payloadObj);
+
+                if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                    const reg = await navigator.serviceWorker.ready;
+                    await reg.sync.register('sync-nuevo-material');
+                }
+
+                Swal.fire({
+                    title: 'Guardado Localmente',
+                    html: '<strong>Sin señal o conexión lenta.</strong><br>El material se guardó en tu teléfono y se subirá automáticamente cuando recuperes la señal.',
+                    icon: 'info'
+                });
+
+                $('#nm-nombre, #nm-sku, #nm-descripcion, #nm-stock, #nm-ubicacion, #nm-imagen').val('');
+                $('#close-nuevo-material').click();
+            } catch (e) {
+                Swal.fire('Error', 'No se pudo guardar localmente.', 'error');
             }
         }
 
