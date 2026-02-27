@@ -398,6 +398,124 @@ def mobile_lista_pedidos(request):
     return render(request, 'inventarios/mobile_lista_pedidos.html', {'pedidos': pedidos})
 
 @login_required
+def api_pedidos_pendientes_almacen(request):
+    """
+    Retorna la lista de pedidos pendientes para el modal de Gestión de Salidas.
+    """
+    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+        
+    pedidos = SolicitudMaterial.objects.filter(estado='PENDIENTE').select_related('usuario', 'orden_trabajo', 'ubicacion_origen').order_by('fecha_solicitud')
+    
+    data = []
+    for p in pedidos:
+        data.append({
+            'id': p.id,
+            'solicitante': p.solicitante_nombre,
+            'fecha': p.fecha_solicitud.strftime('%d/%m/%Y %H:%M'),
+            'ot': str(p.orden_trabajo.id) if p.orden_trabajo else 'N/A',
+            'almacen': p.ubicacion_origen.nombre if p.ubicacion_origen else 'N/A',
+            'items_count': p.items.count(),
+            'comentarios': p.comentarios_solicitud or ''
+        })
+    return JsonResponse({'status': 'success', 'pedidos': data, 'count': len(data)})
+
+@login_required
+def api_detalle_solicitud_almacen(request, pk):
+    """Retorna los items (movimientos) de una solicitud pendiente para el almacenista."""
+    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+    
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+    items = solicitud.items.select_related('material', 'material__unidad_medida').all()
+    
+    data = []
+    for mov in items:
+        m = mov.material
+        image_url = m.imagen.url if m.imagen else ''
+        stock_actual = m.get_stock_total()
+        data.append({
+            'mov_id': mov.id,
+            'material_id': m.id,
+            'nombre': m.nombre,
+            'sku': m.sku,
+            'unidad': m.unidad_medida.nombre if m.unidad_medida else 'Unidad',
+            'cantidad_solicitada': float(mov.cantidad),
+            'stock_disponible': float(stock_actual),
+            'image_url': image_url
+        })
+    
+    return JsonResponse({
+        'status': 'success',
+        'solicitud': {
+            'id': solicitud.id,
+            'solicitante': solicitud.solicitante_nombre,
+            'fecha': solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M'),
+            'comentarios': solicitud.comentarios_solicitud or '',
+            'almacen': solicitud.ubicacion_origen.nombre if solicitud.ubicacion_origen else 'N/A'
+        },
+        'items': data
+    })
+
+@csrf_exempt
+@login_required
+def api_despachar_solicitud(request, pk):
+    """Despacha (aprueba) o rechaza una solicitud de material."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    if not (request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser):
+        return JsonResponse({'status': 'error', 'message': 'No autorizado'}, status=403)
+    
+    solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
+    
+    try:
+        data = json.loads(request.body)
+    except:
+        data = {}
+    
+    accion = data.get('accion', 'despachar')
+    comentarios_almacen = data.get('comentarios', '')
+    
+    from django.utils import timezone
+    
+    if accion == 'rechazar':
+        solicitud.estado = 'RECHAZADO'
+        solicitud.comentarios_almacen = comentarios_almacen
+        solicitud.save()
+        # Rechazar todos los movimientos pendientes
+        solicitud.items.filter(estado='PENDIENTE').update(estado='RECHAZADO')
+        return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} rechazada.'})
+    
+    # Despachar: Liquidar cada movimiento
+    errores = []
+    procesados = 0
+    
+    with transaction.atomic():
+        for mov in solicitud.items.filter(estado='PENDIENTE'):
+            try:
+                mov.liquidar(request.user)
+                procesados += 1
+            except ValueError as e:
+                errores.append(f"{mov.material.nombre}: {str(e)}")
+        
+        if not errores:
+            solicitud.estado = 'ENTREGADO'
+            solicitud.fecha_entrega = timezone.now()
+            solicitud.entregado_por = request.user
+            solicitud.comentarios_almacen = comentarios_almacen
+            solicitud.save()
+    
+    if errores:
+        return JsonResponse({
+            'status': 'partial',
+            'message': f'Se procesaron {procesados} ítems, pero hubo errores.',
+            'errores': errores
+        }, status=400)
+    
+    return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} despachada exitosamente. {procesados} ítems entregados.'})
+
+@login_required
 def mobile_detalle_pedido(request, pk):
     """Detalle móvil de una solicitud de material."""
     pedido = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
