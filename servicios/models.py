@@ -26,6 +26,11 @@ class KPI(models.Model):
         ('MEJORA', 'Mejora'),
         ('MAYOR', 'Mayor'),
     ]
+    ESTADO_CHOICES = [
+        ('CUMPLIMIENTO', 'En Cumplimiento'),
+        ('PARCIAL', 'Cumplimiento Parcial'),
+        ('INCUMPLIMIENTO', 'Incumplimiento'),
+    ]
     
     servicio = models.ForeignKey(
         Servicio, 
@@ -37,6 +42,7 @@ class KPI(models.Model):
     forma_de_cumplimiento = models.TextField(blank=True, default='', help_text="Forma de cumplimiento (Texto)")
     metodo_de_supervision = models.TextField(blank=True, default='', help_text="Método de Supervisión (Texto)")
     categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, default='MAYOR')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='CUMPLIMIENTO')
     
     # Fechas
     fecha_medicion = models.DateField(default=timezone.now)

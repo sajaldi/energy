@@ -19,7 +19,7 @@ class KPIResource(resources.ModelResource):
 
     class Meta:
         model = KPI
-        fields = ('id', 'servicio', 'nombre', 'descripcion', 'forma_de_cumplimiento', 'metodo_de_supervision', 'categoria', 'fecha_medicion', 'fecha_creacion', 'fecha_actualizacion')
+        fields = ('id', 'servicio', 'nombre', 'descripcion', 'forma_de_cumplimiento', 'metodo_de_supervision', 'categoria', 'estado', 'fecha_medicion', 'fecha_creacion', 'fecha_actualizacion')
         export_order = fields
         skip_unchanged = True
         report_skipped = True
