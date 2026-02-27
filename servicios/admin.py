@@ -16,18 +16,11 @@ class ServicioAdmin(ImportExportModelAdmin):
 class KPIAdmin(ImportExportModelAdmin):
     resource_class = KPIResource
     change_list_template = "admin/mantenimiento/procedimiento/change_list.html" 
-    list_display = ('nombre', 'servicio', 'categoria', 'forma_de_cumplimiento', 'metodo_de_supervision', 'fecha_medicion', 'import_link')
+    list_display = ('nombre', 'servicio', 'descripcion')
     list_filter = ('servicio', 'categoria', 'fecha_medicion')
     search_fields = ('nombre', 'descripcion', 'servicio__nombre', 'forma_de_cumplimiento', 'metodo_de_supervision')
     readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
-    ordering = ('-fecha_medicion', 'servicio')
-
-    def import_link(self, obj=None):
-        from django.urls import reverse
-        from django.utils.safestring import mark_safe
-        url = reverse('admin:servicios_kpi_import_background')
-        return mark_safe(f'<a class="button" href="{url}" style="background: #2563eb; color: white; font-weight: 700;">📥 IMPORTAR MASIVO</a>')
-    import_link.short_description = 'Acciones'
+    ordering = ('nombre', 'servicio')
 
     def get_urls(self):
         urls = super().get_urls()
