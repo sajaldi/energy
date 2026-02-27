@@ -232,24 +232,37 @@ if db_url:
             conn_health_checks=True,
         )
     }
-    # Forzar sslmode disable para la red interna de contenedores y evitar errores de handshake
-    # Aumentar connect_timeout para dar margen en redes internas cargadas
+    
+    # Configuraciones de red AGRESIVAS para evitar OperationalError en Docker/Coolify
     if 'OPTIONS' not in DATABASES['default']:
         DATABASES['default']['OPTIONS'] = {}
     
-    DATABASES['default']['OPTIONS']['sslmode'] = 'disable'
-    DATABASES['default']['OPTIONS']['connect_timeout'] = 10
+    db_host = DATABASES['default'].get('HOST', '')
     
-    print(f"[DEBUG] DB Producción: {DATABASES['default'].get('HOST')} - Puerto: {DATABASES['default'].get('PORT')} - SSL: Disabled")
+    # ALERTA CRITICA: Si en producción detectamos localhost o 127.0.0.1 en el host de la DB
+    if not IS_LOCAL and db_host in ['localhost', '127.0.0.1', '']:
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(f"[ERROR CRITICO] DB HOST DETECTADO COMO '{db_host}' EN PRODUCCION")
+        print("Esto PROBABLEMENTE causará timeouts en el worker.")
+        print("Asegúrate de que DATABASE_URL use el nombre del servicio de la DB.")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+    DATABASES['default']['OPTIONS'].update({
+        'sslmode': 'disable',
+        'connect_timeout': 20,           # Aumentado a 20s para redes lentas
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
+    })
+    
+    print(f"[DEBUG] DB Producción: {db_host} - Puerto: {DATABASES['default'].get('PORT')} - Timeout: 20s")
 else:
     # Diagnóstico: Si no hay DATABASE_URL pero no es local, algo está mal configurado en Coolify
     if not IS_LOCAL:
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print("[CRITICAL] DATABASE_URL NO DETECTADA EN PRODUCCION")
-        print("El worker o la web fallarán al intentar conectar a localhost")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        import sys
-        sys.stdout.flush()
 
     # Desarrollo local - Conexión manual vía Túnel (dist/Softcom_DB_Tunnel.exe)
     LOCAL_DB_PORT = 5434
