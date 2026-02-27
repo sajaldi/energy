@@ -703,6 +703,15 @@
             <p>Consulta el historial detallado de todas las recepciones realizadas, lotes y folios vinculados.</p>
         </a>
 
+        {% if es_almacen %}
+        <a href="/admin/inventarios/solicitudmaterial/" class="menu-card" style="border-color: #f59e0b;">
+            <ion-icon name="list-circle-outline" style="color: #f59e0b;"></ion-icon>
+            <h2>Gestión de Salidas (Solicitudes)</h2>
+            <p>Aprueba y despacha las solicitudes de materiales enviadas por todos los usuarios para tareas y
+                mantenimientos.</p>
+        </a>
+        {% endif %}
+
         <a href="/admin/inventarios/" class="menu-card">
             <ion-icon name="settings-outline"></ion-icon>
             <h2>Administración</h2>
@@ -758,7 +767,8 @@
 
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label class="form-label">Imagen / Foto del Material (Opcional)</label>
-                    <input type="file" id="nm-imagen" class="form-control" accept="image/*" style="padding: 10px;">
+                    <input type="file" id="nm-imagen" class="form-control" accept="image/*" capture="environment"
+                        style="padding: 10px;">
                 </div>
 
                 <div style="display: flex; gap: 15px; margin-bottom: 20px;">
@@ -1419,56 +1429,123 @@
             $('#nm-reader-container').hide();
         });
 
+        // IndexedDB wrapper simplificado para guardar colas
+        const initDB = () => new Promise((resolve, reject) => {
+            const request = indexedDB.open('InventarioPWA', 1);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('materiales_sync')) {
+                    db.createObjectStore('materiales_sync', { keyPath: 'id', autoIncrement: true });
+                }
+            };
+        });
+
+        const saveToSyncQueue = async (payloadObj) => {
+            const db = await initDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction('materiales_sync', 'readwrite');
+                const store = tx.objectStore('materiales_sync');
+                store.add(payloadObj);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        };
+
         $('#nuevo-material-form').on('submit', async function (e) {
             e.preventDefault();
 
-            const formData = new FormData();
-            formData.append('nombre', $('#nm-nombre').val());
-            formData.append('sku', $('#nm-sku').val());
-            formData.append('descripcion', $('#nm-descripcion').val());
+            // Convertir FormData a Object para manejar offline
+            const payload = {
+                nombre: $('#nm-nombre').val(),
+                sku: $('#nm-sku').val(),
+                descripcion: $('#nm-descripcion').val(),
+                stock_inicial: $('#nm-stock').val(),
+                ubicacion_id: $('#nm-ubicacion').val()
+            };
 
-            const stock = $('#nm-stock').val();
-            const ubicacion = $('#nm-ubicacion').val();
-
-            if (stock && parseFloat(stock) > 0) {
-                if (!ubicacion) {
-                    Swal.fire('Atención', 'Debes seleccionar una bodega para el stock inicial.', 'warning');
-                    return;
-                }
-                formData.append('stock_inicial', stock);
-                formData.append('ubicacion_id', ubicacion);
+            const stock = payload.stock_inicial;
+            if (stock && parseFloat(stock) > 0 && !payload.ubicacion_id) {
+                Swal.fire('Atención', 'Debes seleccionar una bodega para el stock inicial.', 'warning');
+                return;
             }
 
             const imgFile = document.getElementById('nm-imagen').files[0];
             if (imgFile) {
-                formData.append('imagen', imgFile);
+                // Convert to base64 for IDB storage
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    payload.imagen_base64 = reader.result;
+                    payload.imagen_name = imgFile.name;
+                    await submitMaterial(payload, this);
+                };
+                reader.readAsDataURL(imgFile);
+            } else {
+                await submitMaterial(payload, this);
+            }
+        });
+
+        async function submitMaterial(payloadObj, formElement) {
+            // Check network status
+            if (!navigator.onLine) {
+                try {
+                    await saveToSyncQueue(payloadObj);
+
+                    // Comprobar Background Sync
+                    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                        const reg = await navigator.serviceWorker.ready;
+                        await reg.sync.register('sync-nuevo-material');
+                    }
+
+                    Swal.fire({
+                        title: 'Sin Conexión',
+                        text: 'El material se guardó en tu teléfono y se subirá automáticamente cuando recuperes la señal.',
+                        icon: 'info'
+                    });
+
+                    // Limpiar Modal
+                    $('#nm-nombre, #nm-sku, #nm-descripcion, #nm-stock, #nm-ubicacion, #nm-imagen').val('');
+                    $('#close-nuevo-material').click();
+                } catch (e) {
+                    Swal.fire('Error', 'No se pudo guardar localmente.', 'error');
+                }
+                return;
             }
 
+            // Online submit
             Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
             try {
+                // Convert back from simple objects to FormData
+                const finalFd = new FormData();
+                for (const key in payloadObj) {
+                    if (key !== 'imagen_base64' && key !== 'imagen_name' && payloadObj[key]) {
+                        finalFd.append(key, payloadObj[key]);
+                    }
+                }
+                if (payloadObj.imagen_base64) {
+                    const res = await fetch(payloadObj.imagen_base64);
+                    const blob = await res.blob();
+                    finalFd.append('imagen', blob, payloadObj.imagen_name);
+                }
+
                 const res = await fetch('/inventarios/api/material/quick-create/', {
                     method: 'POST',
                     headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-                    body: formData
+                    body: finalFd
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
                     Swal.fire('¡Éxito!', 'Material registrado correctamente en el catálogo.', 'success');
-                    $('#nm-nombre').val('');
-                    $('#nm-sku').val('');
-                    $('#nm-descripcion').val('');
-                    $('#nm-stock').val('');
-                    $('#nm-ubicacion').val('');
-                    $('#nm-imagen').val('');
+                    $('#nm-nombre, #nm-sku, #nm-descripcion, #nm-stock, #nm-ubicacion, #nm-imagen').val('');
                     $('#close-nuevo-material').click();
                 } else {
                     Swal.fire('Error', data.message, 'error');
                 }
             } catch (e) {
-                Swal.fire('Error', 'No se conectó con el servidor.', 'error');
+                Swal.fire('Error', 'Error de red.', 'error');
             }
-        });
+        }
 
     })(jQuery);
 </script>

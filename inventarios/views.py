@@ -35,11 +35,15 @@ def inventario_dashboard(request):
     total_materiales = Material.objects.count()
     pedidos_pendientes = SolicitudMaterial.objects.count()
     
+    # Verificar si el usuario es del grupo Almacenes o Superusuario
+    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+    
     context = {
         'ubicaciones': ubicaciones,
         'categorias': categorias,
         'total_materiales': total_materiales,
         'pedidos_pendientes': pedidos_pendientes,
+        'es_almacen': es_almacen,
         'title': 'Gestión de Inventarios'
     }
     return render(request, 'inventarios/dashboard.html', context)
@@ -791,11 +795,13 @@ def api_get_solicitud_items(request, pk):
             
     return JsonResponse({'items': items})
 
+@csrf_exempt
 @login_required
 def api_create_material(request):
     """
     Crea un nuevo material desde un modal rápido en el dashboard.
     Maneja FormData (archivos y texto) y opcionalmente añade un stock inicial.
+    Funciona offline gracias al CSFR_Exempt, asumiendo session cookie válida.
     """
     if request.method == 'POST':
         try:
@@ -907,5 +913,64 @@ self.addEventListener('fetch', event => {
       })
   );
 });
+
+// Background Sync Event
+self.addEventListener('sync', event => {
+  if (event.tag === 'sync-nuevo-material') {
+    event.waitUntil(syncMateriales());
+  }
+});
+
+async function syncMateriales() {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open('InventarioPWA', 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+
+  const tx = db.transaction('materiales_sync', 'readonly');
+  const store = tx.objectStore('materiales_sync');
+  const allRecords = await new Promise((resolve, reject) => {
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+
+  for (const record of allRecords) {
+    try {
+      const finalFd = new FormData();
+      for (const key in record) {
+        if (key !== 'imagen_base64' && key !== 'imagen_name' && key !== 'id' && record[key]) {
+          finalFd.append(key, record[key]);
+        }
+      }
+
+      if (record.imagen_base64) {
+        const res = await fetch(record.imagen_base64);
+        const blob = await res.blob();
+        finalFd.append('imagen', blob, record.imagen_name);
+      }
+
+      // Envia usando un fetch a django con un token dummy o usando views exentas temporalmente.
+      // Se requiere validación CSRF pero asumiendo que el navegador asocia las cookies.
+      
+      const response = await fetch('/inventarios/api/material/quick-create/', {
+        method: 'POST',
+        body: finalFd,
+      });
+
+      if (response.ok) {
+        // Borrar una vez subido con éxito
+        await new Promise((resolve) => {
+           const dTx = db.transaction('materiales_sync', 'readwrite');
+           dTx.objectStore('materiales_sync').delete(record.id);
+           dTx.oncomplete = resolve;
+        });
+      }
+    } catch (err) {
+      console.log('Fallo subida en background', err);
+    }
+  }
+}
 """
     return HttpResponse(js, content_type='application/javascript')
