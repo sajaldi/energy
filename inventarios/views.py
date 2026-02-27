@@ -487,13 +487,32 @@ def api_despachar_solicitud(request, pk):
         solicitud.items.filter(estado='PENDIENTE').update(estado='RECHAZADO')
         return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} rechazada.'})
     
-    # Despachar: Liquidar cada movimiento
+    # Despachar: Liquidar cada movimiento con cantidades ajustadas
+    cantidades_map = {}
+    for c in data.get('cantidades', []):
+        cantidades_map[int(c['mov_id'])] = Decimal(str(c['cantidad']))
+    
     errores = []
     procesados = 0
     
     with transaction.atomic():
         for mov in solicitud.items.filter(estado='PENDIENTE'):
             try:
+                # Si el almacenista especificó cantidad para este movimiento
+                cantidad_entregada = cantidades_map.get(mov.id, mov.cantidad)
+                
+                if cantidad_entregada <= 0:
+                    # No entregar este item, dejarlo pendiente o rechazarlo
+                    mov.estado = 'RECHAZADO'
+                    mov.comentarios = (mov.comentarios or '') + f' | No entregado por almacén.'
+                    mov.save()
+                    continue
+                
+                # Si se entrega menos de lo solicitado, ajustar la cantidad del movimiento
+                if cantidad_entregada < mov.cantidad:
+                    mov.cantidad = cantidad_entregada
+                    mov.save()
+                
                 mov.liquidar(request.user)
                 procesados += 1
             except ValueError as e:

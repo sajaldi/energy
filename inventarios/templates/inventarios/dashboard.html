@@ -774,6 +774,9 @@
                                 style="text-align:center; padding:12px; background:#f8fafc; border-bottom:2px solid #e2e8f0; font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase;">
                                 Disponible</th>
                             <th
+                                style="text-align:center; padding:12px; background:#f8fafc; border-bottom:2px solid #e2e8f0; font-size:0.8rem; font-weight:700; color:#f59e0b; text-transform:uppercase;">
+                                Entregado</th>
+                            <th
                                 style="text-align:center; padding:12px; background:#f8fafc; border-bottom:2px solid #e2e8f0; font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase;">
                                 Estado</th>
                         </tr>
@@ -1727,7 +1730,7 @@
 
         async function gsLoadDetalle(pedidoId) {
             const tbody = $('#gs-items-body');
-            tbody.html('<tr><td colspan="4" style="text-align:center; padding:30px; color:#64748b;">Cargando items...</td></tr>');
+            tbody.html('<tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">Cargando items...</td></tr>');
 
             try {
                 const res = await fetch(`/inventarios/api/pedidos/${pedidoId}/detalle/`);
@@ -1743,9 +1746,10 @@
                 tbody.empty();
                 data.items.forEach(item => {
                     const suficiente = item.stock_disponible >= item.cantidad_solicitada;
+                    const maxEntrega = Math.min(item.cantidad_solicitada, item.stock_disponible);
                     const badge = suficiente
                         ? '<span style="background:#d1fae5; color:#065f46; padding:3px 10px; border-radius:99px; font-size:0.75rem; font-weight:600;">✓ OK</span>'
-                        : '<span style="background:#fee2e2; color:#991b1b; padding:3px 10px; border-radius:99px; font-size:0.75rem; font-weight:600;">⚠ Stock bajo</span>';
+                        : '<span style="background:#fee2e2; color:#991b1b; padding:3px 10px; border-radius:99px; font-size:0.75rem; font-weight:600;">⚠ Parcial</span>';
 
                     tbody.append(`
                         <tr>
@@ -1755,13 +1759,18 @@
                             </td>
                             <td style="text-align:center; padding:14px 12px; border-bottom:1px solid #e2e8f0; font-weight:700; font-size:1.1rem;">${item.cantidad_solicitada}</td>
                             <td style="text-align:center; padding:14px 12px; border-bottom:1px solid #e2e8f0; font-weight:600; color:${suficiente ? '#10b981' : '#ef4444'};">${item.stock_disponible}</td>
+                            <td style="text-align:center; padding:14px 12px; border-bottom:1px solid #e2e8f0;">
+                                <input type="number" class="gs-qty-entregado" data-mov-id="${item.mov_id}"
+                                    value="${maxEntrega}" min="0" max="${item.stock_disponible}" step="0.01"
+                                    style="width:75px; padding:8px; border:2px solid #f59e0b; border-radius:8px; text-align:center; font-weight:700; font-size:1rem;">
+                            </td>
                             <td style="text-align:center; padding:14px 12px; border-bottom:1px solid #e2e8f0;">${badge}</td>
                         </tr>
                     `);
                 });
 
             } catch (e) {
-                tbody.html('<tr><td colspan="4" style="text-align:center; padding:30px; color:#ef4444;">Error al cargar detalle.</td></tr>');
+                tbody.html('<tr><td colspan="5" style="text-align:center; padding:30px; color:#ef4444;">Error al cargar detalle.</td></tr>');
             }
         }
 
@@ -1787,7 +1796,13 @@
                 const res = await fetch(`/inventarios/api/pedidos/${gsCurrentPedidoId}/despachar/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                    body: JSON.stringify({ accion: 'despachar', comentarios: $('#gs-comentarios-almacen').val() })
+                    body: JSON.stringify({
+                        accion: 'despachar',
+                        comentarios: $('#gs-comentarios-almacen').val(),
+                        cantidades: $('.gs-qty-entregado').map(function () {
+                            return { mov_id: $(this).data('mov-id'), cantidad: parseFloat($(this).val()) || 0 };
+                        }).get()
+                    })
                 });
                 const data = await res.json();
 
