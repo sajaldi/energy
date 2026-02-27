@@ -934,23 +934,31 @@ class OrdenTrabajoResource(resources.ModelResource):
                 print(f"[DEBUG] [Import OT] Error calculando fin_programado: {str(e)}")
 
     def after_import(self, dataset, result, using_transactions, *args, **kwargs):
-        """Generar códigos de orden faltantes usando bulk_update"""
+        """Generar códigos de orden faltantes usando bulk_update (solo si no es dry_run)"""
         from django.db import transaction
         
+        # Evitar bulk_update en dry_run porque los objetos no tienen ID
+        if kwargs.get('dry_run', False):
+            return
+
         new_instances = []
         for row in result.rows:
             if hasattr(row, 'instance') and row.instance:
                 new_instances.append(row.instance)
         
-        ot_without_code = [ot for ot in new_instances if not ot.codigo_de_orden]
+        # Filtrar solo los que NO tienen código Y que SÍ tienen ID
+        ot_without_code = [ot for ot in new_instances if not ot.codigo_de_orden and ot.id]
         
         if ot_without_code:
-            print(f"[DEBUG] [Import OT] Generando códigos para {len(ot_without_code)} OTs...")
-            for i, ot in enumerate(ot_without_code):
+            print(f"[DEBUG] [Import OT] Generando códigos para {len(ot_without_code)} OTs guardadas...")
+            for ot in ot_without_code:
                 ot.codigo_de_orden = f"OT-{str(ot.id).zfill(9)}"
             
-            with transaction.atomic():
-                OrdenTrabajo.objects.bulk_update(ot_without_code, ['codigo_de_orden'], batch_size=500)
+            try:
+                with transaction.atomic():
+                    OrdenTrabajo.objects.bulk_update(ot_without_code, ['codigo_de_orden'], batch_size=500)
+            except Exception as e:
+                print(f"[DEBUG] [Import OT] Error en bulk_update de códigos: {str(e)}")
 
 class PasoProcedimientoInline(admin.TabularInline):
     model = PasoProcedimiento
