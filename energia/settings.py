@@ -72,7 +72,8 @@ extra_origins = [
     'https://softcom.ccg.hn', 
     'http://softcom.ccg.hn',
     'https://*.ccg.hn',
-    'http://10.30.1.11'
+    'http://10.30.1.11',
+    'http://127.0.0.1:8000'
 ]
 for origin in extra_origins:
     if origin not in CSRF_TRUSTED_ORIGINS:
@@ -116,6 +117,13 @@ if IS_LOCAL:
 else:
     _default_extract_webhook = f'{N8N_BASE_URL}/webhook/extract-text'
 N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', _default_extract_webhook)
+
+# Webhook para solicitudes de materiales
+if IS_LOCAL:
+    _default_solicitud_webhook = f'{N8N_BASE_URL}/webhook-test/solicitud-material'
+else:
+    _default_solicitud_webhook = f'{N8N_BASE_URL}/webhook/solicitud-material'
+N8N_SOLICITUD_WEBHOOK_URL = os.environ.get('N8N_SOLICITUD_WEBHOOK_URL', _default_solicitud_webhook)
 
 # URL base del sitio para callbacks de n8n y comunicación interna
 if os.environ.get('COOLIFY_FQDN'):

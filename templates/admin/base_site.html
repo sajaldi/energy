@@ -1,0 +1,258 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(8px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-window {
+        background: white;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 900px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        padding: 20px 30px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body {
+        padding: 30px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .close-btn {
+        background: #f1f5f9;
+        border: none;
+        border-radius: 99px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.2);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .gs-pedido-row:hover {
+        background: #f8fafc;
+        border-color: #f59e0b !important;
+    }
+
+    #gs-admin-link {
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+
+{% if user.is_superuser or user.groups.all %}
+<div class="modal-overlay" id="gestion-salidas-modal">
+    <div class="modal-window">
+        <div class="modal-header">
+            <h2 style="margin:0; font-weight: 800; display: flex; align-items: center; gap: 15px; color: #1e293b;">
+                <div
+                    style="background: #fef3c7; width: 50px; height: 50px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #f59e0b;">
+                    <ion-icon name="exit-outline" style="font-size: 1.5rem;"></ion-icon>
+                </div>
+                <span id="gs-title">Solicitudes Pendientes</span>
+            </h2>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button type="button" id="gs-btn-back" class="close-btn"
+                    style="width:40px; height:40px; font-size:1.2rem; display:none;">←</button>
+                <button type="button" id="close-gestion-salidas" class="close-btn"
+                    style="width:40px; height:40px; font-size:1.2rem;">✕</button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div id="gs-vista-lista">
+                <div id="gs-lista-container"></div>
+            </div>
+            <div id="gs-vista-detalle" style="display:none;">
+                <div style="background:#f8fafc; border-radius:8px; padding:16px; margin-bottom:20px; color: #1e293b;">
+                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                        <div><strong>Solicitante:</strong> <span id="gs-det-solicitante"></span></div>
+                        <div><strong>Fecha:</strong> <span id="gs-det-fecha"></span></div>
+                        <div><strong>Almacén:</strong> <span id="gs-det-almacen"></span></div>
+                    </div>
+                </div>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Material</th>
+                            <th>Sol.</th>
+                            <th>Disp.</th>
+                            <th>Ent.</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gs-items-body"></tbody>
+                </table>
+                <div class="form-group"><label>Notas</label><textarea id="gs-comentarios-almacen" class="form-control"
+                        rows="2"></textarea></div>
+                <div style="display:flex; gap:15px;">
+                    <button type="button" id="gs-btn-despachar" class="btn btn-success btn-block">Despachar</button>
+                    <button type="button" id="gs-btn-rechazar" class="btn btn-danger btn-block">Rechazar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function ($) {
+        $(document).ready(function () {
+            // Validación estricta de grupo en JS
+            const userGroups = [{% for g in user.groups.all %}"{{ g.name }}", {% endfor %}];
+    const isAlmacen = {% if user.is_superuser %}true{% else %} userGroups.includes("Almacenes"){% endif %};
+
+    if (!isAlmacen) return;
+
+    const navbar = $('.navbar-nav.ml-auto');
+    if (navbar.length) {
+        const notifyItem = $(`
+                        <li class="nav-item dropdown" id="gs-admin-link">
+                            <a class="nav-link" href="#" title="Gestión de Salidas">
+                                <i class="fas fa-shipping-fast"></i>
+                                <span class="badge badge-warning navbar-badge" id="gs-badge-count" style="display:none; animation: pulse 1.5s infinite;">0</span>
+                            </a>
+                        </li>
+                    `);
+        navbar.prepend(notifyItem);
+        notifyItem.on('click', function (e) { e.preventDefault(); $('#gestion-salidas-modal').addClass('active'); gsLoadPedidos(); });
+    }
+
+    $('#close-gestion-salidas').on('click', function () { $('#gestion-salidas-modal').removeClass('active'); });
+    $('#gs-btn-back').on('click', function () { $('#gs-vista-lista').show(); $('#gs-vista-detalle').hide(); $('#gs-btn-back').hide(); });
+
+    let gsCurrentPedidoId = null;
+    async function gsLoadPedidos() {
+        $('#gs-lista-container').html('<p class="text-center py-3">Cargando...</p>');
+        try {
+            const res = await fetch('/inventarios/api/pedidos-pendientes/');
+            const data = await res.json();
+            $('#gs-badge-count').text(data.count).toggle(data.count > 0);
+            if (data.count === 0) { $('#gs-lista-container').html('<p class="text-center py-3">No hay pendientes.</p>'); return; }
+            let html = '';
+            data.pedidos.forEach(p => {
+                html += `<div class="gs-pedido-row" data-id="${p.id}" style="border: 1px solid #ddd; padding:10px; margin-bottom:5px; cursor:pointer; border-radius:5px;">
+                                <strong>${p.solicitante}</strong> (${p.items_count} ítems)<br><small>${p.fecha} | OT: ${p.ot}</small></div>`;
+            });
+            $('#gs-lista-container').html(html);
+            $('.gs-pedido-row').click(function () { gsCurrentPedidoId = $(this).data('id'); gsShowDetalle(gsCurrentPedidoId); });
+        } catch (e) { }
+    }
+
+    async function gsShowDetalle(id) {
+        $('#gs-vista-lista').hide(); $('#gs-vista-detalle').show(); $('#gs-btn-back').show();
+        const tbody = $('#gs-items-body').html('<tr><td colspan="5">Cargando...</td></tr>');
+        try {
+            const res = await fetch(`/inventarios/api/pedidos/${id}/detalle/`);
+            const data = await res.json();
+            $('#gs-det-solicitante').text(data.solicitud.solicitante);
+            $('#gs-det-fecha').text(data.solicitud.fecha);
+            $('#gs-det-almacen').text(data.solicitud.almacen);
+            tbody.empty();
+            data.items.forEach(item => {
+                const max = Math.min(item.cantidad_solicitada, item.stock_disponible);
+                tbody.append(`<tr><td>${item.nombre}</td><td class="text-center">${item.cantidad_solicitada}</td><td class="text-center">${item.stock_disponible}</td>
+                                <td><input type="number" class="gs-qty" data-mov="${item.mov_id}" value="${max}" max="${item.stock_disponible}" style="width:60px"></td>
+                                <td>${item.stock_disponible >= item.cantidad_solicitada ? 'OK' : 'Parcial'}</td></tr>`);
+            });
+        } catch (e) { }
+    }
+
+    $('#gs-btn-despachar').click(async function () {
+        const btn = $(this).prop('disabled', true);
+        try {
+            const res = await fetch(`/inventarios/api/pedidos/${gsCurrentPedidoId}/despachar/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({
+                    accion: 'despachar',
+                    comentarios: $('#gs-comentarios-almacen').val(),
+                    cantidades: $('.gs-qty').map(function () { return { mov_id: $(this).data('mov'), cantidad: $(this).val() }; }).get()
+                })
+            });
+            const data = await res.json();
+            alert(data.message);
+            if (data.status === 'success') { $('#gs-btn-back').click(); gsLoadPedidos(); }
+        } catch (e) { }
+        btn.prop('disabled', false);
+    });
+
+    $('#gs-btn-rechazar').click(async function () {
+        const m = prompt('Motivo:'); if (!m) return;
+        try {
+            const res = await fetch(`/inventarios/api/pedidos/${gsCurrentPedidoId}/despachar/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ accion: 'rechazar', comentarios: m })
+            });
+            const data = await res.json(); alert(data.message); $('#gs-btn-back').click(); gsLoadPedidos();
+        } catch (e) { }
+    });
+
+    let lastC = -1;
+    setInterval(async () => {
+        try {
+            const res = await fetch('/inventarios/api/pedidos-pendientes/');
+            const data = await res.json();
+            $('#gs-badge-count').text(data.count).toggle(data.count > 0);
+            if (data.count > lastC && lastC >= 0) {
+                new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YV9vT18A').play().catch(() => { });
+                if (Notification.permission === 'granted') new Notification('📦 Nueva Solicitud', { body: `Hay ${data.count} pedidos.` });
+            }
+            lastC = data.count;
+        } catch (e) { }
+    }, 15000);
+            });
+        }) (django.jQuery || jQuery);
+</script>
+{% endif %}
+{% endblock %}

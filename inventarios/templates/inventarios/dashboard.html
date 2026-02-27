@@ -1397,18 +1397,20 @@
             }).then(async (result) => {
                 if (result.isConfirmed) {
                     Swal.showLoading();
-                    const fd = new FormData();
-                    fd.append('ubicacion_origen', $('#ubicacion_origen').val());
-                    fd.append('orden_trabajo', $('#selectedOtId').val());
-                    fd.append('comentarios', $('#comentarios').val());
-                    fd.append('items_json', JSON.stringify(itemsArr));
-                    fd.append('ajax_mode', 'true');
-                    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-
                     try {
                         const res = await fetch('{% url "inventarios:cart_checkout" %}', {
                             method: 'POST',
-                            body: fd
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({
+                                ubicacion_origen: $('#ubicacion_origen').val(),
+                                orden_trabajo: $('#selectedOtId').val(),
+                                comentarios: $('#comentarios').val(),
+                                items_json: JSON.stringify(itemsArr),
+                                ajax_mode: 'true'
+                            })
                         });
                         const data = await res.json();
                         if (data.status === 'success') {

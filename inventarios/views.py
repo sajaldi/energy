@@ -17,6 +17,7 @@ from celery.result import AsyncResult
 from .tasks import import_materiales_task
 from django.views.decorators.csrf import csrf_exempt
 from .models import CategoriaMaterial
+from .utils_n8n import notify_n8n_solicitud_material
 
 @login_required
 def inventario_dashboard(request):
@@ -225,15 +226,25 @@ def cart_detail_view(request):
     })
 
 @login_required
+@csrf_exempt
 def cart_checkout(request):
     """Procesa el carrito o una lista JSON y crea una orden de salida."""
     if request.method == 'POST':
-        ajax_mode = request.POST.get('ajax_mode') == 'true'
-        items_json = request.POST.get('items_json')
+        # Soporte para JSON y Form Data
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+            except:
+                data = {}
+        else:
+            data = request.POST
+
+        ajax_mode = data.get('ajax_mode') == 'true'
+        items_json = data.get('items_json')
         
-        ubicacion_id = request.POST.get('ubicacion_origen')
-        ot_id = request.POST.get('orden_trabajo')
-        comentarios = request.POST.get('comentarios', '')
+        ubicacion_id = data.get('ubicacion_origen')
+        ot_id = data.get('orden_trabajo')
+        comentarios = data.get('comentarios', '')
         
         items_to_process = []
         
@@ -242,10 +253,20 @@ def cart_checkout(request):
             try:
                 raw_items = json.loads(items_json)
                 for ri in raw_items:
+                    raw_qty = ri.get('cantidad')
+                    if raw_qty is None or raw_qty == "":
+                        continue
+                    try:
+                        qty = Decimal(str(raw_qty))
+                    except:
+                        continue
+                        
+                    if qty <= 0:
+                        continue
                     mat = get_object_or_404(Material, id=ri['material_id'])
                     items_to_process.append({
                         'material': mat,
-                        'quantity': ri['cantidad']
+                        'quantity': qty
                     })
             except Exception as e:
                 if ajax_mode: return JsonResponse({'status': 'error', 'message': f'JSON inválido: {str(e)}'}, status=400)
@@ -288,10 +309,13 @@ def cart_checkout(request):
                         cantidad=Decimal(str(item['quantity'])),
                         ubicacion_origen=ubicacion,
                         orden_trabajo=ot,
+                        fecha_aprobacion=None,
                         usuario=request.user,
                         comentarios=comentarios
                     )
             
+            # Notificar a n8n (Webhook)
+            notify_n8n_solicitud_material(solicitud)
             # Limpiar carrito solo si venimos de la vista de carrito
             if not items_json:
                 Cart(request).clear()
@@ -304,7 +328,10 @@ def cart_checkout(request):
             return redirect('inventarios:crear_solicitud')
             
         except Exception as e:
-            messages.error(request, f"Error en el proceso: {str(e)}")
+            msg = f"Error en el proceso: {str(e)}"
+            if ajax_mode:
+                return JsonResponse({'status': 'error', 'message': msg}, status=500)
+            messages.error(request, msg)
             return redirect('inventarios:cart_detail')
             
     return redirect('inventarios:cart_detail')
