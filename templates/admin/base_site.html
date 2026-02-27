@@ -224,9 +224,14 @@
     }
 
     // Función Global para abrir el modal
-    window.openGSM = function () {
+    window.openGSM = function (orderId = null) {
         $('#gestion-salidas-modal').addClass('active');
-        gsLoadPedidos();
+        if (orderId) {
+            gsCurrentPedidoId = orderId;
+            gsShowDetalle(orderId);
+        } else {
+            gsLoadPedidos();
+        }
     };
 
     // Interceptar clicks en botones de Dashboard y links de Admin
@@ -286,7 +291,7 @@
         }
     }
 
-    async function gsShowDetalle(id) {
+    window.gsShowDetalle = async function (id) {
         $('#gs-vista-lista').hide();
         $('#gs-vista-detalle').show();
         $('#gs-btn-back').show();
@@ -319,6 +324,17 @@
         } catch (e) {
             tbody.html('<tr><td colspan="5" class="text-center text-danger">Error al cargar detalle.</td></tr>');
         }
+    }
+
+    // Auto-abrir si viene en el URL ?gs_order=X
+    const gsUrlParams = new URLSearchParams(window.location.search);
+    const gsAutoOrderId = gsUrlParams.get('gs_order');
+    if (gsAutoOrderId && isAlmacen) {
+        // Esperar un momento a que Jazzmin/Admin carguen todo el DOM
+        console.log("[GS] Detectada auto-apertura para pedido:", gsAutoOrderId);
+        setTimeout(() => {
+            openGSM(gsAutoOrderId);
+        }, 800);
     }
 
     $('#gs-btn-despachar').click(async function () {

@@ -42,6 +42,7 @@ def notify_n8n_solicitud_material(solicitud):
             'items': items,
             'url_admin': f"{settings.SITE_URL}/admin/inventarios/solicitudmaterial/{solicitud.id}/change/",
             'url_app': f"{settings.SITE_URL}/inventarios/mobile/pedidos/{solicitud.id}/",
+            'url_almacen': f"{settings.SITE_URL}/admin/?gs_order={solicitud.id}",
         }
 
         # Enviar el webhook
