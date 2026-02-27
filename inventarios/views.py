@@ -855,3 +855,57 @@ def api_create_material(request):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+def pwa_manifest(request):
+    """
+    Retorna el manifest.json dinámico para la PWA de Inventarios.
+    """
+    manifest = {
+        "name": "Gestión de Inventarios",
+        "short_name": "Inventario",
+        "description": "Aplicación de SoftCoM para control de bodega y existencias.",
+        "start_url": "/inventarios/",
+        "display": "standalone",
+        "background_color": "#f8fafc",
+        "theme_color": "#1e293b",
+        "orientation": "portrait",
+        "icons": [
+            {
+                "src": "/static/core/img/icon-512.png",
+                "sizes": "192x192 512x512",
+                "type": "image/png"
+            }
+        ]
+    }
+    return JsonResponse(manifest)
+
+def pwa_sw(request):
+    """
+    Retorna el Service Worker (sw.js) servido desde el scope de Django.
+    Esto permite que su scope abarque /inventarios/.
+    """
+    js = """
+const CACHE_NAME = 'inventarios-pwa-v1';
+const urlsToCache = [
+  '/inventarios/',
+  '/inventarios/escanear/',
+  '/static/core/img/icon-512.png'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        return response || fetch(event.request);
+      })
+  );
+});
+"""
+    return HttpResponse(js, content_type='application/javascript')

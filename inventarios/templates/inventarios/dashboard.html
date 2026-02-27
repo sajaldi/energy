@@ -3,8 +3,25 @@
 
 {% block extrahead %}
 {{ block.super }}
+<link rel="manifest" href="/inventarios/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1e293b">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/inventarios/sw.js')
+                .then(registration => {
+                    console.log('SW registradopara Inventarios con scope:', registration.scope);
+                })
+                .catch(err => {
+                    console.log('Registro de SW falló:', err);
+                });
+        });
+    }
+</script>
 <style>
     :root {
         --primary: #3b82f6;

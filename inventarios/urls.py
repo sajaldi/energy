@@ -33,4 +33,6 @@ urlpatterns = [
     path('api/solicitudes/search/', views.api_list_solicitudes, name='api_list_solicitudes'),
     path('api/solicitudes/<str:pk>/items/', views.api_get_solicitud_items, name='api_get_solicitud_items'),
     path('api/material/quick-create/', views.api_create_material, name='api_create_material'),
+    path('manifest.json', views.pwa_manifest, name='pwa_manifest'),
+    path('sw.js', views.pwa_sw, name='pwa_sw'),
 ]
