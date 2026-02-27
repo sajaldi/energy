@@ -5,6 +5,7 @@
 {{ block.super }}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
     :root {
         --primary: #3b82f6;
@@ -437,7 +438,23 @@
         </div>
         <div class="modal-body">
             <div class="modal-sidebar">
-                <input type="text" class="search-box" id="material-search" placeholder="🔍 Buscar por nombre o SKU...">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" class="search-box" id="material-search" style="margin-bottom:0;"
+                        placeholder="🔍 nombre o SKU...">
+                    <button type="button" class="btn-custom btn-secondary" id="btn-scan-barcode"
+                        style="padding: 12px; margin: 0;">
+                        <ion-icon name="barcode-outline"></ion-icon>
+                    </button>
+                </div>
+                <div id="scanner-container" style="display: none; margin-bottom: 20px;">
+                    <div id="qr-reader"
+                        style="width: 100%; border-radius: 8px; overflow: hidden; border: 2px solid var(--primary);">
+                    </div>
+                    <button type="button" class="btn-custom" id="btn-cancel-scan"
+                        style="margin-top: 10px; background: #ef4444; color: white; width: 100%; justify-content: center;">
+                        <ion-icon name="close-circle-outline" style="margin-right: 5px;"></ion-icon> Cancelar
+                    </button>
+                </div>
                 <h4
                     style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; font-weight: 700; letter-spacing: 1px;">
                     Categorías</h4>
@@ -534,6 +551,47 @@
             searchQuery = $(this).val();
             currentPage = 1;
             loadMaterials();
+        });
+
+        // --- Lógica del Escáner ---
+        let html5QrcodeScanner = null;
+
+        $('#btn-scan-barcode').on('click', async function () {
+            if (!window.isSecureContext && location.hostname !== "localhost") {
+                Swal.fire('Atención', 'El uso de cámara requiere conexión segura (HTTPS)', 'warning');
+                return;
+            }
+            $('#scanner-container').show();
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            }
+            try {
+                await html5QrcodeScanner.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    (decodedText) => {
+                        if (navigator.vibrate) navigator.vibrate(100);
+                        $('#material-search').val(decodedText);
+                        searchQuery = decodedText;
+                        currentPage = 1;
+                        loadMaterials();
+                        html5QrcodeScanner.stop().then(() => {
+                            $('#scanner-container').hide();
+                        });
+                    },
+                    (error) => { }
+                );
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo activar la cámara.', 'error');
+                $('#scanner-container').hide();
+            }
+        });
+
+        $('#btn-cancel-scan').on('click', async function () {
+            if (html5QrcodeScanner) {
+                try { await html5QrcodeScanner.stop(); } catch (e) { }
+            }
+            $('#scanner-container').hide();
         });
 
         async function loadMaterials() {
