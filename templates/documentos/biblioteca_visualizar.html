@@ -590,7 +590,7 @@
 
 {% block content %}
 {% csrf_token %}
-<div class="bib-container">
+<div class="bib-container" id="bib-container" data-bib-name="{{ biblioteca.nombre | escapejs }}">
     <div class="bib-header">
         <div class="bib-title">
             <a href="javascript:history.back()" class="btn-back" style="display:inline-block; margin-bottom:20px;">←
@@ -599,10 +599,11 @@
             <div class="bib-stats">
                 <span
                     style="background:var(--primary); color:white; padding: 2px 10px; border-radius:6px; font-size:0.9rem; font-weight: 700;">
-                    {{ documentos|length }} Documentos Registrados
+                    {{ documentos | length }} Documentos Registrados
                 </span>
             </div>
         </div>
+
         {% if documentos %}
         <div class="bib-toolbar">
             <div class="toolbar-group">
@@ -614,6 +615,7 @@
                     📋 Lista
                 </button>
             </div>
+
             <button class="export-btn excel" onclick="exportToExcel()" title="Exportar a Excel">
                 📊 Excel
             </button>
@@ -631,14 +633,14 @@
             <div class="save-toast" id="loader-{{ doc.id }}">ESTADO GUARDADO ✓</div>
 
             <div class="doc-header">
-                <div class="doc-type-badge">{{ doc.tipo_documento.nombre|default:"SIN TIPO" }}</div>
+                <div class="doc-type-badge">{{ doc.tipo_documento.nombre | default:"SIN TIPO" }}</div>
 
                 <div class="status-wrapper" onclick="event.stopPropagation()">
                     <span class="status-label">Estado Actual</span>
                     <select class="status-select status-{{ doc.estado_actual }}"
                         onchange="updateDocStatus({{ doc.id }}, this)">
                         {% for key, val in estados %}
-                        <option value="{{ key }}" {% if doc.estado_actual==key %}selected{% endif %}>{{ val }}</option>
+                        <option value="{{ key }}" {% if doc.estado_actual == key %}selected{% endif %}>{{ val }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -660,6 +662,7 @@
                         🤖
                     </a>
                 </div>
+
                 <div class="action-row">
                     <a href="{% url 'documentos:documento_sync_metadatos' doc.id %}"
                         class="btn-main-action btn-sync-text"
@@ -696,12 +699,14 @@
                     <td style="color:var(--text-muted); font-weight:600;">{{ forloop.counter }}</td>
                     <td class="table-code">{{ doc.codigo }}</td>
                     <td>{{ doc.titulo }}</td>
-                    <td>{{ doc.tipo_documento.nombre|default:"S/T" }}</td>
+                    <td>{{ doc.tipo_documento.nombre | default:"S/T" }}</td>
                     <td>
-                        <span class="table-status status-{{ doc.estado_actual }}">{{ doc.get_estado_actual_display
-                            }}</span>
+                        <span class="table-status status-{{ doc.estado_actual }}">
+                            {{ doc.get_estado_actual_display }}
+                        </span>
                     </td>
-                    <td style="font-size:0.8rem; color:var(--text-muted);">{{ doc.respuesta_a.codigo|default:"—" }}</td>
+                    <td style="font-size:0.8rem; color:var(--text-muted);">{{ doc.respuesta_a.codigo | default:"—" }}
+                    </td>
                     <td onclick="event.stopPropagation()">
                         <div class="table-actions">
                             <button class="table-action-btn"
@@ -718,6 +723,7 @@
             </tbody>
         </table>
     </div>
+
     {% else %}
     <div
         style="text-align:center; padding: 100px 20px; background: white; border-radius: 32px; border: 3px dashed #e2e8f0; margin-top: 40px;">
@@ -733,7 +739,6 @@
     style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.9); backdrop-filter:blur(16px); z-index:99999; display:none; align-items:center; justify-content:center; opacity:0; transition:opacity 0.3s ease;">
     <div id="visor-modal-content"
         style="width:96%; height:96%; background:white; border-radius:28px; overflow:hidden; transform:translateY(40px) scale(0.98); transition:all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); display:flex; flex-direction:column; position:relative; box-shadow: 0 40px 80px -15px rgba(0,0,0,0.6);">
-
         <div
             style="padding: 12px 25px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: flex-end; align-items: center;">
             <button onclick="closeDocModal()"
@@ -741,7 +746,6 @@
                 &times;
             </button>
         </div>
-
         <iframe id="visor-iframe" style="width:100%; flex-grow:1; border:none;" src=""></iframe>
     </div>
 </div>
@@ -834,7 +838,6 @@
             document.getElementById('btn-view-pdf').onclick = () => {
                 openDocModal(data.url_archivo || `/documentos/proxy/pdf/${docId}/`);
             };
-
         } catch (e) {
             content.innerHTML = `<div style="color:red; padding:20px;">Error: ${e.message}</div>`;
         }
@@ -985,7 +988,7 @@
         });
 
         const wb = XLSX.utils.table_to_book(clone, { sheet: 'Documentos' });
-        const bibName = '{{ biblioteca.nombre|escapejs }}';
+        const bibName = document.getElementById('bib-container').dataset.bibName;
         XLSX.writeFile(wb, bibName.replace(/[^a-zA-Z0-9]/g, '_') + '.xlsx');
     }
 
@@ -993,7 +996,7 @@
     function exportToPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('l', 'mm', 'letter');
-        const bibName = '{{ biblioteca.nombre|escapejs }}';
+        const bibName = document.getElementById('bib-container').dataset.bibName;
 
         // Título
         doc.setFontSize(16);
