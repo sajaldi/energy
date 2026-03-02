@@ -1,7 +1,13 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
-from .models import Servicio, KPI
+from .models import Servicio, KPI, ChecklistItem
 from .resources import ServicioResource, KPIResource
+
+class ChecklistItemInline(admin.TabularInline):
+    model = ChecklistItem
+    extra = 0
+    fields = ('descripcion', 'completado', 'orden')
+    ordering = ('orden',)
 
 @admin.register(Servicio)
 class ServicioAdmin(ImportExportModelAdmin):
@@ -21,6 +27,8 @@ class KPIAdmin(ImportExportModelAdmin):
     search_fields = ('nombre', 'descripcion', 'servicio__nombre', 'forma_de_cumplimiento', 'metodo_de_supervision')
     readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
     ordering = ('nombre', 'servicio')
+    inlines = [ChecklistItemInline]
+
 
     def get_urls(self):
         urls = super().get_urls()

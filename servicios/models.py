@@ -57,3 +57,19 @@ class KPI(models.Model):
         
     def __str__(self):
         return f"{self.servicio.nombre} - {self.categoria}"
+
+
+class ChecklistItem(models.Model):
+    """Elemento de checklist asociado a un KPI."""
+    kpi = models.ForeignKey(KPI, on_delete=models.CASCADE, related_name='checklist_items')
+    descripcion = models.CharField(max_length=255)
+    completado = models.BooleanField(default=False)
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['orden']
+        verbose_name = 'Elemento de Checklist'
+        verbose_name_plural = 'Elementos de Checklist'
+
+    def __str__(self):
+        return f"{self.kpi.nombre} - {self.descripcion}"

@@ -276,6 +276,136 @@
             grid-template-columns: 1fr;
         }
     }
+
+    /* Panel Lateral de Trazabilidad */
+    #trace-sidebar {
+        position: fixed;
+        right: -100%;
+        top: 0;
+        bottom: 0;
+        width: 500px;
+        background: white;
+        box-shadow: -10px 0 50px rgba(0, 0, 0, 0.1);
+        z-index: 10000;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid #e2e8f0;
+    }
+
+    #trace-sidebar.open {
+        right: 0;
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.3);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        display: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .sidebar-header {
+        padding: 24px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+    }
+
+    .sidebar-content {
+        padding: 24px;
+        overflow-y: auto;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+    }
+
+    .mini-node-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 16px;
+        position: relative;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .mini-node-card:hover {
+        border-color: var(--primary);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transform: translateY(-2px);
+    }
+
+    .mini-node-card .type-tag {
+        font-size: 0.6rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+        display: block;
+    }
+
+    .mini-node-card .code {
+        font-weight: 800;
+        color: var(--primary);
+        font-size: 1rem;
+        display: block;
+    }
+
+    .mini-node-card .title {
+        font-size: 0.8rem;
+        color: var(--text-main);
+        margin-top: 4px;
+        line-height: 1.4;
+    }
+
+    .flow-connector {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: #94a3b8;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+
+    .arrow-down {
+        font-size: 1.2rem;
+    }
+
+    .current-item {
+        border: 2px solid var(--primary);
+        background: #f5f3ff;
+    }
+
+    .section-label {
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: #94a3b8;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-label::after {
+        content: '';
+        height: 1px;
+        flex: 1;
+        background: #e2e8f0;
+    }
 </style>
 {% endblock %}
 
@@ -299,7 +429,7 @@
     {% if documentos %}
     <div class="bib-grid">
         {% for doc in documentos %}
-        <div class="doc-card" onclick="openDocModal('{% url 'documentos:documento_proxy_pdf' doc.id %}')">
+        <div class="doc-card" onclick="openTraceability({{ doc.id }})">
             <div class="save-toast" id="loader-{{ doc.id }}">ESTADO GUARDADO ✓</div>
 
             <div class="doc-header">
@@ -375,6 +505,32 @@
     </div>
 </div>
 
+<!-- Sidebar de Trazabilidad -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeTraceability()"></div>
+<div id="trace-sidebar">
+    <div class="sidebar-header">
+        <h2 style="margin:0; font-size:1.1rem; font-weight:800; color:var(--text-main);">Trazabilidad del Documento</h2>
+        <button onclick="closeTraceability()"
+            style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8;">&times;</button>
+    </div>
+    <div class="sidebar-content" id="sidebar-content">
+        <!-- Se cargará vía AJAX -->
+        <div style="text-align:center; padding-top:100px; color:#94a3b8;">
+            <div class="spinner">⌛</div>
+            <p>Cargando trazabilidad...</p>
+        </div>
+    </div>
+    <div
+        style="padding:24px; border-top:1px solid #f1f5f9; background:#f8fafc; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <button id="btn-full-trace" class="btn-main-action">
+            🗺️ Árbol Completo
+        </button>
+        <button id="btn-view-pdf" class="btn-main-action" style="background:var(--primary); color:white; border:none;">
+            📄 Ver PDF
+        </button>
+    </div>
+</div>
+
 <script>
     async function updateDocStatus(docId, selectEl) {
         const nuevoEstado = selectEl.value;
@@ -402,6 +558,121 @@
         } catch (e) {
             alert('Error de conexión');
         }
+    }
+
+    async function openTraceability(docId) {
+        const sidebar = document.getElementById('trace-sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const content = document.getElementById('sidebar-content');
+
+        // Mostrar Side Panel
+        overlay.style.display = 'block';
+        setTimeout(() => {
+            overlay.style.opacity = '1';
+            sidebar.classList.add('open');
+        }, 10);
+
+        content.innerHTML = `
+            <div style="text-align:center; padding-top:100px; color:#94a3b8;">
+                <p>Cargando información...</p>
+            </div>
+        `;
+
+        try {
+            const res = await fetch(`/documentos/api/detalle/${docId}/`);
+            const data = await res.json();
+
+            if (data.error) throw new Error(data.error);
+
+            renderTraceability(data);
+
+            // Configurar botones de acción
+            document.getElementById('btn-full-trace').onclick = () => {
+                window.location.href = `/documentos/trazabilidad/${docId}/`;
+            };
+            document.getElementById('btn-view-pdf').onclick = () => {
+                openDocModal(data.url_archivo || `/documentos/proxy/pdf/${docId}/`);
+            };
+
+        } catch (e) {
+            content.innerHTML = `<div style="color:red; padding:20px;">Error: ${e.message}</div>`;
+        }
+    }
+
+    function renderTraceability(data) {
+        const content = document.getElementById('sidebar-content');
+        let html = '';
+
+        // 1. Quien responde? (Parent)
+        if (data.traceability.parent) {
+            html += `
+                <div class="trace-section">
+                    <div class="section-label">Responde a</div>
+                    <div class="mini-node-card" onclick="openTraceability(${data.traceability.parent.id})">
+                        <span class="code">${data.traceability.parent.codigo}</span>
+                        <span class="title">${data.traceability.parent.titulo}</span>
+                    </div>
+                </div>
+                <div class="flow-connector">
+                    <div class="arrow-down">↓</div>
+                </div>
+            `;
+        }
+
+        // 2. Documento Actual
+        html += `
+            <div class="trace-section">
+                <div class="section-label">Documento Seleccionado</div>
+                <div class="mini-node-card current-item">
+                    <span class="type-tag">${data.tipo}</span>
+                    <span class="code">${data.codigo}</span>
+                    <span class="title" style="font-weight:700;">${data.titulo}</span>
+                    <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
+                        <span class="status-badge status-${data.estado}" style="padding:2px 8px; border-radius:6px; color:white; font-size:0.65rem; font-weight:800;">${data.estado}</span>
+                        <span style="font-size:0.7rem; color:#64748b;">${data.fecha_creacion}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 3. Quien le responde? (Children)
+        if (data.traceability.children && data.traceability.children.length > 0) {
+            html += `
+                <div class="flow-connector" style="margin-top:-20px; margin-bottom:-20px;">
+                    <div class="arrow-down">↓</div>
+                </div>
+                <div class="trace-section">
+                    <div class="section-label">Respuestas (${data.traceability.children.length})</div>
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        ${data.traceability.children.map(child => `
+                            <div class="mini-node-card" onclick="openTraceability(${child.id})">
+                                <span class="code">${child.codigo}</span>
+                                <span class="title">${child.titulo}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else {
+            html += `
+                <div style="text-align:center; padding:20px; background:#f8fafc; border-radius:16px; border: 1px dashed #e2e8f0; color:#94a3b8; font-size:0.8rem;">
+                    Este documento no tiene respuestas asociadas aún.
+                </div>
+            `;
+        }
+
+        content.innerHTML = html;
+    }
+
+    function closeTraceability() {
+        const sidebar = document.getElementById('trace-sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        sidebar.classList.remove('open');
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
     }
 
     function openDocModal(url) {
@@ -432,6 +703,11 @@
     }
 
     document.getElementById('visor-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeDocModal(); });
-    document.addEventListener('keydown', function (e) { if (e.key === "Escape") closeDocModal(); });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === "Escape") {
+            closeDocModal();
+            closeTraceability();
+        }
+    });
 </script>
 {% endblock %}

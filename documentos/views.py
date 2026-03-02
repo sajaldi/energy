@@ -177,6 +177,20 @@ def documento_detalle_json(request, doc_id):
             'comentarios': comentarios,
             'usuarios_disponibles': usuarios,
             'contenido_texto': doc.contenido_texto,
+            'traceability': {
+                'parent': {
+                    'id': doc.respuesta_a.id,
+                    'codigo': doc.respuesta_a.codigo,
+                    'titulo': doc.respuesta_a.titulo
+                } if doc.respuesta_a else None,
+                'children': [
+                    {
+                        'id': r.id,
+                        'codigo': r.codigo,
+                        'titulo': r.titulo
+                    } for r in doc.respuestas.all()
+                ]
+            }
         }
         return JsonResponse(data)
     except Exception as e:
