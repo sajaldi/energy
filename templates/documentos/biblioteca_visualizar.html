@@ -1,6 +1,13 @@
 {% extends "admin/base_site.html" %}
 {% load i18n static %}
 
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+{% endblock %}
+
 {% block extrastyle %}
 {{ block.super }}
 <style>
@@ -277,6 +284,178 @@
         }
     }
 
+    /* ====== Toolbar ====== */
+    .bib-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .toolbar-group {
+        display: flex;
+        gap: 0;
+        background: #f1f5f9;
+        border-radius: 12px;
+        padding: 4px;
+    }
+
+    .toolbar-btn {
+        padding: 8px 14px;
+        border: none;
+        background: transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .toolbar-btn:hover {
+        color: var(--text-main);
+    }
+
+    .toolbar-btn.active {
+        background: white;
+        color: var(--primary);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .export-btn {
+        padding: 8px 16px;
+        border: 1px solid #e2e8f0;
+        background: white;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--text-main);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .export-btn:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .export-btn.excel:hover {
+        color: #16a34a;
+        border-color: #16a34a;
+    }
+
+    .export-btn.pdf-exp:hover {
+        color: #dc2626;
+        border-color: #dc2626;
+    }
+
+    /* ====== Vista Lista / Tabla ====== */
+    .bib-table-wrapper {
+        display: none;
+        background: white;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .bib-table-wrapper.visible {
+        display: block;
+    }
+
+    .bib-grid.hidden {
+        display: none;
+    }
+
+    .bib-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    .bib-table thead {
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .bib-table th {
+        text-align: left;
+        padding: 14px 20px;
+        font-weight: 800;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        letter-spacing: 0.05em;
+    }
+
+    .bib-table td {
+        padding: 14px 20px;
+        border-bottom: 1px solid #f1f5f9;
+        color: var(--text-main);
+        vertical-align: middle;
+    }
+
+    .bib-table tbody tr {
+        transition: all 0.15s;
+        cursor: pointer;
+    }
+
+    .bib-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .bib-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .table-code {
+        font-weight: 800;
+        color: var(--primary);
+        white-space: nowrap;
+    }
+
+    .table-status {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.7rem;
+        color: white;
+        text-transform: uppercase;
+    }
+
+    .table-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .table-action-btn {
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: all 0.2s;
+        text-decoration: none;
+        color: var(--text-main);
+    }
+
+    .table-action-btn:hover {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
     /* Panel Lateral de Trazabilidad */
     #trace-sidebar {
         position: fixed;
@@ -424,6 +603,25 @@
                 </span>
             </div>
         </div>
+        {% if documentos %}
+        <div class="bib-toolbar">
+            <div class="toolbar-group">
+                <button class="toolbar-btn active" id="btn-view-grid" onclick="switchView('grid')"
+                    title="Vista Tarjetas">
+                    🗂️ Tarjetas
+                </button>
+                <button class="toolbar-btn" id="btn-view-list" onclick="switchView('list')" title="Vista Lista">
+                    📋 Lista
+                </button>
+            </div>
+            <button class="export-btn excel" onclick="exportToExcel()" title="Exportar a Excel">
+                📊 Excel
+            </button>
+            <button class="export-btn pdf-exp" onclick="exportToPDF()" title="Exportar a PDF">
+                📕 PDF
+            </button>
+        </div>
+        {% endif %}
     </div>
 
     {% if documentos %}
@@ -476,6 +674,49 @@
             </div>
         </div>
         {% endfor %}
+    </div>
+
+    <!-- Vista Lista / Tabla -->
+    <div class="bib-table-wrapper" id="bib-table-wrapper">
+        <table class="bib-table" id="bib-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Código</th>
+                    <th>Título</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Responde a</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documentos %}
+                <tr onclick="openTraceability({{ doc.id }})">
+                    <td style="color:var(--text-muted); font-weight:600;">{{ forloop.counter }}</td>
+                    <td class="table-code">{{ doc.codigo }}</td>
+                    <td>{{ doc.titulo }}</td>
+                    <td>{{ doc.tipo_documento.nombre|default:"S/T" }}</td>
+                    <td>
+                        <span class="table-status status-{{ doc.estado_actual }}">{{ doc.get_estado_actual_display
+                            }}</span>
+                    </td>
+                    <td style="font-size:0.8rem; color:var(--text-muted);">{{ doc.respuesta_a.codigo|default:"—" }}</td>
+                    <td onclick="event.stopPropagation()">
+                        <div class="table-actions">
+                            <button class="table-action-btn"
+                                onclick="openDocModal('/documentos/proxy/pdf/{{ doc.id }}/')"
+                                title="Ver PDF">📄</button>
+                            <a href="/documentos/trazabilidad/{{ doc.id }}/" class="table-action-btn"
+                                title="Árbol">🗺️</a>
+                            <a href="/admin/documentos/documento/{{ doc.id }}/change/" class="table-action-btn"
+                                target="_blank" title="Editar">🛠</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% else %}
     <div
@@ -709,5 +950,91 @@
             closeTraceability();
         }
     });
+
+    // ====== Toggle Vista Tarjetas / Lista ======
+    function switchView(mode) {
+        const grid = document.querySelector('.bib-grid');
+        const table = document.getElementById('bib-table-wrapper');
+        const btnGrid = document.getElementById('btn-view-grid');
+        const btnList = document.getElementById('btn-view-list');
+        if (!grid || !table) return;
+
+        if (mode === 'list') {
+            grid.classList.add('hidden');
+            table.classList.add('visible');
+            btnGrid.classList.remove('active');
+            btnList.classList.add('active');
+        } else {
+            grid.classList.remove('hidden');
+            table.classList.remove('visible');
+            btnGrid.classList.add('active');
+            btnList.classList.remove('active');
+        }
+    }
+
+    // ====== Exportar a Excel ======
+    function exportToExcel() {
+        const table = document.getElementById('bib-table');
+        if (!table) return alert('No hay datos para exportar');
+
+        // Clonar tabla sin columna de acciones
+        const clone = table.cloneNode(true);
+        clone.querySelectorAll('tr').forEach(row => {
+            const cells = row.querySelectorAll('th, td');
+            if (cells.length > 0) cells[cells.length - 1].remove(); // quitar Acciones
+        });
+
+        const wb = XLSX.utils.table_to_book(clone, { sheet: 'Documentos' });
+        const bibName = '{{ biblioteca.nombre|escapejs }}';
+        XLSX.writeFile(wb, bibName.replace(/[^a-zA-Z0-9]/g, '_') + '.xlsx');
+    }
+
+    // ====== Exportar a PDF ======
+    function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'letter');
+        const bibName = '{{ biblioteca.nombre|escapejs }}';
+
+        // Título
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.text(bibName, 14, 18);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(100);
+        doc.text('Generado: ' + new Date().toLocaleDateString('es-HN'), 14, 25);
+        doc.setTextColor(0);
+
+        // Tabla
+        const table = document.getElementById('bib-table');
+        if (!table) return alert('No hay datos para exportar');
+
+        // Obtener datos sin columna acciones
+        const headers = [];
+        table.querySelectorAll('thead th').forEach((th, i, all) => {
+            if (i < all.length - 1) headers.push(th.textContent.trim());
+        });
+
+        const rows = [];
+        table.querySelectorAll('tbody tr').forEach(tr => {
+            const row = [];
+            tr.querySelectorAll('td').forEach((td, i, all) => {
+                if (i < all.length - 1) row.push(td.textContent.trim());
+            });
+            rows.push(row);
+        });
+
+        doc.autoTable({
+            head: [headers],
+            body: rows,
+            startY: 30,
+            styles: { fontSize: 8, cellPadding: 3 },
+            headStyles: { fillColor: [79, 70, 229], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            margin: { left: 14, right: 14 }
+        });
+
+        doc.save(bibName.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf');
+    }
 </script>
 {% endblock %}
