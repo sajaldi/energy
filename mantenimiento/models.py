@@ -753,17 +753,20 @@ class OrdenTrabajo(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        """
-        Garantiza que la orden tenga un código único.
-        Si no viene en el import, usa OT-000000ID.
-        """
-        from_bulk = kwargs.pop('_from_bulk', False)
+        """Garantiza que la orden tenga un código único si no existe."""
+        # Detectar si es nuevo antes de llamar a super()
         is_new = self.pk is None
+        
+        # Guardado estándar
         super().save(*args, **kwargs)
         
-        if not self.codigo_de_orden and not from_bulk:
-            self.codigo_de_orden = f"OT-{str(self.id).zfill(9)}"
-            OrdenTrabajo.objects.filter(pk=self.pk).update(codigo_de_orden=self.codigo_de_orden)
+        # Generación de código posterior si es necesario
+        if is_new and not self.codigo_de_orden:
+            # Usamos update directo para evitar recursión y asegurar el valor en DB
+            # str(self.id).zfill(9) ya tiene el ID asignado por super().save()
+            new_code = f"OT-{str(self.id).zfill(9)}"
+            self.codigo_de_orden = new_code
+            OrdenTrabajo.objects.filter(pk=self.pk).update(codigo_de_orden=new_code)
 
     class Meta:
         verbose_name = "Orden de Trabajo"

@@ -198,8 +198,8 @@ def import_ordenes_task(self, file_path, file_format, user_id=None, verification
 
     # Inicializar resource
     resource = OrdenTrabajoResource()
-    resource._meta.use_bulk = True
-    resource._meta.batch_size = 500
+    # No usamos bulk para OTs porque after_import necesita los IDs individuales generados inmediatamente
+    resource._meta.use_bulk = False
     
     # Marcador de progreso en caché
     cache_key = f"import_ordenes_progress_{user_id}" if user_id else "import_ordenes_progress_system"

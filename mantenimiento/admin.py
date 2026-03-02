@@ -870,8 +870,10 @@ class OrdenTrabajoResource(resources.ModelResource):
 
     class Meta:
         model = OrdenTrabajo
+        # Mantenemos codigo_de_orden como identificador. Al quitar 'id' de 'fields', 
+        # evitamos que el widget intente setearlo y active force_update erróneamente.
         import_id_fields = ('codigo_de_orden',)
-        fields = ('id', 'codigo_de_orden', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
+        fields = ('codigo_de_orden', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
                   'tecnico_usuario', 'activos_codigos', 'inicio_programado', 'fin_programado', 
                   'descripcion_corta', 'descripcion_detallada', 'estado', 'notas')
         export_order = ('id', 'codigo_de_orden', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
@@ -935,28 +937,39 @@ class OrdenTrabajoResource(resources.ModelResource):
 
     def after_import(self, dataset, result, using_transactions, *args, **kwargs):
         """Generar códigos de orden faltantes usando bulk_update (solo si no es dry_run)"""
-        from django.db import transaction
         
-        # Evitar bulk_update en dry_run porque los objetos no tienen ID
-        if kwargs.get('dry_run', False):
+        # 1. DETECCIÓN ULTRA-DEFENSIVA DE DRY RUN
+        is_dry_run = kwargs.get('dry_run')
+        if is_dry_run is None:
+            is_dry_run = getattr(result, 'dry_run', False)
+        
+        if is_dry_run:
+            print("[DEBUG] [Import OT] Saltando bulk_update de códigos: Es fase de análisis (dry_run=True)")
             return
 
+        from django.db import transaction
         new_instances = []
         for row in result.rows:
             if hasattr(row, 'instance') and row.instance:
-                new_instances.append(row.instance)
+                # Solo procesar si el objeto parece tener una PK válida
+                if row.instance.pk is not None:
+                    new_instances.append(row.instance)
         
-        # Filtrar solo los que NO tienen código Y que SÍ tienen ID
-        ot_without_code = [ot for ot in new_instances if not ot.codigo_de_orden and ot.id]
+        # 2. Filtrar solo los que NO tienen código
+        ot_without_code = [ot for ot in new_instances if not ot.codigo_de_orden]
         
         if ot_without_code:
             print(f"[DEBUG] [Import OT] Generando códigos para {len(ot_without_code)} OTs guardadas...")
             for ot in ot_without_code:
-                ot.codigo_de_orden = f"OT-{str(ot.id).zfill(9)}"
+                # Usar .pk garantizado
+                ot.codigo_de_orden = f"OT-{str(ot.pk).zfill(9)}"
             
             try:
+                # Importación directa del modelo para evitar fallos de referencia
+                from .models import OrdenTrabajo
                 with transaction.atomic():
                     OrdenTrabajo.objects.bulk_update(ot_without_code, ['codigo_de_orden'], batch_size=500)
+                print(f"[DEBUG] [Import OT] bulk_update completado exitosamente.")
             except Exception as e:
                 print(f"[DEBUG] [Import OT] Error en bulk_update de códigos: {str(e)}")
 
