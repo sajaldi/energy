@@ -401,7 +401,151 @@
         display: none;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
+    /* Galería de imágenes en pines */
+    .pin-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .pin-img-wrapper {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        cursor: zoom-in;
+        transition: transform 0.2s;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pin-img-wrapper:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .pin-img-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Zoom Modal */
+    #zoom-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    #zoom-image {
+        max-width: 90%;
+        max-height: 90%;
+        transition: transform 0.1s ease-out;
+        cursor: grab;
+        user-select: none;
+    }
+
+    #zoom-image:active {
+        cursor: grabbing;
+    }
+
+    .zoom-controls {
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 15px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        padding: 10px 20px;
+        border-radius: 50px;
+    }
+
+    .zoom-btn {
+        background: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Input de imágenes */
+    .image-upload-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f1f5f9;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        color: #475569;
+        border: 1px dashed #cbd5e1;
+        transition: all 0.2s;
+    }
+
+    .image-upload-label:hover {
+        background: #e2e8f0;
+        border-color: var(--primary);
+    }
+
+    #image-preview-container {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+
+    .preview-thumb {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        object-fit: cover;
+        border: 1px solid #e2e8f0;
+    }
+    /* Previsualización de imágenes */
+    #image-preview-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .preview-thumb-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 60px;
+    }
+
+    .preview-thumb {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
 </style>
+
+
 {% endblock %}
 
 {% block content %}
@@ -485,6 +629,10 @@
                 <div id="pin-detail-text"
                     style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; white-space: pre-wrap;">
                 </div>
+                
+                <!-- Galería de fotos -->
+                <div id="pin-detail-gallery" class="pin-gallery" style="margin-bottom: 20px;"></div>
+                
                 <div id="pin-detail-assigned" style="margin-bottom:15px;"></div>
 
                 <div id="pin-actions" style="display:flex; gap:10px; justify-content:flex-end; flex-wrap: wrap;">
@@ -560,6 +708,16 @@
                 <textarea id="comment-text"
                     style="width:100%; height:80px; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:12px; font-family:inherit; resize:none;"
                     placeholder="Escribe tu observación..."></textarea>
+                
+                <!-- Input de Imágenes -->
+                <div style="margin-bottom: 12px;">
+                    <label class="image-upload-label">
+                        <input type="file" id="comment-images" multiple accept="image/*" style="display:none;" onchange="handleImagePreview(this)">
+                        📷 Adjuntar fotos
+                    </label>
+                    <div id="image-preview-container"></div>
+                </div>
+
                 <div style="margin-bottom: 12px;">
                     <select id="comment-responsible"
                         style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-family:inherit; background: #f8fafc; color: #334155;">
@@ -582,7 +740,8 @@
             </div>
             <div id="pin-hover-card" class="pin-hover-card">
                 <strong id="hover-user">Usuario</strong>
-                <span id="hover-text">Comentario...</span>
+                <div id="hover-text" style="margin-bottom: 5px;">Comentario...</div>
+                <div id="hover-gallery" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
             </div>
         </div>
     </div>
@@ -636,6 +795,7 @@
     let availableUsers = [];
     let pendingLinkSourceId = null;
     let currentPinId = null;
+    let pendingPinFiles = [];
     const docId = "{{ documento.id }}";
     const currentUsername = "{{ request.user.username }}";
     const isSuperUser = "{{ request.user.is_superuser|yesno:'true,false' }}" === "true";
@@ -932,6 +1092,28 @@
             el.onmouseenter = (e) => {
                 hUser.innerText = c.usuario;
                 hText.innerText = c.texto;
+                
+                const hoverGallery = document.getElementById('hover-gallery');
+                hoverGallery.innerHTML = '';
+                if (c.imagenes && c.imagenes.length > 0) {
+                    c.imagenes.slice(0, 3).forEach(imgUrl => {
+                        const img = document.createElement('img');
+                        img.src = imgUrl;
+                        img.style.width = '40px';
+                        img.style.height = '40px';
+                        img.style.borderRadius = '4px';
+                        img.style.objectFit = 'cover';
+                        hoverGallery.appendChild(img);
+                    });
+                    if (c.imagenes.length > 3) {
+                        const more = document.createElement('div');
+                        more.innerText = `+${c.imagenes.length - 3}`;
+                        more.style.fontSize = '0.7rem';
+                        more.style.alignSelf = 'center';
+                        hoverGallery.appendChild(more);
+                    }
+                }
+
                 hoverCard.style.left = `calc(${c.x}% + 20px)`;
                 hoverCard.style.top = `calc(${c.y}% - 20px)`;
                 hoverCard.classList.add('active');
@@ -1048,7 +1230,14 @@
         bubble.style.left = x + '%';
         bubble.style.top = y + '%';
         bubble.classList.add('active');
-        document.getElementById('comment-text').focus();
+        const textarea = document.getElementById('comment-text');
+        textarea.focus();
+        
+        // Add paste event if not already present
+        if (!textarea.dataset.pasteHandled) {
+            textarea.addEventListener('paste', handleClipboardPaste);
+            textarea.dataset.pasteHandled = "true";
+        }
     }
 
     function placePendingPin(x, y) {
@@ -1062,6 +1251,78 @@
         document.getElementById('btn-add-pin').innerText = "Dibuje o haga clic en el PDF...";
     }
 
+    function handleClipboardPaste(e) {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                const file = item.getAsFile();
+                // Create a generic name for pasted files
+                const timestamp = new Date().getTime();
+                const pastedFile = new File([file], `pasted_${timestamp}.png`, { type: 'image/png' });
+                pendingPinFiles.push(pastedFile);
+                renderPreviews();
+            }
+        }
+    }
+
+    function handleImagePreview(input) {
+        if (input.files) {
+            Array.from(input.files).forEach(file => {
+                pendingPinFiles.push(file);
+            });
+            renderPreviews();
+            input.value = ''; // Reset input to allow re-selecting same file if needed
+        }
+    }
+
+    function renderPreviews() {
+        const container = document.getElementById('image-preview-container');
+        container.innerHTML = '';
+        pendingPinFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'preview-thumb-wrapper';
+                wrapper.style.position = 'relative';
+                wrapper.style.display = 'inline-block';
+                wrapper.style.marginRight = '8px';
+
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'preview-thumb';
+                
+                const removeBtn = document.createElement('div');
+                removeBtn.innerHTML = '×';
+                removeBtn.style.cssText = `
+                    position: absolute;
+                    top: -5px;
+                    right: -5px;
+                    background: #ef4444;
+                    color: white;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 800;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                `;
+                removeBtn.onclick = () => {
+                    pendingPinFiles.splice(index, 1);
+                    renderPreviews();
+                };
+
+                wrapper.appendChild(img);
+                wrapper.appendChild(removeBtn);
+                container.appendChild(wrapper);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
     function cancelComment() {
         isAddingComment = false;
         isDrawing = false;
@@ -1070,9 +1331,13 @@
             drawingRect = null;
         }
         pendingCoords = null;
+        pendingPinFiles = []; // Reset unified list
         document.getElementById('pins-layer').classList.remove('adding-comment');
         document.getElementById('comment-bubble').classList.remove('active');
         document.getElementById('comment-text').value = '';
+        const imgInput = document.getElementById('comment-images');
+        if (imgInput) imgInput.value = '';
+        document.getElementById('image-preview-container').innerHTML = '';
         const respSelect = document.getElementById('comment-responsible');
         if (respSelect) respSelect.value = "";
         document.getElementById('btn-add-pin').innerText = "+ Agregar Comentario";
@@ -1081,30 +1346,37 @@
     function submitComment(callback) {
         const texto = document.getElementById('comment-text').value;
         const responsibleId = document.getElementById('comment-responsible').value;
+        const imgInput = document.getElementById('comment-images');
+        
         if (!texto) return;
 
-        const payload = {
-            texto: texto,
-            responsable_id: responsibleId || null,
-            tipo: annotationType,
-            x: pendingCoords.x,
-            y: pendingCoords.y,
-            ancho: pendingCoords.ancho || 0,
-            alto: pendingCoords.alto || 0,
-            pagina: pendingCoords.pagina
-        };
+        const formData = new FormData();
+        formData.append('texto', texto);
+        formData.append('responsable_id', responsibleId || '');
+        formData.append('tipo', annotationType);
+        formData.append('x', pendingCoords.x);
+        formData.append('y', pendingCoords.y);
+        formData.append('ancho', pendingCoords.ancho || 0);
+        formData.append('alto', pendingCoords.alto || 0);
+        formData.append('pagina', pendingCoords.pagina);
 
         if (pendingLinkSourceId) {
-            payload.vinculo_id = pendingLinkSourceId;
+            formData.append('vinculo_id', pendingLinkSourceId);
+        }
+
+        // Add images from unified list instead of input.files
+        if (pendingPinFiles.length > 0) {
+            pendingPinFiles.forEach(file => {
+                formData.append('imagenes', file);
+            });
         }
 
         fetch(`/documentos/api/comentar/${docId}/`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: JSON.stringify(payload)
+            body: formData
         })
             .then(res => res.json())
             .then(data => {
@@ -1256,6 +1528,22 @@
         document.getElementById('pin-detail-date').innerText = comment.fecha;
         document.getElementById('pin-detail-text').innerText = comment.texto;
 
+        // Galería de imágenes
+        const gallery = document.getElementById('pin-detail-gallery');
+        gallery.innerHTML = '';
+        if (comment.imagenes && comment.imagenes.length > 0) {
+            gallery.style.display = 'grid';
+            comment.imagenes.forEach(imgUrl => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'pin-img-wrapper';
+                wrapper.onclick = () => openZoomModal(imgUrl);
+                wrapper.innerHTML = `<img src="${imgUrl}" alt="Pin Image">`;
+                gallery.appendChild(wrapper);
+            });
+        } else {
+            gallery.style.display = 'none';
+        }
+
         const assignedDiv = document.getElementById('pin-detail-assigned');
         if (comment.responsable_nombre) {
             assignedDiv.innerHTML = `<span style="font-size:0.85rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px;">👤 Responsable: <strong>${comment.responsable_nombre}</strong></span>`;
@@ -1397,5 +1685,100 @@
                 }
             });
     }
+
+    // --- ZOOM MODAL LOGIC ---
+    let zoomLevel = 1;
+    let isPanning = false;
+    let startPanX, startPanY;
+    let currentPanX = 0, currentPanY = 0;
+
+    function getZoomElements() {
+        return {
+            modal: document.getElementById('zoom-modal'),
+            img: document.getElementById('zoom-image')
+        };
+    }
+
+    function openZoomModal(url) {
+        const { modal, img } = getZoomElements();
+        if (!modal || !img) return;
+        img.src = url;
+        modal.style.display = 'flex';
+        resetZoom();
+    }
+
+    function closeZoomModal() {
+        const { modal, img } = getZoomElements();
+        if (!modal) return;
+        modal.style.display = 'none';
+        if (img) img.src = '';
+    }
+
+    function adjustZoom(delta) {
+        zoomLevel += delta;
+        if (zoomLevel < 0.5) zoomLevel = 0.5;
+        if (zoomLevel > 5) zoomLevel = 5;
+        applyZoom();
+    }
+
+    function resetZoom() {
+        zoomLevel = 1;
+        currentPanX = 0;
+        currentPanY = 0;
+        applyZoom();
+    }
+
+    function applyZoom() {
+        const { img } = getZoomElements();
+        if (!img) return;
+        img.style.transform = `translate(${currentPanX}px, ${currentPanY}px) scale(${zoomLevel})`;
+    }
+
+    // Pan logic
+    document.addEventListener('mousedown', (e) => {
+        const { img } = getZoomElements();
+        if (img && e.target === img) {
+            isPanning = true;
+            startPanX = e.clientX - currentPanX;
+            startPanY = e.clientY - currentPanY;
+            img.style.transition = 'none';
+        }
+    });
+
+    window.onmousemove = (e) => {
+        if (!isPanning) return;
+        currentPanX = e.clientX - startPanX;
+        currentPanY = e.clientY - startPanY;
+        applyZoom();
+    };
+
+    window.onmouseup = () => {
+        isPanning = false;
+        const { img } = getZoomElements();
+        if (img) img.style.transition = 'transform 0.1s ease-out';
+    };
+
+    // Zoom with wheel
+    window.addEventListener('wheel', (e) => {
+        const { modal } = getZoomElements();
+        if (modal && modal.style.display === 'flex') {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            adjustZoom(delta);
+        }
+    }, { passive: false });
+
 </script>
+
+<!-- Luxury Zoom Modal -->
+<div id="zoom-modal" onclick="closeZoomModal()">
+    <img id="zoom-image" src="" alt="Zoom" onclick="event.stopPropagation()">
+    <div class="zoom-controls" onclick="event.stopPropagation()">
+        <button class="zoom-btn" onclick="adjustZoom(-0.2)">➖</button>
+        <button class="zoom-btn" onclick="resetZoom()">🔄</button>
+        <button class="zoom-btn" onclick="adjustZoom(0.2)">➕</button>
+        <button class="zoom-btn" onclick="closeZoomModal()" style="color:#ef4444;">✕</button>
+    </div>
+</div>
+
 {% endblock %}

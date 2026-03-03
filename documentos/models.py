@@ -290,6 +290,25 @@ class ComentarioDocumento(models.Model):
     def __str__(self):
         return f"Comentario de {self.usuario.username} en {self.documento.codigo} (Hoja {self.pagina})"
 
+def comentario_imagen_path(instance, filename):
+    return 'comentarios/pins/{}/{}'.format(instance.comentario.id, filename)
+
+class ComentarioImagen(models.Model):
+    """
+    Imágenes o fotos adjuntas a un comentario/pin.
+    """
+    comentario = models.ForeignKey(ComentarioDocumento, on_delete=models.CASCADE, related_name='imagenes')
+    imagen = models.ImageField(upload_to=comentario_imagen_path, storage=minio_storage)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Imagen de Comentario"
+        verbose_name_plural = "Imágenes de Comentarios"
+
+    def __str__(self):
+        return f"Imagen de Pin {self.comentario.id} - {self.id}"
+
+
 class Revision(models.Model):
     """
     Revisiones históricas del documento.

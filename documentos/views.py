@@ -12,7 +12,7 @@ import logging
 import json
 import requests
 import datetime
-from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina, Revision, MetadatoConfig
+from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina, Revision, MetadatoConfig, ComentarioImagen
 
 @login_required
 def documento_trazabilidad(request, doc_id):
@@ -149,7 +149,8 @@ def documento_detalle_json(request, doc_id):
                 'resuelto': c.resuelto,
                 'responsable_id': c.responsable.id if c.responsable else None,
                 'responsable_nombre': c.responsable.get_full_name() or c.responsable.username if c.responsable else None,
-                'vinculos': [{'id': v.id, 'doc_id': v.documento.id, 'doc_codigo': v.documento.codigo} for v in c.vinculos.all()]
+                'vinculos': [{'id': v.id, 'doc_id': v.documento.id, 'doc_codigo': v.documento.codigo} for v in c.vinculos.all()],
+                'imagenes': [request.build_absolute_uri(img.imagen.url) for img in c.imagenes.all()]
             })
 
         usuarios = list(User.objects.filter(is_active=True).values('id', 'username', 'first_name', 'last_name').order_by('first_name'))
@@ -329,24 +330,39 @@ def documento_comentar(request, doc_id):
     """
     try:
         doc = get_object_or_404(Documento, id=doc_id)
-        data = json.loads(request.body)
-        
-        texto = data.get('texto')
-        pos_x = float(data.get('x', 0))
-        pos_y = float(data.get('y', 0))
-        pagina = int(data.get('pagina', 1))
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+            texto = data.get('texto')
+            pos_x = float(data.get('x', 0))
+            pos_y = float(data.get('y', 0))
+            pagina = int(data.get('pagina', 1))
+            tipo = data.get('tipo', 'PIN')
+            ancho = float(data.get('ancho', 0))
+            alto = float(data.get('alto', 0))
+            responsable_id = data.get('responsable_id')
+            vinculo_id = data.get('vinculo_id')
+        else:
+            # Manejar multipart/form-data
+            texto = request.POST.get('texto')
+            pos_x = float(request.POST.get('x', 0))
+            pos_y = float(request.POST.get('y', 0))
+            pagina = int(request.POST.get('pagina', 1))
+            tipo = request.POST.get('tipo', 'PIN')
+            ancho = float(request.POST.get('ancho', 0))
+            alto = float(request.POST.get('alto', 0))
+            responsable_id = request.POST.get('responsable_id')
+            vinculo_id = request.POST.get('vinculo_id')
         
         if not texto:
             return JsonResponse({'error': 'Comentario vacío'}, status=400)
             
         # Asignar responsable si viene en el request
-        responsable_id = data.get('responsable_id')
         responsable = None
         if responsable_id:
              try:
                  from django.contrib.auth.models import User
                  responsable = User.objects.get(id=responsable_id)
-             except User.DoesNotExist:
+             except (User.DoesNotExist, ValueError):
                  pass
 
         comentario = ComentarioDocumento.objects.create(
@@ -355,16 +371,21 @@ def documento_comentar(request, doc_id):
             usuario=request.user,
             responsable=responsable,
             texto=texto,
-            tipo=data.get('tipo', 'PIN'),
+            tipo=tipo,
             posicion_x=pos_x,
             posicion_y=pos_y,
-            ancho=float(data.get('ancho', 0)),
-            alto=float(data.get('alto', 0)),
+            ancho=ancho,
+            alto=alto,
             pagina=pagina
         )
+
+
+        # Procesar imágenes
+        imagenes = request.FILES.getlist('imagenes')
+        for img in imagenes:
+            ComentarioImagen.objects.create(comentario=comentario, imagen=img)
         
         # Procesar vínculos si existen
-        vinculo_id = data.get('vinculo_id')
         if vinculo_id:
             try:
                 pin_origen = ComentarioDocumento.objects.get(id=vinculo_id)
@@ -388,7 +409,8 @@ def documento_comentar(request, doc_id):
                 'pagina': comentario.pagina,
                 'responsable_id': comentario.responsable.id if comentario.responsable else None,
                 'responsable_nombre': comentario.responsable.get_full_name() or comentario.responsable.username if comentario.responsable else None,
-                'vinculos': [{'id': v.id, 'doc_id': v.documento.id, 'doc_codigo': v.documento.codigo} for v in comentario.vinculos.all()]
+                'vinculos': [{'id': v.id, 'doc_id': v.documento.id, 'doc_codigo': v.documento.codigo} for v in comentario.vinculos.all()],
+                'imagenes': [request.build_absolute_uri(img.imagen.url) for img in comentario.imagenes.all()]
             }
         })
     except Exception as e:
@@ -836,31 +858,34 @@ def api_biblioteca_documentos(request, bib_id):
     """
     Lista documentos y marca los que pertenecen a esta biblioteca.
     """
-    from .models import Biblioteca, Documento
-    biblioteca = get_object_or_404(Biblioteca, id=bib_id)
-    
-    query = request.GET.get('q', '')
-    documentos = Documento.objects.all()
-    if query:
-        documentos = documentos.filter(
-            models.Q(codigo__icontains=query) | 
-            models.Q(titulo__icontains=query)
-        )
-    
-    documentos = documentos.order_by('-actualizado_en')[:100]
-    docs_en_bib = set(biblioteca.documentos.values_list('id', flat=True))
-    
-    data = []
-    for d in documentos:
-        data.append({
-            'id': d.id,
-            'codigo': d.codigo,
-            'titulo': d.titulo,
-            'pertenece': d.id in docs_en_bib,
-            'tipo': d.tipo_documento.nombre if d.tipo_documento else ""
-        })
-    
-    return JsonResponse({'status': 'success', 'documentos': data})
+    try:
+        from .models import Biblioteca, Documento
+        biblioteca = get_object_or_404(Biblioteca, id=bib_id)
+        
+        query = request.GET.get('q', '')
+        documentos = Documento.objects.all()
+        if query:
+            documentos = documentos.filter(
+                models.Q(codigo__icontains=query) | 
+                models.Q(titulo__icontains=query)
+            )
+        
+        documentos = documentos.order_by('-actualizado_en')[:100]
+        docs_en_bib = set(biblioteca.documentos.values_list('id', flat=True))
+        
+        data = []
+        for d in documentos:
+            data.append({
+                'id': d.id,
+                'codigo': d.codigo,
+                'titulo': d.titulo,
+                'pertenece': d.id in docs_en_bib,
+                'tipo': d.tipo_documento.nombre if d.tipo_documento else ""
+            })
+        
+        return JsonResponse({'status': 'success', 'documentos': data})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @login_required
 def biblioteca_visualizar(request, bib_id):
