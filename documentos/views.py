@@ -267,6 +267,11 @@ def update_documento_texto(request, doc_id):
         if texto:
             doc.contenido_texto = texto
             doc.save()
+            
+            # Disparar generación de embedding vectorial (pgvector)
+            from .tasks import generate_document_embedding
+            generate_document_embedding.delay(doc.id)
+            
             return JsonResponse({'status': 'ok'})
         
         return JsonResponse({'error': 'No se recibió texto'}, status=400)
@@ -310,8 +315,13 @@ def callback_n8n_procesamiento(request, revision_id):
         if texto_completo:
             revision.documento.contenido_texto = texto_completo
             revision.documento.save()
+            
             # Guardar también en la revisión para el visor del Wizard
             revision.datos_extraidos['text_preview'] = texto_completo[:5000]
+            
+            # Disparar generación de embedding vectorial (pgvector)
+            from .tasks import generate_document_embedding
+            generate_document_embedding.delay(revision.documento.id)
 
         revision.estado_extraccion = 'COMPLETADO'
         revision.save()
@@ -918,3 +928,66 @@ def api_documento_update_status(request, doc_id):
         return JsonResponse({'status': 'success', 'nuevo_estado': nuevo_estado})
     
     return JsonResponse({'status': 'error', 'message': 'Estado inválido'}, status=400)
+
+@login_required
+def api_documento_busqueda_vectorial(request):
+    """
+    Realiza una búsqueda semántica usando embeddings vectoriales (pgvector).
+    100% Local: sentence-transformers + pgvector.
+    """
+    from sentence_transformers import SentenceTransformer
+    from pgvector.django import CosineDistance
+    
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'status': 'success', 'documentos': []})
+        
+    try:
+        # Cargar modelo localmente
+        model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+        
+        # Generar vector para la consulta
+        query_vector = model.encode(query).tolist()
+        
+        # Buscar en la DB usando distancia de coseno
+        # Solo documentos que ya tengan el embedding generado
+        docs = Documento.objects.exclude(embedding__isnull=True).annotate(
+            distance=CosineDistance('embedding', query_vector)
+        ).order_by('distance')[:15]
+        
+        resultados = []
+        for d in docs:
+            resultados.append({
+                'id': d.id,
+                'codigo': d.codigo,
+                'titulo': d.titulo,
+                'distancia': round(float(d.distance), 4),
+                'similitud': round(1 - float(d.distance), 4)
+            })
+            
+        return JsonResponse({'status': 'success', 'documentos': resultados})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error en busqueda vectorial: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+def api_documento_migrar_embeddings(request):
+    """
+    Encola tareas de Celery para generar embeddings de todos los documentos
+    que tienen texto pero no tienen vector.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+        
+    from .tasks import generate_document_embedding
+    
+    docs_sin_vector = Documento.objects.filter(
+        embedding__isnull=True
+    ).exclude(contenido_texto__isnull=True).exclude(contenido_texto='')
+    
+    count = docs_sin_vector.count()
+    for d in docs_sin_vector:
+        generate_document_embedding.delay(d.id)
+        
+    return JsonResponse({'status': 'success', 'enqueued': count})

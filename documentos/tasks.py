@@ -210,3 +210,38 @@ def import_comentarios_task(self, file_path, file_format, user_id=None, verifica
     cache.set(cache_key, final_res, 3600)
     return final_res
 
+@shared_task(name='documentos.tasks.generate_document_embedding')
+def generate_document_embedding(documento_id):
+    """
+    Genera un embedding vectorial para el contenido de texto de un documento
+    usando un modelo multilingüe local.
+    """
+    from .models import Documento
+    from sentence_transformers import SentenceTransformer
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        doc = Documento.objects.get(pk=documento_id)
+        if not doc.contenido_texto:
+            logger.warning(f"Documento {documento_id} no tiene texto para generar embedding.")
+            return False
+            
+        # Modelo ligero de 384 dimensiones (MiniLM) optimizado para múltiples idiomas
+        # Se descarga automáticamente la primera vez (~100MB)
+        model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+        
+        # Generar el vector (embedding)
+        embedding = model.encode(doc.contenido_texto)
+        
+        # Guardar en el campo VectorField de pgvector
+        doc.embedding = embedding.tolist()
+        doc.save()
+        
+        logger.info(f"Embedding generado exitosamente para Documento {documento_id} ({doc.codigo})")
+        return True
+    except Exception as e:
+        logger.error(f"Error generando embedding para Documento {documento_id}: {str(e)}")
+        return False
+

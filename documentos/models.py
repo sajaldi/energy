@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
+from pgvector.django import VectorField
 import os
 import hashlib
 import datetime # Required for Revision model default
@@ -200,6 +201,9 @@ class Documento(models.Model):
         null=True,
         help_text="Fecha en que expira la validez del documento."
     )
+    
+    # Campo para búsqueda vectorial semántica
+    embedding = VectorField(dimensions=384, null=True, blank=True)
 
     def __str__(self):
         return f"{self.codigo} - {self.titulo}"
