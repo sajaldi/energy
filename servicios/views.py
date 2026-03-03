@@ -1,4 +1,5 @@
 import time
+import os
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.cache import cache
@@ -53,6 +54,8 @@ def import_kpis_process(request):
     verification_mode = v_val in ['true', 'on', '1']
     dry_run = (not verification_mode) and (not is_confirm)
     
+    import_name = request.POST.get('name') or f"KPIs: {import_file.name if import_file else os.path.basename(path)}"
+    
     task = import_kpis_task.delay(
         path, 
         file_ext, 
@@ -78,9 +81,6 @@ def import_kpis_progress(request):
     progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
     
     res = AsyncResult(task_id)
-    if res:
-        progress['state'] = res.state
-    
     if res.state == 'SUCCESS':
         if isinstance(res.result, dict):
             progress.update(res.result)
@@ -89,5 +89,11 @@ def import_kpis_progress(request):
     elif res.state == 'FAILURE':
         progress['error'] = str(res.result)
         progress['state'] = 'FAILURE'
+    elif res.state == 'PROGRESS':
+        if isinstance(res.info, dict):
+            progress.update(res.info)
+        progress['state'] = 'PROGRESS'
+    else:
+        progress['state'] = res.state if res else 'PENDING'
         
     return JsonResponse(progress)

@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from .models import OrdenTrabajo, Rutina, Categoria, Programacion, Aviso # NUEVO: Aviso
+from mantenimiento.models import OrdenTrabajo, Rutina, Tipo, Programacion, Aviso # NUEVO: Aviso
 from activos.models import Activo # NUEVO: Activo
 from django.utils import timezone
 from datetime import datetime, date, timedelta
@@ -20,7 +20,7 @@ def calendario_mantenimiento(request):
     ordenes = OrdenTrabajo.objects.filter(
         inicio_programado__year=year
     ).select_related(
-        'rutina__categoria',
+        'rutina__tipo',
         'rutina__frecuencia',
         'ubicacion',
         'programacion__horario'
@@ -28,21 +28,21 @@ def calendario_mantenimiento(request):
         'programacion__horario__dias',
         'activos'
     ).order_by(
-        'rutina__categoria__nombre',
+        'rutina__tipo__nombre',
         'rutina__nombre',
         'inicio_programado'
     )
     
     # Optimización: Precargar categorías en memoria para evitar N+1 al usar get_root()
-    categorias_full = {c.id: c for c in Categoria.objects.all()}
+    categorias_full = {c.id: c for c in Tipo.objects.all()}
     for cat in categorias_full.values():
         if cat.padre_id:
             cat.padre = categorias_full.get(cat.padre_id)
 
     # Re-vincular las categorías de las rutinas de las OTs con las del mapa manual
     for ot in ordenes:
-        if ot.rutina and ot.rutina.categoria_id:
-            ot.rutina.categoria = categorias_full.get(ot.rutina.categoria_id)
+        if ot.rutina and ot.rutina.tipo_id:
+            ot.rutina.tipo = categorias_full.get(ot.rutina.tipo_id)
     MESES_NOMBRES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
     
     meses_info = []
@@ -64,7 +64,7 @@ def calendario_mantenimiento(request):
     # Identificar órdenes y agruparlas
     for ot in ordenes:
         rut = ot.rutina
-        cat = rut.categoria
+        cat = rut.tipo
         
         if cat:
             # Simplificamos: Disciplina = Raíz, Sub-Disciplina = Categoría Actual
@@ -261,17 +261,17 @@ def calendario_detallado(request):
     ordenes = OrdenTrabajo.objects.filter(
         inicio_programado__year=year
     ).select_related(
-        'rutina__categoria',
+        'rutina__tipo',
         'rutina__frecuencia',
         'ubicacion'
     ).order_by(
-        'rutina__categoria__nombre',
+        'rutina__tipo__nombre',
         'rutina__nombre',
         'ubicacion__nombre',
         'inicio_programado'
     )
     
-    categorias_full = {c.id: c for c in Categoria.objects.all()}
+    categorias_full = {c.id: c for c in Tipo.objects.all()}
     for cat in categorias_full.values():
         if cat.padre_id:
             cat.padre = categorias_full.get(cat.padre_id)
@@ -296,7 +296,7 @@ def calendario_detallado(request):
         rut = ot.rutina
         if not rut: continue
         
-        cat = rut.categoria
+        cat = rut.tipo
         if cat:
             cat = categorias_full.get(cat.id) or cat
             dis_name = cat.get_root().nombre
@@ -491,17 +491,17 @@ def cronograma_mantenimiento_visual(request):
         **filtros
     ).select_related(
         'ubicacion', 
-        'rutina__categoria', 
+        'rutina__tipo', 
         'rutina__frecuencia',
         'programacion__horario'
     ).values(
         'id', 'rutina__nombre', 'ubicacion__nombre', 'ubicacion_id',
-        'rutina__categoria_id', 'inicio_programado', 'estado',
+        'rutina__tipo_id', 'inicio_programado', 'estado',
         'programacion__horario__color'
     )
     
     # Precargar categorías para encontrar raíces (sistemas)
-    categorias = {c.id: c for c in Categoria.objects.all()}
+    categorias = {c.id: c for c in Tipo.objects.all()}
     for c in categorias.values():
         if c.padre_id:
             c.padre = categorias.get(c.padre_id)
@@ -556,9 +556,8 @@ def cronograma_mantenimiento_visual(request):
 
             routine_label = ot['rutina__nombre'] or "General"
         else: # sistema
-            cat_id = ot['rutina__categoria_id']
+            cat_id = ot['rutina__tipo_id']
             if cat_id and cat_id in categorias:
-                root = categorias[cat_id].get_root()
                 group_label = root.nombre
                 # La subcategoría es la categoría directa, a menos que sea la misma raíz
                 sub_label = categorias[cat_id].nombre if categorias[cat_id].id != root.id else "General"
@@ -730,14 +729,14 @@ def detalle_mes(request, year, month):
             non_working_days.append(d)
 
     ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
-        'rutina__categoria', 
+        'rutina__tipo', 
         'rutina__frecuencia',
         'ubicacion',
         'programacion__horario'
-    ).prefetch_related('activos', 'rutina__categoria')
+    ).prefetch_related('activos', 'rutina__tipo')
     
     # Precargar categorías
-    categs = {c.id: c for c in Categoria.objects.all()}
+    categs = {c.id: c for c in Tipo.objects.all()}
     for c in categs.values():
         if c.padre_id: c.padre = categs.get(c.padre_id)
 

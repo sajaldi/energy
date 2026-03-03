@@ -1,4 +1,5 @@
 import time
+import os
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
@@ -89,16 +90,20 @@ def import_requisiciones_progress(request):
     progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
     
     res = AsyncResult(task_id)
-    progress['state'] = res.state if res else 'PENDING'
-    
-    if res and res.state == 'SUCCESS':
+    if res.state == 'SUCCESS':
         if isinstance(res.result, dict):
             progress.update(res.result)
         progress['state'] = 'COMPLETED'
         progress['percent'] = 100
-    elif res and res.state == 'FAILURE':
+    elif res.state == 'FAILURE':
         progress['error'] = str(res.result)
         progress['state'] = 'FAILURE'
+    elif res.state == 'PROGRESS':
+        if isinstance(res.info, dict):
+            progress.update(res.info)
+        progress['state'] = 'PROGRESS'
+    else:
+        progress['state'] = res.state if res else 'PENDING'
         
     return JsonResponse(progress)
 
