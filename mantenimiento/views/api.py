@@ -193,9 +193,9 @@ def api_get_assets_wizard(request):
         from ..models import Rutina
         try:
             rutina = Rutina.objects.get(id=rutina_id)
-            if rutina.categoria:
-                # Get all asset categories linked to this routine category or its subcategories
-                r_cats = rutina.categoria.get_descendants(include_self=True)
+            if rutina.tipo:
+                # Get all asset categories linked to this routine tipo or its subtypes
+                r_cats = rutina.tipo.get_descendants(include_self=True)
                 asset_cats_ids = [rc.categoria_activo_id for rc in r_cats if rc.categoria_activo_id]
                 for acid in asset_cats_ids:
                     try:
@@ -273,3 +273,75 @@ def api_search_ordenes(request):
         })
     
     return JsonResponse({'results': results})
+
+@staff_member_required
+def api_get_ot_detail(request, pk):
+    """
+    Retorna detalles de una OT para mostrar en modal (Dashboard/Cronograma).
+    """
+    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'programacion', 'aviso').prefetch_related('activos'), pk=pk)
+    
+    activos = [{"id": a.id, "nombre": a.nombre, "codigo": a.codigo_interno} for a in ot.activos.all()]
+    
+    data = {
+        'id': ot.id,
+        'codigo': ot.codigo_de_orden or f"OT #{ot.id}",
+        'tipo': ot.get_tipo_display(),
+        'prioridad': ot.get_prioridad_display(),
+        'estado': ot.get_estado_display(),
+        'rutina': ot.rutina.nombre if ot.rutina else (f"Aviso #{ot.aviso.id}" if ot.aviso else "OT Correctiva"),
+        'ubicacion': ot.ubicacion.get_ruta_completa() if (ot.ubicacion and hasattr(ot.ubicacion, 'get_ruta_completa')) else (str(ot.ubicacion) if ot.ubicacion else 'No especificada'),
+        'tecnico': ot.tecnico.get_full_name() or ot.tecnico.username if ot.tecnico else 'No asignado',
+        'inicio': ot.inicio_programado.strftime('%d/%m/%Y %H:%M') if ot.inicio_programado else 'Sin fecha',
+        'fin': ot.fin_programado.strftime('%d/%m/%Y %H:%M') if ot.fin_programado else 'Sin fecha',
+        'notas': ot.notas or ot.descripcion_corta or 'Sin observaciones adicionales.',
+        'activos': activos,
+        'status_color': get_status_color(ot.estado),
+        'raw_status': ot.estado,
+        'status_list': [{'id': k, 'label': v} for k, v in OrdenTrabajo.ESTADO_CHOICES]
+    }
+    return JsonResponse({'status': 'success', 'ot': data})
+
+@staff_member_required
+@require_POST
+@csrf_exempt
+def api_update_ot_status_notes(request, pk):
+    """
+    Actualiza el estado y las notas de una OT desde el modal del cronograma.
+    """
+    try:
+        ot = get_object_or_404(OrdenTrabajo, pk=pk)
+        data = json.loads(request.body)
+        
+        nuevo_estado = data.get('estado')
+        nuevas_notas = data.get('notas')
+        
+        if nuevo_estado:
+            # Validar que sea un estado permitido
+            if nuevo_estado in dict(OrdenTrabajo.ESTADO_CHOICES):
+                ot.estado = nuevo_estado
+                if nuevo_estado == 'EJECUCION' and not ot.fecha_ejecucion:
+                    ot.fecha_ejecucion = timezone.now()
+            else:
+                return JsonResponse({'status': 'error', 'message': f'Estado {nuevo_estado} no válido'}, status=400)
+        
+        if nuevas_notas is not None:
+            ot.notas = nuevas_notas
+            
+        ot.save()
+        return JsonResponse({'status': 'success', 'message': 'Orden actualizada correctamente'})
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+def get_status_color(estado):
+    colors = {
+        'PROGRAMADA': '#3b82f6',
+        'EJECUCION': '#f59e0b',
+        'REALIZADA': '#10b981',
+        'CANCELADA': '#ef4444',
+        'ESPERA': '#64748b'
+    }
+    return colors.get(estado, '#64748b')

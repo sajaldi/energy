@@ -104,6 +104,31 @@ class DisciplinaResource(resources.ModelResource):
         report_skipped = True
         use_bulk = False  # Desactivado para jerarquías (fila a fila para actualizar caché)
 
+class CategoriaResource(resources.ModelResource):
+    padre_nombre = fields.Field(
+        column_name='padre_nombre',
+        attribute='padre',
+        widget=ForeignKeyWidget(Categoria, field='nombre')
+    )
+
+    def before_import_row(self, row, **kwargs):
+        """Limpiar espacios en blanco."""
+        if 'nombre' in row:
+            row['nombre'] = str(row['nombre']).strip()
+        if 'padre_nombre' in row and row['padre_nombre']:
+            row['padre_nombre'] = str(row['padre_nombre']).strip()
+        else:
+            row['padre_nombre'] = None
+
+    class Meta:
+        model = Categoria
+        import_id_fields = ('nombre',)
+        fields = ('id', 'nombre', 'padre_nombre', 'icono', 'descripcion')
+        export_order = fields
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
 class FamiliaResource(resources.ModelResource):
     padre_nombre = fields.Field(
         column_name='padre_nombre',

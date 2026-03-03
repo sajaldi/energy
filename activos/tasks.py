@@ -619,3 +619,114 @@ def import_submittals_task(self, file_path, file_format, user_id=None, import_na
     }
     cache.set(cache_key, final_res, 3600)
     return final_res
+
+@shared_task(bind=True)
+def import_categorias_task(self, file_path, file_format, user_id=None, import_name="Importación Categorías Activos"):
+    """
+    Tarea Celery para importar CATEGORIAS con seguimiento de progreso real.
+    """
+    from tablib import Dataset
+    from django.core.files.storage import default_storage
+    from django.core.cache import cache
+    from .resources import CategoriaResource
+    from .models import RegistroImportacion
+    from django.contrib.auth.models import User
+    
+    user = User.objects.get(id=user_id) if user_id else None
+    
+    # Crear registro de importación
+    registro = RegistroImportacion.objects.create(
+        nombre=import_name,
+        tipo='Categorías (Activos)',
+        usuario=user,
+        estado='PROCESANDO'
+    )
+    
+    # Inicializar resource
+    resource = CategoriaResource()
+    
+    # Marcador de progreso en caché
+    cache_key = f"import_categorias_progress_{user_id}" if user_id else "import_categorias_progress_system"
+
+    # Leer archivo
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(file_content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(file_content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        registro.estado = 'ERROR'
+        registro.detalles_error = f'Error al leer archivo: {str(e)}'
+        registro.save()
+        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        cache.set(cache_key, error_res, 3600)
+        return error_res
+
+    total_rows = len(dataset)
+    registro.total_filas = total_rows
+    registro.save()
+    
+    # Estado inicial
+    progress_info = {
+        'current': 0, 
+        'total': total_rows, 
+        'status': 'Iniciando importacion...', 
+        'percent': 0,
+        'new': 0,
+        'updated': 0,
+        'skipped': 0,
+        'errors': 0
+    }
+    cache.set(cache_key, progress_info, 3600)
+    self.update_state(state='PROGRESS', meta=progress_info)
+
+    try:
+        result = resource.import_data(dataset, dry_run=False, raise_errors=False)
+        
+        detailed_errors = []
+        for error in result.base_errors:
+            detailed_errors.append(f"Error General: {str(error.error)}")
+        for line, errors in result.row_errors():
+            for error in errors:
+                detailed_errors.append(f"Fila {line}: {str(error.error)}")
+
+        # Actualizar registro con éxito
+        registro.filas_nuevas = result.totals.get('new', 0)
+        registro.filas_actualizadas = result.totals.get('update', 0)
+        registro.filas_omitidas = result.totals.get('skip', 0)
+        registro.filas_error = len(detailed_errors)
+        registro.estado = 'COMPLETADO'
+        if detailed_errors:
+            registro.detalles_error = "\n".join(detailed_errors[:50])
+        registro.save()
+
+        final_res = {
+            'status': 'completed',
+            'status_code': 'completed',
+            'total': total_rows,
+            'new': registro.filas_nuevas,
+            'updated': registro.filas_actualizadas,
+            'skipped': registro.filas_omitidas,
+            'errors': registro.filas_error,
+            'error_list': detailed_errors
+        }
+    except Exception as e:
+        error_msg = f"Error crítico durante el procesamiento: {str(e)}"
+        registro.estado = 'ERROR'
+        registro.detalles_error = error_msg
+        registro.save()
+        final_res = {'status': 'error', 'message': error_msg}
+
+    # Limpiar archivo original
+    try:
+        if default_storage.exists(file_path):
+            default_storage.delete(file_path)
+    except:
+        pass
+        
+    cache.set(cache_key, final_res, 3600)
+    return final_res

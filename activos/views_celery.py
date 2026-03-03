@@ -273,3 +273,92 @@ def imports_dashboard(request):
         'stats': stats,
     }
     return render(request, 'activos/import_dashboard.html', context)
+
+# --------------------------
+# IMPORTACIÓN DE CATEGORÍAS
+# --------------------------
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def import_categorias_view(request):
+    """Renders the upload form for Category background import."""
+    from django.contrib import admin
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Importación masiva de Categorías (Activos)',
+    }
+    return render(request, 'activos/celery_import_categorias.html', context)
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@csrf_exempt
+def import_categorias_process(request):
+    """Triggers the Celery task for importing categories."""
+    from .tasks import import_categorias_task
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    import_file = request.FILES.get('file')
+    if not import_file:
+        return JsonResponse({'error': 'No se subió ningún archivo'}, status=400)
+            
+    file_ext = import_file.name.split('.')[-1].lower()
+    temp_name = f'tmp/import_categorias_activos_{request.user.id}_{int(time.time())}.{file_ext}'
+    
+    try:
+        path = default_storage.save(temp_name, import_file)
+    except Exception as e:
+        return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
+    
+    cache_key = f"import_categorias_progress_{request.user.id}"
+    cache.delete(cache_key)
+    
+    import_name = request.POST.get('name') or f"Importación Categorías {import_file.name}"
+    
+    task = import_categorias_task.delay(path, file_ext, user_id=request.user.id, import_name=import_name)
+    
+    return JsonResponse({'status': 'started', 'task_id': task.id})
+
+@login_required
+def import_categorias_progress(request):
+    """API to poll progress for category import."""
+    task_id = request.GET.get('task_id')
+    if not task_id:
+        return JsonResponse({'error': 'Falta task_id'}, status=400)
+        
+    cache_key = f"import_categorias_progress_{request.user.id}"
+    progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
+    
+    res = AsyncResult(task_id)
+    if res.state == 'SUCCESS':
+        if isinstance(res.result, dict):
+            progress.update(res.result)
+        progress['state'] = 'COMPLETED'
+        progress['percent'] = 100
+    elif res.state == 'FAILURE':
+        progress['error'] = str(res.result)
+        progress['state'] = 'FAILURE'
+    else:
+        progress['state'] = res.state
+        
+    return JsonResponse(progress)
+
+@login_required
+def download_categorias_template(request):
+    """Genera y descarga una plantilla Excel para Categorías de Activos."""
+    from .admin import CategoriaResource
+    from django.http import HttpResponse
+    
+    resource = CategoriaResource()
+    dataset = resource.export(queryset=[])
+    
+    export_format = request.GET.get('format', 'xlsx')
+    
+    if export_format == 'csv':
+        response = HttpResponse(dataset.csv, content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_categorias_activos.csv"'
+    else:
+        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_categorias_activos.xlsx"'
+        
+    return response

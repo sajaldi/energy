@@ -37,8 +37,8 @@ def programar_rutina_wizard(request):
     horarios = Horario.objects.all().prefetch_related('dias')
     ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
     categorias_activos = CategoriaActivo.objects.filter(padre__isnull=True).order_by('nombre')
-    rutinas = Rutina.objects.all().select_related('categoria', 'frecuencia')
-    pre_cat = rutina.categoria.categoria_activo.id if rutina and rutina.categoria and rutina.categoria.categoria_activo else None
+    rutinas = Rutina.objects.all().select_related('tipo', 'frecuencia')
+    pre_cat = rutina.tipo.categoria_activo.id if rutina and rutina.tipo and rutina.tipo.categoria_activo else None
 
     return render(request, 'mantenimiento/visual_scheduler.html', {
         'rutina_preselected': rutina, 'rutinas': rutinas, 'horarios': horarios, 'ubicaciones_roots': ubicaciones_roots, 'categorias_activos': categorias_activos, 'preselected_cat_id': pre_cat, 'today': today,

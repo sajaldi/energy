@@ -19,7 +19,9 @@ from .api import (
     api_get_assets_wizard,
     generar_ordenes_programacion,
     api_generar_orden_individual,
-    api_search_ordenes
+    api_search_ordenes,
+    api_get_ot_detail,
+    api_update_ot_status_notes
 )
 from .wizard import programar_rutina_wizard
 from .mobile import (
@@ -37,3 +39,4 @@ from .dashboard import dashboard_cargas
 from .dashboard_general import mantenimiento_dashboard
 from . import import_personal
 from . import import_procedimientos
+from . import import_categorias

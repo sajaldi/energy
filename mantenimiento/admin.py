@@ -10,7 +10,7 @@ from django.shortcuts import render
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
-from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso
+from .models import Tipo, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso
 from activos.models import Categoria as CategoriaActivo
 from django.utils.safestring import mark_safe
 from django.urls import reverse, path
@@ -22,15 +22,15 @@ from activos.models import Activo, Ubicacion
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
-class CategoriaResource(resources.ModelResource):
+class TipoResource(resources.ModelResource):
     """
-    Resource para import/export de categorías jerárquicas.
+    Resource para import/export de tipos jerárquicos.
     Permite importar usando el nombre del padre para mayor facilidad.
     """
     padre = fields.Field(
         column_name='padre',
         attribute='padre',
-        widget=ForeignKeyWidget(Categoria, field='nombre')
+        widget=ForeignKeyWidget(Tipo, field='nombre')
     )
     
     ruta_completa = fields.Field(
@@ -40,7 +40,7 @@ class CategoriaResource(resources.ModelResource):
     )
     
     class Meta:
-        model = Categoria
+        model = Tipo
         fields = ('id', 'ruta_completa', 'nombre', 'padre', 'categoria_activo', 'descripcion')
         export_order = ('id', 'ruta_completa', 'nombre', 'padre', 'categoria_activo', 'descripcion')
         readonly_fields = ('ruta_completa',)
@@ -57,19 +57,19 @@ class CategoriaResource(resources.ModelResource):
         if nombre_padre:
             nombre_padre = str(nombre_padre).strip()
             # Si el padre no existe, intentamos buscarlo por nombre
-            if not Categoria.objects.filter(nombre=nombre_padre).exists():
+            if not Tipo.objects.filter(nombre=nombre_padre).exists():
                 # Nota: En una importación masiva, esto podría fallar si el padre se crea después.
                 # Pero para la mayoría de los casos de 'texto', esto lo hace más amigable.
                 pass
 
 from django import forms
 
-class SubcategoriaInline(admin.TabularInline):
-    model = Categoria
+class SubtipoInline(admin.TabularInline):
+    model = Tipo
     fk_name = 'padre'
     extra = 1
-    verbose_name = "Subcategoría"
-    verbose_name_plural = "Subcategorías"
+    verbose_name = "Subtipo"
+    verbose_name_plural = "Subtipos"
     show_change_link = True
     fields = ('nombre', 'descripcion')
     # Forzar que la descripción sea un input de texto en lugar de un textarea para que quepa en la tabla
@@ -92,18 +92,31 @@ class RutinaInline(admin.TabularInline):
     show_change_link = True
     # classes = ('collapse',)  <-- Eliminado para que aparezca abierto por defecto
 
-@admin.register(Categoria)
-class CategoriaAdmin(ImportExportModelAdmin):
+@admin.register(Tipo)
+class TipoAdmin(ImportExportModelAdmin):
     """
-    Admin para categorías jerárquicas con estructura simple.
+    Admin para tipos jerárquicos con estructura simple.
     """
     list_per_page = 50
-    resource_class = CategoriaResource
+    resource_class = TipoResource
+    change_list_template = "admin/mantenimiento/tipo/change_list.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('import-celery/', self.admin_site.admin_view(self.import_celery_view), name='tipo_import_celery'),
+        ]
+        return custom_urls + urls
+
+    def import_celery_view(self, request):
+        from django.shortcuts import redirect
+        return redirect('mantenimiento:tipo_import_background')
+
     list_display = ('nombre', 'padre', 'categoria_activo', 'descripcion')
     search_fields = ('nombre',)
     list_filter = ('padre', 'categoria_activo')
     autocomplete_fields = ('padre', 'categoria_activo')
-    inlines = [SubcategoriaInline, RutinaInline]
+    inlines = [SubtipoInline, RutinaInline]
 
 
 @admin.register(Frecuencia)
@@ -123,7 +136,7 @@ class PuestoTrabajoAdmin(admin.ModelAdmin):
         return mark_safe(f'<a class="button" href="{url}" style="background: #4f46e5; color: white; font-weight: 700;">📊 VER DASHBOARD DE CARGAS</a>')
     ver_dashboard_link.short_description = 'Dashboard'
 
-from .models import Categoria, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Empresa
+from .models import Tipo, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Empresa
 
 class EmpresaResource(resources.ModelResource):
     class Meta:
@@ -462,8 +475,8 @@ class RutinaResource(resources.ModelResource):
     """
     Resource personalizado para exportar/importar rutinas.
     
-    IMPORTACIÓN: nombre, categoria_nombre, frecuencia_nombre, descripcion, tiempo_estimado, cantidad_tecnicos
-    EXPORTACIÓN: Incluye todos los campos con nombres legibles + ruta completa de categoría
+    IMPORTACIÓN: nombre, tipo_nombre, frecuencia_nombre, descripcion, tiempo_estimado, cantidad_tecnicos
+    EXPORTACIÓN: Incluye todos los campos con nombres legibles + ruta completa del tipo
     """
     nombre = fields.Field(
         column_name='nombre',
@@ -475,14 +488,14 @@ class RutinaResource(resources.ModelResource):
         attribute='codigo_rutina'
     )
     
-    categoria_nombre = fields.Field(
-        column_name='categoria_nombre',
-        attribute='categoria',
-        widget=ForeignKeyWidget(Categoria, field='nombre')
+    tipo_nombre = fields.Field(
+        column_name='tipo_nombre',
+        attribute='tipo',
+        widget=ForeignKeyWidget(Tipo, field='nombre')
     )
     
-    categoria_ruta = fields.Field(
-        column_name='categoria_ruta',
+    tipo_ruta = fields.Field(
+        column_name='tipo_ruta',
         readonly=True
     )
     
@@ -546,20 +559,20 @@ class RutinaResource(resources.ModelResource):
         import_id_fields = ('codigo_rutina',)
         # EXCLUIMOS 'id' de los campos de importación para evitar que el loader 
         # intente buscar por ID (que suele estar vacío en plantillas nuevas)
-        fields = ('codigo_rutina', 'nombre', 'categoria_nombre', 'categoria_ruta', 
+        fields = ('codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta', 
                   'frecuencia_nombre', 'procedimiento_estandar', 'descripcion', 
                   'tiempo_estimado', 'cantidad_tecnicos', 'herramientas')
-        export_order = ('id', 'codigo_rutina', 'nombre', 'categoria_nombre', 'categoria_ruta', 
+        export_order = ('id', 'codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta', 
                        'frecuencia_nombre', 'procedimiento_estandar', 'tiempo_estimado', 
                        'cantidad_tecnicos', 'herramientas', 'descripcion')
         skip_unchanged = True
         report_skipped = True
         use_bulk = False
     
-    def dehydrate_categoria_ruta(self, rutina):
-        """Exporta la ruta completa de la categoría"""
-        if rutina.categoria:
-            return rutina.categoria.get_ruta_completa()
+    def dehydrate_tipo_ruta(self, rutina):
+        """Exporta la ruta completa del tipo"""
+        if rutina.tipo:
+            return rutina.tipo.get_ruta_completa()
         return ''
 
 class CachedForeignKeyWidget(ForeignKeyWidget):
@@ -1057,10 +1070,10 @@ class RutinaAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/mantenimiento/rutina/change_list.html'
     list_per_page = 50
     resource_class = RutinaResource
-    list_display = ('codigo_rutina', 'nombre', 'categoria', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'ver_dashboard_link', 'programar_rutina_link')
-    list_filter = (('categoria', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo')
+    list_display = ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'ver_dashboard_link', 'programar_rutina_link')
+    list_filter = (('tipo', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo')
     search_fields = ('codigo_rutina', 'nombre', 'procedimiento_estandar__nombre', 'herramientas')
-    autocomplete_fields = ('categoria', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
+    autocomplete_fields = ('tipo', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
     readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link', 'ver_dashboard_link')
     list_select_related = True
     inlines = [ProgramacionInline] # Agregado historial de programaciones
@@ -1078,16 +1091,16 @@ class RutinaAdmin(ImportExportModelAdmin):
     ver_dashboard_link.short_description = 'Dashboard'
 
     def get_queryset(self, request):
-        # Optimización profunda para evitar N+1 en la renderización de la ruta de categorías (soporta hasta 6 niveles)
+        # Optimización profunda para evitar N+1 en la renderización de la ruta de tipos (soporta hasta 6 niveles)
         return super().get_queryset(request).select_related(
-            'categoria__padre__padre__padre__padre__padre', 
+            'tipo__padre__padre__padre__padre__padre', 
             'frecuencia', 
             'puesto_trabajo'
         )
     
     fieldsets = (
         ('Identificación', {
-            'fields': ('codigo_rutina', ('nombre', 'programar_rutina_link'), 'categoria', 'frecuencia', 'puesto_trabajo')
+            'fields': ('codigo_rutina', ('nombre', 'programar_rutina_link'), 'tipo', 'frecuencia', 'puesto_trabajo')
         }),
         ('Manual de Pasos', {
             'fields': ('procedimiento_estandar', 'herramientas')

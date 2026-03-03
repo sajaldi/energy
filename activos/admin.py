@@ -414,7 +414,7 @@ class ModeloAdmin(ImportExportModelAdmin):
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
         
         # Buscar la categoría de mantenimiento vinculada (a través de la relación inversa)
-        m_cat = getattr(obj.categoria, 'mantenimiento_categoria', None)
+        m_cat = getattr(obj.categoria, 'mantenimiento_tipo', None)
         
         if not m_cat:
             return format_html('<span style="color: #94a3b8; font-style: italic;">La categoría "{0}" no tiene una categoría de mantenimiento vinculada.</span>', obj.categoria.nombre)
@@ -427,7 +427,7 @@ class ModeloAdmin(ImportExportModelAdmin):
             m_cats_ids.append(curr.id)
             curr = curr.padre
             
-        rutinas = Rutina.objects.filter(categoria_id__in=m_cats_ids).select_related('frecuencia', 'categoria')
+        rutinas = Rutina.objects.filter(tipo_id__in=m_cats_ids).select_related('frecuencia', 'tipo')
         
         if not rutinas.exists():
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas de mantenimiento configuradas para la categoría "{0}".</span>', obj.categoria.nombre)
@@ -450,7 +450,7 @@ class ModeloAdmin(ImportExportModelAdmin):
             html += f'<tr style="border-bottom: 1px solid #f1f5f9;">'
             html += f'<td style="padding: 12px 15px;">'
             html += f'<div style="font-weight: 600; color: #1e293b;">{r.nombre}</div>'
-            html += f'<div style="font-size: 0.75rem; color: #64748b;">{r.categoria.nombre if r.categoria else "General"}</div>'
+            html += f'<div style="font-size: 0.75rem; color: #64748b;">{r.tipo.nombre if r.tipo else "General"}</div>'
             html += f'</td>'
             html += f'<td style="padding: 12px 15px; text-align: center;">'
             html += f'<span style="background: #eff6ff; color: #2563eb; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 0.75rem;">{frec_nombre}</span>'
@@ -579,7 +579,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay categoría asignada. Asigne una categoría (ej: "Quirófano", "Subestación") para ver las rutinas.</span>')
         
         # Buscar la categoría de mantenimiento vinculada
-        m_cat = getattr(obj.categoria, 'mantenimiento_categoria', None)
+        m_cat = getattr(obj.categoria, 'mantenimiento_tipo', None)
         
         if not m_cat:
             return format_html(
@@ -599,10 +599,10 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
             m_cats_ids.append(curr.id)
             curr = curr.padre
             
-        rutinas = Rutina.objects.filter(categoria_id__in=m_cats_ids).select_related('frecuencia', 'categoria', 'puesto_trabajo')
+        rutinas = Rutina.objects.filter(tipo_id__in=m_cats_ids).select_related('frecuencia', 'tipo', 'puesto_trabajo')
         
         if not rutinas.exists():
-            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas definidas para la categoría "{}" ni sus superiores.</span>', m_cat.nombre)
+            return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas definidas para el tipo "{}" ni sus superiores.</span>', m_cat.nombre)
             
         html = '<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 5px;">'
         html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">'
@@ -626,7 +626,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
             html += f'<td style="padding: 12px 15px;">'
             html += f'<div style="font-weight: 600; color: #1e293b;">{r.nombre}</div>'
             if is_inherited:
-                html += f'<div style="font-size: 0.70rem; color: #94a3b8;">Heredada de: {r.categoria.nombre}</div>'
+                html += f'<div style="font-size: 0.70rem; color: #94a3b8;">Heredada de: {r.tipo.nombre}</div>'
             else:
                 html += f'<div style="font-size: 0.70rem; color: #10b981;">Específica del sitio</div>'
             html += f'</td>'
@@ -1149,7 +1149,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay una categoría de activo definida para este modelo.</span>')
         
         # Buscar la categoría de mantenimiento vinculada
-        m_cat = getattr(obj.modelo.categoria, 'mantenimiento_categoria', None)
+        m_cat = getattr(obj.modelo.categoria, 'mantenimiento_tipo', None)
 
         if not m_cat:
             return format_html('<span style="color: #94a3b8; font-style: italic;">La categoría "{0}" no tiene una categoría de mantenimiento vinculada.</span>', obj.modelo.categoria.nombre)
@@ -1162,7 +1162,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             m_cats_ids.append(curr.id)
             curr = curr.padre
             
-        rutinas = Rutina.objects.filter(categoria_id__in=m_cats_ids).select_related('frecuencia', 'categoria')
+        rutinas = Rutina.objects.filter(tipo_id__in=m_cats_ids).select_related('frecuencia', 'tipo')
         
         if not rutinas.exists():
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay rutinas de mantenimiento configuradas para la categoría "{0}".</span>', obj.modelo.categoria.nombre)
@@ -1185,7 +1185,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             html += f'<tr style="border-bottom: 1px solid #f1f5f9;">'
             html += f'<td style="padding: 12px 15px;">'
             html += f'<div style="font-weight: 600; color: #1e293b;">{r.nombre}</div>'
-            html += f'<div style="font-size: 0.75rem; color: #64748b;">{r.categoria.nombre if r.categoria else "General"}</div>'
+            html += f'<div style="font-size: 0.75rem; color: #64748b;">{r.tipo.nombre if r.tipo else "General"}</div>'
             html += f'</td>'
             html += f'<td style="padding: 12px 15px; text-align: center;">'
             html += f'<span style="background: #eff6ff; color: #2563eb; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 0.75rem;">{frec_nombre}</span>'
@@ -1821,8 +1821,8 @@ class DocumentoMedicionAdmin(admin.ModelAdmin):
 
 # Registro robusto para evitar AlreadyRegistered
 class RegistroImportacionAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'fecha', 'usuario', 'estado', 'stats_summary', 'revert_button')
-    list_filter = ('estado', 'fecha', 'usuario')
+    list_display = ('nombre', 'tipo', 'fecha', 'usuario', 'estado', 'stats_summary', 'revert_button')
+    list_filter = ('tipo', 'estado', 'fecha', 'usuario')
     search_fields = ('nombre',)
     readonly_fields = ('nombre', 'fecha', 'usuario', 'estado', 'total_filas', 'filas_nuevas', 'filas_actualizadas', 'filas_omitidas', 'filas_error', 'detalles_error', 'ids_creados')
     

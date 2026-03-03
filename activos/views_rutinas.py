@@ -24,8 +24,8 @@ def get_rutinas_ubicacion(request):
         return JsonResponse({'rutinas': []})
     
     # 1. Encontrar la categoría de mantenimiento vinculada a esta categoría de activo
-    # La relación es OneToOne en Mantenimiento.Categoria hacia Activos.Categoria
-    m_cat = getattr(activos_cat, 'mantenimiento_categoria', None)
+    # La relación es OneToOne en Mantenimiento.Tipo hacia Activos.Categoria
+    m_cat = getattr(activos_cat, 'mantenimiento_tipo', None)
     
     if not m_cat:
         # Intento de fallback: buscar si algún ANCESTRO de la categoría de activo tiene vínculo
@@ -42,13 +42,13 @@ def get_rutinas_ubicacion(request):
         
     # 3. Buscar todas las rutinas que pertenezcan a cualquiera de esas categorías
     rutinas = Rutina.objects.filter(
-        categoria_id__in=m_cats_ids
-    ).select_related('frecuencia', 'categoria', 'puesto_trabajo').order_by('categoria__nombre', 'nombre')
+        tipo_id__in=m_cats_ids
+    ).select_related('frecuencia', 'tipo', 'puesto_trabajo').order_by('tipo__nombre', 'nombre')
     
     data_rutinas = []
     for r in rutinas:
-        titulo_cat = r.categoria.nombre if r.categoria else 'General'
-        if r.categoria and r.categoria.id != m_cat.id:
+        titulo_cat = r.tipo.nombre if r.tipo else 'General'
+        if r.tipo and r.tipo.id != m_cat.id:
             titulo_cat += " (Heredada)"
             
         data_rutinas.append({

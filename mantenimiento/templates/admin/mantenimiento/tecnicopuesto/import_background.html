@@ -31,7 +31,7 @@
     .progress-fill {
         height: 100%;
         background: linear-gradient(90deg, #3b82f6, #2563eb);
-        /* Blue for routines */
+        /* Blue for Personal */
         width: 0%;
         transition: width 0.3s ease;
         display: flex;
@@ -68,20 +68,20 @@
 {% block content %}
 <div class="import-container">
     <h2 style="margin-bottom: 20px; color: #1e293b;">
-        <span style="color: #2563eb">📋</span> Importación de Avisos (Aislada)
+        <span style="color: #2563eb">📋</span> Importación de Personal (Aislada)
     </h2>
 
     <div style="background: #eff6ff; border-left: 4px solid #2563eb; padding: 15px; margin-bottom: 25px;">
         <p style="margin: 0; color: #1e3a8a;">
             <strong>Modo Seguro:</strong> Esta importación utiliza un motor independiente para garantizar la integridad
-            de los datos masivos.
+            de los datos y el formato del archivo.
         </p>
     </div>
 
     <div style="margin-bottom: 25px; text-align: center;">
         <a href="template/" class="button"
             style="background: #059669; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.2);">
-            <span style="font-size: 1.2rem;">📊</span> Descargar Formato de Importación de Avisos
+            <span style="font-size: 1.2rem;">📊</span> Descargar Formato de Importación de Personal
         </a>
     </div>
 
@@ -90,7 +90,7 @@
         <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()">
             <input type="file" id="fileInput" name="import_file" style="display: none;" accept=".xlsx, .xls, .csv">
             <div style="font-size: 3rem; color: #94a3b8; margin-bottom: 15px;">📄</div>
-            <h3 style="color: #475569; margin: 0;">Selecciona tu archivo de Avisos</h3>
+            <h3 style="color: #475569; margin: 0;">Selecciona tu archivo de Personal</h3>
             <p style="color: #94a3b8; margin-top: 5px;">Soporta Excel (.xlsx) y CSV</p>
             <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #2563eb;"></div>
         </div>
@@ -99,7 +99,7 @@
             <label for="importName" style="display: block; margin-bottom: 5px; font-weight: 600; color: #1e293b;">
                 🏷️ Nombre de la importación (Opcional)
             </label>
-            <input type="text" id="importName" name="name" placeholder="Ej: Importación Avisos Febrero 2024"
+            <input type="text" id="importName" name="name" placeholder="Ej: Importación Personal Febrero 2024"
                 style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
         </div>
 
@@ -108,7 +108,7 @@
             <input type="checkbox" id="verificationMode" name="verification_mode"
                 style="width: 20px; height: 20px; cursor: pointer;">
             <label for="verificationMode" style="cursor: pointer; font-weight: 600; color: #1e293b;">
-                🔍 Solo verificar previos (No importar nada)
+                🔍 Solo verificar si los códigos existen (No importar nada)
             </label>
         </div>
 
@@ -122,6 +122,7 @@
         </div>
     </form>
 
+    <!-- Barra de Progreso -->
     <div class="progress-wrapper" id="progressWrapper">
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill">0%</div>
@@ -158,6 +159,7 @@
             return;
         }
 
+        // UI Update
         importForm.style.opacity = '0.5';
         importForm.style.pointerEvents = 'none';
         progressWrapper.style.display = 'block';
@@ -165,6 +167,7 @@
         const formData = new FormData(this);
         formData.set('verification_mode', verificationMode.checked ? 'true' : 'false');
 
+        // 1. Iniciar Tarea
         fetch('process/', {
             method: 'POST',
             body: formData,
@@ -206,19 +209,24 @@
                     progressFill.textContent = percent + '%';
                     statusText.textContent = data.status || 'Procesando...';
 
-                    if (data.status_code === 'completed' || data.state === 'SUCCESS') {
+                    if (data.status_code === 'completed' || data.state === 'COMPLETED' || data.state === 'SUCCESS') {
                         clearInterval(interval);
                         progressFill.style.width = '100%';
 
                         if (data.verification_mode) {
+                            let missingBtn = '';
+                            if (data.missing_file_url) {
+                                missingBtn = `<div style="margin-top: 15px;"><a href="${data.missing_file_url}" class="button" style="background: #2563eb; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: bold;">📊 Descargar Faltantes (${data.missing_count})</a></div>`;
+                            }
                             Swal.fire({
                                 title: '¡Verificación Completada!',
-                                html: `<div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;"><p>✅ <b>Encontrados (Ya existen):</b> ${data.found}</p><p>🆕 <b>No encontrados (Nuevos):</b> ${data.not_found}</p><p>⚠️ <b>Repetidos en archivo:</b> ${data.duplicates || 0}</p><hr><div style="max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: monospace;">${data.results.join('<br>')}</div></div>`,
+                                html: `<div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;"><p>✅ <b>Encontrados (Ya existen):</b> ${data.found}</p><p>🆕 <b>No encontrados (Nuevos):</b> ${data.not_found}</p><p>⚠️ <b>Repetidos en archivo:</b> ${data.duplicates || 0}</p>${missingBtn}<hr><div style="max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: monospace;">${data.results.join('<br>')}</div></div>`,
                                 icon: 'info',
                                 confirmButtonText: 'Cerrar'
                             });
                             resetUI();
                         } else if (data.dry_run) {
+                            // MODO PREVIEW (CONCULTA ANTES DE ACTUALIZAR)
                             Swal.fire({
                                 title: '🔍 Análisis del Archivo',
                                 html: `
@@ -253,6 +261,7 @@
                                 }
                             });
                         } else {
+                            // IMPORTACIÓN FINALIZADA
                             Swal.fire({
                                 title: '¡Importación Finalizada!',
                                 html: `
@@ -272,35 +281,16 @@
                                 </div>
                             `,
                                 icon: data.errors > 0 ? 'warning' : 'success',
-                                confirmButtonText: 'Ver Avisos'
+                                confirmButtonText: 'Ver Personal'
                             }).then(() => {
                                 window.location.href = '../';
                             });
                         }
-                    } else if (data.status_code === 'error' || data.state === 'FAILURE' || data.status === 'error') {
+                    } else if (data.state === 'FAILURE' || data.status === 'error') {
                         clearInterval(interval);
                         progressFill.style.background = '#ef4444';
                         statusText.textContent = 'Falló la importación';
-
-                        // Construir HTML del error con detalle técnico expandible
-                        const rawMsg = data.message || 'La tarea falló inesperadamente.';
-                        const lines = rawMsg.split('\n');
-                        const mainMsg = lines[0];
-                        const detail = lines.slice(1).join('\n').trim();
-                        const detailHtml = detail
-                            ? `<details style="margin-top:12px;text-align:left;">
-                                <summary style="cursor:pointer;color:#b91c1c;font-size:0.85rem;">&#9656; Ver detalle técnico</summary>
-                                <pre style="background:#fff5f5;border:1px solid #fecaca;padding:8px;border-radius:4px;font-size:0.75rem;max-height:200px;overflow:auto;white-space:pre-wrap;color:#7f1d1d;">${detail.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
-                              </details>`
-                            : '';
-
-                        Swal.fire({
-                            title: '&#10060; Error en la importación',
-                            html: `<div style="text-align:left;"><p style="color:#ef4444;font-weight:600;">${mainMsg}</p>${detailHtml}</div>`,
-                            icon: 'error',
-                            confirmButtonText: 'Cerrar',
-                            confirmButtonColor: '#ef4444',
-                        }).then(() => resetUI());
+                        Swal.fire('Error Crítico', data.message || 'La tarea falló inesperadamente', 'error');
                     }
                 })
                 .catch(err => console.error('Error de sondeo:', err));
@@ -308,6 +298,7 @@
     }
 
     function confirmImport(filePath) {
+        // UI Reset para re-iniciar
         progressFill.style.width = '0%';
         statusText.textContent = 'Iniciando importación real...';
 
@@ -323,26 +314,14 @@
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             }
         })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        throw new Error(`Error del servidor (${response.status}): ${text.slice(0, 100)}...`);
-                    });
-                }
-                return response.json();
-            })
+            .then(res => res.json())
             .then(data => {
                 if (data.task_id) {
                     startPolling(data.task_id);
                 } else {
-                    Swal.fire('Error', data.error || 'No se pudo iniciar la tarea', 'error');
+                    Swal.fire('Error', 'No se pudo confirmar la importación', 'error');
                     resetUI();
                 }
-            })
-            .catch(err => {
-                console.error(err);
-                Swal.fire('Error', 'No se pudo iniciar la confirmación: ' + err.message, 'error');
-                resetUI();
             });
     }
 

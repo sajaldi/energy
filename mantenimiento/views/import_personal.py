@@ -68,12 +68,15 @@ def import_personal_process(request):
     print(f"[DEBUG] [Personal] verification_mode={verification_mode}, dry_run={dry_run}, is_confirm={is_confirm}")
     sys.stdout.flush()
     
+    import_name = request.POST.get('name') or f"Personal: {import_file.name if import_file else os.path.basename(path)}"
+    
     task = import_personal_task.delay(
         path, 
         file_ext, 
         user_id=request.user.id, 
         verification_mode=verification_mode,
-        dry_run=dry_run
+        dry_run=dry_run,
+        import_name=import_name
     )
     
     return JsonResponse({

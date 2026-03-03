@@ -5,19 +5,19 @@ from colorfield.fields import ColorField
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 
-class Categoria(models.Model):
+class Tipo(models.Model):
     """
-    Categoría jerárquica para clasificar rutinas de mantenimiento.
-    Reemplaza el sistema anterior de Disciplina/SubDisciplina.
+    Tipo jerárquico para clasificar rutinas de mantenimiento.
+    Reemplaza el sistema anterior de Categoría/Disciplina/SubDisciplina.
     """
     nombre = models.CharField(max_length=100)
-    padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategorias')
-    categoria_activo = models.OneToOneField('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimiento_categoria', help_text="Vincular con una categoría de activo particular")
+    padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subtipos')
+    categoria_activo = models.OneToOneField('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimiento_tipo', help_text="Vincular con una categoría de activo particular")
     descripcion = models.TextField(blank=True, null=True)
     
     def get_ruta_completa(self, separador=' → '):
         """
-        Devuelve la ruta completa de la categoría en la jerarquía.
+        Devuelve la ruta completa del tipo en la jerarquía.
         Ej: 'Eléctrica → Subestaciones → Transformadores'
         """
         path = [self.nombre]
@@ -45,12 +45,12 @@ class Categoria(models.Model):
             descendants_ids.append(self.id)
         
         def _get_children(parent):
-            for child in parent.subcategorias.all():
+            for child in parent.subtipos.all():
                 descendants_ids.append(child.id)
                 _get_children(child)
         
         _get_children(self)
-        return Categoria.objects.filter(id__in=descendants_ids)
+        return Tipo.objects.filter(id__in=descendants_ids)
     
     @property
     def ruta_completa(self):
@@ -71,8 +71,8 @@ class Categoria(models.Model):
         return self.get_ruta_completa()
     
     class Meta:
-        verbose_name = "Categoría"
-        verbose_name_plural = "Categorías"
+        verbose_name = "Tipo"
+        verbose_name_plural = "Tipos"
 
 class Frecuencia(models.Model):
     nombre = models.CharField(max_length=100, unique=True, help_text="Ej: Diario, Semanal, Mensual")
@@ -192,8 +192,8 @@ class PasoProcedimiento(models.Model):
 
 class Rutina(models.Model):
     codigo_rutina = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="Código identificador de la rutina")
-    nombre = models.CharField(max_length=200, blank=True, help_text="Deje vacío para generar un nombre automático basado en frecuencia y categoría")
-    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas', 
+    nombre = models.CharField(max_length=200, blank=True, help_text="Deje vacío para generar un nombre automático basado en frecuencia y tipo")
+    tipo = models.ForeignKey(Tipo, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas', 
                                   help_text="Clasificación de mantenimiento (ej: Mecánica, Eléctrica)")
     descripcion = models.TextField(blank=True, null=True)
 
@@ -214,11 +214,11 @@ class Rutina(models.Model):
     def save(self, *args, **kwargs):
         """
         Auto-genera el nombre solo si está vacío.
-        Formato: ACTIVIDADES [Frecuencia] - [Categoría]
+        Formato: ACTIVIDADES [Frecuencia] - [Tipo]
         """
         if not self.nombre:
             frec_name = self.frecuencia.nombre if self.frecuencia else "Sin Frecuencia"
-            cat_name = self.categoria.nombre if self.categoria else "General"
+            cat_name = self.tipo.nombre if self.tipo else "General"
             self.nombre = f"ACTIVIDADES {frec_name} - {cat_name}"
         super().save(*args, **kwargs)
 
@@ -390,7 +390,7 @@ class Programacion(models.Model):
         if not self.horario:
             return 0
         
-        has_criteria = areas_iniciales.exists() or self.activos.exists() or (self.rutina.categoria)
+        has_criteria = areas_iniciales.exists() or self.activos.exists() or (self.rutina.tipo)
         if not has_criteria:
             return 0
             
@@ -414,7 +414,7 @@ class Programacion(models.Model):
                 items_a_procesar_config.append((a, a.ubicacion))
         else:
             from activos.models import Categoria as CategoriaActivo
-            cat_mantenimiento = self.rutina.categoria
+            cat_mantenimiento = self.rutina.tipo
             asset_cats = CategoriaActivo.objects.none()
             if cat_mantenimiento:
                 m_cats = cat_mantenimiento.get_descendants(include_self=True)

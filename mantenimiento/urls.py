@@ -53,5 +53,14 @@ urlpatterns = [
     path('import-procedimientos/', views.import_procedimientos.import_procedimientos_background, name='procedimiento_import_background'),
     path('import-procedimientos/process/', views.import_procedimientos.import_procedimientos_process, name='procedimiento_import_process'),
     path('import-procedimientos/progress/', views.import_procedimientos.import_procedimientos_progress, name='procedimiento_import_progress'),
+
+    # Importación de Tipos (Mantenimiento)
+    path('import-tipos/', views.import_categorias.import_categorias_background, name='tipo_import_background'),
+    path('import-tipos/process/', views.import_categorias.import_categorias_process, name='tipo_import_process'),
+    path('import-tipos/progress/', views.import_categorias.import_categorias_progress, name='tipo_import_progress'),
+    path('import-tipos/template/', views.import_categorias.download_categorias_template, name='tipo_download_template'),
+
     path('api/search-ordenes/', views.api_search_ordenes, name='api_search_ordenes'),
+    path('api/ot/<int:pk>/detalle/', views.api_get_ot_detail, name='api_get_ot_detail'),
+    path('api/ot/<int:pk>/update/', views.api_update_ot_status_notes, name='api_update_ot_status_notes'),
 ]

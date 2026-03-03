@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from ..models import Categoria, Rutina, Frecuencia, PuestoTrabajo, Procedimiento, PasoProcedimiento
+from ..models import Tipo, Rutina, Frecuencia, PuestoTrabajo, Procedimiento, PasoProcedimiento
 from django.db.models import Count, Q
 
 
@@ -11,7 +11,7 @@ def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int
     Construye el árbol jerárquico totalmente en memoria sin consultas adicionales.
     """
     # 1. Agrupar rutinas por categoría
-    rutinas_por_cat = {}
+    rutinas_por_tipo = {}
     for r in all_rutinas:
         # Aplicamos filtros de rutina aquí (o venían pre-filtrados)
         if frecuencia_int and r.frecuencia_id != frecuencia_int: continue
@@ -21,9 +21,9 @@ def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int
             if not (s in r.nombre.lower() or (r.codigo_rutina and s in r.codigo_rutina.lower()) or (r.descripcion and s in r.descripcion.lower())):
                 continue
         
-        if r.categoria_id not in rutinas_por_cat:
-            rutinas_por_cat[r.categoria_id] = []
-        rutinas_por_cat[r.categoria_id].append(r)
+        if r.tipo_id not in rutinas_por_tipo:
+            rutinas_por_tipo[r.tipo_id] = []
+        rutinas_por_tipo[r.tipo_id].append(r)
 
     # 2. Mapear categorías por padre
     hijos_por_padre = {}
@@ -36,7 +36,7 @@ def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int
     # 3. Función recursiva interna para construir nodos
     def construct_node(cat):
         sub_categories = hijos_por_padre.get(cat.id, [])
-        rutinas_list = rutinas_por_cat.get(cat.id, [])
+        rutinas_list = rutinas_por_tipo.get(cat.id, [])
         
         sub_tree = []
         for sub_cat in sub_categories:
@@ -88,11 +88,11 @@ def rutinas_dashboard(request):
 
     # --- OPTIMIZACIÓN: Carga masiva en memoria ---
     # Cargamos todas las categorías y rutinas de UNA vez para evitar N+1
-    all_categories = list(Categoria.objects.all().order_by('nombre'))
+    all_categories = list(Tipo.objects.all().order_by('nombre'))
     
     # Pre-filtrar rutinas en DB si hay filtros pesados, sino traer todo (depende del volumen)
     # Si hay búsqueda o filtros, pre-filtramos en DB para reducir RAM
-    all_rutinas_qs = Rutina.objects.all().select_related('frecuencia', 'puesto_trabajo', 'categoria')
+    all_rutinas_qs = Rutina.objects.all().select_related('frecuencia', 'puesto_trabajo', 'tipo')
     
     # Nota: Si el volumen de rutinas es inmenso (>10k), mejor filtrar aquí en DB
     if frecuencia_int:
@@ -117,7 +117,7 @@ def rutinas_dashboard(request):
     total_rutinas = Rutina.objects.count()
     
     # Todas las categorías y procedimientos para el select de creación/edición
-    todas_categorias = Categoria.objects.all().order_by('nombre')
+    todas_categorias = Tipo.objects.all().order_by('nombre')
     procedimientos = Procedimiento.objects.all().order_by('nombre')
     
     return render(request, 'mantenimiento/rutinas_dashboard.html', {
@@ -140,7 +140,7 @@ def rutina_detail_api(request, pk):
     from ..models import OrdenTrabajo, CierreOrdenTrabajo, PasoProcedimiento
     
     try:
-        rutina = Rutina.objects.select_related('frecuencia', 'puesto_trabajo', 'categoria').get(pk=pk)
+        rutina = Rutina.objects.select_related('frecuencia', 'puesto_trabajo', 'tipo').get(pk=pk)
         
         # Obtener historial de OTs realizadas
         # Limitamos a las últimas 10 para rendimiento
@@ -168,7 +168,7 @@ def rutina_detail_api(request, pk):
                 'id': rutina.id,
                 'codigo': rutina.codigo_rutina or "S/C",
                 'nombre': rutina.nombre,
-                'categoria': rutina.categoria.nombre if rutina.categoria else "General",
+                'categoria': rutina.tipo.nombre if rutina.tipo else "General",
                 'frecuencia': rutina.frecuencia.nombre if rutina.frecuencia else "S/F",
                 'tiempo_estimado': str(rutina.tiempo_estimado) if rutina.tiempo_estimado else "N/A",
                 'tecnicos': rutina.cantidad_tecnicos,
@@ -253,7 +253,7 @@ def rutina_save_api(request):
         
         # Foreign Keys
         cat_id = data.get('categoria_id')
-        rutina.categoria = Categoria.objects.get(pk=cat_id) if cat_id else None
+        rutina.tipo = Tipo.objects.get(pk=cat_id) if cat_id else None
         
         frec_id = data.get('frecuencia_id')
         rutina.frecuencia = Frecuencia.objects.get(pk=frec_id) if frec_id else None

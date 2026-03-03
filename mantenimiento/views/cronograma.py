@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
-from ..models import OrdenTrabajo, Rutina, Categoria, Programacion, Aviso, PuestoTrabajo, TecnicoPuesto, RestriccionCalendario
+from ..models import OrdenTrabajo, Rutina, Tipo, Programacion, Aviso, PuestoTrabajo, TecnicoPuesto, RestriccionCalendario
 from activos.models import Activo, Ubicacion
 from django.utils import timezone
 from datetime import datetime, date, timedelta
@@ -180,7 +180,7 @@ def cronograma_mantenimiento_visual(request):
         return [to_int(x) for x in val if to_int(x) is not None]
 
     ubicacion_ids = parse_ids('ubicacion_id')
-    categoria_ids = parse_ids('categoria_id')
+    tipo_ids = parse_ids('tipo_id')
     programacion_id = request.GET.get('programacion_id')
 
     # Usar el servicio para obtener los datos base
@@ -188,7 +188,7 @@ def cronograma_mantenimiento_visual(request):
         year=year,
         view_mode=view_mode,
         ubicacion_ids=ubicacion_ids,
-        categoria_ids=categoria_ids,
+        tipo_ids=tipo_ids,
         programacion_id=programacion_id
     )
     
@@ -259,7 +259,7 @@ def cronograma_mantenimiento_visual(request):
 def wizard_cronograma(request):
     """Interfaz visual para filtrar el cronograma."""
     from activos.models import Ubicacion
-    from ..models import Categoria
+    from ..models import Tipo
     from django.shortcuts import redirect
     from django.urls import reverse
     
@@ -284,12 +284,12 @@ def wizard_cronograma(request):
     
     # Mostrar el wizard (GET sin view_type)
     ubicaciones_roots = Ubicacion.objects.filter(padre=None).prefetch_related('sub_ubicaciones')
-    categorias_roots = Categoria.objects.filter(padre=None).prefetch_related('subcategorias')
+    tipos_roots = Tipo.objects.filter(padre=None).prefetch_related('subtipos')
     
     return render(request, 'mantenimiento/wizard_cronograma.html', {
         'year': year,
         'ubicaciones': ubicaciones_roots,
-        'categorias': categorias_roots
+        'categorias': tipos_roots
     })
 
 @staff_member_required
@@ -314,7 +314,7 @@ def detalle_mes(request, year, month):
         return [to_int(x) for x in val if to_int(x)]
 
     ubi_ids = parse_ids('ubicacion_id')
-    cat_ids = parse_ids('categoria_id')
+    tipo_ids = parse_ids('tipo_id')
 
     # Crear cache key basado en parámetros
     cache_params = {
@@ -324,7 +324,7 @@ def detalle_mes(request, year, month):
         'programacion_id': programacion_id,
         'filter_q': filter_q,
         'ubi_ids': ubi_ids,
-        'cat_ids': cat_ids
+        'tipo_ids': tipo_ids
     }
     cache_key = f"detalle_mes_{hashlib.md5(json.dumps(cache_params, sort_keys=True).encode()).hexdigest()}"
     
@@ -349,7 +349,7 @@ def detalle_mes(request, year, month):
 
     # Get Data from Service based on View Mode
     if view_mode == 'ubicacion':
-        tree = WorkOrderService.get_location_grouped_tree(year, month, ubicacion_ids=ubi_ids, categoria_ids=cat_ids)
+        tree = WorkOrderService.get_location_grouped_tree(year, month, ubicacion_ids=ubi_ids, tipo_ids=tipo_ids)
     else:
         # Legacy Logic for 'sistema' view - OPTIMIZED with select_related/prefetch_related
         filtros = {'inicio_programado__year': year, 'inicio_programado__month': month}
@@ -365,20 +365,20 @@ def detalle_mes(request, year, month):
                 except: pass
             filtros['ubicacion_id__in'] = list(all_ids)
             
-        if cat_ids:
-            all_cat_ids = set()
-            for cid in cat_ids:
+        if tipo_ids:
+            all_tipo_ids = set()
+            for cid in tipo_ids:
                 try:
-                    cat = Categoria.objects.get(id=cid)
-                    all_cat_ids.update(cat.get_descendants(include_self=True).values_list('id', flat=True))
+                    tipo = Tipo.objects.get(id=cid)
+                    all_tipo_ids.update(tipo.get_descendants(include_self=True).values_list('id', flat=True))
                 except: pass
-            filtros['rutina__categoria_id__in'] = list(all_cat_ids)
+            filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
         
         # BRUTAL OPTIMIZATION: Single optimized query instead of N+1
         ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
             'rutina',
-            'rutina__categoria',
-            'rutina__categoria__padre',
+            'rutina__tipo',
+            'rutina__tipo__padre',
             'rutina__frecuencia',
             'ubicacion',
             'programacion',
@@ -392,9 +392,9 @@ def detalle_mes(request, year, month):
         
         proy_filtros = {'fecha_inicio__lte': month_end}
         if programacion_id: proy_filtros['id'] = programacion_id
-        if cat_ids: proy_filtros['rutina__categoria_id__in'] = list(all_cat_ids)
+        if tipo_ids: proy_filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
         
-        proyecciones_qs = Programacion.objects.filter(**proy_filtros).select_related('rutina__categoria', 'rutina__frecuencia', 'horario').prefetch_related('areas')
+        proyecciones_qs = Programacion.objects.filter(**proy_filtros).select_related('rutina__tipo', 'rutina__frecuencia', 'horario').prefetch_related('areas')
         if ubi_ids:
             proyecciones_qs = proyecciones_qs.filter(areas__id__in=list(all_ids)).distinct()
         
@@ -423,7 +423,7 @@ def detalle_mes(request, year, month):
                     ghost_ots.append({'prog': prog, 'fecha': fecha_proyectada})
                 fecha_ciclo += timedelta(days=frec_dias)
 
-        categs = {c.id: c for c in Categoria.objects.all()}
+        categs = {c.id: c for c in Tipo.objects.all()}
         for c in categs.values():
             if c.padre_id: c.padre = categs.get(c.padre_id)
             
@@ -432,9 +432,9 @@ def detalle_mes(request, year, month):
         system_colors = {}
 
         def add_to_tree_common(ot_dict, rut, ubi, assets, prog_color, day_key):
-            cat = rut.categoria if rut else None
-            if cat and cat.id in categs:
-                fc = categs[cat.id]
+            tipo = rut.tipo if rut else None
+            if tipo and tipo.id in categs:
+                fc = categs[tipo.id]
                 root = fc.get_root()
                 sys_name = root.nombre
                 sub_name = fc.nombre if fc.id != root.id else "General"
@@ -554,10 +554,10 @@ def visualizador_proyecciones(request, pk):
 def wizard_mensual(request):
     """Asistente premium para configurar la matriz mensual con filtros de raíz."""
     from activos.models import Ubicacion
-    from ..models import Categoria
+    from ..models import Tipo
     context = {
         'ubicaciones': Ubicacion.objects.filter(padre__isnull=True).order_by('nombre'),
-        'categorias': Categoria.objects.filter(padre__isnull=True).order_by('nombre'),
+        'categorias': Tipo.objects.filter(padre__isnull=True).order_by('nombre'),
         'current_year': timezone.now().year,
         'current_month': timezone.now().month
     }
@@ -573,12 +573,12 @@ def cronograma_mensual_matriz(request):
     view_mode = request.GET.get('view_mode', 'sistema')
     
     ubi_ids = request.GET.getlist('ubicacion_ids')
-    cat_ids = request.GET.getlist('categoria_ids')
+    tipo_ids = request.GET.getlist('tipo_ids')
     
     # Construir query string para detalle_mes
     query_parts = [f"view_mode={view_mode}", "nocache=1"]
     for uid in ubi_ids: query_parts.append(f"ubicacion_id={uid}")
-    for cid in cat_ids: query_parts.append(f"categoria_id={cid}")
+    for cid in tipo_ids: query_parts.append(f"tipo_id={cid}")
     
     from django.urls import reverse
     url = reverse('mantenimiento:detalle_mes', kwargs={'year': year, 'month': month})

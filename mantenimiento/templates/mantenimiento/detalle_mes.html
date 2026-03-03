@@ -434,6 +434,71 @@
             color: var(--text-muted);
         }
 
+        /* Detail Modal specific */
+        .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding: 10px 0;
+            text-align: left;
+        }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .detail-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .detail-value {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .asset-tag {
+            display: inline-block;
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            border: 1px solid var(--border);
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spin {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
         input[type="date"] {
             width: 100%;
             padding: 10px;
@@ -757,17 +822,17 @@
                             {{ asset.label }}
                         </td>
                         {% for c in asset.celdas %}
-                        <td id="cell-{{ asset.id }}-{{ c.day }}"
+                        <td id="cell-{{ asset.id|unlocalize }}-{{ c.day }}"
                             class="{% if c.group_type %}group-{{ c.group_type }}{% endif %} {% if c.horiz_type %}horiz-{{ c.horiz_type }}{% endif %} {% if c.day in non_working_days %}non-working-day{% endif %}"
                             onclick="handleCellClick(event, this, {{ c.day|default:0 }})">
                             {% if c.active %}
                             {% for ot in c.ots %}
                             <div class="ot-pill status-{{ ot.estado }} duration-{{ ot.duration_pos }}"
-                                data-ot-id="{{ ot.id }}" data-ot-date="{{ ot.inicio_iso }}"
-                                data-ot-assets="{{ ot.activos_nombres }}" data-asset-id="{{ asset.id }}"
-                                data-ot-estado="{{ ot.estado }}" data-prog-id="{{ ot.prog_id|default:'' }}"
+                                data-ot-id="{{ ot.id|unlocalize }}" data-ot-date="{{ ot.inicio_iso }}"
+                                data-ot-assets="{{ ot.activos_nombres }}" data-asset-id="{{ asset.id|unlocalize }}"
+                                data-ot-estado="{{ ot.estado }}" data-prog-id="{{ ot.prog_id|default:''|unlocalize }}"
                                 onclick="selectOT(event, this)" oncontextmenu="showContextMenu(event, this)"
-                                title="OT #{{ ot.id }}&#10;Estado: {{ ot.estado }}&#10;Rutina: {{ ot.rutina_nombre }}&#10;Inicio: {{ ot.inicio_hm }}&#10;Fin: {{ ot.fin_full }}">
+                                title="OT #{{ ot.id|unlocalize }}&#10;Estado: {{ ot.estado }}&#10;Rutina: {{ ot.rutina_nombre }}&#10;Inicio: {{ ot.inicio_hm }}&#10;Fin: {{ ot.fin_full }}">
                                 {% if ot.estado == 'REALIZADA' %}
                                 <ion-icon name="checkmark-sharp" style="pointer-events: none;"></ion-icon>
                                 {% endif %}
@@ -829,7 +894,7 @@
         </div>
     </div>
 
-    <!-- UI: Reschedule Modal (Legacy backup) -->
+    <!-- UI: Reschedule Modal -->
     <div id="reschedule-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">Reprogramar OT #<span id="modal-ot-id"></span></div>
@@ -838,6 +903,28 @@
             <div class="btn-group">
                 <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="submitReschedule()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI: OT Detail Modal -->
+    <div id="ot-detail-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px; width: 95%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>Detalle de Orden <span id="detail-ot-id"></span></div>
+                <button class="close-btn" onclick="closeDetailModal()">&times;</button>
+            </div>
+            <div id="ot-detail-body" class="modal-body">
+                <div style="padding: 20px; text-align: center; color: var(--text-muted);">Cargando información...</div>
+            </div>
+            <div style="margin-top:20px; display:flex; justify-content: flex-end; gap:10px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <button class="btn btn-ghost" onclick="closeDetailModal()">Cerrar</button>
+                <button id="save-ot-btn" class="btn btn-primary" onclick="saveOTChanges()" style="background:#10b981; display: none; align-items: center; gap: 5px;">
+                    <ion-icon name="save-outline"></ion-icon> Guardar Cambios
+                </button>
+                <a id="admin-link" href="#" target="_blank" class="btn btn-primary" style="background:#4f46e5; text-decoration:none; display: flex; align-items: center; gap: 5px;">
+                    <ion-icon name="open-outline"></ion-icon> Abrir en Admin
+                </a>
             </div>
         </div>
     </div>
@@ -1070,24 +1157,51 @@
             e.stopPropagation();
 
             const otId = element.dataset.otId;
-            // Asegurar que está seleccionada para que las acciones tengan contexto
-            if (!selectedOTs.has(otId)) {
+            const status = element.dataset.otEstado;
+            const progId = element.dataset.progId;
+            const otDate = element.dataset.otDate;
+
+            // Almacenar datos para proyecciones u otras acciones
+            ctxData = { otId, status, progId, date: otDate };
+
+            // Asegurar que está seleccionada para que las acciones tengan contexto (OTs reales)
+            if (status !== 'PROYECCION' && !selectedOTs.has(otId)) {
                 selectOT(e, element);
             }
             lastSelectedId = otId;
 
             const menu = document.getElementById('context-menu');
-            const btnFusionar = document.getElementById('btn-fusionar');
+            const menuMove = document.getElementById('menu-move');
+            const menuGen = document.getElementById('menu-generate');
+            const menuFuse = document.getElementById('btn-fusionar');
+            const menuDetail = menu.querySelector('[onclick="viewOT()"]');
 
-            if (selectedOTs.size > 1) {
-                btnFusionar.style.display = 'flex';
+            if (status === 'PROYECCION') {
+                menuMove.style.display = 'none';
+                menuGen.style.display = 'flex';
+                menuFuse.style.display = 'none';
+                // No mostrar detalle para proyecciones ya que no tienen ID real en la DB
+                if (menuDetail) menuDetail.style.display = 'none';
             } else {
-                btnFusionar.style.display = 'none';
+                menuMove.style.display = 'flex';
+                menuGen.style.display = 'none';
+                if (menuDetail) menuDetail.style.display = 'flex';
+                if (selectedOTs.size > 1) {
+                    menuFuse.style.display = 'flex';
+                } else {
+                    menuFuse.style.display = 'none';
+                }
             }
 
             menu.style.display = 'block';
-            menu.style.left = e.clientX + 'px';
-            menu.style.top = e.clientY + 'px';
+            let x = e.pageX;
+            let y = e.pageY;
+            // Evitar que el menú se salga de la pantalla
+            if (x + 200 > window.innerWidth) x -= 200;
+            if (y + 200 > window.innerHeight) y -= 200;
+            
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
 
             document.addEventListener('click', hideContextMenu);
         }
@@ -1169,9 +1283,133 @@
                 });
         }
 
-        function viewOT() {
+        async function viewOT() {
             if (!lastSelectedId) return;
-            window.open(`/admin/mantenimiento/ordentrabajo/${lastSelectedId}/change/`, '_blank');
+            const otId = lastSelectedId;
+            
+            // Abrir modal y mostrar loading
+            const modal = document.getElementById('ot-detail-modal');
+            const body = document.getElementById('ot-detail-body');
+            document.getElementById('detail-ot-id').innerText = '#' + otId;
+            body.innerHTML = '<div style="padding: 40px; text-align:center;"><ion-icon name="refresh-outline" class="spin" style="font-size: 2rem; color: var(--primary);"></ion-icon><p>Cargando detalles...</p></div>';
+            modal.style.display = 'flex';
+
+            try {
+                const response = await fetch(`/mantenimiento/api/ot/${otId}/detalle/`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const ot = data.ot;
+                    
+                    // Actualizar link de admin
+                    document.getElementById('admin-link').href = `/admin/mantenimiento/ordentrabajo/${ot.id}/change/`;
+                    
+                    // Construir HTML
+                    let assetsHtml = ot.activos.map(a => `<span class="asset-tag">${a.nombre}</span>`).join('');
+                    
+                    // Opciones de estado
+                    let statusOptions = ot.status_list.map(s => `<option value="${s.id}" ${s.id === ot.raw_status ? 'selected' : ''}>${s.label}</option>`).join('');
+
+                    body.innerHTML = `
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">Código</span>
+                                <span class="detail-value">${ot.codigo}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Estado</span>
+                                <select id="edit-ot-status" class="form-control" style="padding: 4px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.85rem; font-weight: 600; background: ${ot.status_color}; color: white;">
+                                    ${statusOptions}
+                                </select>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Tipo / Prioridad</span>
+                                <span class="detail-value">${ot.tipo} - <b>${ot.prioridad}</b></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Responsable</span>
+                                <span class="detail-value">${ot.tecnico}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Inicio Programado</span>
+                                <span class="detail-value">${ot.inicio}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Fin Programado</span>
+                                <span class="detail-value">${ot.fin}</span>
+                            </div>
+                        </div>
+                        <div class="detail-item" style="margin-bottom: 15px;">
+                            <span class="detail-label">Rutina / Tarea</span>
+                            <span class="detail-value" style="font-size: 1rem; color: var(--primary);">${ot.rutina}</span>
+                        </div>
+                        <div class="detail-item" style="margin-bottom: 15px;">
+                            <span class="detail-label">Ubicación</span>
+                            <span class="detail-value">${ot.ubicacion}</span>
+                        </div>
+                        <div class="detail-item" style="margin-bottom: 15px;">
+                            <span class="detail-label">Observaciones / Notas</span>
+                            <textarea id="edit-ot-notes" class="form-control" style="width: 100%; min-height: 100px; padding: 10px; border-radius: 8px; font-size: 0.85rem; border: 1px solid var(--border); font-family: inherit; resize: vertical;" placeholder="Agregar comentarios sobre la ejecución...">${ot.notas}</textarea>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Activos Asociados</span>
+                            <div style="margin-top: 5px;">${assetsHtml || '<span style="color:var(--text-muted)">Ninguno</span>'}</div>
+                        </div>
+                    `;
+
+                    // Mostrar botón guardar
+                    document.getElementById('save-ot-btn').style.display = 'flex';
+                } else {
+                    body.innerHTML = `<div style="padding: 20px; color: var(--negative); text-align: center;">Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                console.error(error);
+                body.innerHTML = '<div style="padding: 20px; color: var(--negative); text-align: center;">Error de conexión al obtener detalles.</div>';
+            }
+        }
+
+        async function saveOTChanges() {
+            const otId = lastSelectedId;
+            const status = document.getElementById('edit-ot-status').value;
+            const notes = document.getElementById('edit-ot-notes').value;
+            const btn = document.getElementById('save-ot-btn');
+
+            btn.disabled = true;
+            btn.innerHTML = '<ion-icon name="refresh-outline" class="spin"></ion-icon> Guardando...';
+
+            try {
+                const response = await fetch(`/mantenimiento/api/ot/${otId}/update/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        estado: status,
+                        notas: notes
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // Recargar para ver cambios en los colores de las pastillas
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<ion-icon name="save-outline"></ion-icon> Guardar Cambios';
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Error de red al intentar guardar.');
+                btn.disabled = false;
+                btn.innerHTML = '<ion-icon name="save-outline"></ion-icon> Guardar Cambios';
+            }
+        }
+
+        function closeDetailModal() {
+            document.getElementById('ot-detail-modal').style.display = 'none';
+            document.getElementById('save-ot-btn').style.display = 'none';
         }
 
         function splitOT() {
@@ -1205,50 +1443,6 @@
                 });
         }
 
-        let ctxData = null; // {progId, date, otId}
-
-        function showContextMenu(e, element) {
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Si es un element seleccionado, mantener, si no, seleccionar temporalmente
-            // Para simplificar, usamos dataset directo
-            const otId = element.dataset.otId;
-            const status = element.dataset.otEstado;
-            const progId = element.dataset.progId;
-            const otDate = element.dataset.otDate;
-
-            ctxData = { otId, status, progId, date: otDate };
-
-            const menu = document.getElementById('context-menu');
-            const menuMove = document.getElementById('menu-move');
-            const menuGen = document.getElementById('menu-generate');
-            const menuFuse = document.getElementById('btn-fusionar');
-
-            // Si es proyección, mostrar solo Generar
-            if (status === 'PROYECCION') {
-                menuMove.style.display = 'none';
-                menuGen.style.display = 'flex';
-                menuFuse.style.display = 'none';
-            } else {
-                menuMove.style.display = 'flex';
-                menuGen.style.display = 'none';
-                // Mostrar fusionar si corresponde (multiple selection)
-                if (selectedOTs.size > 1) {
-                    menuFuse.style.display = 'flex';
-                } else {
-                    menuFuse.style.display = 'none';
-                }
-            }
-
-            // Posicionar
-            menu.style.display = 'block';
-            let x = e.pageX;
-            let y = e.pageY;
-            if (x + 200 > window.innerWidth) x -= 200;
-            menu.style.left = `${x}px`;
-            menu.style.top = `${y}px`;
-        }
 
         // Cerrar menú al hacer clic fuera
         document.addEventListener('click', () => {

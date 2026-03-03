@@ -54,12 +54,15 @@ def import_procedimientos_process(request):
     verification_mode = request.POST.get('verification_mode', '').lower() in ['true', 'on', '1']
     dry_run = (not verification_mode) and (not is_confirm)
     
+    import_name = request.POST.get('name') or f"Procedimientos: {import_file.name if import_file else os.path.basename(path)}"
+    
     task = import_procedimientos_task.delay(
         path, 
         file_ext, 
         user_id=request.user.id, 
         verification_mode=verification_mode,
-        dry_run=dry_run
+        dry_run=dry_run,
+        import_name=import_name
     )
     
     return JsonResponse({

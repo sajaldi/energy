@@ -4,11 +4,11 @@ import math
 from datetime import datetime, date, timedelta
 from django.db.models import Q, Count
 from django.utils import timezone
-from .models import OrdenTrabajo, Rutina, Categoria, Programacion, RestriccionCalendario
+from .models import OrdenTrabajo, Rutina, Tipo, Programacion, RestriccionCalendario
 
 class WorkOrderService:
     @staticmethod
-    def get_calendar_data(year, view_mode='sistema', ubicacion_ids=None, categoria_ids=None, programacion_id=None):
+    def get_calendar_data(year, view_mode='sistema', ubicacion_ids=None, tipo_ids=None, programacion_id=None):
         """
         Logic for grouping and projecting Work Orders for the visual calendar.
         Refactored from cronograma_mantenimiento_visual.
@@ -29,22 +29,22 @@ class WorkOrderService:
                 except Ubicacion.DoesNotExist: pass
             filtros['ubicacion_id__in'] = list(all_ids)
             
-        if categoria_ids:
-            if isinstance(categoria_ids, str): categoria_ids = [int(x) for x in categoria_ids.split(',') if x.strip()]
-            all_cat_ids = set()
-            for cid in categoria_ids:
+        if tipo_ids:
+            if isinstance(tipo_ids, str): tipo_ids = [int(x) for x in tipo_ids.split(',') if x.strip()]
+            all_tipo_ids = set()
+            for cid in tipo_ids:
                 try:
-                    cat = Categoria.objects.get(id=cid)
-                    all_cat_ids.update(cat.get_descendants(include_self=True).values_list('id', flat=True))
-                except Categoria.DoesNotExist: pass
-            filtros['rutina__categoria_id__in'] = list(all_cat_ids)
+                    tipo = Tipo.objects.get(id=cid)
+                    all_tipo_ids.update(tipo.get_descendants(include_self=True).values_list('id', flat=True))
+                except Tipo.DoesNotExist: pass
+            filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
         
         # 1. Fetch real Work Orders
         ordenes_qs = OrdenTrabajo.objects.filter(**filtros).select_related(
-            'ubicacion', 'rutina__categoria', 'rutina__frecuencia', 'programacion__horario'
+            'ubicacion', 'rutina__tipo', 'rutina__frecuencia', 'programacion__horario'
         ).values(
             'id', 'rutina__nombre', 'ubicacion__nombre', 'ubicacion_id', 
-            'rutina__categoria_id', 'inicio_programado', 'estado', 
+            'rutina__tipo_id', 'inicio_programado', 'estado', 
             'programacion__horario__color', 'programacion_id'
         )
         
@@ -56,11 +56,11 @@ class WorkOrderService:
         if programacion_id:
             proy_filtros['id'] = programacion_id
         
-        if categoria_ids:
-            proy_filtros['rutina__categoria_id__in'] = list(all_cat_ids)
+        if tipo_ids:
+            proy_filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
             
         proyecciones = Programacion.objects.filter(**proy_filtros).select_related(
-            'rutina__categoria', 'rutina__frecuencia', 'horario'
+            'rutina__tipo', 'rutina__frecuencia', 'horario'
         )
         
         if ubicacion_ids:
@@ -96,7 +96,7 @@ class WorkOrderService:
                         'rutina__nombre': prog.rutina.nombre,
                         'ubicacion__nombre': ubi_nom,
                         'ubicacion_id': ubi_id,
-                        'rutina__categoria_id': prog.rutina.categoria_id,
+                        'rutina__tipo_id': prog.rutina.tipo_id,
                         'inicio_programado': datetime.combine(fecha_proyectada, datetime.min.time()),
                         'estado': 'PROYECCION',
                         'programacion__horario__color': color,
@@ -106,7 +106,7 @@ class WorkOrderService:
                 fecha_ciclo += timedelta(days=frec_dias)
 
         # 3. Grouping logic
-        categorias = {c.id: c for c in Categoria.objects.all()}
+        categorias = {c.id: c for c in Tipo.objects.all()}
         for c in categorias.values():
             if c.padre_id: c.padre = categorias.get(c.padre_id)
             
@@ -132,14 +132,14 @@ class WorkOrderService:
                 group_label = root_edificio.nombre if root_edificio else (ot['ubicacion__nombre'] or "S/U")
                 sub_label = "General" if root_edificio and (ot['ubicacion__nombre'] == root_edificio.nombre) else (ot['ubicacion__nombre'] or "General")
             else:
-                cat_id = ot['rutina__categoria_id']
+                cat_id = ot['rutina__tipo_id']
                 if cat_id and cat_id in categorias:
                     root = categorias[cat_id].get_root()
                     group_label = root.nombre
                     sub_label = categorias[cat_id].nombre if categorias[cat_id].id != root.id else "General"
                 else:
                     group_label = "General / Otros"
-                    sub_label = "Sin Categoría"
+                    sub_label = "Sin Tipo"
                     
             grupos_dict[group_label][sub_label][ot['rutina__nombre'] or "General"][semana_idx].append(ot)
             
@@ -174,14 +174,14 @@ class WorkOrderService:
 
     @staticmethod
     def get_grouped_tree(year):
-        """Logic for grouping orders by Category > Subcategory > Frequency > Routine"""
+        """Logic for grouping orders by Tipo > Subtipo > Frequency > Routine"""
         ordenes = OrdenTrabajo.objects.filter(inicio_programado__year=year).select_related(
-            'rutina__categoria', 'rutina__frecuencia', 'ubicacion', 'programacion__horario'
+            'rutina__tipo', 'rutina__frecuencia', 'ubicacion', 'programacion__horario'
         ).prefetch_related('programacion__horario__dias', 'activos').order_by(
-            'rutina__categoria__nombre', 'rutina__nombre', 'inicio_programado'
+            'rutina__tipo__nombre', 'rutina__nombre', 'inicio_programado'
         )
         
-        categorias_full = {c.id: c for c in Categoria.objects.all()}
+        categorias_full = {c.id: c for c in Tipo.objects.all()}
         for cat in categorias_full.values():
             if cat.padre_id:
                 cat.padre = categorias_full.get(cat.padre_id)
@@ -189,7 +189,7 @@ class WorkOrderService:
         tree = {}
         for ot in ordenes:
             rut = ot.rutina
-            cat = rut.categoria if rut else None
+            cat = rut.tipo if rut else None
             
             if cat:
                 if cat.id in categorias_full:
@@ -197,7 +197,7 @@ class WorkOrderService:
                 dis_name = cat.get_root().nombre
                 sub_name = cat.nombre
             else:
-                dis_name = "SIN CATEGORÍA"
+                dis_name = "SIN TIPO"
                 sub_name = "GENERAL"
                 
             frec = rut.frecuencia if rut else None
@@ -234,12 +234,12 @@ class WorkOrderService:
 
     @staticmethod
     def get_detailed_tree(year):
-        """Logic for grouping orders by Category > Routine > Ubicacion"""
+        """Logic for grouping orders by Tipo > Routine > Ubicacion"""
         ordenes = OrdenTrabajo.objects.filter(inicio_programado__year=year).select_related(
-            'rutina__categoria', 'rutina__frecuencia', 'ubicacion'
-        ).order_by('rutina__categoria__nombre', 'rutina__nombre', 'ubicacion__nombre', 'inicio_programado')
+            'rutina__tipo', 'rutina__frecuencia', 'ubicacion'
+        ).order_by('rutina__tipo__nombre', 'rutina__nombre', 'ubicacion__nombre', 'inicio_programado')
         
-        categorias_full = {c.id: c for c in Categoria.objects.all()}
+        categorias_full = {c.id: c for c in Tipo.objects.all()}
         for cat in categorias_full.values():
             if cat.padre_id: cat.padre = categorias_full.get(cat.padre_id)
 
@@ -247,13 +247,13 @@ class WorkOrderService:
         for ot in ordenes:
             rut = ot.rutina
             if not rut: continue
-            cat = rut.categoria
+            cat = rut.tipo
             if cat:
                 cat = categorias_full.get(cat.id) or cat
                 dis_name = cat.get_root().nombre
                 sub_name = cat.nombre
             else:
-                dis_name = "SIN CATEGORÍA"; sub_name = "GENERAL"
+                dis_name = "SIN TIPO"; sub_name = "GENERAL"
             
             f_key = (rut.frecuencia.dias, rut.frecuencia.nombre) if rut.frecuencia else (float('inf'), "SIN FRECUENCIA")
             r_key = rut.id
@@ -278,7 +278,7 @@ class WorkOrderService:
             })
         return tree
     @staticmethod
-    def get_location_grouped_tree(year, month, ubicacion_ids=None, categoria_ids=None):
+    def get_location_grouped_tree(year, month, ubicacion_ids=None, tipo_ids=None):
         """
         Agrupa órdenes por:
         1. Ubicación Raíz (Edificio) -> Mapeado a 'sys' en template
@@ -305,17 +305,17 @@ class WorkOrderService:
                 except Ubicacion.DoesNotExist: pass
             filtros['ubicacion_id__in'] = list(all_ids)
             
-        if categoria_ids:
-            all_cat_ids = set()
-            for cid in categoria_ids:
+        if tipo_ids:
+            all_tipo_ids = set()
+            for cid in tipo_ids:
                 try:
-                    cat = Categoria.objects.get(id=cid)
-                    all_cat_ids.update(cat.get_descendants(include_self=True).values_list('id', flat=True))
-                except Categoria.DoesNotExist: pass
-            filtros['rutina__categoria_id__in'] = list(all_cat_ids)
+                    tipo = Tipo.objects.get(id=cid)
+                    all_tipo_ids.update(tipo.get_descendants(include_self=True).values_list('id', flat=True))
+                except Tipo.DoesNotExist: pass
+            filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
 
         ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
-            'rutina__categoria', 'rutina__frecuencia', 'ubicacion', 'programacion__horario'
+            'rutina__tipo', 'rutina__frecuencia', 'ubicacion', 'programacion__horario'
         ).prefetch_related('programacion__horario__dias', 'activos')
         
         # Pre-fetch locations and cache hierarchy
@@ -357,7 +357,7 @@ class WorkOrderService:
         for ot in ordenes:
             root_name, sub_name = get_root_and_sub(ot.ubicacion_id)
             
-            cat_name = ot.rutina.categoria.nombre if ot.rutina and ot.rutina.categoria else "Sin Categoría"
+            cat_name = ot.rutina.tipo.nombre if ot.rutina and ot.rutina.tipo else "Sin Tipo"
             rut_name = ot.rutina.nombre if ot.rutina else "OT Sin Rutina"
             
             # Color logic (optional, reuse existing or random)

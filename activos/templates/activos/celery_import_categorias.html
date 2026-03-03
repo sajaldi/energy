@@ -30,7 +30,7 @@
 
     .progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #2563eb, #1d4ed8);
+        background: linear-gradient(90deg, #10b981, #059669); /* Green for Assets/Categories */
         width: 0%;
         transition: width 0.3s ease;
         display: flex;
@@ -58,8 +58,8 @@
     }
 
     .file-upload-zone:hover {
-        border-color: #2563eb;
-        background-color: #eff6ff;
+        border-color: #10b981;
+        background-color: #ecfdf5;
     }
 </style>
 {% endblock %}
@@ -67,57 +67,60 @@
 {% block content %}
 <div class="import-container">
     <h2 style="margin-bottom: 20px; color: #1e293b;">
-        <span style="color: #2563eb">📖</span> Importación de Procedimientos y Pasos
+        <span style="color: #059669">📂</span> Importación de Categorías (Activos)
     </h2>
 
-    <div style="background: #eff6ff; border-left: 4px solid #2563eb; padding: 15px; margin-bottom: 25px;">
-        <p style="margin: 0; color: #1e3a8a;">
-            <strong>Importante:</strong> Este proceso permite crear o actualizar Procedimientos junto con sus Pasos
-            (Tareas).
-            Use la columna <code>procedimiento</code> para agrupar los pasos bajo un mismo nombre.
+    <div style="background: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin-bottom: 25px;">
+        <p style="margin: 0; color: #064e3b;">
+            <strong>Proceso de Background:</strong> Suba su archivo Excel o CSV para importar las categorías de activos.
+            El sistema procesará las jerarquías basadas en los nombres de los padres.
         </p>
     </div>
 
     <div style="margin-bottom: 25px; text-align: center;">
-        <a href="template/" class="button"
-            style="background: #059669; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.2);">
-            <span style="font-size: 1.2rem;">📊</span> Descargar Plantilla de Procedimientos
+        <a href="{% url 'activos:celery_download_template_categorias' %}" class="button"
+            style="background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);">
+            <span style="font-size: 1.2rem;">📊</span> Descargar Plantilla de Categorías
         </a>
     </div>
 
     <form id="importForm" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()">
-            <input type="file" id="fileInput" name="import_file" style="display: none;" accept=".xlsx, .xls, .csv">
+            <input type="file" id="fileInput" name="file" style="display: none;" accept=".xlsx, .xls, .csv">
             <div style="font-size: 3rem; color: #94a3b8; margin-bottom: 15px;">📄</div>
-            <h3 style="color: #475569; margin: 0;">Selecciona tu archivo de Procedimientos</h3>
+            <h3 style="color: #475569; margin: 0;">Selecciona tu archivo de Categorías de Activos</h3>
             <p style="color: #94a3b8; margin-top: 5px;">Soporta Excel (.xlsx) y CSV</p>
-            <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #2563eb;"></div>
+            <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #059669;"></div>
         </div>
 
         <div style="margin-top: 15px;">
             <label for="importName" style="display: block; margin-bottom: 5px; font-weight: 600; color: #1e293b;">
                 🏷️ Nombre de la importación (Opcional)
             </label>
-            <input type="text" id="importName" name="name" placeholder="Ej: Importación Procedimientos 2024"
+            <input type="text" id="importName" name="name" placeholder="Ej: Importación Categorías Activos Base"
                 style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
         </div>
 
         <div style="margin-top: 25px; text-align: right;">
-            <a href="../" class="button"
-                style="background-color: #cbd5e1; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px;">Cancelar</a>
+            <a href="{% url 'admin:activos_categoria_changelist' %}" class="button"
+                style="background-color: #cbd5e1; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px; border-radius: 4px;">Cancelar</a>
             <button type="submit" class="button"
-                style="background-color: #2563eb; color: white; padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem;">
-                🚀 Iniciar Importación
+                style="background-color: #059669; color: white; padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem;">
+                🚀 Iniciar Carga
             </button>
         </div>
     </form>
 
+    <!-- Barra de Progreso -->
     <div class="progress-wrapper" id="progressWrapper">
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill">0%</div>
         </div>
         <div class="status-text" id="statusText">Iniciando proceso...</div>
+        <div style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: #94a3b8;">
+            ID de Tarea: <span id="taskIdDisplay" style="font-family: monospace;">...</span>
+        </div>
     </div>
 </div>
 
@@ -128,47 +131,56 @@
     const progressWrapper = document.getElementById('progressWrapper');
     const progressFill = document.getElementById('progressFill');
     const statusText = document.getElementById('statusText');
+    const taskIdDisplay = document.getElementById('taskIdDisplay');
 
     fileInput.addEventListener('change', function () {
         if (this.files && this.files[0]) {
             fileName.textContent = this.files[0].name;
+            fileName.style.display = 'block';
         }
     });
 
     importForm.addEventListener('submit', function (e) {
         e.preventDefault();
+
         if (!fileInput.files.length) {
             Swal.fire('Error', 'Selecciona un archivo primero', 'error');
             return;
         }
 
+        // UI Update
         importForm.style.opacity = '0.5';
         importForm.style.pointerEvents = 'none';
         progressWrapper.style.display = 'block';
 
         const formData = new FormData(this);
 
-        fetch('process/', {
+        fetch("{% url 'activos:celery_import_categorias_process' %}", {
             method: 'POST',
             body: formData,
             headers: {
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             }
         })
-            .then(res => res.json())
+            .then(response => response.json())
             .then(data => {
                 if (data.task_id) {
+                    taskIdDisplay.textContent = data.task_id;
                     startPolling(data.task_id);
                 } else {
                     Swal.fire('Error', data.error || 'No se pudo iniciar la tarea', 'error');
                     resetUI();
                 }
+            })
+            .catch(err => {
+                Swal.fire('Error', 'Error de conexión', 'error');
+                resetUI();
             });
     });
 
     function startPolling(taskId) {
         const interval = setInterval(() => {
-            fetch(`progress/?task_id=${taskId}`)
+            fetch("{% url 'activos:celery_import_categorias_progress' %}?task_id=" + taskId)
                 .then(res => res.json())
                 .then(data => {
                     const percent = data.percent || 0;
@@ -176,57 +188,49 @@
                     progressFill.textContent = percent + '%';
                     statusText.textContent = data.status || 'Procesando...';
 
-                    if (data.status_code === 'completed' || data.state === 'SUCCESS') {
+                    if (data.state === 'COMPLETED' || data.state === 'SUCCESS') {
                         clearInterval(interval);
-                        if (data.dry_run) {
-                            Swal.fire({
-                                title: '🔍 Vista Previa',
-                                html: `<p>Nuevos Pasos: ${data.new}</p><p>Actualizados: ${data.updated}</p><p>Errores: ${data.errors}</p>`,
-                                icon: 'info',
-                                showCancelButton: true,
-                                confirmButtonText: '✅ Confirmar Importación'
-                            }).then(result => {
-                                if (result.isConfirmed) {
-                                    confirmImport(data.file_path);
-                                } else {
-                                    resetUI();
-                                }
-                            });
-                        } else {
-                            Swal.fire('¡Éxito!', 'Importación completada', 'success').then(() => {
-                                window.location.href = '../';
-                            });
-                        }
+                        progressFill.style.width = '100%';
+                        
+                        Swal.fire({
+                            title: '¡Importación Finalizada!',
+                            html: `
+                            <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                                <p>✅ <b>Nuevas:</b> ${data.new}</p>
+                                <p>🔄 <b>Actualizadas:</b> ${data.updated}</p>
+                                <p>⏭️ <b>Omitidas:</b> ${data.skipped}</p>
+                                <p>❌ <b>Errores:</b> ${data.errors}</p>
+                                ${data.error_list && data.error_list.length > 0 ? `
+                                    <div style="margin-top: 15px;">
+                                        <p style="margin: 0 0 5px 0; font-weight: bold; color: #ef4444; font-size: 0.9rem;">Detalle de Errores:</p>
+                                        <div style="max-height: 150px; overflow-y: auto; font-size: 0.8rem; font-family: monospace; color: #b91c1c; border: 1px solid #fecaca; padding: 8px; border-radius: 4px; background: #fff5f5;">
+                                            ${data.error_list.join('<br>')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            `,
+                            icon: data.errors > 0 ? 'warning' : 'success',
+                            confirmButtonText: 'Ver Categorías'
+                        }).then(() => {
+                            window.location.href = "{% url 'admin:activos_categoria_changelist' %}";
+                        });
                     } else if (data.state === 'FAILURE' || data.status === 'error') {
                         clearInterval(interval);
-                        Swal.fire('Error', data.message || 'La tarea falló', 'error');
-                        resetUI();
+                        progressFill.style.background = '#ef4444';
+                        statusText.textContent = 'Falló la importación';
+                        Swal.fire('Error Crítico', data.message || 'La tarea falló inesperadamente', 'error');
                     }
-                });
-        }, 1000);
-    }
-
-    function confirmImport(filePath) {
-        const formData = new FormData();
-        formData.append('confirm', 'true');
-        formData.append('file_path', filePath);
-        fetch('process/', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.task_id) startPolling(data.task_id);
-            });
+                })
+                .catch(err => console.error('Error de sondeo:', err));
+        }, 1500);
     }
 
     function resetUI() {
         importForm.style.opacity = '1';
         importForm.style.pointerEvents = 'auto';
         progressWrapper.style.display = 'none';
+        progressFill.style.width = '0%';
     }
 </script>
 {% endblock %}
