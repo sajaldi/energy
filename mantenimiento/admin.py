@@ -883,7 +883,7 @@ class SmartHierarchicalWidget(ForeignKeyWidget):
         names = [f"{c.nombre} (Padre: {c.padre})" for c in candidates[:3]]
         raise ValueError(f"Ambigüedad: '{leaf_name}' existe {count} veces. Usa formato 'Padre -> Hijo'. Ejemplos: {', '.join(names)}...")
 
-class OrdenTrabajoResource(resources.ModelResource):
+class OrdenTrabajoResource(ProgressResourceMixin, resources.ModelResource):
     rutina_codigo = fields.Field(
         column_name='rutina_codigo',
         attribute='rutina',

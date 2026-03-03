@@ -269,13 +269,16 @@ def import_ordenes_task(self, file_path, file_format, user_id=None, verification
             estado='PROCESANDO'
         )
 
-    # Inicializar resource
-    resource = OrdenTrabajoResource()
-    # No usamos bulk para OTs porque after_import necesita los IDs individuales generados inmediatamente
-    resource._meta.use_bulk = False
-    
     # Marcador de progreso en caché
     cache_key = f"import_ordenes_progress_{user_id}" if user_id else "import_ordenes_progress_system"
+
+    # Inicializar resource
+    resource = OrdenTrabajoResource()
+    resource.celery_task = self
+    resource.cache_key = cache_key
+    resource.total_rows = 0
+    # No usamos bulk para OTs porque after_import necesita los IDs individuales generados inmediatamente
+    resource._meta.use_bulk = False
 
     # Leer archivo
     try:
@@ -297,6 +300,7 @@ def import_ordenes_task(self, file_path, file_format, user_id=None, verification
         return error_res
 
     total_rows = len(dataset)
+    resource.total_rows = total_rows
     if registro:
         registro.total_filas = total_rows
         registro.save()
@@ -417,7 +421,7 @@ def import_ordenes_task(self, file_path, file_format, user_id=None, verification
                 registro.filas_error = len(detailed_errors)
                 registro.estado = 'COMPLETADO'
                 if detailed_errors:
-                    registro.detalles_error = "\n".join(detailed_errors[:10])
+                    registro.detalles_error = "\n".join(detailed_errors[:50])
                 registro.save()
 
             final_res = {
