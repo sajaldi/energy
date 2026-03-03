@@ -11,6 +11,7 @@ class Tipo(models.Model):
     Reemplaza el sistema anterior de Categoría/Disciplina/SubDisciplina.
     """
     nombre = models.CharField(max_length=100)
+    codigo = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Código")
     padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subtipos')
     categoria_activo = models.OneToOneField('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimiento_tipo', help_text="Vincular con una categoría de activo particular")
     descripcion = models.TextField(blank=True, null=True)

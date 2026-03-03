@@ -1,6 +1,7 @@
 from celery import shared_task
 from import_export import resources
-from .models import Rutina
+from .models import Rutina, Tipo
+from django.db import transaction
 import time
 import os
 
@@ -42,11 +43,15 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
             estado='PROCESANDO'
         )
 
-    # Inicializar resource
-    resource = RutinaResource()
-    
     # Marcador de progreso en caché
     cache_key = f"import_rutinas_progress_{user_id}" if user_id else "import_rutinas_progress_system"
+    
+    # Inicializar resource
+    resource = RutinaResource()
+    resource.celery_task = self
+    resource.cache_key = cache_key
+    resource.total_rows = 0 
+    print(f"[DEBUG] Resource inicializado para {import_name}")
 
     # Leer archivo
     try:
@@ -68,6 +73,7 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
         return error_res
 
     total_rows = len(dataset)
+    resource.total_rows = total_rows
     if registro:
         registro.total_filas = total_rows
         registro.save()
@@ -103,29 +109,43 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
         not_found_count = 0
         
         for i, row in enumerate(dataset.dict, start=1):
+            obj_id = row.get('id')
             codigo = str(row.get('codigo_rutina') or '').strip()
             
-            if not codigo:
-                status = "SIN CODIGO"
+            # 1. Identificar registro (ID prioritario)
+            exists = False
+            if obj_id:
+                try:
+                    exists = Rutina.objects.filter(id=obj_id).exists()
+                except (ValueError, TypeError):
+                    pass
+            
+            if not exists and codigo:
+                exists = Rutina.objects.filter(codigo_rutina=codigo).exists()
+
+            # 2. Determinar Estado
+            if not obj_id and not codigo:
+                status = "SIN IDENTIFICADOR"
                 not_found_count += 1
-                # Agregar a faltantes si tiene nombre o algo mas
                 missing_dataset.append(dataset[i-1])
             else:
-                if codigo in codes_seen:
+                if codigo and codigo in codes_seen and not obj_id:
                     codes_duplicated.add(codigo)
                     status = "REPETIDO EN ARCHIVO"
                 else:
-                    codes_seen.add(codigo)
-                    exists = Rutina.objects.filter(codigo_rutina=codigo).exists()
+                    if codigo: codes_seen.add(codigo)
+                    
                     if exists:
                         found_count += 1
                         status = "EXISTE"
+                        if obj_id:
+                            status += f" (ID {obj_id})"
                     else:
                         not_found_count += 1
                         status = "NO EXISTE"
                         missing_dataset.append(dataset[i-1])
             
-            results.append(f"Fila {i}: Codigo '{codigo}' -> {status}")
+            results.append(f"Fila {i}: {status}")
             print(f"[DEBUG] [Task] Verificando fila {i}: {codigo} -> {status}")
             
             if i % 10 == 0 or i == total_rows:
@@ -153,11 +173,13 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
         }
     else:
         # Modo IMPORTACIÓN real
-        resource.before_import(dataset)
         try:
-            # Usar import_data que es mucho más robusto para detectar duplicados/actualizaciones
-            # basado en import_id_fields configurado en el Resource.
+            print(f"[DEBUG] [Actual Import] Iniciando before_import con dataset de {len(dataset)} filas")
+            resource.before_import(dataset)
+            print("[DEBUG] [Actual Import] before_import completado. Llamando a import_data...")
+            # Usar import_data (use_transactions=True en Meta ya maneja la transacción)
             result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
+            print(f"[DEBUG] [Actual Import] import_data finalizado. Resultado: {result.totals}")
             
             # Recopilar errores detallados de las filas
             detailed_errors = []
@@ -917,33 +939,39 @@ def import_procedimientos_task(self, file_path, file_format, user_id=None, verif
     cache.set(cache_key, final_res, 3600)
     return final_res
 
-@shared_task(bind=True)
-def import_tipos_task(self, file_path, file_format, user_id=None, import_name="Importación Tipos Mantenimiento"):
+@shared_task(bind=True, name='mantenimiento.tasks.import_tipos_task')
+def import_tipos_task(self, file_path, file_format, user_id=None, verification_mode=False, dry_run=False, import_name="Importación Tipos Mantenimiento"):
     """
-    Tarea Celery para importar TIPOS de mantenimiento con seguimiento de progreso real.
+    Tarea Celery para importar o VERIFICAR TIPOS de mantenimiento con seguimiento de progreso real.
     """
     from tablib import Dataset
     from django.core.files.storage import default_storage
     from django.core.cache import cache
     from .admin import TipoResource
+    from .models import Tipo
     from activos.models import RegistroImportacion
     from django.contrib.auth.models import User
+    import sys
     
     user = User.objects.get(id=user_id) if user_id else None
+    registro = None
     
-    # Crear registro de importación (usamos el modelo de activos para el dashboard centralizado)
-    registro = RegistroImportacion.objects.create(
-        nombre=import_name,
-        tipo='Tipos (Mantenimiento)',
-        usuario=user,
-        estado='PROCESANDO'
-    )
-    
-    # Inicializar resource
-    resource = TipoResource()
+    if not verification_mode and not dry_run:
+        registro = RegistroImportacion.objects.create(
+            nombre=import_name,
+            tipo='Tipos (Mantenimiento)',
+            usuario=user,
+            estado='PROCESANDO'
+        )
     
     # Marcador de progreso en caché
     cache_key = f"import_tipos_progress_{user_id}" if user_id else "import_tipos_progress_system"
+    
+    # Inicializar resource
+    resource = TipoResource()
+    resource.celery_task = self
+    resource.cache_key = cache_key
+    resource.total_rows = 0 # Se actualizará al cargar dataset
 
     # Leer archivo
     try:
@@ -956,74 +984,164 @@ def import_tipos_task(self, file_path, file_format, user_id=None, import_name="I
             else:
                 raise ValueError(f"Formato no soportado: {file_format}")
     except Exception as e:
-        registro.estado = 'ERROR'
-        registro.detalles_error = f'Error al leer archivo: {str(e)}'
-        registro.save()
+        if registro:
+            registro.estado = 'ERROR'
+            registro.detalles_error = f'Error al leer archivo: {str(e)}'
+            registro.save()
         error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
         cache.set(cache_key, error_res, 3600)
         return error_res
 
     total_rows = len(dataset)
-    registro.total_filas = total_rows
-    registro.save()
+    resource.total_rows = total_rows
+    if registro:
+        registro.total_filas = total_rows
+        registro.save()
+    
+    missing_dataset = Dataset()
+    missing_dataset.headers = dataset.headers
     
     # Estado inicial
     progress_info = {
         'current': 0, 
         'total': total_rows, 
-        'status': 'Iniciando importacion...', 
+        'status': 'Iniciando verificacion...' if verification_mode else 'Iniciando importacion...', 
         'percent': 0,
         'new': 0,
         'updated': 0,
         'skipped': 0,
-        'errors': 0
+        'errors': 0,
+        'found': 0,
+        'not_found': 0,
+        'verification_mode': verification_mode
     }
     cache.set(cache_key, progress_info, 3600)
     self.update_state(state='PROGRESS', meta=progress_info)
 
-    try:
-        result = resource.import_data(dataset, dry_run=False, raise_errors=False)
+    if verification_mode:
+        results = []
+        codes_seen = set()
+        codes_duplicated = set()
+        found_count = 0
+        not_found_count = 0
         
-        detailed_errors = []
-        for error in result.base_errors:
-            detailed_errors.append(f"Error General: {str(error.error)}")
-        for line, errors in result.row_errors():
-            for error in errors:
-                detailed_errors.append(f"Fila {line}: {str(error.error)}")
-
-        # Actualizar registro
-        registro.filas_nuevas = result.totals.get('new', 0)
-        registro.filas_actualizadas = result.totals.get('update', 0)
-        registro.filas_omitidas = result.totals.get('skip', 0)
-        registro.filas_error = len(detailed_errors)
-        registro.estado = 'COMPLETADO'
-        if detailed_errors:
-            registro.detalles_error = "\n".join(detailed_errors[:50])
-        registro.save()
+        for i, row in enumerate(dataset.dict, start=1):
+            obj_id = str(row.get('id') or '').strip()
+            codigo = str(row.get('codigo') or '').strip()
+            
+            exists = False
+            match_info = ""
+            
+            # 1. Intentar buscar por ID (si es numérico)
+            if obj_id and obj_id.isdigit():
+                exists = Tipo.objects.filter(id=obj_id).exists()
+                if exists:
+                    match_info = f"ID {obj_id}"
+            
+            # 2. Si no se encontró por ID, intentar por Código
+            if not exists and codigo:
+                if codigo in codes_seen:
+                    codes_duplicated.add(codigo)
+                    status = "REPETIDO EN ARCHIVO"
+                else:
+                    codes_seen.add(codigo)
+                    exists = Tipo.objects.filter(codigo=codigo).exists()
+                    if exists:
+                        match_info = f"Código {codigo}"
+            
+            if exists:
+                found_count += 1
+                status = f"EXISTE ({match_info})"
+            elif not obj_id and not codigo:
+                status = "SIN IDENTIFICADOR (ID o Código)"
+                not_found_count += 1
+                missing_dataset.append(dataset[i-1])
+            else:
+                status = "NO EXISTE (Nuevo)"
+                not_found_count += 1
+                missing_dataset.append(dataset[i-1])
+            
+            results.append(f"Fila {i}: {status}")
+            
+            if i % 10 == 0 or i == total_rows:
+                progress_info.update({
+                    'current': i,
+                    'status': f'Verificando {i}/{total_rows}...',
+                    'percent': int((i / total_rows) * 100),
+                    'found': found_count,
+                    'not_found': not_found_count,
+                    'duplicates': len(codes_duplicated)
+                })
+                cache.set(cache_key, progress_info, 3600)
+                self.update_state(state='PROGRESS', meta=progress_info)
 
         final_res = {
             'status': 'completed',
             'status_code': 'completed',
             'total': total_rows,
-            'new': registro.filas_nuevas,
-            'updated': registro.filas_actualizadas,
-            'skipped': registro.filas_omitidas,
-            'errors': registro.filas_error,
-            'error_list': detailed_errors
+            'found': found_count,
+            'not_found': not_found_count,
+            'duplicates': len(codes_duplicated),
+            'duplicate_list': list(codes_duplicated),
+            'results': results,
+            'verification_mode': True
         }
-    except Exception as e:
-        error_msg = f"Error crítico durante el procesamiento: {str(e)}"
-        registro.estado = 'ERROR'
-        registro.detalles_error = error_msg
-        registro.save()
-        final_res = {'status': 'error', 'message': error_msg}
+    else:
+        # Modo IMPORTACIÓN real o Dry Run
+        resource.before_import(dataset)
+        try:
+            print(f"[DEBUG] [Actual Import Tipos] Iniciando import_data con {len(dataset)} filas")
+            # Usar import_data (use_transactions=True en Meta ya maneja la transacción)
+            result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
+            print(f"[DEBUG] [Actual Import Tipos] import_data finalizado: {result.totals}")
+            
+            detailed_errors = []
+            for error in result.base_errors:
+                detailed_errors.append(f"Error General: {str(error.error)}")
+            for line, errors in result.row_errors():
+                for error in errors:
+                    detailed_errors.append(f"Fila {line}: {str(error.error)}")
 
-    # Limpiar archivo original
-    try:
-        if default_storage.exists(file_path):
-            default_storage.delete(file_path)
-    except:
-        pass
+            if registro:
+                registro.filas_nuevas = result.totals.get('new', 0)
+                registro.filas_actualizadas = result.totals.get('update', 0)
+                registro.filas_omitidas = result.totals.get('skip', 0)
+                registro.filas_error = len(detailed_errors)
+                registro.estado = 'COMPLETADO'
+                if detailed_errors:
+                    registro.detalles_error = "\n".join(detailed_errors[:50])
+                registro.save()
+
+            final_res = {
+                'status': 'completed',
+                'status_code': 'completed',
+                'total': total_rows,
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(detailed_errors),
+                'error_list': detailed_errors,
+                'verification_mode': False,
+                'dry_run': dry_run,
+                'file_path': file_path
+            }
+        except Exception as e:
+            if registro:
+                registro.estado = 'ERROR'
+                registro.detalles_error = str(e)
+                registro.save()
+            error_msg = f"Error crítico durante el procesamiento: {str(e)}"
+            progress_info.update({'status': 'error', 'message': error_msg})
+            cache.set(cache_key, progress_info, 3600)
+            return {'status': 'error', 'message': error_msg}
+
+    # Limpiar archivo original SOLO si no es dry_run y no es verificacion o si falló
+    if not dry_run and not verification_mode:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
         
     cache.set(cache_key, final_res, 3600)
     return final_res

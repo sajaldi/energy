@@ -26,27 +26,42 @@ def import_categorias_process(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
+    # 1. Recuperar parámetros
     import_file = request.FILES.get('import_file')
-    if not import_file:
-        return JsonResponse({'error': 'No se subió ningún archivo'}, status=400)
+    file_path = request.POST.get('file_path')  # Para confirmación de dry_run
+    verif_mode = request.POST.get('verification_mode') == 'true'
+    is_confirm = request.POST.get('confirm') == 'true'
+    
+    if not import_file and not file_path:
+        return JsonResponse({'error': 'No se subió ningún archivo ni se especificó ruta para confirmar'}, status=400)
             
-    file_ext = import_file.name.split('.')[-1].lower()
-    temp_name = f'tmp/import_tipos_mantenimiento_{request.user.id}_{int(time.time())}.{file_ext}'
-    
-    try:
-        path = default_storage.save(temp_name, import_file)
-    except Exception as e:
-        return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
-    
+    if import_file:
+        file_ext = import_file.name.split('.')[-1].lower()
+        temp_name = f'tmp/import_tipos_mantenimiento_{request.user.id}_{int(time.time())}.{file_ext}'
+        try:
+            path = default_storage.save(temp_name, import_file)
+        except Exception as e:
+            return JsonResponse({'error': f'Error al guardar archivo: {str(e)}'}, status=500)
+    else:
+        # Usamos el path existente enviado por el cliente (confirmación)
+        path = file_path
+        file_ext = path.split('.')[-1].lower()
+
     cache_key = f"import_tipos_progress_{request.user.id}"
     cache.delete(cache_key)
     
-    import_name = request.POST.get('name') or f"Tipos Mant. {import_file.name}"
+    import_name = request.POST.get('name') or (import_file.name if import_file else "Importación confirmada")
     
+    # Si no es confirmación ni verificación, forzamos dry_run para el primer paso de preview
+    # A menos que el usuario lo quiera saltar (pero por consistencia con otros lo mantenemos)
+    dry_run = not verif_mode and not is_confirm
+
     task = import_tipos_task.delay(
         path, 
         file_ext, 
         user_id=request.user.id,
+        verification_mode=verif_mode,
+        dry_run=dry_run,
         import_name=import_name
     )
     

@@ -21,8 +21,84 @@ from import_export.widgets import ForeignKeyWidget, DurationWidget, ManyToManyWi
 from activos.models import Activo, Ubicacion
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.core.cache import cache
 
-class TipoResource(resources.ModelResource):
+class ProgressResourceMixin:
+    """
+    Mixin para que el Resource pueda reportar progreso a Celery y Caché.
+    """
+    celery_task = None
+    cache_key = None
+    total_rows = 0
+    current_row = 0
+
+    def after_import_row(self, row, row_result, row_number=None, **kwargs):
+        self.current_row += 1
+        # Log to terminal for user to see in Celery logs
+        if self.current_row <= 5 or self.current_row % 10 == 0 or self.current_row == self.total_rows:
+             print(f"[DEBUG] [Resource] Procesada fila {self.current_row}/{self.total_rows}")
+        
+        # Reportar cada 10 filas o al final
+        if self.celery_task and (self.current_row <= 5 or self.current_row % 10 == 0 or self.current_row == self.total_rows):
+            percent = int((self.current_row / self.total_rows) * 100) if self.total_rows > 0 else 0
+            progress_info = {
+                'current': self.current_row,
+                'total': self.total_rows,
+                'percent': percent,
+                'status': f'Importando fila {self.current_row}/{self.total_rows}...'
+            }
+            if self.cache_key:
+                cache.set(self.cache_key, progress_info, 3600)
+            self.celery_task.update_state(state='PROGRESS', meta=progress_info)
+        super().after_import_row(row, row_result, **kwargs)
+
+class TipoHierarchicalWidget(ForeignKeyWidget):
+    """
+    Widget para Tipo que resuelve jerárquicamente por nombre.
+    Soporta: "Padre -> Hijo", "Padre | Hijo", "Nombre Simple".
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cache = {}
+
+    def clean(self, value, row=None, *args, **kwargs):
+        val_str = str(value).strip()
+        if not val_str: return None
+        
+        # Cache simple para evitar re-consultar el mismo nombre exacto en el mismo import
+        if val_str in self._cache:
+            return self._cache[val_str]
+
+        import re
+        parts = [p.strip() for p in re.split(r'\s*(?:->|\||-)\s*', val_str) if p.strip()]
+        if not parts: return None
+        
+        leaf_name = parts[-1]
+        candidates = self.model.objects.filter(nombre__iexact=leaf_name)
+        count = candidates.count()
+        
+        result = None
+        if count == 0:
+            raise ValueError(f"No existe Tipo con nombre '{leaf_name}'")
+        elif count == 1:
+            result = candidates.first()
+        elif len(parts) > 1:
+            parent_name = parts[-2]
+            filtered = candidates.filter(padre__nombre__iexact=parent_name)
+            if filtered.count() == 1:
+                result = filtered.first()
+            elif filtered.count() > 1:
+                raise ValueError(f"Ambigüedad: Múltiples '{leaf_name}' tienen padre '{parent_name}'.")
+            else:
+                raise ValueError(f"Conflicto: Se encontró '{leaf_name}' pero ninguno pertenece a '{parent_name}'.")
+        else:
+            names = [f"{c.nombre} (Padre: {c.padre})" for c in candidates[:3]]
+            raise ValueError(f"Ambigüedad: '{leaf_name}' existe {count} veces. Usa 'Padre -> Hijo'. Ej: {', '.join(names)}")
+            
+        self._cache[val_str] = result
+        return result
+
+class TipoResource(ProgressResourceMixin, resources.ModelResource):
     """
     Resource para import/export de tipos jerárquicos.
     Permite importar usando el nombre del padre para mayor facilidad.
@@ -30,7 +106,13 @@ class TipoResource(resources.ModelResource):
     padre = fields.Field(
         column_name='padre',
         attribute='padre',
-        widget=ForeignKeyWidget(Tipo, field='nombre')
+        widget=TipoHierarchicalWidget(Tipo, field='nombre')
+    )
+    
+    categoria_activo = fields.Field(
+        column_name='categoria_activo',
+        attribute='categoria_activo',
+        widget=ForeignKeyWidget(CategoriaActivo, field='nombre')
     )
     
     ruta_completa = fields.Field(
@@ -41,26 +123,63 @@ class TipoResource(resources.ModelResource):
     
     class Meta:
         model = Tipo
-        fields = ('id', 'ruta_completa', 'nombre', 'padre', 'categoria_activo', 'descripcion')
-        export_order = ('id', 'ruta_completa', 'nombre', 'padre', 'categoria_activo', 'descripcion')
+        fields = ('id', 'codigo', 'ruta_completa', 'nombre', 'padre', 'categoria_activo', 'descripcion')
+        export_order = ('id', 'codigo', 'ruta_completa', 'nombre', 'padre', 'categoria_activo', 'descripcion')
         readonly_fields = ('ruta_completa',)
         skip_unchanged = True
         report_skipped = True
-        import_id_fields = ('id',)
+        use_transactions = False # Desactivado para evitar bloqueos en SQLite con Celery
+        import_id_fields = ('id', 'codigo')
 
     def before_import_row(self, row, **kwargs):
         """
-        Asegura que si el padre no existe pero está en el mismo archivo, 
-        se pueda procesar (o al menos manejar el error limpiamente).
+        Lógica personalizada para:
+        1. Priorizar ID si viene en el archivo.
+        2. Limpiar nombres de padres.
         """
-        nombre_padre = row.get('padre')
-        if nombre_padre:
-            nombre_padre = str(nombre_padre).strip()
-            # Si el padre no existe, intentamos buscarlo por nombre
-            if not Tipo.objects.filter(nombre=nombre_padre).exists():
-                # Nota: En una importación masiva, esto podría fallar si el padre se crea después.
-                # Pero para la mayoría de los casos de 'texto', esto lo hace más amigable.
+        # Si viene ID, nos aseguramos que sea el primer campo de búsqueda
+        # Aunque django-import-export ya maneja import_id_fields en orden.
+        pass
+
+    def get_instance(self, instance_loader, row):
+        """
+        Sobrescribe la búsqueda de instancia para priorizar ID, 
+        y si no, usar Código. Útil para actualizaciones sparse.
+        """
+        obj_id = row.get('id')
+        if obj_id:
+            try:
+                return self.get_queryset().get(id=obj_id)
+            except (Tipo.DoesNotExist, ValueError):
                 pass
+        
+        codigo = row.get('codigo')
+        if codigo:
+            try:
+                return self.get_queryset().get(codigo=codigo)
+            except (Tipo.DoesNotExist, ValueError):
+                pass
+        
+        return None
+
+    def import_field(self, field, obj, row, is_m2m=False, **kwargs):
+        """
+        Sobrescribimos para obviar campos vacíos en la importación (Sparse Update).
+        Si el valor en el row está vacío/None, no se toca el atributo del objeto.
+        """
+        # Si el campo está en el row pero viene vacío, lo ignoramos para no sobreescribir con null/blanco
+        column_name = field.column_name
+        
+        # El ID y el Código si podemos permitirlos (aunque usualmente ya estarán)
+        if column_name in ['id', 'codigo']:
+            return super().import_field(field, obj, row, is_m2m, **kwargs)
+
+        if column_name in row:
+            value = row.get(column_name)
+            if value is None or str(value).strip() == '':
+                return # No hacer nada si viene vacío (Sparse Update)
+        
+        super().import_field(field, obj, row, is_m2m, **kwargs)
 
 from django import forms
 
@@ -112,8 +231,8 @@ class TipoAdmin(ImportExportModelAdmin):
         from django.shortcuts import redirect
         return redirect('mantenimiento:tipo_import_background')
 
-    list_display = ('nombre', 'padre', 'categoria_activo', 'descripcion')
-    search_fields = ('nombre',)
+    list_display = ('codigo', 'nombre', 'padre', 'categoria_activo', 'descripcion')
+    search_fields = ('codigo', 'nombre')
     list_filter = ('padre', 'categoria_activo')
     autocomplete_fields = ('padre', 'categoria_activo')
     inlines = [SubtipoInline, RutinaInline]
@@ -471,7 +590,7 @@ class FlexibleDurationWidget(DurationWidget):
         # Fallback al widget original de import-export
         return super().clean(value, row, *args, **kwargs)
 
-class RutinaResource(resources.ModelResource):
+class RutinaResource(ProgressResourceMixin, resources.ModelResource):
     """
     Resource personalizado para exportar/importar rutinas.
     
@@ -491,7 +610,7 @@ class RutinaResource(resources.ModelResource):
     tipo_nombre = fields.Field(
         column_name='tipo_nombre',
         attribute='tipo',
-        widget=ForeignKeyWidget(Tipo, field='nombre')
+        widget=TipoHierarchicalWidget(Tipo, field='nombre')
     )
     
     tipo_ruta = fields.Field(
@@ -513,12 +632,21 @@ class RutinaResource(resources.ModelResource):
 
     def get_instance(self, instance_loader, row):
         """
-        Asegura que la coincidencia se haga SIEMPRE por codigo_rutina
-        incluso si el ID viene vacío o diferente en el archivo.
+        Prioriza búsqueda por ID, luego por codigo_rutina.
         """
+        obj_id = row.get('id')
+        if obj_id:
+            try:
+                return self.get_queryset().get(id=obj_id)
+            except (Rutina.DoesNotExist, ValueError):
+                pass
+
         codigo = row.get('codigo_rutina')
         if codigo:
-            return self.Meta.model.objects.filter(codigo_rutina=str(codigo).strip()).first()
+            try:
+                return self.get_queryset().get(codigo_rutina=str(codigo).strip())
+            except (Rutina.DoesNotExist, ValueError):
+                pass
         return None
     
     tiempo_estimado = fields.Field(
@@ -554,19 +682,35 @@ class RutinaResource(resources.ModelResource):
                 else:
                     row[key] = val_str
 
+    def import_field(self, field, obj, row, is_m2m=False, **kwargs):
+        """
+        Sparse Update: No sobrescribir con valores vacíos.
+        """
+        column_name = field.column_name
+        
+        # El ID y el Código si podemos permitirlos
+        if column_name in ['id', 'codigo_rutina']:
+            return super().import_field(field, obj, row, is_m2m, **kwargs)
+
+        if column_name in row:
+            value = row.get(column_name)
+            if value is None or str(value).strip() == '':
+                return # No hacer nada si viene vacío (Sparse Update)
+        
+        super().import_field(field, obj, row, is_m2m, **kwargs)
+
     class Meta:
         model = Rutina
-        import_id_fields = ('codigo_rutina',)
-        # EXCLUIMOS 'id' de los campos de importación para evitar que el loader 
-        # intente buscar por ID (que suele estar vacío en plantillas nuevas)
-        fields = ('codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta', 
+        import_id_fields = ('id', 'codigo_rutina')
+        fields = ('id', 'codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta', 
                   'frecuencia_nombre', 'procedimiento_estandar', 'descripcion', 
                   'tiempo_estimado', 'cantidad_tecnicos', 'herramientas')
-        export_order = ('id', 'codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta', 
+        export_order = ('id', 'codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta',
                        'frecuencia_nombre', 'procedimiento_estandar', 'tiempo_estimado', 
                        'cantidad_tecnicos', 'herramientas', 'descripcion')
         skip_unchanged = True
         report_skipped = True
+        use_transactions = False # Desactivado para evitar bloqueos en SQLite con Celery
         use_bulk = False
     
     def dehydrate_tipo_ruta(self, rutina):
