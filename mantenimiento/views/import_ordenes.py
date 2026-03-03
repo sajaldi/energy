@@ -1,4 +1,5 @@
 import time
+import os
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.cache import cache
@@ -98,16 +99,14 @@ def import_ordenes_progress(request):
     progress = cache.get(cache_key, {'status': 'pending', 'percent': 0})
     
     res = AsyncResult(task_id)
-    # Check if task really failed or succeeded
-    res = AsyncResult(task_id)
     if res.state == 'SUCCESS':
-        progress['state'] = 'COMPLETED'
         if isinstance(res.result, dict):
             progress.update(res.result)
+        progress['state'] = 'COMPLETED'
         progress['percent'] = 100
     elif res.state == 'FAILURE':
-        progress['state'] = 'FAILURE'
         progress['error'] = str(res.result)
+        progress['state'] = 'FAILURE'
     elif res.state == 'PROGRESS':
         if isinstance(res.info, dict):
             progress.update(res.info)
