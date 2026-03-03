@@ -50,6 +50,7 @@ class ProgressResourceMixin:
             if self.cache_key:
                 cache.set(self.cache_key, progress_info, 3600)
             self.celery_task.update_state(state='PROGRESS', meta=progress_info)
+            sys.stdout.flush()
         super().after_import_row(row, row_result, **kwargs)
 
 class TipoHierarchicalWidget(ForeignKeyWidget):
@@ -711,7 +712,7 @@ class RutinaResource(ProgressResourceMixin, resources.ModelResource):
         skip_unchanged = True
         report_skipped = True
         use_transactions = False # Desactivado para evitar bloqueos en SQLite con Celery
-        use_bulk = False
+        # use_bulk = False  # Quitado para que use el default (True) igual que TipoResource
     
     def dehydrate_tipo_ruta(self, rutina):
         """Exporta la ruta completa del tipo"""
