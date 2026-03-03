@@ -174,12 +174,12 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
     else:
         # Modo IMPORTACIÓN real
         try:
-            print(f"[DEBUG] [Actual Import] Iniciando before_import con dataset de {len(dataset)} filas")
-            resource.before_import(dataset)
-            print("[DEBUG] [Actual Import] before_import completado. Llamando a import_data...")
+            print(f"[DEBUG] [Actual Import Rutinas] Iniciando import_data con {len(dataset)} filas...")
+            sys.stdout.flush()
             # Usar import_data (use_transactions=True en Meta ya maneja la transacción)
             result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
-            print(f"[DEBUG] [Actual Import] import_data finalizado. Resultado: {result.totals}")
+            print(f"[DEBUG] [Actual Import Rutinas] import_data finalizado. Resultado: {result.totals}")
+            sys.stdout.flush()
             
             # Recopilar errores detallados de las filas
             detailed_errors = []
@@ -198,7 +198,7 @@ def import_rutinas_task(self, file_path, file_format, user_id=None, verification
                 registro.filas_error = len(detailed_errors)
                 registro.estado = 'COMPLETADO'
                 if detailed_errors:
-                    registro.detalles_error = "\n".join(detailed_errors[:10])
+                    registro.detalles_error = "\n".join(detailed_errors[:50])
                 registro.save()
 
             final_res = {
