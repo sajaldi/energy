@@ -84,12 +84,19 @@ def import_procedimientos_progress(request):
     
     res = AsyncResult(task_id)
     if res:
-        progress['celery_state'] = res.state
         if res.state == 'SUCCESS':
             if isinstance(res.result, dict):
                 progress.update(res.result)
+            progress['state'] = 'COMPLETED'
             progress['percent'] = 100
         elif res.state == 'FAILURE':
+            progress['state'] = 'FAILURE'
             progress['error'] = str(res.result)
+        elif res.state == 'PROGRESS':
+            if isinstance(res.info, dict):
+                progress.update(res.info)
+            progress['state'] = 'PROGRESS'
+        else:
+            progress['state'] = res.state
             
     return JsonResponse(progress)

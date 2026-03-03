@@ -99,15 +99,20 @@ def import_ordenes_progress(request):
     
     res = AsyncResult(task_id)
     # Check if task really failed or succeeded
+    res = AsyncResult(task_id)
     if res.state == 'SUCCESS':
-        progress['state'] = 'COMPLETED' # Uniformidad
+        progress['state'] = 'COMPLETED'
         if isinstance(res.result, dict):
             progress.update(res.result)
         progress['percent'] = 100
     elif res.state == 'FAILURE':
         progress['state'] = 'FAILURE'
         progress['error'] = str(res.result)
+    elif res.state == 'PROGRESS':
+        if isinstance(res.info, dict):
+            progress.update(res.info)
+        progress['state'] = 'PROGRESS'
     else:
-        progress['state'] = res.state
+        progress['state'] = res.state if res else 'PENDING'
         
     return JsonResponse(progress)

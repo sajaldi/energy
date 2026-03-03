@@ -89,6 +89,10 @@ def import_categorias_progress(request):
     elif res.state == 'FAILURE':
         progress['error'] = str(res.result)
         progress['state'] = 'FAILURE'
+    elif res.state == 'PROGRESS':
+        if isinstance(res.info, dict):
+            progress.update(res.info)
+        progress['state'] = 'PROGRESS'
     else:
         progress['state'] = res.state if res else 'PENDING'
         
