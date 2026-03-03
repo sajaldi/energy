@@ -725,7 +725,9 @@ def documento_sync_metadatos(request, doc_id):
     """
     from django.contrib import messages
     from django.shortcuts import redirect
+    from django.conf import settings
     from .models import MetadatoValor
+    import requests
     
     doc = get_object_or_404(Documento, id=doc_id)
     configs = MetadatoConfig.objects.filter(tipo_documento=doc.tipo_documento)
@@ -742,6 +744,26 @@ def documento_sync_metadatos(request, doc_id):
             
     if creados > 0:
         messages.success(request, f"Se generaron {creados} campos de metadatos nuevos.")
+        
+        # --- WEBHOOK n8n ---
+        webhook_url = getattr(settings, 'N8N_METADATA_SYNC_WEBHOOK', None)
+        if webhook_url:
+            try:
+                payload = {
+                    'documento_id': doc.id,
+                    'codigo': doc.codigo,
+                    'titulo': doc.titulo,
+                    'tipo_documento': doc.tipo_documento.nombre,
+                    'metadatos': [
+                        {'nombre': mv.config.nombre, 'etiqueta': mv.config.etiqueta, 'valor': mv.valor}
+                        for mv in doc.metadatos_valores.all()
+                    ],
+                    'url_admin': f"{settings.INTERNAL_SITE_URL}/admin/documentos/documento/{doc.id}/change/"
+                }
+                requests.post(webhook_url, json=payload, timeout=5)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error enviando webhook n8n: {str(e)}")
     else:
         messages.info(request, "Los metadatos ya están sincronizados.")
         
