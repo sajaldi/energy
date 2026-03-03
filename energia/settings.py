@@ -725,5 +725,5 @@ LOGIN_REDIRECT_URL = '/app/'
 # N8N Integration
 N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://localhost:5678/webhook/process-document')
 N8N_PROCESS_DOCUMENT_WEBHOOK_URL = N8N_EXTRACT_TEXTO_WEBHOOK_URL
-N8N_METADATA_SYNC_WEBHOOK = 'https://n8n.antigravity.lat/webhook/sync-metadatos-doc'
+N8N_METADATA_SYNC_WEBHOOK = os.environ.get('N8N_METADATA_SYNC_WEBHOOK', 'http://localhost:5678/webhook-test/sync-metadatos-doc')
 INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'https://b52aeb243e6033.lhr.life')

@@ -46,6 +46,11 @@ class MetadatoConfig(models.Model):
     etiqueta = models.CharField(max_length=100, help_text="Nombre que verá el usuario (ej: Fecha de Vencimiento)")
     tipo_campo = models.CharField(max_length=20, choices=TIPOS_CAMPO, default='TEXTO')
     requerido = models.BooleanField(default=False)
+    descripcion = models.TextField(
+        blank=True, 
+        default='',
+        help_text="Instrucciones para la IA: dónde o cómo extraer este campo del documento (ej: 'Buscar en el encabezado, después de Asunto:')"
+    )
     orden = models.PositiveIntegerField(default=0)
 
     class Meta:
