@@ -245,3 +245,25 @@ def generate_document_embedding(documento_id):
         logger.error(f"Error generando embedding para Documento {documento_id}: {str(e)}")
         return False
 
+@shared_task(name='documentos.tasks.sync_document_embeddings')
+def sync_document_embeddings():
+    """
+    Tarea periódica que busca documentos con texto pero sin embedding
+    (por ejemplo, los inyectados directamente por n8n en la DB) 
+    y dispara su procesamiento.
+    """
+    from .models import Documento
+    from .tasks import generate_document_embedding
+    
+    # Buscar documentos que tienen contenido_texto pero no tienen embedding
+    docs_pendientes = Documento.objects.filter(
+        embedding__isnull=True
+    ).exclude(contenido_texto__isnull=True).exclude(contenido_texto='')
+    
+    count = docs_pendientes.count()
+    if count > 0:
+        for doc in docs_pendientes:
+            generate_document_embedding.delay(doc.id)
+            
+    return f"Sincronizados {count} documentos."
+

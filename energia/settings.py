@@ -727,3 +727,11 @@ N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://localh
 N8N_PROCESS_DOCUMENT_WEBHOOK_URL = N8N_EXTRACT_TEXTO_WEBHOOK_URL
 N8N_METADATA_SYNC_WEBHOOK = os.environ.get('N8N_METADATA_SYNC_WEBHOOK', 'http://localhost:5678/webhook/sync-metadatos-doc')
 INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'https://b52aeb243e6033.lhr.life')
+
+# Programación de tareas periódicas (Celery Beat)
+CELERY_BEAT_SCHEDULE = {
+    'sync-document-embeddings-every-minute': {
+        'task': 'documentos.tasks.sync_document_embeddings',
+        'schedule': 60.0,  # Revisa documentos nuevos cada minuto
+    },
+}
