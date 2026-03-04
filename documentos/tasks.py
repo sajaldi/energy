@@ -213,10 +213,10 @@ def import_comentarios_task(self, file_path, file_format, user_id=None, verifica
 @shared_task(name='documentos.tasks.generate_document_embedding')
 def generate_document_embedding(documento_id):
     """
-    Genera un embedding vectorial para el contenido de texto de un documento
-    usando un modelo multilingüe local.
+    Genera embeddings vectoriales para el contenido de texto de un documento.
+    Fracciona el texto en fragmentos (chunking) para mejorar la calidad de la búsqueda en documentos largos.
     """
-    from .models import Documento
+    from .models import Documento, DocumentoFragmento
     from sentence_transformers import SentenceTransformer
     import logging
     
@@ -228,21 +228,59 @@ def generate_document_embedding(documento_id):
             logger.warning(f"Documento {documento_id} no tiene texto para generar embedding.")
             return False
             
-        # Modelo ligero de 384 dimensiones (MiniLM) optimizado para múltiples idiomas
-        # Se descarga automáticamente la primera vez (~100MB)
+        # 1. Limpiar fragmentos anteriores para evitar duplicidad al re-procesar
+        doc.fragmentos.all().delete()
+            
+        # 2. Cargar modelo multilingüe
         model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
         
-        # Generar el vector (embedding)
-        embedding = model.encode(doc.contenido_texto)
+        # 3. Lógica de Chunking (Fragmentación)
+        # Dividimos el texto en fragmentos de ~1500 caracteres con solapamiento
+        text = doc.contenido_texto
+        chunk_size = 1500
+        overlap = 200
         
-        # Guardar en el campo VectorField de pgvector
-        doc.embedding = embedding.tolist()
+        chunks = []
+        if len(text) <= chunk_size:
+            chunks.append(text)
+        else:
+            start = 0
+            while start < len(text):
+                end = start + chunk_size
+                if end < len(text):
+                    # Cortar en el último espacio disponible dentro del bloque
+                    last_space = text.rfind(' ', start, end)
+                    if last_space != -1 and last_space > start:
+                        end = last_space
+                
+                chunk_content = text[start:end].strip()
+                if chunk_content:
+                    chunks.append(chunk_content)
+                
+                start = end - overlap
+                if start >= len(text) - overlap:
+                    break
+
+        # 4. Generar y guardar embeddings para cada fragmento
+        for i, chunk_text in enumerate(chunks):
+            embedding = model.encode(chunk_text)
+            DocumentoFragmento.objects.create(
+                documento=doc,
+                contenido=chunk_text,
+                embedding=embedding.tolist(),
+                orden=i
+            )
+        
+        # 5. Guardar un embedding resumido en el modelo padre (compatibilidad)
+        resumen_text = text[:1500]
+        resumen_embedding = model.encode(resumen_text)
+        doc.embedding = resumen_embedding.tolist()
         doc.save()
         
-        logger.info(f"Embedding generado exitosamente para Documento {documento_id} ({doc.codigo})")
+        logger.info(f"Procesado vectorial completado para Documento {documento_id} ({len(chunks)} fragmentos)")
         return True
     except Exception as e:
-        logger.error(f"Error generando embedding para Documento {documento_id}: {str(e)}")
+        logger.error(f"Error en procesamiento vectorial de Documento {documento_id}: {str(e)}")
         return False
 
 @shared_task(name='documentos.tasks.sync_document_embeddings')

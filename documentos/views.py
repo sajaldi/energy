@@ -933,38 +933,46 @@ def api_documento_update_status(request, doc_id):
 def api_documento_busqueda_vectorial(request):
     """
     Realiza una búsqueda semántica usando embeddings vectoriales (pgvector).
-    100% Local: sentence-transformers + pgvector.
+    Busca en fragmentos (chunks) para mayor precisión en documentos largos.
     """
     from sentence_transformers import SentenceTransformer
     from pgvector.django import CosineDistance
+    from .models import DocumentoFragmento
     
     query = request.GET.get('q', '').strip()
     if not query:
         return JsonResponse({'status': 'success', 'documentos': []})
         
     try:
-        # Cargar modelo localmente
+        # 1. Generar vector para la consulta usando el modelo local
         model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-        
-        # Generar vector para la consulta
         query_vector = model.encode(query).tolist()
         
-        # Buscar en la DB usando distancia de coseno
-        # Solo documentos que ya tengan el embedding generado
-        docs = Documento.objects.exclude(embedding__isnull=True).annotate(
+        # 2. Buscar en los fragmentos (DocumentoFragmento)
+        # Obtenemos los fragmentos más cercanos a la consulta
+        fragmentos = DocumentoFragmento.objects.select_related('documento').annotate(
             distance=CosineDistance('embedding', query_vector)
-        ).order_by('distance')[:15]
+        ).order_by('distance')[:40] 
         
+        # 3. Agrupar por documento único para no repetir el mismo PDF en los resultados
+        documentos_vistos = set()
         resultados = []
-        for d in docs:
-            resultados.append({
-                'id': d.id,
-                'codigo': d.codigo,
-                'titulo': d.titulo,
-                'distancia': round(float(d.distance), 4),
-                'similitud': round(1 - float(d.distance), 4)
-            })
+        
+        for f in fragmentos:
+            if f.documento_id not in documentos_vistos:
+                documentos_vistos.add(f.documento_id)
+                resultados.append({
+                    'id': f.documento.id,
+                    'codigo': f.documento.codigo,
+                    'titulo': f.documento.titulo,
+                    'distancia': round(float(f.distance), 4),
+                    'similitud': round(1 - float(f.distance), 4),
+                    'fragmento_preview': f.contenido[:200].strip() + "..."
+                })
             
+            if len(resultados) >= 15:
+                break
+                
         return JsonResponse({'status': 'success', 'documentos': resultados})
     except Exception as e:
         import logging
@@ -975,22 +983,27 @@ def api_documento_busqueda_vectorial(request):
 def api_documento_migrar_embeddings(request):
     """
     Encola tareas de Celery para generar embeddings de todos los documentos
-    que tienen texto pero no tienen vector.
+    que tienen texto. Ahora usa la nueva lógica de fragmentos (Chunking).
     """
     if not request.user.is_superuser:
         return JsonResponse({'error': 'No autorizado'}, status=403)
         
     from .tasks import generate_document_embedding
     
-    docs_sin_vector = Documento.objects.filter(
-        embedding__isnull=True
-    ).exclude(contenido_texto__isnull=True).exclude(contenido_texto='')
+    # Procesamos TODOS los documentos con texto para aplicar la nueva arquitectura de fragmentos
+    docs_con_texto = Documento.objects.exclude(
+        contenido_texto__isnull=True
+    ).exclude(contenido_texto='')
     
-    count = docs_sin_vector.count()
-    for d in docs_sin_vector:
+    count = docs_con_texto.count()
+    for d in docs_con_texto:
         generate_document_embedding.delay(d.id)
         
-    return JsonResponse({'status': 'success', 'enqueued': count})
+    return JsonResponse({
+        'status': 'success', 
+        'enqueued': count, 
+        'message': f'Se ha iniciado la re-indexación completa de {count} documentos usando la nueva lógica de fragmentos.'
+    })
 
 @login_required
 def api_documento_vectorize_single(request, doc_id):

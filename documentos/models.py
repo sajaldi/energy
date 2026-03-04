@@ -240,6 +240,28 @@ class Documento(models.Model):
         ).filter(search=search_query).order_by('-rank')
 
 
+class DocumentoFragmento(models.Model):
+    """
+    Representa un fragmento de texto de un documento para búsqueda vectorial.
+    Permite indexar documentos largos dividiéndolos en partes más pequeñas.
+    """
+    documento = models.ForeignKey(Documento, on_delete=models.CASCADE, related_name='fragmentos')
+    contenido = models.TextField()
+    embedding = VectorField(dimensions=384, null=True, blank=True)
+    orden = models.IntegerField(default=0)
+    
+    class Meta:
+        verbose_name = "Fragmento de Documento"
+        verbose_name_plural = "Fragmentos de Documentos"
+        ordering = ['documento', 'orden']
+        indexes = [
+            models.Index(fields=['documento']),
+        ]
+
+    def __str__(self):
+        return f"Fragmento {self.orden} de {self.documento.codigo}"
+
+
 class MetadatoValor(models.Model):
     """
     Almacena el valor de un metadato dinámico para un documento específico.
