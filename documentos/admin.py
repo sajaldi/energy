@@ -69,6 +69,8 @@ class MetadatoValorForm(forms.ModelForm):
                 self.fields['valor'].required = False
                 
                 # Configuramos el selector de objeto dinámico
+                if config.modelo_relativo:
+                    model_class = config.modelo_relativo.model_class()
                     if model_class:
                         # Cargar objetos del modelo vinculado
                         objetos = model_class.objects.all()[:1000]
