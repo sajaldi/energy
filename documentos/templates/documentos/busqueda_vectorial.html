@@ -3,154 +3,146 @@
 
 {% block extrastyle %}
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=72:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
     :root {
-        --primary: #6366f1;
-        --primary-glow: rgba(99, 102, 241, 0.4);
-        --bg: #030712;
-        --card-bg: rgba(17, 24, 39, 0.8);
-        --border: rgba(255, 255, 255, 0.08);
+        --sap-blue: #0a6ed1;
+        --sap-bg: #f5f6f7;
+        --sap-card-bg: #ffffff;
+        --sap-border: #d8d8d8;
+        --sap-text: #32363a;
+        --sap-text-secondary: #6a6d70;
     }
     body {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        background-color: var(--bg);
-        color: #f3f4f6;
-        background-image: 
-            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-            radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
-        min-height: 100vh;
+        font-family: '72', '72full', Arial, Helvetica, sans-serif;
+        background-color: var(--sap-bg);
+        color: var(--sap-text);
+        margin: 0;
+        padding: 0;
     }
-    .glass-morphism {
-        background: var(--card-bg);
-        backdrop-filter: blur(16px) saturate(180%);
-        -webkit-backdrop-filter: blur(16px) saturate(180%);
-        border: 1px solid var(--border);
+    .sap-shell {
+        background-color: #354a5f;
+        height: 48px;
+        display: flex;
+        items-center: center;
+        padding: 0 1rem;
+        color: white;
     }
-    .search-glow {
-        box-shadow: 0 0 50px -12px var(--primary-glow);
+    .sap-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
     }
-    .search-input::placeholder {
-        color: #6b7280;
-        font-weight: 400;
+    .sap-card {
+        background: var(--sap-card-bg);
+        border: 1px solid var(--sap-border);
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08);
+        border-radius: 0.25rem;
+        transition: box-shadow 0.2s ease-in-out;
     }
-    .result-card {
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid transparent;
-        background: linear-gradient(to bottom right, rgba(31, 41, 55, 0.4), rgba(17, 24, 39, 0.6));
+    .sap-card:hover {
+        box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.12);
+        border-color: var(--sap-blue);
     }
-    .result-card:hover {
-        transform: scale(1.02) translateY(-4px);
-        border-color: rgba(99, 102, 241, 0.3);
-        background: linear-gradient(to bottom right, rgba(31, 41, 55, 0.8), rgba(17, 24, 39, 0.9));
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    .sap-input {
+        border: 1px solid #89919a;
+        border-radius: 0.25rem;
+        background: #fff;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        transition: border-color 0.2s;
     }
-    .match-radial {
-        background: conic-gradient(var(--primary) var(--percentage), transparent 0);
+    .sap-input:focus {
+        border-color: var(--sap-blue);
+        outline: 2px solid rgba(10, 110, 209, 0.2);
     }
+    .sap-btn-primary {
+        background-color: var(--sap-blue);
+        color: white;
+        border: none;
+        border-radius: 0.25rem;
+        padding: 0.75rem 1.5rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .sap-btn-primary:hover {
+        background-color: #0854a1;
+    }
+    .sap-badge {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.125rem;
+        background: #e5eaf0;
+        color: #0a6ed1;
+    }
+    .sap-status-high { color: #107e3e; background: #e7f4e9; }
+    .sap-status-medium { color: #e9730c; background: #fff4e5; }
+    .sap-status-low { color: #bb0000; background: #ffebeb; }
+
     .shimmer {
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
         background-size: 200% 100%;
-        animation: shimmer 2s infinite;
+        animation: loading 1.5s infinite;
     }
-    @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
+    @keyframes loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
     }
-    .btn-premium {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        transition: all 0.3s ease;
-    }
-    .btn-premium:hover {
-        filter: brightness(1.2);
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
-    }
-    .custom-scroll::-webkit-scrollbar { width: 6px; }
-    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="fixed inset-0 pointer-events-none opacity-20 z-0">
-    <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600 rounded-full blur-[128px]"></div>
-    <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600 rounded-full blur-[128px]"></div>
+<div class="sap-shell">
+    <span class="font-bold flex items-center h-full">Buscador Corporativo | Semantic Intelligence</span>
 </div>
 
-<div class="relative z-10 max-w-6xl mx-auto px-6 pt-12 pb-24">
-    <!-- Navigation / Breadcrumb -->
-    <nav class="flex items-center space-x-2 text-sm text-slate-500 mb-12 animate__animated animate__fadeIn">
-        <a href="/admin/" class="hover:text-white transition-colors">Admin</a>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-        <span class="text-indigo-400 font-medium">Buscador Semántico</span>
-    </nav>
-
-    <!-- App Header -->
-    <div class="mb-16 text-center animate__animated animate__fadeInUp">
-        <div class="inline-flex items-center px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold tracking-widest uppercase mb-6">
-            <span class="flex h-2 w-2 rounded-full bg-indigo-500 mr-2 animate-pulse"></span>
-            Siguiente Generación
-        </div>
-        <h1 class="text-6xl md:text-7xl font-extrabold tracking-tight mb-6 mt-2">
-            Local <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Semantic</span> Search
-        </h1>
-        <p class="text-xl text-slate-400 max-w-2xl mx-auto font-light leading-relaxed">
-            Busca en tus documentos por su <span class="text-white font-medium">sentido real</span>. Incluso si no conoces las palabras exactas, nuestra IA local lo encontrará.
-        </p>
+<div class="sap-container">
+    <!-- Header -->
+    <div class="mb-10">
+        <h1 class="text-3xl font-bold text-slate-800 mb-2">Búsqueda Semántica de Documentos</h1>
+        <p class="text-slate-500">Encuentre información técnica procesada por inteligencia artificial local.</p>
     </div>
 
-    <!-- Smart Search Bar -->
-    <div class="max-w-3xl mx-auto mb-20 animate__animated animate__fadeInUp animate__delay-1s">
-        <div class="glass-morphism rounded-xl p-4 search-glow">
-            <div class="relative group">
-                <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                    <svg class="h-6 w-6 text-slate-500 group-focus-within:text-indigo-400 transition-colors" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    <!-- Search Section -->
+    <div class="sap-card p-6 mb-10">
+        <div class="flex gap-4">
+            <div class="relative flex-1">
+                <input type="text" id="searchInput" 
+                       class="w-full sap-input pl-12"
+                       placeholder="¿Qué información técnica necesita encontrar?">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </div>
-                <input type="text" id="searchInput" 
-                       class="block w-full bg-transparent border-none text-white text-xl py-4 pl-14 pr-36 focus:ring-0 search-input"
-                       placeholder="Describe lo que buscas..."
-                       autocomplete="off">
-                <div class="absolute inset-y-0 right-2 flex items-center">
-                    <button id="searchBtn" class="btn-premium text-white px-8 py-3 rounded-lg font-bold text-sm uppercase tracking-wider">
-                        Explorar
-                    </button>
-                </div>
             </div>
+            <button id="searchBtn" class="sap-btn-primary">BUSCAR</button>
         </div>
-        <div class="mt-4 flex gap-3 flex-wrap justify-center text-xs text-slate-500">
-            <span>Sugerencias:</span>
-            <button onclick="fillSearch('Contratos de mantenimiento')" class="hover:text-indigo-400 transition-colors underline decoration-indigo-500/30">Contratos de mantenimiento</button>
-            <button onclick="fillSearch('Manuales de seguridad')" class="hover:text-indigo-400 transition-colors underline decoration-indigo-500/30">Manuales de seguridad</button>
-            <button onclick="fillSearch('Protocolos 2024')" class="hover:text-indigo-400 transition-colors underline decoration-indigo-500/30">Protocolos 2024</button>
+        <div class="mt-4 flex gap-4 text-xs">
+            <span class="text-slate-400">Sugerencias:</span>
+            <button onclick="fillSearch('Protocolos de mantenimiento preventivo')" class="text-blue-600 hover:underline">Protocolos de mantenimiento</button>
+            <button onclick="fillSearch('Normas de seguridad eléctrica')" class="text-blue-600 hover:underline">Normas de seguridad</button>
         </div>
     </div>
 
-    <!-- Content Area -->
+    <!-- Results Area -->
     <div id="loading" class="hidden">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="glass-morphism h-64 rounded-xl shimmer"></div>
-            <div class="glass-morphism h-64 rounded-xl shimmer"></div>
-            <div class="glass-morphism h-64 rounded-xl shimmer"></div>
+            <div class="h-48 sap-card shimmer"></div>
+            <div class="h-48 sap-card shimmer"></div>
+            <div class="h-48 sap-card shimmer"></div>
         </div>
     </div>
 
-    <div id="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+    <div id="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Results inject here -->
     </div>
 
-    <!-- Empty/Intro State -->
-    <div id="emptyState" class="text-center py-20 animate__animated animate__fadeIn">
-        <div class="w-32 h-32 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-8 border border-slate-700">
-            <svg class="w-12 h-12 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-        </div>
-        <h3 class="text-2xl font-bold text-slate-400 mb-2">Listo para buscar</h3>
-        <p class="text-slate-500">Introduce una descripción arriba para empezar a explorar documentos.</p>
+    <!-- Empty State -->
+    <div id="emptyState" class="text-center py-20 border-2 border-dashed border-slate-300 rounded-lg">
+        <h3 class="text-lg font-bold text-slate-400">Ingrese un término de búsqueda</h3>
+        <p class="text-slate-400">Los resultados aparecerán organizados por relevancia semántica.</p>
     </div>
 </div>
 
@@ -170,7 +162,6 @@
         const query = searchInput.value.trim();
         if (!query) return;
 
-        // UI States
         resultsContainer.innerHTML = '';
         loading.classList.remove('hidden');
         emptyState.classList.add('hidden');
@@ -178,13 +169,11 @@
         try {
             const response = await fetch(`/documentos/api/busqueda-vectorial/?q=${encodeURIComponent(query)}`);
             const data = await response.json();
-
             loading.classList.add('hidden');
 
             if (data.status === 'success' && data.documentos.length > 0) {
                 data.documentos.forEach((doc, index) => {
-                    const card = createResultCard(doc, index);
-                    resultsContainer.appendChild(card);
+                    resultsContainer.appendChild(createResultCard(doc));
                 });
             } else {
                 showNoResults();
@@ -195,76 +184,45 @@
         }
     }
 
-    function createResultCard(doc, index) {
+    function createResultCard(doc) {
         const div = document.createElement('div');
-        div.className = `glass-morphism rounded-xl p-6 result-card animate__animated animate__fadeInUp flex flex-col h-full`;
-        div.style.animationDelay = `${index * 0.1}s`;
+        div.className = 'sap-card p-5 flex flex-col hover:shadow-lg transition-all duration-200 h-full';
         
-        const score = (doc.similitud * 100).toFixed(1);
-        let statusColor = 'text-emerald-400';
-        let statusBg = 'bg-emerald-500/10';
-        let statusLabel = 'Alta';
-
-        if (doc.similitud < 0.6) {
-            statusColor = 'text-amber-400';
-            statusBg = 'bg-amber-500/10';
-            statusLabel = 'Media';
-        }
-        if (doc.similitud < 0.4) {
-            statusColor = 'text-slate-400';
-            statusBg = 'bg-slate-500/10';
-            statusLabel = 'Baja';
-        }
+        const score = (doc.similitud * 100).toFixed(0);
+        let statusClass = 'sap-status-high';
+        if (doc.similitud < 0.6) statusClass = 'sap-status-medium';
+        if (doc.similitud < 0.4) statusClass = 'sap-status-low';
 
         div.innerHTML = `
-            <div class="flex justify-between items-start mb-6">
-                <div class="relative flex-shrink-0">
-                    <svg class="h-16 w-16 transform -rotate-90">
-                        <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="4" fill="transparent" class="text-slate-800" />
-                        <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="4" fill="transparent" 
-                                class="${statusColor} transition-all duration-1000"
-                                stroke-dasharray="${175.9}"
-                                stroke-dashoffset="${175.9 * (1 - doc.similitud)}"
-                                stroke-linecap="round" />
-                    </svg>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <span class="text-sm font-black text-white">${score}%</span>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <span class="px-2 py-1 rounded text-[9px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 uppercase block mb-1">
-                        ${doc.codigo}
-                    </span>
-                    <span class="px-2 py-1 rounded ${statusBg} ${statusColor} text-[8px] font-black uppercase tracking-widest">
-                        Match ${statusLabel}
-                    </span>
+            <div class="flex justify-between items-start mb-4">
+                <div class="sap-badge">${doc.codigo}</div>
+                <div class="text-[10px] font-bold px-2 py-0.5 rounded ${statusClass}">
+                    RELEVANCIA ${score}%
                 </div>
             </div>
-
+            
             <div class="flex-1">
-                <h3 class="text-xl font-bold text-white mb-3 line-clamp-2 hover:text-indigo-400 transition-colors cursor-pointer leading-tight">
+                <h3 class="text-lg font-bold text-slate-800 line-clamp-2 mb-3 leading-tight" title="${doc.titulo}">
                     ${doc.titulo}
                 </h3>
-                <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-800/50 mb-6">
-                    <p class="text-slate-400 text-xs font-light leading-relaxed line-clamp-4">
-                        <span class="text-indigo-400/80 font-semibold lowercase tracking-tighter italic mr-1">fragmento:</span> "${doc.fragmento_preview}"
+                <div class="bg-slate-50 p-3 border-l-4 border-blue-500 mb-6">
+                    <p class="text-xs text-slate-600 italic line-clamp-4 leading-relaxed">
+                        "${doc.fragmento_preview}"
                     </p>
                 </div>
             </div>
 
-            <div class="pt-4 border-t border-slate-800/50 flex items-center justify-between gap-4 mt-auto">
+            <div class="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
                 <div class="flex gap-2">
-                    <a href="/documentos/proxy/pdf/${doc.id}/" target="_blank" class="p-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-500/20" title="Ver PDF">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    <a href="/documentos/proxy/pdf/${doc.id}/" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-bold uppercase trekking-wider">
+                        Ver PDF
                     </a>
-                    <a href="/admin/documentos/documento/${doc.id}/change/" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border border-slate-700" title="Gestionar">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    <span class="text-slate-300">|</span>
+                    <a href="/admin/documentos/documento/${doc.id}/change/" class="text-slate-600 hover:text-slate-800 text-xs font-bold uppercase trekking-wider">
+                        Gestionar
                     </a>
                 </div>
-                <div class="flex flex-col items-end">
-                    <span class="text-[8px] text-slate-600 uppercase font-black tracking-widest">distancia</span>
-                    <span class="text-xs font-mono text-slate-500">${doc.distancia}</span>
-                </div>
+                <div class="text-[10px] font-mono text-slate-400">dist: ${doc.distancia}</div>
             </div>
         `;
         return div;
@@ -272,13 +230,10 @@
 
     function showNoResults() {
         emptyState.innerHTML = `
-            <div class="w-32 h-32 bg-red-500/5 rounded-full flex items-center justify-center mx-auto mb-8 border border-red-500/10">
-                <svg class="w-12 h-12 text-red-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+            <div class="py-10">
+                <h3 class="text-lg font-bold text-slate-600">No se encontraron resultados relevantes</h3>
+                <p class="text-slate-500">Intente reformular su búsqueda con términos más técnicos.</p>
             </div>
-            <h3 class="text-2xl font-bold text-slate-400 mb-2">Sin coincidencias semánticas</h3>
-            <p class="text-slate-500">Prueba con otros términos o asegúrate de que los documentos han sido vectorizados.</p>
         `;
         emptyState.classList.remove('hidden');
     }
@@ -288,8 +243,6 @@
         if (e.key === 'Enter') performSearch();
     });
 
-    window.addEventListener('load', () => {
-        searchInput.focus();
-    });
+    window.addEventListener('load', () => searchInput.focus());
 </script>
 {% endblock %}
