@@ -3,119 +3,154 @@
 
 {% block extrastyle %}
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 <style>
+    :root {
+        --primary: #6366f1;
+        --primary-glow: rgba(99, 102, 241, 0.4);
+        --bg: #030712;
+        --card-bg: rgba(17, 24, 39, 0.8);
+        --border: rgba(255, 255, 255, 0.08);
+    }
     body {
-        font-family: 'Inter', sans-serif;
-        background: #0f172a;
-        overflow-x: hidden;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: var(--bg);
+        color: #f3f4f6;
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
+        min-height: 100vh;
     }
-    .main-bg {
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        z-index: -1;
-        background: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #0f172a 100%);
+    .glass-morphism {
+        background: var(--card-bg);
+        backdrop-filter: blur(16px) saturate(180%);
+        -webkit-backdrop-filter: blur(16px) saturate(180%);
+        border: 1px solid var(--border);
     }
-    .blob {
-        position: absolute;
-        width: 500px;
-        height: 500px;
-        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-        filter: blur(80px);
-        border-radius: 50%;
-        opacity: 0.15;
-        z-index: -1;
-        animation: float 20s infinite alternate;
+    .search-glow {
+        box-shadow: 0 0 50px -12px var(--primary-glow);
     }
-    @keyframes float {
-        0% { transform: translate(0, 0); }
-        100% { transform: translate(100px, 50px); }
-    }
-    .glass {
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    }
-    .search-input:focus {
-        box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+    .search-input::placeholder {
+        color: #6b7280;
+        font-weight: 400;
     }
     .result-card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid transparent;
+        background: linear-gradient(to bottom right, rgba(31, 41, 55, 0.4), rgba(17, 24, 39, 0.6));
     }
     .result-card:hover {
-        transform: translateY(-5px);
-        background: rgba(51, 65, 85, 0.8);
-        border-color: rgba(99, 102, 241, 0.5);
+        transform: scale(1.02) translateY(-4px);
+        border-color: rgba(99, 102, 241, 0.3);
+        background: linear-gradient(to bottom right, rgba(31, 41, 55, 0.8), rgba(17, 24, 39, 0.9));
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
     }
-    .similarity-badge {
-        background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+    .match-radial {
+        background: conic-gradient(var(--primary) var(--percentage), transparent 0);
     }
-    /* Hide scrollbar but keep functionality */
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .shimmer {
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite;
+    }
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    .btn-premium {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        transition: all 0.3s ease;
+    }
+    .btn-premium:hover {
+        filter: brightness(1.2);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+    }
+    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="main-bg"></div>
-<div class="blob" style="top: -100px; right: -100px;"></div>
-<div class="blob" style="bottom: -100px; left: -100px; animation-delay: -5s;"></div>
+<div class="fixed inset-0 pointer-events-none opacity-20 z-0">
+    <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600 rounded-full blur-[128px]"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600 rounded-full blur-[128px]"></div>
+</div>
 
-<div class="max-w-5xl mx-auto pt-16 pb-32 px-4 relative">
-    <!-- Header -->
-    <div class="text-center mb-16 animate__animated animate__fadeInDown">
-        <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400 mb-4">
-            Búsqueda Semántica
+<div class="relative z-10 max-w-6xl mx-auto px-6 pt-12 pb-24">
+    <!-- Navigation / Breadcrumb -->
+    <nav class="flex items-center space-x-2 text-sm text-slate-500 mb-12 animate__animated animate__fadeIn">
+        <a href="/admin/" class="hover:text-white transition-colors">Admin</a>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        <span class="text-indigo-400 font-medium">Buscador Semántico</span>
+    </nav>
+
+    <!-- App Header -->
+    <div class="mb-16 text-center animate__animated animate__fadeInUp">
+        <div class="inline-flex items-center px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold tracking-widest uppercase mb-6">
+            <span class="flex h-2 w-2 rounded-full bg-indigo-500 mr-2 animate-pulse"></span>
+            Siguiente Generación
+        </div>
+        <h1 class="text-6xl md:text-7xl font-extrabold tracking-tight mb-6 mt-2">
+            Local <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Semantic</span> Search
         </h1>
-        <p class="text-slate-400 text-lg max-w-2xl mx-auto">
-            Encuentre documentos por concepto e intención, no solo por palabras clave. 
-            Potenciado por <span class="text-indigo-400 font-semibold italic">Local Vector Search</span>.
+        <p class="text-xl text-slate-400 max-w-2xl mx-auto font-light leading-relaxed">
+            Busca en tus documentos por su <span class="text-white font-medium">sentido real</span>. Incluso si no conoces las palabras exactas, nuestra IA local lo encontrará.
         </p>
     </div>
 
-    <!-- Search Container -->
-    <div class="glass rounded-3xl p-2 mb-12 sticky top-8 z-50 animate__animated animate__fadeInUp">
-        <div class="relative flex items-center">
-            <div class="absolute left-6 text-indigo-400">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                </svg>
+    <!-- Smart Search Bar -->
+    <div class="max-w-3xl mx-auto mb-20 animate__animated animate__fadeInUp animate__delay-1s">
+        <div class="glass-morphism rounded-[2rem] p-4 search-glow">
+            <div class="relative group">
+                <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                    <svg class="h-6 w-6 text-slate-500 group-focus-within:text-indigo-400 transition-colors" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <input type="text" id="searchInput" 
+                       class="block w-full bg-transparent border-none text-white text-xl py-4 pl-14 pr-36 focus:ring-0 search-input"
+                       placeholder="Describe lo que buscas..."
+                       autocomplete="off">
+                <div class="absolute inset-y-0 right-2 flex items-center">
+                    <button id="searchBtn" class="btn-premium text-white px-8 py-3 rounded-2xl font-bold text-sm uppercase tracking-wider">
+                        Explorar
+                    </button>
+                </div>
             </div>
-            <input type="text" id="searchInput" 
-                   class="w-full bg-transparent border-none text-white text-xl py-6 pl-16 pr-32 rounded-2xl focus:ring-2 focus:ring-indigo-500/50 search-input transition-all placeholder-slate-500"
-                   placeholder="Escriba lo que desea buscar (ej: contratos de mantenimiento 2024)..."
-                   autocomplete="off">
-            <div class="absolute right-4 flex items-center gap-2">
-                <span class="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700 hidden sm:inline">⌘ K</span>
-                <button id="searchBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-lg shadow-indigo-500/20">
-                    Buscar
-                </button>
-            </div>
+        </div>
+        <div class="mt-4 flex gap-3 flex-wrap justify-center text-xs text-slate-500">
+            <span>Sugerencias:</span>
+            <button onclick="fillSearch('Contratos de mantenimiento')" class="hover:text-indigo-400 transition-colors underline decoration-indigo-500/30">Contratos de mantenimiento</button>
+            <button onclick="fillSearch('Manuales de seguridad')" class="hover:text-indigo-400 transition-colors underline decoration-indigo-500/30">Manuales de seguridad</button>
+            <button onclick="fillSearch('Protocolos 2024')" class="hover:text-indigo-400 transition-colors underline decoration-indigo-500/30">Protocolos 2024</button>
         </div>
     </div>
 
-    <!-- Loading State -->
-    <div id="loading" class="hidden text-center py-20">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
-        <p class="text-indigo-400 animate-pulse">Consultando vectores locales...</p>
+    <!-- Content Area -->
+    <div id="loading" class="hidden">
+        <div class="grid grid-cols-1 gap-4">
+            <div class="glass-morphism h-32 rounded-3xl shimmer"></div>
+            <div class="glass-morphism h-32 rounded-3xl shimmer"></div>
+            <div class="glass-morphism h-32 rounded-3xl shimmer"></div>
+        </div>
     </div>
 
-    <!-- Results Container -->
-    <div id="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
-        <!-- Result cards will be injected here -->
+    <div id="results" class="grid grid-cols-1 gap-6">
+        <!-- Results inject here -->
     </div>
 
-    <!-- Empty State -->
+    <!-- Empty/Intro State -->
     <div id="emptyState" class="text-center py-20 animate__animated animate__fadeIn">
-        <div class="text-slate-600 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-24 h-24 mx-auto">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        <div class="w-32 h-32 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-8 border border-slate-700">
+            <svg class="w-12 h-12 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
             </svg>
         </div>
-        <h3 class="text-xl font-medium text-slate-400">Sin búsquedas activas</h3>
-        <p class="text-slate-500">Intente buscar algo como "responsabilidades del técnico" o "manuales de operación".</p>
+        <h3 class="text-2xl font-bold text-slate-400 mb-2">Listo para buscar</h3>
+        <p class="text-slate-500">Introduce una descripción arriba para empezar a explorar documentos.</p>
     </div>
 </div>
 
@@ -125,6 +160,11 @@
     const resultsContainer = document.getElementById('results');
     const loading = document.getElementById('loading');
     const emptyState = document.getElementById('emptyState');
+
+    function fillSearch(val) {
+        searchInput.value = val;
+        performSearch();
+    }
 
     async function performSearch() {
         const query = searchInput.value.trim();
@@ -152,61 +192,86 @@
         } catch (error) {
             loading.classList.add('hidden');
             console.error('Search error:', error);
-            alert('Error al realizar la búsqueda vectorial.');
         }
     }
 
     function createResultCard(doc, index) {
         const div = document.createElement('div');
-        div.className = `glass rounded-2xl p-6 result-card animate__animated animate__fadeInUp`;
+        div.className = `glass-morphism rounded-[2rem] p-8 result-card animate__animated animate__fadeInUp`;
         div.style.animationDelay = `${index * 0.1}s`;
         
-        const similarityColor = doc.similitud > 0.8 ? 'from-green-400 to-emerald-500' : 
-                                doc.similitud > 0.6 ? 'from-indigo-400 to-blue-500' : 
-                                'from-orange-400 to-red-400';
+        const score = (doc.similitud * 100).toFixed(1);
+        let statusColor = 'text-emerald-400';
+        let statusBg = 'bg-emerald-500/10';
+        let statusLabel = 'Coincidencia Alta';
+
+        if (doc.similitud < 0.6) {
+            statusColor = 'text-amber-400';
+            statusBg = 'bg-amber-500/10';
+            statusLabel = 'Coincidencia Media';
+        }
+        if (doc.similitud < 0.4) {
+            statusColor = 'text-slate-400';
+            statusBg = 'bg-slate-500/10';
+            statusLabel = 'Coincidencia Baja';
+        }
 
         div.innerHTML = `
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-2">
-                        <span class="px-2 py-1 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-tighter">
+            <div class="flex flex-col lg:flex-row items-start lg:items-center gap-8">
+                <!-- Match Score Indicator -->
+                <div class="relative flex-shrink-0">
+                    <svg class="h-24 w-24 transform -rotate-90">
+                        <circle cx="48" cy="48" r="40" stroke="currentColor" stroke-width="6" fill="transparent" class="text-slate-800" />
+                        <circle cx="48" cy="48" r="40" stroke="currentColor" stroke-width="6" fill="transparent" 
+                                class="${statusColor} transition-all duration-1000"
+                                stroke-dasharray="${251.2}"
+                                stroke-dashoffset="${251.2 * (1 - doc.similitud)}"
+                                stroke-linecap="round" />
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <span class="text-xl font-black text-white">${score}%</span>
+                        <span class="text-[8px] uppercase tracking-tighter text-slate-500 font-bold">Match</span>
+                    </div>
+                </div>
+
+                <!-- Info -->
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-3 mb-4">
+                        <span class="px-3 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 text-xs font-bold border border-indigo-500/30">
                             ${doc.codigo}
                         </span>
-                        <div class="h-1 w-1 rounded-full bg-slate-600"></div>
-                        <span class="text-xs text-slate-500 uppercase tracking-widest font-medium">Documento</span>
+                        <span class="px-3 py-1 rounded-lg ${statusBg} ${statusColor} text-[10px] font-bold uppercase tracking-wider">
+                            ${statusLabel}
+                        </span>
                     </div>
-                    <h3 class="text-xl font-bold text-white mb-2 leading-tight">${doc.titulo}</h3>
-                    <p class="text-slate-400 text-sm line-clamp-1">Vectores calculados en base al contenido procesado por IA.</p>
-                </div>
-                
-                <div class="flex items-center gap-6 self-end md:self-auto">
-                    <div class="text-right">
-                        <div class="text-[10px] text-slate-500 uppercase font-bold mb-1">Similitud</div>
-                        <div class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r ${similarityColor}">
-                            ${(doc.similitud * 100).toFixed(1)}%
-                        </div>
-                    </div>
+                    <h3 class="text-2xl md:text-3xl font-extrabold text-white mb-3 hover:text-indigo-400 transition-colors cursor-pointer">
+                        ${doc.titulo}
+                    </h3>
+                    <p class="text-slate-400 text-sm font-light leading-relaxed mb-6 line-clamp-2">
+                        Contenido procesado conceptualmente por el motor vectorial local. Los términos coinciden con el significado semántico de su consulta.
+                    </p>
                     
-                    <div class="flex gap-2">
-                        <a href="/admin/documentos/documento/${doc.id}/change/" class="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700" title="Ver Detalles">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                            </svg>
+                    <div class="flex flex-wrap gap-4">
+                        <a href="/documentos/proxy/pdf/${doc.id}/" target="_blank" class="inline-flex items-center space-x-2 text-sm font-bold text-white hover:text-indigo-400 transition-colors group">
+                            <span class="bg-slate-800 p-2 rounded-lg group-hover:bg-indigo-500/20 transition-all">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            </span>
+                            <span>Visualizar Documento</span>
                         </a>
-                        <a href="/documentos/proxy/pdf/${doc.id}/" target="_blank" class="p-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-500/20" title="Ver PDF">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                            </svg>
+                        <a href="/admin/documentos/documento/${doc.id}/change/" class="inline-flex items-center space-x-2 text-sm font-bold text-slate-400 hover:text-white transition-colors group">
+                            <span class="bg-slate-800 p-2 rounded-lg group-hover:bg-slate-700 transition-all">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </span>
+                            <span>Gestionar</span>
                         </a>
                     </div>
                 </div>
-            </div>
-            
-            <div class="mt-4 pt-4 border-t border-slate-700/50 flex items-center gap-4">
-                <div class="flex-1 bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r ${similarityColor} animate-pulse" style="width: ${doc.similitud * 100}%"></div>
+
+                <!-- Distance -->
+                <div class="hidden xl:flex flex-col items-end text-right border-l border-slate-800 pl-8 h-full min-h-[100px] justify-center">
+                    <div class="text-[10px] text-slate-600 uppercase font-black tracking-widest mb-1">Vector Dist.</div>
+                    <div class="text-xl font-mono text-slate-400">${doc.distancia}</div>
                 </div>
-                <span class="text-[10px] text-slate-500 font-medium">Distancia: ${doc.distancia}</span>
             </div>
         `;
         return div;
@@ -214,13 +279,13 @@
 
     function showNoResults() {
         emptyState.innerHTML = `
-            <div class="text-slate-600 mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-24 h-24 mx-auto">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            <div class="w-32 h-32 bg-red-500/5 rounded-full flex items-center justify-center mx-auto mb-8 border border-red-500/10">
+                <svg class="w-12 h-12 text-red-500/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
             </div>
-            <h3 class="text-xl font-medium text-slate-400">No encontramos coincidencias</h3>
-            <p class="text-slate-500">Intente con otros términos o revise que los documentos tengan texto extraído.</p>
+            <h3 class="text-2xl font-bold text-slate-400 mb-2">Sin coincidencias semánticas</h3>
+            <p class="text-slate-500">Prueba con otros términos o asegúrate de que los documentos han sido vectorizados.</p>
         `;
         emptyState.classList.remove('hidden');
     }
@@ -230,7 +295,8 @@
         if (e.key === 'Enter') performSearch();
     });
 
-    // Initial focus
-    window.addEventListener('load', () => searchInput.focus());
+    window.addEventListener('load', () => {
+        searchInput.focus();
+    });
 </script>
 {% endblock %}
