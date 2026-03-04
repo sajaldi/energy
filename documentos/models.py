@@ -59,6 +59,13 @@ class MetadatoConfig(models.Model):
         help_text="Si el tipo es RELACION, seleccione a qué tabla apunta."
     )
     
+    campo_visualizacion = models.CharField(
+        max_length=50, 
+        blank=True, 
+        default='', 
+        help_text="Si el tipo es RELACION, nombre del campo a mostrar (ej: 'nombre', 'codigo'). Dejar vacío para usar el valor por defecto."
+    )
+    
     descripcion = models.TextField(
         blank=True, 
         default='',

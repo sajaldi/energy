@@ -69,12 +69,20 @@ class MetadatoValorForm(forms.ModelForm):
                 self.fields['valor'].required = False
                 
                 # Configuramos el selector de objeto dinámico
-                if config.modelo_relativo:
-                    model_class = config.modelo_relativo.model_class()
                     if model_class:
                         # Cargar objetos del modelo vinculado
-                        objetos = model_class.objects.all()[:1000] # Límite para evitar lentitud
-                        choices = [(obj.pk, str(obj)) for obj in objetos]
+                        objetos = model_class.objects.all()[:1000]
+                        
+                        # Determinar qué campo mostrar
+                        display_field = config.campo_visualizacion
+                        choices = []
+                        for obj in objetos:
+                            try:
+                                label = getattr(obj, display_field) if display_field else str(obj)
+                            except AttributeError:
+                                label = str(obj)
+                            choices.append((obj.pk, label))
+
                         self.fields['object_id'] = forms.ChoiceField(
                             choices=[('', '---------')] + choices,
                             label="Seleccionar " + config.etiqueta,
@@ -434,7 +442,7 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
 class MetadatoConfigInline(admin.TabularInline):
     model = MetadatoConfig
     extra = 1
-    fields = ('nombre', 'etiqueta', 'tipo_campo', 'modelo_relativo', 'descripcion', 'requerido', 'orden')
+    fields = ('nombre', 'etiqueta', 'tipo_campo', 'modelo_relativo', 'campo_visualizacion', 'descripcion', 'requerido', 'orden')
 
 @admin.register(TipoDocumento)
 class TipoDocumentoAdmin(admin.ModelAdmin):
