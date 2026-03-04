@@ -417,7 +417,7 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
 class MetadatoConfigInline(admin.TabularInline):
     model = MetadatoConfig
     extra = 1
-    fields = ('nombre', 'etiqueta', 'tipo_campo', 'modelo_relativo', 'requerido', 'orden')
+    fields = ('nombre', 'etiqueta', 'tipo_campo', 'modelo_relativo', 'descripcion', 'requerido', 'orden')
 
 @admin.register(TipoDocumento)
 class TipoDocumentoAdmin(admin.ModelAdmin):
