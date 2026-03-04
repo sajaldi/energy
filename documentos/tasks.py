@@ -213,17 +213,24 @@ def import_comentarios_task(self, file_path, file_format, user_id=None, verifica
 @shared_task(name='documentos.tasks.generate_document_embedding')
 def generate_document_embedding(documento_id):
     """
-    Genera embeddings vectoriales para el contenido de texto de un documento.
+    Genera embeddings vectoriales para el contenido de texto de un documento usando Google Gemini API.
     Fracciona el texto en fragmentos (chunking) para mejorar la calidad de la búsqueda en documentos largos.
     """
     from .models import Documento, DocumentoFragmento
-    from sentence_transformers import SentenceTransformer
+    from django.conf import settings
+    import google.generativeai as genai
     import logging
     
     logger = logging.getLogger(__name__)
     
     try:
+        if not settings.GEMINI_API_KEY:
+            logger.warning(f"No hay GEMINI_API_KEY configurada. Abortando embedding para doc {documento_id}")
+            return False
+            
+        genai.configure(api_key=settings.GEMINI_API_KEY)
         doc = Documento.objects.get(pk=documento_id)
+        
         if not doc.contenido_texto:
             logger.warning(f"Documento {documento_id} no tiene texto para generar embedding.")
             return False
@@ -231,11 +238,7 @@ def generate_document_embedding(documento_id):
         # 1. Limpiar fragmentos anteriores para evitar duplicidad al re-procesar
         doc.fragmentos.all().delete()
             
-        # 2. Cargar modelo multilingüe
-        model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-        
-        # 3. Lógica de Chunking (Fragmentación)
-        # Dividimos el texto en fragmentos de ~1500 caracteres con solapamiento
+        # 2. Lógica de Chunking (Fragmentación)
         text = doc.contenido_texto
         chunk_size = 1500
         overlap = 200
@@ -248,7 +251,6 @@ def generate_document_embedding(documento_id):
             while start < len(text):
                 end = start + chunk_size
                 if end < len(text):
-                    # Cortar en el último espacio disponible dentro del bloque
                     last_space = text.rfind(' ', start, end)
                     if last_space != -1 and last_space > start:
                         end = last_space
@@ -258,50 +260,76 @@ def generate_document_embedding(documento_id):
                     chunks.append(chunk_content)
                 
                 start = end - overlap
-                if start >= len(text) - overlap:
+                if start >= len(text):
                     break
 
-        # 4. Generar y guardar embeddings para cada fragmento
-        for i, chunk_text in enumerate(chunks):
-            embedding = model.encode(chunk_text)
-            DocumentoFragmento.objects.create(
-                documento=doc,
-                contenido=chunk_text,
-                embedding=embedding.tolist(),
-                orden=i
+        # 3. Generar Embeddings vía API Gemini
+        # Usamos text-embedding-004 con dimensionalidad forzada a 384 para compatibilidad
+        for i, chunk_content in enumerate(chunks):
+            try:
+                result = genai.embed_content(
+                    model="models/text-embedding-004",
+                    content=chunk_content,
+                    task_type="retrieval_document",
+                    output_dimensionality=384
+                )
+                embedding_vector = result['embedding']
+                
+                DocumentoFragmento.objects.create(
+                    documento=doc,
+                    contenido=chunk_content,
+                    embedding=embedding_vector,
+                    orden=i
+                )
+            except Exception as e_api:
+                logger.error(f"Error en Gemini API para chunk {i} del doc {documento_id}: {str(e_api)}")
+                continue
+
+        # 4. Generar embedding resumen para el documento (primeros 2000 chars)
+        try:
+            res_result = genai.embed_content(
+                model="models/text-embedding-004",
+                content=text[:2000],
+                task_type="retrieval_document",
+                output_dimensionality=384
             )
-        
-        # 5. Guardar un embedding resumido en el modelo padre (compatibilidad)
-        resumen_text = text[:1500]
-        resumen_embedding = model.encode(resumen_text)
-        doc.embedding = resumen_embedding.tolist()
-        doc.save()
-        
-        logger.info(f"Procesado vectorial completado para Documento {documento_id} ({len(chunks)} fragmentos)")
+            doc.embedding = res_result['embedding']
+            doc.save()
+        except Exception as e_res:
+             logger.error(f"Error en Gemini API para resumen del doc {documento_id}: {str(e_res)}")
+
+        logger.info(f"Embedding Gemini generado para doc {documento_id} ({len(chunks)} chunks).")
         return True
+        
+    except Documento.DoesNotExist:
+        logger.error(f"Documento {documento_id} no encontrado.")
+        return False
     except Exception as e:
-        logger.error(f"Error en procesamiento vectorial de Documento {documento_id}: {str(e)}")
+        logger.error(f"Error en generate_document_embedding: {str(e)}")
         return False
 
 @shared_task(name='documentos.tasks.sync_document_embeddings')
 def sync_document_embeddings():
     """
-    Tarea periódica que busca documentos con texto pero sin embedding
-    (por ejemplo, los inyectados directamente por n8n en la DB) 
-    y dispara su procesamiento.
+    Tarea periódica que busca documentos con texto pero sin fragmentos vectorizados
+    y dispara su procesamiento usando Gemini.
     """
     from .models import Documento
-    from .tasks import generate_document_embedding
+    from django.db.models import Count
     
-    # Buscar documentos que tienen contenido_texto pero no tienen embedding
-    docs_pendientes = Documento.objects.filter(
-        embedding__isnull=True
-    ).exclude(contenido_texto__isnull=True).exclude(contenido_texto='')
+    # Buscar documentos que tienen contenido_texto pero no tienen fragmentos asociados
+    docs_pendientes = Documento.objects.exclude(
+        contenido_texto__isnull=True
+    ).exclude(
+        contenido_texto=''
+    ).annotate(
+        num_fragmentos=Count('fragmentos')
+    ).filter(
+        num_fragmentos=0
+    )[:10]  # Procesar en lotes pequeños
     
-    count = docs_pendientes.count()
-    if count > 0:
-        for doc in docs_pendientes:
-            generate_document_embedding.delay(doc.id)
+    for doc in docs_pendientes:
+        generate_document_embedding.delay(doc.id)
             
-    return f"Sincronizados {count} documentos."
+    return f"Sincronizados {docs_pendientes.count()} documentos pendientes."
 

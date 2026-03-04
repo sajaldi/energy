@@ -933,11 +933,12 @@ def api_documento_update_status(request, doc_id):
 def api_documento_busqueda_vectorial(request):
     """
     Motor de Búsqueda Híbrido:
-    1. Búsqueda por Texto Exacto (Código/Título) -> Alta prioridad (Bootstrap results)
-    2. Búsqueda Vectorial (Semántica) en fragmentos -> Cobertura conceptual
+    1. Búsqueda por Texto Exacto (Código/Título) -> Alta prioridad
+    2. Búsqueda Vectorial (Semántica) en fragmentos vía Gemini -> Cobertura conceptual
     3. Fusión de resultados sin duplicados
     """
-    from sentence_transformers import SentenceTransformer
+    from django.conf import settings
+    import google.generativeai as genai
     from pgvector.django import CosineDistance
     from django.db.models import Q
     from .models import DocumentoFragmento, Documento
@@ -950,7 +951,6 @@ def api_documento_busqueda_vectorial(request):
         resultados_dict = {} # Map ID -> dict con datos fusionados
         
         # --- FASE 1: BÚSQUEDA POR TEXTO (EXACTA/MODO RÁPIDO) ---
-        # Esto soluciona el problema de "IE-05" si aún no hay fragmentos vectorizados
         docs_texto = Documento.objects.filter(
             Q(codigo__icontains=query) | Q(titulo__icontains=query)
         )[:10]
@@ -960,38 +960,44 @@ def api_documento_busqueda_vectorial(request):
                 'id': d.id,
                 'codigo': d.codigo,
                 'titulo': d.titulo,
-                'distancia': 0.01, # Muy bajo = muy cerca
-                'similitud': 0.99, # Prioridad máxima
+                'distancia': 0.01,
+                'similitud': 0.99,
                 'fragmento_preview': f"Coincidencia directa encontrada en metadatos del documento ({d.codigo})."
             }
 
-        # --- FASE 2: BÚSQUEDA SEMÁNTICA (VECTORIAL) ---
-        try:
-            model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-            query_vector = model.encode(query).tolist()
-            
-            fragmentos = DocumentoFragmento.objects.select_related('documento').annotate(
-                distance=CosineDistance('embedding', query_vector)
-            ).order_by('distance')[:40]
+        # --- FASE 2: BÚSQUEDA SEMÁNTICA (VECTORIAL VÍA GEMINI) ---
+        if settings.GEMINI_API_KEY:
+            try:
+                genai.configure(api_key=settings.GEMINI_API_KEY)
+                # Generar vector para la query
+                res = genai.embed_content(
+                    model="models/text-embedding-004",
+                    content=query,
+                    task_type="retrieval_query",
+                    output_dimensionality=384
+                )
+                query_vector = res['embedding']
+                
+                fragmentos = DocumentoFragmento.objects.select_related('documento').annotate(
+                    distance=CosineDistance('embedding', query_vector)
+                ).order_by('distance')[:40]
 
-            for f in fragmentos:
-                # Si el documento ya está por texto, no lo pisamos (mantenemos el 0.99)
-                if f.documento_id not in resultados_dict:
-                    resultados_dict[f.documento_id] = {
-                        'id': f.documento.id,
-                        'codigo': f.documento.codigo,
-                        'titulo': f.documento.titulo,
-                        'distancia': round(float(f.distance), 4),
-                        'similitud': round(1 - float(f.distance), 4),
-                        'fragmento_preview': f.contenido[:200].strip() + "..."
-                    }
-        except Exception as ve:
-            # Si falla lo vectorial, al menos tenemos lo de texto
-            import logging
-            logging.getLogger(__name__).warning(f"Error en fase vectorial de búsqueda híbrida: {str(ve)}")
+                for f in fragmentos:
+                    # Si el documento ya está por texto, no lo pisamos (prioridad a texto)
+                    if f.documento_id not in resultados_dict:
+                        resultados_dict[f.documento_id] = {
+                            'id': f.documento.id,
+                            'codigo': f.documento.codigo,
+                            'titulo': f.documento.titulo,
+                            'distancia': round(float(f.distance), 4),
+                            'similitud': round(1 - float(f.distance), 4),
+                            'fragmento_preview': f.contenido[:200].strip() + "..."
+                        }
+            except Exception as ve:
+                import logging
+                logging.getLogger(__name__).warning(f"Error en fase vectorial Gemini: {str(ve)}")
 
         # --- FASE 3: ORDENAR Y FORMATEAR ---
-        # Ordenamos por similitud (descendente)
         resultados_finales = sorted(resultados_dict.values(), key=lambda x: x['similitud'], reverse=True)
         
         return JsonResponse({'status': 'success', 'documentos': resultados_finales[:15]})

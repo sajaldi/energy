@@ -140,6 +140,12 @@ else:
     else:
         INTERNAL_SITE_URL = SITE_URL
 
+# --- AI & Embeddings Configuration ---
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+# Si no hay key de Gemini, loguear advertencia pero no detener el sistema
+if not GEMINI_API_KEY:
+    print("[WARNING] GEMINI_API_KEY no encontrada. La búsqueda semántica no funcionará.")
+
 
 # Configuracion de subida de archivos
 # Aumentar limites para evitar errores en subidas grandes (Proxy Error / Request Too Large)

@@ -40,6 +40,7 @@ class MetadatoConfig(models.Model):
         ('HORA', 'Hora'),
         ('NUMERO', 'Número'),
         ('URL', 'URL'),
+        ('RELACION', 'Relación con otro Modelo'),
     )
     
     tipo_documento = models.ForeignKey(TipoDocumento, on_delete=models.CASCADE, related_name='metadatos_config')
@@ -47,6 +48,17 @@ class MetadatoConfig(models.Model):
     etiqueta = models.CharField(max_length=100, help_text="Nombre que verá el usuario (ej: Fecha de Vencimiento)")
     tipo_campo = models.CharField(max_length=20, choices=TIPOS_CAMPO, default='TEXTO')
     requerido = models.BooleanField(default=False)
+    
+    # Campo para vinculación con otros modelos
+    from django.contrib.contenttypes.models import ContentType
+    modelo_relativo = models.ForeignKey(
+        ContentType, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Si el tipo es RELACION, seleccione a qué tabla apunta."
+    )
+    
     descripcion = models.TextField(
         blank=True, 
         default='',
@@ -265,10 +277,19 @@ class DocumentoFragmento(models.Model):
 class MetadatoValor(models.Model):
     """
     Almacena el valor de un metadato dinámico para un documento específico.
+    Soporta valores de texto y vínculos relacionales genéricos.
     """
     documento = models.ForeignKey(Documento, on_delete=models.CASCADE, related_name='metadatos_valores')
     config = models.ForeignKey(MetadatoConfig, on_delete=models.CASCADE)
     valor = models.TextField(blank=True, null=True)
+    
+    # --- Soporte para Relaciones Genéricas (KPI, Activos, etc.) ---
+    from django.contrib.contenttypes.models import ContentType
+    from django.contrib.contenttypes.fields import GenericForeignKey
+    
+    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    objeto_vinculado = GenericForeignKey('content_type', 'object_id')
 
     class Meta:
         verbose_name = "Valor de Metadato"
@@ -276,6 +297,8 @@ class MetadatoValor(models.Model):
         unique_together = ('documento', 'config')
 
     def __str__(self):
+        if self.objeto_vinculado:
+            return f"{self.documento.codigo}: {self.config.etiqueta} -> {self.objeto_vinculado}"
         return f"{self.documento.codigo}: {self.config.etiqueta} = {self.valor}"
 
 class ComentarioDocumento(models.Model):

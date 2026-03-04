@@ -60,6 +60,10 @@ class MetadatoValorForm(forms.ModelForm):
                 self.fields['valor'].widget = forms.NumberInput(attrs={'style': 'width: 120px;'})
             elif tipo == 'EMAIL':
                 self.fields['valor'].widget = forms.EmailInput(attrs={'style': 'width: 300px;'})
+            elif tipo == 'RELACION':
+                # Si es una relación, el campo 'valor' puede quedar vacío y usamos el Generic FK
+                self.fields['valor'].widget = forms.HiddenInput()
+                self.fields['valor'].required = False
             else:
                 # Para TEXTO o cualquier otro, usamos un input de una sola línea en lugar de textarea
                 self.fields['valor'].widget = forms.TextInput(attrs={'style': 'width: 90%; min-width: 400px;'})
@@ -71,8 +75,8 @@ class MetadatoValorInline(admin.TabularInline):
     model = MetadatoValor
     form = MetadatoValorForm
     extra = 0
-    fields = ('get_etiqueta', 'valor')
-    readonly_fields = ('get_etiqueta',)
+    fields = ('get_etiqueta', 'valor', 'content_type', 'object_id', 'objeto_vinculado')
+    readonly_fields = ('get_etiqueta', 'objeto_vinculado')
     
     def get_etiqueta(self, obj):
         return obj.config.etiqueta if obj.config else "-"
@@ -413,6 +417,7 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
 class MetadatoConfigInline(admin.TabularInline):
     model = MetadatoConfig
     extra = 1
+    fields = ('nombre', 'etiqueta', 'tipo_campo', 'modelo_relativo', 'requerido', 'orden')
 
 @admin.register(TipoDocumento)
 class TipoDocumentoAdmin(admin.ModelAdmin):
