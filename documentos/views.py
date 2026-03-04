@@ -932,51 +932,73 @@ def api_documento_update_status(request, doc_id):
 @login_required
 def api_documento_busqueda_vectorial(request):
     """
-    Realiza una búsqueda semántica usando embeddings vectoriales (pgvector).
-    Busca en fragmentos (chunks) para mayor precisión en documentos largos.
+    Motor de Búsqueda Híbrido:
+    1. Búsqueda por Texto Exacto (Código/Título) -> Alta prioridad (Bootstrap results)
+    2. Búsqueda Vectorial (Semántica) en fragmentos -> Cobertura conceptual
+    3. Fusión de resultados sin duplicados
     """
     from sentence_transformers import SentenceTransformer
     from pgvector.django import CosineDistance
-    from .models import DocumentoFragmento
+    from django.db.models import Q
+    from .models import DocumentoFragmento, Documento
     
     query = request.GET.get('q', '').strip()
     if not query:
         return JsonResponse({'status': 'success', 'documentos': []})
         
     try:
-        # 1. Generar vector para la consulta usando el modelo local
-        model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-        query_vector = model.encode(query).tolist()
+        resultados_dict = {} # Map ID -> dict con datos fusionados
         
-        # 2. Buscar en los fragmentos (DocumentoFragmento)
-        # Obtenemos los fragmentos más cercanos a la consulta
-        fragmentos = DocumentoFragmento.objects.select_related('documento').annotate(
-            distance=CosineDistance('embedding', query_vector)
-        ).order_by('distance')[:40] 
+        # --- FASE 1: BÚSQUEDA POR TEXTO (EXACTA/MODO RÁPIDO) ---
+        # Esto soluciona el problema de "IE-05" si aún no hay fragmentos vectorizados
+        docs_texto = Documento.objects.filter(
+            Q(codigo__icontains=query) | Q(titulo__icontains=query)
+        )[:10]
         
-        # 3. Agrupar por documento único para no repetir el mismo PDF en los resultados
-        documentos_vistos = set()
-        resultados = []
-        
-        for f in fragmentos:
-            if f.documento_id not in documentos_vistos:
-                documentos_vistos.add(f.documento_id)
-                resultados.append({
-                    'id': f.documento.id,
-                    'codigo': f.documento.codigo,
-                    'titulo': f.documento.titulo,
-                    'distancia': round(float(f.distance), 4),
-                    'similitud': round(1 - float(f.distance), 4),
-                    'fragmento_preview': f.contenido[:200].strip() + "..."
-                })
+        for d in docs_texto:
+            resultados_dict[d.id] = {
+                'id': d.id,
+                'codigo': d.codigo,
+                'titulo': d.titulo,
+                'distancia': 0.01, # Muy bajo = muy cerca
+                'similitud': 0.99, # Prioridad máxima
+                'fragmento_preview': f"Coincidencia directa encontrada en metadatos del documento ({d.codigo})."
+            }
+
+        # --- FASE 2: BÚSQUEDA SEMÁNTICA (VECTORIAL) ---
+        try:
+            model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+            query_vector = model.encode(query).tolist()
             
-            if len(resultados) >= 15:
-                break
-                
-        return JsonResponse({'status': 'success', 'documentos': resultados})
+            fragmentos = DocumentoFragmento.objects.select_related('documento').annotate(
+                distance=CosineDistance('embedding', query_vector)
+            ).order_by('distance')[:40]
+
+            for f in fragmentos:
+                # Si el documento ya está por texto, no lo pisamos (mantenemos el 0.99)
+                if f.documento_id not in resultados_dict:
+                    resultados_dict[f.documento_id] = {
+                        'id': f.documento.id,
+                        'codigo': f.documento.codigo,
+                        'titulo': f.documento.titulo,
+                        'distancia': round(float(f.distance), 4),
+                        'similitud': round(1 - float(f.distance), 4),
+                        'fragmento_preview': f.contenido[:200].strip() + "..."
+                    }
+        except Exception as ve:
+            # Si falla lo vectorial, al menos tenemos lo de texto
+            import logging
+            logging.getLogger(__name__).warning(f"Error en fase vectorial de búsqueda híbrida: {str(ve)}")
+
+        # --- FASE 3: ORDENAR Y FORMATEAR ---
+        # Ordenamos por similitud (descendente)
+        resultados_finales = sorted(resultados_dict.values(), key=lambda x: x['similitud'], reverse=True)
+        
+        return JsonResponse({'status': 'success', 'documentos': resultados_finales[:15]})
+        
     except Exception as e:
         import logging
-        logging.getLogger(__name__).error(f"Error en busqueda vectorial: {str(e)}")
+        logging.getLogger(__name__).error(f"Error en busqueda híbrida: {str(e)}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @login_required
