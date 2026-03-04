@@ -51,7 +51,10 @@ class MetadatoValorForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Cambiar el widget dinámicamente según la configuración del metadato
         if hasattr(self, 'instance') and self.instance.pk and self.instance.config:
-            tipo = self.instance.config.tipo_campo
+            config = self.instance.config
+            tipo = config.tipo_campo
+            
+            # Configurar valor según tipo
             if tipo == 'FECHA':
                 self.fields['valor'].widget = forms.DateInput(attrs={'type': 'date', 'class': 'vDateField'})
             elif tipo == 'HORA':
@@ -61,21 +64,35 @@ class MetadatoValorForm(forms.ModelForm):
             elif tipo == 'EMAIL':
                 self.fields['valor'].widget = forms.EmailInput(attrs={'style': 'width: 300px;'})
             elif tipo == 'RELACION':
-                # Si es una relación, el campo 'valor' puede quedar vacío y usamos el Generic FK
+                # Si es una relación, ocultamos el campo 'valor' de texto
                 self.fields['valor'].widget = forms.HiddenInput()
                 self.fields['valor'].required = False
+                
+                # Configuramos el selector de objeto dinámico
+                if config.modelo_relativo:
+                    model_class = config.modelo_relativo.model_class()
+                    if model_class:
+                        # Cargar objetos del modelo vinculado
+                        objetos = model_class.objects.all()[:1000] # Límite para evitar lentitud
+                        choices = [(obj.pk, str(obj)) for obj in objetos]
+                        self.fields['object_id'] = forms.ChoiceField(
+                            choices=[('', '---------')] + choices,
+                            label="Seleccionar " + config.etiqueta,
+                            required=config.requerido
+                        )
+                        # Forzamos el ContentType al del modelo configurado
+                        self.fields['content_type'].initial = config.modelo_relativo
+                        self.fields['content_type'].widget = forms.HiddenInput()
             else:
-                # Para TEXTO o cualquier otro, usamos un input de una sola línea en lugar de textarea
                 self.fields['valor'].widget = forms.TextInput(attrs={'style': 'width: 90%; min-width: 400px;'})
         else:
-            # Fallback seguro
             self.fields['valor'].widget = forms.TextInput(attrs={'style': 'width: 90%;'})
 
 class MetadatoValorInline(admin.TabularInline):
     model = MetadatoValor
     form = MetadatoValorForm
     extra = 0
-    fields = ('get_etiqueta', 'valor', 'content_type', 'object_id', 'objeto_vinculado')
+    fields = ('get_etiqueta', 'valor', 'object_id', 'content_type', 'objeto_vinculado')
     readonly_fields = ('get_etiqueta', 'objeto_vinculado')
     
     def get_etiqueta(self, obj):
