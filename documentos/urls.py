@@ -34,5 +34,6 @@ urlpatterns = [
     path('api/documento/status/<int:doc_id>/', views.api_documento_update_status, name='api_documento_update_status'),
     path('api/busqueda-vectorial/', views.api_documento_busqueda_vectorial, name='api_documento_busqueda_vectorial'),
     path('api/migrar-embeddings/', views.api_documento_migrar_embeddings, name='api_documento_migrar_embeddings'),
+    path('api/vectorize/<int:doc_id>/', views.api_documento_vectorize_single, name='api_documento_vectorize_single'),
     path('biblioteca/visualizar/<int:bib_id>/', views.biblioteca_visualizar, name='biblioteca_visualizar'),
 ]

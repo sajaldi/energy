@@ -991,3 +991,18 @@ def api_documento_migrar_embeddings(request):
         generate_document_embedding.delay(d.id)
         
     return JsonResponse({'status': 'success', 'enqueued': count})
+
+@login_required
+def api_documento_vectorize_single(request, doc_id):
+    """
+    Fuerza la generación de un embedding para un documento específico.
+    Útil para probar inmediatamente después de que n8n inserte el texto.
+    """
+    from .tasks import generate_document_embedding
+    doc = get_object_or_404(Documento, id=doc_id)
+    
+    if not doc.contenido_texto:
+        return JsonResponse({'status': 'error', 'message': 'El documento no tiene texto cargado'}, status=400)
+        
+    generate_document_embedding.delay(doc.id)
+    return JsonResponse({'status': 'success', 'message': f'Tarea de vectorización encolada para el documento {doc.id}'})
