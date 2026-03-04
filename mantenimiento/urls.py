@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from .views import import_rutinas
-from .views.rutinas_dashboard import rutinas_dashboard, rutina_detail_api, rutina_save_api, rutina_delete_api, procedimiento_save_api, procedimiento_detail_api
+from .views.rutinas_dashboard import rutinas_dashboard, rutina_detail_api, rutina_save_api, rutina_delete_api, rutina_pasos_save_api
 
 app_name = 'mantenimiento'
 
@@ -41,18 +41,18 @@ urlpatterns = [
     path('rutinas/dashboard/detail/<int:pk>/', rutina_detail_api, name='rutina_detail_api'),
     path('rutinas/dashboard/save/', rutina_save_api, name='rutina_save_api'),
     path('rutinas/dashboard/delete/<int:pk>/', rutina_delete_api, name='rutina_delete_api'),
-    path('rutinas/dashboard/procedimiento/save/', procedimiento_save_api, name='procedimiento_save_api'),
-    path('rutinas/dashboard/procedimiento/detail/<int:pk>/', procedimiento_detail_api, name='procedimiento_detail_api'),
+    path('rutinas/dashboard/rutina/pasos/save/', rutina_pasos_save_api, name='rutina_pasos_save_api'),
+    # API Endpoints para Tipos (Categorías) dentro del dashboard
+    path('rutinas/api/tipo/<int:pk>/', views.rutinas_dashboard.tipo_detail_api, name='tipo_detail_api'),
+    path('rutinas/api/tipo/save/', views.rutinas_dashboard.tipo_save_api, name='tipo_save_api'),
+    path('rutinas/api/tipo/<int:pk>/delete/', views.rutinas_dashboard.tipo_delete_api, name='tipo_delete_api'),
     path('proyeccion-generar/api/', views.api_generar_orden_individual, name='api_generar_orden_individual'),
 
     # Importación de Rutinas (Aislada)
     path('import-rutinas/', import_rutinas.import_rutinas_background, name='rutina_import_background'),
     path('import-rutinas/process/', import_rutinas.import_rutinas_process, name='rutina_import_process'),
     path('import-rutinas/progress/', import_rutinas.import_rutinas_progress, name='rutina_import_progress'),
-    # Importación de Procedimientos
-    path('import-procedimientos/', views.import_procedimientos.import_procedimientos_background, name='procedimiento_import_background'),
-    path('import-procedimientos/process/', views.import_procedimientos.import_procedimientos_process, name='procedimiento_import_process'),
-    path('import-procedimientos/progress/', views.import_procedimientos.import_procedimientos_progress, name='procedimiento_import_progress'),
+    # Importación de Procedimientos fue removida porque ahora son Pasos de Rutina
 
     # Importación de Tipos (Mantenimiento)
     path('import-tipos/', views.import_categorias.import_categorias_background, name='tipo_import_background'),

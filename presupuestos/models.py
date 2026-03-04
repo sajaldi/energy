@@ -790,3 +790,85 @@ class ItemSolicitudPago(models.Model):
         verbose_name = "Ítem de Solicitud de Pago"
         verbose_name_plural = "Ítems de Solicitud de Pago"
         unique_together = ('solicitud', 'requisicion')
+
+class REPEX(models.Model):
+    """
+    Replacement Expenditure - Plan de reposición de activos.
+    """
+    ESTADOS = (
+        ('BORRADOR', 'Borrador'),
+        ('APROBADO', 'Aprobado'),
+        ('EJECUCION', 'En Ejecución'),
+        ('CERRADO', 'Cerrado'),
+    )
+
+    nombre = models.CharField(max_length=200, verbose_name="Nombre del Plan")
+    anio = models.PositiveIntegerField(
+        verbose_name="Año",
+        validators=[MinValueValidator(2020), MaxValueValidator(2100)],
+        default=datetime.now().year
+    )
+    descripcion = models.TextField(blank=True, verbose_name="Descripción / Notas")
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='BORRADOR')
+    
+    creado_por = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True,
+        related_name='planes_repex'
+    )
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"REPEX {self.anio} - {self.nombre}"
+
+    @property
+    def costo_total_reposicion(self):
+        return sum(item.costo_reposicion for item in self.items.all())
+
+    @property
+    def ahorro_proyectado(self):
+        # Diferencia opcional si aplica, o simplemente métrica de CAPEX
+        return sum(item.costo_reposicion for item in self.items.all())
+
+    class Meta:
+        verbose_name = "Plan REPEX"
+        verbose_name_plural = "Planes REPEX"
+        ordering = ['-anio', 'nombre']
+
+
+class REPEXItem(models.Model):
+    """
+    Item individual de un plan REPEX vinculado a un activo.
+    """
+    PRIORIDADES = (
+        ('ALTA', 'Alta (Crítico)'),
+        ('MEDIA', 'Media'),
+        ('BAJA', 'Baja'),
+    )
+
+    repex = models.ForeignKey(REPEX, related_name='items', on_delete=models.CASCADE)
+    activo = models.ForeignKey('activos.Activo', on_delete=models.CASCADE, related_name='repex_items')
+    
+    descripcion = models.CharField(max_length=500, blank=True, help_text="Motivo de la reposición")
+    costo_original = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Costo original del sistema")
+    costo_reposicion = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Costo estimado de la nueva unidad")
+    
+    fecha_proyectada = models.DateField(null=True, blank=True)
+    prioridad = models.CharField(max_length=10, choices=PRIORIDADES, default='MEDIA')
+    justificacion = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        # Jalamos el costo original si existe
+        if not self.costo_original and self.activo.costo:
+            self.costo_original = self.activo.costo
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Reponer {self.activo.nombre} - {self.repex.nombre}"
+
+    class Meta:
+        verbose_name = "Ítem REPEX"
+        verbose_name_plural = "Ítems REPEX"

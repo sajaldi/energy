@@ -9,7 +9,7 @@ from import_export.admin import ImportExportModelAdmin, ImportExportMixin, Impor
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal, DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja
 
 # ... (resto de registros)
 from auditorias.models import ResultadoAuditoria
@@ -2058,3 +2058,113 @@ class ControlSubmittalAdmin(ImportExportModelAdmin):
         response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = 'attachment; filename="formato_submittals.xlsx"'
         return response
+
+
+class ItemAltaBajaInline(admin.TabularInline):
+    model = ItemAltaBaja
+    extra = 1
+    fields = ('activo', 'get_codigo', 'get_estado', 'get_ubicacion', 'observacion')
+    readonly_fields = ('get_codigo', 'get_estado', 'get_ubicacion')
+    autocomplete_fields = ['activo']
+
+    def get_codigo(self, obj):
+        if obj.activo:
+            return obj.activo.codigo_interno
+        return "-"
+    get_codigo.short_description = "Código"
+
+    def get_estado(self, obj):
+        if obj.activo:
+            colores = {
+                'OPERATIVO': '#10B981',
+                'MANTENIMIENTO': '#F59E0B',
+                'REPARACION': '#F97316',
+                'FUERA_SERVICIO': '#EF4444',
+                'OBSOLETO': '#6B7280',
+            }
+            color = colores.get(obj.activo.estado, '#6B7280')
+            return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, obj.activo.get_estado_display())
+        return "-"
+    get_estado.short_description = "Estado Actual"
+
+    def get_ubicacion(self, obj):
+        if obj.activo and obj.activo.ubicacion:
+            return str(obj.activo.ubicacion)
+        return "-"
+    get_ubicacion.short_description = "Ubicación"
+
+
+class ArchivoAltaBajaInline(admin.TabularInline):
+    model = ArchivoAltaBaja
+    extra = 1
+    fields = ('archivo', 'comentario', 'subido_en')
+    readonly_fields = ('subido_en',)
+
+
+@admin.register(DocumentoAltaBaja)
+class DocumentoAltaBajaAdmin(admin.ModelAdmin):
+    list_display = ('numero', 'get_tipo_badge', 'fecha', 'get_total_activos', 'estado', 'elaborado_por')
+    list_filter = ('tipo', 'estado', 'fecha')
+    search_fields = ('numero', 'motivo')
+    inlines = [ItemAltaBajaInline, ArchivoAltaBajaInline]
+    autocomplete_fields = ['elaborado_por', 'autorizado_por', 'recibido_por']
+    readonly_fields = ('numero', 'imprimir_btn')
+
+    def imprimir_btn(self, obj):
+        if obj.pk:
+            url = reverse('activos:print_altabaja', args=[obj.pk])
+            return format_html(
+                '<a href="{}" target="_blank" class="button" '
+                'style="background: #2563eb; color: white; padding: 8px 20px; border-radius: 6px; '
+                'font-weight: 700; text-decoration: none; font-size: 0.9rem;">'
+                '🖨️ Imprimir Documento</a>',
+                url
+            )
+        return "Guarde primero para imprimir."
+    imprimir_btn.short_description = "Acciones"
+
+    fieldsets = (
+        ('Identificación', {
+            'fields': ('tipo', 'numero', 'fecha', 'estado', 'imprimir_btn')
+        }),
+        ('Detalle', {
+            'fields': ('motivo', 'observaciones')
+        }),
+        ('Responsables', {
+            'fields': ('elaborado_por', 'autorizado_por', 'recibido_por')
+        }),
+    )
+
+    def get_fieldsets(self, request, obj=None):
+        if not obj:
+            # Al crear, ocultar numero (se genera al guardar)
+            return (
+                ('Identificación', {
+                    'fields': ('tipo', 'fecha', 'estado')
+                }),
+                ('Detalle', {
+                    'fields': ('motivo', 'observaciones')
+                }),
+                ('Responsables', {
+                    'fields': ('elaborado_por', 'autorizado_por', 'recibido_por')
+                }),
+            )
+        return super().get_fieldsets(request, obj)
+
+    def get_tipo_badge(self, obj):
+        color = '#10B981' if obj.tipo == 'ALTA' else '#EF4444'
+        icon = '📥' if obj.tipo == 'ALTA' else '📤'
+        return format_html(
+            '<span style="background: {}15; color: {}; padding: 4px 12px; border-radius: 12px; font-weight: 700; font-size: 0.8rem;">'
+            '{} {}</span>',
+            color, color, icon, obj.get_tipo_display()
+        )
+    get_tipo_badge.short_description = "Tipo"
+
+    def get_total_activos(self, obj):
+        count = obj.total_activos
+        return format_html(
+            '<span style="background: #eff6ff; color: #2563eb; padding: 2px 10px; border-radius: 12px; font-weight: 700;">{}</span>',
+            count
+        )
+    get_total_activos.short_description = "# Activos"

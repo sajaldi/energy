@@ -4,7 +4,8 @@ from .models import (
     PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, 
     ItemPresupuesto, Compromiso, DetalleCompromiso, CambioPresupuesto, DetallePeriodico,
     PresupuestoAgrupado, Requisicion, ArticuloRequisicion, DocumentoRequisicion,
-    SolicitudPago, ItemSolicitudPago
+    SolicitudPago, ItemSolicitudPago,
+    REPEX, REPEXItem
 )
 
 class GastoEjecutadoInline(admin.TabularInline):
@@ -497,3 +498,79 @@ class ItemSolicitudPagoAdmin(admin.ModelAdmin):
         return "-"
     pagado_req.short_description = "Pagado Acumulado"
 
+
+class REPEXItemInline(admin.TabularInline):
+    model = REPEXItem
+    extra = 1
+    fields = ('activo', 'get_estado_activo', 'get_ubicacion', 'costo_original', 'costo_reposicion', 'prioridad', 'fecha_proyectada', 'descripcion')
+    readonly_fields = ('get_estado_activo', 'get_ubicacion', 'costo_original')
+    autocomplete_fields = ['activo']
+
+    def get_estado_activo(self, obj):
+        if obj.activo:
+            estado = obj.activo.estado
+            colores = {
+                'OPERATIVO': '#10B981',
+                'MANTENIMIENTO': '#F59E0B',
+                'REPARACION': '#F97316',
+                'FUERA_SERVICIO': '#EF4444',
+                'OBSOLETO': '#6B7280',
+            }
+            color = colores.get(estado, '#6B7280')
+            return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, obj.activo.get_estado_display())
+        return "-"
+    get_estado_activo.short_description = "Estado Actual"
+
+    def get_ubicacion(self, obj):
+        if obj.activo and obj.activo.ubicacion:
+            return str(obj.activo.ubicacion)
+        return "-"
+    get_ubicacion.short_description = "Ubicación"
+
+
+@admin.register(REPEX)
+class REPEXAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'anio', 'estado', 'get_num_items', 'get_costo_total', 'creado_por')
+    list_filter = ('anio', 'estado')
+    search_fields = ('nombre', 'descripcion')
+    inlines = [REPEXItemInline]
+    readonly_fields = ('get_costo_total_detail', 'creado_en', 'actualizado_en')
+
+    fieldsets = (
+        ('Identificación', {
+            'fields': ('nombre', 'anio', 'descripcion', 'estado', 'creado_por')
+        }),
+        ('Resumen de Costos', {
+            'fields': ('get_costo_total_detail', 'creado_en', 'actualizado_en')
+        }),
+    )
+
+    def get_num_items(self, obj):
+        return obj.items.count()
+    get_num_items.short_description = "# Activos"
+
+    def get_costo_total(self, obj):
+        total = obj.costo_total_reposicion
+        return format_html('<b style="color: #2563eb;">{:,.2f}</b>', total)
+    get_costo_total.short_description = "Costo Total Reposición"
+
+    def get_costo_total_detail(self, obj):
+        if obj.pk:
+            total = obj.costo_total_reposicion
+            count = obj.items.count()
+            return format_html(
+                '<div style="font-size: 18px; font-weight: bold; color: #2563eb;">'
+                'L {:,.2f}</div>'
+                '<div style="color: #6B7280; font-size: 12px;">{} activos en el plan</div>',
+                total, count
+            )
+        return "Guarde primero para ver el resumen."
+    get_costo_total_detail.short_description = "Inversión Total Estimada"
+
+
+@admin.register(REPEXItem)
+class REPEXItemAdmin(admin.ModelAdmin):
+    list_display = ('activo', 'repex', 'prioridad', 'costo_original', 'costo_reposicion', 'fecha_proyectada')
+    list_filter = ('prioridad', 'repex')
+    search_fields = ('activo__nombre', 'activo__codigo_interno', 'descripcion')
+    autocomplete_fields = ['activo', 'repex']

@@ -45,7 +45,7 @@ class WorkOrderService:
         ).values(
             'id', 'rutina__nombre', 'ubicacion__nombre', 'ubicacion_id', 
             'rutina__tipo_id', 'inicio_programado', 'estado', 
-            'programacion__horario__color', 'programacion_id'
+            'programacion__horario__color', 'programacion_id', 'rutina__es_invasiva'
         )
         
         ordenes_list = list(ordenes_qs)
@@ -100,7 +100,8 @@ class WorkOrderService:
                         'inicio_programado': datetime.combine(fecha_proyectada, datetime.min.time()),
                         'estado': 'PROYECCION',
                         'programacion__horario__color': color,
-                        'programacion_id': prog.id
+                        'programacion_id': prog.id,
+                        'rutina__es_invasiva': prog.rutina.es_invasiva
                     })
                 
                 fecha_ciclo += timedelta(days=frec_dias)
@@ -386,7 +387,7 @@ class WorkOrderService:
                         'rutina_nombre': rut_name, 
                         'activos_nombres': ", ".join([a.nombre for a in assets]), 
                         'duration_pos': dp, 
-                        'color': color
+                        'color': '#ef4444' if (ot.rutina and ot.rutina.es_invasiva) else color
                     }
 
                     if not assets:

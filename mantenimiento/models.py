@@ -143,19 +143,7 @@ class TecnicoPuesto(models.Model):
         verbose_name = "Personal"
         verbose_name_plural = "Personal"
 
-class Procedimiento(models.Model):
-    nombre = models.CharField(max_length=200, unique=True)
-    descripcion = models.TextField(blank=True, null=True)
-    creado_en = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.nombre
-
-    class Meta:
-        verbose_name = "Procedimiento"
-        verbose_name_plural = "Procedimientos"
-
-class PasoProcedimiento(models.Model):
+class PasoRutina(models.Model):
     TIPO_RESPUESTA_CHOICES = [
         ('INSTRUCCION', 'Instrucción (Solo lectura)'),
         ('CHECK', 'Check (Si/No/NA)'),
@@ -164,7 +152,7 @@ class PasoProcedimiento(models.Model):
         ('MEDICION', 'Punto de Medición (SAP)'),
     ]
     
-    procedimiento = models.ForeignKey(Procedimiento, on_delete=models.CASCADE, related_name='pasos')
+    rutina = models.ForeignKey('Rutina', on_delete=models.CASCADE, related_name='pasos')
     orden = models.PositiveIntegerField(default=0)
     descripcion = models.TextField(help_text="Descripción de la tarea a realizar")
     
@@ -184,9 +172,9 @@ class PasoProcedimiento(models.Model):
                                              help_text="Vincular por código (ej: 'NIVEL_ACEITE') para procedimientos genéricos")
     
     class Meta:
-        verbose_name = "Paso de Procedimiento"
-        verbose_name_plural = "Pasos de Procedimiento"
-        ordering = ['procedimiento', 'orden']
+        verbose_name = "Paso de Rutina"
+        verbose_name_plural = "Pasos de Rutina"
+        ordering = ['rutina', 'orden']
 
     def __str__(self):
         return f"{self.orden}. {self.descripcion[:50]} ({self.get_tipo_respuesta_display()})"
@@ -205,9 +193,9 @@ class Rutina(models.Model):
     # Tiempo de ejecución
     tiempo_estimado = models.DurationField(null=True, blank=True, help_text="Tiempo estimado para completar la rutina (ej: 02:00:00)")
     cantidad_tecnicos = models.IntegerField(default=1, help_text="Número de técnicos requeridos")
-    procedimiento_estandar = models.ForeignKey(Procedimiento, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas',
-                                               help_text="Elija el manual de pasos a seguir")
     herramientas = models.TextField(blank=True, null=True, help_text="Herramientas y materiales necesarios")
+    
+    es_invasiva = models.BooleanField(default=False, help_text="¿Requiere apagar equipos o realizarse en horarios no operativos?")
     
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
@@ -813,7 +801,7 @@ class ValorPasoOrden(models.Model):
     Almacena el resultado/valor capturado para un paso específico de una OT.
     """
     orden_trabajo = models.ForeignKey(OrdenTrabajo, on_delete=models.CASCADE, related_name='resultados_checklist')
-    paso = models.ForeignKey(PasoProcedimiento, on_delete=models.CASCADE)
+    paso = models.ForeignKey(PasoRutina, on_delete=models.CASCADE)
     
     valor_texto = models.TextField(blank=True, null=True)
     valor_numerico = models.FloatField(blank=True, null=True)

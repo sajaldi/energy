@@ -10,7 +10,7 @@ from django.shortcuts import render
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
-from .models import Tipo, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso
+from .models import Tipo, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso
 from activos.models import Categoria as CategoriaActivo
 from django.utils.safestring import mark_safe
 from django.urls import reverse, path
@@ -206,9 +206,9 @@ class SubtipoInline(admin.TabularInline):
 class RutinaInline(admin.TabularInline):
     model = Rutina
     extra = 1
-    fields = ('nombre', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos', 'procedimiento_estandar')
+    fields = ('nombre', 'frecuencia', 'tiempo_estimado', 'cantidad_tecnicos')
     readonly_fields = ('nombre',)
-    autocomplete_fields = ('frecuencia', 'procedimiento_estandar')
+    autocomplete_fields = ('frecuencia',)
     show_change_link = True
     # classes = ('collapse',)  <-- Eliminado para que aparezca abierto por defecto
 
@@ -256,7 +256,7 @@ class PuestoTrabajoAdmin(admin.ModelAdmin):
         return mark_safe(f'<a class="button" href="{url}" style="background: #4f46e5; color: white; font-weight: 700;">📊 VER DASHBOARD DE CARGAS</a>')
     ver_dashboard_link.short_description = 'Dashboard'
 
-from .models import Tipo, Frecuencia, Rutina, Procedimiento, PasoProcedimiento, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Empresa
+from .models import Tipo, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Empresa
 
 class EmpresaResource(resources.ModelResource):
     class Meta:
@@ -290,44 +290,6 @@ class EmpresaAdmin(ImportExportModelAdmin):
     search_fields = ('nombre',)
     list_filter = ('activo',)
     inlines = [PersonalInline]
-
-# --- RESOURCES PARA PROCEDIMIENTOS ---
-class ProcedimientoResource(resources.ModelResource):
-    class Meta:
-        model = Procedimiento
-        fields = ('id', 'nombre', 'descripcion', 'creado_en')
-        export_order = ('id', 'nombre', 'descripcion', 'creado_en')
-        import_id_fields = ('nombre',) # Usar nombre como clave
-        skip_unchanged = True
-
-class PasoProcedimientoResource(resources.ModelResource):
-    procedimiento_nombre = fields.Field(
-        column_name='procedimiento',
-        attribute='procedimiento',
-        widget=ForeignKeyWidget(Procedimiento, field='nombre')
-    )
-    
-    class Meta:
-        model = PasoProcedimiento
-        fields = ('id', 'procedimiento_nombre', 'orden', 'descripcion', 'tipo_respuesta', 
-                  'unidad_medida', 'valor_objetivo', 'rango_min', 'rango_max', 
-                  'verificacion', 'punto_medicion_codigo')
-        export_order = fields
-        import_id_fields = ('id',) # Opcional si se quiere actualizar específicos
-        skip_unchanged = True
-
-    def before_import_row(self, row, **kwargs):
-        """Asegurar que el procedimiento existe o crearlo"""
-        nombre_proc = row.get('procedimiento')
-        desc_proc = row.get('descripcion_procedimiento') or ''
-        if nombre_proc:
-            proc, created = Procedimiento.objects.get_or_create(
-                nombre=str(nombre_proc).strip(),
-                defaults={'descripcion': desc_proc}
-            )
-            if not created and desc_proc and not proc.descripcion:
-                proc.descripcion = desc_proc
-                proc.save()
 
 # --- RESOURCE PERSONALIZADO PARA TÉCNICOS ---
 class TecnicoPuestoResource(resources.ModelResource):
@@ -625,12 +587,6 @@ class RutinaResource(ProgressResourceMixin, resources.ModelResource):
         widget=ForeignKeyWidget(Frecuencia, field='nombre')
     )
     
-    procedimiento_estandar = fields.Field(
-        column_name='procedimiento_estandar',
-        attribute='procedimiento_estandar',
-        widget=ForeignKeyWidget(Procedimiento, field='nombre')
-    )
-
     def get_instance(self, instance_loader, row):
         """
         Prioriza búsqueda por ID, luego por codigo_rutina.
@@ -704,11 +660,11 @@ class RutinaResource(ProgressResourceMixin, resources.ModelResource):
         model = Rutina
         import_id_fields = ('id', 'codigo_rutina')
         fields = ('id', 'codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta', 
-                  'frecuencia_nombre', 'procedimiento_estandar', 'descripcion', 
-                  'tiempo_estimado', 'cantidad_tecnicos', 'herramientas')
+                  'frecuencia_nombre', 'descripcion', 
+                  'tiempo_estimado', 'cantidad_tecnicos', 'herramientas', 'es_invasiva')
         export_order = ('id', 'codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta',
-                       'frecuencia_nombre', 'procedimiento_estandar', 'tiempo_estimado', 
-                       'cantidad_tecnicos', 'herramientas', 'descripcion')
+                       'frecuencia_nombre', 'tiempo_estimado', 
+                       'cantidad_tecnicos', 'herramientas', 'es_invasiva', 'descripcion')
         skip_unchanged = True
         report_skipped = True
         use_transactions = False # Desactivado para evitar bloqueos en SQLite con Celery
@@ -1131,50 +1087,10 @@ class OrdenTrabajoResource(ProgressResourceMixin, resources.ModelResource):
             except Exception as e:
                 print(f"[DEBUG] [Import OT] Error en bulk_update de códigos: {str(e)}")
 
-class PasoProcedimientoInline(admin.TabularInline):
-    model = PasoProcedimiento
+class PasoRutinaInline(admin.TabularInline):
+    model = PasoRutina
     extra = 1
     fields = ('orden', 'descripcion', 'tipo_respuesta', 'unidad_medida', 'valor_objetivo', 'rango_min', 'rango_max', 'punto_medicion_exacto', 'punto_medicion_codigo')
-
-@admin.register(Procedimiento)
-class ProcedimientoAdmin(ImportExportModelAdmin):
-    resource_class = ProcedimientoResource
-    list_per_page = 50
-    list_display = ('nombre', 'descripcion', 'creado_en', 'import_link')
-    search_fields = ('nombre',)
-    inlines = [PasoProcedimientoInline]
-    change_list_template = "admin/mantenimiento/procedimiento/change_list.html"
-
-    def import_link(self, obj=None):
-        url = reverse('mantenimiento:procedimiento_import_background')
-        return mark_safe(f'<a class="button" href="{url}" style="background: #2563eb; color: white; font-weight: 700;">📥 IMPORTAR MASIVO</a>')
-    import_link.short_description = 'Acciones'
-
-    def get_urls(self):
-        urls = super().get_urls()
-        from .views.import_procedimientos import (
-            import_procedimientos_background, 
-            import_procedimientos_process, 
-            import_procedimientos_progress
-        )
-        custom_urls = [
-            path('import-background/', self.admin_site.admin_view(import_procedimientos_background), name='mantenimiento_procedimiento_import_background'),
-            path('import-background/process/', csrf_exempt(self.admin_site.admin_view(import_procedimientos_process)), name='mantenimiento_procedimiento_import_process'),
-            path('import-background/progress/', self.admin_site.admin_view(import_procedimientos_progress), name='mantenimiento_procedimiento_import_progress'),
-            path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_procedimiento_import_template'),
-        ]
-        return custom_urls + urls
-
-    def download_template_view(self, request):
-        """Genera un archivo Excel con las cabeceras para Pasos de Procedimiento"""
-        dataset = PasoProcedimientoResource().export(queryset=PasoProcedimiento.objects.none())
-        # Añadir columna de descripción de procedimiento si no está
-        if 'descripcion_procedimiento' not in dataset.headers:
-            dataset.insert_col(1, lambda x: '', header='descripcion_procedimiento')
-            
-        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_procedimientos.xlsx"'
-        return response
 
 class OrdenTrabajoInline(admin.TabularInline):
     model = OrdenTrabajo
@@ -1215,13 +1131,13 @@ class RutinaAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/mantenimiento/rutina/change_list.html'
     list_per_page = 50
     resource_class = RutinaResource
-    list_display = ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'ver_dashboard_link', 'programar_rutina_link')
-    list_filter = (('tipo', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo')
-    search_fields = ('codigo_rutina', 'nombre', 'procedimiento_estandar__nombre', 'herramientas')
-    autocomplete_fields = ('tipo', 'frecuencia', 'procedimiento_estandar', 'puesto_trabajo')
+    list_display = ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'es_invasiva', 'cantidad_tecnicos', 'ver_dashboard_link', 'programar_rutina_link')
+    list_filter = (('tipo', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo', 'es_invasiva')
+    search_fields = ('codigo_rutina', 'nombre', 'herramientas')
+    autocomplete_fields = ('tipo', 'frecuencia', 'puesto_trabajo')
     readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link', 'ver_dashboard_link')
     list_select_related = True
-    inlines = [ProgramacionInline] # Agregado historial de programaciones
+    inlines = [PasoRutinaInline, ProgramacionInline] # Agregado historial de programaciones
     actions = ['exportar_seleccionadas_action']
 
     def programar_rutina_link(self, obj):
@@ -1248,10 +1164,10 @@ class RutinaAdmin(ImportExportModelAdmin):
             'fields': ('codigo_rutina', ('nombre', 'programar_rutina_link'), 'tipo', 'frecuencia', 'puesto_trabajo')
         }),
         ('Manual de Pasos', {
-            'fields': ('procedimiento_estandar', 'herramientas')
+            'fields': ('herramientas',)
         }),
         ('Detalles de Ejecución', {
-            'fields': ('tiempo_estimado', 'cantidad_tecnicos', 'descripcion')
+            'fields': ('es_invasiva', 'tiempo_estimado', 'cantidad_tecnicos', 'descripcion')
         }),
     )
 

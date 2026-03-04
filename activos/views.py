@@ -961,3 +961,26 @@ def activo_edit_view(request, pk):
         'title': f'Editar Activo: {activo.nombre}',
     }
     return render(request, 'activos/activo_edit.html', context)
+
+
+@staff_member_required
+def print_altabaja(request, pk):
+    """Vista de impresión para documentos de Alta/Baja."""
+    from .models import DocumentoAltaBaja
+    documento = get_object_or_404(DocumentoAltaBaja, pk=pk)
+    items = documento.items.select_related(
+        'activo', 'activo__modelo__marca', 'activo__ubicacion'
+    ).all()
+    
+    # Archivos adjuntos que son imágenes
+    archivos_img = [a for a in documento.archivos.all() if a.es_imagen]
+    
+    # Determinar si hay alguna foto (ya sea de los activos o adjunta al documento)
+    photos_exist = any(item.activo.foto for item in items) or bool(archivos_img)
+    
+    return render(request, 'activos/print_altabaja.html', {
+        'documento': documento,
+        'items': items,
+        'archivos_img': archivos_img,
+        'photos_exist': photos_exist,
+    })

@@ -1,0 +1,440 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte {{ documento.get_tipo_display }} - {{ documento.numero }}</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 5mm;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 11pt;
+            color: #1e293b;
+            background: white;
+            line-height: 1.5;
+            counter-reset: ilustracion;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .header-logo img {
+            height: 60px;
+            object-fit: contain;
+        }
+        .header-center {
+            flex: 1;
+            text-align: center;
+            padding: 0 20px;
+        }
+        .header-center h1 {
+            font-size: 16pt;
+            color: #0f172a;
+            margin-bottom: 2px;
+            letter-spacing: -0.5px;
+            text-transform: uppercase;
+        }
+        .header-center .subtitle {
+            font-size: 10pt;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .header-right {
+            text-align: right;
+            min-width: 140px;
+        }
+        .doc-number {
+            font-size: 16pt;
+            font-weight: 700;
+            color: #2563eb;
+            margin-bottom: 5px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 9pt;
+            text-transform: uppercase;
+        }
+        .badge-alta { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-baja { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+        /* Info Grid - Modernizado pero formal */
+        .doc-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .doc-info-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .doc-info-row {
+            display: flex;
+            font-size: 10.5pt;
+        }
+        .doc-info-row strong {
+            width: 140px;
+            color: #475569;
+            font-weight: 600;
+        }
+        .doc-info-row span {
+            color: #0f172a;
+            font-weight: 500;
+        }
+
+        /* Secciones de Texto */
+        .text-section {
+            margin-bottom: 25px;
+            padding-left: 15px;
+            border-left: 4px solid #cbd5e1;
+        }
+        .text-section.motivo { border-left-color: #f59e0b; }
+        .text-section.obs { border-left-color: #3b82f6; }
+
+        .text-section h3 {
+            font-size: 10.5pt;
+            text-transform: uppercase;
+            color: #475569;
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
+        }
+        .text-section p {
+            color: #1e293b;
+            text-align: justify;
+        }
+
+        /* Tabla de Activos */
+        .table-container {
+            margin-bottom: 30px;
+        }
+        .table-container h3 {
+            font-size: 11pt;
+            color: #0f172a;
+            margin-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .assets-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9.5pt;
+        }
+        .assets-table thead th {
+            background: #f1f5f9;
+            color: #334155;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #cbd5e1;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 8.5pt;
+        }
+        .assets-table tbody td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+            color: #334155;
+        }
+        .assets-table tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        .asset-photo {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+        }
+        .no-photo {
+            width: 50px;
+            height: 50px;
+            background: #f1f5f9;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 14pt;
+            border: 1px dashed #cbd5e1;
+        }
+
+        /* Galería Fotográfica APA */
+        .photo-gallery {
+            page-break-before: always;
+            margin-top: 30px;
+        }
+        .photo-gallery h2 {
+            font-size: 14pt;
+            color: #0f172a;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 8px;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+        }
+        .photo-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 4px; /* Un poco de suavidad sin ser caricatura */
+            background: #fff;
+            break-inside: avoid;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Sombra elegante */
+            counter-increment: ilustracion;
+            display: flex;
+            flex-direction: column;
+        }
+        .photo-card img {
+            width: 100%;
+            height: 240px;
+            object-fit: contain; /* Para no recortar detalles técnicos */
+            background: #f8fafc; /* Fondo suave si la imagen no llena el espacio */
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .photo-card .caption {
+            padding: 15px;
+            text-align: left;
+            font-size: 9.5pt;
+            color: #334155;
+        }
+        .apa-label {
+            font-style: italic;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .apa-label::after {
+            content: " " counter(ilustracion) ". ";
+        }
+
+        /* Firmas */
+        .signatures-section {
+            margin-top: 50px;
+            page-break-inside: avoid;
+        }
+        .signatures {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 30px;
+        }
+        .sig-box {
+            text-align: center;
+        }
+        .sig-line {
+            border-bottom: 1px solid #475569;
+            margin-bottom: 8px;
+            height: 50px;
+        }
+        .sig-name {
+            font-weight: 600;
+            font-size: 10pt;
+            color: #0f172a;
+        }
+        .sig-role {
+            font-size: 8.5pt;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 8pt;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+            font-family: inherit;
+        }
+
+        /* Pantalla */
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-print { display: none !important; }
+        }
+
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 11pt;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .print-btn:hover { background: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <button class="print-btn no-print" onclick="window.print()">🖨️ Imprimir Reporte</button>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-logo">
+            <img src="{% static 'activos/img/logo_operadora_cc.png' %}" alt="Logo Operadora CC">
+        </div>
+        <div class="header-center">
+            <h1>Reporte de {{ documento.get_tipo_display }} de Activos</h1>
+            <div class="subtitle">Sistema de Gestión de Activos Fijos</div>
+        </div>
+        <div class="header-right">
+            <div class="doc-number">Nº {{ documento.numero }}</div>
+            <div class="badge {% if documento.tipo == 'ALTA' %}badge-alta{% else %}badge-baja{% endif %}">
+                {{ documento.get_tipo_display }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Grid -->
+    <div class="doc-info">
+        <div class="doc-info-col">
+            <div class="doc-info-row"><strong>Fecha de Emisión:</strong> <span>{{ documento.fecha|date:"d/m/Y" }}</span></div>
+            <div class="doc-info-row"><strong>Trámite:</strong> <span>{{ documento.get_tipo_display }} de Activos</span></div>
+            <div class="doc-info-row"><strong>Estado:</strong> <span>{{ documento.get_estado_display }}</span></div>
+        </div>
+        <div class="doc-info-col">
+            <div class="doc-info-row"><strong>Elaborado por:</strong> <span>{{ documento.elaborado_por.get_full_name|default:documento.elaborado_por|default:"—" }}</span></div>
+            <div class="doc-info-row"><strong>Autorizado por:</strong> <span>{{ documento.autorizado_por.get_full_name|default:documento.autorizado_por|default:"—" }}</span></div>
+            <div class="doc-info-row"><strong>Recibido por:</strong> <span>{{ documento.recibido_por.get_full_name|default:documento.recibido_por|default:"—" }}</span></div>
+        </div>
+    </div>
+
+    <!-- Secciones de Texto -->
+    <div class="text-section motivo">
+        <h3>Motivo / Justificación</h3>
+        <p>{{ documento.motivo }}</p>
+    </div>
+
+    {% if documento.observaciones %}
+    <div class="text-section obs">
+        <h3>Observaciones Adicionales</h3>
+        <p>{{ documento.observaciones }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Tabla de Activos -->
+    <div class="table-container">
+        <h3>
+            <span>Detalle de Activos</span>
+            <span style="color: #64748b; font-size: 10pt; font-weight:normal;">Total: {{ items|length }} activos</span>
+        </h3>
+        <table class="assets-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px; text-align:center;">#</th>
+                    <th>Código</th>
+                    <th>Descripción y Notas</th>
+                    <th>Marca / Modelo</th>
+                    <th>Serie</th>
+                    <th>Ubicación</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td style="text-align: center; color: #94a3b8; font-weight: 500;">{{ forloop.counter }}</td>
+                    <td><strong style="color: #0f172a;">{{ item.activo.codigo_interno }}</strong></td>
+                    <td>
+                        <span style="font-weight: 500; color: #0f172a;">{{ item.activo.nombre }}</span>
+                        {% if item.observacion %}<br><span style="color:#64748b; font-size: 8.5pt;">↳ {{ item.observacion }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if item.activo.modelo %}{{ item.activo.modelo.marca }} — {{ item.activo.modelo.nombre }}{% else %}—{% endif %}
+                    </td>
+                    <td>{{ item.activo.serie|default:"—" }}</td>
+                    <td>{{ item.activo.ubicacion|default:"—" }}</td>
+                    <td>
+                        <span style="font-size: 8.5pt; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: #e2e8f0; color: #475569;">
+                            {{ item.activo.get_estado_display }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Firmas -->
+    <div class="signatures-section">
+        <div class="signatures">
+            <div class="sig-box">
+                <div class="sig-line"></div>
+                <div class="sig-name">{{ documento.elaborado_por.get_full_name|default:"—" }}</div>
+                <div class="sig-role">Elaborado Por</div>
+            </div>
+            <div class="sig-box">
+                <div class="sig-line"></div>
+                <div class="sig-name">{{ documento.autorizado_por.get_full_name|default:"—" }}</div>
+                <div class="sig-role">Autorizado Por</div>
+            </div>
+            <div class="sig-box">
+                <div class="sig-line"></div>
+                <div class="sig-name">{{ documento.recibido_por.get_full_name|default:"—" }}</div>
+                <div class="sig-role">Recibido Por</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photo Gallery APA -->
+    {% if photos_exist %}
+    <div class="photo-gallery">
+        <h2>Reporte Fotográfico y Anexos</h2>
+        <div class="gallery-grid">
+            {% for item in items %}
+                {% if item.activo.foto %}
+                <div class="photo-card">
+                    <img src="{{ item.activo.foto.url }}" alt="{{ item.activo.nombre }}" />
+                    <div class="caption">
+                        <span class="apa-label">Ilustración</span>{{ item.activo.nombre }} (Cód. {{ item.activo.codigo_interno }})
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+
+            {% for archivo in archivos_img %}
+                <div class="photo-card">
+                    <img src="{{ archivo.archivo.url }}" alt="Anexo" />
+                    <div class="caption">
+                        <span class="apa-label">Ilustración</span>{% if archivo.comentario %}{{ archivo.comentario }}{% else %}Anexo documental de soporte al trámite{% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        Generado en SisActivos el {% now "d/m/Y \a \l\a\s H:i" %}
+    </div>
+</body>
+</html>

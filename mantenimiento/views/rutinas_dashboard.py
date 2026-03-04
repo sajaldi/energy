@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from ..models import Tipo, Rutina, Frecuencia, PuestoTrabajo, Procedimiento, PasoProcedimiento
+from ..models import Tipo, Rutina, Frecuencia, PuestoTrabajo, PasoRutina
 from django.db.models import Count, Q
 
 
@@ -116,16 +116,14 @@ def rutinas_dashboard(request):
     puestos = PuestoTrabajo.objects.all().order_by('nombre')
     total_rutinas = Rutina.objects.count()
     
-    # Todas las categorías y procedimientos para el select de creación/edición
+    # Todas las categorías para el select de creación/edición
     todas_categorias = Tipo.objects.all().order_by('nombre')
-    procedimientos = Procedimiento.objects.all().order_by('nombre')
     
     return render(request, 'mantenimiento/rutinas_dashboard.html', {
         'tree': tree,
         'frecuencias': frecuencias,
         'puestos': puestos,
         'todas_categorias': todas_categorias,
-        'procedimientos': procedimientos,
         'total_rutinas': total_rutinas,
         'frecuencia_selected': frecuencia_int,
         'puesto_selected': puesto_int,
@@ -137,7 +135,7 @@ def rutinas_dashboard(request):
 def rutina_detail_api(request, pk):
     """API que devuelve detalles de una rutina y su historial de ejecución"""
     from django.http import JsonResponse
-    from ..models import OrdenTrabajo, CierreOrdenTrabajo, PasoProcedimiento
+    from ..models import OrdenTrabajo, CierreOrdenTrabajo, PasoRutina
     
     try:
         rutina = Rutina.objects.select_related('frecuencia', 'puesto_trabajo', 'tipo').get(pk=pk)
@@ -174,8 +172,8 @@ def rutina_detail_api(request, pk):
                 'tecnicos': rutina.cantidad_tecnicos,
                 'descripcion': rutina.descripcion or "Sin descripción",
                 'herramientas': rutina.herramientas or "Ninguna",
+                'es_invasiva': rutina.es_invasiva,
                 'admin_url': f"/admin/mantenimiento/rutina/{rutina.id}/change/",
-                'procedimiento_id': rutina.procedimiento_estandar_id,
                 'pasos': [
                     {
                         'id': p.id,
@@ -188,7 +186,7 @@ def rutina_detail_api(request, pk):
                         'rango_max': p.rango_max,
                         'unidad_medida': p.unidad_medida
                     }
-                    for p in (rutina.procedimiento_estandar.pasos.all().order_by('orden') if rutina.procedimiento_estandar else [])
+                    for p in rutina.pasos.all().order_by('orden')
                 ]
             },
             'historial': history_data
@@ -196,33 +194,6 @@ def rutina_detail_api(request, pk):
         return JsonResponse(data)
     except Rutina.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Rutina no encontrada'}, status=404)
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
-
-@login_required
-def procedimiento_detail_api(request, pk):
-    """API para obtener los pasos de un procedimiento específico"""
-    from .models import Procedimiento
-    try:
-        procedimiento = Procedimiento.objects.prefetch_related('pasos').get(pk=pk)
-        pasos = [
-            {
-                'id': p.id,
-                'orden': p.orden, 
-                'descripcion': p.descripcion, 
-                'verificacion': p.verificacion,
-                'tipo_respuesta': p.tipo_respuesta,
-                'valor_objetivo': p.valor_objetivo,
-                'rango_min': p.rango_min,
-                'rango_max': p.rango_max,
-                'unidad_medida': p.unidad_medida
-            }
-            for p in procedimiento.pasos.all().order_by('orden')
-        ]
-        return JsonResponse({'status': 'success', 'pasos': pasos})
-    except Procedimiento.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Procedimiento no encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
@@ -251,6 +222,10 @@ def rutina_save_api(request):
         rutina.herramientas = data.get('herramientas')
         rutina.cantidad_tecnicos = int(data.get('cantidad_tecnicos', 1))
         
+        # Checkbox invasiva
+        es_invasiva_val = data.get('es_invasiva')
+        rutina.es_invasiva = es_invasiva_val in [True, 'true', 'on', '1']
+        
         # Foreign Keys
         cat_id = data.get('categoria_id')
         rutina.tipo = Tipo.objects.get(pk=cat_id) if cat_id else None
@@ -260,9 +235,6 @@ def rutina_save_api(request):
         
         puesto_id = data.get('puesto_trabajo_id')
         rutina.puesto_trabajo = PuestoTrabajo.objects.get(pk=puesto_id) if puesto_id else None
-        
-        proc_id = data.get('procedimiento_estandar_id')
-        rutina.procedimiento_estandar = Procedimiento.objects.get(pk=proc_id) if proc_id else None
         
         # DurationField handling (HH:MM:SS)
         from datetime import timedelta
@@ -282,10 +254,107 @@ def rutina_save_api(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+@staff_member_required
+def tipo_detail_api(request, pk):
+    """API que devuelve detalles de un Tipo (Categoría) para el modal de edición"""
+    from django.http import JsonResponse
+    try:
+        tipo = Tipo.objects.get(pk=pk)
+        data = {
+            'status': 'success',
+            'tipo': {
+                'id': tipo.id,
+                'nombre': tipo.nombre,
+                'codigo': tipo.codigo or "",
+                'descripcion': tipo.descripcion or "",
+                'padre_id': tipo.padre_id or ""
+            }
+        }
+        return JsonResponse(data)
+    except Tipo.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Categoría no encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @staff_member_required
-def procedimiento_save_api(request):
-    """API para guardar los pasos de un procedimiento estándar de forma atómica"""
+def tipo_save_api(request):
+    """API para crear o actualizar un Tipo (Categoría) vía AJAX"""
+    from django.http import JsonResponse
+    import json
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        pk = data.get('id')
+        nombre = data.get('nombre')
+        
+        if not nombre:
+            return JsonResponse({'status': 'error', 'message': 'El nombre es obligatorio'}, status=400)
+        
+        if pk:
+            tipo = Tipo.objects.get(pk=pk)
+        else:
+            tipo = Tipo()
+            
+        tipo.nombre = nombre
+        tipo.codigo = data.get('codigo') or None
+        tipo.descripcion = data.get('descripcion') or ""
+        
+        padre_id = data.get('padre_id')
+        if padre_id:
+            # Prevención de ciclos básicos
+            if str(padre_id) == str(pk):
+                return JsonResponse({'status': 'error', 'message': 'Una categoría no puede ser padre de sí misma'}, status=400)
+            tipo.padre = Tipo.objects.get(pk=padre_id)
+        else:
+            tipo.padre = None
+            
+        tipo.save()
+        
+        return JsonResponse({
+            'status': 'success', 
+            'message': 'Categoría guardada correctamente',
+            'tipo_id': tipo.id
+        })
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@staff_member_required
+def tipo_delete_api(request, pk):
+    """API para eliminar un Tipo (Categoría)"""
+    from django.http import JsonResponse
+    from django.db.models import ProtectedError
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+        
+    try:
+        tipo = Tipo.objects.get(pk=pk)
+        
+        # Validar si tiene rutinas o subtipos (dependiendo de on_delete, pero mejor ser explícito para el usuario)
+        if tipo.subtipos.count() > 0:
+            return JsonResponse({'status': 'error', 'message': 'No se puede eliminar una categoría que contiene sub-categorías. Elimínalas o muévelas primero.'}, status=400)
+            
+        if Rutina.objects.filter(tipo=tipo).count() > 0:
+            return JsonResponse({'status': 'error', 'message': 'No se puede eliminar una categoría que contiene rutinas estructuradas. Reasigna las rutinas primero.'}, status=400)
+            
+        tipo.delete()
+        return JsonResponse({'status': 'success', 'message': 'Categoría eliminada'})
+        
+    except Tipo.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Categoría no encontrada'}, status=404)
+    except ProtectedError:
+        return JsonResponse({'status': 'error', 'message': 'No se puede eliminar porque está en uso en otros registros (Ej: Activos).'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def rutina_pasos_save_api(request):
+    """API para guardar los pasos de una rutina de forma atómica"""
     from django.http import JsonResponse
     from django.db import transaction
     import json
@@ -295,17 +364,17 @@ def procedimiento_save_api(request):
         
     try:
         data = json.loads(request.body)
-        proc_id = data.get('procedimiento_id')
+        rutina_id = data.get('rutina_id')
         pasos_data = data.get('pasos', [])
         
-        if not proc_id:
-            return JsonResponse({'status': 'error', 'message': 'ID de procedimiento requerido'}, status=400)
+        if not rutina_id:
+            return JsonResponse({'status': 'error', 'message': 'ID de rutina requerido'}, status=400)
             
         with transaction.atomic():
-            procedimiento = Procedimiento.objects.get(pk=proc_id)
+            rutina = Rutina.objects.get(pk=rutina_id)
             
             # 1. Obtener IDs de pasos actuales para controlar borrados
-            existing_pasos = {p.id: p for p in procedimiento.pasos.all()}
+            existing_pasos = {p.id: p for p in rutina.pasos.all()}
             new_paso_ids = []
             
             for i, p_data in enumerate(pasos_data):
@@ -313,7 +382,7 @@ def procedimiento_save_api(request):
                 if p_id and int(p_id) in existing_pasos:
                     paso = existing_pasos[int(p_id)]
                 else:
-                    paso = PasoProcedimiento(procedimiento=procedimiento)
+                    paso = PasoRutina(rutina=rutina)
                 
                 paso.orden = i + 1
                 paso.descripcion = p_data.get('descripcion', '')
@@ -336,12 +405,12 @@ def procedimiento_save_api(request):
                 new_paso_ids.append(paso.id)
             
             # 2. Borrar pasos que no vinieron en el nuevo set
-            PasoProcedimiento.objects.filter(procedimiento=procedimiento).exclude(id__in=new_paso_ids).delete()
+            PasoRutina.objects.filter(rutina=rutina).exclude(id__in=new_paso_ids).delete()
             
-        return JsonResponse({'status': 'success', 'message': 'Procedimiento actualizado correctamente'})
+        return JsonResponse({'status': 'success', 'message': 'Pasos actualizados correctamente'})
         
-    except Procedimiento.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Procedimiento no encontrado'}, status=404)
+    except Rutina.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Rutina no encontrada'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 

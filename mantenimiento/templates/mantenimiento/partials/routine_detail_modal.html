@@ -46,6 +46,10 @@
                         <label>Técnicos Requeridos</label>
                         <p id="m-techs">-</p>
                     </div>
+                    <div class="info-item">
+                        <label>Tipo de Intervención</label>
+                        <div id="m-invasiva-badge" style="margin-top: 4px;">-</div>
+                    </div>
                 </div>
 
                 <div class="info-block">
@@ -110,54 +114,14 @@
                         <input type="number" id="f-tecnicos" name="cantidad_tecnicos" class="form-control" min="1"
                             value="1">
                     </div>
-                    <div class="form-group full">
-                        <label>Procedimiento Estándar</label>
-                        <div class="searchable-dropdown" id="proc-dropdown-container">
-                            <div class="search-input-wrapper">
-                                <input type="text" id="proc-search-input" class="form-control"
-                                    placeholder="Buscar procedimiento..." autocomplete="off">
-                                <input type="hidden" id="f-procedimiento" name="procedimiento_estandar_id">
-                                <div class="search-icon-right">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <circle cx="11" cy="11" r="8"></circle>
-                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                                    </svg>
-                                </div>
-                                <button type="button" class="btn-open-selector" onclick="openProcedureSelector()"
-                                    title="Abrir selector">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="dropdown-results" id="proc-results-list" style="display: none;">
-                                <div class="result-item result-item-empty" data-value=""
-                                    data-text="Ninguno (Crear pasos personalizados)">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M18 6L6 18M6 6l12 12" />
-                                    </svg>
-                                    Ninguno (Crear pasos personalizados)
-                                </div>
-                                {% for item_proc in procedimientos %}
-                                <div class="result-item" data-value="{{ item_proc.id }}"
-                                    data-text="{{ item_proc.nombre }}">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    {{ item_proc.nombre }}
-                                </div>
-                                {% endfor %}
-                            </div>
+                    <div class="form-group" style="display: flex; flex-direction: column; justify-content: center;">
+                        <label>Rutina Invasiva</label>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                            <input type="checkbox" id="f-invasiva" name="es_invasiva" style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;">
+                            <span style="font-size: 0.85rem; color: #64748b;">(Requiere horario no operativo)</span>
                         </div>
-                        <small style="color: #64748b; margin-top: 4px; display: block;">
-                            Al elegir un procedimiento, se cargarán sus pasos en la pestaña "Pasos".
-                        </small>
                     </div>
+
                     <div class="form-group full">
                         <label>Descripción</label>
                         <textarea id="f-descripcion" name="descripcion" class="form-control" rows="3"></textarea>
@@ -199,10 +163,7 @@
 
                 <div id="steps-edit-container" class="edit-mode" style="display: none;">
                     <div class="alert-info" style="margin-bottom: 1rem; font-size: 0.85rem;">
-                        <strong>Nota:</strong> Los cambios realizados aquí se aplicarán al procedimiento estándar
-                        seleccionado.
-                        Si no hay procedimiento seleccionado, estos cambios no se guardarán (primero selecciona un
-                        procedimiento en la pestaña General).
+                        <strong>Nota:</strong> Los cambios realizados aquí se guardarán directamente en la rutina actual.
                     </div>
                     <div id="m-steps-list-edit" class="steps-list-editable">
                         <!-- Se llena vía JS -->
@@ -219,8 +180,8 @@
 
                     <div id="steps-edit-actions"
                         style="margin-top: 1.5rem; display: flex; justify-content: flex-end; border-top: 1px solid #efefef; padding-top: 1rem;">
-                        <button type="button" class="btn btn-success" onclick="saveProcedimiento()">
-                            Actualizar Solo Pasos
+                        <button type="button" class="btn btn-success" onclick="saveRutinaSteps()">
+                            Guardar Pasos
                         </button>
                     </div>
                 </div>
@@ -267,38 +228,7 @@
     </div>
 </div>
 
-<!-- SELECTOR MODAL (PARA PROCEDIMIENTOS) -->
-<div id="selectorModal" class="selector-modal-backdrop" onclick="if(event.target === this) closeProcedureSelector()">
-    <div class="selector-modal">
-        <div class="selector-header">
-            <h3 style="margin:0; color:#1e293b; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                Seleccionar Procedimiento
-            </h3>
-            <button type="button" onclick="closeProcedureSelector()"
-                style="background:none; border:none; font-size:24px; color:#94a3b8; cursor:pointer;">&times;</button>
-        </div>
-        <div style="padding: 15px 20px; background: #fff; border-bottom: 1px solid #f1f5f9;">
-            <input type="text" id="selector-search" class="form-control" placeholder="Filtrar procedimientos..."
-                oninput="filterSelectorItems(this.value)" style="border-radius:10px;">
-        </div>
-        <div class="selector-body" id="selector-list">
-            <div class="selector-item" onclick="selectFromModal('', 'Ninguno (Crear pasos personalizados)')">
-                <span style="font-weight:600; color:#64748b;">Ninguno</span>
-                <span style="font-size:0.75rem; color:#94a3b8;">Empezar con una lista de pasos vacía</span>
-            </div>
-            {% for sp in procedimientos %}
-            <div class="selector-item" onclick="selectFromModal('{{ sp.id }}', '{{ sp.nombre }}')">
-                <span style="font-weight:600; color:#1e293b;">{{ sp.nombre }}</span>
-                <span style="font-size:0.75rem; color:#64748b;">{{ sp.pasos.count }} pasos configurados</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
+
 
 <style>
     /* MODAL STYLES (EXTRACTED) */
@@ -343,6 +273,11 @@
             transform: translateY(0);
             opacity: 1;
         }
+    }
+
+    .glass-invasive {
+        border: 2px solid #ef4444 !important;
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.25) !important;
     }
 
     .modal-close-btn {

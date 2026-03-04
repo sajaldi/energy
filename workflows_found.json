@@ -1,0 +1,548 @@
+[
+  {
+    "updatedAt": "2026-03-04T14:35:35.400Z",
+    "createdAt": "2026-03-03T07:10:07.745Z",
+    "id": "nAK6DyfCZkZXlBKo",
+    "name": "OBTENER METADATA DE DOCUMENTOS",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "sync-metadatos-doc",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -864,
+          -496
+        ],
+        "id": "fa2f0695-f9de-4c9c-b83a-b84145db865c",
+        "name": "Webhook",
+        "webhookId": "6c793040-9abe-46e9-a068-71debd2cfe0d"
+      },
+      {
+        "parameters": {
+          "bucketName": "energia-media",
+          "fileKey": "={{ $('Webhook').item.json.body.file_path }}"
+        },
+        "type": "n8n-nodes-base.s3",
+        "typeVersion": 1,
+        "position": [
+          -272,
+          -352
+        ],
+        "id": "bd600126-36d9-4e12-b995-24abd2fce5cc",
+        "name": "Download a file",
+        "credentials": {
+          "s3": {
+            "id": "8QNeVz7QEL7RcrkC",
+            "name": "S3 account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT \n    mc.nombre,\n    mc.etiqueta,\n    mc.tipo_campo,\n    mc.requerido,\n    mc.descripcion\nFROM documentos_metadatoconfig mc\nJOIN documentos_tipodocumento td ON mc.tipo_documento_id = td.id\nWHERE td.nombre = '{{ $json.body.tipo_documento }}'\nORDER BY mc.orden;\n",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -672,
+          -432
+        ],
+        "id": "82a630bb-e2d9-4c83-9ce0-8f6c116a18b7",
+        "name": "Execute a SQL query",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Eres un asistente especializado en extracci\u00f3n de datos de documentos oficiales. Tu trabajo es analizar documentos PDF y extraer valores espec\u00edficos de campos de metadatos.\nREGLAS ESTRICTAS:\n1. Analiza el documento PDF adjunto cuidadosamente.\n2. Extrae \u00daNICAMENTE los campos solicitados abajo.\n3. Si un campo no se encuentra en el documento o no puedes determinar el valor, usa \"\" (cadena vac\u00eda).\n4. Para campos de tipo FECHA, extrae SOLO la fecha y convi\u00e9rtela estrictamente al formato dd/mm/aaaa (ejemplo: si dice \"18 de septiembre del 2024\", t\u00fa respondes \"18/09/2024\"). NO incluyas lugares, ciudades ni texto adicional.\n5. Para campos de tipo NUMERO, usa solo d\u00edgitos y punto decimal.\n\n\ntext\nDocumento: {{ $('Webhook').item.json.body.codigo }} - {{ $('Webhook').item.json.body.titulo }}\nTipo de Documento: {{ $('Webhook').item.json.body.tipo_documento }}\nCampos a extraer del documento:\n{{ $('Execute a SQL query').all().map(item => '- ' + item.json.etiqueta + ' (tipo: ' + item.json.tipo_campo + ', campo: ' + item.json.nombre + ')' + (item.json.descripcion ? ' \u2192 Instrucci\u00f3n adicional: ' + item.json.descripcion : '')).join('\\n') }}\nAnaliza el PDF adjunto y extrae los valores de cada campo listado arriba. Recuerda adaptar las fechas a DD/MM/YYYY. Responde SOLO con el JSON estructurado as\u00ed:\n{\n  \"documento_id\": {{ $('Webhook').item.json.body.documento_id }},\n  \"campos\": [\n    {\"nombre\": \"nombre_del_campo\", \"valor\": \"valor_extraido\"}\n  ]\n}",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          176,
+          -368
+        ],
+        "id": "f9a1d2ca-ebd5-4797-93a5-63f26d1b4ab1",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "aggregate": "aggregateAllItemData",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.aggregate",
+        "typeVersion": 1,
+        "position": [
+          -480,
+          -384
+        ],
+        "id": "2bc877d8-22c5-48cb-99f1-c7bdc66f80fb",
+        "name": "Aggregate"
+      },
+      {
+        "parameters": {
+          "model": "meta-llama/llama-prompt-guard-2-86m",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+        "typeVersion": 1,
+        "position": [
+          -16,
+          32
+        ],
+        "id": "c585b2c5-28d5-433d-88a2-1eb4a4831be5",
+        "name": "Groq Chat Model",
+        "credentials": {
+          "groqApi": {
+            "id": "cUieN6RPtWsvCTnA",
+            "name": "Groq account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Obtener el JSON \"bruto\" que puede venir dentro de formateo Markdown\nconst rawResponse = $input.first().json.output;\n\n// Limpiador agresivo para sacar validamente el JSON de un string texto/markdown:\nfunction extractJson(rawJsonStr) {             \n  var cleaner = rawJsonStr.replace(/^```[a-z]*\\s*(?=\\{)/gim, ''); // Retira el \"```json\" del inicio\n  cleaner = cleaner.trim().replace(/^```[a-z]*\\n/g, '');               \n  cleaner = cleaner.replace(/```$/g, '').trim();                  // Quita el '```' final\n  var startMatch = cleaner.indexOf('{');                          // Busca el json verdadero\n  var endMatch = cleaner.lastIndexOf('}');                        \n  cleaner = cleaner.slice(startMatch, endMatch + 1);             \n  return cleaner;\n}\n\nconst cleanedMatch = extractJson(rawResponse);\n\nlet parsedDoc;\ntry{\n    parsedDoc = JSON.parse(cleanedMatch);\n}catch(err){\n    throw new Error('Fallo al interpretar la respuesta de IA como JSON: '+err.message+'... Raw value fue: '+rawResponse);\n}\n\n// 2. Extraer el array y emitir una ejecuci\u00f3n por cada campo extra\u00eddo\n// para actualizar en PostgreSQL:\nreturn parsedDoc.campos.map(campo => {\n  // Manejo de valores SQL. Curar las comillas dobles y sencillas que la IA incluye para que el INSERT no lo confunda\n  let cleanValue = \"\";   \n  if(campo.valor){\n     cleanValue = campo.valor.toString()\n                             .replace(/'/g, \"''\")   // SQL Escape for Single quote\n                             // .replace(/\"/g, '\\\"') // En updates inline Postgres las comillas dobles (\") no se escapan. Se las toma texto.\n  }\n\n  return {\n    json: {\n      nombre_limpio: typeof campo.nombre === 'string' ? campo.nombre.trim().toLowerCase() : '', // Pasarlo a un standard SQL match\n      nombre_orig: typeof campo.nombre === 'string' ? campo.nombre.trim() : '', \n      valor: cleanValue,\n      documento_id: parsedDoc.documento_id || $('Webhook').first().json.body.documento_id\n    }\n  };\n});\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          544,
+          -192
+        ],
+        "id": "5e3c7f66-d19a-4113-9481-ad410bc7a31e",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE documentos_metadatovalor mv\nSET valor = '{{ $json.valor }}'\nFROM documentos_metadatoconfig mc\nWHERE mv.config_id = mc.id\n  AND LOWER(mc.nombre) = '{{ $json.nombre_limpio }}'\n  AND mv.documento_id = {{ $json.documento_id }};",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          752,
+          -192
+        ],
+        "id": "a1d776fe-7e58-4cde-baab-e9dd98c520f1",
+        "name": "Execute a SQL query1",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Execute a SQL query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download a file": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Execute a SQL query": {
+        "main": [
+          [
+            {
+              "node": "Aggregate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Aggregate": {
+        "main": [
+          [
+            {
+              "node": "Download a file",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Groq Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Execute a SQL query1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate",
+      "availableInMCP": false,
+      "timeSavedMode": "fixed",
+      "timezone": "America/El_Salvador",
+      "callerPolicy": "workflowsFromSameOwner"
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {
+      "Webhook": [
+        {
+          "json": {
+            "headers": {
+              "host": "localhost:5678",
+              "user-agent": "python-requests/2.32.5",
+              "accept-encoding": "gzip, deflate",
+              "accept": "*/*",
+              "connection": "keep-alive",
+              "content-length": "1034",
+              "content-type": "application/json"
+            },
+            "params": {},
+            "query": {},
+            "body": {
+              "documento_id": 90,
+              "codigo": "AH-CCG-105-2024",
+              "titulo": "seguimiento escrito DOIH-CCG-349-2024",
+              "tipo_documento": "Oficios",
+              "campos_nuevos": 0,
+              "file_url": "http://181.115.47.107:9000/energia-media/docs/2026/3/AH-CCG-105-2024/AH-CCG-105-2024_seguimiento_escrito_DOIH-CCG-349-2024.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=rootminio%2F20260303%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260303T081145Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=22607504483e39125077ecea316076025df8a57354cb11105fb8501582c76dc9",
+              "file_path": "docs/2026/3/AH-CCG-105-2024/AH-CCG-105-2024_seguimiento_escrito_DOIH-CCG-349-2024.pdf",
+              "metadatos": [
+                {
+                  "nombre": "Asunto",
+                  "etiqueta": "Asunto",
+                  "valor": ""
+                },
+                {
+                  "nombre": "No Oficio",
+                  "etiqueta": "Doc.",
+                  "valor": ""
+                },
+                {
+                  "nombre": "Resumen",
+                  "etiqueta": "Resumen",
+                  "valor": ""
+                },
+                {
+                  "nombre": "Plazo",
+                  "etiqueta": "Plazo",
+                  "valor": ""
+                },
+                {
+                  "nombre": "Fecha",
+                  "etiqueta": "Fecha",
+                  "valor": ""
+                }
+              ],
+              "url_admin": "https://b52aeb243e6033.lhr.life/admin/documentos/documento/90/change/"
+            },
+            "webhookUrl": "http://181.115.47.107:5678/webhook/sync-metadatos-doc",
+            "executionMode": "production"
+          },
+          "pairedItem": {
+            "item": 0
+          }
+        }
+      ]
+    },
+    "versionId": "ee912883-e9df-44f1-9e50-b15c8f0082e1",
+    "activeVersionId": "e713d7f8-723b-4898-84e6-76986c0821c6",
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-03-03T07:10:07.745Z",
+        "createdAt": "2026-03-03T07:10:07.745Z",
+        "role": "workflow:owner",
+        "workflowId": "nAK6DyfCZkZXlBKo",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": {
+      "updatedAt": "2026-03-04T14:25:40.969Z",
+      "createdAt": "2026-03-04T14:25:38.407Z",
+      "versionId": "e713d7f8-723b-4898-84e6-76986c0821c6",
+      "workflowId": "nAK6DyfCZkZXlBKo",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "sync-metadatos-doc",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 2.1,
+          "position": [
+            -864,
+            -496
+          ],
+          "id": "fa2f0695-f9de-4c9c-b83a-b84145db865c",
+          "name": "Webhook",
+          "webhookId": "6c793040-9abe-46e9-a068-71debd2cfe0d"
+        },
+        {
+          "parameters": {
+            "bucketName": "energia-media",
+            "fileKey": "={{ $('Webhook').item.json.body.file_path }}"
+          },
+          "type": "n8n-nodes-base.s3",
+          "typeVersion": 1,
+          "position": [
+            -272,
+            -352
+          ],
+          "id": "bd600126-36d9-4e12-b995-24abd2fce5cc",
+          "name": "Download a file",
+          "credentials": {
+            "s3": {
+              "id": "8QNeVz7QEL7RcrkC",
+              "name": "S3 account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "operation": "executeQuery",
+            "query": "SELECT \n    mc.nombre,\n    mc.etiqueta,\n    mc.tipo_campo,\n    mc.requerido,\n    mc.descripcion\nFROM documentos_metadatoconfig mc\nJOIN documentos_tipodocumento td ON mc.tipo_documento_id = td.id\nWHERE td.nombre = '{{ $json.body.tipo_documento }}'\nORDER BY mc.orden;\n",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.postgres",
+          "typeVersion": 2.6,
+          "position": [
+            -672,
+            -432
+          ],
+          "id": "82a630bb-e2d9-4c83-9ce0-8f6c116a18b7",
+          "name": "Execute a SQL query",
+          "credentials": {
+            "postgres": {
+              "id": "0GI4GAGRXkWfR6pK",
+              "name": "Postgres account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "promptType": "define",
+            "text": "=Eres un asistente especializado en extracci\u00f3n de datos de documentos oficiales. Tu trabajo es analizar documentos PDF y extraer valores espec\u00edficos de campos de metadatos.\nREGLAS ESTRICTAS:\n1. Analiza el documento PDF adjunto cuidadosamente.\n2. Extrae \u00daNICAMENTE los campos solicitados abajo.\n3. Si un campo no se encuentra en el documento o no puedes determinar el valor, usa \"\" (cadena vac\u00eda).\n4. Para campos de tipo FECHA, extrae SOLO la fecha y convi\u00e9rtela estrictamente al formato dd/mm/aaaa (ejemplo: si dice \"18 de septiembre del 2024\", t\u00fa respondes \"18/09/2024\"). NO incluyas lugares, ciudades ni texto adicional.\n5. Para campos de tipo NUMERO, usa solo d\u00edgitos y punto decimal.\n\n\ntext\nDocumento: {{ $('Webhook').item.json.body.codigo }} - {{ $('Webhook').item.json.body.titulo }}\nTipo de Documento: {{ $('Webhook').item.json.body.tipo_documento }}\nCampos a extraer del documento:\n{{ $('Execute a SQL query').all().map(item => '- ' + item.json.etiqueta + ' (tipo: ' + item.json.tipo_campo + ', campo: ' + item.json.nombre + ')' + (item.json.descripcion ? ' \u2192 Instrucci\u00f3n adicional: ' + item.json.descripcion : '')).join('\\n') }}\nAnaliza el PDF adjunto y extrae los valores de cada campo listado arriba. Recuerda adaptar las fechas a DD/MM/YYYY. Responde SOLO con el JSON estructurado as\u00ed:\n{\n  \"documento_id\": {{ $('Webhook').item.json.body.documento_id }},\n  \"campos\": [\n    {\"nombre\": \"nombre_del_campo\", \"valor\": \"valor_extraido\"}\n  ]\n}",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.agent",
+          "typeVersion": 3.1,
+          "position": [
+            192,
+            -192
+          ],
+          "id": "f9a1d2ca-ebd5-4797-93a5-63f26d1b4ab1",
+          "name": "AI Agent"
+        },
+        {
+          "parameters": {
+            "aggregate": "aggregateAllItemData",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.aggregate",
+          "typeVersion": 1,
+          "position": [
+            -480,
+            -384
+          ],
+          "id": "2bc877d8-22c5-48cb-99f1-c7bdc66f80fb",
+          "name": "Aggregate"
+        },
+        {
+          "parameters": {
+            "model": "meta-llama/llama-prompt-guard-2-86m",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+          "typeVersion": 1,
+          "position": [
+            -16,
+            32
+          ],
+          "id": "c585b2c5-28d5-433d-88a2-1eb4a4831be5",
+          "name": "Groq Chat Model",
+          "credentials": {
+            "groqApi": {
+              "id": "cUieN6RPtWsvCTnA",
+              "name": "Groq account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "jsCode": "// Obtener el JSON \"bruto\" que puede venir dentro de formateo Markdown\nconst rawResponse = $input.first().json.output;\n\n// Limpiador agresivo para sacar validamente el JSON de un string texto/markdown:\nfunction extractJson(rawJsonStr) {             \n  var cleaner = rawJsonStr.replace(/^```[a-z]*\\s*(?=\\{)/gim, ''); // Retira el \"```json\" del inicio\n  cleaner = cleaner.trim().replace(/^```[a-z]*\\n/g, '');               \n  cleaner = cleaner.replace(/```$/g, '').trim();                  // Quita el '```' final\n  var startMatch = cleaner.indexOf('{');                          // Busca el json verdadero\n  var endMatch = cleaner.lastIndexOf('}');                        \n  cleaner = cleaner.slice(startMatch, endMatch + 1);             \n  return cleaner;\n}\n\nconst cleanedMatch = extractJson(rawResponse);\n\nlet parsedDoc;\ntry{\n    parsedDoc = JSON.parse(cleanedMatch);\n}catch(err){\n    throw new Error('Fallo al interpretar la respuesta de IA como JSON: '+err.message+'... Raw value fue: '+rawResponse);\n}\n\n// 2. Extraer el array y emitir una ejecuci\u00f3n por cada campo extra\u00eddo\n// para actualizar en PostgreSQL:\nreturn parsedDoc.campos.map(campo => {\n  // Manejo de valores SQL. Curar las comillas dobles y sencillas que la IA incluye para que el INSERT no lo confunda\n  let cleanValue = \"\";   \n  if(campo.valor){\n     cleanValue = campo.valor.toString()\n                             .replace(/'/g, \"''\")   // SQL Escape for Single quote\n                             // .replace(/\"/g, '\\\"') // En updates inline Postgres las comillas dobles (\") no se escapan. Se las toma texto.\n  }\n\n  return {\n    json: {\n      nombre_limpio: typeof campo.nombre === 'string' ? campo.nombre.trim().toLowerCase() : '', // Pasarlo a un standard SQL match\n      nombre_orig: typeof campo.nombre === 'string' ? campo.nombre.trim() : '', \n      valor: cleanValue,\n      documento_id: parsedDoc.documento_id || $('Webhook').first().json.body.documento_id\n    }\n  };\n});\n"
+          },
+          "type": "n8n-nodes-base.code",
+          "typeVersion": 2,
+          "position": [
+            544,
+            -192
+          ],
+          "id": "5e3c7f66-d19a-4113-9481-ad410bc7a31e",
+          "name": "Code in JavaScript"
+        },
+        {
+          "parameters": {
+            "operation": "executeQuery",
+            "query": "UPDATE documentos_metadatovalor mv\nSET valor = '{{ $json.valor }}'\nFROM documentos_metadatoconfig mc\nWHERE mv.config_id = mc.id\n  AND LOWER(mc.nombre) = '{{ $json.nombre_limpio }}'\n  AND mv.documento_id = {{ $json.documento_id }};",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.postgres",
+          "typeVersion": 2.6,
+          "position": [
+            752,
+            -192
+          ],
+          "id": "a1d776fe-7e58-4cde-baab-e9dd98c520f1",
+          "name": "Execute a SQL query1",
+          "credentials": {
+            "postgres": {
+              "id": "0GI4GAGRXkWfR6pK",
+              "name": "Postgres account"
+            }
+          }
+        }
+      ],
+      "connections": {
+        "Webhook": {
+          "main": [
+            [
+              {
+                "node": "Execute a SQL query",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Download a file": {
+          "main": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Execute a SQL query": {
+          "main": [
+            [
+              {
+                "node": "Aggregate",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Aggregate": {
+          "main": [
+            [
+              {
+                "node": "Download a file",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Groq Chat Model": {
+          "ai_languageModel": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_languageModel",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "AI Agent": {
+          "main": [
+            [
+              {
+                "node": "Code in JavaScript",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Code in JavaScript": {
+          "main": [
+            [
+              {
+                "node": "Execute a SQL query1",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "saul alvarado",
+      "name": "Version e713d7f8",
+      "description": "",
+      "autosaved": true
+    },
+    "tags": []
+  }
+]

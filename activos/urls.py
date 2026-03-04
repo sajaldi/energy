@@ -56,4 +56,7 @@ urlpatterns = [
     path('celery-import-categorias/process/', views_celery.import_categorias_process, name='celery_import_categorias_process'),
     path('celery-import-categorias/progress/', views_celery.import_categorias_progress, name='celery_import_categorias_progress'),
     path('celery-download-template-categorias/', views_celery.download_categorias_template, name='celery_download_template_categorias'),
+
+    # Documentos de Alta/Baja
+    path('documento-altabaja/<int:pk>/imprimir/', views.print_altabaja, name='print_altabaja'),
 ]

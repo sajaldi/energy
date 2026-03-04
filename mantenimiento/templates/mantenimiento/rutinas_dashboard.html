@@ -327,13 +327,25 @@
                 <h1>🌳 Jerarquía de Rutinas</h1>
                 <p>Explorador estructurado de mantenimiento preventivo</p>
             </div>
-            <div style="display: flex; gap: 12px;">
-                <button onclick="createNewRoutine()" class="btn-search" style="background: var(--success, #10b981);">
-                    ➕ Nueva Rutina
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openTipoModal()" style="background:var(--accent); border-color:var(--accent);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        <line x1="12" y1="11" x2="12" y2="17"></line>
+                        <line x1="9" y1="14" x2="15" y2="14"></line>
+                    </svg> Nueva Categoría
                 </button>
-                <a href="{% url 'mantenimiento:cronograma_wizard' %}" class="btn-search"
-                    style="text-decoration: none; background: #64748b;">
-                    ⬅️ Volver
+                <button class="btn btn-primary" onclick="showRoutineDetail(null, true)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg> Nueva Rutina
+                </button>
+                <a href="{% url 'mantenimiento:dashboard' %}" class="btn btn-outline">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5" />
+                        <path d="M12 19l-7-7 7-7" />
+                    </svg> Volver
                 </a>
             </div>
         </div>
@@ -368,10 +380,71 @@
 
     {% include "mantenimiento/partials/routine_detail_modal.html" %}
 
+    <!-- Modal nueva/editar categoría (Tipo) -->
+    <div id="tipoModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-glass" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="modal-tipo-title" style="margin: 0; font-size: 1.25rem;">Nueva Categoría</h2>
+                <button type="button" class="btn-icon modal-close-btn" style="position:relative; top:auto; right:auto;" onclick="closeTipoModal()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="tipoForm">
+                <div class="modal-body">
+                    <div id="tipo-loader" class="modal-loader" style="display: none;">
+                        <div class="spinner"></div> Cargando...
+                    </div>
+                    
+                    <input type="hidden" id="tipo-id">
+                    
+                    <div class="form-grid" style="grid-template-columns: 1fr;">
+                        <div class="form-group">
+                            <label class="form-label" for="tipo-nombre">Nombre <span style="color:#ef4444">*</span></label>
+                            <input type="text" id="tipo-nombre" class="form-control" required placeholder="Ej: Sistema HVAC">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="tipo-codigo">Código (Opcional)</label>
+                            <input type="text" id="tipo-codigo" class="form-control" placeholder="Ej: SHVAC-01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="tipo-padre">Categoría Padre (Opcional)</label>
+                            <select id="tipo-padre" class="form-control">
+                                <option value="">-- Nodo Raíz (Sin Padre) --</option>
+                                {% for cat in todas_categorias %}
+                                <option value="{{ cat.id }}">{{ cat.get_ruta_completa }}</option>
+                                {% endfor %}
+                            </select>
+                            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Dejar vacío para crear una categoría principal.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="tipo-descripcion">Descripción</label>
+                            <textarea id="tipo-descripcion" class="form-control" rows="3" placeholder="Descripción de la categoría..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer" style="display: flex; justify-content: space-between;">
+                    <button type="button" class="btn btn-outline" onclick="closeTipoModal()">Cancelar</button>
+                    <div>
+                        <button type="button" id="btn-delete-tipo" class="btn btn-danger" style="display: none; background:#ef4444; color:white; border-color:#ef4444; margin-right: 8px;" onclick="deleteTipo()">Eliminar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Categoría</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Init variables
-        let modal, loader, form, footerView, footerEdit;
+        let modal, tipoModal, loader, form, footerView, footerEdit;
         let currentRoutineId = null;
+        let currentTipoId = null;
 
         document.addEventListener('DOMContentLoaded', () => {
             modal = document.getElementById('routineModal');
@@ -381,11 +454,15 @@
             footerEdit = document.getElementById('m-footer-edit');
 
             // Auto-expandir si hay búsqueda o filtros activos
-            {% if search or frecuencia_selected or puesto_selected %}
-            document.querySelectorAll('.tree-node').forEach(node => {
-                node.classList.add('expanded');
-            });
-            {% endif %}
+            const hasFilters = "{{ search|yesno:'true,false' }}" === "true" || 
+                               "{{ frecuencia_selected|yesno:'true,false' }}" === "true" || 
+                               "{{ puesto_selected|yesno:'true,false' }}" === "true";
+                               
+            if (hasFilters) {
+                document.querySelectorAll('.tree-node').forEach(node => {
+                    node.classList.add('expanded');
+                });
+            }
 
             // Global key listeners
             document.addEventListener('keydown', (e) => {
@@ -398,89 +475,34 @@
                 });
             }
 
-            // Lógica del Buscador de Procedimientos
-            const procSearchInput = document.getElementById('proc-search-input');
-            const procResultsList = document.getElementById('proc-results-list');
-            const procHiddenInput = document.getElementById('f-procedimiento');
-
-            if (procSearchInput) {
-                // Mostrar resultados al enfocar
-                procSearchInput.addEventListener('focus', () => {
-                    procResultsList.style.display = 'block';
+            const fInvasiva = document.getElementById('f-invasiva');
+            if (fInvasiva) {
+                fInvasiva.addEventListener('change', (e) => {
+                    toggleInvasiveBorder(e.target.checked);
                 });
-
-                // Filtrado
-                procSearchInput.addEventListener('input', (e) => {
-                    const term = e.target.value.toLowerCase();
-                    const items = procResultsList.querySelectorAll('.result-item');
-                    let visibleCount = 0;
-
-                    items.forEach(item => {
-                        const text = item.dataset.text.toLowerCase();
-                        if (text.includes(term)) {
-                            item.classList.remove('hidden');
-                            visibleCount++;
-                        } else {
-                            item.classList.add('hidden');
-                        }
-                    });
-
-                    procResultsList.style.display = 'block';
-                });
-
-                // Selección
-                procResultsList.addEventListener('click', (e) => {
-                    const item = e.target.closest('.result-item');
-                    if (item) {
-                        const val = item.dataset.value;
-                        const text = item.dataset.text;
-
-                        procHiddenInput.value = val;
-                        procSearchInput.value = text;
-                        procResultsList.style.display = 'none';
-
-                        // Disparar carga de pasos (como se hacía antes con el select)
-                        loadProcedureSteps(val);
-
-                        // Marcar como seleccionado visulamente
-                        procResultsList.querySelectorAll('.result-item').forEach(i => i.classList.remove('selected'));
-                        item.classList.add('selected');
-                    }
-                });
-
-                // Cerrar al hacer clic fuera
-                document.addEventListener('click', (e) => {
-                    if (!e.target.closest('.searchable-dropdown')) {
-                        procResultsList.style.display = 'none';
-                    }
+            }
+            
+            const tf = document.getElementById('tipoForm');
+            if (tf) {
+                tf.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    saveTipo();
                 });
             }
         });
 
-        function loadProcedureSteps(procId) {
-            if (!procId) {
-                renderSteps([], 'm-steps-list-edit', true);
-                return;
+        function toggleInvasiveBorder(isInvasive) {
+            const modalGlass = document.querySelector('.modal-glass');
+            if (modalGlass) {
+                if (isInvasive) {
+                    modalGlass.classList.add('glass-invasive');
+                } else {
+                    modalGlass.classList.remove('glass-invasive');
+                }
             }
-
-            const editList = document.getElementById('m-steps-list-edit');
-            if (editList) editList.innerHTML = '<div style="padding:20px; text-align:center;">Cargando pasos...</div>';
-
-            fetch(`/mantenimiento/rutinas/dashboard/procedimiento/detail/${procId}/`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        renderSteps(data.pasos, 'm-steps-list-view', false);
-                        renderSteps(data.pasos, 'm-steps-list-edit', true);
-                    } else {
-                        showToast(data.message, 'error');
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    showToast('Error al cargar pasos', 'error');
-                });
         }
+
+
 
         function toggleNode(element) {
             const node = element.parentElement;
@@ -490,6 +512,130 @@
         function closeRoutineModal() {
             if (modal) modal.style.display = 'none';
             currentRoutineId = null;
+            toggleInvasiveBorder(false);
+        }
+
+        // --- MANEJO DE CATEGORÍAS (TIPOS) ---
+        function openTipoModal(id = null, parentId = null) {
+            tipoModal = document.getElementById('tipoModal');
+            currentTipoId = id;
+            
+            document.getElementById('tipoForm').reset();
+            document.getElementById('tipo-id').value = '';
+            document.getElementById('btn-delete-tipo').style.display = 'none';
+            document.getElementById('modal-tipo-title').textContent = id ? 'Editar Categoría' : 'Nueva Categoría';
+            
+            if (parentId) {
+                document.getElementById('tipo-padre').value = parentId;
+            }
+            
+            tipoModal.style.display = 'flex';
+            
+            if (id) {
+                document.getElementById('tipo-loader').style.display = 'flex';
+                fetch(`/mantenimiento/rutinas/api/tipo/${id}/`)
+                    .then(r => r.json())
+                    .then(data => {
+                        document.getElementById('tipo-loader').style.display = 'none';
+                        if (data.status === 'success') {
+                            const t = data.tipo;
+                            document.getElementById('tipo-id').value = t.id;
+                            document.getElementById('tipo-nombre').value = t.nombre;
+                            document.getElementById('tipo-codigo').value = t.codigo;
+                            document.getElementById('tipo-padre').value = t.padre_id;
+                            document.getElementById('tipo-descripcion').value = t.descripcion;
+                            
+                            document.getElementById('btn-delete-tipo').style.display = 'inline-block';
+                        } else {
+                            alert(data.message);
+                            closeTipoModal();
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert("Error de conexión al cargar la categoría");
+                        closeTipoModal();
+                    });
+            }
+        }
+
+        function closeTipoModal() {
+            if (tipoModal) tipoModal.style.display = 'none';
+            currentTipoId = null;
+        }
+
+        function saveTipo() {
+            const data = {
+                id: document.getElementById('tipo-id').value || null,
+                nombre: document.getElementById('tipo-nombre').value,
+                codigo: document.getElementById('tipo-codigo').value,
+                padre_id: document.getElementById('tipo-padre').value || null,
+                descripcion: document.getElementById('tipo-descripcion').value
+            };
+            
+            const btn = document.querySelector('#tipoForm button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Guardando...';
+            btn.disabled = true;
+            
+            fetch('/mantenimiento/rutinas/api/tipo/save/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    // Recargar la página para reconstruir el árbol complejo en el servidor
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + res.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error de conexión al guardar");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+
+        function deleteTipo() {
+            if (!currentTipoId) return;
+            if (!confirm('¿Seguro que deseas eliminar esta categoría? Esto podría fallar si contiene subcategorías o rutinas.')) return;
+            
+            const btn = document.getElementById('btn-delete-tipo');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Eliminando...';
+            btn.disabled = true;
+            
+            fetch(`/mantenimiento/rutinas/api/tipo/${currentTipoId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + res.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error de conexión al eliminar");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
         }
 
         function toggleRoutineExpansion(element, routineId) {
@@ -600,28 +746,25 @@
             document.getElementById('f-tecnicos').value = rutina.tecnicos || 1;
             document.getElementById('f-tiempo').value = rutina.tiempo_estimado || '00:00:00';
 
+            const fInvasiva = document.getElementById('f-invasiva');
+            if(fInvasiva) fInvasiva.checked = rutina.es_invasiva;
+            
+            const badgeContainer = document.getElementById('m-invasiva-badge');
+            if (badgeContainer) {
+                if (rutina.es_invasiva) {
+                    badgeContainer.innerHTML = '<span class="badge" style="background: #fee2e2; color: #dc2626;">INVASIVA</span>';
+                } else {
+                    badgeContainer.innerHTML = '<span class="badge" style="background: #e0e7ff; color: #4338ca;">NORMAL</span>';
+                }
+            }
+            toggleInvasiveBorder(rutina.es_invasiva);
+
             setSelectByText('f-categoria', rutina.categoria);
             setSelectByText('f-frecuencia', rutina.frecuencia);
 
-            const procHidden = document.getElementById('f-procedimiento');
-            const procSearch = document.getElementById('proc-search-input');
-            const procList = document.getElementById('proc-results-list');
-
-            if (procHidden) procHidden.value = rutina.procedimiento_id || '';
-
-            // Actualizar texto del buscador
-            if (procSearch && procList) {
-                const selectedItem = procList.querySelector(`.result-item[data-value="${rutina.procedimiento_id || ''}"]`);
-                procSearch.value = selectedItem ? selectedItem.dataset.text : '';
-
-                // Marcar seleccionado
-                procList.querySelectorAll('.result-item').forEach(i => i.classList.remove('selected'));
-                if (selectedItem) selectedItem.classList.add('selected');
-            }
-
-            // Renderizar pasos en ambas vistas
-            renderSteps(rutina.pasos, 'm-steps-list-view', false);
-            renderSteps(rutina.pasos, 'm-steps-list-edit', true);
+        // Renderizar pasos en ambas vistas
+        renderSteps(rutina.pasos, 'm-steps-list-view', false);
+        renderSteps(rutina.pasos, 'm-steps-list-edit', true);
         }
 
         function renderSteps(pasos, containerId, isEditable) {
@@ -707,10 +850,9 @@
             container.appendChild(row);
         }
 
-        function saveProcedimiento() {
-            const procId = document.getElementById('f-procedimiento').value;
-            if (!procId) {
-                showToast('Primero selecciona un Procedimiento Estándar en la pestaña General', 'error');
+        function saveRutinaSteps(isSilent = false) {
+            if (!currentRoutineId) {
+                if(!isSilent) showToast('Primero guarda la Rutina antes de añadir pasos', 'error');
                 return;
             }
 
@@ -722,34 +864,35 @@
                 verificacion: row.querySelector('.s-verif').value
             }));
 
-            if (loader) loader.style.display = 'flex';
+            if (loader && !isSilent) loader.style.display = 'flex';
 
-            fetch('/mantenimiento/rutinas/dashboard/procedimiento/save/', {
+            fetch('/mantenimiento/rutinas/dashboard/rutina/pasos/save/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({
-                    procedimiento_id: procId,
+                    rutina_id: currentRoutineId,
                     pasos: pasos
                 })
             })
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === 'success') {
-                        showToast('Pasos del procedimiento actualizados', 'success');
-                        // Actualizar vista estática
-                        renderSteps(pasos, 'm-steps-list-view', false);
+                        if(!isSilent) {
+                            showToast('Pasos de la rutina actualizados', 'success');
+                            renderSteps(pasos, 'm-steps-list-view', false);
+                        }
                     } else {
-                        showToast(res.message, 'error');
+                        if(!isSilent) showToast(res.message, 'error');
                     }
-                    if (loader) loader.style.display = 'none';
+                    if (loader && !isSilent) loader.style.display = 'none';
                 })
                 .catch(err => {
                     console.error(err);
-                    showToast('Error al guardar pasos', 'error');
-                    if (loader) loader.style.display = 'none';
+                    if(!isSilent) showToast('Error al guardar pasos', 'error');
+                    if (loader && !isSilent) loader.style.display = 'none';
                 });
         }
 
@@ -803,6 +946,14 @@
             if (fId) fId.value = '';
             if (categoryId && fCat) fCat.value = categoryId;
 
+            const fInvasiva = document.getElementById('f-invasiva');
+            if(fInvasiva) fInvasiva.checked = false;
+            
+            const badgeContainer = document.getElementById('m-invasiva-badge');
+            if (badgeContainer) badgeContainer.innerHTML = '-';
+
+            toggleInvasiveBorder(false);
+
             if (modal) modal.style.display = 'flex';
             enterEditMode();
             const btnDel = document.getElementById('btn-delete');
@@ -830,6 +981,15 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === 'success') {
+                        currentRoutineId = res.rutina_id; // Setup routine ID if it was created
+                        
+                        // Guardar pasos después de guardar la rutina exitosamente
+                        const stepRows = document.querySelectorAll('.step-row-edit');
+                        if (stepRows.length > 0) {
+                            // save steps but silently
+                            saveRutinaSteps(true);
+                        }
+                        
                         showToast('Rutina guardada correctamente', 'success');
                         setTimeout(() => location.reload(), 1000);
                     } else {
@@ -896,54 +1056,7 @@
             });
         }
 
-        // --- FUNCIONES DEL SELECTOR DE PROCEDIMIENTOS ---
-        function openProcedureSelector() {
-            const modal = document.getElementById('selectorModal');
-            if (modal) {
-                modal.style.display = 'flex';
-                document.getElementById('selector-search').value = '';
-                filterSelectorItems('');
-                document.getElementById('selector-search').focus();
-            }
-        }
 
-        function closeProcedureSelector() {
-            const modal = document.getElementById('selectorModal');
-            if (modal) modal.style.display = 'none';
-        }
-
-        function filterSelectorItems(term) {
-            const items = document.querySelectorAll('.selector-item');
-            const lowerTerm = term.toLowerCase();
-            items.forEach(item => {
-                const text = item.innerText.toLowerCase();
-                if (text.includes(lowerTerm)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-
-        function selectFromModal(id, name) {
-            const procHiddenInput = document.getElementById('f-procedimiento');
-            const procSearchInput = document.getElementById('proc-search-input');
-            const procResultsList = document.getElementById('proc-results-list');
-
-            if (procHiddenInput) procHiddenInput.value = id;
-            if (procSearchInput) procSearchInput.value = name;
-
-            // Cerrar lista dropdown si estaba abierta
-            if (procResultsList) procResultsList.style.display = 'none';
-
-            // Cargar los pasos
-            loadProcedureSteps(id);
-
-            // Cerrar modal selector
-            closeProcedureSelector();
-
-            showToast('Procedimiento seleccionado: ' + (name || 'Ninguno'), 'success');
-        }
     </script>
 </body>
 

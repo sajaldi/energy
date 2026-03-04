@@ -1,0 +1,3992 @@
+[
+  {
+    "updatedAt": "2026-02-19T18:05:08.292Z",
+    "createdAt": "2026-02-13T01:02:10.775Z",
+    "id": "mNnJ3JL47Qn4sVkM",
+    "name": "WhatsApp Bot OK - Autenticado",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "whatsapp",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -512,
+          -256
+        ],
+        "id": "302523cf-91d6-46d5-b6ea-5507fd9ab6f7",
+        "name": "Webhook",
+        "webhookId": "whatsapp-webhook"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://gowa-zgs0oo8k4wgos884ckw8osow:3030/send/message",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBasicAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-Device-Id",
+                "value": "8d05a1dd-2308-40fa-85ef-ab90b473e424"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"phone\": \"{{ $('Webhook').item.json.body.payload.chat_id }}\",\n  \"message\": \"{{ $json.output }}\"\n}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          352,
+          -256
+        ],
+        "id": "4637fbdb-38f8-43ca-b55b-e51a8499f931",
+        "name": "HTTP Request",
+        "credentials": {
+          "httpBasicAuth": {
+            "id": "7xsrXpIsGTp5z48A",
+            "name": "credenciales"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Conforme a lo que te pido abajo, vas a clasificar la solicitud por: Solicitud de Revisi\u00f3n de Aire Acondicionado, Solicitud de movimiento de mobiliario, u otro.{{ $json.body.payload.body }}\nVas a Responder con el nombre Hola: {{ $json.body.payload.from_name }}.\n\nTu respuesta ser\u00eda.\n*Hola nombre*\nLa solicitud del Servicio es categorizada como: (Categor\u00eda)\nTienes 2 horas para resolver.\n\n\n\n",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3,
+        "position": [
+          -96,
+          -256
+        ],
+        "id": "96fba99a-7ce2-4282-8924-c086b0674dae",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "model": "deepseek/deepseek-r1-0528:free",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+        "typeVersion": 1,
+        "position": [
+          -224,
+          -16
+        ],
+        "id": "dc2597f8-12cc-498d-9898-6476dc6781d0",
+        "name": "OpenRouter Chat Model",
+        "credentials": {
+          "openRouterApi": {
+            "id": "zcQi0YBmmVefqpV5",
+            "name": "OpenRouter account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          []
+        ]
+      },
+      "OpenRouter Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {
+      "Webhook": [
+        {
+          "json": {
+            "headers": {
+              "host": "n8n-z8wscww488scgs84oo4os008:5678",
+              "user-agent": "Go-http-client/1.1",
+              "transfer-encoding": "chunked",
+              "content-type": "application/json",
+              "x-hub-signature-256": "sha256=5fea9facd1acebd3ab3dfe181437aae1e24ba1867e6e3b3b701e9a14ecdfc858",
+              "accept-encoding": "gzip"
+            },
+            "params": {},
+            "query": {},
+            "body": {
+              "device_id": "50488113195@s.whatsapp.net",
+              "event": "message",
+              "payload": {
+                "body": "J",
+                "chat_id": "50431723280@s.whatsapp.net",
+                "chat_lid": "69685995425804@lid",
+                "from": "50431723280@s.whatsapp.net",
+                "from_lid": "69685995425804@lid",
+                "from_name": "Saul",
+                "id": "ACB8ADD4D34C08E5ECD75F56CD126040",
+                "is_from_me": false,
+                "timestamp": "2026-02-13T04:33:37Z"
+              }
+            },
+            "webhookUrl": "http://181.115.47.107:5678/webhook/whatsapp",
+            "executionMode": "production"
+          }
+        }
+      ]
+    },
+    "versionId": "a2d8a9ba-a3ca-4916-8795-7dcdf209658b",
+    "activeVersionId": "fe8a65c7-f43d-42b0-b7b9-8f50d0b1ff6c",
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-02-13T01:02:10.775Z",
+        "createdAt": "2026-02-13T01:02:10.775Z",
+        "role": "workflow:owner",
+        "workflowId": "mNnJ3JL47Qn4sVkM",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": {
+      "updatedAt": "2026-02-16T21:24:18.746Z",
+      "createdAt": "2026-02-16T21:24:17.527Z",
+      "versionId": "fe8a65c7-f43d-42b0-b7b9-8f50d0b1ff6c",
+      "workflowId": "mNnJ3JL47Qn4sVkM",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "whatsapp",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 2.1,
+          "position": [
+            -304,
+            -256
+          ],
+          "id": "302523cf-91d6-46d5-b6ea-5507fd9ab6f7",
+          "name": "Webhook",
+          "webhookId": "whatsapp-webhook"
+        },
+        {
+          "parameters": {
+            "method": "POST",
+            "url": "http://gowa-zgs0oo8k4wgos884ckw8osow:3030/send/message",
+            "authentication": "genericCredentialType",
+            "genericAuthType": "httpBasicAuth",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {
+                  "name": "X-Device-Id",
+                  "value": "8d05a1dd-2308-40fa-85ef-ab90b473e424"
+                }
+              ]
+            },
+            "sendBody": true,
+            "specifyBody": "json",
+            "jsonBody": "={\n  \"phone\": \"{{ $('Webhook').item.json.body.payload.chat_id }}\",\n  \"message\": \"{{ $json.output }}\"\n}",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.2,
+          "position": [
+            352,
+            -256
+          ],
+          "id": "4637fbdb-38f8-43ca-b55b-e51a8499f931",
+          "name": "HTTP Request",
+          "credentials": {
+            "httpBasicAuth": {
+              "id": "7xsrXpIsGTp5z48A",
+              "name": "credenciales"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "promptType": "define",
+            "text": "=Conforme a lo que te pido abajo, vas a clasificar la solicitud por: Solicitud de Revisi\u00f3n de Aire Acondicionado, Solicitud de movimiento de mobiliario, u otro.{{ $json.body.payload.body }}\nVas a Responder con el nombre Hola: {{ $json.body.payload.from_name }}.\n\nTu respuesta ser\u00eda.\n*Hola nombre*\nLa solicitud del Servicio es categorizada como: (Categor\u00eda)\nTienes 2 horas para resolver.\n\n\n\n",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.agent",
+          "typeVersion": 3,
+          "position": [
+            -96,
+            -256
+          ],
+          "id": "96fba99a-7ce2-4282-8924-c086b0674dae",
+          "name": "AI Agent"
+        },
+        {
+          "parameters": {
+            "model": "deepseek/deepseek-r1-0528:free",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+          "typeVersion": 1,
+          "position": [
+            -224,
+            -16
+          ],
+          "id": "dc2597f8-12cc-498d-9898-6476dc6781d0",
+          "name": "OpenRouter Chat Model",
+          "credentials": {
+            "openRouterApi": {
+              "id": "zcQi0YBmmVefqpV5",
+              "name": "OpenRouter account"
+            }
+          }
+        }
+      ],
+      "connections": {
+        "Webhook": {
+          "main": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "AI Agent": {
+          "main": [
+            []
+          ]
+        },
+        "OpenRouter Chat Model": {
+          "ai_languageModel": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_languageModel",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "saul alvarado",
+      "name": "Version fe8a65c7",
+      "description": "",
+      "autosaved": false
+    },
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-02-16T21:23:52.808Z",
+    "createdAt": "2026-02-13T07:06:46.379Z",
+    "id": "pAcVjJggWNPLJW22",
+    "name": "My workflow 4",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "public": true,
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+        "typeVersion": 1.4,
+        "position": [
+          0,
+          0
+        ],
+        "id": "cde62a65-6ca8-4ee1-a70e-c55e037a51cb",
+        "name": "When chat message received",
+        "webhookId": "3b6c02d2-1f6c-4778-a7ca-78d7471386ab"
+      },
+      {
+        "parameters": {
+          "options": {
+            "systemMessage": "System Prompt: Operador MAO - CCG (Modo Ejecuci\u00f3n Silenciosa N8N)\n1. ROL Y IDENTIDAD\nEres el Operador de la Mesa de Ayuda del CCG.\nIdentidad Aleatoria: Roxana, Jos\u00e9, Stephanie, Rigan.\nObjetivo: Procesar fallas y generar los datos exactos para el sistema.\n2. REGLA DE ORO (CERO CONVERSACI\u00d3N)\nPROHIBIDO: Decir \"Recibido\", \"Analizando\", \"Asumo que\", \"Procedo a...\".\nPROHIBIDO: Poner t\u00edtulos como \"PARTE A\" o \"PARTE B\".\nOBLIGATORIO: Tu salida debe contener EXCLUSIVAMENTE el Ticket Visual seguido del Bloque JSON. Nada m\u00e1s.\n3. L\u00d3GICA DE NEGOCIO (INTERNA)\nEnrutamiento WhatsApp:\nHidrosanitario: 50487950580 (Oscar)\nHVAC: 50431772084 (Jorge Luis)\nElevadores: 50431907009 (Madeline)\nBienes: 50496074631 (Abigail)\nEl\u00e9ctrico: 50496436753 (Fabio)\nGeneral: 50400000000 (Supervisor)\nPrioridad: A1 (Alta), A2 (Media), A3 (Baja).\n4. ESTRUCTURA DE RESPUESTA\nSi tienes la informaci\u00f3n completa (Ubicaci\u00f3n + Falla), genera ESTA salida exacta:\n[BLOQUE 1: VISUAL PARA EL USUARIO]\n(Escribe esto directamente, sin t\u00edtulos previos)\ncode\nText\n\ud83d\udcdd TICKET MAO: [GENERAR FOLIO]\n\ud83d\udc64 Atiende: [Nombre Seleccionado]\n\ud83d\udccd Ubicaci\u00f3n: [Torre/Nivel/\u00c1rea]\n\ud83d\udd27 Falla: [Descripci\u00f3n T\u00e9cnica]\n\u26a0\ufe0f Prioridad: [Alta/Media/Baja]\n\ud83d\udee0\ufe0f Servicio: [S1-S11]\n\u23f1\ufe0f Tiempo Soluci\u00f3n: [Seg\u00fan Anexo]\n[BLOQUE 2: C\u00d3DIGO PARA N8N]\n(Inmediatamente despu\u00e9s, sin espacios extra)\ncode\nJSON\n{\n  \"phone\": \"TELEFONO_SELECCIONADO\",\n  \"message\": \"\ud83d\udea8 *ORDEN DE TRABAJO - MAO*\\n\\n\ud83d\udc64 *Op:* [Nombre Seleccionado]\\n\ud83d\udccd *Lugar:* [Ubicaci\u00f3n]\\n\ud83d\udd27 *Falla:* [Descripci\u00f3n]\\n\ud83d\udc77 *Responsable:* [Nombre Especialista]\\n\u26a0\ufe0f *Prio:* [Prioridad]\\n\u23f1\ufe0f *SLA:* [Tiempo]\\n\\n_Favor confirmar recepci\u00f3n._\"\n}\n5. MANEJO DE SALUDOS\nSolo si el usuario dice \"Hola\" y no da datos:\n\"Hola, le atiende [Nombre]. Por favor ind\u00edqueme: Torre, Nivel y Descripci\u00f3n de la falla.\"\n\ud83d\udd27 Ajuste Importante en tu Flujo de n8n\nPara que esto funcione al 100%, aseg\u00farate de que en tu nodo de n8n (HTTP Request) no est\u00e9s metiendo todo el texto del chat.\nSi est\u00e1s usando el nodo AI Agent:\nAseg\u00farate de tener un Output Parser conectado (Structured Output Parser) que busque el bloque JSON.\nO bien, usa un nodo Code antes del HTTP Request con este Javascript para limpiar el texto y quedarte solo con el JSON:\ncode\nJavaScript\n// Este c\u00f3digo extrae el JSON del texto del chat\nconst text = items[0].json.output; // O la variable que venga de tu IA\nconst jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\n\nif (jsonMatch) {\n  return JSON.parse(jsonMatch[0]);\n} else {\n  return []; // No se encontr\u00f3 JSON\n}"
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3,
+        "position": [
+          416,
+          0
+        ],
+        "id": "66a2b99c-52c3-4b5a-ab11-ba53efbe90f3",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {},
+        "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "typeVersion": 1.3,
+        "position": [
+          336,
+          256
+        ],
+        "id": "bdf2f192-c90e-4319-94f8-f199058b73dd",
+        "name": "Simple Memory"
+      },
+      {
+        "parameters": {
+          "modelName": "models/gemini-flash-lite-latest",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "typeVersion": 1,
+        "position": [
+          192,
+          256
+        ],
+        "id": "fafd5218-970c-407a-acb2-87f7ec051eb7",
+        "name": "Google Gemini Chat Model",
+        "credentials": {
+          "googlePalmApi": {
+            "id": "Wpexi3r5YS6ckVwQ",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://gowa-zgs0oo8k4wgos884ckw8osow:3030/send/message",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBasicAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-Device-Id",
+                "value": "8d05a1dd-2308-40fa-85ef-ab90b473e424"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"phone\": \"{{ $fromAI('phone', 'El n\u00famero de tel\u00e9fono con c\u00f3digo de pa\u00eds', 'string') }}\",\n  \"message\": \"{{ $fromAI('message', 'El contenido del mensaje a enviar', 'string') }}\"\n}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.3,
+        "position": [
+          752,
+          352
+        ],
+        "id": "da338e28-f646-47c3-945e-4bb1ab453cf6",
+        "name": "HTTP Request",
+        "credentials": {
+          "httpBasicAuth": {
+            "id": "7xsrXpIsGTp5z48A",
+            "name": "credenciales"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "When chat message received": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simple Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          []
+        ]
+      },
+      "Google Gemini Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request": {
+        "ai_tool": [
+          []
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {
+      "When chat message received": [
+        {
+          "json": {
+            "action": "sendMessage",
+            "sessionId": "c8757294-a6e1-45da-b840-664f610dac56",
+            "chatInput": "Hola, hay un problema con un lavamanos en el ba\u00f1o de hombres, Torre 1, Nivel 3"
+          }
+        }
+      ]
+    },
+    "versionId": "71f71771-6fe5-4c83-9219-e91a7b9a8d9c",
+    "activeVersionId": "71f71771-6fe5-4c83-9219-e91a7b9a8d9c",
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-02-13T07:06:46.379Z",
+        "createdAt": "2026-02-13T07:06:46.379Z",
+        "role": "workflow:owner",
+        "workflowId": "pAcVjJggWNPLJW22",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": {
+      "updatedAt": "2026-02-16T21:23:54.334Z",
+      "createdAt": "2026-02-16T21:23:52.810Z",
+      "versionId": "71f71771-6fe5-4c83-9219-e91a7b9a8d9c",
+      "workflowId": "pAcVjJggWNPLJW22",
+      "nodes": [
+        {
+          "parameters": {
+            "public": true,
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+          "typeVersion": 1.4,
+          "position": [
+            0,
+            0
+          ],
+          "id": "cde62a65-6ca8-4ee1-a70e-c55e037a51cb",
+          "name": "When chat message received",
+          "webhookId": "3b6c02d2-1f6c-4778-a7ca-78d7471386ab"
+        },
+        {
+          "parameters": {
+            "options": {
+              "systemMessage": "System Prompt: Operador MAO - CCG (Modo Ejecuci\u00f3n Silenciosa N8N)\n1. ROL Y IDENTIDAD\nEres el Operador de la Mesa de Ayuda del CCG.\nIdentidad Aleatoria: Roxana, Jos\u00e9, Stephanie, Rigan.\nObjetivo: Procesar fallas y generar los datos exactos para el sistema.\n2. REGLA DE ORO (CERO CONVERSACI\u00d3N)\nPROHIBIDO: Decir \"Recibido\", \"Analizando\", \"Asumo que\", \"Procedo a...\".\nPROHIBIDO: Poner t\u00edtulos como \"PARTE A\" o \"PARTE B\".\nOBLIGATORIO: Tu salida debe contener EXCLUSIVAMENTE el Ticket Visual seguido del Bloque JSON. Nada m\u00e1s.\n3. L\u00d3GICA DE NEGOCIO (INTERNA)\nEnrutamiento WhatsApp:\nHidrosanitario: 50487950580 (Oscar)\nHVAC: 50431772084 (Jorge Luis)\nElevadores: 50431907009 (Madeline)\nBienes: 50496074631 (Abigail)\nEl\u00e9ctrico: 50496436753 (Fabio)\nGeneral: 50400000000 (Supervisor)\nPrioridad: A1 (Alta), A2 (Media), A3 (Baja).\n4. ESTRUCTURA DE RESPUESTA\nSi tienes la informaci\u00f3n completa (Ubicaci\u00f3n + Falla), genera ESTA salida exacta:\n[BLOQUE 1: VISUAL PARA EL USUARIO]\n(Escribe esto directamente, sin t\u00edtulos previos)\ncode\nText\n\ud83d\udcdd TICKET MAO: [GENERAR FOLIO]\n\ud83d\udc64 Atiende: [Nombre Seleccionado]\n\ud83d\udccd Ubicaci\u00f3n: [Torre/Nivel/\u00c1rea]\n\ud83d\udd27 Falla: [Descripci\u00f3n T\u00e9cnica]\n\u26a0\ufe0f Prioridad: [Alta/Media/Baja]\n\ud83d\udee0\ufe0f Servicio: [S1-S11]\n\u23f1\ufe0f Tiempo Soluci\u00f3n: [Seg\u00fan Anexo]\n[BLOQUE 2: C\u00d3DIGO PARA N8N]\n(Inmediatamente despu\u00e9s, sin espacios extra)\ncode\nJSON\n{\n  \"phone\": \"TELEFONO_SELECCIONADO\",\n  \"message\": \"\ud83d\udea8 *ORDEN DE TRABAJO - MAO*\\n\\n\ud83d\udc64 *Op:* [Nombre Seleccionado]\\n\ud83d\udccd *Lugar:* [Ubicaci\u00f3n]\\n\ud83d\udd27 *Falla:* [Descripci\u00f3n]\\n\ud83d\udc77 *Responsable:* [Nombre Especialista]\\n\u26a0\ufe0f *Prio:* [Prioridad]\\n\u23f1\ufe0f *SLA:* [Tiempo]\\n\\n_Favor confirmar recepci\u00f3n._\"\n}\n5. MANEJO DE SALUDOS\nSolo si el usuario dice \"Hola\" y no da datos:\n\"Hola, le atiende [Nombre]. Por favor ind\u00edqueme: Torre, Nivel y Descripci\u00f3n de la falla.\"\n\ud83d\udd27 Ajuste Importante en tu Flujo de n8n\nPara que esto funcione al 100%, aseg\u00farate de que en tu nodo de n8n (HTTP Request) no est\u00e9s metiendo todo el texto del chat.\nSi est\u00e1s usando el nodo AI Agent:\nAseg\u00farate de tener un Output Parser conectado (Structured Output Parser) que busque el bloque JSON.\nO bien, usa un nodo Code antes del HTTP Request con este Javascript para limpiar el texto y quedarte solo con el JSON:\ncode\nJavaScript\n// Este c\u00f3digo extrae el JSON del texto del chat\nconst text = items[0].json.output; // O la variable que venga de tu IA\nconst jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\n\nif (jsonMatch) {\n  return JSON.parse(jsonMatch[0]);\n} else {\n  return []; // No se encontr\u00f3 JSON\n}"
+            }
+          },
+          "type": "@n8n/n8n-nodes-langchain.agent",
+          "typeVersion": 3,
+          "position": [
+            416,
+            0
+          ],
+          "id": "66a2b99c-52c3-4b5a-ab11-ba53efbe90f3",
+          "name": "AI Agent"
+        },
+        {
+          "parameters": {},
+          "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+          "typeVersion": 1.3,
+          "position": [
+            336,
+            256
+          ],
+          "id": "bdf2f192-c90e-4319-94f8-f199058b73dd",
+          "name": "Simple Memory"
+        },
+        {
+          "parameters": {
+            "modelName": "models/gemini-flash-lite-latest",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+          "typeVersion": 1,
+          "position": [
+            192,
+            256
+          ],
+          "id": "fafd5218-970c-407a-acb2-87f7ec051eb7",
+          "name": "Google Gemini Chat Model",
+          "credentials": {
+            "googlePalmApi": {
+              "id": "Wpexi3r5YS6ckVwQ",
+              "name": "Google Gemini(PaLM) Api account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "method": "POST",
+            "url": "http://gowa-zgs0oo8k4wgos884ckw8osow:3030/send/message",
+            "authentication": "genericCredentialType",
+            "genericAuthType": "httpBasicAuth",
+            "sendHeaders": true,
+            "headerParameters": {
+              "parameters": [
+                {
+                  "name": "X-Device-Id",
+                  "value": "8d05a1dd-2308-40fa-85ef-ab90b473e424"
+                }
+              ]
+            },
+            "sendBody": true,
+            "specifyBody": "json",
+            "jsonBody": "={\n  \"phone\": \"{{ $fromAI('phone', 'El n\u00famero de tel\u00e9fono con c\u00f3digo de pa\u00eds', 'string') }}\",\n  \"message\": \"{{ $fromAI('message', 'El contenido del mensaje a enviar', 'string') }}\"\n}",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.httpRequestTool",
+          "typeVersion": 4.3,
+          "position": [
+            752,
+            352
+          ],
+          "id": "da338e28-f646-47c3-945e-4bb1ab453cf6",
+          "name": "HTTP Request",
+          "credentials": {
+            "httpBasicAuth": {
+              "id": "7xsrXpIsGTp5z48A",
+              "name": "credenciales"
+            }
+          }
+        }
+      ],
+      "connections": {
+        "When chat message received": {
+          "main": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Simple Memory": {
+          "ai_memory": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_memory",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "AI Agent": {
+          "main": [
+            []
+          ]
+        },
+        "Google Gemini Chat Model": {
+          "ai_languageModel": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_languageModel",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "HTTP Request": {
+          "ai_tool": [
+            []
+          ]
+        }
+      },
+      "authors": "saul alvarado",
+      "name": "Version 71f71771",
+      "description": "",
+      "autosaved": false
+    },
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-02-27T21:40:58.988Z",
+    "createdAt": "2026-02-27T18:58:20.307Z",
+    "id": "dfvsOgJcHONA0DLe",
+    "name": "My workflow 6",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "solicitud-material",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -320,
+          64
+        ],
+        "id": "7b0aab0e-0b53-439d-b22f-c0291e06d397",
+        "name": "Webhook",
+        "webhookId": "77cbc7e9-923d-407f-b269-415fc912088f"
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "cb3c76b4-ea9a-4f70-9a5b-1313efb25e04",
+                "name": "mensaje_final",
+                "value": "=*\ud83d\udce6 Nueva Solicitud de Material*\n-----------------------------------------\n*\ud83c\udd94 ID:* #{{ $json.body.solicitud_id }}\n*\ud83d\udc64 Usuario:* {{ $json.body.usuario_nombre }}\n*\ud83d\udccd Ubicaci\u00f3n:* {{ $json.body.ubicacion_origen }}\n*\ud83d\udcdd OT:* {{ $json.body.orden_trabajo }}\n*\ud83d\udcac Comentarios:* {{ $json.body.comentarios }}\n-----------------------------------------\n*Lista de Materiales:*\n{{ $json.body.items.map(item => `\u2022 ${item.cantidad}x ${item.material_nombre} (${item.sku})`).join('\\n') }}\n-----------------------------------------\n",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          -128,
+          96
+        ],
+        "id": "73452104-569a-460a-9584-d5d48315f32e",
+        "name": "Edit Fields"
+      },
+      {
+        "parameters": {
+          "phoneNumber": "50433139164",
+          "message": "={{ $json.mensaje_final }}"
+        },
+        "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+        "typeVersion": 1,
+        "position": [
+          352,
+          144
+        ],
+        "id": "5a30516b-ab48-411b-82a0-0fa85733b223",
+        "name": "Send a text message",
+        "credentials": {
+          "goWhatsappApi": {
+            "id": "3ZCyhP63fGLpPiQN",
+            "name": "GOWA account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "phoneNumber": "50431723280",
+          "message": "={{ $json.mensaje_final }}"
+        },
+        "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+        "typeVersion": 1,
+        "position": [
+          352,
+          336
+        ],
+        "id": "dd969552-b5cd-4167-b831-a9aed88cbdca",
+        "name": "Send a text message1",
+        "credentials": {
+          "goWhatsappApi": {
+            "id": "3ZCyhP63fGLpPiQN",
+            "name": "GOWA account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "5ecd2d1c-546f-4cf8-94fa-bb04be369104",
+                "name": "url_corregida",
+                "value": "={{ $json.body.url_app.replace('http://localhost:8000', 'https://softcom.ccg.hn') }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          0,
+          336
+        ],
+        "id": "6cd21434-97a8-4771-984a-fef4b91c3635",
+        "name": "Edit Fields1"
+      },
+      {
+        "parameters": {
+          "phoneNumber": "50431723280",
+          "message": "={{ $json.url_corregida }}"
+        },
+        "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+        "typeVersion": 1,
+        "position": [
+          368,
+          528
+        ],
+        "id": "adc4cfd0-a6ac-478b-a754-e85fcea94c1d",
+        "name": "Send a text message2",
+        "credentials": {
+          "goWhatsappApi": {
+            "id": "3ZCyhP63fGLpPiQN",
+            "name": "GOWA account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Edit Fields",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Edit Fields1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Edit Fields": {
+        "main": [
+          [
+            {
+              "node": "Send a text message",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Send a text message1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Edit Fields1": {
+        "main": [
+          [
+            {
+              "node": "Send a text message2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate",
+      "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {},
+    "versionId": "950c6695-eb0a-4c1e-b87e-5d48cf735c08",
+    "activeVersionId": "12359e09-b51a-4591-a7fe-71a17741e7e8",
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-02-27T18:58:20.307Z",
+        "createdAt": "2026-02-27T18:58:20.307Z",
+        "role": "workflow:owner",
+        "workflowId": "dfvsOgJcHONA0DLe",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": {
+      "updatedAt": "2026-02-27T21:08:29.912Z",
+      "createdAt": "2026-02-27T21:08:19.356Z",
+      "versionId": "12359e09-b51a-4591-a7fe-71a17741e7e8",
+      "workflowId": "dfvsOgJcHONA0DLe",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "solicitud-material",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 2.1,
+          "position": [
+            -320,
+            64
+          ],
+          "id": "7b0aab0e-0b53-439d-b22f-c0291e06d397",
+          "name": "Webhook",
+          "webhookId": "77cbc7e9-923d-407f-b269-415fc912088f"
+        },
+        {
+          "parameters": {
+            "assignments": {
+              "assignments": [
+                {
+                  "id": "cb3c76b4-ea9a-4f70-9a5b-1313efb25e04",
+                  "name": "mensaje_final",
+                  "value": "=*\ud83d\udce6 Nueva Solicitud de Material*\n-----------------------------------------\n*\ud83c\udd94 ID:* #{{ $json.body.solicitud_id }}\n*\ud83d\udc64 Usuario:* {{ $json.body.usuario_nombre }}\n*\ud83d\udccd Ubicaci\u00f3n:* {{ $json.body.ubicacion_origen }}\n*\ud83d\udcdd OT:* {{ $json.body.orden_trabajo }}\n*\ud83d\udcac Comentarios:* {{ $json.body.comentarios }}\n-----------------------------------------\n*Lista de Materiales:*\n{{ $json.body.items.map(item => `\u2022 ${item.cantidad}x ${item.material_nombre} (${item.sku})`).join('\\n') }}\n-----------------------------------------\n",
+                  "type": "string"
+                }
+              ]
+            },
+            "options": {}
+          },
+          "type": "n8n-nodes-base.set",
+          "typeVersion": 3.4,
+          "position": [
+            16,
+            144
+          ],
+          "id": "73452104-569a-460a-9584-d5d48315f32e",
+          "name": "Edit Fields"
+        },
+        {
+          "parameters": {
+            "phoneNumber": "50433139164",
+            "message": "={{ $json.mensaje_final }}"
+          },
+          "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+          "typeVersion": 1,
+          "position": [
+            352,
+            144
+          ],
+          "id": "5a30516b-ab48-411b-82a0-0fa85733b223",
+          "name": "Send a text message",
+          "credentials": {
+            "goWhatsappApi": {
+              "id": "3ZCyhP63fGLpPiQN",
+              "name": "GOWA account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "phoneNumber": "50431723280",
+            "message": "={{ $json.mensaje_final }}"
+          },
+          "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+          "typeVersion": 1,
+          "position": [
+            352,
+            336
+          ],
+          "id": "dd969552-b5cd-4167-b831-a9aed88cbdca",
+          "name": "Send a text message1",
+          "credentials": {
+            "goWhatsappApi": {
+              "id": "3ZCyhP63fGLpPiQN",
+              "name": "GOWA account"
+            }
+          }
+        }
+      ],
+      "connections": {
+        "Webhook": {
+          "main": [
+            [
+              {
+                "node": "Edit Fields",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Edit Fields": {
+          "main": [
+            [
+              {
+                "node": "Send a text message",
+                "type": "main",
+                "index": 0
+              },
+              {
+                "node": "Send a text message1",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "saul alvarado",
+      "name": "Version 12359e09",
+      "description": "",
+      "autosaved": true
+    },
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-02-11T00:47:02.507Z",
+    "createdAt": "2026-02-11T00:47:02.507Z",
+    "id": "FBIbNlIHNnSyJ8jc",
+    "name": "My workflow 2",
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "nuevo-documento",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "d951543f-b097-469c-9943-65765bfd86d9",
+        "name": "Webhook",
+        "webhookId": "cf102920-226e-4fb0-9fd6-f05e5ad8e65f"
+      }
+    ],
+    "connections": {},
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": {},
+    "versionId": "f92057e2-5ea5-440c-beb0-eacf2b391072",
+    "activeVersionId": null,
+    "triggerCount": 0,
+    "shared": [
+      {
+        "updatedAt": "2026-02-11T00:47:02.507Z",
+        "createdAt": "2026-02-11T00:47:02.507Z",
+        "role": "workflow:owner",
+        "workflowId": "FBIbNlIHNnSyJ8jc",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": null,
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-03-03T07:00:57.498Z",
+    "createdAt": "2026-02-17T22:43:01.039Z",
+    "id": "XPPyb9egttloDyzA",
+    "name": "Procesamiento de Documentos - Energy IA",
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "sync-metadatos-doc",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -592,
+          160
+        ],
+        "id": "50785c6c-028e-4703-8a3a-7e91d5e4bfc3",
+        "name": "Webhook Django",
+        "webhookId": "320cbe53-7d4a-4f1b-b631-3cec8ac78d42"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://b52aeb243e6033.lhr.life/documentos/api/callback-procesamiento/{{ $node[\"Webhook Django\"].json[\"body\"][\"revision_id\"] }}/",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "texto_completo",
+                "value": "={{ $json.text }}"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          656,
+          160
+        ],
+        "id": "a9671f5a-3108-4588-8061-1faf20fefcf6",
+        "name": "Enviar a Django",
+        "retryOnFail": true
+      },
+      {
+        "parameters": {
+          "bucketName": "energia-media",
+          "fileKey": "={{ $json.body.file_key }}",
+          "binaryPropertyName": "=data"
+        },
+        "type": "n8n-nodes-base.s3",
+        "typeVersion": 1,
+        "position": [
+          -384,
+          160
+        ],
+        "id": "0974217b-a83f-4de4-8461-74d8cbb83193",
+        "name": "Download a file",
+        "credentials": {
+          "s3": {
+            "id": "8QNeVz7QEL7RcrkC",
+            "name": "S3 account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          -144,
+          160
+        ],
+        "id": "cb79d5e5-65db-4864-a6e2-9c6dd67d4203",
+        "name": "Extract from File"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          176,
+          -256
+        ],
+        "id": "13ddf212-c4c3-4513-9e3a-6ea7bea10897",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+        "typeVersion": 1,
+        "position": [
+          176,
+          64
+        ],
+        "id": "9a0a9230-3c7e-45e3-9489-95580a655217",
+        "name": "Groq Chat Model",
+        "credentials": {
+          "groqApi": {
+            "id": "cUieN6RPtWsvCTnA",
+            "name": "Groq account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "const { Client } = require('pg');\n\nconst client = new Client({\n  host: '10.0.1.20',\n  port: 5432,\n  database: 'postgres',\n  user: 'postgres',\n  password: 'admin123',\n  ssl: false,\n});\n\nawait client.connect();\nconst result = await client.query('SELECT id, nombre, codigo FROM documentos_tipodocumento ORDER BY nombre');\nawait client.end();\n\nreturn result.rows.map(row => ({ json: row }));;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -144,
+          -176
+        ],
+        "id": "c87d5e57-07d1-49c0-a2a1-5ca84153e5b9",
+        "name": "Code in JavaScript"
+      }
+    ],
+    "connections": {
+      "Webhook Django": {
+        "main": [
+          [
+            {
+              "node": "Download a file",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download a file": {
+        "main": [
+          [
+            {
+              "node": "Extract from File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract from File": {
+        "main": [
+          [
+            {
+              "node": "Enviar a Django",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          []
+        ]
+      },
+      "Groq Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate",
+      "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {},
+    "versionId": "996e272b-cef9-4de5-a621-93021eff5a1c",
+    "activeVersionId": null,
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-02-17T22:43:01.039Z",
+        "createdAt": "2026-02-17T22:43:01.039Z",
+        "role": "workflow:owner",
+        "workflowId": "XPPyb9egttloDyzA",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": null,
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-02-10T23:59:36.207Z",
+    "createdAt": "2026-02-10T23:59:36.207Z",
+    "id": "xn2qlO6KxN39HfGG",
+    "name": "My workflow",
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "nuevo-documento",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "135a5c28-5b55-465c-97c0-529c58bd3a90",
+        "name": "Webhook",
+        "webhookId": "bce222c4-039c-4335-820c-e6fb97652079"
+      }
+    ],
+    "connections": {},
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": {},
+    "versionId": "5bd2a755-dbd6-4e7a-8283-ac4df5ff65ae",
+    "activeVersionId": null,
+    "triggerCount": 0,
+    "shared": [
+      {
+        "updatedAt": "2026-02-10T23:59:36.207Z",
+        "createdAt": "2026-02-10T23:59:36.207Z",
+        "role": "workflow:owner",
+        "workflowId": "xn2qlO6KxN39HfGG",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": null,
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-03-04T00:13:41.299Z",
+    "createdAt": "2026-02-16T21:40:46.898Z",
+    "id": "p4EEBCuMa0BMutVW",
+    "name": "Extract PDF Text",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "bucketName": "energia-media",
+          "fileKey": "={{ $json.body.filepath }}"
+        },
+        "id": "06e5c6bc-f413-43e3-a974-ef3895a8c912",
+        "name": "MinIO - Download PDF",
+        "type": "n8n-nodes-base.s3",
+        "typeVersion": 1,
+        "position": [
+          -176,
+          144
+        ],
+        "credentials": {
+          "s3": {
+            "id": "8QNeVz7QEL7RcrkC",
+            "name": "S3 account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        },
+        "id": "622fd49d-0d6b-44a7-9150-5000f9e9b870",
+        "name": "Extract Text from PDF",
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          192,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://softcom.ccg.hn/documentos/api/update-texto/{{ $json.documento_id }}/",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "texto",
+                "value": "=={{ $json.texto }}"
+              }
+            ]
+          },
+          "options": {
+            "allowUnauthorizedCerts": true,
+            "timeout": 5000
+          }
+        },
+        "id": "fc083622-f1d6-4a67-9c47-6443568e6e9b",
+        "name": "Callback to Django",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          1568,
+          80
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { \"status\": \"ok\", \"message\": \"Texto extra\u00eddo y enviado correctamente\" } }}",
+          "options": {}
+        },
+        "id": "b4cb787d-9d22-48c1-ac8a-6a9f289218e7",
+        "name": "Respond to Webhook",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          1936,
+          96
+        ]
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "process-document",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "a06d5825-502e-4ea1-bd77-51d71fd30803",
+        "name": "Webhook1",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [
+          -368,
+          144
+        ],
+        "webhookId": "extract-text"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "number": [
+              {
+                "value1": "={{ $node[\"Extract Text from PDF\"].json.text.length }}",
+                "operation": "larger",
+                "value2": 50
+              }
+            ]
+          }
+        },
+        "id": "d2b4d88b-d1c4-4b4f-8004-4d9c2f57d93c",
+        "name": "IF: Has Text?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          336,
+          320
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://stirling-pdf-b8o0g8gwg0okkoos0oo48kcg:8080/api/v1/misc/ocr-pdf",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "contentType": "multipart-form-data",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "parameterType": "formBinaryData",
+                "name": "fileInput",
+                "inputDataFieldName": "data"
+              },
+              {
+                "name": "ocrType",
+                "value": "ocr-only"
+              },
+              {
+                "name": "languages",
+                "value": "spa"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "4b96c291-1811-4f3e-b64e-a8b6e2b2cdac",
+        "name": "Stirling-PDF OCR",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          848,
+          768
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "uz6EzICWKdyW6bYM",
+            "name": "Header Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Inicializar el texto\nlet final_text = '';\n// 2. Intentar obtener el texto del nodo IF (camino de extracci\u00f3n normal)\ntry {\n  final_text = $input.first().json.text\n} catch (e) {\n  // Si falla (porque venimos por el camino del OCR), intentamos el otro\n  try {\n    final_text = $('Stirling-PDF OCR').$input.first().json.text\n  } catch (err) {\n    final_text = '';\n  }\n}\n// 3. Obtener los datos del Webhook (Aseg\u00farate de que se llame Webhook1)\nconst webhookBody = $('Webhook1').first().json.body\n// 4. Devolver el resultado limpio\nreturn {\n  texto: final_text ? final_text.replace(/\\s+/g, ' ').trim() : \"\",\n  documento_id: webhookBody.documento_id,\n  callback_url: webhookBody.callback_url\n};"
+        },
+        "id": "15fa0584-10f9-4fcb-8339-c4d1a817c071",
+        "name": "Merge & Clean",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1328,
+          352
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "mergeByIndex"
+        },
+        "name": "Merge Binary Data",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 1,
+        "position": [
+          608,
+          896
+        ],
+        "notesInFlow": true,
+        "id": "eb5b27c3-e1cb-422c-9141-81e54a8f4799",
+        "notes": "Esto recupera el archivo original de MinIO y lo une con el flujo del IF"
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          1056,
+          768
+        ],
+        "id": "03d0bed3-0b18-4018-a753-5d0a64526e5b",
+        "name": "Extract from File"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE documentos_documento\nSET \n  contenido_texto = '{{ $json.texto }}',\n  actualizado_en = NOW()\nWHERE\n  id = {{ $('Webhook1').item.json.body.documento_id }};\n",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1536,
+          352
+        ],
+        "id": "fe9e7c11-a58c-4354-9875-6393ccc5cb9e",
+        "name": "Execute a SQL query",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "MinIO - Download PDF": {
+        "main": [
+          [
+            {
+              "node": "Extract Text from PDF",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Merge Binary Data",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Extract Text from PDF": {
+        "main": [
+          [
+            {
+              "node": "IF: Has Text?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Callback to Django": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook1": {
+        "main": [
+          [
+            {
+              "node": "MinIO - Download PDF",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF: Has Text?": {
+        "main": [
+          [
+            {
+              "node": "Merge & Clean",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Merge Binary Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Stirling-PDF OCR": {
+        "main": [
+          [
+            {
+              "node": "Extract from File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge & Clean": {
+        "main": [
+          [
+            {
+              "node": "Execute a SQL query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge Binary Data": {
+        "main": [
+          [
+            {
+              "node": "Stirling-PDF OCR",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract from File": {
+        "main": [
+          [
+            {
+              "node": "Merge & Clean",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate",
+      "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {},
+    "versionId": "6d5ae5ff-edad-4693-a231-275809bf35dc",
+    "activeVersionId": "6d5ae5ff-edad-4693-a231-275809bf35dc",
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-02-16T21:40:46.898Z",
+        "createdAt": "2026-02-16T21:40:46.898Z",
+        "role": "workflow:owner",
+        "workflowId": "p4EEBCuMa0BMutVW",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": {
+      "updatedAt": "2026-03-04T00:16:28.923Z",
+      "createdAt": "2026-03-04T00:13:41.304Z",
+      "versionId": "6d5ae5ff-edad-4693-a231-275809bf35dc",
+      "workflowId": "p4EEBCuMa0BMutVW",
+      "nodes": [
+        {
+          "parameters": {
+            "bucketName": "energia-media",
+            "fileKey": "={{ $json.body.filepath }}"
+          },
+          "id": "06e5c6bc-f413-43e3-a974-ef3895a8c912",
+          "name": "MinIO - Download PDF",
+          "type": "n8n-nodes-base.s3",
+          "typeVersion": 1,
+          "position": [
+            -176,
+            144
+          ],
+          "credentials": {
+            "s3": {
+              "id": "8QNeVz7QEL7RcrkC",
+              "name": "S3 account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "operation": "pdf",
+            "options": {}
+          },
+          "id": "622fd49d-0d6b-44a7-9150-5000f9e9b870",
+          "name": "Extract Text from PDF",
+          "type": "n8n-nodes-base.extractFromFile",
+          "typeVersion": 1,
+          "position": [
+            192,
+            0
+          ]
+        },
+        {
+          "parameters": {
+            "method": "POST",
+            "url": "=https://softcom.ccg.hn/documentos/api/update-texto/{{ $json.documento_id }}/",
+            "sendBody": true,
+            "bodyParameters": {
+              "parameters": [
+                {
+                  "name": "texto",
+                  "value": "=={{ $json.texto }}"
+                }
+              ]
+            },
+            "options": {
+              "allowUnauthorizedCerts": true,
+              "timeout": 5000
+            }
+          },
+          "id": "fc083622-f1d6-4a67-9c47-6443568e6e9b",
+          "name": "Callback to Django",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [
+            1568,
+            80
+          ]
+        },
+        {
+          "parameters": {
+            "respondWith": "json",
+            "responseBody": "={{ { \"status\": \"ok\", \"message\": \"Texto extra\u00eddo y enviado correctamente\" } }}",
+            "options": {}
+          },
+          "id": "b4cb787d-9d22-48c1-ac8a-6a9f289218e7",
+          "name": "Respond to Webhook",
+          "type": "n8n-nodes-base.respondToWebhook",
+          "typeVersion": 1,
+          "position": [
+            1936,
+            96
+          ]
+        },
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "process-document",
+            "responseMode": "responseNode",
+            "options": {}
+          },
+          "id": "a06d5825-502e-4ea1-bd77-51d71fd30803",
+          "name": "Webhook1",
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 1,
+          "position": [
+            -368,
+            144
+          ],
+          "webhookId": "extract-text"
+        },
+        {
+          "parameters": {
+            "conditions": {
+              "number": [
+                {
+                  "value1": "={{ $node[\"Extract Text from PDF\"].json.text.length }}",
+                  "operation": "larger",
+                  "value2": 50
+                }
+              ]
+            }
+          },
+          "id": "d2b4d88b-d1c4-4b4f-8004-4d9c2f57d93c",
+          "name": "IF: Has Text?",
+          "type": "n8n-nodes-base.if",
+          "typeVersion": 1,
+          "position": [
+            336,
+            320
+          ]
+        },
+        {
+          "parameters": {
+            "method": "POST",
+            "url": "http://stirling-pdf-b8o0g8gwg0okkoos0oo48kcg:8080/api/v1/misc/ocr-pdf",
+            "authentication": "genericCredentialType",
+            "genericAuthType": "httpHeaderAuth",
+            "sendBody": true,
+            "contentType": "multipart-form-data",
+            "bodyParameters": {
+              "parameters": [
+                {
+                  "parameterType": "formBinaryData",
+                  "name": "fileInput",
+                  "inputDataFieldName": "data"
+                },
+                {
+                  "name": "ocrType",
+                  "value": "ocr-only"
+                },
+                {
+                  "name": "languages",
+                  "value": "spa"
+                }
+              ]
+            },
+            "options": {}
+          },
+          "id": "4b96c291-1811-4f3e-b64e-a8b6e2b2cdac",
+          "name": "Stirling-PDF OCR",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [
+            848,
+            768
+          ],
+          "credentials": {
+            "httpHeaderAuth": {
+              "id": "uz6EzICWKdyW6bYM",
+              "name": "Header Auth account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "jsCode": "// 1. Inicializar el texto\nlet final_text = '';\n// 2. Intentar obtener el texto del nodo IF (camino de extracci\u00f3n normal)\ntry {\n  final_text = $input.first().json.text\n} catch (e) {\n  // Si falla (porque venimos por el camino del OCR), intentamos el otro\n  try {\n    final_text = $('Stirling-PDF OCR').$input.first().json.text\n  } catch (err) {\n    final_text = '';\n  }\n}\n// 3. Obtener los datos del Webhook (Aseg\u00farate de que se llame Webhook1)\nconst webhookBody = $('Webhook1').first().json.body\n// 4. Devolver el resultado limpio\nreturn {\n  texto: final_text ? final_text.replace(/\\s+/g, ' ').trim() : \"\",\n  documento_id: webhookBody.documento_id,\n  callback_url: webhookBody.callback_url\n};"
+          },
+          "id": "15fa0584-10f9-4fcb-8339-c4d1a817c071",
+          "name": "Merge & Clean",
+          "type": "n8n-nodes-base.code",
+          "typeVersion": 2,
+          "position": [
+            1328,
+            352
+          ]
+        },
+        {
+          "parameters": {
+            "mode": "mergeByIndex"
+          },
+          "name": "Merge Binary Data",
+          "type": "n8n-nodes-base.merge",
+          "typeVersion": 1,
+          "position": [
+            608,
+            896
+          ],
+          "notesInFlow": true,
+          "id": "eb5b27c3-e1cb-422c-9141-81e54a8f4799",
+          "notes": "Esto recupera el archivo original de MinIO y lo une con el flujo del IF"
+        },
+        {
+          "parameters": {
+            "operation": "pdf",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.extractFromFile",
+          "typeVersion": 1.1,
+          "position": [
+            1056,
+            768
+          ],
+          "id": "03d0bed3-0b18-4018-a753-5d0a64526e5b",
+          "name": "Extract from File"
+        },
+        {
+          "parameters": {
+            "operation": "executeQuery",
+            "query": "UPDATE documentos_documento\nSET \n  contenido_texto = '{{ $json.texto }}',\n  actualizado_en = NOW()\nWHERE\n  id = {{ $('Webhook1').item.json.body.documento_id }};\n",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.postgres",
+          "typeVersion": 2.6,
+          "position": [
+            1536,
+            352
+          ],
+          "id": "fe9e7c11-a58c-4354-9875-6393ccc5cb9e",
+          "name": "Execute a SQL query",
+          "credentials": {
+            "postgres": {
+              "id": "0GI4GAGRXkWfR6pK",
+              "name": "Postgres account"
+            }
+          }
+        }
+      ],
+      "connections": {
+        "MinIO - Download PDF": {
+          "main": [
+            [
+              {
+                "node": "Extract Text from PDF",
+                "type": "main",
+                "index": 0
+              },
+              {
+                "node": "Merge Binary Data",
+                "type": "main",
+                "index": 1
+              }
+            ]
+          ]
+        },
+        "Extract Text from PDF": {
+          "main": [
+            [
+              {
+                "node": "IF: Has Text?",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Callback to Django": {
+          "main": [
+            [
+              {
+                "node": "Respond to Webhook",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Webhook1": {
+          "main": [
+            [
+              {
+                "node": "MinIO - Download PDF",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "IF: Has Text?": {
+          "main": [
+            [
+              {
+                "node": "Merge & Clean",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "Merge Binary Data",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Stirling-PDF OCR": {
+          "main": [
+            [
+              {
+                "node": "Extract from File",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Merge & Clean": {
+          "main": [
+            [
+              {
+                "node": "Execute a SQL query",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Merge Binary Data": {
+          "main": [
+            [
+              {
+                "node": "Stirling-PDF OCR",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Extract from File": {
+          "main": [
+            [
+              {
+                "node": "Merge & Clean",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "saul alvarado",
+      "name": "Version 6d5ae5ff",
+      "description": "",
+      "autosaved": true
+    },
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-03-04T14:47:15.774Z",
+    "createdAt": "2026-03-03T07:10:07.745Z",
+    "id": "nAK6DyfCZkZXlBKo",
+    "name": "OBTENER METADATA DE DOCUMENTOS",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "sync-metadatos-doc",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          -864,
+          -496
+        ],
+        "id": "fa2f0695-f9de-4c9c-b83a-b84145db865c",
+        "name": "Webhook",
+        "webhookId": "6c793040-9abe-46e9-a068-71debd2cfe0d"
+      },
+      {
+        "parameters": {
+          "bucketName": "energia-media",
+          "fileKey": "={{ $('Webhook').item.json.body.file_path }}"
+        },
+        "type": "n8n-nodes-base.s3",
+        "typeVersion": 1,
+        "position": [
+          -272,
+          -352
+        ],
+        "id": "bd600126-36d9-4e12-b995-24abd2fce5cc",
+        "name": "Download a file",
+        "credentials": {
+          "s3": {
+            "id": "8QNeVz7QEL7RcrkC",
+            "name": "S3 account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT \n    mc.nombre,\n    mc.etiqueta,\n    mc.tipo_campo,\n    mc.requerido,\n    mc.descripcion\nFROM documentos_metadatoconfig mc\nJOIN documentos_tipodocumento td ON mc.tipo_documento_id = td.id\nWHERE td.nombre = '{{ $json.body.tipo_documento }}'\nORDER BY mc.orden;\n",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -672,
+          -432
+        ],
+        "id": "82a630bb-e2d9-4c83-9ce0-8f6c116a18b7",
+        "name": "Execute a SQL query",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Eres un asistente especializado en extracci\u00f3n de datos de documentos oficiales. Tu trabajo es analizar documentos PDF y extraer valores espec\u00edficos de campos de metadatos.\nREGLAS ESTRICTAS:\n1. Analiza el documento PDF adjunto cuidadosamente.\n2. Extrae \u00daNICAMENTE los campos solicitados abajo.\n3. Si un campo no se encuentra en el documento o no puedes determinar el valor, usa \"\" (cadena vac\u00eda).\n4. Para campos de tipo FECHA, extrae SOLO la fecha y convi\u00e9rtela estrictamente al formato dd/mm/aaaa (ejemplo: si dice \"18 de septiembre del 2024\", t\u00fa respondes \"18/09/2024\"). NO incluyas lugares, ciudades ni texto adicional.\n5. Para campos de tipo NUMERO, usa solo d\u00edgitos y punto decimal.\n\n\ntext\nDocumento: {{ $('Webhook').item.json.body.codigo }} - {{ $('Webhook').item.json.body.titulo }}\nTipo de Documento: {{ $('Webhook').item.json.body.tipo_documento }}\nCampos a extraer del documento:\n{{ $('Execute a SQL query').all().map(item => '- ' + item.json.etiqueta + ' (tipo: ' + item.json.tipo_campo + ', campo: ' + item.json.nombre + ')' + (item.json.descripcion ? ' \u2192 Instrucci\u00f3n adicional: ' + item.json.descripcion : '')).join('\\n') }}\nAnaliza el PDF adjunto y extrae los valores de cada campo listado arriba. Recuerda adaptar las fechas a DD/MM/YYYY. Responde SOLO con el JSON estructurado as\u00ed:\n{\n  \"documento_id\": {{ $('Webhook').item.json.body.documento_id }},\n  \"campos\": [\n    {\"nombre\": \"nombre_del_campo\", \"valor\": \"valor_extraido\"}\n  ]\n}",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          176,
+          -368
+        ],
+        "id": "f9a1d2ca-ebd5-4797-93a5-63f26d1b4ab1",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "aggregate": "aggregateAllItemData",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.aggregate",
+        "typeVersion": 1,
+        "position": [
+          -480,
+          -384
+        ],
+        "id": "2bc877d8-22c5-48cb-99f1-c7bdc66f80fb",
+        "name": "Aggregate"
+      },
+      {
+        "parameters": {
+          "model": "meta-llama/llama-prompt-guard-2-86m",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+        "typeVersion": 1,
+        "position": [
+          -16,
+          32
+        ],
+        "id": "c585b2c5-28d5-433d-88a2-1eb4a4831be5",
+        "name": "Groq Chat Model",
+        "credentials": {
+          "groqApi": {
+            "id": "cUieN6RPtWsvCTnA",
+            "name": "Groq account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Obtener el JSON \"bruto\" que puede venir dentro de formateo Markdown\nconst rawResponse = $input.first().json.output;\n\n// Limpiador agresivo para sacar validamente el JSON de un string texto/markdown:\nfunction extractJson(rawJsonStr) {             \n  var cleaner = rawJsonStr.replace(/^```[a-z]*\\s*(?=\\{)/gim, ''); // Retira el \"```json\" del inicio\n  cleaner = cleaner.trim().replace(/^```[a-z]*\\n/g, '');               \n  cleaner = cleaner.replace(/```$/g, '').trim();                  // Quita el '```' final\n  var startMatch = cleaner.indexOf('{');                          // Busca el json verdadero\n  var endMatch = cleaner.lastIndexOf('}');                        \n  cleaner = cleaner.slice(startMatch, endMatch + 1);             \n  return cleaner;\n}\n\nconst cleanedMatch = extractJson(rawResponse);\n\nlet parsedDoc;\ntry{\n    parsedDoc = JSON.parse(cleanedMatch);\n}catch(err){\n    throw new Error('Fallo al interpretar la respuesta de IA como JSON: '+err.message+'... Raw value fue: '+rawResponse);\n}\n\n// 2. Extraer el array y emitir una ejecuci\u00f3n por cada campo extra\u00eddo\n// para actualizar en PostgreSQL:\nreturn parsedDoc.campos.map(campo => {\n  // Manejo de valores SQL. Curar las comillas dobles y sencillas que la IA incluye para que el INSERT no lo confunda\n  let cleanValue = \"\";   \n  if(campo.valor){\n     cleanValue = campo.valor.toString()\n                             .replace(/'/g, \"''\")   // SQL Escape for Single quote\n                             // .replace(/\"/g, '\\\"') // En updates inline Postgres las comillas dobles (\") no se escapan. Se las toma texto.\n  }\n\n  return {\n    json: {\n      nombre_limpio: typeof campo.nombre === 'string' ? campo.nombre.trim().toLowerCase() : '', // Pasarlo a un standard SQL match\n      nombre_orig: typeof campo.nombre === 'string' ? campo.nombre.trim() : '', \n      valor: cleanValue,\n      documento_id: parsedDoc.documento_id || $('Webhook').first().json.body.documento_id\n    }\n  };\n});\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          544,
+          -192
+        ],
+        "id": "5e3c7f66-d19a-4113-9481-ad410bc7a31e",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE documentos_metadatovalor mv\nSET valor = '{{ $json.valor }}'\nFROM documentos_metadatoconfig mc\nWHERE mv.config_id = mc.id\n  AND LOWER(mc.nombre) = '{{ $json.nombre_limpio }}'\n  AND mv.documento_id = {{ $json.documento_id }};",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          752,
+          -192
+        ],
+        "id": "a1d776fe-7e58-4cde-baab-e9dd98c520f1",
+        "name": "Execute a SQL query1",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "id": "c7f8596d-cc97-4d9e-90fa-d336e9fe47fd",
+        "name": "Default Data Loader",
+        "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+        "typeVersion": 1,
+        "position": [
+          0,
+          -350
+        ]
+      },
+      {
+        "parameters": {
+          "chunkSize": 4000,
+          "chunkOverlap": 400
+        },
+        "id": "c85883e7-d124-47e9-8946-6233abf6efd9",
+        "name": "Recursive Character Text Splitter",
+        "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacter",
+        "typeVersion": 1,
+        "position": [
+          0,
+          -500
+        ]
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Execute a SQL query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download a file": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Default Data Loader",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Execute a SQL query": {
+        "main": [
+          [
+            {
+              "node": "Aggregate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Aggregate": {
+        "main": [
+          [
+            {
+              "node": "Download a file",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Groq Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "Execute a SQL query1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Default Data Loader": {
+        "ai_document": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_document",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Recursive Character Text Splitter": {
+        "ai_textSplitter": [
+          [
+            {
+              "node": "Default Data Loader",
+              "type": "ai_textSplitter",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate",
+      "availableInMCP": false,
+      "timeSavedMode": "fixed",
+      "timezone": "America/El_Salvador",
+      "callerPolicy": "workflowsFromSameOwner"
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {
+      "Webhook": [
+        {
+          "json": {
+            "headers": {
+              "host": "localhost:5678",
+              "user-agent": "python-requests/2.32.5",
+              "accept-encoding": "gzip, deflate",
+              "accept": "*/*",
+              "connection": "keep-alive",
+              "content-length": "1034",
+              "content-type": "application/json"
+            },
+            "params": {},
+            "query": {},
+            "body": {
+              "documento_id": 90,
+              "codigo": "AH-CCG-105-2024",
+              "titulo": "seguimiento escrito DOIH-CCG-349-2024",
+              "tipo_documento": "Oficios",
+              "campos_nuevos": 0,
+              "file_url": "http://181.115.47.107:9000/energia-media/docs/2026/3/AH-CCG-105-2024/AH-CCG-105-2024_seguimiento_escrito_DOIH-CCG-349-2024.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=rootminio%2F20260303%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260303T081145Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=22607504483e39125077ecea316076025df8a57354cb11105fb8501582c76dc9",
+              "file_path": "docs/2026/3/AH-CCG-105-2024/AH-CCG-105-2024_seguimiento_escrito_DOIH-CCG-349-2024.pdf",
+              "metadatos": [
+                {
+                  "nombre": "Asunto",
+                  "etiqueta": "Asunto",
+                  "valor": ""
+                },
+                {
+                  "nombre": "No Oficio",
+                  "etiqueta": "Doc.",
+                  "valor": ""
+                },
+                {
+                  "nombre": "Resumen",
+                  "etiqueta": "Resumen",
+                  "valor": ""
+                },
+                {
+                  "nombre": "Plazo",
+                  "etiqueta": "Plazo",
+                  "valor": ""
+                },
+                {
+                  "nombre": "Fecha",
+                  "etiqueta": "Fecha",
+                  "valor": ""
+                }
+              ],
+              "url_admin": "https://b52aeb243e6033.lhr.life/admin/documentos/documento/90/change/"
+            },
+            "webhookUrl": "http://181.115.47.107:5678/webhook/sync-metadatos-doc",
+            "executionMode": "production"
+          },
+          "pairedItem": {
+            "item": 0
+          }
+        }
+      ]
+    },
+    "versionId": "f812e4eb-c3dd-4af5-b47e-158d90c7dfd4",
+    "activeVersionId": "f812e4eb-c3dd-4af5-b47e-158d90c7dfd4",
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-03-03T07:10:07.745Z",
+        "createdAt": "2026-03-03T07:10:07.745Z",
+        "role": "workflow:owner",
+        "workflowId": "nAK6DyfCZkZXlBKo",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": {
+      "updatedAt": "2026-03-04T14:47:15.776Z",
+      "createdAt": "2026-03-04T14:47:15.776Z",
+      "versionId": "f812e4eb-c3dd-4af5-b47e-158d90c7dfd4",
+      "workflowId": "nAK6DyfCZkZXlBKo",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "sync-metadatos-doc",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 2.1,
+          "position": [
+            -864,
+            -496
+          ],
+          "id": "fa2f0695-f9de-4c9c-b83a-b84145db865c",
+          "name": "Webhook",
+          "webhookId": "6c793040-9abe-46e9-a068-71debd2cfe0d"
+        },
+        {
+          "parameters": {
+            "bucketName": "energia-media",
+            "fileKey": "={{ $('Webhook').item.json.body.file_path }}"
+          },
+          "type": "n8n-nodes-base.s3",
+          "typeVersion": 1,
+          "position": [
+            -272,
+            -352
+          ],
+          "id": "bd600126-36d9-4e12-b995-24abd2fce5cc",
+          "name": "Download a file",
+          "credentials": {
+            "s3": {
+              "id": "8QNeVz7QEL7RcrkC",
+              "name": "S3 account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "operation": "executeQuery",
+            "query": "SELECT \n    mc.nombre,\n    mc.etiqueta,\n    mc.tipo_campo,\n    mc.requerido,\n    mc.descripcion\nFROM documentos_metadatoconfig mc\nJOIN documentos_tipodocumento td ON mc.tipo_documento_id = td.id\nWHERE td.nombre = '{{ $json.body.tipo_documento }}'\nORDER BY mc.orden;\n",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.postgres",
+          "typeVersion": 2.6,
+          "position": [
+            -672,
+            -432
+          ],
+          "id": "82a630bb-e2d9-4c83-9ce0-8f6c116a18b7",
+          "name": "Execute a SQL query",
+          "credentials": {
+            "postgres": {
+              "id": "0GI4GAGRXkWfR6pK",
+              "name": "Postgres account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "promptType": "define",
+            "text": "=Eres un asistente especializado en extracci\u00f3n de datos de documentos oficiales. Tu trabajo es analizar documentos PDF y extraer valores espec\u00edficos de campos de metadatos.\nREGLAS ESTRICTAS:\n1. Analiza el documento PDF adjunto cuidadosamente.\n2. Extrae \u00daNICAMENTE los campos solicitados abajo.\n3. Si un campo no se encuentra en el documento o no puedes determinar el valor, usa \"\" (cadena vac\u00eda).\n4. Para campos de tipo FECHA, extrae SOLO la fecha y convi\u00e9rtela estrictamente al formato dd/mm/aaaa (ejemplo: si dice \"18 de septiembre del 2024\", t\u00fa respondes \"18/09/2024\"). NO incluyas lugares, ciudades ni texto adicional.\n5. Para campos de tipo NUMERO, usa solo d\u00edgitos y punto decimal.\n\n\ntext\nDocumento: {{ $('Webhook').item.json.body.codigo }} - {{ $('Webhook').item.json.body.titulo }}\nTipo de Documento: {{ $('Webhook').item.json.body.tipo_documento }}\nCampos a extraer del documento:\n{{ $('Execute a SQL query').all().map(item => '- ' + item.json.etiqueta + ' (tipo: ' + item.json.tipo_campo + ', campo: ' + item.json.nombre + ')' + (item.json.descripcion ? ' \u2192 Instrucci\u00f3n adicional: ' + item.json.descripcion : '')).join('\\n') }}\nAnaliza el PDF adjunto y extrae los valores de cada campo listado arriba. Recuerda adaptar las fechas a DD/MM/YYYY. Responde SOLO con el JSON estructurado as\u00ed:\n{\n  \"documento_id\": {{ $('Webhook').item.json.body.documento_id }},\n  \"campos\": [\n    {\"nombre\": \"nombre_del_campo\", \"valor\": \"valor_extraido\"}\n  ]\n}",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.agent",
+          "typeVersion": 3.1,
+          "position": [
+            176,
+            -368
+          ],
+          "id": "f9a1d2ca-ebd5-4797-93a5-63f26d1b4ab1",
+          "name": "AI Agent"
+        },
+        {
+          "parameters": {
+            "aggregate": "aggregateAllItemData",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.aggregate",
+          "typeVersion": 1,
+          "position": [
+            -480,
+            -384
+          ],
+          "id": "2bc877d8-22c5-48cb-99f1-c7bdc66f80fb",
+          "name": "Aggregate"
+        },
+        {
+          "parameters": {
+            "model": "meta-llama/llama-prompt-guard-2-86m",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+          "typeVersion": 1,
+          "position": [
+            -16,
+            32
+          ],
+          "id": "c585b2c5-28d5-433d-88a2-1eb4a4831be5",
+          "name": "Groq Chat Model",
+          "credentials": {
+            "groqApi": {
+              "id": "cUieN6RPtWsvCTnA",
+              "name": "Groq account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "jsCode": "// Obtener el JSON \"bruto\" que puede venir dentro de formateo Markdown\nconst rawResponse = $input.first().json.output;\n\n// Limpiador agresivo para sacar validamente el JSON de un string texto/markdown:\nfunction extractJson(rawJsonStr) {             \n  var cleaner = rawJsonStr.replace(/^```[a-z]*\\s*(?=\\{)/gim, ''); // Retira el \"```json\" del inicio\n  cleaner = cleaner.trim().replace(/^```[a-z]*\\n/g, '');               \n  cleaner = cleaner.replace(/```$/g, '').trim();                  // Quita el '```' final\n  var startMatch = cleaner.indexOf('{');                          // Busca el json verdadero\n  var endMatch = cleaner.lastIndexOf('}');                        \n  cleaner = cleaner.slice(startMatch, endMatch + 1);             \n  return cleaner;\n}\n\nconst cleanedMatch = extractJson(rawResponse);\n\nlet parsedDoc;\ntry{\n    parsedDoc = JSON.parse(cleanedMatch);\n}catch(err){\n    throw new Error('Fallo al interpretar la respuesta de IA como JSON: '+err.message+'... Raw value fue: '+rawResponse);\n}\n\n// 2. Extraer el array y emitir una ejecuci\u00f3n por cada campo extra\u00eddo\n// para actualizar en PostgreSQL:\nreturn parsedDoc.campos.map(campo => {\n  // Manejo de valores SQL. Curar las comillas dobles y sencillas que la IA incluye para que el INSERT no lo confunda\n  let cleanValue = \"\";   \n  if(campo.valor){\n     cleanValue = campo.valor.toString()\n                             .replace(/'/g, \"''\")   // SQL Escape for Single quote\n                             // .replace(/\"/g, '\\\"') // En updates inline Postgres las comillas dobles (\") no se escapan. Se las toma texto.\n  }\n\n  return {\n    json: {\n      nombre_limpio: typeof campo.nombre === 'string' ? campo.nombre.trim().toLowerCase() : '', // Pasarlo a un standard SQL match\n      nombre_orig: typeof campo.nombre === 'string' ? campo.nombre.trim() : '', \n      valor: cleanValue,\n      documento_id: parsedDoc.documento_id || $('Webhook').first().json.body.documento_id\n    }\n  };\n});\n"
+          },
+          "type": "n8n-nodes-base.code",
+          "typeVersion": 2,
+          "position": [
+            544,
+            -192
+          ],
+          "id": "5e3c7f66-d19a-4113-9481-ad410bc7a31e",
+          "name": "Code in JavaScript"
+        },
+        {
+          "parameters": {
+            "operation": "executeQuery",
+            "query": "UPDATE documentos_metadatovalor mv\nSET valor = '{{ $json.valor }}'\nFROM documentos_metadatoconfig mc\nWHERE mv.config_id = mc.id\n  AND LOWER(mc.nombre) = '{{ $json.nombre_limpio }}'\n  AND mv.documento_id = {{ $json.documento_id }};",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.postgres",
+          "typeVersion": 2.6,
+          "position": [
+            752,
+            -192
+          ],
+          "id": "a1d776fe-7e58-4cde-baab-e9dd98c520f1",
+          "name": "Execute a SQL query1",
+          "credentials": {
+            "postgres": {
+              "id": "0GI4GAGRXkWfR6pK",
+              "name": "Postgres account"
+            }
+          }
+        },
+        {
+          "parameters": {},
+          "id": "c7f8596d-cc97-4d9e-90fa-d336e9fe47fd",
+          "name": "Default Data Loader",
+          "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+          "typeVersion": 1,
+          "position": [
+            0,
+            -350
+          ]
+        },
+        {
+          "parameters": {
+            "chunkSize": 4000,
+            "chunkOverlap": 400
+          },
+          "id": "c85883e7-d124-47e9-8946-6233abf6efd9",
+          "name": "Recursive Character Text Splitter",
+          "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacter",
+          "typeVersion": 1,
+          "position": [
+            0,
+            -500
+          ]
+        }
+      ],
+      "connections": {
+        "Webhook": {
+          "main": [
+            [
+              {
+                "node": "Execute a SQL query",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Download a file": {
+          "main": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "main",
+                "index": 0
+              },
+              {
+                "node": "Default Data Loader",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Execute a SQL query": {
+          "main": [
+            [
+              {
+                "node": "Aggregate",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Aggregate": {
+          "main": [
+            [
+              {
+                "node": "Download a file",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Groq Chat Model": {
+          "ai_languageModel": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_languageModel",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "AI Agent": {
+          "main": [
+            [
+              {
+                "node": "Code in JavaScript",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Code in JavaScript": {
+          "main": [
+            [
+              {
+                "node": "Execute a SQL query1",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Default Data Loader": {
+          "ai_document": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_document",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Recursive Character Text Splitter": {
+          "ai_textSplitter": [
+            [
+              {
+                "node": "Default Data Loader",
+                "type": "ai_textSplitter",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "saul alvarado",
+      "name": null,
+      "description": null,
+      "autosaved": false
+    },
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-02-23T17:18:10.368Z",
+    "createdAt": "2026-02-21T16:09:08.898Z",
+    "id": "RuXjmMRIA5MhZgDX",
+    "name": "Sync Tickets SIG GIA",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "sig-gia-tickets",
+          "options": {}
+        },
+        "id": "efa32cb7-dc27-42cd-997b-1e0a2c8f46a8",
+        "name": "Webhook (PowerAutomate)",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [
+          48,
+          32
+        ],
+        "webhookId": "6ee4f831-b997-4a35-9add-abf0f7eedbca"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://181.115.47.107:8005/callcenter/webhook-new-ticket/",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"folio\": \"{{ $json.body.folio }}\",\n  \"solicitante\": \"{{ $json.body.solicitante }}\",\n  \"fecha\": \"{{ $json.body.fecha }}\",\n  \"descripcion\": \"{{ $json.body.descripcion }}\",\n  \"falla\": \"{{ $json.body.falla }}\",\n  \"ubicacion_raw\": \"{{ $json.body.ubicacion_raw }}\"\n}",
+          "options": {}
+        },
+        "id": "1d803485-0c3e-4c93-9766-ad7c581f785d",
+        "name": "Forward to Django",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          304,
+          -208
+        ],
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "phoneNumber": "50431723280",
+          "message": "=*Folio:* {{ $json.body.folio }}\n*Solicitante:* {{ $json.body.solicitante }}\n*Fecha:* {{ $json.body.fecha }}\n*Descripcion:* {{ $json.body.descripcion }}\n*Falla:* {{ $json.body.falla }}\n*Ubicaci\u00f3n:* {{ $json.body.ubicacion_raw }}"
+        },
+        "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+        "typeVersion": 1,
+        "position": [
+          1152,
+          160
+        ],
+        "id": "2b890591-66db-4617-a8ca-e0d531cf1a06",
+        "name": "Send a text message",
+        "credentials": {
+          "goWhatsappApi": {
+            "id": "3ZCyhP63fGLpPiQN",
+            "name": "GOWA account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          528,
+          -144
+        ],
+        "id": "c34b383c-d887-4404-892a-70aba2e91e81",
+        "name": "Execute a SQL query",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          960,
+          -224
+        ],
+        "id": "8c0bfd5f-dc33-4bcc-ae0e-c0a8068c9fdf",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "typeVersion": 1,
+        "position": [
+          832,
+          -16
+        ],
+        "id": "d10b5e45-4d18-4af4-b277-ddf4083032d3",
+        "name": "Google Gemini Chat Model",
+        "credentials": {
+          "googlePalmApi": {
+            "id": "Wpexi3r5YS6ckVwQ",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequestTool",
+        "typeVersion": 4.4,
+        "position": [
+          1328,
+          16
+        ],
+        "id": "0b9a673f-3092-4b8c-87e4-e9e4b07f4453",
+        "name": "HTTP Request"
+      }
+    ],
+    "connections": {
+      "Webhook (PowerAutomate)": {
+        "main": [
+          [
+            {
+              "node": "Forward to Django",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Send a text message",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Execute a SQL query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Forward to Django": {
+        "main": [
+          []
+        ]
+      },
+      "Execute a SQL query": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Gemini Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate",
+      "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {},
+    "versionId": "48456c72-4cc2-4d3e-97db-46652df184c7",
+    "activeVersionId": "6df730d1-9559-476d-938b-27712d54a9d8",
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-02-21T16:09:08.898Z",
+        "createdAt": "2026-02-21T16:09:08.898Z",
+        "role": "workflow:owner",
+        "workflowId": "RuXjmMRIA5MhZgDX",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": {
+      "updatedAt": "2026-02-21T16:31:12.775Z",
+      "createdAt": "2026-02-21T16:30:06.248Z",
+      "versionId": "6df730d1-9559-476d-938b-27712d54a9d8",
+      "workflowId": "RuXjmMRIA5MhZgDX",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "sig-gia-tickets",
+            "options": {}
+          },
+          "id": "efa32cb7-dc27-42cd-997b-1e0a2c8f46a8",
+          "name": "Webhook (PowerAutomate)",
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 1,
+          "position": [
+            48,
+            32
+          ],
+          "webhookId": "6ee4f831-b997-4a35-9add-abf0f7eedbca"
+        },
+        {
+          "parameters": {
+            "method": "POST",
+            "url": "http://181.115.47.107:8005/callcenter/webhook-new-ticket/",
+            "sendBody": true,
+            "specifyBody": "json",
+            "jsonBody": "={\n  \"folio\": \"{{ $json.body.folio }}\",\n  \"solicitante\": \"{{ $json.body.solicitante }}\",\n  \"fecha\": \"{{ $json.body.fecha }}\",\n  \"descripcion\": \"{{ $json.body.descripcion }}\",\n  \"falla\": \"{{ $json.body.falla }}\",\n  \"ubicacion_raw\": \"{{ $json.body.ubicacion_raw }}\"\n}",
+            "options": {}
+          },
+          "id": "1d803485-0c3e-4c93-9766-ad7c581f785d",
+          "name": "Forward to Django",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 4.1,
+          "position": [
+            304,
+            -208
+          ],
+          "onError": "continueErrorOutput"
+        },
+        {
+          "parameters": {
+            "phoneNumber": "50431723280",
+            "message": "=*Folio:* {{ $json.body.folio }}\n*Solicitante:* {{ $json.body.solicitante }}\n*Fecha:* {{ $json.body.fecha }}\n*Descripcion:* {{ $json.body.descripcion }}\n*Falla:* {{ $json.body.falla }}\n*Ubicaci\u00f3n:* {{ $json.body.ubicacion_raw }}"
+          },
+          "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+          "typeVersion": 1,
+          "position": [
+            512,
+            32
+          ],
+          "id": "2b890591-66db-4617-a8ca-e0d531cf1a06",
+          "name": "Send a text message",
+          "credentials": {
+            "goWhatsappApi": {
+              "id": "3ZCyhP63fGLpPiQN",
+              "name": "GOWA account"
+            }
+          }
+        }
+      ],
+      "connections": {
+        "Webhook (PowerAutomate)": {
+          "main": [
+            [
+              {
+                "node": "Forward to Django",
+                "type": "main",
+                "index": 0
+              },
+              {
+                "node": "Send a text message",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Forward to Django": {
+          "main": [
+            []
+          ]
+        }
+      },
+      "authors": "saul alvarado",
+      "name": "Version 6df730d1",
+      "description": "",
+      "autosaved": true
+    },
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-02-19T18:46:21.742Z",
+    "createdAt": "2026-02-14T05:18:59.686Z",
+    "id": "fq3s3JDXnUx1boyy",
+    "name": "My workflow 5",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "public": true,
+          "initialMessages": "Hola en qu\u00e9 puedo ayudarte hoy?",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+        "typeVersion": 1.4,
+        "position": [
+          -512,
+          -112
+        ],
+        "id": "c75ee264-b3be-4a3e-a4fa-fd62187cebf4",
+        "name": "When chat message received",
+        "webhookId": "746808b8-8b0d-44cf-9c48-7a95b93c7d51"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Role: ENERGY ASSET ANALYST\n\nMISSION:\nSearch for the EXACT term provided by the user in the latest message. \nDO NOT use any codes or names mentioned in these instructions.\n\nEXTRACTION RULE:\n- Identify the core asset code or equipment name from the user's input. \n- Ignore all other words.\n\nSQL DEFINITION:\nQuery both 'activos_activo' (alias a) and 'activos_ubicacion' (alias u) to find the location.\nSQL Template to use:\nSELECT a.nombre, a.codigo_interno, a.estado, u.nombre as ubicacion_jerarquica\nFROM activos_activo a\nLEFT JOIN activos_ubicacion u ON a.ubicacion_id = u.id\nWHERE a.nombre ILIKE '%[TERM]%' OR a.codigo_interno ILIKE '%[TERM]%';\n\nRESPONSE RULES:\n1. MUST RESPOND IN SPANISH.\n2. Format: \n   - Activo: [nombre]\n   - C\u00f3digo: [codigo_interno]\n   - Estado: [estado]\n   - Ubicaci\u00f3n Jer\u00e1rquica: [ubicacion_jerarquica]\n3. If no data, say: \"No se encontr\u00f3 el activo '[TERM]' en el sistema.\"\n\nSTRICT: Never use names from previous instructions. Only use the User's text.",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3,
+        "position": [
+          128,
+          -112
+        ],
+        "id": "c05f6c1d-c882-4aee-bd4c-34dc10ecb256",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "descriptionType": "manual",
+          "toolDescription": "Executes SQL. Provide the query in the 'query' argument.",
+          "operation": "executeQuery",
+          "query": "{{ $fromAI('query') }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgresTool",
+        "typeVersion": 2.6,
+        "position": [
+          352,
+          96
+        ],
+        "id": "112e170a-e025-4ce8-8590-25da6019b0ce",
+        "name": "postgres",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+        "typeVersion": 1,
+        "position": [
+          64,
+          96
+        ],
+        "id": "2099d62b-07fa-4b5c-a076-cc2a4d8f6da5",
+        "name": "Groq Chat Model",
+        "credentials": {
+          "groqApi": {
+            "id": "cUieN6RPtWsvCTnA",
+            "name": "Groq account"
+          }
+        }
+      },
+      {
+        "parameters": {},
+        "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+        "typeVersion": 1.3,
+        "position": [
+          208,
+          96
+        ],
+        "id": "233f5847-8a76-4146-b03b-32f0c3032cb9",
+        "name": "Simple Memory"
+      }
+    ],
+    "connections": {
+      "When chat message received": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "ai_tool": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Groq Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simple Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {},
+    "versionId": "095f2ee9-d3c4-4185-b4b3-569f42e10749",
+    "activeVersionId": "299e193b-1f83-4105-bc2f-7ff6f68c5b0c",
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-02-14T05:18:59.686Z",
+        "createdAt": "2026-02-14T05:18:59.686Z",
+        "role": "workflow:owner",
+        "workflowId": "fq3s3JDXnUx1boyy",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": {
+      "updatedAt": "2026-02-14T16:21:11.789Z",
+      "createdAt": "2026-02-14T16:20:37.543Z",
+      "versionId": "299e193b-1f83-4105-bc2f-7ff6f68c5b0c",
+      "workflowId": "fq3s3JDXnUx1boyy",
+      "nodes": [
+        {
+          "parameters": {
+            "public": true,
+            "initialMessages": "Hola en qu\u00e9 puedo ayudarte hoy?",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+          "typeVersion": 1.4,
+          "position": [
+            -432,
+            -48
+          ],
+          "id": "c75ee264-b3be-4a3e-a4fa-fd62187cebf4",
+          "name": "When chat message received",
+          "webhookId": "746808b8-8b0d-44cf-9c48-7a95b93c7d51"
+        },
+        {
+          "parameters": {
+            "promptType": "define",
+            "text": "=ACT\u00daA COMO UN MOTOR DE B\u00daSQUEDA SQL PURO. PROHIBIDO PRESENTARSE.\n\nINSTRUCCI\u00d3N:\nTan pronto como recibas un t\u00e9rmino o frase del usuario, debes ejecutar la herramienta 'postgres' siguiendo este orden:\n1. Si no conoces la tabla, investiga en 'information_schema.columns' donde column_name o table_name se parezcan al t\u00e9rmino.\n2. Ejecuta la consulta SQL con ILIKE '%termino%' en las tablas encontradas.\n3. Devuelve los datos en una tabla o lista clara.\n\nREGLAS:\n- Nunca respondas diciendo \"Estoy esperando...\". \n- Nunca expliques tu proceso. \n- Si el usuario dice \"Hola\", responde: \"Identificado. \u00bfQu\u00e9 t\u00e9rmino deseas buscar en la base de datos de ENERGY?\".\n- Si el usuario env\u00eda cualquier otra palabra, ASUME que es un t\u00e9rmino de b\u00fasqueda y dispara el SQL inmediatamente.\n\nTABLAS FRECUENTES: documentos_documento (usa titulo), activos_activo, mantenimiento_ordentrabajo.",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.agent",
+          "typeVersion": 3,
+          "position": [
+            192,
+            -112
+          ],
+          "id": "c05f6c1d-c882-4aee-bd4c-34dc10ecb256",
+          "name": "AI Agent"
+        },
+        {
+          "parameters": {},
+          "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+          "typeVersion": 1.3,
+          "position": [
+            208,
+            176
+          ],
+          "id": "40298e99-598a-41e7-8123-a3f3333ff4ce",
+          "name": "Postgres Chat Memory",
+          "credentials": {
+            "postgres": {
+              "id": "0GI4GAGRXkWfR6pK",
+              "name": "Postgres account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "descriptionType": "manual",
+            "toolDescription": "Executes SQL. Provide the query in the 'query' argument.",
+            "operation": "executeQuery",
+            "query": "{{ $fromAI('query') }}",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.postgresTool",
+          "typeVersion": 2.6,
+          "position": [
+            352,
+            96
+          ],
+          "id": "112e170a-e025-4ce8-8590-25da6019b0ce",
+          "name": "postgres",
+          "credentials": {
+            "postgres": {
+              "id": "0GI4GAGRXkWfR6pK",
+              "name": "Postgres account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "model": "llama-3.3-70b-versatile",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+          "typeVersion": 1,
+          "position": [
+            64,
+            96
+          ],
+          "id": "2099d62b-07fa-4b5c-a076-cc2a4d8f6da5",
+          "name": "Groq Chat Model",
+          "credentials": {
+            "groqApi": {
+              "id": "cUieN6RPtWsvCTnA",
+              "name": "Groq account"
+            }
+          }
+        }
+      ],
+      "connections": {
+        "When chat message received": {
+          "main": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Postgres Chat Memory": {
+          "ai_memory": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_memory",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "postgres": {
+          "ai_tool": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_tool",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Groq Chat Model": {
+          "ai_languageModel": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_languageModel",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "saul alvarado",
+      "name": "Version 299e193b",
+      "description": "",
+      "autosaved": true
+    },
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-02-11T18:46:27.339Z",
+    "createdAt": "2026-02-11T18:46:27.339Z",
+    "id": "xglYFssVjAmlE0ZG",
+    "name": "My workflow 3",
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "prueba",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "78a1cfe9-a63d-46f7-8f0e-6af3d5132ce4",
+        "name": "Webhook",
+        "webhookId": "e5f71b7d-006f-475e-b96f-29cb0e8f7180"
+      }
+    ],
+    "connections": {},
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": {},
+    "versionId": "ee07e64b-0740-42df-a58d-a860654f6ff3",
+    "activeVersionId": null,
+    "triggerCount": 0,
+    "shared": [
+      {
+        "updatedAt": "2026-02-11T18:46:27.339Z",
+        "createdAt": "2026-02-11T18:46:27.339Z",
+        "role": "workflow:owner",
+        "workflowId": "xglYFssVjAmlE0ZG",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": null,
+    "tags": []
+  },
+  {
+    "updatedAt": "2026-02-19T18:04:00.177Z",
+    "createdAt": "2026-02-15T05:02:23.922Z",
+    "id": "0iJvBAygCm8vYxoe",
+    "name": "Chat con PDF Energy (S3 Gen\u00e9rico)",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "chat-documento",
+          "responseMode": "lastNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [
+          800,
+          144
+        ],
+        "id": "98b452f4-27c5-40d7-bfe2-c555a547dd3d",
+        "name": "Webhook In",
+        "webhookId": "70943a29-a85a-4dc4-a44e-f0b88fdc43d5"
+      },
+      {
+        "parameters": {
+          "bucketName": "energia-media",
+          "fileKey": "={{ $('Webhook In').item.json.body.filepath }}"
+        },
+        "type": "n8n-nodes-base.s3",
+        "typeVersion": 1,
+        "position": [
+          1296,
+          144
+        ],
+        "id": "f5e20126-5e65-459a-b422-1cadbb5a2fe7",
+        "name": "Descargar S3",
+        "credentials": {
+          "s3": {
+            "id": "8QNeVz7QEL7RcrkC",
+            "name": "S3 account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          1632,
+          16
+        ],
+        "id": "cbfdbdee-3efd-433f-89bc-bcde506be0f2",
+        "name": "Extract from File"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=CONTEXTO DEL DOCUMENTO:\n---------------------\n- Documento: {{ $('Postgres Info').item.json.codigo }}\n- T\u00edtulo: {{ $('Postgres Info').item.json.titulo }}\n- Estado: {{ $('Postgres Info').item.json.estado_actual }}\n- Responde a: {{ $('Postgres Info').item.json.codigo_padre || \"Ninguno (Es documento ra\u00edz)\" }}\n---------------------\nPREGUNTA DEL USUARIO:\n{{ $('Webhook In').item.json.body.pregunta }}\n\nCONTEXTO DEL CONTRATO, SI EL USUARIO CONSULTA COMO SE RELACIONA EL DOCUMENTO CON EL CONTRATO:\n{{ $json.text }}\nINSTRUCCIONES:\nNo te extiendas tanto, se breve, Responde a la pregunta bas\u00e1ndote solo en el contexto de arriba, tu misi\u00f3n es responder al usuario basandote en el contrato, recuerda que eres del IOP (inversionista Operador Privado) por lo tanto siempre tienes que buscar la manera de como defenderlo.\nCuando un documento tiene un c\u00f3digo por ejempo AH-CCG- es un oficio de Aries, la supervisi\u00f3n de operaci\u00f3n, si el oficio es RDC-PCCG, entonces es del RDC ( Representante designado de la contratante)",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          2176,
+          144
+        ],
+        "id": "059e02c2-7e06-4ad9-924a-c9993a23dfe6",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "model": "llama-3.1-8b-instant",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+        "typeVersion": 1,
+        "position": [
+          1840,
+          368
+        ],
+        "id": "0abb8e4d-103f-4bbb-a29b-e6a475d1bc0c",
+        "name": "Groq Chat Model",
+        "credentials": {
+          "groqApi": {
+            "id": "cUieN6RPtWsvCTnA",
+            "name": "Groq account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "bucketName": "energia-media",
+          "fileKey": "docs/2026/2/CONTRATOAPP/contratoapp_2.md"
+        },
+        "type": "n8n-nodes-base.s3",
+        "typeVersion": 1,
+        "position": [
+          1968,
+          144
+        ],
+        "id": "7703ac64-26e7-4a4b-b672-d16b66203495",
+        "name": "contratoapp",
+        "credentials": {
+          "s3": {
+            "id": "8QNeVz7QEL7RcrkC",
+            "name": "S3 account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT \n    d.id,\n    d.codigo,\n    d.titulo,\n    d.estado_actual,\n    d.creado_en,\n    -- Info del documento padre (respuesta_a)\n    padre.codigo as codigo_padre,\n    padre.titulo as titulo_padre,\n    padre.estado_actual as estado_padre\nFROM \n    documentos_documento d\nLEFT JOIN \n    documentos_documento padre ON d.respuesta_a_id = padre.id\nWHERE \n    d.id = {{ $json.body.documento_id }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1104,
+          144
+        ],
+        "id": "d146db1c-7691-41e4-8a6a-e6c633da9b24",
+        "name": "Postgres Info",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 3
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $binary.data.mimeType }}",
+                      "rightValue": "pdf",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "id": "f3c3bc27-1993-4d48-83f1-c54d80b313f5"
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.4,
+        "position": [
+          1376,
+          496
+        ],
+        "id": "62c4f5e7-46d5-4db5-a1b7-e24f27e1ba49",
+        "name": "Switch"
+      },
+      {
+        "parameters": {
+          "sessionIdType": "customKey",
+          "sessionKey": "mi-sesion-de-prueba"
+        },
+        "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+        "typeVersion": 1.3,
+        "position": [
+          2192,
+          400
+        ],
+        "id": "101c82ba-c56f-4c59-b14e-a418a9813155",
+        "name": "Postgres Chat Memory",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "model": "llama3.2:1b",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+        "typeVersion": 1,
+        "position": [
+          1760,
+          480
+        ],
+        "id": "aa7ce1e3-e339-4eaa-9e31-092b2cc6a0a5",
+        "name": "Ollama Chat Model",
+        "credentials": {
+          "ollamaApi": {
+            "id": "t4kScercPecSOnxi",
+            "name": "Ollama account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "typeVersion": 1,
+        "position": [
+          2048,
+          352
+        ],
+        "id": "f7547120-edd9-48a3-b223-b5acb9894d9e",
+        "name": "Google Gemini Chat Model",
+        "credentials": {
+          "googlePalmApi": {
+            "id": "Wpexi3r5YS6ckVwQ",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook In": {
+        "main": [
+          [
+            {
+              "node": "Postgres Info",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Descargar S3": {
+        "main": [
+          [
+            {
+              "node": "Extract from File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract from File": {
+        "main": [
+          [
+            {
+              "node": "contratoapp",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Groq Chat Model": {
+        "ai_languageModel": [
+          []
+        ]
+      },
+      "contratoapp": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Postgres Info": {
+        "main": [
+          [
+            {
+              "node": "Descargar S3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Postgres Chat Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ollama Chat Model": {
+        "ai_languageModel": [
+          []
+        ]
+      },
+      "Google Gemini Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate",
+      "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "pinData": {
+      "Webhook In": [
+        {
+          "json": {
+            "headers": {
+              "host": "181.115.47.107:5678",
+              "user-agent": "python-requests/2.32.5",
+              "content-length": "133",
+              "accept": "*/*",
+              "accept-encoding": "gzip, deflate",
+              "content-type": "application/json",
+              "x-forwarded-for": "10.30.1.13",
+              "x-forwarded-host": "181.115.47.107:5678",
+              "x-forwarded-port": "5678",
+              "x-forwarded-proto": "http",
+              "x-forwarded-server": "776f01710fa2",
+              "x-real-ip": "10.30.1.13"
+            },
+            "params": {},
+            "query": {},
+            "body": {
+              "pregunta": "hola",
+              "filepath": "docs/2026/2/AH-CCG-328-2025/AH-CCG-328-2025.pdf",
+              "documento_id": "26",
+              "usuario": "saul.alvarado"
+            },
+            "webhookUrl": "http://181.115.47.107:5678/webhook/chat-documento",
+            "executionMode": "production"
+          },
+          "pairedItem": {
+            "item": 0
+          }
+        }
+      ]
+    },
+    "versionId": "d9cc8eed-d614-4446-be11-322d3ed1edd7",
+    "activeVersionId": "d9cc8eed-d614-4446-be11-322d3ed1edd7",
+    "triggerCount": 1,
+    "shared": [
+      {
+        "updatedAt": "2026-02-15T05:02:23.922Z",
+        "createdAt": "2026-02-15T05:02:23.922Z",
+        "role": "workflow:owner",
+        "workflowId": "0iJvBAygCm8vYxoe",
+        "projectId": "GSSLoLeG6jElPBJW"
+      }
+    ],
+    "activeVersion": {
+      "updatedAt": "2026-02-19T18:04:08.686Z",
+      "createdAt": "2026-02-19T18:04:00.178Z",
+      "versionId": "d9cc8eed-d614-4446-be11-322d3ed1edd7",
+      "workflowId": "0iJvBAygCm8vYxoe",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "chat-documento",
+            "responseMode": "lastNode",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 1,
+          "position": [
+            800,
+            144
+          ],
+          "id": "98b452f4-27c5-40d7-bfe2-c555a547dd3d",
+          "name": "Webhook In",
+          "webhookId": "70943a29-a85a-4dc4-a44e-f0b88fdc43d5"
+        },
+        {
+          "parameters": {
+            "bucketName": "energia-media",
+            "fileKey": "={{ $('Webhook In').item.json.body.filepath }}"
+          },
+          "type": "n8n-nodes-base.s3",
+          "typeVersion": 1,
+          "position": [
+            1296,
+            144
+          ],
+          "id": "f5e20126-5e65-459a-b422-1cadbb5a2fe7",
+          "name": "Descargar S3",
+          "credentials": {
+            "s3": {
+              "id": "8QNeVz7QEL7RcrkC",
+              "name": "S3 account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "operation": "pdf",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.extractFromFile",
+          "typeVersion": 1.1,
+          "position": [
+            1632,
+            16
+          ],
+          "id": "cbfdbdee-3efd-433f-89bc-bcde506be0f2",
+          "name": "Extract from File"
+        },
+        {
+          "parameters": {
+            "promptType": "define",
+            "text": "=CONTEXTO DEL DOCUMENTO:\n---------------------\n- Documento: {{ $('Postgres Info').item.json.codigo }}\n- T\u00edtulo: {{ $('Postgres Info').item.json.titulo }}\n- Estado: {{ $('Postgres Info').item.json.estado_actual }}\n- Responde a: {{ $('Postgres Info').item.json.codigo_padre || \"Ninguno (Es documento ra\u00edz)\" }}\n---------------------\nPREGUNTA DEL USUARIO:\n{{ $('Webhook In').item.json.body.pregunta }}\n\nCONTEXTO DEL CONTRATO, SI EL USUARIO CONSULTA COMO SE RELACIONA EL DOCUMENTO CON EL CONTRATO:\n{{ $json.text }}\nINSTRUCCIONES:\nNo te extiendas tanto, se breve, Responde a la pregunta bas\u00e1ndote solo en el contexto de arriba, tu misi\u00f3n es responder al usuario basandote en el contrato, recuerda que eres del IOP (inversionista Operador Privado) por lo tanto siempre tienes que buscar la manera de como defenderlo.\nCuando un documento tiene un c\u00f3digo por ejempo AH-CCG- es un oficio de Aries, la supervisi\u00f3n de operaci\u00f3n, si el oficio es RDC-PCCG, entonces es del RDC ( Representante designado de la contratante)",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.agent",
+          "typeVersion": 3.1,
+          "position": [
+            2176,
+            144
+          ],
+          "id": "059e02c2-7e06-4ad9-924a-c9993a23dfe6",
+          "name": "AI Agent"
+        },
+        {
+          "parameters": {
+            "model": "llama-3.1-8b-instant",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+          "typeVersion": 1,
+          "position": [
+            1840,
+            368
+          ],
+          "id": "0abb8e4d-103f-4bbb-a29b-e6a475d1bc0c",
+          "name": "Groq Chat Model",
+          "credentials": {
+            "groqApi": {
+              "id": "cUieN6RPtWsvCTnA",
+              "name": "Groq account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "bucketName": "energia-media",
+            "fileKey": "docs/2026/2/CONTRATOAPP/contratoapp_2.md"
+          },
+          "type": "n8n-nodes-base.s3",
+          "typeVersion": 1,
+          "position": [
+            1968,
+            144
+          ],
+          "id": "7703ac64-26e7-4a4b-b672-d16b66203495",
+          "name": "contratoapp",
+          "credentials": {
+            "s3": {
+              "id": "8QNeVz7QEL7RcrkC",
+              "name": "S3 account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "operation": "executeQuery",
+            "query": "SELECT \n    d.id,\n    d.codigo,\n    d.titulo,\n    d.estado_actual,\n    d.creado_en,\n    -- Info del documento padre (respuesta_a)\n    padre.codigo as codigo_padre,\n    padre.titulo as titulo_padre,\n    padre.estado_actual as estado_padre\nFROM \n    documentos_documento d\nLEFT JOIN \n    documentos_documento padre ON d.respuesta_a_id = padre.id\nWHERE \n    d.id = {{ $json.body.documento_id }}",
+            "options": {}
+          },
+          "type": "n8n-nodes-base.postgres",
+          "typeVersion": 2.6,
+          "position": [
+            1104,
+            144
+          ],
+          "id": "d146db1c-7691-41e4-8a6a-e6c633da9b24",
+          "name": "Postgres Info",
+          "credentials": {
+            "postgres": {
+              "id": "0GI4GAGRXkWfR6pK",
+              "name": "Postgres account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "rules": {
+              "values": [
+                {
+                  "conditions": {
+                    "options": {
+                      "caseSensitive": true,
+                      "leftValue": "",
+                      "typeValidation": "strict",
+                      "version": 3
+                    },
+                    "conditions": [
+                      {
+                        "leftValue": "={{ $binary.data.mimeType }}",
+                        "rightValue": "pdf",
+                        "operator": {
+                          "type": "string",
+                          "operation": "equals"
+                        },
+                        "id": "f3c3bc27-1993-4d48-83f1-c54d80b313f5"
+                      }
+                    ],
+                    "combinator": "and"
+                  }
+                }
+              ]
+            },
+            "options": {}
+          },
+          "type": "n8n-nodes-base.switch",
+          "typeVersion": 3.4,
+          "position": [
+            1376,
+            496
+          ],
+          "id": "62c4f5e7-46d5-4db5-a1b7-e24f27e1ba49",
+          "name": "Switch"
+        },
+        {
+          "parameters": {
+            "sessionIdType": "customKey",
+            "sessionKey": "mi-sesion-de-prueba"
+          },
+          "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+          "typeVersion": 1.3,
+          "position": [
+            2192,
+            400
+          ],
+          "id": "101c82ba-c56f-4c59-b14e-a418a9813155",
+          "name": "Postgres Chat Memory",
+          "credentials": {
+            "postgres": {
+              "id": "0GI4GAGRXkWfR6pK",
+              "name": "Postgres account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "model": "llama3.2:1b",
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+          "typeVersion": 1,
+          "position": [
+            1760,
+            480
+          ],
+          "id": "aa7ce1e3-e339-4eaa-9e31-092b2cc6a0a5",
+          "name": "Ollama Chat Model",
+          "credentials": {
+            "ollamaApi": {
+              "id": "t4kScercPecSOnxi",
+              "name": "Ollama account"
+            }
+          }
+        },
+        {
+          "parameters": {
+            "options": {}
+          },
+          "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+          "typeVersion": 1,
+          "position": [
+            2048,
+            352
+          ],
+          "id": "f7547120-edd9-48a3-b223-b5acb9894d9e",
+          "name": "Google Gemini Chat Model",
+          "credentials": {
+            "googlePalmApi": {
+              "id": "Wpexi3r5YS6ckVwQ",
+              "name": "Google Gemini(PaLM) Api account"
+            }
+          }
+        }
+      ],
+      "connections": {
+        "Webhook In": {
+          "main": [
+            [
+              {
+                "node": "Postgres Info",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Descargar S3": {
+          "main": [
+            [
+              {
+                "node": "Extract from File",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Extract from File": {
+          "main": [
+            [
+              {
+                "node": "contratoapp",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Groq Chat Model": {
+          "ai_languageModel": [
+            []
+          ]
+        },
+        "contratoapp": {
+          "main": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Postgres Info": {
+          "main": [
+            [
+              {
+                "node": "Descargar S3",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Postgres Chat Memory": {
+          "ai_memory": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_memory",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Ollama Chat Model": {
+          "ai_languageModel": [
+            []
+          ]
+        },
+        "Google Gemini Chat Model": {
+          "ai_languageModel": [
+            [
+              {
+                "node": "AI Agent",
+                "type": "ai_languageModel",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      },
+      "authors": "saul alvarado",
+      "name": "Version d9cc8eed",
+      "description": "",
+      "autosaved": true
+    },
+    "tags": []
+  }
+]

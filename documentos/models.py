@@ -308,6 +308,15 @@ class MetadatoValor(models.Model):
             return f"{self.documento.codigo}: {self.config.etiqueta} -> {self.objeto_vinculado}"
         return f"{self.documento.codigo}: {self.config.etiqueta} = {self.valor}"
 
+    def save(self, *args, **kwargs):
+        # Si es un metadato de tipo RELACIÓN y tiene una configuración de modelo
+        if self.config.tipo_campo == 'RELACION' and self.config.modelo_relativo:
+            # Sincronizar ContentType desde la configuración si no está definido
+            if not self.content_type:
+                self.content_type = self.config.modelo_relativo
+        
+        super().save(*args, **kwargs)
+
 class ComentarioDocumento(models.Model):
     """
     Comentarios u observaciones asociados a un punto específico del PDF.

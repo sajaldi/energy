@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from django.db.models import Count, Q, Min
-from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoProcedimiento, Falla, FotoAviso
+from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso
 from activos.models import Activo, Ubicacion, DocumentoMedicion
 
 @staff_member_required

@@ -222,11 +222,14 @@ def cronograma_mantenimiento_visual(request):
                 for i in range(52):
                     ots = weeks_map.get(i, [])
                     if ots:
-                        if not color_found: 
-                            best_color = ots[0]['programacion__horario__color'] or '#3b82f6'
-                            color_found = True
-                        routine_color = ots[0]['programacion__horario__color'] or '#3b82f6'
-                    
+                        is_invasive = any(o.get('rutina__es_invasiva', False) for o in ots)
+                        if is_invasive:
+                            routine_color = '#ef4444' # Rojo invasiva
+                        else:
+                            if not color_found: 
+                                best_color = ots[0]['programacion__horario__color'] or '#3b82f6'
+                                color_found = True
+                            routine_color = ots[0]['programacion__horario__color'] or '#3b82f6'
                     first = ots[0] if ots else None
                     celdas_rutina.append({
                         'active': bool(ots), 
@@ -466,7 +469,7 @@ def detalle_mes(request, year, month):
                         'rutina_nombre': ot.rutina.nombre if ot.rutina else "OT", 
                         'activos_nombres': ", ".join([a.nombre for a in assets]), 
                         'duration_pos': dp, 
-                        'color': ot.programacion.horario.color if ot.programacion and ot.programacion.horario else '#3b82f6'
+                        'color': '#ef4444' if (ot.rutina and ot.rutina.es_invasiva) else (ot.programacion.horario.color if ot.programacion and ot.programacion.horario else '#3b82f6')
                     }
                     
                     if not assets:
@@ -486,7 +489,7 @@ def detalle_mes(request, year, month):
                 'fin_full': '', 'fin_hm': '', 
                 'rutina_nombre': p.rutina.nombre, 'activos_nombres': 'Simulado', 
                 'duration_pos': 'single', 'prog_id': p.id, 'date': f.isoformat(), 
-                'color': p.horario.color if p.horario else '#94a3b8'
+                'color': '#ef4444' if p.rutina.es_invasiva else (p.horario.color if p.horario else '#94a3b8')
             }
             add_to_tree_common(info, p.rutina, fa, [], info['color'], f.day)
 
