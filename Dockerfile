@@ -1,4 +1,4 @@
-# Dockerfile para Django + Celery en Coolify
+# Dockerfile optimizado para Django + Celery en Coolify
 
 FROM python:3.11-slim
 
@@ -8,32 +8,31 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Instalar dependencias del sistema
+# 1. Instalar dependencias del sistema base
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar e instalar dependencias de Python
+# 2. Instalación de dependencias de Python (Capa con caché persistente)
 COPY requirements.txt /app/
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    playwright install --with-deps chromium
+    pip install --no-cache-dir -r requirements.txt
 
-# Copiar código de la aplicación
+# 3. Playwright (Instalación separada para caché)
+# Instalamos Chromium y sus dependencias de sistema específicas
+RUN playwright install --with-deps chromium
+
+# 4. Copiar código de la aplicación (Capa que cambia frecuentemente)
 COPY . /app/
 
-# Crear directorios necesarios
+# 5. Preparación de entorno
 RUN mkdir -p /app/media /app/staticfiles
-
-# Recolectar archivos estáticos
 RUN python manage.py collectstatic --noinput || true
 
-# Exponer puerto
+# Configuración de ejecución
 EXPOSE 8000
-
-# Dar permisos al script de inicio
 RUN chmod +x /app/start.sh
 
 # El comando se define por el script de inicio (Web por defecto)
