@@ -1006,3 +1006,10 @@ def api_documento_vectorize_single(request, doc_id):
         
     generate_document_embedding.delay(doc.id)
     return JsonResponse({'status': 'success', 'message': f'Tarea de vectorización encolada para el documento {doc.id}'})
+
+@login_required
+def busqueda_vectorial(request):
+    """
+    Renderiza la interfaz premium de búsqueda semántica.
+    """
+    return render(request, 'documentos/busqueda_vectorial.html')
