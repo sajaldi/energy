@@ -131,14 +131,14 @@
 
     <!-- Content Area -->
     <div id="loading" class="hidden">
-        <div class="grid grid-cols-1 gap-4">
-            <div class="glass-morphism h-32 rounded-xl shimmer"></div>
-            <div class="glass-morphism h-32 rounded-xl shimmer"></div>
-            <div class="glass-morphism h-32 rounded-xl shimmer"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="glass-morphism h-64 rounded-xl shimmer"></div>
+            <div class="glass-morphism h-64 rounded-xl shimmer"></div>
+            <div class="glass-morphism h-64 rounded-xl shimmer"></div>
         </div>
     </div>
 
-    <div id="results" class="grid grid-cols-1 gap-6">
+    <div id="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         <!-- Results inject here -->
     </div>
 
@@ -197,80 +197,73 @@
 
     function createResultCard(doc, index) {
         const div = document.createElement('div');
-        div.className = `glass-morphism rounded-xl p-8 result-card animate__animated animate__fadeInUp`;
+        div.className = `glass-morphism rounded-xl p-6 result-card animate__animated animate__fadeInUp flex flex-col h-full`;
         div.style.animationDelay = `${index * 0.1}s`;
         
         const score = (doc.similitud * 100).toFixed(1);
         let statusColor = 'text-emerald-400';
         let statusBg = 'bg-emerald-500/10';
-        let statusLabel = 'Coincidencia Alta';
+        let statusLabel = 'Alta';
 
         if (doc.similitud < 0.6) {
             statusColor = 'text-amber-400';
             statusBg = 'bg-amber-500/10';
-            statusLabel = 'Coincidencia Media';
+            statusLabel = 'Media';
         }
         if (doc.similitud < 0.4) {
             statusColor = 'text-slate-400';
             statusBg = 'bg-slate-500/10';
-            statusLabel = 'Coincidencia Baja';
+            statusLabel = 'Baja';
         }
 
         div.innerHTML = `
-            <div class="flex flex-col lg:flex-row items-start lg:items-center gap-8">
-                <!-- Match Score Indicator -->
+            <div class="flex justify-between items-start mb-6">
                 <div class="relative flex-shrink-0">
-                    <svg class="h-24 w-24 transform -rotate-90">
-                        <circle cx="48" cy="48" r="40" stroke="currentColor" stroke-width="6" fill="transparent" class="text-slate-800" />
-                        <circle cx="48" cy="48" r="40" stroke="currentColor" stroke-width="6" fill="transparent" 
+                    <svg class="h-16 w-16 transform -rotate-90">
+                        <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="4" fill="transparent" class="text-slate-800" />
+                        <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="4" fill="transparent" 
                                 class="${statusColor} transition-all duration-1000"
-                                stroke-dasharray="${251.2}"
-                                stroke-dashoffset="${251.2 * (1 - doc.similitud)}"
+                                stroke-dasharray="${175.9}"
+                                stroke-dashoffset="${175.9 * (1 - doc.similitud)}"
                                 stroke-linecap="round" />
                     </svg>
                     <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <span class="text-xl font-black text-white">${score}%</span>
-                        <span class="text-[8px] uppercase tracking-tighter text-slate-500 font-bold">Match</span>
+                        <span class="text-sm font-black text-white">${score}%</span>
                     </div>
                 </div>
+                <div class="text-right">
+                    <span class="px-2 py-1 rounded text-[9px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 uppercase block mb-1">
+                        ${doc.codigo}
+                    </span>
+                    <span class="px-2 py-1 rounded ${statusBg} ${statusColor} text-[8px] font-black uppercase tracking-widest">
+                        Match ${statusLabel}
+                    </span>
+                </div>
+            </div>
 
-                <!-- Info -->
-                <div class="flex-1 min-w-0">
-                    <div class="flex flex-wrap items-center gap-3 mb-4">
-                        <span class="px-3 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 text-xs font-bold border border-indigo-500/30">
-                            ${doc.codigo}
-                        </span>
-                        <span class="px-3 py-1 rounded-lg ${statusBg} ${statusColor} text-[10px] font-bold uppercase tracking-wider">
-                            ${statusLabel}
-                        </span>
-                    </div>
-                    <h3 class="text-2xl md:text-3xl font-extrabold text-white mb-3 hover:text-indigo-400 transition-colors cursor-pointer">
-                        ${doc.titulo}
-                    </h3>
-                    <p class="text-slate-400 text-sm font-light leading-relaxed mb-6 line-clamp-3">
-                        <span class="text-indigo-300 font-medium">Coincidencia encontrada:</span> "${doc.fragmento_preview}"
+            <div class="flex-1">
+                <h3 class="text-xl font-bold text-white mb-3 line-clamp-2 hover:text-indigo-400 transition-colors cursor-pointer leading-tight">
+                    ${doc.titulo}
+                </h3>
+                <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-800/50 mb-6">
+                    <p class="text-slate-400 text-xs font-light leading-relaxed line-clamp-4">
+                        <span class="text-indigo-400/80 font-semibold lowercase tracking-tighter italic mr-1">fragmento:</span> "${doc.fragmento_preview}"
                     </p>
-                    
-                    <div class="flex flex-wrap gap-4">
-                        <a href="/documentos/proxy/pdf/${doc.id}/" target="_blank" class="inline-flex items-center space-x-2 text-sm font-bold text-white hover:text-indigo-400 transition-colors group">
-                            <span class="bg-slate-800 p-2 rounded-lg group-hover:bg-indigo-500/20 transition-all">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                            </span>
-                            <span>Visualizar Documento</span>
-                        </a>
-                        <a href="/admin/documentos/documento/${doc.id}/change/" class="inline-flex items-center space-x-2 text-sm font-bold text-slate-400 hover:text-white transition-colors group">
-                            <span class="bg-slate-800 p-2 rounded-lg group-hover:bg-slate-700 transition-all">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                            </span>
-                            <span>Gestionar</span>
-                        </a>
-                    </div>
                 </div>
+            </div>
 
-                <!-- Distance -->
-                <div class="hidden xl:flex flex-col items-end text-right border-l border-slate-800 pl-8 h-full min-h-[100px] justify-center">
-                    <div class="text-[10px] text-slate-600 uppercase font-black tracking-widest mb-1">Vector Dist.</div>
-                    <div class="text-xl font-mono text-slate-400">${doc.distancia}</div>
+            <div class="pt-4 border-t border-slate-800/50 flex items-center justify-between gap-4 mt-auto">
+                <div class="flex gap-2">
+                    <a href="/documentos/proxy/pdf/${doc.id}/" target="_blank" class="p-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-500/20" title="Ver PDF">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </a>
+                    <a href="/admin/documentos/documento/${doc.id}/change/" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border border-slate-700" title="Gestionar">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </a>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-[8px] text-slate-600 uppercase font-black tracking-widest">distancia</span>
+                    <span class="text-xs font-mono text-slate-500">${doc.distancia}</span>
                 </div>
             </div>
         `;
