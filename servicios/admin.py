@@ -2,12 +2,39 @@ from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
 from .models import Servicio, KPI, ChecklistItem
 from .resources import ServicioResource, KPIResource
+from django.contrib.contenttypes.admin import GenericTabularInline
+from documentos.models import MetadatoValor
+from django.utils.html import format_html
+from django.urls import reverse
 
 class ChecklistItemInline(admin.TabularInline):
     model = ChecklistItem
     extra = 0
     fields = ('descripcion', 'completado', 'orden')
     ordering = ('orden',)
+
+class DocumentoRelacionadoInline(GenericTabularInline):
+    model = MetadatoValor
+    extra = 0
+    verbose_name = "Documento Relacionado"
+    verbose_name_plural = "Documentos Relacionados"
+    fields = ('get_documento_link', 'get_tipo_documento', 'config')
+    readonly_fields = ('get_documento_link', 'get_tipo_documento', 'config')
+    can_delete = False
+    
+    def get_documento_link(self, obj):
+        if obj.documento:
+            url = reverse('admin:documentos_documento_change', args=[obj.documento.id])
+            return format_html('<a href="{}" style="font-weight: bold; color: #2563eb;">{}</a>', url, obj.documento.titulo)
+        return "-"
+    get_documento_link.short_description = "Documento"
+
+    def get_tipo_documento(self, obj):
+        return obj.documento.tipo_documento if obj.documento else "-"
+    get_tipo_documento.short_description = "Tipo"
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 @admin.register(Servicio)
 class ServicioAdmin(ImportExportModelAdmin):
@@ -27,7 +54,7 @@ class KPIAdmin(ImportExportModelAdmin):
     search_fields = ('nombre', 'descripcion', 'servicio__nombre', 'forma_de_cumplimiento', 'metodo_de_supervision')
     readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
     ordering = ('nombre', 'servicio')
-    inlines = [ChecklistItemInline]
+    inlines = [ChecklistItemInline, DocumentoRelacionadoInline]
 
 
     def get_urls(self):
