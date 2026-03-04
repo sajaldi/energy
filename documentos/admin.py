@@ -441,10 +441,51 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         )
     solicitar_firmas_link.short_description = "Firmas"
 
+class MetadatoConfigForm(forms.ModelForm):
+    class Meta:
+        model = MetadatoConfig
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Convertir campo_visualizacion en un Select con las opciones del modelo si existe
+        if self.instance and self.instance.modelo_relativo:
+            model_class = self.instance.modelo_relativo.model_class()
+            if model_class:
+                fields = []
+                for f in model_class._meta.get_fields():
+                    if not f.is_relation or f.many_to_one or f.one_to_one:
+                        if hasattr(f, 'name') and not f.name.startswith('_'):
+                            fields.append(f.name)
+                
+                sorted_fields = sorted(list(set(fields)))
+                choices = [('', '---------')] + [(f, f) for f in sorted_fields]
+                # Si el valor actual no está en la lista (ej: cambiado por error), lo agregamos
+                current = self.initial.get('campo_visualizacion') or self.instance.campo_visualizacion
+                if current and current not in sorted_fields:
+                    choices.append((current, current))
+                
+                self.fields['campo_visualizacion'] = forms.ChoiceField(
+                    choices=choices,
+                    required=False,
+                    label="Campo Visualización"
+                )
+        else:
+            # Dropdown vacío por defecto si no hay modelo seleccionado
+            self.fields['campo_visualizacion'] = forms.ChoiceField(
+                choices=[('', '---------')],
+                required=False,
+                label="Campo Visualización"
+            )
+
 class MetadatoConfigInline(admin.TabularInline):
     model = MetadatoConfig
+    form = MetadatoConfigForm
     extra = 1
     fields = ('nombre', 'etiqueta', 'tipo_campo', 'modelo_relativo', 'campo_visualizacion', 'descripcion', 'requerido', 'orden')
+    
+    class Media:
+        js = ('admin/js/metadato_config_dynamic.js',)
 
 @admin.register(TipoDocumento)
 class TipoDocumentoAdmin(admin.ModelAdmin):

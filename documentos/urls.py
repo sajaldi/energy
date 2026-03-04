@@ -37,4 +37,5 @@ urlpatterns = [
     path('api/vectorize/<int:doc_id>/', views.api_documento_vectorize_single, name='api_documento_vectorize_single'),
     path('busqueda-semantica/', views.busqueda_vectorial, name='busqueda_vectorial'),
     path('biblioteca/visualizar/<int:bib_id>/', views.biblioteca_visualizar, name='biblioteca_visualizar'),
+    path('api/model-fields/', views.api_get_model_fields, name='api_get_model_fields'),
 ]

@@ -13,6 +13,35 @@ import json
 import requests
 import datetime
 from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina, Revision, MetadatoConfig, ComentarioImagen
+from django.contrib.contenttypes.models import ContentType
+
+@login_required
+def api_get_model_fields(request):
+    """
+    Retorna una lista de campos disponibles para un ContentType específico.
+    Se usa para el selector dinámico en la configuración de metadatos relacionales.
+    """
+    ct_id = request.GET.get('ct_id')
+    if not ct_id:
+        return JsonResponse({'fields': []})
+    
+    try:
+        ct = ContentType.objects.get(pk=ct_id)
+        model_class = ct.model_class()
+        if model_class:
+            # Obtener campos simples que no sean relaciones ManyToMany o reversas complejas
+            fields = []
+            for f in model_class._meta.get_fields():
+                # Filtrar campos: queremos campos de base de datos directos o FKs simples
+                if not f.is_relation or f.many_to_one or f.one_to_one:
+                    if hasattr(f, 'name') and not f.name.startswith('_'):
+                        fields.append(f.name)
+            
+            return JsonResponse({'fields': sorted(list(set(fields)))})
+    except Exception as e:
+        print(f"Error en api_get_model_fields: {e}")
+        
+    return JsonResponse({'fields': []})
 
 @login_required
 def documento_trazabilidad(request, doc_id):
