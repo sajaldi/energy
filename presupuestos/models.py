@@ -852,6 +852,7 @@ class REPEXItem(models.Model):
 
     repex = models.ForeignKey(REPEX, related_name='items', on_delete=models.CASCADE)
     activo = models.ForeignKey('activos.Activo', on_delete=models.CASCADE, related_name='repex_items', null=True, blank=True, help_text="Dejar vacío para ítems manuales")
+    modelo = models.ForeignKey('activos.Modelo', on_delete=models.SET_NULL, null=True, blank=True, related_name='repex_items_manuales', help_text="Modelo asociado para ítems manuales")
     
     # Campos para ítems manuales (sin activo vinculado)
     nombre_item = models.CharField(max_length=300, blank=True, help_text="Nombre descriptivo cuando no hay activo vinculado")

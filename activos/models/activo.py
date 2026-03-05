@@ -22,6 +22,7 @@ class Modelo(models.Model):
     nombre = models.CharField(max_length=100)
     marca = models.ForeignKey(Marca, on_delete=models.CASCADE, related_name='modelos')
     categoria = models.ForeignKey('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='modelos')
+    unidad_medida = models.ForeignKey('core.UnidadMedida', on_delete=models.SET_NULL, null=True, blank=True, related_name='modelos_asociados', help_text="Unidad de medida por defecto")
     
     imagen_archivo = models.ImageField(upload_to='modelos_fotos/', blank=True, null=True, storage=minio_storage, help_text="Cargar imagen desde el equipo")
     imagen_url = models.URLField(max_length=500, blank=True, null=True, help_text="O pegar una URL externa de la imagen")

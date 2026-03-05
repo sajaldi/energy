@@ -1675,11 +1675,13 @@ def api_import_repex_items(request):
 def api_add_manual_repex_item(request):
     """Agrega un ítem manual al plan REPEX (sin activo vinculado)."""
     from .models import REPEXItem, REPEX
+    from activos.models import Modelo
     import json
 
     try:
         data = json.loads(request.body)
         repex_id = data.get('repex_id')
+        modelo_id = data.get('modelo_id')
         nombre = data.get('nombre_item', '').strip()
         ubicacion = data.get('ubicacion_manual', '').strip()
         categoria = data.get('categoria_manual', '').strip()
@@ -1688,14 +1690,31 @@ def api_add_manual_repex_item(request):
         precio_val = data.get('precio_unitario', 0)
         prioridad = data.get('prioridad', 'MEDIA')
 
-        if not repex_id or not nombre:
-            return JsonResponse({'status': 'error', 'message': 'Nombre del ítem y REPEX son requeridos.'}, status=400)
+        if not repex_id:
+            return JsonResponse({'status': 'error', 'message': 'El ID del REPEX es requerido.'}, status=400)
 
         repex = REPEX.objects.get(pk=repex_id)
+        
+        modelo_obj = None
+        if modelo_id:
+            modelo_obj = Modelo.objects.filter(pk=modelo_id).first()
+            if modelo_obj:
+                if not nombre:
+                    nombre = f"{modelo_obj.marca.nombre} {modelo_obj.nombre}" if hasattr(modelo_obj, 'marca') else modelo_obj.nombre
+                
+                if not categoria and hasattr(modelo_obj, 'categoria') and modelo_obj.categoria:
+                    categoria = modelo_obj.categoria.nombre
+                    
+                if not unidades_val and hasattr(modelo_obj, 'unidad_medida') and modelo_obj.unidad_medida:
+                    unidades_val = modelo_obj.unidad_medida.nombre
+
+        if not nombre:
+             return JsonResponse({'status': 'error', 'message': 'Nombre del ítem es requerido.'}, status=400)
 
         item = REPEXItem(
             repex=repex,
             activo=None,
+            modelo=modelo_obj,
             nombre_item=nombre,
             ubicacion_manual=ubicacion,
             categoria_manual=categoria,

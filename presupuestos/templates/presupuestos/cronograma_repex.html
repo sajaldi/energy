@@ -780,8 +780,9 @@
         </p>
 
         <div class="form-group">
-            <label for="manualNombre">Nombre / Descripción del Ítem *</label>
-            <input type="text" id="manualNombre" placeholder="Ej: Reposición luminarias LED T8">
+            <label for="manualModelo">Seleccionar Modelo *</label>
+            <select id="manualModelo" class="form-control" style="width: 100%;"></select>
+            <input type="hidden" id="manualNombre">
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group">
@@ -789,14 +790,14 @@
                 <input type="text" id="manualUbicacion" placeholder="Ej: Edificio A → Nivel 2">
             </div>
             <div class="form-group">
-                <label for="manualCategoria">Categoría</label>
-                <input type="text" id="manualCategoria" placeholder="Ej: Iluminación">
+                <label for="manualCategoria">Categoría (Autocompletado)</label>
+                <input type="text" id="manualCategoria" placeholder="Ej: Iluminación" readonly style="background-color: #f8fafc; cursor: not-allowed;">
             </div>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
             <div class="form-group">
-                <label for="manualUnidades">Unidades</label>
-                <input type="text" id="manualUnidades" placeholder="Ej: pieza, metro, lote">
+                <label for="manualUnidades">Unidades (Autocompletado)</label>
+                <input type="text" id="manualUnidades" placeholder="Ej: pieza, metro, lote" readonly style="background-color: #f8fafc; cursor: not-allowed;">
             </div>
             <div class="form-group">
                 <label for="manualCantidad">Cantidad</label>
@@ -981,6 +982,7 @@
 
     // ── Modal: Agregar Ítem Manual ──
     function openManualItemModal() {
+        $('#manualModelo').val(null).trigger('change');
         document.getElementById('manualNombre').value = '';
         document.getElementById('manualUbicacion').value = '';
         document.getElementById('manualCategoria').value = '';
@@ -1006,9 +1008,11 @@
     }
 
     function submitManualItem() {
+        const modeloId = $('#manualModelo').val();
         const nombre = document.getElementById('manualNombre').value.trim();
-        if (!nombre) {
-            showToast('El nombre del ítem es requerido', 'error');
+        
+        if (!modeloId || !nombre) {
+            showToast('Seleccione un Modelo', 'error');
             return;
         }
 
@@ -1018,6 +1022,7 @@
 
         const payload = {
             repex_id: repexId,
+            modelo_id: modeloId,
             nombre_item: nombre,
             ubicacion_manual: document.getElementById('manualUbicacion').value.trim(),
             categoria_manual: document.getElementById('manualCategoria').value.trim(),
@@ -1229,5 +1234,60 @@
             showToast('Error de conexión', 'error');
         });
     }
+
+    // --- Inicialización Select2 para Modelo Manual ---
+    $(document).ready(function() {
+        if ($('#manualModelo').length) {
+            $('#manualModelo').select2({
+                dropdownParent: $('#manualItemModal'),
+                ajax: {
+                    url: "{% url 'activos:api_buscar_modelos_json' %}",
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return { q: params.term };
+                    },
+                    processResults: function (data) {
+                        return { results: data.results }; 
+                    },
+                    cache: true
+                },
+                placeholder: '🔍 Buscar modelo de activo...',
+                minimumInputLength: 2,
+                allowClear: true,
+                templateResult: function(m) {
+                    if (!m.id) return m.text;
+                    let c = m.categoria ? m.categoria : 'Sin categoría';
+                    return $(`
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <ion-icon name="${m.icono || 'cube'}" style="color:var(--text-muted); font-size:1.2rem;"></ion-icon>
+                            <div>
+                                <div style="font-weight:600; color:var(--text-main);">${m.text}</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted);">${c}</div>
+                            </div>
+                        </div>
+                    `);
+                },
+                templateSelection: function(m) {
+                    return m.text;
+                }
+            });
+
+            // Autocompletar campos cuando se selecciona un modelo
+            $('#manualModelo').on('select2:select', function (e) {
+                var data = e.params.data;
+                $('#manualNombre').val(data.text);
+                $('#manualCategoria').val(data.categoria || '');
+                $('#manualUnidades').val(data.unidad || '');
+            });
+            
+            $('#manualModelo').on('select2:unselect', function (e) {
+                $('#manualNombre').val('');
+                $('#manualCategoria').val('');
+                $('#manualUnidades').val('');
+            });
+        }
+    });
+
 </script>
 {% endblock %}

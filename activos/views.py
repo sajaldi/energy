@@ -88,6 +88,45 @@ def api_buscar_activos_json(request):
         
     return JsonResponse({'results': data})
 
+@staff_member_required
+def api_buscar_modelos_json(request):
+    """API para búsqueda dinámica de modelos de activos para Select2"""
+    from django.db import models
+    from .models import Modelo
+    query = request.GET.get('q', '').strip()
+    
+    qs = Modelo.objects.all().select_related('marca', 'categoria', 'unidad_medida').order_by('marca__nombre', 'nombre')
+    
+    if query:
+        qs = qs.filter(
+            models.Q(nombre__icontains=query) | 
+            models.Q(marca__nombre__icontains=query)
+        )
+        
+    # Limitar resultados para evitar sobrecarga
+    qs = qs[:50]
+    
+    data = []
+    for m in qs:
+        cat_nombre = m.categoria.nombre if m.categoria else ''
+        cat_icono = m.categoria.icono if m.categoria else 'cube'
+        
+        unidad_nombre = m.unidad_medida.nombre if hasattr(m, 'unidad_medida') and m.unidad_medida else ''
+        
+        marca_str = m.marca.nombre if m.marca else ''
+        # El nombre que se mostrará
+        texto = f"{marca_str} {m.nombre}".strip()
+        
+        data.append({
+            'id': m.id,
+            'text': texto,
+            'categoria': cat_nombre,
+            'unidad': unidad_nombre,
+            'icono': cat_icono,
+        })
+        
+    return JsonResponse({'results': data})
+
 @csrf_exempt
 @staff_member_required
 def guardar_pin(request):
