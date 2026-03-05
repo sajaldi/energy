@@ -9,6 +9,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const searchForm = searchInput ? searchInput.closest('form') : null;
 
     if (searchForm) {
+        // Personalizar el placeholder para indicar búsqueda global
+        if (searchInput) {
+            searchInput.placeholder = "Buscador Global (Apps, Modelos, Códigos, Contenido)...";
+            searchInput.style.width = "400px"; // Opcional: Hacerlo un poco más ancho
+            searchInput.style.transition = "width 0.3s";
+        }
+
         searchForm.addEventListener('submit', function (e) {
             // Evitamos el comportamiento por defecto de redirección a un modelo específico
             e.preventDefault();

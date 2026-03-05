@@ -14,6 +14,8 @@
 <!-- Export PDF Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Markdown Parser -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
     .pin {
         position: absolute;
@@ -347,6 +349,18 @@
         border: 2px solid var(--primary);
         background: #f5f3ff;
         box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    .doc-node.expanded {
+        width: 350px;
+    }
+
+    .node-expand-toggle {
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .doc-node.metadata-open .node-expand-toggle {
+        transform: rotate(180deg);
     }
 
     .doc-node .code {
@@ -755,6 +769,54 @@
             max-height: 800px;
         }
 
+        /* n8n Chat Style bubbles */
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 0.925rem;
+            line-height: 1.5;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            word-break: break-word;
+        }
+
+        .message-ai {
+            background: white;
+            color: #1e293b;
+            align-self: flex-start;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-user {
+            background: #4f46e5;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-ai h1, .message-ai h2, .message-ai h3 {
+            font-size: 1.1rem;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            color: #4f46e5;
+        }
+
+        .message-ai p { margin-bottom: 8px; }
+        .message-ai ul, .message-ai ol { margin-left: 20px; margin-bottom: 10px; }
+        .message-ai table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 10px 0; 
+            font-size: 0.8rem;
+        }
+        .message-ai th, .message-ai td { 
+            border: 1px solid #e2e8f0; 
+            padding: 6px; 
+            text-align: left; 
+        }
+        .message-ai th { background: #f8fafc; }
+
         @media (max-width: 820px) {
             .chat-expanded {
                 width: 90vw !important;
@@ -763,15 +825,15 @@
         }
     </style>
     <button id="ai-chat-toggle" onclick="toggleAIChat()" title="Consultar a la IA"
-        style="width: 60px; height: 60px; border-radius: 50%; background: #4f46e5; color: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;">
-        <span style="font-size: 2rem;">🤖</span>
+        style="width: 60px; height: 60px; border-radius: 50%; background: #4f46e5; color: white; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+        <span style="font-size: 1.8rem;">✨</span>
     </button>
 
     <div id="ai-chat-window"
         style="position: absolute; bottom: 80px; right: 0; width: 350px; height: 500px; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; border: 1px solid #e2e8f0;">
         <div class="chat-header"
             style="padding: 15px; background: #4f46e5; color: white; display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0; font-size: 1rem; color: white;">Asistente ENERGY AI</h3>
+            <h3 style="margin: 0; font-size: 1rem; color: white;">Asistente SoftCoM</h3>
             <div style="display: flex; gap: 10px;">
                 <button onclick="toggleExpand()" title="Expandir/Contraer"
                     style="background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer;">⤢</button>
@@ -781,16 +843,18 @@
         </div>
         <div id="chat-messages"
             style="flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f8fafc;">
-            <div
-                style="padding: 10px 14px; border-radius: 12px; max-width: 80%; font-size: 0.9rem; line-height: 1.4; background: white; color: #334155; align-self: flex-start; border: 1px solid #e2e8f0; border-bottom-left-radius: 2px;">
-                Hola, soy tu asistente virtual. ¿En qué puedo ayudarte sobre este documento?
+            <div class="message-bubble message-ai">
+                Hola, soy tu asistente virtual basado en <strong>n8n</strong>. ¿En qué puedo ayudarte sobre el contenido de este documento?
             </div>
         </div>
-        <div style="padding: 10px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 10px;">
-            <input type="text" id="chat-input" placeholder="Escribe tu pregunta..." onkeypress="handleEnter(event)"
-                style="flex: 1; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none;">
-            <button onclick="sendMessage()"
-                style="background: #4f46e5; color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: 600;">Enviar</button>
+        <div style="padding: 12px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; align-items: center;">
+            <button onclick="clearChat()" title="Limpiar chat" style="background:none; border:none; color:#94a3b8; cursor:pointer; padding:5px;">🗑️</button>
+            <input type="text" id="chat-input" placeholder="Pregunta algo sobre el texto..." onkeypress="handleEnter(event)"
+                style="flex: 1; padding: 10px 15px; border: 1px solid #e2e8f0; border-radius: 24px; outline: none; font-size: 0.9rem; transition: border-color 0.2s;">
+            <button onclick="sendMessage()" id="btn-send-chat"
+                style="background: #4f46e5; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                <span style="font-size: 1.2rem;">🚀</span>
+            </button>
         </div>
     </div>
 </div>
@@ -816,6 +880,18 @@
 
     function handleEnter(e) { if (e.key === 'Enter') sendMessage(); }
 
+    function clearChat() {
+        if (confirm("¿Limpiar historial de chat?")) {
+            const msgs = document.getElementById('chat-messages');
+            msgs.innerHTML = `
+                <div class="message-bubble message-ai">
+                    Hola, soy tu asistente virtual basado en <strong>n8n</strong>. ¿En qué puedo ayudarte sobre el contenido de este documento?
+                </div>
+            `;
+            localStorage.removeItem(`chat_history_{{ documento.id }}`);
+        }
+    }
+
     async function sendMessage() {
         const input = document.getElementById('chat-input');
         const text = input.value.trim();
@@ -826,13 +902,15 @@
 
         const msgs = document.getElementById('chat-messages');
         const loading = document.createElement('div');
-        loading.innerText = 'Analizando...';
+        loading.className = 'message-bubble message-ai';
         loading.style.fontStyle = 'italic';
-        loading.style.color = '#94a3b8';
-        loading.style.fontSize = '0.8rem';
-        loading.style.marginLeft = '10px';
+        loading.innerHTML = '<span class="loading-pulse">Analizando documento...</span>';
         msgs.appendChild(loading);
         msgs.scrollTop = msgs.scrollHeight;
+        
+        const btnSend = document.getElementById('btn-send-chat');
+        btnSend.disabled = true;
+        btnSend.style.opacity = "0.5";
 
         try {
             const currentFilePath = "{{ documento.ultima_revision.archivo.name|default:''|escapejs }}";
@@ -850,39 +928,49 @@
             });
             const data = await res.json();
             loading.remove();
-            addMessage(data.respuesta || data.output || "Sin respuesta.", 'ai');
+            addMessage(data.respuesta || data.output || "No recibí una respuesta clara de n8n.", 'ai');
+            saveHistory();
         } catch (err) {
             loading.remove();
             console.error(err);
-            addMessage("Error de conexión.", 'ai');
+            addMessage("Lo siento, no pude conectar con el cerebro de n8n.", 'ai');
+        } finally {
+            btnSend.disabled = false;
+            btnSend.style.opacity = "1";
         }
     }
+
+    function saveHistory() {
+        const msgs = document.getElementById('chat-messages').innerHTML;
+        localStorage.setItem(`chat_history_{{ documento.id }}`, msgs);
+    }
+
+    function loadHistory() {
+        const saved = localStorage.getItem(`chat_history_{{ documento.id }}`);
+        if (saved) {
+            document.getElementById('chat-messages').innerHTML = saved;
+            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+        }
+    }
+
+    // Cargar historial al iniciar
+    window.addEventListener('DOMContentLoaded', loadHistory);
 
     function addMessage(text, type) {
         const msgs = document.getElementById('chat-messages');
         const div = document.createElement('div');
-        div.style.padding = '10px 14px';
-        div.style.borderRadius = '12px';
-        div.style.maxWidth = '80%';
-        div.style.fontSize = '0.9rem';
-        div.style.lineHeight = '1.4';
+        div.className = `message-bubble ${type === 'ai' ? 'message-ai' : 'message-user'}`;
 
         if (type === 'ai') {
-            div.style.background = 'white';
-            div.style.color = '#334155';
-            div.style.alignSelf = 'flex-start';
-            div.style.border = '1px solid #e2e8f0';
-            div.style.borderBottomLeftRadius = '2px';
+            // Renderizar Markdown
+            div.innerHTML = marked.parse(text);
         } else {
-            div.style.background = '#4f46e5';
-            div.style.color = 'white';
-            div.style.alignSelf = 'flex-end';
-            div.style.borderBottomRightRadius = '2px';
+            div.innerText = text;
         }
 
-        div.innerText = text;
         msgs.appendChild(div);
         msgs.scrollTop = msgs.scrollHeight;
+        if (type === 'user') saveHistory();
     }
 </script>
 
@@ -1401,7 +1489,14 @@
                                 </select>
                             </div>
                             <div class="detail-item"><label>Disciplina</label><span>${data.disciplina}</span></div>
-                            <div class="detail-item"><label>Fecha</label><span>${data.fecha_creacion}</span></div>
+                            <div class="detail-item"><label>Creado</label><span>${data.fecha_creacion}</span></div>
+                            <div class="detail-item">
+                                <label>Fecha Documento</label>
+                                <input type="date" value="${data.fecha_documento || ''}" 
+                                       onchange="updateFecha(${data.id}, this.value)" 
+                                       class="form-input" 
+                                       style="width: 100%; padding: 4px 8px; font-size: 0.85rem; border-radius: 6px; border: 1px solid var(--border); background: #f8fafc;">
+                            </div>
                         </div>
                         ${metadatosHtml}
                         <div style="margin-top: 40px; display: flex; flex-direction: column; gap: 10px;">
@@ -1713,10 +1808,49 @@
             .catch(err => alert("Error de red: " + err));
     }
 
+    function updateFecha(docId, newDate) {
+        fetch(`/documentos/api/actualizar-fecha/${docId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ fecha: newDate })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    console.log("Fecha actualizada a:", data.nueva_fecha);
+                    // Opcional: Actualizar el nodo en el árbol si muestra la fecha
+                } else {
+                    alert("Error al actualizar fecha: " + data.error);
+                }
+            })
+            .catch(err => alert("Error de red: " + err));
+    }
+
     function closeDetails() {
         document.getElementById('doc-details').classList.remove('open');
         currentDocId = null;
         document.querySelectorAll('.doc-node').forEach(n => n.classList.remove('active'));
+    }
+
+    function toggleNodeMetadata(btn) {
+        const node = btn.closest('.doc-node');
+        const container = node.querySelector('.node-metadata-container');
+        
+        node.classList.toggle('metadata-open');
+        
+        if (node.classList.contains('metadata-open')) {
+            container.style.maxHeight = container.scrollHeight + "px";
+            container.style.marginTop = "15px";
+            container.style.borderTopWidth = "1px";
+            container.style.borderTopStyle = "dashed";
+        } else {
+            container.style.maxHeight = "0";
+            container.style.marginTop = "0";
+            container.style.borderTopWidth = "0";
+        }
     }
 
     function copyCommentUrl(idDoc, idPin, btn) {

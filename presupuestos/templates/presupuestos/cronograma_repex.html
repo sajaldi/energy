@@ -1,0 +1,1233 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static presupuesto_tags humanize %}
+
+{% block title %}REPEX {{ repex.anio }} - {{ repex.nombre }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --primary: #4a6fa5;
+        --primary-glow: rgba(74, 111, 165, 0.2);
+        --secondary: #6b85a8;
+        --bg: #eef1f5;
+        --card-bg: #ffffff;
+        --border: #c8ced8;
+        --text-main: #1e293b;
+        --text-muted: #5a6a7e;
+        --positive: #4a6fa5;
+        --negative: #c0392b;
+        --accent: #d4a843;
+        --header-bg: #3d5a80;
+        --header-dark: #2c4a6e;
+        --partition-bg: #dce4ef;
+        --partition-hover: #cdd7e6;
+        --row-hover: #eef1f5;
+    }
+
+    #content {
+        padding: 20px !important;
+        background-color: var(--bg);
+        font-family: 'Outfit', sans-serif;
+    }
+
+    .layout-constraint {
+        max-width: 98%;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .dashboard-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--card-bg);
+        padding: 24px 32px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        margin-bottom: 24px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .header-identity {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 200px;
+    }
+
+    .header-identity h1 {
+        margin: 0;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text-main);
+        letter-spacing: -0.5px;
+    }
+
+    .badge-repex {
+        background: linear-gradient(135deg, var(--header-bg), var(--header-dark));
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 4px;
+        width: fit-content;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .header-stats {
+        display: flex;
+        align-items: center;
+        gap: 40px;
+        padding: 0 40px;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+        flex-grow: 1;
+        justify-content: center;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--text-main);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .matrix-container {
+        background: var(--card-bg);
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    th {
+        background: var(--header-bg);
+        color: #ffffff;
+        padding: 14px 10px;
+        text-align: center;
+        font-weight: 600;
+        border-bottom: 1px solid var(--header-dark);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    .sticky-col {
+        position: sticky;
+        left: 0;
+        background: #ffffff;
+        z-index: 20;
+        min-width: 320px;
+        text-align: left !important;
+        padding-left: 24px !important;
+        border-right: 1px solid #cbd5e1;
+        box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    th.sticky-col {
+        background: var(--header-bg);
+        color: #ffffff;
+        z-index: 30;
+        border-right: 1px solid var(--header-dark);
+    }
+
+    .row-partition .sticky-col,
+    .row-item .sticky-col {
+        background-color: inherit !important;
+        color: inherit !important;
+    }
+
+    td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        text-align: center;
+        font-feature-settings: "tnum";
+        font-variant-numeric: tabular-nums;
+    }
+
+    .row-partition {
+        background-color: var(--partition-bg);
+        font-weight: 700;
+        color: #2c4a6e;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .row-partition:hover {
+        background-color: var(--partition-hover);
+    }
+
+    .row-item {
+        background-color: #ffffff;
+        display: none;
+    }
+
+    .row-item.visible {
+        display: table-row;
+    }
+
+    .row-item:hover td {
+        background-color: var(--row-hover);
+    }
+
+    .btn {
+        background: var(--primary);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        font-size: 0.85rem;
+    }
+
+    .btn:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+
+    .btn-outline {
+        background: white;
+        border: 1px solid #cbd5e1;
+        color: var(--text-main);
+    }
+
+    .btn-outline:hover {
+        background: #f8fafc;
+        border-color: #94a3b8;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+    }
+
+    .total-row {
+        background: var(--header-dark);
+        color: white;
+        font-weight: 700;
+    }
+
+    .total-row td {
+        border-top: none;
+    }
+
+    .editable-cell {
+        cursor: text;
+        transition: background-color 0.2s;
+    }
+
+    .editable-cell:hover {
+        background-color: var(--row-hover);
+    }
+
+    .editable-cell:focus {
+        background-color: #ffffff;
+        outline: 2px solid var(--primary);
+        outline-offset: -2px;
+    }
+
+    .val-positive {
+        font-weight: bold;
+        color: #4a6fa5;
+    }
+
+    .val-none {
+        color: #cbd5e1;
+    }
+
+    .priority-badge {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .priority-ALTA {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .priority-MEDIA {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .priority-BAJA {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.show {
+        display: flex;
+    }
+
+    .modal-content {
+        background-color: #ffffff;
+        padding: 32px;
+        width: 90%;
+        max-width: 500px;
+        border-radius: 8px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .close-button {
+        color: #94a3b8;
+        float: right;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+    .close-button:hover {
+        color: #0f172a;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 1rem;
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .search-results {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        margin-top: 4px;
+        display: none;
+    }
+
+    .search-results.show {
+        display: block;
+    }
+
+    .search-result-item {
+        padding: 10px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.2s;
+    }
+
+    .search-result-item:hover {
+        background: #f0fdf4;
+    }
+
+    .search-result-item .sr-name {
+        font-weight: 500;
+        color: var(--text-main);
+    }
+
+    .search-result-item .sr-meta {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
+<script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" nomodule></script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='presupuestos' %}">Presupuestos</a>
+    &rsaquo; <a href="{% url 'admin:presupuestos_repex_changelist' %}">Planes REPEX</a>
+    &rsaquo; {{ repex.nombre }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="layout-constraint">
+    <div class="dashboard-header">
+        <div class="header-identity">
+            <div class="badge-repex">REPEX {{ repex.anio }}</div>
+            <h1>{{ repex.nombre }}</h1>
+            <div style="font-size: 0.85rem; color: var(--text-muted);">
+                Estado: <strong>{{ repex.get_estado_display }}</strong>
+            </div>
+        </div>
+
+        <div class="header-stats">
+            <div class="stat-item">
+                <span class="stat-label">Inversión Total</span>
+                <span class="stat-value" id="stat-total" style="color: var(--header-bg);">{{ total_general|floatformat:2 }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Activos en Plan</span>
+                <span class="stat-value">{{ total_items }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Familias</span>
+                <span class="stat-value">{{ familias_data|length }}</span>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button onclick="openAddItemModal()" class="btn" style="background: #3b82f6;">
+                <ion-icon name="add-circle-outline"></ion-icon> Agregar Activo
+            </button>
+            <button onclick="openManualItemModal()" class="btn" style="background: #8b5cf6;">
+                <ion-icon name="create-outline"></ion-icon> Agregar Ítem
+            </button>
+            <button onclick="openImportModal()" class="btn" style="background: #f59e0b;">
+                <ion-icon name="cloud-upload-outline"></ion-icon> Importar Excel
+            </button>
+            <a id="btnExportExcel" href="{% url 'presupuestos:exportar_repex_excel' repex.pk %}?vista=cronograma" class="btn" style="background: #059669;">
+                <ion-icon name="download-outline"></ion-icon> Exportar Excel
+            </a>
+            <a href="{% url 'admin:presupuestos_repex_change' repex.pk %}" class="btn btn-outline" style="color: var(--text-main);">
+                <ion-icon name="settings-outline"></ion-icon> Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display: flex; gap: 0; margin-bottom: 0;">
+        <button class="tab-btn active" id="tabCrono" onclick="switchTab('cronograma')"
+            style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--card-bg); color: var(--text-main); font-family: inherit;">
+            <ion-icon name="calendar-outline"></ion-icon> Cronograma Mensual
+        </button>
+        <button class="tab-btn" id="tabDetalle" onclick="switchTab('detalle')"
+            style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--bg); color: var(--text-muted); font-family: inherit;">
+            <ion-icon name="list-outline"></ion-icon> Detalle de Activos
+        </button>
+        <button class="tab-btn" id="tabAPU" onclick="switchTab('apu')"
+            style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--bg); color: var(--text-muted); font-family: inherit;">
+            <ion-icon name="document-text-outline"></ion-icon> Presupuesto
+        </button>
+    </div>
+
+    <!-- Tab: Cronograma -->
+    <div id="panelCronograma" class="matrix-container">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sticky-col">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding-right: 8px;">
+                                <span>Familia / Activo</span>
+                            </div>
+                        </th>
+                        {% for mes in meses_nombres %}
+                        <th>{{ mes|truncatechars:3 }}</th>
+                        {% endfor %}
+                        <th style="background: var(--header-dark);">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fam in familias_data %}
+                    <tr class="row-partition" onclick="toggleRows('items-{{ forloop.counter }}', this)">
+                        <td class="sticky-col">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s;">▶</span>
+                                <ion-icon name="layers-outline"></ion-icon>
+                                {{ fam.familia_nombre }}
+                                <span style="font-size: 0.7rem; color: #6b7280; margin-left: 4px;">({{ fam.items|length }})</span>
+                            </div>
+                        </td>
+                        {% for val in fam.mensual %}
+                        <td>
+                            {% if val > 0 %}
+                            <span class="val-positive">{{ val|floatformat:2 }}</span>
+                            {% else %}
+                            <span class="val-none">-</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td style="font-weight: 700; color: #2c4a6e;">{{ fam.total|floatformat:2 }}</td>
+                    </tr>
+
+                    {% for item in fam.items %}
+                    <tr class="row-item group-items-{{ forloop.parentloop.counter }}">
+                        <td class="sticky-col" style="padding-left: 48px !important; color: var(--text-muted); font-size: 0.8rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span>{{ item.activo_nombre }}</span>
+                                    <span class="priority-badge priority-{{ item.prioridad }}">{{ item.prioridad }}</span>
+                                </div>
+                                <div style="display: flex; gap: 4px;">
+                                    <button onclick="deleteRepexItem('{{ item.id }}', '{{ item.activo_nombre|escapejs }}')"
+                                        style="background: transparent; border: none; cursor: pointer; color: #cbd5e1; padding: 4px;"
+                                        onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'"
+                                        title="Quitar del Plan">
+                                        <ion-icon name="trash-bin-outline"></ion-icon>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                        {% for val in item.mensual %}
+                        <td class="editable-cell" data-item-id="{{ item.id }}" data-month="{{ forloop.counter }}"
+                            contenteditable="true" onblur="saveRepexMonto(this)" onkeydown="handleEnter(event, this)">
+                            {{ val|floatformat:2 }}
+                        </td>
+                        {% endfor %}
+                        <td id="total-item-{{ item.id }}" style="font-weight: 500;">
+                            {{ item.total|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+
+                    <tr class="total-row">
+                        <td class="sticky-col" style="background: var(--header-dark); color: white;">TOTAL MENSUAL</td>
+                        {% for val in total_mensual %}
+                        <td id="total-col-{{ forloop.counter }}">
+                            {{ val|floatformat:2 }}
+                        </td>
+                        {% endfor %}
+                        <td id="total-grand">{{ total_general|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab: Detalle de Activos -->
+    <div id="panelDetalle" class="matrix-container" style="display: none;">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding-left: 16px; min-width: 80px;">Código</th>
+                        <th style="text-align: left; min-width: 180px;">Activo</th>
+                        <th style="text-align: left; min-width: 100px;">Marca</th>
+                        <th style="text-align: left; min-width: 120px;">Modelo</th>
+                        <th style="text-align: left; min-width: 200px;">Ruta Ubicación</th>
+                        <th style="text-align: center; min-width: 80px;">Prioridad</th>
+                        <th style="text-align: right; min-width: 120px; padding-right: 16px;">Costo Reposición</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in categorias_detalle %}
+                    <!-- Category group header -->
+                    <tr class="row-partition" onclick="toggleDetailRows('det-cat-{{ forloop.counter }}', this)" style="cursor: pointer;">
+                        <td colspan="6" style="text-align: left; padding: 12px 16px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s;">▶</span>
+                                <ion-icon name="folder-outline"></ion-icon>
+                                {{ cat.nombre }}
+                                <span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 4px;">({{ cat.count }})</span>
+                            </div>
+                        </td>
+                        <td style="text-align: right; padding: 12px 16px; font-weight: 700; color: var(--header-bg);">{{ cat.total|floatformat:2 }}</td>
+                    </tr>
+                    <!-- Category items -->
+                    {% for item in cat.items %}
+                    <tr class="row-item det-group-det-cat-{{ forloop.parentloop.counter }}" style="border-bottom: 1px solid var(--border);">
+                        <td style="text-align: left; padding: 10px 16px; padding-left: 40px; font-weight: 500; color: var(--primary);">{{ item.codigo }}</td>
+                        <td style="text-align: left; padding: 10px 8px; font-weight: 500;">{{ item.activo_nombre }}</td>
+                        <td style="text-align: left; padding: 10px 8px; color: var(--text-muted);">{{ item.marca }}</td>
+                        <td style="text-align: left; padding: 10px 8px; color: var(--text-muted);">{{ item.modelo }}</td>
+                        <td style="text-align: left; padding: 10px 8px; font-size: 0.78rem; color: var(--text-muted);">{{ item.ruta_ubicacion }}</td>
+                        <td style="text-align: center; padding: 10px 8px;">
+                            <span class="priority-badge priority-{{ item.prioridad }}">{{ item.prioridad }}</span>
+                        </td>
+                        <td style="text-align: right; padding: 10px 16px; font-weight: 600; color: var(--header-bg);">{{ item.costo_reposicion|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            No hay activos en este plan REPEX. Usa el botón "Agregar Activo" o "Importar Excel" para comenzar.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if categorias_detalle %}
+                    <tr class="total-row">
+                        <td colspan="6" style="text-align: right; padding: 12px 16px;">TOTAL INVERSIÓN</td>
+                        <td style="text-align: right; padding: 12px 16px; font-size: 1.1rem;">{{ total_general|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab: Presupuesto APU -->
+    <div id="panelAPU" class="matrix-container" style="display: none;">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding-left: 12px; min-width: 80px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">CODIGO</th>
+                        <th style="text-align: left; min-width: 120px; background: #6b94b8; border-bottom: 20px solid #5a82a3;">UF</th>
+                        <th style="text-align: left; min-width: 250px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">DESCRIPCION</th>
+                        <th style="text-align: left; min-width: 150px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">MODELO</th>
+                        <th style="text-align: center; min-width: 70px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">UNIDAD</th>
+                        <th style="text-align: right; min-width: 60px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">CNTD</th>
+                        <th style="text-align: right; min-width: 100px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">P.U.</th>
+                        <th style="text-align: right; min-width: 120px; padding-right: 12px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">IMPORTE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in categorias_detalle %}
+                    <!-- Category header row (A, B, C...) -->
+                    <tr class="row-partition" onclick="toggleApuRows('cat-{{ forloop.counter }}', this)" style="cursor: pointer;">
+                        <td style="padding: 8px 12px; font-weight: 700; color: #1e3a5f;">
+                            <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s; display: inline-block; margin-right: 4px;">▶</span>
+                            {{ forloop.counter|stringformat:'s' }}
+                        </td>
+                        <td colspan="6" style="padding: 8px; font-weight: 700; color: #1e3a5f; text-transform: uppercase;">{{ cat.nombre }}</td>
+                        <td style="text-align: right; padding: 8px 12px; font-weight: 700; color: #1e3a5f;">{{ cat.total|floatformat:2 }}</td>
+                    </tr>
+                    <!-- Items under this category -->
+                    {% for item in cat.items %}
+                    <tr class="row-item apu-group-cat-{{ forloop.parentloop.counter }}" style="border-bottom: 1px solid #e0e6ed; {% if forloop.counter|divisibleby:2 %}background: #f5f7fa;{% endif %}">
+                        <td style="padding: 6px 12px; color: var(--text-muted); font-size: 0.82rem;">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+                        <td style="padding: 6px 8px; color: var(--text-muted); font-size: 0.82rem;">{{ item.ruta_ubicacion }}</td>
+                        <td style="padding: 6px 8px; font-size: 0.85rem;">{{ item.activo_nombre }}</td>
+                        <td style="padding: 6px 8px; font-size: 0.82rem; color: var(--text-muted);">{{ item.modelo|default:'-' }}</td>
+                        <td style="padding: 6px 8px; text-align: center; color: var(--text-muted); font-size: 0.82rem;">{{ item.unidades|default:'Unidad' }}</td>
+                        <td style="padding: 6px 8px; text-align: right; font-size: 0.85rem;">{{ item.cantidad|floatformat:2 }}</td>
+                        <td style="padding: 6px 8px; text-align: right; font-size: 0.85rem;">{{ item.precio_unitario|floatformat:2 }}</td>
+                        <td style="padding: 6px 12px; text-align: right; font-weight: 600; font-size: 0.85rem;">{{ item.costo_reposicion|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                            No hay ítems en este plan REPEX.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if categorias_detalle %}
+                    <tr style="background: #2c4a6e; color: white;">
+                        <td colspan="7" style="text-align: right; padding: 10px 12px; font-weight: 700; font-size: 0.95rem;">TOTAL GENERAL</td>
+                        <td style="text-align: right; padding: 10px 12px; font-weight: 700; font-size: 1.05rem;">{{ total_general|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"
+    style="position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 12px 24px; border-radius: 4px; transform: translateY(100px); transition: transform 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100;">
+    Guardado correctamente
+</div>
+
+<!-- Modal Agregar Activo -->
+<div id="addItemModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeAddItemModal()">&times;</span>
+        <h2 style="margin-top: 0; margin-bottom: 8px;">Agregar Activo al Plan REPEX</h2>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">Busca un activo por nombre o código interno para agregarlo al plan.</p>
+        <div class="form-group">
+            <label for="searchActivo">Buscar Activo</label>
+            <input type="text" id="searchActivo" placeholder="Ej. Compresor, 50123..." autocomplete="off"
+                oninput="searchActivos(this.value)">
+            <div id="searchResults" class="search-results"></div>
+        </div>
+        <div id="selectedActivoInfo" style="display: none; background: #f0fdf4; padding: 16px; border-radius: 6px; margin-bottom: 16px;">
+            <div style="font-weight: 600; color: var(--text-main);" id="selectedActivoName"></div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);" id="selectedActivoMeta"></div>
+            <input type="hidden" id="selectedActivoId">
+        </div>
+        <div class="form-group">
+            <label for="costoReposicion">Costo de Reposición Estimado</label>
+            <input type="number" id="costoReposicion" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
+            <button type="button" class="btn btn-outline" onclick="closeAddItemModal()" style="color: var(--text-main);">Cancelar</button>
+            <button type="button" class="btn" onclick="submitAddItem()">Agregar al Plan</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Importar Excel -->
+<div id="importModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeImportModal()">&times;</span>
+        <h2 style="margin-top: 0; margin-bottom: 8px;">📥 Importar Activos desde Excel</h2>
+        <p style="color: var(--text-muted); margin-bottom: 16px; font-size: 0.85rem;">
+            Suba un archivo Excel (.xlsx) con las siguientes columnas:
+        </p>
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
+            <table style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <th style="text-align: left; padding: 6px 8px; background: transparent; color: var(--text-main); font-size: 0.8rem;">Activo</th>
+                        <th style="text-align: left; padding: 6px 8px; background: transparent; color: var(--text-main); font-size: 0.8rem;">Costo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td style="padding: 6px 8px; color: var(--text-muted);">50123</td><td style="padding: 6px 8px; color: var(--text-muted);">25000.00</td></tr>
+                    <tr><td style="padding: 6px 8px; color: var(--text-muted);">50456</td><td style="padding: 6px 8px; color: var(--text-muted);">18500.50</td></tr>
+                </tbody>
+            </table>
+            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 6px;">La columna "Activo" debe contener el <strong>código interno</strong>. Activos duplicados se omiten automáticamente.</div>
+        </div>
+
+        <div class="form-group">
+            <label for="importFile">Seleccionar Archivo</label>
+            <input type="file" id="importFile" accept=".xlsx,.xls" style="padding: 10px;">
+        </div>
+
+        <div id="importResult" style="display: none; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.85rem;"></div>
+        <div id="importErrors" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px; margin-bottom: 16px; font-size: 0.8rem; max-height: 150px; overflow-y: auto;"></div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
+            <button type="button" class="btn btn-outline" onclick="closeImportModal()" style="color: var(--text-main);">Cancelar</button>
+            <button type="button" class="btn" id="importBtn" onclick="submitImport()" style="background: #f59e0b;">
+                <ion-icon name="cloud-upload-outline"></ion-icon> Importar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Agregar Ítem Manual -->
+<div id="manualItemModal" class="modal">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeManualItemModal()">&times;</span>
+        <h2 style="margin-top: 0; margin-bottom: 8px;">🔧 Agregar Ítem Manual</h2>
+        <p style="color: var(--text-muted); margin-bottom: 16px; font-size: 0.85rem;">
+            Para reposiciones masivas o partidas sin activo específico vinculado.
+        </p>
+
+        <div class="form-group">
+            <label for="manualNombre">Nombre / Descripción del Ítem *</label>
+            <input type="text" id="manualNombre" placeholder="Ej: Reposición luminarias LED T8">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+                <label for="manualUbicacion">Ubicación</label>
+                <input type="text" id="manualUbicacion" placeholder="Ej: Edificio A → Nivel 2">
+            </div>
+            <div class="form-group">
+                <label for="manualCategoria">Categoría</label>
+                <input type="text" id="manualCategoria" placeholder="Ej: Iluminación">
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+                <label for="manualUnidades">Unidades</label>
+                <input type="text" id="manualUnidades" placeholder="Ej: pieza, metro, lote">
+            </div>
+            <div class="form-group">
+                <label for="manualCantidad">Cantidad</label>
+                <input type="number" id="manualCantidad" step="0.01" min="0" value="1" oninput="updateManualTotal()">
+            </div>
+            <div class="form-group">
+                <label for="manualPrecioUnitario">Precio Unitario</label>
+                <input type="number" id="manualPrecioUnitario" step="0.01" min="0" placeholder="0.00" oninput="updateManualTotal()">
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+                <label for="manualPrioridad">Prioridad</label>
+                <select id="manualPrioridad">
+                    <option value="MEDIA" selected>Media</option>
+                    <option value="ALTA">Alta (Crítico)</option>
+                    <option value="BAJA">Baja</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Costo Total Estimado</label>
+                <div id="manualTotalPreview" style="padding: 10px; background: #f0f4f8; border-radius: 4px; font-weight: 700; color: var(--header-bg); font-size: 1.1rem;">$0.00</div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
+            <button type="button" class="btn btn-outline" onclick="closeManualItemModal()" style="color: var(--text-main);">Cancelar</button>
+            <button type="button" class="btn" id="manualItemBtn" onclick="submitManualItem()" style="background: #8b5cf6;">
+                <ion-icon name="create-outline"></ion-icon> Agregar Ítem
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const csrfToken = '{{ csrf_token }}';
+    const repexId = '{{ repex.id }}';
+    const modalManual = document.getElementById('manualItemModal');
+
+    // ── Tab switching ──
+    function switchTab(tab) {
+        const panels = {
+            cronograma: document.getElementById('panelCronograma'),
+            detalle: document.getElementById('panelDetalle'),
+            apu: document.getElementById('panelAPU'),
+        };
+        const tabs = {
+            cronograma: document.getElementById('tabCrono'),
+            detalle: document.getElementById('tabDetalle'),
+            apu: document.getElementById('tabAPU'),
+        };
+
+        Object.keys(panels).forEach(key => {
+            panels[key].style.display = (key === tab) ? 'block' : 'none';
+            tabs[key].style.background = (key === tab) ? 'var(--card-bg)' : 'var(--bg)';
+            tabs[key].style.color = (key === tab) ? 'var(--text-main)' : 'var(--text-muted)';
+        });
+
+        // Update export link
+        const btnExport = document.getElementById('btnExportExcel');
+        if (btnExport) {
+            const baseUrl = "{% url 'presupuestos:exportar_repex_excel' repex.pk %}";
+            btnExport.href = `${baseUrl}?vista=${tab}`;
+        }
+    }
+
+    // ── Toggle rows ──
+    function toggleRows(group, header) {
+        const rows = document.querySelectorAll('.group-' + group);
+        const icon = header.querySelector('.toggle-icon');
+        const isOpen = rows.length > 0 && rows[0].classList.contains('visible');
+
+        rows.forEach(r => r.classList.toggle('visible', !isOpen));
+        if (icon) {
+            icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+        }
+    }
+
+    function toggleDetailRows(group, header) {
+        const rows = document.querySelectorAll('.det-group-' + group);
+        const icon = header.querySelector('.toggle-icon');
+        const isOpen = rows.length > 0 && rows[0].classList.contains('visible');
+
+        rows.forEach(r => r.classList.toggle('visible', !isOpen));
+        if (icon) {
+            icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+        }
+    }
+
+    function toggleApuRows(group, header) {
+        const rows = document.querySelectorAll('.apu-group-' + group);
+        const icon = header.querySelector('.toggle-icon');
+        const isOpen = rows.length > 0 && rows[0].classList.contains('visible');
+
+        rows.forEach(r => r.classList.toggle('visible', !isOpen));
+        if (icon) {
+            icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+        }
+    }
+
+    // ── Save monto (inline edit) ──
+    function parseLocalFloat(str) {
+        if (!str) return 0;
+        str = str.toString().trim().replace(/,/g, '');
+        const val = parseFloat(str);
+        return isNaN(val) ? 0 : val;
+    }
+
+    function saveRepexMonto(cell) {
+        const itemId = cell.dataset.itemId;
+        const month = cell.dataset.month;
+        const rawValue = cell.innerText.trim();
+        const monto = parseLocalFloat(rawValue);
+
+        fetch('{% url "presupuestos:api_update_repex_item" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ item_id: itemId, mes: month, monto: monto })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                showToast('Guardado correctamente');
+                // Recargar para reflejar los totales
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                showToast('Error: ' + (data.message || 'Desconocido'), 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast('Error de conexión', 'error');
+        });
+    }
+
+    function handleEnter(event, cell) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            cell.blur();
+        }
+    }
+
+    // ── Toast ──
+    function showToast(msg, type) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.style.background = type === 'error' ? '#ef4444' : '#10b981';
+        toast.style.transform = 'translateY(0)';
+        setTimeout(() => {
+            toast.style.transform = 'translateY(100px)';
+        }, 2500);
+    }
+
+    // ── Modal: Agregar Activo ──
+    const modalAdd = document.getElementById('addItemModal');
+
+    function openAddItemModal() {
+        document.getElementById('searchActivo').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+        document.getElementById('searchResults').classList.remove('show');
+        document.getElementById('selectedActivoInfo').style.display = 'none';
+        document.getElementById('selectedActivoId').value = '';
+        document.getElementById('costoReposicion').value = '';
+        modalAdd.classList.add('show');
+        setTimeout(() => document.getElementById('searchActivo').focus(), 100);
+    }
+
+    function closeAddItemModal() {
+        modalAdd.classList.remove('show');
+    }
+
+    const modalImport = document.getElementById('importModal');
+
+    window.onclick = function(event) {
+        if (event.target == modalAdd) closeAddItemModal();
+        if (event.target == modalImport) closeImportModal();
+        if (event.target == modalManual) closeManualItemModal();
+    }
+
+    // ── Modal: Agregar Ítem Manual ──
+    function openManualItemModal() {
+        document.getElementById('manualNombre').value = '';
+        document.getElementById('manualUbicacion').value = '';
+        document.getElementById('manualCategoria').value = '';
+        document.getElementById('manualUnidades').value = '';
+        document.getElementById('manualCantidad').value = '1';
+        document.getElementById('manualPrecioUnitario').value = '';
+        document.getElementById('manualPrioridad').value = 'MEDIA';
+        document.getElementById('manualTotalPreview').textContent = '$0.00';
+        document.getElementById('manualItemBtn').disabled = false;
+        document.getElementById('manualItemBtn').innerHTML = '<ion-icon name="create-outline"></ion-icon> Agregar Ítem';
+        modalManual.classList.add('show');
+    }
+
+    function closeManualItemModal() {
+        modalManual.classList.remove('show');
+    }
+
+    function updateManualTotal() {
+        const cant = parseFloat(document.getElementById('manualCantidad').value) || 0;
+        const precio = parseFloat(document.getElementById('manualPrecioUnitario').value) || 0;
+        const total = cant * precio;
+        document.getElementById('manualTotalPreview').textContent = '$' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    function submitManualItem() {
+        const nombre = document.getElementById('manualNombre').value.trim();
+        if (!nombre) {
+            showToast('El nombre del ítem es requerido', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('manualItemBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Guardando...';
+
+        const payload = {
+            repex_id: repexId,
+            nombre_item: nombre,
+            ubicacion_manual: document.getElementById('manualUbicacion').value.trim(),
+            categoria_manual: document.getElementById('manualCategoria').value.trim(),
+            unidades: document.getElementById('manualUnidades').value.trim(),
+            cantidad: parseFloat(document.getElementById('manualCantidad').value) || 1,
+            precio_unitario: parseFloat(document.getElementById('manualPrecioUnitario').value) || 0,
+            prioridad: document.getElementById('manualPrioridad').value,
+        };
+
+        fetch('{% url "presupuestos:api_add_manual_repex_item" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                showToast(data.message, 'success');
+                closeManualItemModal();
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                showToast(data.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<ion-icon name="create-outline"></ion-icon> Reintentar';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast('Error de conexión', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<ion-icon name="create-outline"></ion-icon> Reintentar';
+        });
+    }
+
+    // ── Modal: Importar Excel ──
+    function openImportModal() {
+        document.getElementById('importFile').value = '';
+        document.getElementById('importResult').style.display = 'none';
+        document.getElementById('importErrors').style.display = 'none';
+        document.getElementById('importBtn').disabled = false;
+        document.getElementById('importBtn').innerHTML = '<ion-icon name="cloud-upload-outline"></ion-icon> Importar';
+        modalImport.classList.add('show');
+    }
+
+    function closeImportModal() {
+        modalImport.classList.remove('show');
+    }
+
+    function submitImport() {
+        const fileInput = document.getElementById('importFile');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            showToast('Selecciona un archivo primero', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('importBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Procesando...';
+
+        const formData = new FormData();
+        formData.append('archivo', file);
+        formData.append('repex_id', repexId);
+
+        fetch('{% url "presupuestos:api_import_repex_items" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            const resultDiv = document.getElementById('importResult');
+            const errorsDiv = document.getElementById('importErrors');
+
+            if (data.status === 'ok') {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = '#f0fdf4';
+                resultDiv.style.border = '1px solid #bbf7d0';
+                resultDiv.style.color = '#065f46';
+                resultDiv.innerHTML = `<strong>${data.message}</strong>`;
+
+                if (data.errors && data.errors.length > 0) {
+                    errorsDiv.style.display = 'block';
+                    errorsDiv.innerHTML = '<strong style="color: #b91c1c;">Detalles de errores:</strong><br>' + data.errors.join('<br>');
+                }
+
+                btn.innerHTML = '✅ Completado';
+                setTimeout(() => window.location.reload(), 1200);
+            } else {
+                resultDiv.style.display = 'block';
+                resultDiv.style.background = '#fef2f2';
+                resultDiv.style.border = '1px solid #fecaca';
+                resultDiv.style.color = '#b91c1c';
+                resultDiv.innerHTML = `<strong>Error:</strong> ${data.message}`;
+                btn.disabled = false;
+                btn.innerHTML = '<ion-icon name="cloud-upload-outline"></ion-icon> Reintentar';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast('Error de conexión', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<ion-icon name="cloud-upload-outline"></ion-icon> Reintentar';
+        });
+    }
+
+    let searchTimeout = null;
+    function searchActivos(query) {
+        clearTimeout(searchTimeout);
+        const resultsDiv = document.getElementById('searchResults');
+
+        if (query.length < 2) {
+            resultsDiv.classList.remove('show');
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`{% url "presupuestos:api_search_activos" %}?q=${encodeURIComponent(query)}`)
+            .then(r => r.json())
+            .then(data => {
+                resultsDiv.innerHTML = '';
+                if (data.results.length === 0) {
+                    resultsDiv.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">Sin resultados</div>';
+                } else {
+                    data.results.forEach(a => {
+                        const div = document.createElement('div');
+                        div.className = 'search-result-item';
+                        div.innerHTML = `<div class="sr-name">${a.text}</div><div class="sr-meta">${a.familia} · Costo actual: L ${a.costo.toLocaleString('en', {minimumFractionDigits: 2})}</div>`;
+                        div.onclick = () => selectActivo(a);
+                        resultsDiv.appendChild(div);
+                    });
+                }
+                resultsDiv.classList.add('show');
+            })
+            .catch(err => console.error(err));
+        }, 300);
+    }
+
+    function selectActivo(activo) {
+        document.getElementById('selectedActivoId').value = activo.id;
+        document.getElementById('selectedActivoName').innerText = activo.text;
+        document.getElementById('selectedActivoMeta').innerText = `${activo.familia} · Costo original: L ${activo.costo.toLocaleString('en', {minimumFractionDigits: 2})}`;
+        document.getElementById('selectedActivoInfo').style.display = 'block';
+        document.getElementById('searchResults').classList.remove('show');
+        document.getElementById('searchActivo').value = activo.text;
+
+        // Pre-fill costo
+        if (activo.costo > 0) {
+            document.getElementById('costoReposicion').value = activo.costo;
+        }
+    }
+
+    function submitAddItem() {
+        const activoId = document.getElementById('selectedActivoId').value;
+        const costo = parseFloat(document.getElementById('costoReposicion').value || 0);
+
+        if (!activoId) {
+            showToast('Selecciona un activo primero', 'error');
+            return;
+        }
+
+        fetch('{% url "presupuestos:api_add_repex_item" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ repex_id: repexId, activo_id: activoId, costo: costo })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                showToast('Activo agregado al plan');
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                showToast(data.message || 'Error al agregar', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast('Error de conexión', 'error');
+        });
+    }
+
+    // ── Delete item ──
+    function deleteRepexItem(itemId, nombre) {
+        if (!confirm(`¿Quitar "${nombre}" del plan REPEX?`)) return;
+
+        fetch('{% url "presupuestos:api_delete_repex_item" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ item_id: itemId })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                showToast('Activo removido del plan');
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                showToast(data.message || 'Error al eliminar', 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast('Error de conexión', 'error');
+        });
+    }
+</script>
+{% endblock %}

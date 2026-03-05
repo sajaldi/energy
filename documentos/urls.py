@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/comentar/d/<int:comentario_id>/', views.documento_eliminar_comentario, name='documento_eliminar_comentario'),
     path('api/actualizar-estado/<int:doc_id>/', views.documento_actualizar_estado, name='documento_actualizar_estado'),
     path('api/actualizar-responsable/<int:doc_id>/', views.documento_actualizar_responsable, name='documento_actualizar_responsable'),
+    path('api/actualizar-fecha/<int:doc_id>/', views.documento_actualizar_fecha, name='documento_actualizar_fecha'),
     path('api/buscar/', views.documento_buscar, name='documento_buscar'),
     path('api/chat-ia/', views.documento_chat_ia, name='documento_chat_ia'),
     path('api/test-n8n/', views.test_n8n_ping, name='test_n8n_ping'),

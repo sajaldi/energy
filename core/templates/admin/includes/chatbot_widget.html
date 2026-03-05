@@ -1,4 +1,5 @@
 {% load static %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <div id="admin-chatbot-widget" class="chatbot-widget-container">
     <!-- Chat Window -->
     <div id="chatbot-window" class="chatbot-window hidden">
@@ -281,6 +282,33 @@
         color: #1e293b;
     }
 
+    .message.bot .message-content h1, 
+    .message.bot .message-content h2, 
+    .message.bot .message-content h3 {
+        font-size: 1.1rem;
+        margin-top: 10px;
+        margin-bottom: 5px;
+        color: #2563eb;
+    }
+
+    .message.bot .message-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+        font-size: 0.85rem;
+    }
+
+    .message.bot .message-content th, 
+    .message.bot .message-content td {
+        border: 1px solid #e2e8f0;
+        padding: 6px;
+        text-align: left;
+    }
+
+    .message.bot .message-content th {
+        background: #f8fafc;
+    }
+
     .message.user .message-content {
         background: #2563eb;
         color: white;
@@ -327,11 +355,12 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: background-color 0.2s;
+        transition: all 0.2s;
     }
 
     #chatbot-send-btn:hover {
         background: #1d4ed8;
+        transform: scale(1.1);
     }
 
     #chatbot-send-btn:disabled {
@@ -422,7 +451,7 @@
                 messagesContainer.innerHTML = `
                     <div class="message bot">
                         <div class="message-content">
-                            Hola, soy tu asistente administrativo. ¿En qué puedo ayudarte hoy?
+                            Hola, soy tu asistente administrativo basado en <strong>n8n</strong>. ¿En qué puedo ayudarte hoy?
                         </div>
                     </div>
                 `;
@@ -508,8 +537,13 @@
 
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            // Simple formatter for line breaks
-            contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+            
+            if (type === 'bot' && !isLoading) {
+                // Renderizar Markdown para el bot
+                contentDiv.innerHTML = marked.parse(text);
+            } else {
+                contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+            }
 
             msgDiv.appendChild(contentDiv);
             messagesContainer.appendChild(msgDiv);
@@ -570,7 +604,7 @@
                     const savedMessages = data.messages;
 
                     // Identify if the first saved is the welcome message to avoid duplication
-                    const welcomeText = "Hola, soy tu asistente administrativo. ¿En qué puedo ayudarte hoy?";
+                    const welcomeText = "Hola, soy tu asistente administrativo basado en <strong>n8n</strong>. ¿En qué puedo ayudarte hoy?";
 
                     messagesContainer.innerHTML = ''; // Clear everything
 

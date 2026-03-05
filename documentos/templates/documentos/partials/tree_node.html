@@ -3,10 +3,34 @@
 <div class="external-branch" style="display: flex; align-items: center; gap: 0; position: relative;">
     <div class="doc-node external" data-id="{{ node.id }}" onclick="showDetails({{ node.id }})"
         style="width: 180px; padding: 10px; border-style: solid; border-color: #10b981; background: #f0fdf4; position: relative; flex-shrink: 0; z-index: 2;">
+        
+        <!-- Toggle Metadatos -->
+        <div class="node-expand-toggle" onclick="event.stopPropagation(); toggleNodeMetadata(this)" 
+             style="position: absolute; top: -10px; right: -10px; background: #10b981; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10;">
+            ▼
+        </div>
+
         <span class="code" style="color: #10b981; font-size: 0.75rem;">{{ node.codigo }}</span>
         <span class="title" style="font-size: 0.7rem;">{{ node.titulo }}</span>
         <div class="meta" style="margin-top: 5px; border:none; padding:0;">
             <span class="badge-status" style="background: #dcfce7; color: #166534; font-size: 0.5rem;">EXTERNO</span>
+            <span style="font-size: 0.6rem;">{{ node.fecha|date:"d/m/y"|default:"S/F" }}</span>
+        </div>
+
+        <!-- Seccion de Metadatos Expandible -->
+        <div class="node-metadata-container" style="max-height: 0; overflow: hidden; transition: all 0.3s ease-out; font-size: 0.65rem; color: #166534; margin-top: 0; border-top: 0px dashed #bbf7d0;">
+            <div style="padding-top: 10px;">
+                {% if node.metadatos %}
+                    {% for m in node.metadatos %}
+                        <div style="margin-bottom: 4px;">
+                            <strong style="display: block; opacity: 0.7;">{{ m.etiqueta }}</strong>
+                            <span>{{ m.valor|default:"---" }}</span>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="font-style: italic; opacity: 0.6; margin: 0;">No hay metadatos registrados</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -60,11 +84,36 @@
     <!-- Nodo Principal -->
     <div class="doc-node {% if node.is_current %}active{% endif %}" data-id="{{ node.id }}"
         onclick="showDetails({{ node.id }})" style="z-index: 2; margin: 0 40px;">
+        
+        <!-- Toggle Metadatos -->
+        <div class="node-expand-toggle" onclick="event.stopPropagation(); toggleNodeMetadata(this)" 
+             style="position: absolute; top: -12px; right: -12px; background: var(--primary); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10;">
+            ▼
+        </div>
+
         <span class="code">{{ node.codigo }}</span>
         <span class="title" title="{{ node.titulo }}">{{ node.titulo }}</span>
         <div class="meta">
             <span class="badge-status status-{{ node.estado|lower }}">{{ node.estado }}</span>
-            <span>{{ node.fecha|date:"d/m/y" }}</span>
+            <span>{{ node.fecha|date:"d/m/y"|default:"S/F" }}</span>
+        </div>
+
+        <!-- Seccion de Metadatos Expandible -->
+        <div class="node-metadata-container" style="max-height: 0; overflow: hidden; transition: all 0.3s ease-out; font-size: 0.75rem; color: #475569; margin-top: 0; border-top: 0px dashed var(--border);">
+            <div style="padding-top: 15px;">
+                {% if node.metadatos %}
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                        {% for m in node.metadatos %}
+                            <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                                <label style="display: block; font-size: 0.6rem; text-transform: uppercase; font-weight: 700; color: var(--secondary); margin-bottom: 2px;">{{ m.etiqueta }}</label>
+                                <span style="font-weight: 500; color: #1e293b;">{{ m.valor|default:"---" }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p style="text-align: center; color: #94a3b8; font-style: italic; margin: 10px 0;">No hay metadatos registrados</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 

@@ -100,14 +100,24 @@ def documento_trazabilidad(request, doc_id):
 
     # 3. Función recursiva para construir el árbol e integrar los vínculos
     def build_tree(doc, current_doc_id, is_external=False):
+        # Prefetch metadatos para evitar N+1
         children = doc.respuestas.all().select_related('tipo_documento', 'ultima_revision')
+        metadatos_qs = doc.metadatos_valores.all().select_related('config')
         
+        metadatos_list = []
+        for mv in metadatos_qs:
+            valor = mv.valor
+            if mv.objeto_vinculado:
+                valor = str(mv.objeto_vinculado)
+            
+            metadatos_list.append({
+                'etiqueta': mv.config.etiqueta,
+                'valor': valor
+            })
+
         vinculos_externos = []
-        # Solo buscamos vínculos transversales para documentos que están en el árbol principal
-        # para evitar recursión infinita o ramificaciones excesivas en los laterales
         if not is_external and doc.id in links_por_doc:
             for ext in links_por_doc[doc.id]:
-                # Para el documento vinculado, construimos su propio árbol de respuestas
                 vinculos_externos.append(build_tree(ext, current_doc_id, is_external=True))
 
         return {
@@ -116,10 +126,11 @@ def documento_trazabilidad(request, doc_id):
             'titulo': doc.titulo,
             'tipo': doc.tipo_documento.nombre if doc.tipo_documento else "S/T",
             'estado': doc.estado_actual,
-            'fecha': doc.creado_en,
+            'fecha': doc.fecha_inicio, # Mostrar exclusivamente fecha del documento
             'is_current': doc.id == current_doc_id,
             'is_external': is_external,
             'vinculos_externos': vinculos_externos,
+            'metadatos': metadatos_list,
             'hijos': [build_tree(child, current_doc_id, is_external=is_external) for child in children]
         }
     
@@ -202,6 +213,7 @@ def documento_detalle_json(request, doc_id):
             'responsable_id': doc.responsable_id,
             'responsable_nombre': doc.responsable.get_full_name() or doc.responsable.username if doc.responsable else "No asignado",
             'fecha_creacion': doc.creado_en.strftime('%d/%m/%Y') if doc.creado_en else "N/A",
+            'fecha_documento': doc.fecha_inicio.isoformat() if doc.fecha_inicio else "",
             'url_archivo': url_archivo,
             'metadatos': metadatos,
             'comentarios': comentarios,
@@ -574,6 +586,35 @@ def documento_actualizar_responsable(request, doc_id):
         
         nombre = doc.responsable.get_full_name() or doc.responsable.username if doc.responsable else "No asignado"
         return JsonResponse({'status': 'success', 'nuevo_responsable': nombre})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def documento_actualizar_fecha(request, doc_id):
+    """
+    Actualiza la fecha de inicio/emisión de un documento.
+    """
+    try:
+        doc = get_object_or_404(Documento, id=doc_id)
+        data = json.loads(request.body)
+        nueva_fecha_str = data.get('fecha')
+        
+        if nueva_fecha_str:
+            try:
+                nueva_fecha = datetime.datetime.strptime(nueva_fecha_str, '%Y-%m-%d').date()
+                doc.fecha_inicio = nueva_fecha
+            except ValueError:
+                return JsonResponse({'error': 'Formato de fecha inválido (YYYY-MM-DD)'}, status=400)
+        else:
+            doc.fecha_inicio = None
+            
+        doc.save()
+        
+        return JsonResponse({
+            'status': 'success', 
+            'nueva_fecha': doc.fecha_inicio.strftime('%d/%m/%Y') if doc.fecha_inicio else "N/A"
+        })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
