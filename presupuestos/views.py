@@ -1,7 +1,10 @@
 from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
 from django.db.models import Sum
+from django.db import models
 from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, ItemPresupuesto, PresupuestoAgrupado
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from datetime import datetime
 
 @login_required
@@ -953,3 +956,763 @@ def exportar_cronograma_grupal_pdf(request, pk):
        return HttpResponse('Error creating PDF', status=500)
        
     return response
+
+
+# ──────────────────────────────────────────────────
+# REPEX Cronograma / Visualizador Interactivo
+# ──────────────────────────────────────────────────
+
+@login_required
+def cronograma_repex(request, pk):
+    from .models import REPEX
+    repex = get_object_or_404(REPEX, pk=pk)
+    data = _get_repex_cronograma_data(repex)
+
+    # Vista detalle de activos
+    items_detalle = []
+    items_qs = repex.items.select_related(
+        'activo', 'activo__modelo', 'activo__modelo__marca',
+        'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia'
+    ).all()
+
+    for item in items_qs:
+        activo = item.activo
+        if activo:
+            # Item vinculado a un activo
+            ruta_ubicacion = activo.ubicacion.ruta_completa if activo.ubicacion else '-'
+            ruta_categoria = ''
+            if activo.modelo and activo.modelo.categoria:
+                cat = activo.modelo.categoria
+                path = [cat.nombre]
+                curr = cat.padre
+                visited = {cat.id}
+                while curr:
+                    if curr.id in visited:
+                        break
+                    visited.add(curr.id)
+                    path.append(curr.nombre)
+                    curr = curr.padre
+                ruta_categoria = ' → '.join(reversed(path))
+            else:
+                ruta_categoria = '-'
+
+            items_detalle.append({
+                'id': item.id,
+                'activo_nombre': activo.nombre,
+                'codigo': activo.codigo_interno or '-',
+                'marca': activo.modelo.marca.nombre if activo.modelo and activo.modelo.marca else '-',
+                'modelo': activo.modelo.nombre if activo.modelo else '-',
+                'ruta_ubicacion': ruta_ubicacion,
+                'ruta_categoria': ruta_categoria,
+                'familia': activo.familia.nombre if activo.familia else '-',
+                'costo_reposicion': float(item.costo_reposicion or 0),
+                'prioridad': item.prioridad,
+                'es_manual': False,
+                'cantidad': float(item.cantidad or 1),
+                'unidades': item.unidades or '',
+                'precio_unitario': float(item.precio_unitario or 0),
+            })
+        else:
+            # Item manual sin activo
+            items_detalle.append({
+                'id': item.id,
+                'activo_nombre': item.nombre_item or 'Ítem manual',
+                'codigo': '-',
+                'marca': '-',
+                'modelo': '-',
+                'ruta_ubicacion': item.ubicacion_manual or '-',
+                'ruta_categoria': item.categoria_manual or 'Sin Categoría',
+                'familia': item.categoria_manual or 'Sin Categoría',
+                'costo_reposicion': float(item.costo_reposicion or 0),
+                'prioridad': item.prioridad,
+                'es_manual': True,
+                'cantidad': float(item.cantidad or 1),
+                'unidades': item.unidades or '',
+                'precio_unitario': float(item.precio_unitario or 0),
+            })
+
+    # Agrupar por categoría para vista colapsable
+    from collections import OrderedDict
+    categorias_dict = OrderedDict()
+    for item in items_detalle:
+        cat = item['ruta_categoria']
+        if cat not in categorias_dict:
+            categorias_dict[cat] = {'nombre': cat, 'items': [], 'total': 0.0, 'count': 0}
+        categorias_dict[cat]['items'].append(item)
+        categorias_dict[cat]['total'] += item['costo_reposicion']
+        categorias_dict[cat]['count'] += 1
+    categorias_detalle = list(categorias_dict.values())
+
+    context = {
+        'repex': repex,
+        'familias_data': data['familias_data'],
+        'meses_nombres': data['meses_nombres'],
+        'total_mensual': data['total_mensual'],
+        'total_general': data['total_general'],
+        'total_items': data['total_items'],
+        'items_detalle': items_detalle,
+        'categorias_detalle': categorias_detalle,
+    }
+    return render(request, 'presupuestos/cronograma_repex.html', context)
+
+
+@login_required
+def exportar_repex_excel(request, pk):
+    """Exporta el plan REPEX a Excel. Acepta ?vista=detalle|apu|cronograma para cambiar formato."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+    from .models import REPEX
+    from collections import OrderedDict
+
+    repex = get_object_or_404(REPEX, pk=pk)
+    vista = request.GET.get('vista', 'detalle')
+
+    # Styles
+    header_fill = PatternFill(start_color='3D5A80', end_color='3D5A80', fill_type='solid')
+    header_font = Font(name='Calibri', bold=True, color='FFFFFF', size=11)
+    cat_fill = PatternFill(start_color='C8D8E8', end_color='C8D8E8', fill_type='solid')
+    cat_font = Font(name='Calibri', bold=True, color='1E3A5F', size=11)
+    item_font = Font(name='Calibri', size=10, color='333333')
+    total_fill = PatternFill(start_color='2C4A6E', end_color='2C4A6E', fill_type='solid')
+    total_font = Font(name='Calibri', bold=True, color='FFFFFF', size=11)
+    money_fmt = '#,##0.00'
+    thin_border = Border(bottom=Side(style='thin', color='C8CED8'))
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.sheet_properties.outlinePr.summaryBelow = False
+
+    if vista == 'cronograma':
+        # ── CRONOGRAMA MENSUAL (MATRIZ) ──
+        ws.title = f"Cronograma REPEX {repex.anio}"
+        data = _get_repex_cronograma_data(repex)
+        
+        # Title
+        ws.merge_cells(f'A1:{get_column_letter(14)}')
+        ws['A1'].value = f"REPEX {repex.anio} — {repex.nombre} (Cronograma Mensual)"
+        ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='2C4A6E')
+        ws.row_dimensions[1].height = 30
+        ws.append([])
+
+        # Headers
+        headers = ['FAMILIA / ITEM', 'TOTAL'] + data['meses_nombres']
+        ws.append(headers)
+        hr = ws.max_row
+        for col, _ in enumerate(headers, 1):
+            cell = ws.cell(row=hr, column=col)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[hr].height = 25
+        ws.column_dimensions['A'].width = 45
+        ws.column_dimensions['B'].width = 15
+        for col in range(3, 15):
+            ws.column_dimensions[get_column_letter(col)].width = 12
+
+        for fam in data['familias_data']:
+            # Familia row
+            row_data = [fam['familia_nombre'].upper(), fam['total']] + fam['mensual']
+            ws.append(row_data)
+            r = ws.max_row
+            for col in range(1, 15):
+                ws.cell(row=r, column=col).fill = cat_fill
+                ws.cell(row=r, column=col).font = cat_font
+                if col >= 2:
+                    ws.cell(row=r, column=col).number_format = money_fmt
+            
+            # Items
+            group_start = ws.max_row + 1
+            for item in fam['items']:
+                row_data = [item['activo_nombre'], item['total']] + item['mensual']
+                ws.append(row_data)
+                ir = ws.max_row
+                ws.cell(row=ir, column=1).alignment = Alignment(indent=2)
+                for col in range(1, 15):
+                    ws.cell(row=ir, column=col).font = item_font
+                    ws.cell(row=ir, column=col).border = thin_border
+                    if col >= 2:
+                        ws.cell(row=ir, column=col).number_format = money_fmt
+                        ws.cell(row=ir, column=col).alignment = Alignment(horizontal='right')
+
+            group_end = ws.max_row
+            if group_end >= group_start:
+                ws.row_dimensions.group(group_start, group_end, outline_level=1, hidden=False)
+
+        # Totales mensuales
+        ws.append([])
+        total_row = ['TOTAL MENSUAL', data['total_general']] + data['total_mensual']
+        ws.append(total_row)
+        tr = ws.max_row
+        for col in range(1, 15):
+            ws.cell(row=tr, column=col).fill = total_fill
+            ws.cell(row=tr, column=col).font = total_font
+            if col >= 2:
+                ws.cell(row=tr, column=col).number_format = money_fmt
+
+    elif vista == 'apu':
+        # ── PRESUPUESTO / APU ──
+        items_qs = repex.items.select_related(
+            'activo', 'activo__modelo', 'activo__modelo__marca',
+            'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia'
+        ).all()
+        
+        categorias = OrderedDict()
+        for item in items_qs:
+            activo = item.activo
+            cat_name = '-'
+            if activo:
+                if activo.modelo and activo.modelo.categoria:
+                    cat = activo.modelo.categoria
+                    path = [cat.nombre]
+                    curr = cat.padre
+                    while curr:
+                        path.append(curr.nombre)
+                        curr = curr.padre
+                    cat_name = ' → '.join(reversed(path))
+            else:
+                cat_name = item.categoria_manual or 'Sin Categoría'
+            
+            if cat_name not in categorias:
+                categorias[cat_name] = {'items': [], 'total': 0.0}
+            
+            val = {
+                'codigo': activo.codigo_interno if activo else '-',
+                'nombre': item.display_nombre,
+                'modelo': (activo.modelo.nombre if activo and activo.modelo else '-') if activo else '-',
+                'ubicacion': (activo.ubicacion.ruta_completa if activo and activo.ubicacion else '-') if activo else (item.ubicacion_manual or '-'),
+                'unidades': item.unidades or 'Unidad',
+                'cantidad': float(item.cantidad or 1),
+                'precio_unitario': float(item.precio_unitario or 0),
+                'costo': float(item.costo_reposicion or 0),
+            }
+            categorias[cat_name]['items'].append(val)
+            categorias[cat_name]['total'] += val['costo']
+
+        ws.title = f"Presupuesto REPEX {repex.anio}"
+        apu_header_fill = PatternFill(start_color='6B94B8', end_color='6B94B8', fill_type='solid')
+
+        ws.merge_cells('A1:H1')
+        ws['A1'].value = f"REPEX {repex.anio} — {repex.nombre}"
+        ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='2C4A6E')
+        ws.row_dimensions[1].height = 30
+        ws.append([])
+
+        headers = ['CODIGO', 'UF', 'DESCRIPCION', 'MODELO', 'UNIDAD', 'CNTD', 'P.U.', 'IMPORTE']
+        ws.append(headers)
+        for col_idx in range(1, 9):
+            cell = ws.cell(row=3, column=col_idx)
+            cell.fill = apu_header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[3].height = 28
+        col_widths = [12, 30, 40, 20, 12, 10, 16, 18]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        cat_idx = 0
+        for cat_name, cat_data in categorias.items():
+            cat_idx += 1
+            letter = chr(64 + cat_idx) if cat_idx <= 26 else str(cat_idx)
+            ws.append([letter, '', cat_name.upper(), '', '', '', cat_data['total']])
+            r = ws.max_row
+            ws.merge_cells(f'B{r}:F{r}')
+            for col in range(1, 9):
+                ws.cell(row=r, column=col).fill = cat_fill
+                ws.cell(row=r, column=col).font = cat_font
+            ws.cell(row=r, column=8).number_format = money_fmt
+            ws.cell(row=r, column=8).alignment = Alignment(horizontal='right')
+
+            group_start = ws.max_row + 1
+            for j, item in enumerate(cat_data['items'], 1):
+                ws.append([f'{letter}.{j}', item['ubicacion'], item['nombre'], item['modelo'], item['unidades'], item['cantidad'], item['precio_unitario'], item['costo']])
+                ir = ws.max_row
+                for col in range(1, 9):
+                    ws.cell(row=ir, column=col).font = item_font
+                    ws.cell(row=ir, column=col).border = thin_border
+                ws.cell(row=ir, column=5).number_format = '#,##0.00'
+                ws.cell(row=ir, column=6).number_format = money_fmt
+                ws.cell(row=ir, column=7).number_format = money_fmt
+
+            group_end = ws.max_row
+            if group_end >= group_start:
+                ws.row_dimensions.group(group_start, group_end, outline_level=1, hidden=False)
+
+        ws.append([])
+        ws.append(['', '', '', '', '', '', 'TOTAL GENERAL', sum(c['total'] for c in categorias.values())])
+        r = ws.max_row
+        for col in range(1, 9):
+            ws.cell(row=r, column=col).fill = total_fill
+            ws.cell(row=r, column=col).font = total_font
+        ws.cell(row=r, column=8).number_format = money_fmt
+
+    else:
+        # ── DETALLE DE ACTIVOS ──
+        ws.title = f"Detalle REPEX {repex.anio}"
+        items_qs = repex.items.select_related(
+            'activo', 'activo__modelo', 'activo__modelo__marca',
+            'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia'
+        ).all()
+        
+        categorias = OrderedDict()
+        for item in items_qs:
+            activo = item.activo
+            cat_name = '-'
+            if activo:
+                if activo.modelo and activo.modelo.categoria:
+                    cat = activo.modelo.categoria
+                    path = [cat.nombre]
+                    curr = cat.padre
+                    while curr:
+                        path.append(curr.nombre)
+                        curr = curr.padre
+                    cat_name = ' → '.join(reversed(path))
+            else:
+                cat_name = item.categoria_manual or 'Sin Categoría'
+            
+            if cat_name not in categorias:
+                categorias[cat_name] = {'items': [], 'total': 0.0}
+            
+            val = {
+                'codigo': activo.codigo_interno if activo else '-',
+                'nombre': item.display_nombre,
+                'marca': (activo.modelo.marca.nombre if activo.modelo and activo.modelo.marca else '-') if activo else '-',
+                'modelo': (activo.modelo.nombre if activo and activo.modelo else '-') if activo else '-',
+                'ubicacion': (activo.ubicacion.ruta_completa if activo and activo.ubicacion else '-') if activo else (item.ubicacion_manual or '-'),
+                'prioridad': item.prioridad,
+                'costo': float(item.costo_reposicion or 0),
+            }
+            categorias[cat_name]['items'].append(val)
+            categorias[cat_name]['total'] += val['costo']
+
+        ws.merge_cells('A1:H1')
+        ws['A1'].value = f"REPEX {repex.anio} — {repex.nombre}"
+        ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='2C4A6E')
+        ws.row_dimensions[1].height = 30
+        ws.append([])
+
+        headers = ['Código', 'Activo', 'Marca', 'Modelo', 'Ruta Ubicación', 'Categoría', 'Prioridad', 'Costo Reposición']
+        ws.append(headers)
+        for col_idx in range(1, 9):
+            cell = ws.cell(row=3, column=col_idx)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[3].height = 28
+        col_widths = [14, 30, 16, 18, 35, 30, 12, 18]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        for cat_name, cat_data in categorias.items():
+            ws.append([f'📁 {cat_name}', '', '', '', '', '', f'{len(cat_data["items"])} activos', cat_data['total']])
+            r = ws.max_row
+            ws.merge_cells(f'A{r}:F{r}')
+            for col in range(1, 9):
+                ws.cell(row=r, column=col).fill = PatternFill(start_color='DCE4EF', end_color='DCE4EF', fill_type='solid')
+                ws.cell(row=r, column=col).font = cat_font
+            ws.cell(row=r, column=8).number_format = money_fmt
+
+            group_start = ws.max_row + 1
+            for item in cat_data['items']:
+                ws.append([item['codigo'], item['nombre'], item['marca'], item['modelo'], item['ubicacion'], cat_name, item['prioridad'], item['costo']])
+                ir = ws.max_row
+                for col in range(1, 9):
+                    ws.cell(row=ir, column=col).font = item_font
+                    ws.cell(row=ir, column=col).border = thin_border
+                ws.cell(row=ir, column=8).number_format = money_fmt
+                ws.cell(row=ir, column=1).alignment = Alignment(indent=2)
+
+            group_end = ws.max_row
+            if group_end >= group_start:
+                ws.row_dimensions.group(group_start, group_end, outline_level=1, hidden=False)
+
+        ws.append([])
+        ws.append(['', '', '', '', '', '', 'TOTAL INVERSIÓN', sum(c['total'] for c in categorias.values())])
+        r = ws.max_row
+        for col in range(1, 9):
+            ws.cell(row=r, column=col).fill = total_fill
+            ws.cell(row=r, column=col).font = total_font
+        ws.cell(row=r, column=8).number_format = money_fmt
+
+    # Response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    vista_labels = {'cronograma': 'Cronograma', 'apu': 'Presupuesto', 'detalle': 'Detalle'}
+    filename = f"REPEX_{repex.anio}_{vista_labels.get(vista, 'Export')}_{repex.nombre.replace(' ', '_')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
+    wb.save(response)
+    return response
+
+
+def _get_repex_cronograma_data(repex):
+    """
+    Genera datos matriciales de un plan REPEX agrupados por Familia del Activo.
+    Cada REPEXItem tiene un único costo_reposicion que se asigna al mes de fecha_proyectada.
+    """
+    meses_nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+    items = repex.items.select_related('activo', 'activo__familia').all()
+
+    # Agrupar por Familia
+    familias = {}
+    for item in items:
+        if item.activo:
+            familia_nombre = item.activo.familia.nombre if item.activo.familia else "Sin Familia"
+            familia_id = item.activo.familia.id if item.activo.familia else 0
+        else:
+            familia_nombre = item.categoria_manual or "Ítems Manuales"
+            familia_id = -1  # ID especial para manuales
+
+        key = (familia_id, familia_nombre)
+
+        if key not in familias:
+            familias[key] = {
+                'familia_nombre': familia_nombre,
+                'familia_id': familia_id,
+                'items': [],
+                'mensual': [0.0] * 12,
+                'total': 0.0,
+            }
+
+        # Determinar en qué mes cae este item
+        item_mensual = [0.0] * 12
+        costo = float(item.costo_reposicion or 0)
+        mes_proyectado = None
+
+        if item.fecha_proyectada and item.fecha_proyectada.year == repex.anio:
+            mes_idx = item.fecha_proyectada.month - 1
+            item_mensual[mes_idx] = costo
+            mes_proyectado = mes_idx + 1
+        elif item.fecha_proyectada is None and costo > 0:
+            # Sin fecha, mostrar sin asignar a ningún mes (total suelto)
+            pass
+
+        familias[key]['items'].append({
+            'id': item.id,
+            'activo_nombre': item.display_nombre,
+            'descripcion': item.descripcion or '',
+            'prioridad': item.prioridad,
+            'costo_reposicion': costo,
+            'costo_original': float(item.costo_original or 0),
+            'mensual': item_mensual,
+            'total': costo,
+            'mes_proyectado': mes_proyectado,
+        })
+
+        # Acumular en familia
+        for i in range(12):
+            familias[key]['mensual'][i] += item_mensual[i]
+        familias[key]['total'] += costo
+
+    # Ordenar familias por nombre
+    familias_data = sorted(familias.values(), key=lambda x: x['familia_nombre'])
+
+    # Totales globales
+    total_mensual = [0.0] * 12
+    total_general = 0.0
+    total_items = 0
+
+    for fam in familias_data:
+        total_items += len(fam['items'])
+        for i in range(12):
+            total_mensual[i] += fam['mensual'][i]
+        total_general += fam['total']
+
+    return {
+        'familias_data': familias_data,
+        'meses_nombres': meses_nombres,
+        'total_mensual': total_mensual,
+        'total_general': total_general,
+        'total_items': total_items,
+    }
+
+
+@login_required
+def api_update_repex_item(request):
+    """Actualiza costo_reposicion y fecha_proyectada de un REPEXItem."""
+    if request.method == "POST":
+        import json
+        from .models import REPEXItem
+        from django.http import JsonResponse
+        from datetime import date
+
+        try:
+            data = json.loads(request.body)
+            item_id = data.get('item_id')
+            mes = int(data.get('mes'))
+            monto = float(data.get('monto'))
+
+            item = get_object_or_404(REPEXItem, pk=item_id)
+            item.costo_reposicion = monto
+            if monto > 0 and 1 <= mes <= 12:
+                item.fecha_proyectada = date(item.repex.anio, mes, 1)
+            elif monto == 0:
+                item.fecha_proyectada = None
+                item.costo_reposicion = 0
+
+            item.save()
+            return JsonResponse({'status': 'ok', 'new_total': float(item.costo_reposicion)})
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+
+@login_required
+def api_add_repex_item(request):
+    """Agrega un activo existente al plan REPEX."""
+    if request.method == "POST":
+        import json
+        from .models import REPEX, REPEXItem
+        from activos.models.activo import Activo
+        from django.http import JsonResponse
+
+        try:
+            data = json.loads(request.body)
+            repex_id = data.get('repex_id')
+            activo_id = data.get('activo_id')
+            costo = float(data.get('costo', 0))
+
+            repex = get_object_or_404(REPEX, pk=repex_id)
+            activo = get_object_or_404(Activo, pk=activo_id)
+
+            # Verificar que no exista ya
+            if REPEXItem.objects.filter(repex=repex, activo=activo).exists():
+                return JsonResponse({'status': 'error', 'message': 'Este activo ya está en el plan REPEX.'}, status=400)
+
+            REPEXItem.objects.create(
+                repex=repex,
+                activo=activo,
+                costo_reposicion=costo,
+                costo_original=activo.costo or 0,
+            )
+            return JsonResponse({'status': 'ok', 'message': 'Activo agregado al plan'})
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+
+@login_required
+def api_delete_repex_item(request):
+    """Elimina un item del plan REPEX."""
+    if request.method == "POST":
+        import json
+        from .models import REPEXItem
+        from django.http import JsonResponse
+
+        try:
+            data = json.loads(request.body)
+            item_id = data.get('item_id')
+            item = get_object_or_404(REPEXItem, pk=item_id)
+            item.delete()
+            return JsonResponse({'status': 'ok', 'message': 'Ítem eliminado del plan'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+
+@login_required
+def api_search_activos(request):
+    """Busca activos por nombre o código para el selector del modal REPEX."""
+    from activos.models.activo import Activo
+    from django.http import JsonResponse
+
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+
+    activos = Activo.objects.filter(
+        models.Q(nombre__icontains=q) | models.Q(codigo_interno__icontains=q)
+    ).select_related('familia')[:20]
+
+    results = [{
+        'id': a.id,
+        'text': f"{a.nombre} ({a.codigo_interno})",
+        'familia': a.familia.nombre if a.familia else 'Sin Familia',
+        'costo': float(a.costo or 0),
+    } for a in activos]
+
+    return JsonResponse({'results': results})
+
+
+@login_required
+def api_import_repex_items(request):
+    """
+    Importa items REPEX masivamente desde un archivo Excel.
+    Columnas esperadas: Activo (codigo_interno), Costo (costo_reposicion).
+    Activos duplicados dentro del mismo plan se omiten.
+    """
+    if request.method != "POST":
+        from django.http import JsonResponse
+        return JsonResponse({'status': 'error', 'message': 'Método inválido'}, status=405)
+
+    import openpyxl
+    from io import BytesIO
+    from .models import REPEX, REPEXItem
+    from activos.models.activo import Activo
+    from django.http import JsonResponse
+
+    try:
+        repex_id = request.POST.get('repex_id')
+        archivo = request.FILES.get('archivo')
+
+        if not archivo:
+            return JsonResponse({'status': 'error', 'message': 'No se envió ningún archivo.'}, status=400)
+
+        repex = get_object_or_404(REPEX, pk=repex_id)
+
+        # Leer Excel
+        wb = openpyxl.load_workbook(BytesIO(archivo.read()), read_only=True, data_only=True)
+        ws = wb.active
+
+        # Obtener encabezados de la primera fila
+        headers = [str(cell.value or '').strip().lower() for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+
+        # Buscar índices de las columnas
+        col_activo = None
+        col_costo = None
+        for i, h in enumerate(headers):
+            if h in ('activo', 'codigo', 'codigo_interno', 'código', 'código_interno'):
+                col_activo = i
+            if h in ('costo', 'costo_reposicion', 'costo reposicion', 'costo_reposición', 'precio', 'monto'):
+                col_costo = i
+
+        if col_activo is None:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'No se encontró la columna "Activo". Columnas encontradas: {", ".join(headers)}'
+            }, status=400)
+
+        if col_costo is None:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'No se encontró la columna "Costo". Columnas encontradas: {", ".join(headers)}'
+            }, status=400)
+
+        # Cargar activos existentes en el plan para detectar duplicados
+        existing_activo_ids = set(
+            REPEXItem.objects.filter(repex=repex).values_list('activo_id', flat=True)
+        )
+
+        imported = 0
+        skipped = 0
+        errors = []
+
+        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            if row is None or all(c is None for c in row):
+                continue
+
+            codigo_raw = str(row[col_activo] or '').strip()
+            costo_raw = row[col_costo]
+
+            if not codigo_raw:
+                continue
+
+            # Limpiar código (quitar .0 si viene como float de Excel)
+            if '.' in codigo_raw:
+                try:
+                    codigo_raw = str(int(float(codigo_raw)))
+                except (ValueError, OverflowError):
+                    pass
+
+            # Buscar activo por código interno
+            try:
+                activo = Activo.objects.get(codigo_interno=codigo_raw)
+            except Activo.DoesNotExist:
+                errors.append(f"Fila {row_idx}: Activo '{codigo_raw}' no encontrado.")
+                continue
+            except Activo.MultipleObjectsReturned:
+                errors.append(f"Fila {row_idx}: Múltiples activos con código '{codigo_raw}'.")
+                continue
+
+            # Verificar duplicado
+            if activo.id in existing_activo_ids:
+                skipped += 1
+                continue
+
+            # Parsear costo
+            try:
+                costo = float(costo_raw or 0)
+            except (ValueError, TypeError):
+                costo = 0
+
+            REPEXItem.objects.create(
+                repex=repex,
+                activo=activo,
+                costo_reposicion=costo,
+                costo_original=activo.costo or 0,
+            )
+            existing_activo_ids.add(activo.id)
+            imported += 1
+
+        wb.close()
+
+        summary = f"✅ {imported} importados"
+        if skipped > 0:
+            summary += f", ⏭ {skipped} omitidos (duplicados)"
+        if errors:
+            summary += f", ❌ {len(errors)} errores"
+
+        return JsonResponse({
+            'status': 'ok',
+            'message': summary,
+            'imported': imported,
+            'skipped': skipped,
+            'errors': errors[:20],  # Limitar a 20 errores
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def api_add_manual_repex_item(request):
+    """Agrega un ítem manual al plan REPEX (sin activo vinculado)."""
+    from .models import REPEXItem, REPEX
+    import json
+
+    try:
+        data = json.loads(request.body)
+        repex_id = data.get('repex_id')
+        nombre = data.get('nombre_item', '').strip()
+        ubicacion = data.get('ubicacion_manual', '').strip()
+        categoria = data.get('categoria_manual', '').strip()
+        unidades_val = data.get('unidades', '').strip()
+        cantidad_val = data.get('cantidad', 1)
+        precio_val = data.get('precio_unitario', 0)
+        prioridad = data.get('prioridad', 'MEDIA')
+
+        if not repex_id or not nombre:
+            return JsonResponse({'status': 'error', 'message': 'Nombre del ítem y REPEX son requeridos.'}, status=400)
+
+        repex = REPEX.objects.get(pk=repex_id)
+
+        item = REPEXItem(
+            repex=repex,
+            activo=None,
+            nombre_item=nombre,
+            ubicacion_manual=ubicacion,
+            categoria_manual=categoria,
+            unidades=unidades_val,
+            cantidad=cantidad_val,
+            precio_unitario=precio_val,
+            prioridad=prioridad,
+        )
+        item.save()  # save() auto-calcula costo_reposicion
+
+        return JsonResponse({
+            'status': 'ok',
+            'message': f'Ítem "{nombre}" agregado (${item.costo_reposicion:,.2f})',
+            'item_id': item.id,
+        })
+
+    except REPEX.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Plan REPEX no encontrado.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)

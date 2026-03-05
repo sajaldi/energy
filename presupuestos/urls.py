@@ -44,4 +44,14 @@ urlpatterns = [
     path('pagos/solicitud/<int:pk>/import/', views_pagos.import_items_pago_background, name='import_items_pago'),
     path('api/pagos/import/process/', views_pagos.import_items_pago_process, name='import_items_pago_process'),
     path('api/pagos/import/progress/', views_pagos.import_items_pago_progress, name='import_items_pago_progress'),
+    
+    # REPEX Cronograma / Visualizador
+    path('repex/<int:pk>/', views.cronograma_repex, name='cronograma_repex'),
+    path('api/repex/update-item/', views.api_update_repex_item, name='api_update_repex_item'),
+    path('api/repex/add-item/', views.api_add_repex_item, name='api_add_repex_item'),
+    path('api/repex/delete-item/', views.api_delete_repex_item, name='api_delete_repex_item'),
+    path('api/repex/search-activos/', views.api_search_activos, name='api_search_activos'),
+    path('api/repex/import-items/', views.api_import_repex_items, name='api_import_repex_items'),
+    path('api/repex/add-manual-item/', views.api_add_manual_repex_item, name='api_add_manual_repex_item'),
+    path('repex/<int:pk>/exportar/', views.exportar_repex_excel, name='exportar_repex_excel'),
 ]

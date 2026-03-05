@@ -530,11 +530,19 @@ class REPEXItemInline(admin.TabularInline):
 
 @admin.register(REPEX)
 class REPEXAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'anio', 'estado', 'get_num_items', 'get_costo_total', 'creado_por')
+    list_display = ('nombre', 'anio', 'estado', 'get_num_items', 'get_costo_total', 'creado_por', 'ver_cronograma_btn')
     list_filter = ('anio', 'estado')
     search_fields = ('nombre', 'descripcion')
     inlines = [REPEXItemInline]
     readonly_fields = ('get_costo_total_detail', 'creado_en', 'actualizado_en')
+
+    def ver_cronograma_btn(self, obj):
+        from django.urls import reverse
+        if obj.pk:
+            url = reverse('presupuestos:cronograma_repex', args=[obj.pk])
+            return format_html('<a class="button" href="{}" target="_blank" style="background: #10b981; color: white;">📊 Visualizador Interactivo</a>', url)
+        return "-"
+    ver_cronograma_btn.short_description = "Cronograma"
 
     fieldsets = (
         ('Identificación', {
@@ -550,19 +558,19 @@ class REPEXAdmin(admin.ModelAdmin):
     get_num_items.short_description = "# Activos"
 
     def get_costo_total(self, obj):
-        total = obj.costo_total_reposicion
-        return format_html('<b style="color: #2563eb;">{:,.2f}</b>', total)
+        total = obj.costo_total_reposicion or 0
+        return format_html('<b style="color: #2563eb;">{}</b>', f"{total:,.2f}")
     get_costo_total.short_description = "Costo Total Reposición"
 
     def get_costo_total_detail(self, obj):
         if obj.pk:
-            total = obj.costo_total_reposicion
+            total = obj.costo_total_reposicion or 0
             count = obj.items.count()
             return format_html(
                 '<div style="font-size: 18px; font-weight: bold; color: #2563eb;">'
-                'L {:,.2f}</div>'
+                'L {}</div>'
                 '<div style="color: #6B7280; font-size: 12px;">{} activos en el plan</div>',
-                total, count
+                f"{total:,.2f}", count
             )
         return "Guarde primero para ver el resumen."
     get_costo_total_detail.short_description = "Inversión Total Estimada"

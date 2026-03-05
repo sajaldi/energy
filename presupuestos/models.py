@@ -841,7 +841,8 @@ class REPEX(models.Model):
 
 class REPEXItem(models.Model):
     """
-    Item individual de un plan REPEX vinculado a un activo.
+    Item individual de un plan REPEX.
+    Puede estar vinculado a un activo o ser un ítem manual (ej: reposición masiva).
     """
     PRIORIDADES = (
         ('ALTA', 'Alta (Crítico)'),
@@ -850,24 +851,48 @@ class REPEXItem(models.Model):
     )
 
     repex = models.ForeignKey(REPEX, related_name='items', on_delete=models.CASCADE)
-    activo = models.ForeignKey('activos.Activo', on_delete=models.CASCADE, related_name='repex_items')
+    activo = models.ForeignKey('activos.Activo', on_delete=models.CASCADE, related_name='repex_items', null=True, blank=True, help_text="Dejar vacío para ítems manuales")
     
+    # Campos para ítems manuales (sin activo vinculado)
+    nombre_item = models.CharField(max_length=300, blank=True, help_text="Nombre descriptivo cuando no hay activo vinculado")
+    ubicacion_manual = models.CharField(max_length=300, blank=True, help_text="Ubicación manual (ej: Edificio A → Nivel 2)")
+    categoria_manual = models.CharField(max_length=300, blank=True, help_text="Categoría del ítem (ej: Iluminación, Plomería)")
+    unidades = models.CharField(max_length=50, blank=True, help_text="Unidad de medida (ej: pieza, metro, lote)")
+    cantidad = models.DecimalField(max_digits=10, decimal_places=2, default=1, help_text="Cantidad de unidades")
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Precio por unidad")
+
     descripcion = models.CharField(max_length=500, blank=True, help_text="Motivo de la reposición")
     costo_original = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Costo original del sistema")
-    costo_reposicion = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Costo estimado de la nueva unidad")
+    costo_reposicion = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Costo total (cantidad × precio unitario)")
     
     fecha_proyectada = models.DateField(null=True, blank=True)
     prioridad = models.CharField(max_length=10, choices=PRIORIDADES, default='MEDIA')
     justificacion = models.TextField(blank=True)
 
+    @property
+    def es_manual(self):
+        """True si el ítem no tiene activo vinculado."""
+        return self.activo is None
+
+    @property
+    def display_nombre(self):
+        """Nombre para mostrar: del activo o manual."""
+        if self.activo:
+            return str(self.activo.nombre)
+        return self.nombre_item or 'Ítem sin nombre'
+
     def save(self, *args, **kwargs):
-        # Jalamos el costo original si existe
-        if not self.costo_original and self.activo.costo:
+        # Auto-calcular costo si hay cantidad y precio unitario
+        if self.cantidad and self.precio_unitario:
+            self.costo_reposicion = self.cantidad * self.precio_unitario
+        # Jalar costo original del activo si existe
+        if self.activo and not self.costo_original and self.activo.costo:
             self.costo_original = self.activo.costo
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Reponer {self.activo.nombre} - {self.repex.nombre}"
+        nombre = self.display_nombre
+        return f"Reponer {nombre} - {self.repex.nombre}"
 
     class Meta:
         verbose_name = "Ítem REPEX"

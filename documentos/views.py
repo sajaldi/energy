@@ -99,7 +99,12 @@ def documento_trazabilidad(request, doc_id):
                     links_por_doc[d2.id].append(d1)
 
     # 3. Función recursiva para construir el árbol e integrar los vínculos
-    def build_tree(doc, current_doc_id, is_external=False):
+    def build_tree(doc, current_doc_id, is_external=False, parent_date=None):
+        # Calcular diferencia de días si existe fecha de padre
+        dias_diferencia = None
+        if parent_date and doc.fecha_inicio:
+            dias_diferencia = (doc.fecha_inicio - parent_date).days
+        
         # Prefetch metadatos para evitar N+1
         children = doc.respuestas.all().select_related('tipo_documento', 'ultima_revision')
         metadatos_qs = doc.metadatos_valores.all().select_related('config')
@@ -131,7 +136,8 @@ def documento_trazabilidad(request, doc_id):
             'is_external': is_external,
             'vinculos_externos': vinculos_externos,
             'metadatos': metadatos_list,
-            'hijos': [build_tree(child, current_doc_id, is_external=is_external) for child in children]
+            'dias_diferencia': dias_diferencia,
+            'hijos': [build_tree(child, current_doc_id, is_external=is_external, parent_date=doc.fecha_inicio) for child in children]
         }
     
     tree = build_tree(root, documento.id)
@@ -168,8 +174,10 @@ def documento_detalle_json(request, doc_id):
         metadatos = []
         for mv in doc.metadatos_valores.all().select_related('config'):
             metadatos.append({
+                'id': mv.id,
                 'etiqueta': mv.config.etiqueta,
-                'valor': mv.valor
+                'valor': mv.valor,
+                'tipo_campo': mv.config.tipo_campo
             })
         
         # Comentarios (pines)
@@ -1124,3 +1132,28 @@ def busqueda_vectorial(request):
     Renderiza la interfaz premium de búsqueda semántica.
     """
     return render(request, 'documentos/busqueda_vectorial.html')
+@require_POST
+@login_required
+def api_actualizar_metadato(request, mv_id):
+    """
+    Actualiza el valor de un metadato dinámico via AJAX.
+    """
+    try:
+        from .models import MetadatoValor
+        import json
+        
+        mv = get_object_or_404(MetadatoValor, id=mv_id)
+        data = json.loads(request.body)
+        nuevo_valor = data.get('valor')
+        
+        # Opcional: Validar según tipo de campo en mv.config
+        
+        mv.valor = nuevo_valor
+        mv.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'nuevo_valor': mv.valor
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
