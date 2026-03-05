@@ -6,9 +6,8 @@
 {% block extrahead %}
 {{ block.super }}
 <!-- Select2 CSS & JS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <!-- IonIcons -->
 <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
 <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" nomodule></script>
@@ -994,6 +993,45 @@
 
     // ── Modal: Agregar Ítem Manual ──
     function openManualItemModal() {
+        // Inicializar Select2 al abrir si no está listo
+        const $m = $('#manualModelo');
+        if ($m.length && !$m.hasClass('select2-hidden-accessible')) {
+            console.log("Iniciando Select2 en modal...");
+            $m.select2({
+                dropdownParent: $('#manualItemModal'),
+                ajax: {
+                    url: "{% url 'activos:api_buscar_modelos_json' %}",
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return { q: params.term || '' };
+                    },
+                    processResults: function (data) {
+                        return { results: data.results }; 
+                    },
+                    cache: true
+                },
+                placeholder: '🔍 Buscar modelo...',
+                minimumInputLength: 0,
+                allowClear: true,
+                width: '100%'
+            });
+
+            // Al seleccionar, autocompletar
+            $m.on('select2:select', function (e) {
+                const data = e.params.data;
+                $('#manualNombre').val(data.text || '');
+                $('#manualCategoria').val(data.categoria || '');
+                $('#manualUnidades').val(data.unidad || '');
+            });
+            
+            $m.on('select2:unselect', function () {
+                $('#manualNombre').val('');
+                $('#manualCategoria').val('');
+                $('#manualUnidades').val('');
+            });
+        }
+
         $('#manualModelo').val(null).trigger('change');
         document.getElementById('manualNombre').value = '';
         document.getElementById('manualUbicacion').value = '';
@@ -1247,45 +1285,9 @@
         });
     }
 
-    // --- Inicialización Select2 para Modelo Manual ---
+    // Select2 se inicializa en openManualItemModal
     $(document).ready(function() {
-        const $manualModelo = $('#manualModelo');
-        if ($manualModelo.length) {
-            $manualModelo.select2({
-                dropdownParent: $('#manualItemModal'),
-                ajax: {
-                    url: "{% url 'activos:api_buscar_modelos_json' %}",
-                    dataType: 'json',
-                    delay: 250,
-                    data: function (params) {
-                        return { q: params.term };
-                    },
-                    processResults: function (data) {
-                        return { results: data.results }; 
-                    },
-                    cache: true
-                },
-                placeholder: '🔍 Buscar modelo...',
-                minimumInputLength: 0,
-                allowClear: true,
-                width: '100%'
-            });
-
-            // Al seleccionar, autocompletar
-            $manualModelo.on('select2:select', function (e) {
-                const data = e.params.data;
-                $('#manualNombre').val(data.text || '');
-                $('#manualCategoria').val(data.categoria || '');
-                $('#manualUnidades').val(data.unidad || '');
-            });
-            
-            $manualModelo.on('select2:unselect', function () {
-                $('#manualNombre').val('');
-                $('#manualCategoria').val('');
-                $('#manualUnidades').val('');
-            });
-        }
+        console.log("Página cargada. Select2 listo para activarse en modal.");
     });
-
 </script>
 {% endblock %}
