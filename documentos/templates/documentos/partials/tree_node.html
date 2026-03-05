@@ -35,23 +35,11 @@
     </div>
 
     {% if node.hijos %}
-    <!-- Thick Green Arrow pointing right -->
-    <div class="horizontal-arrow"
-        style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #16a34a; font-size: 24px; font-weight: bold; flex-shrink: 0;">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
-        </svg>
-    </div>
     <div style="display: flex; align-items: center; gap: 0;">
         {% for hijo in node.hijos %}
         {% include "documentos/partials/tree_node.html" with node=hijo %}
         {% if not forloop.last %}
-        <div class="horizontal-arrow"
-            style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #16a34a; font-size: 24px; font-weight: bold; flex-shrink: 0;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
-            </svg>
-        </div>
+        <div class="horizontal-spacer" style="width: 40px; flex-shrink: 0;"></div>
         {% endif %}
         {% endfor %}
     </div>
@@ -69,13 +57,6 @@
         {% if forloop.counter|divisibleby:2 %}
         <div style="display: flex; align-items: center; gap: 0;">
             {% include "documentos/partials/tree_node.html" with node=ext %}
-            <!-- Green Arrow pointing left (from main to left) -->
-            <div class="lateral-arrow"
-                style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #84cc16; flex-shrink: 0;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(180deg);">
-                    <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
-                </svg>
-            </div>
         </div>
         {% endif %}
         {% endfor %}
@@ -85,6 +66,13 @@
     <div class="doc-node {% if node.is_current %}active{% endif %}" data-id="{{ node.id }}"
         onclick="showDetails({{ node.id }})" style="z-index: 2; margin: 0 40px;">
         
+        <!-- Badge de Días (Diferencia con el padre) -->
+        {% if node.dias_diferencia != None %}
+            <div class="days-diff-badge" title="Diferencia de días con el documento predecesor">
+                {{ node.dias_diferencia|stringformat:"d" }} días
+            </div>
+        {% endif %}
+
         <!-- Toggle Metadatos -->
         <div class="node-expand-toggle" onclick="event.stopPropagation(); toggleNodeMetadata(this)" 
              style="position: absolute; top: -12px; right: -12px; background: var(--primary); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10;">
@@ -123,13 +111,6 @@
         {% for ext in node.vinculos_externos %}
         {% if not forloop.counter|divisibleby:2 %}
         <div style="display: flex; align-items: center; gap: 0;">
-            <!-- Green Arrow pointing right (from main to right) -->
-            <div class="lateral-arrow"
-                style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #84cc16; flex-shrink: 0;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
-                </svg>
-            </div>
             {% include "documentos/partials/tree_node.html" with node=ext %}
         </div>
         {% endif %}

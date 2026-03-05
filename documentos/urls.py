@@ -39,4 +39,5 @@ urlpatterns = [
     path('busqueda-semantica/', views.busqueda_vectorial, name='busqueda_vectorial'),
     path('biblioteca/visualizar/<int:bib_id>/', views.biblioteca_visualizar, name='biblioteca_visualizar'),
     path('api/model-fields/', views.api_get_model_fields, name='api_get_model_fields'),
+    path('api/metadato/u/<int:mv_id>/', views.api_actualizar_metadato, name='api_actualizar_metadato'),
 ]

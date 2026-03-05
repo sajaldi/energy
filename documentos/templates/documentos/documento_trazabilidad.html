@@ -253,30 +253,10 @@
         display: none !important;
     }
 
-    /* Arrow above the first child of a list */
-    .tree ul::before {
-        content: '';
-        position: absolute;
-        top: -30px;
-        left: 50%;
-        width: 6px;
-        height: 30px;
-        background: #0e7490;
-        /* Thick Cyan/Blue */
-        transform: translateX(-50%);
-        z-index: 1;
-    }
-
+    /* Arrows are now handled by SVG dynamic paths */
+    .tree ul::before,
     .tree ul::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        border-left: 12px solid transparent;
-        border-right: 12px solid transparent;
-        border-top: 15px solid #0e7490;
-        z-index: 1;
+        display: none !important;
     }
 
     /* Arrow between siblings in a vertical list */
@@ -284,39 +264,39 @@
         margin-top: 60px;
     }
 
-    /* Re-purposing li:before/after for arrows between siblings since they are now display:flex col */
-    .tree ul>li:not(:first-child):not(.is-external) {
-        position: relative;
-    }
-
-    /* We need to use a different selector because li::before is blocked by !important above */
-    .tree ul>li:not(:first-child)>.node-row::before {
-        content: '';
-        position: absolute;
-        top: -55px;
-        left: 50%;
-        width: 6px;
-        height: 40px;
-        background: #0e7490;
-        transform: translateX(-50%);
-        z-index: 1;
-    }
-
+    .tree ul>li:not(:first-child)>.node-row::before,
     .tree ul>li:not(:first-child)>.node-row::after {
-        content: '';
-        position: absolute;
-        top: -15px;
-        left: 50%;
-        transform: translateX(-50%);
-        border-left: 12px solid transparent;
-        border-right: 12px solid transparent;
-        border-top: 15px solid #0e7490;
-        z-index: 1;
+        display: none !important;
     }
 
     .tree>ul::before,
     .tree>ul::after {
         display: none;
+    }
+
+    /* Badge de Diferencia de Días (flotante sobre la curva) */
+    .days-diff-badge {
+        position: absolute;
+        background: #134e4a;
+        color: #f0fdf4;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        z-index: 15;
+        white-space: nowrap;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+    }
+
+    .days-diff-badge::before {
+        content: '🕒';
+        font-size: 0.8rem;
     }
 
 
@@ -429,7 +409,7 @@
         width: 650px;
         background: white;
         box-shadow: -20px 0 50px rgba(0, 0, 0, 0.15);
-        z-index: 1000;
+        z-index: 2500; /* Higher than tree-wrapper */
         transition: right 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         padding: 0;
         overflow-y: auto;
@@ -456,26 +436,34 @@
         flex: 1;
     }
 
-    .close-details {
+    .close-sidebar-btn {
         position: absolute;
-        top: 25px;
-        right: 25px;
+        top: 30px;
+        right: 30px;
+        background: #0f172a;
+        color: white;
+        padding: 10px 24px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.9rem;
         cursor: pointer;
-        font-size: 1.25rem;
-        color: var(--secondary);
-        width: 32px;
-        height: 32px;
+        z-index: 10;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border: none;
         display: flex;
         align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        background: #f1f5f9;
-        transition: all 0.2s;
+        gap: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
 
-    .close-details:hover {
-        background: #e2e8f0;
-        color: #0f172a;
+    .close-sidebar-btn:hover {
+        background: #1e293b;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .close-details {
+        display: none !important;
     }
 
     .detail-grid {
@@ -550,9 +538,29 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        z-index: 2000;
+        z-index: 3000;
         margin: 0;
         border-radius: 0;
+        background: white;
+    }
+
+    .fullscreen-exit {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 3001;
+        background: rgba(15, 23, 42, 0.9);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        display: none;
+    }
+
+    .fullscreen-preview .fullscreen-exit {
+        display: block;
     }
 
     .preview-container iframe {
@@ -580,6 +588,108 @@
 
     .loading-pulse {
         animation: pulse 1.5s infinite;
+    }
+
+    /* Búsqueda Global */
+    .global-search-container {
+        position: relative;
+        width: 350px;
+    }
+
+    .global-search-input {
+        width: 100%;
+        padding: 12px 18px 12px 45px;
+        border-radius: 14px;
+        border: 2px solid #e2e8f0;
+        background: #f8fafc;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: #1e293b;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        outline: none;
+    }
+
+    .global-search-input:focus {
+        border-color: var(--primary);
+        background: white;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+        width: 450px;
+    }
+
+    .search-icon-overlay {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 1.1rem;
+        pointer-events: none;
+        transition: color 0.3s;
+    }
+
+    .global-search-input:focus + .search-icon-overlay {
+        color: var(--primary);
+    }
+
+    .search-results-dropdown {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        right: 0;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        border: 1px solid var(--border);
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 5000;
+        display: none;
+        transform-origin: top;
+        animation: slideDown 0.2s ease-out;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: scaleY(0.9); }
+        to { opacity: 1; transform: scaleY(1); }
+    }
+
+    .search-result-item {
+        padding: 12px 16px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.2s;
+    }
+
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+
+    .search-result-item:hover {
+        background: #f8fafc;
+    }
+
+    .search-result-item .search-code {
+        font-weight: 800;
+        color: var(--primary);
+        font-size: 0.85rem;
+    }
+
+    .search-result-item .search-title {
+        font-size: 0.9rem;
+        color: #475569;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .search-result-no-results {
+        padding: 20px;
+        text-align: center;
+        color: #94a3b8;
+        font-style: italic;
     }
 
     /* Estilos para Conexiones de Pines */
@@ -989,7 +1099,15 @@
                 </div>
             </div>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <!-- Búsqueda Global -->
+            <div class="global-search-container">
+                <input type="text" class="global-search-input" id="global-search" 
+                       placeholder="Buscar código, título o contenido..." autocomplete="off">
+                <span class="search-icon-overlay">🔍</span>
+                <div id="search-results" class="search-results-dropdown"></div>
+            </div>
+
             <button onclick="exportToPDF()" class="button"
                 style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
                 <span>💾</span> Exportar PDF
@@ -1029,8 +1147,9 @@
 
     <div class="tree-wrapper" id="canvas-container"
         style="position: relative; padding: 10Vw 20vw; background: #f8fafc; overflow: hidden; height: calc(100vh - 100px);">
-        <div id="zoom-content" style="transform-origin: 0 0; transition: transform 0.1s ease-out; width: max-content;">
-            <div class="tree" style="z-index: 1;">
+        <div id="zoom-content" style="transform-origin: 0 0; transition: transform 0.1s ease-out; width: max-content; position: relative;">
+            <svg id="tree-connections" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; min-width: 5000px; min-height: 5000px; overflow: visible;"></svg>
+            <div class="tree" style="z-index: 1; position: relative;">
                 <ul>
                     <li>
                         {% include "documentos/partials/tree_node.html" with node=tree %}
@@ -1042,7 +1161,9 @@
 
     <!-- Premium Sidebar for details -->
     <div id="doc-details">
-        <div class="close-details" onclick="closeDetails()">✕</div>
+        <button class="close-sidebar-btn" onclick="closeDetails()">
+            <span>Cerrar</span>
+        </button>
         <div id="details-body" class="sidebar-content" style="padding:0;">
             <div style="padding: 100px 40px; text-align: center; color: #64748b;">
                 <div style="font-size: 3rem; margin-bottom: 20px;">📂</div>
@@ -1076,6 +1197,7 @@
     window.addEventListener('load', () => {
         initPanZoom();
         initNodeDragging();
+        setTimeout(drawConnections, 500); // Initial draw
     });
 
     async function exportToPDF() {
@@ -1225,6 +1347,8 @@
             draggedNode.setAttribute('data-dx', finalDX);
             draggedNode.setAttribute('data-dy', finalDY);
             draggedNode.style.transform = `translate(${finalDX}px, ${finalDY}px)`;
+            
+            drawConnections(); // Redraw paths while dragging
         });
 
         window.addEventListener('mouseup', (e) => {
@@ -1284,6 +1408,108 @@
 
         const zoomText = document.getElementById('zoom-level-text');
         if (zoomText) zoomText.innerText = Math.round(scale * 100) + '%';
+        
+        drawConnections(); // Redraw paths on zoom
+    }
+
+    function drawConnections() {
+        const svg = document.getElementById('tree-connections');
+        if (!svg) return;
+        svg.innerHTML = ''; // Clear previous
+
+        const contentRect = document.getElementById('zoom-content').getBoundingClientRect();
+        const nodes = document.querySelectorAll('.doc-node');
+
+        nodes.forEach(parent => {
+            const parentId = parent.getAttribute('data-id');
+            const parentRow = parent.closest('.node-row');
+            if (!parentRow) return;
+
+            // Encontrar hijos: están en el <ul> hermano del .node-row
+            const childrenList = parentRow.nextElementSibling;
+            if (childrenList && childrenList.tagName === 'UL') {
+                const childRows = childrenList.querySelectorAll(':scope > li > .node-row');
+                
+                childRows.forEach(childRow => {
+                    const child = childRow.querySelector('.doc-node');
+                    if (!child) return;
+
+                    drawCurve(parent, child, svg, contentRect);
+                });
+            }
+
+            // También dibujar conexiones laterales (vínculos externos)
+            const sideLeft = parentRow.querySelector('.side-left');
+            if (sideLeft) {
+                sideLeft.querySelectorAll('.doc-node').forEach(ext => {
+                    drawCurve(parent, ext, svg, contentRect, true, 'left');
+                });
+            }
+            const sideRight = parentRow.querySelector('.side-right');
+            if (sideRight) {
+                sideRight.querySelectorAll('.doc-node').forEach(ext => {
+                    drawCurve(parent, ext, svg, contentRect, true, 'right');
+                });
+            }
+        });
+    }
+
+    function drawCurve(parent, child, svg, contentRect, isLateral = false, side = '') {
+        const pRect = parent.getBoundingClientRect();
+        const cRect = child.getBoundingClientRect();
+
+        // Coordenadas relativas al contenedor de zoom (zoom-content)
+        // Dividimos por la escala actual para obtener coordenadas "naturales" dentro del transform
+        const x1 = (pRect.left + pRect.width / 2 - contentRect.left) / scale;
+        const y1 = (pRect.bottom - contentRect.top) / scale;
+        const x2 = (cRect.left + cRect.width / 2 - contentRect.left) / scale;
+        const y2 = (cRect.top - contentRect.top) / scale;
+
+        let pathData = "";
+        let midX, midY;
+
+        if (isLateral) {
+            // Curva lateral para vínculos externos
+            const lx1 = (side === 'left') ? (pRect.left - contentRect.left) / scale : (pRect.right - contentRect.left) / scale;
+            const ly1 = (pRect.top + pRect.height / 2 - contentRect.top) / scale;
+            const lx2 = (side === 'left') ? (cRect.right - contentRect.left) / scale : (cRect.left - contentRect.left) / scale;
+            const ly2 = (cRect.top + cRect.height / 2 - contentRect.top) / scale;
+            
+            const cp1x = lx1 + (side === 'left' ? -50 : 50);
+            const cp2x = lx2 + (side === 'left' ? 50 : -50);
+            
+            pathData = `M ${lx1} ${ly1} C ${cp1x} ${ly1}, ${cp2x} ${ly2}, ${lx2} ${ly2}`;
+            midX = (lx1 + lx2) / 2;
+            midY = (ly1 + ly2) / 2;
+        } else {
+            // Curva vertical para jerarquía (Bezier)
+            const cp1y = y1 + 40;
+            const cp2y = y2 - 40;
+            pathData = `M ${x1} ${y1} C ${x1} ${cp1y}, ${x2} ${cp2y}, ${x2} ${y2}`;
+            midX = (x1 + x2) / 2;
+            midY = (y1 + y2) / 2;
+        }
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", pathData);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", isLateral ? "#84cc16" : "#0e7490");
+        path.setAttribute("stroke-width", "4");
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("opacity", "0.6");
+        svg.appendChild(path);
+
+        // Posicionar badge de días si existe
+        const badge = child.querySelector('.days-diff-badge');
+        if (badge) {
+            badge.style.left = `${midX - (cRect.left - contentRect.left)/scale}px`;
+            badge.style.top = `${midY - (cRect.top - contentRect.top)/scale}px`;
+            // Ajuste fino para que flote sobre la curva relativo al nodo hijo (donde está el DOM del badge)
+            const childLocalX = (cRect.left - contentRect.left) / scale;
+            const childLocalY = (cRect.top - contentRect.top) / scale;
+            badge.style.left = (midX - childLocalX) + "px";
+            badge.style.top = (midY - childLocalY) + "px";
+        }
     }
 
     function adjustZoom(delta, mouseX, mouseY) {
@@ -1358,12 +1584,24 @@
                         <div class="metadata-section">
                             <div class="section-title"><span>Metadatos Extendidos</span></div>
                             <div class="detail-grid">
-                                ${data.metadatos.map(m => `
-                                    <div class="detail-item">
-                                        <label>${m.etiqueta}</label>
-                                        <span>${m.valor || '---'}</span>
-                                    </div>
-                                `).join('')}
+                                ${data.metadatos.map(m => {
+                                    let inputHtml = '';
+                                    if (m.tipo_campo === 'FECHA') {
+                                        const dateVal = formatDateForInput(m.valor);
+                                        inputHtml = `<input type="date" value="${dateVal}" onchange="updateMetadato(${m.id}, this.value)" class="form-input" style="width:100%; border:none; background:transparent; font-size: 0.85rem; font-weight: 600; color: #1e293b; padding: 4px 0; outline: none; border-bottom: 1px dashed transparent;" onfocus="this.style.borderBottomColor='#cbd5e1'" onblur="this.style.borderBottomColor='transparent'">`;
+                                    } else if (m.tipo_campo === 'NUMERO') {
+                                        inputHtml = `<input type="number" value="${m.valor || ''}" onblur="updateMetadato(${m.id}, this.value)" class="form-input" style="width:100%; border:none; background:transparent; font-size: 0.85rem; font-weight: 600; color: #1e293b; padding: 4px 0; outline: none; border-bottom: 1px dashed transparent;" onfocus="this.style.borderBottomColor='#cbd5e1'" onblur="this.style.borderBottomColor='transparent'">`;
+                                    } else {
+                                        // Texto, Area, Email, etc.
+                                        inputHtml = `<textarea onblur="updateMetadato(${m.id}, this.value)" class="form-input" rows="1" style="width:100%; border:none; background:transparent; font-size: 0.85rem; font-weight: 600; color: #1e293b; padding: 4px 0; outline: none; resize: none; border-bottom: 1px dashed transparent;" onfocus="this.style.borderBottomColor='#cbd5e1'" onblur="this.style.borderBottomColor='transparent'">${m.valor || ''}</textarea>`;
+                                    }
+                                    return `
+                                        <div class="detail-item" style="border-bottom: 1px solid #f1f5f9; transition: border-color 0.2s;">
+                                            <label style="margin-bottom: 0;">${m.etiqueta}</label>
+                                            ${inputHtml}
+                                        </div>
+                                    `;
+                                }).join('')}
                             </div>
                         </div>
                     `;
@@ -1427,14 +1665,17 @@
                         <div class="section-title" style="margin-top: 40px; display:flex; justify-content:space-between; align-items:center;">
                             <span>Vista Previa del Documento</span>
                             <div style="display:flex; gap:10px; align-items:center;">
+                                <button onclick="togglePdfFullscreen()" class="btn-icon" style="background:#0ea5e9; color:white; border:none; padding:4px 12px; font-weight:700;">Abrir</button>
                                 <button onclick="changePage(-1)" class="btn-icon" style="padding:2px 8px;">←</button>
                                 <span id="page-num-display" style="font-size:0.8rem; font-weight:600; min-width:60px; text-align:center;">Pág 1 / ?</span>
                                 <button onclick="changePage(1)" class="btn-icon" style="padding:2px 8px;">→</button>
                             </div>
                         </div>
-                        <div class="canvas-wrapper" id="canvas-wrapper">
-                            <canvas id="pdf-canvas"></canvas>
-                            <div id="pins-layer" class="pins-layer"></div>
+                        <div class="preview-container" id="pdf-preview-container">
+                            <button class="fullscreen-exit" onclick="togglePdfFullscreen()">Cerrar Vista Expandida</button>
+                            <div class="canvas-wrapper" id="canvas-wrapper">
+                                <canvas id="pdf-canvas"></canvas>
+                                <div id="pins-layer" class="pins-layer"></div>
                             <div id="comment-bubble" class="pin-popover">
                                 <div class="annotation-types">
                                     <button class="annotation-type-btn active" id="btn-type-pin" onclick="setAnnotationType('PIN')">📍 Pin</button>
@@ -1492,7 +1733,7 @@
                             <div class="detail-item"><label>Creado</label><span>${data.fecha_creacion}</span></div>
                             <div class="detail-item">
                                 <label>Fecha Documento</label>
-                                <input type="date" value="${data.fecha_documento || ''}" 
+                                <input type="date" value="${formatDateForInput(data.fecha_documento)}" 
                                        onchange="updateFecha(${data.id}, this.value)" 
                                        class="form-input" 
                                        style="width: 100%; padding: 4px 8px; font-size: 0.85rem; border-radius: 6px; border: 1px solid var(--border); background: #f8fafc;">
@@ -1500,6 +1741,12 @@
                         </div>
                         ${metadatosHtml}
                         <div style="margin-top: 40px; display: flex; flex-direction: column; gap: 10px;">
+                            <button onclick="syncMetadata(${data.id}, this)" class="button" style="text-align: center; background: #0ea5e9; color: white; padding: 12px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer;">
+                                ⚙️ Sincronizar campos
+                            </button>
+                            <button onclick="togglePdfFullscreen()" class="button" style="text-align: center; background: #6366f1; color: white; padding: 12px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer;">
+                                👁️ Abrir PDF (Vista Rápida)
+                            </button>
                             <a href="/documentos/visor-pines/${data.id}/" target="_blank" class="button" style="text-align: center; background: #ef4444; color: white; padding: 12px; border-radius: 10px; font-weight: 700; text-decoration: none; display:flex; align-items:center; justify-content:center; gap:8px;">
                                 📍 Abrir Visor de Anotaciones
                             </a>
@@ -1513,6 +1760,94 @@
                     </div>
                 `;
             });
+    }
+
+    async function syncMetadata(docId, btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Sincronizando...";
+        btn.disabled = true;
+        btn.style.opacity = "0.7";
+
+        try {
+            const res = await fetch(`/documentos/sync-metadatos/${docId}/`, {
+                method: 'GET'
+            });
+            // The view redirects by default, but let's assume it might be AJAX-friendly or handle the result
+            // Actually, we should probably check if we can make it return JSON or just reload the panel
+            setTimeout(() => {
+                showDetails(docId); // Refresh sidebar
+            }, 500);
+        } catch (err) {
+            console.error("Error sincronizando:", err);
+            btn.innerText = "Error";
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.disabled = false;
+                btn.style.opacity = "1";
+            }, 2000);
+        }
+    }
+
+    function togglePdfFullscreen() {
+        const container = document.getElementById('pdf-preview-container');
+        if (container) {
+            container.classList.toggle('fullscreen-preview');
+            // Re-render pins and potentially redraw canvas to adjust to size
+            setTimeout(() => {
+                renderPins(); 
+            }, 300);
+        }
+    }
+
+    function formatDateForInput(dateStr) {
+        if (!dateStr) return "";
+        dateStr = dateStr.trim();
+        
+        // YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+        
+        // YYYY-MM-DDTHH:MM:SS
+        if (/^\d{4}-\d{2}-\d{2}T/.test(dateStr)) return dateStr.split('T')[0];
+
+        // DD/MM/YYYY or DD-MM-YYYY
+        let match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (match) {
+            let d = match[1].padStart(2, '0');
+            let m = match[2].padStart(2, '0');
+            let y = match[3];
+            return `${y}-${m}-${d}`;
+        }
+        
+        // DD/MM/YY or DD-MM-YY
+        match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+        if (match) {
+            let d = match[1].padStart(2, '0');
+            let m = match[2].padStart(2, '0');
+            let y = (parseInt(match[3]) > 70 ? "19" : "20") + match[3]; 
+            return `${y}-${m}-${d}`;
+        }
+
+        return "";
+    }
+
+    function updateMetadato(mvId, nuevoValor) {
+        fetch(`/documentos/api/metadato/u/${mvId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ valor: nuevoValor })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    console.log("Metadato actualizado:", data.nuevo_valor);
+                } else {
+                    alert("Error al actualizar metadato: " + data.message);
+                }
+            })
+            .catch(err => console.error("Error de red:", err));
     }
 
     async function initPDF(url) {
@@ -1880,6 +2215,64 @@
             document.body.removeChild(textArea);
         });
     }
+
+    // --- Búsqueda Global ---
+    function initGlobalSearch() {
+        const input = document.getElementById('global-search');
+        const results = document.getElementById('search-results');
+        let timeout = null;
+
+        input.addEventListener('input', (e) => {
+            clearTimeout(timeout);
+            const q = e.target.value;
+
+            if (q.length < 3) {
+                results.style.display = 'none';
+                return;
+            }
+
+            timeout = setTimeout(() => {
+                fetch(`/documentos/api/buscar/?q=${encodeURIComponent(q)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        results.innerHTML = '';
+                        if (data.length > 0) {
+                            data.forEach(item => {
+                                const div = document.createElement('div');
+                                div.className = 'search-result-item';
+                                div.innerHTML = `
+                                    <span class="search-code">${item.codigo}</span>
+                                    <span class="search-title">${item.titulo}</span>
+                                `;
+                                div.onclick = () => {
+                                    window.location.href = `/documentos/trazabilidad/${item.id}/`;
+                                };
+                                results.appendChild(div);
+                            });
+                        } else {
+                            results.innerHTML = '<div class="search-result-no-results">No se encontraron documentos</div>';
+                        }
+                        results.style.display = 'block';
+                    });
+            }, 300);
+        });
+
+        // Cerrar al hacer clic fuera
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target) && !results.contains(e.target)) {
+                results.style.display = 'none';
+            }
+        });
+
+        // Mostrar al enfocar si hay texto
+        input.addEventListener('focus', () => {
+            if (input.value.length >= 3) {
+                results.style.display = 'block';
+            }
+        });
+    }
+
+    window.addEventListener('load', initGlobalSearch);
 </script>
 <style>
     .fullscreen-preview .close-fs {

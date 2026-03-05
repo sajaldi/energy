@@ -102,7 +102,7 @@ else:
 N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', _default_new_doc_webhook)
 
 # Webhook para el Chat con IA (Documentos)
-N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook-test/chat-documento')
+N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook/chat-documento')
 
 # Webhook para procesamiento de documentos (PDF Conversion + Metadata)
 if IS_LOCAL:

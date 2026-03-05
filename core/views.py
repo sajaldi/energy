@@ -642,18 +642,28 @@ def qr_resolver(request):
 @staff_member_required
 def global_search(request):
     """
-    Búsqueda unificada en todo el sistema (Activos y Tickets).
+    Búsqueda unificada en todo el sistema con múltiples modelos y pestañas.
     """
     query = request.GET.get('q', '').strip()
-    activos = []
-    tickets = []
+    results = {
+        'activos': [],
+        'tickets': [],
+        'documentos': [],
+        'materiales': [],
+        'rutinas': [],
+        'presupuestos': [],
+    }
     
     if query:
         from activos.models.activo import Activo
         from callcenter.models import SolicitudTicket
+        from documentos.models import Documento
+        from inventarios.models import Material
+        from mantenimiento.models import Rutina
+        from presupuestos.models import PresupuestoAnual
         
-        # Buscar Activos
-        activos = Activo.objects.filter(
+        # 1. Activos
+        results['activos'] = Activo.objects.filter(
             Q(nombre__icontains=query) |
             Q(codigo_interno__icontains=query) |
             Q(serie__icontains=query) |
@@ -661,20 +671,45 @@ def global_search(request):
             Q(descripcion__icontains=query)
         ).select_related('ubicacion', 'modelo__marca')[:20]
         
-        # Buscar Tickets
-        tickets = SolicitudTicket.objects.filter(
+        # 2. Tickets
+        results['tickets'] = SolicitudTicket.objects.filter(
             Q(folio__icontains=query) |
             Q(id_solicitud__icontains=query) |
             Q(solicitante__icontains=query) |
             Q(solicitud_descripcion__icontains=query)
         )[:20]
 
+        # 3. Documentos
+        results['documentos'] = Documento.objects.filter(
+            Q(codigo__icontains=query) |
+            Q(titulo__icontains=query) |
+            Q(contenido_extraido__icontains=query)
+        ).select_related('tipo_documento')[:20]
+
+        # 4. Materiales
+        results['materiales'] = Material.objects.filter(
+            Q(nombre__icontains=query) |
+            Q(descripcion__icontains=query)
+        ).select_related('categoria_material', 'unidad_medida')[:20]
+
+        # 5. Rutinas
+        results['rutinas'] = Rutina.objects.filter(
+            Q(nombre__icontains=query)
+        ).select_related('categoria')[:20]
+
+        # 6. Presupuestos
+        results['presupuestos'] = PresupuestoAnual.objects.filter(
+            Q(nombre__icontains=query) |
+            Q(anio__icontains=query)
+        )[:20]
+
     from django.contrib import admin
+    total_results = sum(len(v) for v in results.values())
+    
     context = {
         'query': query,
-        'activos': activos,
-        'tickets': tickets,
-        'total_results': len(activos) + len(tickets),
+        'results': results,
+        'total_results': total_results,
         'title': f'Búsqueda Global: {query}',
         **admin.site.each_context(request),
     }
