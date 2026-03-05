@@ -9,6 +9,9 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- IonIcons -->
+<script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
+<script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" nomodule></script>
 {% endblock %}
 
 {% block extrastyle %}
@@ -427,11 +430,7 @@
 </style>
 {% endblock %}
 
-{% block extrahead %}
-{{ block.super }}
-<script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
-<script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" nomodule></script>
-{% endblock %}
+
 
 {% block breadcrumbs %}
 <div class="breadcrumbs">
@@ -1250,8 +1249,9 @@
 
     // --- Inicialización Select2 para Modelo Manual ---
     $(document).ready(function() {
-        if ($('#manualModelo').length) {
-            $('#manualModelo').select2({
+        const $manualModelo = $('#manualModelo');
+        if ($manualModelo.length) {
+            $manualModelo.select2({
                 dropdownParent: $('#manualItemModal'),
                 ajax: {
                     url: "{% url 'activos:api_buscar_modelos_json' %}",
@@ -1265,37 +1265,21 @@
                     },
                     cache: true
                 },
-                placeholder: '🔍 Buscar modelo de activo...',
+                placeholder: '🔍 Buscar modelo...',
                 minimumInputLength: 0,
                 allowClear: true,
-                width: '100%',
-                templateResult: function(m) {
-                    if (!m.id) return m.text;
-                    let c = m.categoria ? m.categoria : 'Sin categoría';
-                    return $(`
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <ion-icon name="${m.icono || 'cube'}" style="color:var(--text-muted); font-size:1.2rem;"></ion-icon>
-                            <div>
-                                <div style="font-weight:600; color:var(--text-main);">${m.text}</div>
-                                <div style="font-size:0.75rem; color:var(--text-muted);">${c}</div>
-                            </div>
-                        </div>
-                    `);
-                },
-                templateSelection: function(m) {
-                    return m.text;
-                }
+                width: '100%'
             });
 
-            // Autocompletar campos cuando se selecciona un modelo
-            $('#manualModelo').on('select2:select', function (e) {
-                var data = e.params.data;
-                $('#manualNombre').val(data.text);
+            // Al seleccionar, autocompletar
+            $manualModelo.on('select2:select', function (e) {
+                const data = e.params.data;
+                $('#manualNombre').val(data.text || '');
                 $('#manualCategoria').val(data.categoria || '');
                 $('#manualUnidades').val(data.unidad || '');
             });
             
-            $('#manualModelo').on('select2:unselect', function (e) {
+            $manualModelo.on('select2:unselect', function () {
                 $('#manualNombre').val('');
                 $('#manualCategoria').val('');
                 $('#manualUnidades').val('');
