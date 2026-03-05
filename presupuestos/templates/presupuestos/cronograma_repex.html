@@ -3,11 +3,17 @@
 
 {% block title %}REPEX {{ repex.anio }} - {{ repex.nombre }}{% endblock %}
 
+{% block extrahead %}
+{{ block.super }}
+<!-- Select2 CSS & JS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% endblock %}
+
 {% block extrastyle %}
 {{ block.super }}
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
     :root {
         --primary: #4a6fa5;
@@ -26,6 +32,11 @@
         --partition-bg: #dce4ef;
         --partition-hover: #cdd7e6;
         --row-hover: #eef1f5;
+    }
+
+    /* Fix z-index for Select2 inside modal */
+    .select2-container--open {
+        z-index: 9999 !important;
     }
 
     #content {
@@ -834,9 +845,6 @@
     </div>
 </div>
 
-<!-- Select2 JS and jQuery (Ensure loaded) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     const csrfToken = '{{ csrf_token }}';
     const repexId = '{{ repex.id }}';
@@ -1258,8 +1266,9 @@
                     cache: true
                 },
                 placeholder: '🔍 Buscar modelo de activo...',
-                minimumInputLength: 2,
+                minimumInputLength: 0,
                 allowClear: true,
+                width: '100%',
                 templateResult: function(m) {
                     if (!m.id) return m.text;
                     let c = m.categoria ? m.categoria : 'Sin categoría';
