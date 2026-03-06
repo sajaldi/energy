@@ -275,6 +275,8 @@ def import_activos_task(self, file_path, file_format, user_id=None, import_name=
             'errors': len(detailed_errors),
             'error_list': detailed_errors,
             'results': detailed_messages, # Para el modal de verificación
+            'found': result.totals.get('update', 0), # Para el resumen de verificación
+            'not_found': result.totals.get('new', 0), # Para el resumen de verificación
             'verification_mode': verification_mode,
             'dry_run': dry_run,
             'file_path': file_path

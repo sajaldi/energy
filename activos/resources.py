@@ -317,7 +317,21 @@ class ActivoResource(resources.ModelResource):
         use_bulk = True
         batch_size = 1000  # Volvemos a un tamaño de lote más seguro y manejable
         use_transactions = True 
+    
+    def before_import_row(self, row, **kwargs):
+        """Mapeo flexible de cabeceras para código interno y limpeza."""
+        # Normalizar nombres de columnas comunes a 'codigo_interno'
+        mapeo_codigo = ['codigo', 'código', 'cod', 'id', 'activo_id']
+        for key in list(row.keys()):
+            key_clean = str(key).strip().lower()
+            if key_clean in mapeo_codigo and 'codigo_interno' not in row:
+                row['codigo_interno'] = row[key]
+                break
 
+        # Limpieza básica del código interno
+        if 'codigo_interno' in row and row['codigo_interno']:
+            row['codigo_interno'] = str(row['codigo_interno']).strip()
+            
     def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
         """Lógica rápida para omitir filas irrelevantes"""
         if not any(row.values()): return True
