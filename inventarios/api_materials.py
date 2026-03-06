@@ -1,8 +1,9 @@
+from decimal import Decimal
 from django.http import JsonResponse
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
-from inventarios.models import Material, CategoriaMaterial
+from inventarios.models import Material, CategoriaMaterial, StockRecord
 
 @login_required
 def api_list_materials(request):
