@@ -198,8 +198,8 @@ class ModeloResource(resources.ModelResource):
         # Identificamos por nombre y marca para que si el ID está vacío, 
         # actualice si ya existe esa combinación o cree uno nuevo si no.
         import_id_fields = ('nombre', 'marca_nombre')
-        fields = ('id', 'nombre', 'marca_nombre', 'categoria_nombre', 'imagen_url')
-        export_order = ('id', 'nombre', 'marca_nombre', 'categoria_nombre', 'imagen_url')
+        fields = ('id', 'nombre', 'marca_nombre', 'categoria_nombre', 'precio_promedio', 'descripcion', 'imagen_url')
+        export_order = ('id', 'nombre', 'marca_nombre', 'categoria_nombre', 'precio_promedio', 'descripcion', 'imagen_url')
 
     def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
         if not any(row.values()): return True

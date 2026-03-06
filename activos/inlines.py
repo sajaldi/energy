@@ -44,6 +44,8 @@ class CompatibilidadMaterialInline(admin.TabularInline):
 class ModeloInline(admin.TabularInline):
     model = Modelo
     extra = 1
+    fields = ('nombre', 'categoria', 'precio_promedio')
+    autocomplete_fields = ('categoria',)
 
 class ComponenteActivoInline(admin.TabularInline):
     model = Activo

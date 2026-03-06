@@ -517,7 +517,7 @@ class ModeloAdmin(ImportExportModelAdmin):
 
     fieldsets = (
         ('Información General', {
-            'fields': ('nombre', 'marca', 'categoria')
+            'fields': ('nombre', 'marca', 'categoria', 'precio_promedio', 'descripcion')
         }),
         ('Imagen del Modelo', {
             'fields': (('imagen_archivo', 'imagen_url'), 'preview_imagen'),
