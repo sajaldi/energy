@@ -980,7 +980,33 @@ def cronograma_repex(request, pk):
         activo = item.activo
         if activo:
             # Item vinculado a un activo
-            ruta_ubicacion = activo.ubicacion.ruta_completa if activo.ubicacion else '-'
+            # Lógica para obtener el edificio raíz (Main Building)
+            edificio_obj = activo.ubicacion
+            if edificio_obj:
+                # Subir hasta encontrar el nivel superior que sea de tipo EDIFICIO o Campus (root)
+                # O simplemente el primer ancestro que sea 'EDIFICIO'
+                visited = {edificio_obj.id}
+                curr = edificio_obj
+                found_edificio = edificio_obj if edificio_obj.tipo == 'EDIFICIO' else None
+                
+                # Buscamos el ancestro tipo EDIFICIO
+                temp_curr = edificio_obj.padre
+                while temp_curr:
+                    if temp_curr.id in visited: break
+                    visited.add(temp_curr.id)
+                    if temp_curr.tipo == 'EDIFICIO':
+                        found_edificio = temp_curr
+                    temp_curr = temp_curr.padre
+                
+                if found_edificio:
+                    nombre_edificio = found_edificio.nombre
+                else:
+                    # Si no hay tipo EDIFICIO, usamos la raíz de la jerarquía
+                    nombre_edificio = edificio_obj.get_root().nombre
+            else:
+                nombre_edificio = '-'
+            
+            ruta_ubicacion = nombre_edificio
             ruta_categoria = ''
             if activo.modelo and activo.modelo.categoria:
                 cat = activo.modelo.categoria
@@ -1055,21 +1081,38 @@ def cronograma_repex(request, pk):
                 'precio_unitario': float(item.precio_unitario or 0),
             })
 
-    # Agrupar por categoría para vista colapsable
+    # Agrupar por categoría y luego por edificio para vista jerárquica de 3 niveles
     from collections import OrderedDict
-    categorias_dict = OrderedDict()
-    resumen_dict = OrderedDict() # Para la nueva pestaña de Resumen por Modelo
+    hierarchical_dict = OrderedDict()
+    resumen_dict = OrderedDict()
 
     for item in items_detalle:
         cat = item['ruta_categoria']
-        # Categoría detalle (existente)
-        if cat not in categorias_dict:
-            categorias_dict[cat] = {'nombre': cat, 'items': [], 'total': 0.0, 'count': 0}
-        categorias_dict[cat]['items'].append(item)
-        categorias_dict[cat]['total'] += item['costo_reposicion']
-        categorias_dict[cat]['count'] += 1
+        building = item['ruta_ubicacion']
+        item_id = item['id']
 
-        # Resumen por Modelo (nueva agrupación)
+        # 1. Estructura para Detalle/Presupuesto (3 niveles)
+        if cat not in hierarchical_dict:
+            hierarchical_dict[cat] = {
+                'nombre': cat, 
+                'edificios': OrderedDict(), 
+                'total': 0.0, 
+                'count': 0
+            }
+        
+        if building not in hierarchical_dict[cat]['edificios']:
+            hierarchical_dict[cat]['edificios'][building] = {
+                'nombre': building, 
+                'items': [], 
+                'total_edificio': 0.0
+            }
+        
+        hierarchical_dict[cat]['edificios'][building]['items'].append(item)
+        hierarchical_dict[cat]['edificios'][building]['total_edificio'] += item['costo_reposicion']
+        hierarchical_dict[cat]['total'] += item['costo_reposicion']
+        hierarchical_dict[cat]['count'] += 1
+
+        # 2. Resumen por Modelo (existente)
         if cat not in resumen_dict:
             resumen_dict[cat] = {'nombre': cat, 'modelos': OrderedDict(), 'total': 0.0}
         
@@ -1079,7 +1122,7 @@ def cronograma_repex(request, pk):
                 'marca': item['marca'],
                 'modelo': item['modelo'],
                 'cantidad': 0,
-                'precio_unitario': item['precio_unitario'], # Tomamos el del primer item
+                'precio_unitario': item['precio_unitario'],
                 'total': 0.0
             }
         
@@ -1088,15 +1131,25 @@ def cronograma_repex(request, pk):
         m_data['total'] += item['costo_reposicion']
         resumen_dict[cat]['total'] += item['costo_reposicion']
 
-    categorias_detalle = list(categorias_dict.values())
-    
-    # Convertir resumen_dict a lista para el template
+    # Convertir a listas para el template
+    presupuesto_jerarquico = []
+    for cat_name, c_data in hierarchical_dict.items():
+        cat_item = {
+            'nombre': cat_name,
+            'total': c_data['total'],
+            'count': c_data['count'],
+            'edificios': []
+        }
+        for b_name, b_data in c_data['edificios'].items():
+            cat_item['edificios'].append(b_data)
+        presupuesto_jerarquico.append(cat_item)
+
     resumen_modelos = []
-    for cat_name, c_data in resumen_dict.items():
+    for cat_name, r_data in resumen_dict.items():
         resumen_modelos.append({
             'nombre': cat_name,
-            'modelos': list(c_data['modelos'].values()),
-            'total': c_data['total']
+            'modelos': list(r_data['modelos'].values()),
+            'total': r_data['total']
         })
 
     context = {
@@ -1107,7 +1160,7 @@ def cronograma_repex(request, pk):
         'total_general': data['total_general'],
         'total_items': data['total_items'],
         'items_detalle': items_detalle,
-        'categorias_detalle': categorias_detalle,
+        'presupuesto_jerarquico': presupuesto_jerarquico, # Nueva estructura 3 niveles
         'resumen_modelos': resumen_modelos,
     }
     return render(request, 'presupuestos/cronograma_repex.html', context)
@@ -1208,16 +1261,17 @@ def exportar_repex_excel(request, pk):
             if col >= 2:
                 ws.cell(row=tr, column=col).number_format = money_fmt
 
-    elif vista == 'apu':
-        # ── PRESUPUESTO / APU ──
+    else:
+        # ── DETALLE / APU with 3-level hierarchy ──
         items_qs = repex.items.select_related(
             'activo', 'activo__modelo', 'activo__modelo__marca',
             'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia',
             'modelo', 'modelo__marca', 'modelo__categoria'
         ).all()
-        
-        categorias = OrderedDict()
+
+        hierarchical_obj = OrderedDict()
         for item in items_qs:
+            # Category name logic
             activo = item.activo
             cat_name = '-'
             if activo:
@@ -1249,9 +1303,30 @@ def exportar_repex_excel(request, pk):
                 if not cat_name:
                     cat_name = 'Sin Categoría'
             
-            if cat_name not in categorias:
-                categorias[cat_name] = {'items': [], 'total': 0.0}
+            # Logic for Building grouping
+            if activo and activo.ubicacion:
+                edificio_obj = activo.ubicacion
+                visited_ub = {edificio_obj.id}
+                found_edificio = edificio_obj if edificio_obj.tipo == 'EDIFICIO' else None
+                temp_curr = edificio_obj.padre
+                while temp_curr:
+                    if temp_curr.id in visited_ub: break
+                    visited_ub.add(temp_curr.id)
+                    if temp_curr.tipo == 'EDIFICIO':
+                        found_edificio = temp_curr
+                    temp_curr = temp_curr.padre
+                
+                building_name = found_edificio.nombre if found_edificio else edificio_obj.get_root().nombre
+            else:
+                building_name = item.ubicacion_manual or '-'
             
+            if cat_name not in hierarchical_obj:
+                hierarchical_obj[cat_name] = OrderedDict()
+            
+            if building_name not in hierarchical_obj[cat_name]:
+                hierarchical_obj[cat_name][building_name] = {'items': [], 'total_edificio': 0.0}
+            
+            # Common metadata
             modelo_str = '-'
             marca_str = '-'
             if activo and activo.modelo:
@@ -1263,22 +1338,30 @@ def exportar_repex_excel(request, pk):
                 if hasattr(item.modelo, 'marca') and item.modelo.marca:
                     marca_str = item.modelo.marca.nombre
 
-            val = {
-                'codigo': activo.codigo_interno if activo else '-',
-                'nombre': item.display_nombre,
-                'marca': marca_str,
-                'modelo': modelo_str,
-                'ubicacion': (activo.ubicacion.ruta_completa if activo and activo.ubicacion else '-') if activo else (item.ubicacion_manual or '-'),
-                'unidades': item.unidades or 'Unidad',
-                'cantidad': float(item.cantidad or 1),
-                'precio_unitario': float(item.precio_unitario or 0),
-                'costo': float(item.costo_reposicion or 0),
-            }
-            categorias[cat_name]['items'].append(val)
-            categorias[cat_name]['total'] += val['costo']
-
-        ws.title = f"Presupuesto REPEX {repex.anio}"
-        apu_header_fill = PatternFill(start_color='6B94B8', end_color='6B94B8', fill_type='solid')
+            if vista == 'apu':
+                val = {
+                    'codigo': activo.codigo_interno if activo else '-',
+                    'nombre': item.display_nombre,
+                    'marca': marca_str,
+                    'modelo': modelo_str,
+                    'unidades': item.unidades or 'Unidad',
+                    'cantidad': float(item.cantidad or 1),
+                    'precio_unitario': float(item.precio_unitario or 0),
+                    'costo': float(item.costo_reposicion or 0),
+                }
+            else:
+                val = {
+                    'codigo': activo.codigo_interno if activo else '-',
+                    'nombre': item.display_nombre,
+                    'marca': marca_str,
+                    'modelo': modelo_str,
+                    'ubicacion': building_name,
+                    'prioridad': item.prioridad,
+                    'costo': float(item.costo_reposicion or 0),
+                }
+            
+            hierarchical_obj[cat_name][building_name]['items'].append(val)
+            hierarchical_obj[cat_name][building_name]['total_edificio'] += val['costo']
 
         ws.merge_cells('A1:H1')
         ws['A1'].value = f"REPEX {repex.anio} — {repex.nombre}"
@@ -1286,165 +1369,87 @@ def exportar_repex_excel(request, pk):
         ws.row_dimensions[1].height = 30
         ws.append([])
 
-        headers = ['CODIGO', 'UF', 'DESCRIPCION', 'MODELO', 'UNIDAD', 'CNTD', 'P.U.', 'IMPORTE']
+        if vista == 'apu':
+            ws.title = "Presupuesto"
+            headers = ['CODIGO', 'UBICACION', 'DESCRIPCION', 'MODELO', 'UNIDAD', 'CNTD', 'P.U.', 'IMPORTE']
+            col_widths = [12, 30, 40, 20, 12, 10, 16, 18]
+        else:
+            ws.title = "Detalle"
+            headers = ['Código', 'Activo', 'Marca', 'Modelo', 'Ruta Ubicación', 'Categoría', 'Prioridad', 'Costo Reposición']
+            col_widths = [14, 30, 16, 18, 35, 30, 12, 18]
+
         ws.append(headers)
+        hr = ws.max_row
         for col_idx in range(1, 9):
-            cell = ws.cell(row=3, column=col_idx)
-            cell.fill = apu_header_fill
+            cell = ws.cell(row=hr, column=col_idx)
+            cell.fill = header_fill
             cell.font = header_font
             cell.alignment = Alignment(horizontal='center', vertical='center')
-        ws.row_dimensions[3].height = 28
-        col_widths = [12, 30, 40, 20, 12, 10, 16, 18]
+        ws.row_dimensions[hr].height = 28
         for i, w in enumerate(col_widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = w
 
         cat_idx = 0
-        for cat_name, cat_data in categorias.items():
+        total_repex = 0.0
+        for cat_name, edificiions_dict in hierarchical_obj.items():
             cat_idx += 1
-            letter = chr(64 + cat_idx) if cat_idx <= 26 else str(cat_idx)
-            ws.append([letter, '', cat_name.upper(), '', '', '', cat_data['total']])
+            cat_total = sum(e['total_edificio'] for e in edificiions_dict.values())
+            total_repex += cat_total
+            
+            # Level 1 Heading
+            ws.append([f'{cat_idx}.', '', cat_name.upper(), '', '', '', '', cat_total])
             r = ws.max_row
-            ws.merge_cells(f'B{r}:F{r}')
+            ws.merge_cells(f'C{r}:G{r}')
             for col in range(1, 9):
-                ws.cell(row=r, column=col).fill = cat_fill
-                ws.cell(row=r, column=col).font = cat_font
+                ws.cell(row=r, column=col).fill = total_fill
+                ws.cell(row=r, column=col).font = total_font
             ws.cell(row=r, column=8).number_format = money_fmt
-            ws.cell(row=r, column=8).alignment = Alignment(horizontal='right')
-
-            group_start = ws.max_row + 1
-            for j, item in enumerate(cat_data['items'], 1):
-                ws.append([f'{letter}.{j}', item['ubicacion'], item['nombre'], item['modelo'], item['unidades'], item['cantidad'], item['precio_unitario'], item['costo']])
-                ir = ws.max_row
+            
+            group_1_start = ws.max_row + 1
+            
+            b_idx = 0
+            for b_name, b_data in edificiions_dict.items():
+                b_idx += 1
+                # Level 2 Heading
+                ws.append([f'{cat_idx}.{b_idx}', b_name, '', '', '', '', '', b_data['total_edificio']])
+                br = ws.max_row
+                ws.merge_cells(f'B{br}:G{br}')
                 for col in range(1, 9):
-                    ws.cell(row=ir, column=col).font = item_font
-                    ws.cell(row=ir, column=col).border = thin_border
-                ws.cell(row=ir, column=5).number_format = '#,##0.00'
-                ws.cell(row=ir, column=6).number_format = money_fmt
-                ws.cell(row=ir, column=7).number_format = money_fmt
-
-            group_end = ws.max_row
-            if group_end >= group_start:
-                ws.row_dimensions.group(group_start, group_end, outline_level=1, hidden=False)
-
-        ws.append([])
-        ws.append(['', '', '', '', '', '', 'TOTAL GENERAL', sum(c['total'] for c in categorias.values())])
-        r = ws.max_row
-        for col in range(1, 9):
-            ws.cell(row=r, column=col).fill = total_fill
-            ws.cell(row=r, column=col).font = total_font
-        ws.cell(row=r, column=8).number_format = money_fmt
-
-    else:
-        # ── DETALLE DE ACTIVOS ──
-        ws.title = f"Detalle REPEX {repex.anio}"
-        items_qs = repex.items.select_related(
-            'activo', 'activo__modelo', 'activo__modelo__marca',
-            'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia',
-            'modelo', 'modelo__marca', 'modelo__categoria'
-        ).all()
-        
-        categorias = OrderedDict()
-        for item in items_qs:
-            activo = item.activo
-            cat_name = '-'
-            if activo:
-                if activo.modelo and activo.modelo.categoria:
-                    cat = activo.modelo.categoria
-                    path = [cat.nombre]
-                    curr = cat.padre
-                    visited = {cat.id}
-                    while curr:
-                        if curr.id in visited: break
-                        visited.add(curr.id)
-                        path.append(curr.nombre)
-                        curr = curr.padre
-                    cat_name = ' → '.join(reversed(path))
-            else:
-                cat_name = item.categoria_manual
-                if not cat_name and item.modelo and item.modelo.categoria:
-                    cat = item.modelo.categoria
-                    path = [cat.nombre]
-                    curr = cat.padre
-                    visited = {cat.id}
-                    while curr:
-                        if curr.id in visited: break
-                        visited.add(curr.id)
-                        path.append(curr.nombre)
-                        curr = curr.padre
-                    cat_name = ' → '.join(reversed(path))
+                    ws.cell(row=br, column=col).fill = cat_fill
+                    ws.cell(row=br, column=col).font = cat_font
+                ws.cell(row=br, column=8).number_format = money_fmt
+                ws.cell(row=br, column=1).alignment = Alignment(horizontal='right')
                 
-                if not cat_name:
-                    cat_name = 'Sin Categoría'
-            
-            if cat_name not in categorias:
-                categorias[cat_name] = {'items': [], 'total': 0.0}
-            
-            modelo_str = '-'
-            marca_str = '-'
-            if activo and activo.modelo:
-                modelo_str = activo.modelo.nombre
-                if activo.modelo.marca:
-                    marca_str = activo.modelo.marca.nombre
-            elif item.modelo:
-                modelo_str = item.modelo.nombre
-                if hasattr(item.modelo, 'marca') and item.modelo.marca:
-                    marca_str = item.modelo.marca.nombre
+                group_2_start = ws.max_row + 1
+                for i_idx, item in enumerate(b_data['items'], 1):
+                    # Level 3 Data
+                    if vista == 'apu':
+                        row = [f'{cat_idx}.{b_idx}.{i_idx}', item['codigo'], item['nombre'], item['modelo'], item['unidades'], item['cantidad'], item['precio_unitario'], item['costo']]
+                    else:
+                        row = [f'{cat_idx}.{b_idx}.{i_idx}', item['nombre'], item['marca'], item['modelo'], item['ubicacion'], cat_name, item['prioridad'], item['costo']]
+                    
+                    ws.append(row)
+                    ir = ws.max_row
+                    for col in range(1, 9):
+                        ws.cell(row=ir, column=col).font = item_font
+                        ws.cell(row=ir, column=col).border = thin_border
+                    
+                    if vista == 'apu':
+                        ws.cell(row=ir, column=6).number_format = money_fmt # CNTD
+                        ws.cell(row=ir, column=7).number_format = money_fmt # P.U.
+                    ws.cell(row=ir, column=8).number_format = money_fmt # IMPORTE
+                    ws.cell(row=ir, column=1).alignment = Alignment(horizontal='right')
 
-            val = {
-                'codigo': activo.codigo_interno if activo else '-',
-                'nombre': item.display_nombre,
-                'marca': marca_str,
-                'modelo': modelo_str,
-                'ubicacion': (activo.ubicacion.ruta_completa if activo and activo.ubicacion else '-') if activo else (item.ubicacion_manual or '-'),
-                'prioridad': item.prioridad,
-                'costo': float(item.costo_reposicion or 0),
-            }
-            categorias[cat_name]['items'].append(val)
-            categorias[cat_name]['total'] += val['costo']
+                group_2_end = ws.max_row
+                if group_2_end >= group_2_start:
+                    ws.row_dimensions.group(group_2_start, group_2_end, outline_level=2, hidden=False)
 
-        ws.merge_cells('A1:H1')
-        ws['A1'].value = f"REPEX {repex.anio} — {repex.nombre}"
-        ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='2C4A6E')
-        ws.row_dimensions[1].height = 30
-        ws.append([])
-
-        headers = ['Código', 'Activo', 'Marca', 'Modelo', 'Ruta Ubicación', 'Categoría', 'Prioridad', 'Costo Reposición']
-        ws.append(headers)
-        for col_idx in range(1, 9):
-            cell = ws.cell(row=3, column=col_idx)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(horizontal='center', vertical='center')
-        ws.row_dimensions[3].height = 28
-        col_widths = [14, 30, 16, 18, 35, 30, 12, 18]
-        for i, w in enumerate(col_widths, 1):
-            ws.column_dimensions[get_column_letter(i)].width = w
-
-        for cat_name, cat_data in categorias.items():
-            ws.append([f'📁 {cat_name}', '', '', '', '', '', f'{len(cat_data["items"])} activos', cat_data['total']])
-            r = ws.max_row
-            ws.merge_cells(f'A{r}:F{r}')
-            for col in range(1, 9):
-                ws.cell(row=r, column=col).fill = PatternFill(start_color='DCE4EF', end_color='DCE4EF', fill_type='solid')
-                ws.cell(row=r, column=col).font = cat_font
-            ws.cell(row=r, column=8).number_format = money_fmt
-
-            group_start = ws.max_row + 1
-            for item in cat_data['items']:
-                ws.append([item['codigo'], item['nombre'], item['marca'], item['modelo'], item['ubicacion'], cat_name, item['prioridad'], item['costo']])
-                ir = ws.max_row
-                for col in range(1, 9):
-                    ws.cell(row=ir, column=col).font = item_font
-                    ws.cell(row=ir, column=col).border = thin_border
-                ws.cell(row=ir, column=8).number_format = money_fmt
-                ws.cell(row=ir, column=1).alignment = Alignment(indent=2)
-
-            group_end = ws.max_row
-            if group_end >= group_start:
-                ws.row_dimensions.group(group_start, group_end, outline_level=1, hidden=False)
+            group_1_end = ws.max_row
+            if group_1_end >= group_1_start:
+                ws.row_dimensions.group(group_1_start, group_1_end, outline_level=1, hidden=False)
 
         ws.append([])
-        ws.append(['', '', '', '', '', '', 'TOTAL INVERSIÓN', sum(c['total'] for c in categorias.values())])
+        ws.append(['', '', '', '', '', '', 'TOTAL GENERAL', total_repex])
         r = ws.max_row
         for col in range(1, 9):
             ws.cell(row=r, column=col).fill = total_fill
