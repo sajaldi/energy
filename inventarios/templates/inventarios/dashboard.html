@@ -38,25 +38,25 @@
     }
 
     :root {
-        --primary: #3b82f6;
-        --primary-dark: #1d4ed8;
-        --accent: #8b5cf6;
-        --bg-body: #f8fafc;
-        --text-main: #0f172a;
-        --text-muted: #64748b;
-        --glass: rgba(255, 255, 255, 0.75);
-        --card-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
-        --radius-xl: 4px;
-        --radius-lg: 3px;
-        --radius-md: 2px;
+        --sap-blue: #0a6ed1;
+        --sap-shell: #354a5f;
+        --sap-bg: #f2f2f2;
+        --sap-field-bg: #ffffff;
+        --sap-border: #d9d9d9;
+        --sap-success: #107e3e;
+        --sap-warning: #e9730c;
+        --sap-error: #bb0000;
+        --primary: var(--sap-blue);
+        --bg-body: var(--sap-bg);
+        --text-main: #32363a;
+        --text-muted: #6a6d70;
+        --radius-md: 4px;
     }
 
     body {
-        font-family: 'Outfit', sans-serif !important;
-        background-color: var(--bg-body) !important;
-        background-image: radial-gradient(at 0% 0%, hsla(217, 100%, 97%, 1) 0, transparent 50%),
-            radial-gradient(at 50% 0%, hsla(225, 100%, 98%, 1) 0, transparent 50%),
-            radial-gradient(at 100% 0%, hsla(217, 100%, 97%, 1) 0, transparent 50%);
+        font-family: 'Inter', '72', '72Full', Arial, Helvetica, sans-serif !important;
+        background-color: var(--sap-bg) !important;
+        color: var(--text-main);
     }
 
     /* Forzar ancho total absoluto eliminando restricciones de contenedores padre */
@@ -920,15 +920,15 @@
                 </div>
                 Nuevo Ingreso de Inventario (Entrada)
             </h2>
-            <button class="close-btn" id="close-ingreso" style="background: #10b981;">✕</button>
+            <button class="close-btn" id="close-ingreso" style="background: var(--sap-shell);">✕</button>
         </div>
-        <div class="modal-body">
-            <form id="ingreso-form">
+        <div class="modal-body" style="background: #fff;">
+            <form id="ingreso-form" enctype="multipart/form-data">
                 <div class="form-grid">
                     <div class="form-group">
                         <label class="form-label"><ion-icon name="business-outline"></ion-icon> Bodega de
                             Destino</label>
-                        <select id="ubicacion_destino" class="form-control" required>
+                        <select id="ubicacion_destino" class="form-control" required style="border-radius: 4px; border: 1px solid var(--sap-border);">
                             <option value="">-- Selecciona Bodega --</option>
                             {% for ub in ubicaciones %}
                             <option value="{{ ub.id }}">{{ ub.nombre }}</option>
@@ -939,19 +939,35 @@
                         <label class="form-label"><ion-icon name="document-text-outline"></ion-icon> Comentarios /
                             Referencia (OC, Factura)</label>
                         <input type="text" id="comentarios_ingreso" class="form-control"
-                            placeholder="Ejem: Ingreso por Compra #1234, Devolución de obra...">
+                            placeholder="Ejem: Ingreso por Compra #1234, Devolución de obra..." style="border-radius: 4px; border: 1px solid var(--sap-border);">
                     </div>
                     <!-- Nuevo campo para importar requisition -->
                     <div class="form-group">
                         <label class="form-label"><ion-icon name="copy-outline"></ion-icon> Importar de Requisición
                             (Opcional)</label>
-                        <div style="position: relative;">
+                        <div style="position: relative; display: flex; gap: 8px;">
                             <input type="hidden" id="selectedSolicitudId">
                             <input type="text" id="solicitudSearch" class="form-control"
                                 placeholder="🔍 Buscar por Folio o Solicitante..." autocomplete="off"
-                                style="border-color: #10b981;">
+                                style="border-color: var(--sap-border); flex: 1;">
+                            <button type="button" id="btn-scan-solicitud" class="btn-outline-custom" style="padding: 0 15px; border-color: var(--sap-border);">
+                                <ion-icon name="camera-outline"></ion-icon>
+                            </button>
                             <div id="solicitudResults"
-                                style="position: absolute; width: 100%; max-height: 250px; background:white; z-index:100; border-radius:2px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); display:none; overflow-y: auto; margin-top: 10px; border: 2px solid #10b981;">
+                                style="position: absolute; width: 100%; max-height: 250px; background:white; z-index:100; border-radius:4px; box-shadow: 0 15px 30px rgba(0,0,0,0.2); display:none; overflow-y: auto; margin-top: 50px; border: 1px solid var(--sap-border);">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- CAMPO DE FOTOS -->
+                    <div class="form-group">
+                        <label class="form-label"><ion-icon name="camera-outline"></ion-icon> Fotos del Ingreso (Opcional)</label>
+                        <div style="display: flex; flex-direction: column; gap: 15px;">
+                            <label for="ingreso-photos" class="btn-outline-custom" style="justify-content: center; cursor: pointer; border-style: dashed; border-width: 2px;">
+                                <ion-icon name="cloud-upload-outline"></ion-icon> Adjuntar Fotos de la Carga
+                            </label>
+                            <input type="file" id="ingreso-photos" multiple accept="image/*" style="display: none;">
+                            <div id="photos-preview-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px;">
+                                <!-- Previews here -->
                             </div>
                         </div>
                     </div>
@@ -990,11 +1006,10 @@
                         </thead>
                         <tbody id="ingreso-items-body">
                             <tr>
-                                <td colspan="4" style="text-align: center; padding: 60px; color: #94a3b8;">
+                                <td colspan="5" style="text-align: center; padding: 60px; color: var(--text-muted); border-bottom: 1px solid var(--sap-border);">
                                     <ion-icon name="add-outline"
-                                        style="font-size: 3rem; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto; opacity: 0.5;"></ion-icon>
-                                    No has añadido materiales para el ingreso.<br>Usa el botón "Buscar en Catálogo" para
-                                    seleccionarlos.
+                                        style="font-size: 3rem; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto; opacity: 0.5; color: var(--sap-blue);"></ion-icon>
+                                    No has añadido materiales para el ingreso.<br>Usa el botón "Buscar en Catálogo" o escanea una requisición.
                                 </td>
                             </tr>
                         </tbody>
@@ -1019,10 +1034,15 @@
             <h3 style="margin:0; font-weight:800;">📑 Catálogo Maestro</h3>
             <button class="close-btn" id="close-catalog">✕</button>
         </div>
-        <div style="padding: 20px; border-bottom: 1px solid #f1f5f9; display: flex; gap: 20px;">
-            <input type="text" id="catalog-search" class="form-control" placeholder="🔍 Buscar por nombre o SKU..."
-                style="flex:1;">
-            <select id="catalog-category" class="form-control" style="width: 250px;">
+        <div style="padding: 20px; border-bottom: 1px solid var(--sap-border); display: flex; gap: 10px; background: #fff;">
+            <div style="position: relative; flex: 1; display: flex; gap: 8px;">
+                <input type="text" id="catalog-search" class="form-control" placeholder="🔍 Buscar por nombre o SKU..."
+                    style="flex:1; border-color: var(--sap-border);">
+                <button type="button" id="btn-scan-catalog" class="btn-outline-custom" style="padding: 0 15px; border-color: var(--sap-border);">
+                    <ion-icon name="camera-outline"></ion-icon>
+                </button>
+            </div>
+            <select id="catalog-category" class="form-control" style="width: 200px; border-color: var(--sap-border);">
                 <option value="">Todas las Categorías</option>
                 {% for cat in categorias %}
                 <option value="{{ cat.id }}">{{ cat.nombre }}</option>
@@ -1088,6 +1108,7 @@
         });
 
         // 2. Load Materials from API
+        let searchTimeout;
         async function loadMaterials() {
             const query = $('#catalog-search').val();
             const category = $('#catalog-category').val();
@@ -1095,11 +1116,11 @@
             const grid = $('#materials-grid');
 
             if (activeMode === 'solicitud' && !ubicacion) {
-                grid.html('<div style="grid-column: 1/-1; text-align:center; padding:50px; color:#ef4444; font-weight:800;"><ion-icon name="warning-outline" style="font-size:3rem; display:block; margin:0 auto 15px;"></ion-icon>DEBES SELECCIONAR UNA BODEGA DE ORIGEN PRIMERO</div>');
+                grid.html('<div style="grid-column: 1/-1; text-align:center; padding:50px; color:var(--sap-error); font-weight:800;"><ion-icon name="warning-outline" style="font-size:3rem; display:block; margin:0 auto 15px;"></ion-icon>DEBES SELECCIONAR UNA BODEGA DE ORIGEN PRIMERO</div>');
                 return;
             }
 
-            grid.html('<div style="grid-column: 1/-1; text-align:center; padding:50px;">Buscando artículos...</div>');
+            grid.html('<div style="grid-column: 1/-1; text-align:center; padding:50px; color: var(--text-muted);">Buscando artículos...</div>');
 
             try {
                 const res = await fetch(`/inventarios/api/materials/?q=${query}&category=${category}&ubicacion=${ubicacion}`);
@@ -1107,19 +1128,27 @@
                 const selectedMap = activeMode === 'solicitud' ? solicitudMaterials : ingresoMaterials;
 
                 grid.empty();
+                if(!data.results || data.results.length === 0) {
+                    grid.html('<div style="grid-column: 1/-1; text-align:center; padding:50px; color: var(--text-muted);">No se encontraron resultados</div>');
+                    return;
+                }
+
                 data.results.forEach(m => {
                     const isSelected = selectedMap.has(m.id);
                     grid.append(`
-                        <div class="catalog-card ${isSelected ? 'selected' : ''}" id="card-mat-${m.id}">
-                            <div style="background: #f1f5f9; border-radius: 2px; padding: 10px; margin-bottom: 15px; position:relative;">
-                                <img src="${m.image_url}" style="width:100%; height:80px; object-fit:contain;">
-                                ${isSelected ? '<div style="position:absolute; top:5px; right:5px; background:var(--primary); color:white; padding:2px 8px; font-size:0.6rem; font-weight:800; border-radius:2px;">AÑADIDO</div>' : ''}
+                        <div class="catalog-card" style="border: 1px solid ${isSelected ? 'var(--sap-blue)' : 'var(--sap-border)'}; border-radius: 4px; background:#fff; padding:15px; display:flex; flex-direction:column; gap:10px; transition: all 0.2s;">
+                            <div style="height:120px; display:flex; align-items:center; justify-content:center; background:#f8f8f8; border-radius:4px; position:relative;">
+                                <img src="${m.image_url}" style="max-width:100%; max-height:100%; object-fit:contain;">
+                                ${isSelected ? '<div style="position:absolute; top:8px; right:8px; background:var(--sap-blue); color:white; padding:4px 8px; font-size:10px; font-weight:bold; border-radius:2px;">SELECCIONADO</div>' : ''}
                             </div>
-                            <div style="font-weight:800; color:var(--text-main); font-size: 0.85rem; height: 2.4em; overflow: hidden;">${m.nombre}</div>
-                            <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:10px;">${m.sku}</div>
-                            <div style="display: flex; gap: 5px;">
-                                <input type="number" id="qty-${m.id}" class="form-control" value="1" min="1" style="padding:5px; font-size:0.8rem; height:35px; text-align:center;">
-                                <button onclick="addToCart(${m.id}, '${m.nombre}', '${m.sku}')" style="background: ${activeMode === 'solicitud' ? 'var(--primary)' : '#10b981'}; color: white; border: none; width:35px; height:35px; border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                            <div style="flex:1;">
+                                <div style="font-weight:bold; font-size:14px; color:var(--text-main); line-height:1.2; margin-bottom:4px;">${m.nombre}</div>
+                                <div style="font-family:monospace; font-size:11px; color:var(--text-muted);">${m.sku}</div>
+                                <div style="font-size:11px; color:var(--sap-success); font-weight:bold; margin-top:5px;">Stock: ${m.stock_total || 0}</div>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top:5px;">
+                                <input type="number" id="qty-${m.id}" class="form-control" value="1" min="1" style="flex:1; padding:5px; font-size:14px; height:36px; text-align:center; border: 1px solid var(--sap-border);">
+                                <button onclick="addToCart(${m.id}, '${m.nombre}', '${m.sku}')" style="background: var(--sap-blue); color: white; border: none; width:36px; height:36px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size:20px;">
                                     <ion-icon name="add-outline"></ion-icon>
                                 </button>
                             </div>
@@ -1129,42 +1158,46 @@
             } catch (err) { console.error(err); }
         }
 
-        window.addToCart = (id, name, sku) => {
-            const qty = parseFloat($(`#qty-${id}`).val()) || 1;
-            const selectedMap = activeMode === 'solicitud' ? solicitudMaterials : ingresoMaterials;
+        $('#catalog-search').on('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(loadMaterials, 400);
+        });
+        $('#catalog-category').on('change', loadMaterials);
 
-            if (selectedMap.has(id)) {
-                selectedMap.get(id).quantity += qty;
-            } else {
-                selectedMap.set(id, { id, name, sku, quantity: qty });
+        // Catalog Scanner
+        let catScanner = null;
+        $('#btn-scan-catalog').on('click', async function() {
+            const scanWrapper = $(`
+                <div id="cat-scanner-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:20002; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
+                    <div id="cat-reader" style="width:100%; max-width:400px; background:white; border-radius:8px; overflow:hidden;"></div>
+                    <button id="close-cat-scanner" style="margin-top:20px; padding:15px 30px; background:var(--sap-error); color:white; border:none; border-radius:4px; font-weight:800;">CERRAR CÁMARA</button>
+                </div>
+            `).appendTo('body');
+
+            catScanner = new Html5Qrcode("cat-reader");
+            try {
+                await catScanner.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    (decodedText) => {
+                        $('#catalog-search').val(decodedText);
+                        loadMaterials();
+                        $('#close-cat-scanner').click();
+                    },
+                    (error) => {}
+                );
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo activar la cámara.', 'error');
+                scanWrapper.remove();
             }
 
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Agregado', showConfirmButton: false, timer: 1000 });
-            renderItems();
-            loadMaterials();
-        };
-
-        window.toggleMaterial = (id) => {
-            const selectedMap = activeMode === 'solicitud' ? solicitudMaterials : ingresoMaterials;
-            selectedMap.delete(id);
-            renderItems();
-            loadMaterials();
-        };
-
-        window.updateQty = (id, val) => {
-            const selectedMap = activeMode === 'solicitud' ? solicitudMaterials : ingresoMaterials;
-            if (selectedMap.has(id)) selectedMap.get(id).quantity = parseFloat(val);
-        };
-
-        window.updateLote = (id, val) => {
-            if (ingresoMaterials.has(id)) ingresoMaterials.get(id).lote = val;
-        };
-
-        window.updateComment = (id, val) => {
-            if (ingresoMaterials.has(id)) ingresoMaterials.get(id).comentario = val;
-        };
-
-        $('#catalog-search, #catalog-category').on('change input', loadMaterials);
+            $('#close-cat-scanner').on('click', async () => {
+                if (catScanner) {
+                    try { await catScanner.stop(); } catch(e) {}
+                }
+                scanWrapper.remove();
+            });
+        });
 
         function renderItems() {
             const body = activeMode === 'solicitud' ? $('#items-body') : $('#ingreso-items-body');
@@ -1340,7 +1373,7 @@
             });
         });
 
-        // 5. Ingreso Submit
+        // 5. Ingreso Submit (Updated for Photos)
         $('#ingreso-form').on('submit', async function (e) {
             e.preventDefault();
             if (ingresoMaterials.size === 0) {
@@ -1361,25 +1394,33 @@
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: 'Confirmar Ingreso',
-                confirmButtonColor: '#10b981',
+                confirmButtonColor: 'var(--sap-blue)',
                 allowOutsideClick: false
             }).then(async (result) => {
                 if (result.isConfirmed) {
                     Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
                     try {
+                        const formData = new FormData();
+                        formData.append('items', JSON.stringify(itemsArr));
+                        formData.append('ubicacion_destino', $('#ubicacion_destino').val());
+                        formData.append('comentarios', $('#comentarios_ingreso').val());
+                        formData.append('requisicion_id', $('#selectedSolicitudId').val());
+                        
+                        // Agregar fotos
+                        const photoInput = document.getElementById('ingreso-photos');
+                        if (photoInput.files.length > 0) {
+                            for (let i = 0; i < photoInput.files.length; i++) {
+                                formData.append('fotos', photoInput.files[i]);
+                            }
+                        }
+
                         const res = await fetch('/inventarios/api/ingreso-lote/', {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json',
                                 'X-CSRFToken': '{{ csrf_token }}'
                             },
-                            body: JSON.stringify({
-                                items: itemsArr,
-                                ubicacion_destino: $('#ubicacion_destino').val(),
-                                comentarios: $('#comentarios_ingreso').val(),
-                                requisicion_id: $('#selectedSolicitudId').val()
-                            })
+                            body: formData
                         });
                         const data = await res.json();
                         if (data.status === 'success') {
@@ -1392,6 +1433,64 @@
                         Swal.fire('Error', 'No se pudo completar el registro de entrada', 'error');
                     }
                 }
+            });
+        });
+
+        // Photo Preview Logic
+        $('#ingreso-photos').on('change', function() {
+            const grid = $('#photos-preview-grid');
+            grid.empty();
+            const files = this.files;
+            for (let i = 0; i < files.length; i++) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    grid.append(`
+                        <div style="position:relative; width:80px; height:80px; border: 1px solid var(--sap-border); border-radius:4px; overflow:hidden;">
+                            <img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">
+                        </div>
+                    `);
+                }
+                reader.readAsDataURL(files[i]);
+            }
+        });
+
+        // Scanner for Requisition
+        let solScanner = null;
+        $('#btn-scan-solicitud').on('click', async function() {
+            const scanWrapper = $(`
+                <div id="sol-scanner-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:20001; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
+                    <div id="sol-reader" style="width:100%; max-width:400px; background:white; border-radius:8px; overflow:hidden;"></div>
+                    <button id="close-sol-scanner" style="margin-top:20px; padding:15px 30px; background:var(--sap-error); color:white; border:none; border-radius:4px; font-weight:800;">CERRAR CÁMARA</button>
+                </div>
+            `).appendTo('body');
+
+            solScanner = new Html5Qrcode("sol-reader");
+            try {
+                await solScanner.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    (decodedText) => {
+                        $('#solicitudSearch').val(decodedText).trigger('input');
+                        setTimeout(async () => {
+                            // Si solo hay un resultado, lo seleccionamos automáticamente
+                            const results = $('#solicitudResults .div');
+                            // Nota: la lógica de búsqueda de solicitudes es asíncrona, 
+                            // mejor dejamos que el usuario vea el resultado por ahora o buscamos exacto.
+                        }, 500);
+                        $('#close-sol-scanner').click();
+                    },
+                    (error) => {}
+                );
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo activar la cámara.', 'error');
+                scanWrapper.remove();
+            }
+
+            $('#close-sol-scanner').on('click', async () => {
+                if (solScanner) {
+                    try { await solScanner.stop(); } catch(e) {}
+                }
+                scanWrapper.remove();
             });
         });
 

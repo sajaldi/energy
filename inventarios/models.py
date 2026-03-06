@@ -187,6 +187,15 @@ class IngresoInventario(models.Model):
         verbose_name_plural = "Ingresos de Materiales"
         ordering = ['-fecha_ingreso']
 
+class FotoIngreso(models.Model):
+    ingreso = models.ForeignKey(IngresoInventario, on_delete=models.CASCADE, related_name='fotos', verbose_name="Ingreso")
+    imagen = models.ImageField(upload_to='ingresos/fotos/', verbose_name="Foto del Ingreso")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Foto de Ingreso"
+        verbose_name_plural = "Fotos de Ingresos"
+
 class StockRecord(models.Model):
     material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='existencias')
     lote = models.ForeignKey(Lote, on_delete=models.CASCADE, null=True, blank=True, related_name='existencias_lote')

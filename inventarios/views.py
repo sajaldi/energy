@@ -850,14 +850,23 @@ def api_print_label(request, material_id):
         
     return response
 @login_required
+@csrf_exempt
 def api_ingreso_lote(request):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
-            items = data.get('items', [])
-            ubicacion_id = data.get('ubicacion_destino')
-            comentarios = data.get('comentarios', 'Ingreso por lote')
-            requisicion_id = data.get('requisicion_id') # UUID de la requisición si existe
+            # Soporte para multipart/form-data (para fotos) o JSON
+            if request.content_type.startswith('multipart/form-data'):
+                items_raw = request.POST.get('items', '[]')
+                items = json.loads(items_raw)
+                ubicacion_id = request.POST.get('ubicacion_destino')
+                comentarios = request.POST.get('comentarios', 'Ingreso por lote')
+                requisicion_id = request.POST.get('requisicion_id')
+            else:
+                data = json.loads(request.body)
+                items = data.get('items', [])
+                ubicacion_id = data.get('ubicacion_destino')
+                comentarios = data.get('comentarios', 'Ingreso por lote')
+                requisicion_id = data.get('requisicion_id')
             
             if not ubicacion_id or not items:
                 return JsonResponse({'status': 'error', 'message': 'Datos incompletos'}, status=400)
@@ -868,11 +877,14 @@ def api_ingreso_lote(request):
             requisicion_obj = None
             if requisicion_id:
                 from presupuestos.models import Requisicion
+                # Intentamos buscar por ID interno o por cr8ca_requisicionid
                 requisicion_obj = Requisicion.objects.filter(cr8ca_requisicionid=requisicion_id).first()
+                if not requisicion_obj and str(requisicion_id).isdigit():
+                    requisicion_obj = Requisicion.objects.filter(id=int(requisicion_id)).first()
 
             with transaction.atomic():
                 # 1. Creamos la cabecera del ingreso para trazabilidad
-                from inventarios.models import IngresoInventario
+                from inventarios.models import IngresoInventario, FotoIngreso
                 ingreso_header = IngresoInventario.objects.create(
                     usuario=request.user,
                     ubicacion_destino=ubicacion,
@@ -880,12 +892,22 @@ def api_ingreso_lote(request):
                     comentarios=comentarios
                 )
 
+                # 2. Guardamos las fotos si vienen en el request
+                fotos = request.FILES.getlist('fotos')
+                for f in fotos:
+                    FotoIngreso.objects.create(
+                        ingreso=ingreso_header,
+                        imagen=f
+                    )
+
                 for item in items:
                     material = get_object_or_404(Material, id=item['id'])
-                    cantidad = Decimal(str(item['quantity']))
+                    cantidad = Decimal(str(item.get('quantity', 0)))
                     lote_codigo = item.get('lote')
                     comentario_item = item.get('comentario', '')
                     
+                    if cantidad <= 0: continue
+
                     lote_obj = None
                     if lote_codigo and str(lote_codigo).strip():
                         lote_obj, _ = Lote.objects.get_or_create(
@@ -893,8 +915,6 @@ def api_ingreso_lote(request):
                             codigo=lote_codigo.strip()
                         )
                     
-                    # El comentario del movimiento será el específico del ítem, 
-                    # si no hay, usamos el general del formulario.
                     comentario_final = comentario_item if comentario_item else comentarios
 
                     MovimientoInventario.objects.create(
@@ -905,10 +925,10 @@ def api_ingreso_lote(request):
                         ubicacion_destino=ubicacion,
                         usuario=request.user,
                         comentarios=comentario_final,
-                        ingreso=ingreso_header # Vinculamos al nuevo modelo de Ingreso
+                        ingreso=ingreso_header
                     )
             
-            return JsonResponse({'status': 'success', 'message': 'Ingreso registrado correctamente'})
+            return JsonResponse({'status': 'success', 'message': 'Ingreso registrado correctamente', 'ingreso_id': ingreso_header.id})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)

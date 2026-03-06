@@ -15,18 +15,25 @@ def api_list_materials(request):
     ubicacion_id = request.GET.get('ubicacion')
     page_number = request.GET.get('page', 1)
     
-    from django.db.models import Sum, Q
+    from django.db.models import Sum, Q, OuterRef, Subquery, DecimalField
+    from django.db.models.functions import Coalesce
+
+    # Optimizamos: En lugar de annotate global con Sum (que puede duplicar filas si hay muchos joins),
+    # usamos una Subquery para calcular el stock por material de forma aislada.
     
-    # Pre-filtramos el stock si se especifica ubicación
+    stock_subquery = StockRecord.objects.filter(material=OuterRef('pk'))
     if ubicacion_id:
-        materials = Material.objects.annotate(
-            stock_total=Sum('existencias__cantidad', filter=Q(existencias__ubicacion_id=ubicacion_id))
-        ).filter(stock_total__gt=0).select_related('categoria').order_by('nombre')
-    else:
-        materials = Material.objects.annotate(
-            stock_total=Sum('existencias__cantidad')
-        ).select_related('categoria').order_by('nombre')
+        stock_subquery = stock_subquery.filter(ubicacion_id=ubicacion_id)
     
+    stock_total_expr = Subquery(
+        stock_subquery.values('material').annotate(total=Sum('cantidad')).values('total'),
+        output_field=DecimalField()
+    )
+
+    materials = Material.objects.select_related('categoria', 'unidad_medida').annotate(
+        stock_total=Coalesce(stock_total_expr, Decimal('0.00'))
+    ).order_by('nombre')
+
     if query:
         materials = materials.filter(
             Q(nombre__icontains=query) | 
@@ -36,8 +43,12 @@ def api_list_materials(request):
         
     if category_id:
         materials = materials.filter(categoria_id=category_id)
+
+    # Si estamos en modo solicitud, solo mostramos lo que tiene stock > 0
+    if ubicacion_id:
+        materials = materials.filter(stock_total__gt=0)
         
-    paginator = Paginator(materials, 24) # 24 items per page for full-screen grid
+    paginator = Paginator(materials, 30) # Aumentamos a 30 para mejor grid
     page_obj = paginator.get_page(page_number)
     
     data = []
