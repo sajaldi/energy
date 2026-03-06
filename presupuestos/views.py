@@ -1114,7 +1114,7 @@ def cronograma_repex(request, pk):
 
         # 2. Resumen por Modelo (existente)
         if cat not in resumen_dict:
-            resumen_dict[cat] = {'nombre': cat, 'modelos': OrderedDict(), 'total': 0.0}
+            resumen_dict[cat] = {'nombre': cat, 'modelos': OrderedDict(), 'total': 0.0, 'total_cantidad': 0.0}
         
         modelo_key = f"{item['marca']} | {item['modelo']}"
         if modelo_key not in resumen_dict[cat]['modelos']:
@@ -1130,6 +1130,7 @@ def cronograma_repex(request, pk):
         m_data['cantidad'] += item['cantidad']
         m_data['total'] += item['costo_reposicion']
         resumen_dict[cat]['total'] += item['costo_reposicion']
+        resumen_dict[cat]['total_cantidad'] += item['cantidad']
 
     # Convertir a listas para el template
     presupuesto_jerarquico = []
@@ -1146,10 +1147,16 @@ def cronograma_repex(request, pk):
 
     resumen_modelos = []
     for cat_name, r_data in resumen_dict.items():
+        total_cat = r_data['total']
+        cant_cat = r_data['total_cantidad']
+        promedio_pu = total_cat / cant_cat if cant_cat > 0 else 0
+        
         resumen_modelos.append({
             'nombre': cat_name,
             'modelos': list(r_data['modelos'].values()),
-            'total': r_data['total']
+            'total': total_cat,
+            'total_cantidad': cant_cat,
+            'promedio_pu': promedio_pu
         })
 
     context = {

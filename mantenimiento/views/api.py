@@ -344,4 +344,36 @@ def get_status_color(estado):
         'CANCELADA': '#ef4444',
         'ESPERA': '#64748b'
     }
-    return colors.get(estado, '#64748b')
+
+@staff_member_required
+def api_buscar_activos(request):
+    """
+    Busca activos por nombre, código o serie.
+    """
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'results': []})
+    
+    from django.db.models import Q
+    activos = Activo.objects.filter(
+        Q(nombre__icontains=query) | 
+        Q(codigo_interno__icontains=query) |
+        Q(serie__icontains=query) |
+        Q(epc__icontains=query)
+    ).select_related('ubicacion').only(
+        'id', 'nombre', 'codigo_interno', 'ubicacion__id', 'ubicacion__nombre'
+    )[:30]
+    
+    results = []
+    for a in activos:
+        codigo = a.codigo_interno or "S/C"
+        lugar = a.ubicacion.nombre if a.ubicacion else "Sin Ubicación"
+        lugar_id = a.ubicacion.id if a.ubicacion else None
+        results.append({
+            'id': a.id,
+            'text': f"{a.nombre} [{codigo}]",
+            'ubicacion_id': lugar_id,
+            'ubicacion_nombre': lugar
+        })
+    
+    return JsonResponse({'results': results})

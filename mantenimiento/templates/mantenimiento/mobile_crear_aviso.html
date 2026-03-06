@@ -364,30 +364,56 @@
 
     <div class="container fade-in">
 
-        {% if activo %}
-        <div class="asset-context">
-            <div class="asset-icon">
-                <ion-icon name="cube-outline"></ion-icon>
-            </div>
-            <div class="asset-info">
-                <h3>{{ activo.nombre }}</h3>
-                <p>{{ activo.codigo_interno }} • {{ activo.ubicacion.nombre }}</p>
-            </div>
-        </div>
-        {% elif ubicacion_defecto %}
-        <div class="asset-context">
-            <div class="asset-icon">
-                <ion-icon name="location-outline"></ion-icon>
-            </div>
-            <div class="asset-info">
-                <h3>Ubicación Reportada</h3>
-                <p>{{ ubicacion_defecto.nombre }} (Por defecto)</p>
-            </div>
+        {% if error_mensaje %}
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 15px; border-radius: 16px; margin-bottom: 20px; font-weight: 500; display: flex; align-items: center; gap: 10px;">
+            <ion-icon name="alert-circle-outline" style="font-size: 22px;"></ion-icon>
+            {{ error_mensaje }}
         </div>
         {% endif %}
 
         <form method="post" enctype="multipart/form-data" id="order-form">
             {% csrf_token %}
+
+            <!-- Sección de Activo (Buscador + Scanner) -->
+            <div class="form-group">
+                <label>Activo / Equipo (Opcional)</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div class="input-wrapper" style="flex: 1; position: relative;">
+                        <input type="text" id="asset-search" placeholder="Nombre, código o serie..." 
+                               autocomplete="off" 
+                               style="width: 100%; border: none; padding: 16px; outline: none; background: transparent; font-family: 'Outfit', sans-serif; font-size: 16px;"
+                               value="{% if activo %}{{ activo.nombre }} [{{ activo.codigo_interno }}]{% endif %}">
+                        <input type="hidden" name="activo" id="asset-id" value="{% if activo %}{{ activo.id }}{% endif %}">
+                        
+                        <!-- Lista de resultados flotante -->
+                        <div id="search-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; z-index: 100; border-radius: 0 0 16px 16px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); border: 1px solid #f1f5f9; max-height: 200px; overflow-y: auto;">
+                            <!-- Items se inyectan aquí -->
+                        </div>
+                    </div>
+                    <button type="button" id="start-scan" style="width: 52px; height: 52px; background: var(--primary); color: white; border: none; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);">
+                        <ion-icon name="qr-code-outline"></ion-icon>
+                    </button>
+                </div>
+                <div id="asset-context-small" style="font-size: 12px; color: var(--text-muted); margin-top: 5px; margin-left: 5px; {% if not activo %}display: none;{% endif %}">
+                    {% if activo %}Activo seleccionado: {{ activo.codigo_interno }}{% endif %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Ubicación del Reporte</label>
+                <div class="input-wrapper">
+                    <select name="ubicacion" id="ubicacion-select" required>
+                        <option value="" disabled {% if not activo and not ubi_defecto %}selected{% endif %}>Selecciona la ubicación...</option>
+                        {% for ubi in ubicaciones %}
+                        <option value="{{ ubi.id }}" 
+                            {% if activo and ubi.id == activo.ubicacion.id %}selected
+                            {% elif not activo and ubi_defecto and ubi.id == ubi_defecto.id %}selected{% endif %}>
+                            {{ ubi.ruta_completa }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
 
             <div class="form-group">
                 <label>Naturaleza del Reporte</label>
@@ -454,15 +480,132 @@
 
     </div>
 
+    <!-- Modal de Scanner -->
+    <div id="scanner-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+        <div style="width: 100%; max-width: 400px; background: white; border-radius: 24px; overflow: hidden; position: relative;">
+            <div id="reader" style="width: 100%;"></div>
+            <button id="close-scanner" style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.5); color: white; border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10;">
+                <ion-icon name="close-outline" style="font-size: 24px;"></ion-icon>
+            </button>
+        </div>
+        <p style="color: white; margin-top: 20px; font-weight: 500;">Enfoca el código QR o Barras</p>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
-        const input = document.getElementById('foto-input');
+        const assetSearch = document.getElementById('asset-search');
+        const assetIdInput = document.getElementById('asset-id');
+        const resultsContainer = document.getElementById('search-results');
+        const ubiSelect = document.getElementById('ubicacion-select');
+        const assetContext = document.getElementById('asset-context-small');
+
+        let searchTimeout;
+
+        // Búsqueda de Activos
+        assetSearch.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearTimeout(searchTimeout);
+
+            if (query.length < 2) {
+                resultsContainer.style.display = 'none';
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                fetch(`{% url "mantenimiento:api_buscar_activos" %}?q=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        resultsContainer.innerHTML = '';
+                        if (data.results.length === 0) {
+                            resultsContainer.style.display = 'none';
+                            return;
+                        }
+
+                        data.results.forEach(item => {
+                            const div = document.createElement('div');
+                            div.style.padding = '12px 16px';
+                            div.style.borderBottom = '1px solid #f1f5f9';
+                            div.style.cursor = 'pointer';
+                            div.innerHTML = `
+                                <div style="font-weight: 600; font-size: 14px;">${item.text}</div>
+                                <div style="font-size: 11px; color: #64748b;">${item.ubicacion_nombre}</div>
+                            `;
+                            div.onclick = () => selectAsset(item);
+                            resultsContainer.appendChild(div);
+                        });
+                        resultsContainer.style.display = 'block';
+                    });
+            }, 300);
+        });
+
+        function selectAsset(item) {
+            assetSearch.value = item.text;
+            assetIdInput.value = item.id;
+            resultsContainer.style.display = 'none';
+            assetContext.innerText = `Activo seleccionado: ${item.text}`;
+            assetContext.style.display = 'block';
+
+            // Auto-seleccionar ubicación
+            if (item.ubicacion_id) {
+                ubiSelect.value = item.ubicacion_id;
+            }
+        }
+
+        // Cerrar resultados al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!assetSearch.contains(e.target) && !resultsContainer.contains(e.target)) {
+                resultsContainer.style.display = 'none';
+            }
+        });
+
+        // Lógica de Scanner
+        const scannerModal = document.getElementById('scanner-modal');
+        const closeScanner = document.getElementById('close-scanner');
+        const startScan = document.getElementById('start-scan');
+        let html5QrCode;
+
+        startScan.addEventListener('click', () => {
+            scannerModal.style.display = 'flex';
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config,
+                (decodedText) => {
+                    // Acción al encontrar un código
+                    html5QrCode.stop().then(() => {
+                        scannerModal.style.display = 'none';
+                        // Buscar el activo por el código decodificado
+                        assetSearch.value = decodedText;
+                        assetSearch.dispatchEvent(new Event('input'));
+                    });
+                }
+            ).catch(err => {
+                console.error("Error al iniciar cámara: ", err);
+                alert("No se pudo acceder a la cámara.");
+                scannerModal.style.display = 'none';
+            });
+        });
+
+        closeScanner.addEventListener('click', () => {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    scannerModal.style.display = 'none';
+                });
+            } else {
+                scannerModal.style.display = 'none';
+            }
+        });
+
+        // El resto del script original (fotos y submit)
+        const fotoInput = document.getElementById('foto-input');
         const previewContainer = document.getElementById('photo-preview-container');
         const statusText = document.getElementById('upload-status');
         const photoBox = document.getElementById('photo-box');
         const form = document.querySelector('form');
         const submitBtn = document.getElementById('submit-trigger');
 
-        // Contenedor para acumular archivos
         let allFiles = new DataTransfer();
 
         function renderPreviews() {
@@ -479,19 +622,15 @@
                     reader.onload = function (e) {
                         const wrapper = document.createElement('div');
                         wrapper.className = 'preview-wrapper';
-
                         const img = document.createElement('img');
                         img.src = e.target.result;
-
                         const removeBtn = document.createElement('div');
                         removeBtn.className = 'remove-photo-btn';
                         removeBtn.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
                         removeBtn.onclick = function (e) {
-                            e.preventDefault();
-                            e.stopPropagation();
+                            e.preventDefault(); e.stopPropagation();
                             removePhoto(index);
                         };
-
                         wrapper.appendChild(img);
                         wrapper.appendChild(removeBtn);
                         previewContainer.appendChild(wrapper);
@@ -508,23 +647,17 @@
         function removePhoto(index) {
             const dt = new DataTransfer();
             const { files } = allFiles;
-            for (let i = 0; i < files.length; i++) {
-                if (i !== index) dt.items.add(files[i]);
-            }
+            for (let i = 0; i < files.length; i++) { if (i !== index) dt.items.add(files[i]); }
             allFiles = dt;
-            input.files = allFiles.files;
+            fotoInput.files = allFiles.files;
             renderPreviews();
         }
 
-        input.addEventListener('change', function () {
+        fotoInput.addEventListener('change', function () {
             const newFiles = this.files;
             if (newFiles.length > 0) {
-                // Acumular archivos
-                for (let i = 0; i < newFiles.length; i++) {
-                    allFiles.items.add(newFiles[i]);
-                }
-                // Actualizar input con la lista completa
-                input.files = allFiles.files;
+                for (let i = 0; i < newFiles.length; i++) { allFiles.items.add(newFiles[i]); }
+                fotoInput.files = allFiles.files;
                 renderPreviews();
             }
         });

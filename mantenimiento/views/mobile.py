@@ -41,7 +41,11 @@ def mobile_ot_detalle(request, pk):
 @staff_member_required
 def mobile_crear_aviso(request):
     aid = request.GET.get('activo')
-    activo = get_object_or_404(Activo, id=aid) if aid else None
+    # Si viene por POST (desde el buscador), intentamos recuperarlo
+    if request.method == 'POST' and not aid:
+        aid = request.POST.get('activo')
+        
+    activo = Activo.objects.filter(id=aid).first() if aid else None
     
     # Obtener ubicación por defecto del perfil
     perfil = getattr(request.user, 'perfil', None)
@@ -64,9 +68,31 @@ def mobile_crear_aviso(request):
         fallas = Falla.objects.all()
 
     if request.method == 'POST':
-        # Determinamos la ubicación final (Activo > Perfil)
-        ubicacion = activo.ubicacion if activo else ubi_defecto
+        # Determinamos la ubicación final: 
+        # 1. Seleccionada en el formulario
+        # 2. Activo (si hay uno)
+        # 3. Perfil (ubicación por defecto)
+        ubi_id = request.POST.get('ubicacion')
+        ubicacion = Ubicacion.objects.filter(id=ubi_id).first() if ubi_id else None
         
+        if not ubicacion:
+            ubicacion = activo.ubicacion if activo else ubi_defecto
+        
+        # Validación final para evitar IntegrityError
+        if not ubicacion:
+            tipos = [(v, l, v == request.POST.get('tipo', 'SOLICITUD')) for v, l in Aviso.TIPO_CHOICES]
+            prioridades = [(v, l, v == request.POST.get('prioridad', 'MEDIA')) for v, l in Aviso.PRIORIDAD_CHOICES]
+            ubicaciones = Ubicacion.objects.all().order_by('nombre')
+            return render(request, 'mantenimiento/mobile_crear_aviso.html', {
+                'activo': activo, 
+                'prioridades': prioridades, 
+                'tipos': tipos,
+                'ubicacion_defecto': ubi_defecto,
+                'fallas': fallas,
+                'ubicaciones': ubicaciones,
+                'error_mensaje': 'Debe seleccionar una ubicación para el reporte.'
+            })
+
         # Guardar el aviso
         aviso = Aviso.objects.create(
             activo=activo, 
@@ -81,10 +107,8 @@ def mobile_crear_aviso(request):
         # Guardar múltiples fotos
         fotos = request.FILES.getlist('fotos')
         if fotos:
-            # Guardamos la primera en el campo principal por compatibilidad
             aviso.foto = fotos[0]
             aviso.save()
-            # Guardamos todas en el nuevo modelo
             for f in fotos:
                 FotoAviso.objects.create(aviso=aviso, foto=f)
         
@@ -93,13 +117,15 @@ def mobile_crear_aviso(request):
     
     tipos = [(v, l, v == 'SOLICITUD') for v, l in Aviso.TIPO_CHOICES]
     prioridades = [(v, l, v == 'MEDIA') for v, l in Aviso.PRIORIDAD_CHOICES]
+    ubicaciones = Ubicacion.objects.all().order_by('nombre')
     
     return render(request, 'mantenimiento/mobile_crear_aviso.html', {
         'activo': activo, 
         'prioridades': prioridades, 
         'tipos': tipos,
         'ubicacion_defecto': ubi_defecto,
-        'fallas': fallas
+        'fallas': fallas,
+        'ubicaciones': ubicaciones
     })
 
 @staff_member_required

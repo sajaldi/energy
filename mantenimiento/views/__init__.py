@@ -21,7 +21,8 @@ from .api import (
     api_generar_orden_individual,
     api_search_ordenes,
     api_get_ot_detail,
-    api_update_ot_status_notes
+    api_update_ot_status_notes,
+    api_buscar_activos
 )
 from .wizard import programar_rutina_wizard
 from .mobile import (
