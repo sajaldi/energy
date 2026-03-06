@@ -48,6 +48,7 @@ urlpatterns = [
     # REPEX Cronograma / Visualizador
     path('repex/<int:pk>/', views.cronograma_repex, name='cronograma_repex'),
     path('api/repex/update-item/', views.api_update_repex_item, name='api_update_repex_item'),
+    path('api/repex/update-item-apu/', views.api_update_repex_item_apu, name='api_update_repex_item_apu'),
     path('api/repex/add-item/', views.api_add_repex_item, name='api_add_repex_item'),
     path('api/repex/delete-item/', views.api_delete_repex_item, name='api_delete_repex_item'),
     path('api/repex/search-activos/', views.api_search_activos, name='api_search_activos'),

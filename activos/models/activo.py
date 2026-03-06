@@ -23,6 +23,7 @@ class Modelo(models.Model):
     marca = models.ForeignKey(Marca, on_delete=models.CASCADE, related_name='modelos')
     categoria = models.ForeignKey('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='modelos')
     unidad_medida = models.ForeignKey('core.UnidadMedida', on_delete=models.SET_NULL, null=True, blank=True, related_name='modelos_asociados', help_text="Unidad de medida por defecto")
+    precio_promedio = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Precio unitario promedio para presupuestos")
     
     imagen_archivo = models.ImageField(upload_to='modelos_fotos/', blank=True, null=True, storage=minio_storage, help_text="Cargar imagen desde el equipo")
     imagen_url = models.URLField(max_length=500, blank=True, null=True, help_text="O pegar una URL externa de la imagen")

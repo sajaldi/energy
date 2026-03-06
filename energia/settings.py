@@ -311,14 +311,18 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'es-hn' # Cambiado a español de Honduras, o el que prefieras
+LANGUAGE_CODE = 'es-hn' # Cambiado a español de Honduras
 TIME_ZONE = 'America/Tegucigalpa' # Cambiado a la zona horaria de Honduras
 
 USE_I18N = True # Habilita la internacionalización
-
 USE_TZ = True # Habilita zonas horarias para los modelos (recomendado)
 
 # Configuración regional para Honduras (Lempiras, Punto para decimales)
+# En Django >= 5.0, USE_L10N siempre es True. Debemos usar FORMAT_MODULE_PATH.
+FORMAT_MODULE_PATH = [
+    'core.formats',
+]
+
 DECIMAL_SEPARATOR = '.'
 THOUSAND_SEPARATOR = ','
 USE_THOUSAND_SEPARATOR = True

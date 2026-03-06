@@ -486,17 +486,21 @@
 
     <!-- Tabs -->
     <div style="display: flex; gap: 0; margin-bottom: 0;">
-        <button class="tab-btn active" id="tabCrono" onclick="switchTab('cronograma')"
+        <button class="tab-btn active" id="tab-cronograma" onclick="switchTab('cronograma')"
             style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--card-bg); color: var(--text-main); font-family: inherit;">
             <ion-icon name="calendar-outline"></ion-icon> Cronograma Mensual
         </button>
-        <button class="tab-btn" id="tabDetalle" onclick="switchTab('detalle')"
+        <button class="tab-btn" id="tab-detalle" onclick="switchTab('detalle')"
             style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--bg); color: var(--text-muted); font-family: inherit;">
             <ion-icon name="list-outline"></ion-icon> Detalle de Activos
         </button>
-        <button class="tab-btn" id="tabAPU" onclick="switchTab('apu')"
+        <button class="tab-btn" id="tab-presupuesto" onclick="switchTab('presupuesto')"
             style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--bg); color: var(--text-muted); font-family: inherit;">
             <ion-icon name="document-text-outline"></ion-icon> Presupuesto
+        </button>
+        <button class="tab-btn" id="tab-resumen" onclick="switchTab('resumen')"
+            style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--bg); color: var(--text-muted); font-family: inherit;">
+            <ion-icon name="list-circle-outline"></ion-icon> Resumen por Modelo
         </button>
     </div>
 
@@ -548,12 +552,12 @@
                                     <span>{{ item.activo_nombre }}</span>
                                     <span class="priority-badge priority-{{ item.prioridad }}">{{ item.prioridad }}</span>
                                 </div>
-                                <div style="display: flex; gap: 4px;">
+                                 <div style="display: flex; gap: 4px;">
                                     <button onclick="deleteRepexItem('{{ item.id }}', '{{ item.activo_nombre|escapejs }}')"
-                                        style="background: transparent; border: none; cursor: pointer; color: #cbd5e1; padding: 4px;"
-                                        onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'"
+                                        style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;"
+                                        onmouseover="this.style.color='#ef4444'; this.style.background='#fef2f2';" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';"
                                         title="Quitar del Plan">
-                                        <ion-icon name="trash-bin-outline"></ion-icon>
+                                        <ion-icon name="trash-bin-outline" style="font-size: 1.1rem;"></ion-icon>
                                     </button>
                                 </div>
                             </div>
@@ -597,14 +601,14 @@
                         <th style="text-align: left; min-width: 120px;">Modelo</th>
                         <th style="text-align: left; min-width: 200px;">Ruta Ubicación</th>
                         <th style="text-align: center; min-width: 80px;">Prioridad</th>
-                        <th style="text-align: right; min-width: 120px; padding-right: 16px;">Costo Reposición</th>
+                         <th style="text-align: right; min-width: 120px; padding-right: 16px;">Costo Reposición</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for cat in categorias_detalle %}
                     <!-- Category group header -->
                     <tr class="row-partition" onclick="toggleDetailRows('det-cat-{{ forloop.counter }}', this)" style="cursor: pointer;">
-                        <td colspan="6" style="text-align: left; padding: 12px 16px;">
+                         <td colspan="6" style="text-align: left; padding: 12px 16px;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s;">▶</span>
                                 <ion-icon name="folder-outline"></ion-icon>
@@ -617,7 +621,17 @@
                     <!-- Category items -->
                     {% for item in cat.items %}
                     <tr class="row-item det-group-det-cat-{{ forloop.parentloop.counter }}" style="border-bottom: 1px solid var(--border);">
-                        <td style="text-align: left; padding: 10px 16px; padding-left: 40px; font-weight: 500; color: var(--primary);">{{ item.codigo }}</td>
+                         <td style="text-align: left; padding: 10px 16px; font-weight: 500; color: var(--primary);">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button onclick="deleteRepexItem('{{ item.id }}', '{{ item.activo_nombre|escapejs }}')"
+                                    style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
+                                    onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'"
+                                    title="Eliminar ítem">
+                                    <ion-icon name="trash-outline" style="font-size: 1.1rem;"></ion-icon>
+                                </button>
+                                <span>{{ item.codigo }}</span>
+                            </div>
+                        </td>
                         <td style="text-align: left; padding: 10px 8px; font-weight: 500;">{{ item.activo_nombre }}</td>
                         <td style="text-align: left; padding: 10px 8px; color: var(--text-muted);">{{ item.marca }}</td>
                         <td style="text-align: left; padding: 10px 8px; color: var(--text-muted);">{{ item.modelo }}</td>
@@ -630,7 +644,7 @@
                     {% endfor %}
                     {% empty %}
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
                             No hay activos en este plan REPEX. Usa el botón "Agregar Activo" o "Importar Excel" para comenzar.
                         </td>
                     </tr>
@@ -646,25 +660,24 @@
         </div>
     </div>
 
-    <!-- Tab: Presupuesto APU -->
+    <!-- Tab: Presupuesto -->
     <div id="panelAPU" class="matrix-container" style="display: none;">
         <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
                         <th style="text-align: left; padding-left: 12px; min-width: 80px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">CODIGO</th>
-                        <th style="text-align: left; min-width: 120px; background: #6b94b8; border-bottom: 20px solid #5a82a3;">UF</th>
+                        <th style="text-align: left; min-width: 120px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">UF</th>
                         <th style="text-align: left; min-width: 250px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">DESCRIPCION</th>
                         <th style="text-align: left; min-width: 150px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">MODELO</th>
                         <th style="text-align: center; min-width: 70px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">UNIDAD</th>
                         <th style="text-align: right; min-width: 60px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">CNTD</th>
                         <th style="text-align: right; min-width: 100px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">P.U.</th>
-                        <th style="text-align: right; min-width: 120px; padding-right: 12px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">IMPORTE</th>
+                         <th style="text-align: right; min-width: 120px; padding-right: 12px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">IMPORTE</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for cat in categorias_detalle %}
-                    <!-- Category header row (A, B, C...) -->
                     <tr class="row-partition" onclick="toggleApuRows('cat-{{ forloop.counter }}', this)" style="cursor: pointer;">
                         <td style="padding: 8px 12px; font-weight: 700; color: #1e3a5f;">
                             <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s; display: inline-block; margin-right: 4px;">▶</span>
@@ -673,28 +686,37 @@
                         <td colspan="6" style="padding: 8px; font-weight: 700; color: #1e3a5f; text-transform: uppercase;">{{ cat.nombre }}</td>
                         <td style="text-align: right; padding: 8px 12px; font-weight: 700; color: #1e3a5f;">{{ cat.total|floatformat:2 }}</td>
                     </tr>
-                    <!-- Items under this category -->
                     {% for item in cat.items %}
                     <tr class="row-item apu-group-cat-{{ forloop.parentloop.counter }}" style="border-bottom: 1px solid #e0e6ed; {% if forloop.counter|divisibleby:2 %}background: #f5f7fa;{% endif %}">
-                        <td style="padding: 6px 12px; color: var(--text-muted); font-size: 0.82rem;">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+                         <td style="padding: 6px 12px; color: var(--text-muted); font-size: 0.82rem;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <button onclick="deleteRepexItem('{{ item.id }}', '{{ item.activo_nombre|escapejs }}')"
+                                    style="background: transparent; border: none; cursor: pointer; color: #f87171; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;"
+                                    onmouseover="this.style.color='#ef4444'; this.style.background='#fee2e2';" onmouseout="this.style.color='#f87171'; this.style.background='transparent';"
+                                    title="Eliminar ítem">
+                                    <ion-icon name="trash-outline" style="font-size: 1.0rem;"></ion-icon>
+                                </button>
+                                {{ forloop.parentloop.counter }}.{{ forloop.counter }}
+                            </div>
+                        </td>
                         <td style="padding: 6px 8px; color: var(--text-muted); font-size: 0.82rem;">{{ item.ruta_ubicacion }}</td>
                         <td style="padding: 6px 8px; font-size: 0.85rem;">{{ item.activo_nombre }}</td>
                         <td style="padding: 6px 8px; font-size: 0.82rem; color: var(--text-muted);">{{ item.modelo|default:'-' }}</td>
                         <td style="padding: 6px 8px; text-align: center; color: var(--text-muted); font-size: 0.82rem;">{{ item.unidades|default:'Unidad' }}</td>
-                        <td style="padding: 6px 8px; text-align: right; font-size: 0.85rem;">{{ item.cantidad|floatformat:2 }}</td>
-                        <td style="padding: 6px 8px; text-align: right; font-size: 0.85rem;">{{ item.precio_unitario|floatformat:2 }}</td>
-                        <td style="padding: 6px 12px; text-align: right; font-weight: 600; font-size: 0.85rem;">{{ item.costo_reposicion|floatformat:2 }}</td>
+                        <td style="padding: 6px 8px; text-align: right; font-size: 0.85rem;" class="editable-cell" 
+                            contenteditable="true" data-item-id="{{ item.id }}" data-field="cantidad" onblur="saveRepexAPU(this)" onkeydown="handleEnter(event, this)">
+                            {{ item.cantidad|floatformat:2 }}
+                        </td>
+                        <td style="padding: 6px 8px; text-align: right; font-size: 0.85rem;" class="editable-cell"
+                            contenteditable="true" data-item-id="{{ item.id }}" data-field="precio_unitario" onblur="saveRepexAPU(this)" onkeydown="handleEnter(event, this)">
+                            {{ item.precio_unitario|floatformat:2 }}
+                        </td>
+                         <td style="padding: 6px 12px; text-align: right; font-weight: 600; font-size: 0.85rem;">{{ item.costo_reposicion|floatformat:2 }}</td>
                     </tr>
                     {% endfor %}
-                    {% empty %}
-                    <tr>
-                        <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                            No hay ítems en este plan REPEX.
-                        </td>
-                    </tr>
                     {% endfor %}
                     {% if categorias_detalle %}
-                    <tr style="background: #2c4a6e; color: white;">
+                     <tr style="background: #2c4a6e; color: white;">
                         <td colspan="7" style="text-align: right; padding: 10px 12px; font-weight: 700; font-size: 0.95rem;">TOTAL GENERAL</td>
                         <td style="text-align: right; padding: 10px 12px; font-weight: 700; font-size: 1.05rem;">{{ total_general|floatformat:2 }}</td>
                     </tr>
@@ -703,7 +725,52 @@
             </table>
         </div>
     </div>
-</div>
+
+    <!-- Tab: Resumen por Modelo -->
+    <div id="panelResumen" class="matrix-container" style="display: none;">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding-left: 12px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">CATEGORÍA / MODELO</th>
+                        <th style="text-align: left; background: #6b94b8; border-bottom: 2px solid #5a82a3;">MARCA</th>
+                        <th style="text-align: right; min-width: 80px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">CANTIDAD TOTAL</th>
+                        <th style="text-align: right; min-width: 100px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">P.U. PROMEDIO</th>
+                        <th style="text-align: right; min-width: 120px; padding-right: 12px; background: #6b94b8; border-bottom: 2px solid #5a82a3;">IMPORTE TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in resumen_modelos %}
+                    <tr class="row-partition" onclick="toggleResumenRows('res-{{ forloop.counter }}', this)" style="cursor: pointer;">
+                        <td style="padding: 8px 12px; font-weight: 700; color: #1e3a5f;">
+                            <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s; display: inline-block; margin-right: 4px;">▶</span>
+                            {{ cat.nombre }}
+                        </td>
+                        <td></td>
+                        <td style="text-align: right; padding: 8px; font-weight: 700;">-</td>
+                        <td style="text-align: right; padding: 8px; font-weight: 700;">-</td>
+                        <td style="text-align: right; padding: 8px 12px; font-weight: 700; color: #1e3a5f;">{{ cat.total|floatformat:2 }}</td>
+                    </tr>
+                    {% for mod in cat.modelos %}
+                    <tr class="row-item res-group-res-{{ forloop.parentloop.counter }}" style="border-bottom: 1px solid #e0e6ed; {% if forloop.counter|divisibleby:2 %}background: #f5f7fa;{% endif %}">
+                        <td style="padding: 8px 12px; padding-left: 32px; font-size: 0.85rem;">{{ mod.modelo }}</td>
+                        <td style="padding: 8px; font-size: 0.85rem; color: var(--text-muted);">{{ mod.marca }}</td>
+                        <td style="padding: 8px; text-align: right; font-size: 0.85rem; font-weight: 600;">{{ mod.cantidad|floatformat:2 }}</td>
+                        <td style="padding: 8px; text-align: right; font-size: 0.85rem; color: var(--text-muted);">{{ mod.precio_unitario|floatformat:2 }}</td>
+                        <td style="padding: 8px 12px; text-align: right; font-weight: 600; font-size: 0.85rem;">{{ mod.total|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                    {% if resumen_modelos %}
+                    <tr style="background: #2c4a6e; color: white;">
+                        <td colspan="4" style="text-align: right; padding: 10px 12px; font-weight: 700; font-size: 0.95rem;">TOTAL GENERAL</td>
+                        <td style="text-align: right; padding: 10px 12px; font-weight: 700; font-size: 1.05rem;">{{ total_general|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 
 <!-- Toast -->
 <div id="toast"
@@ -853,22 +920,39 @@
 
     // ── Tab switching ──
     function switchTab(tab) {
-        const panels = {
-            cronograma: document.getElementById('panelCronograma'),
-            detalle: document.getElementById('panelDetalle'),
-            apu: document.getElementById('panelAPU'),
-        };
-        const tabs = {
-            cronograma: document.getElementById('tabCrono'),
-            detalle: document.getElementById('tabDetalle'),
-            apu: document.getElementById('tabAPU'),
-        };
+        document.getElementById('panelCronograma').style.display = 'none';
+        document.getElementById('panelDetalle').style.display = 'none';
+        document.getElementById('panelAPU').style.display = 'none';
+        document.getElementById('panelResumen').style.display = 'none';
 
-        Object.keys(panels).forEach(key => {
-            panels[key].style.display = (key === tab) ? 'block' : 'none';
-            tabs[key].style.background = (key === tab) ? 'var(--card-bg)' : 'var(--bg)';
-            tabs[key].style.color = (key === tab) ? 'var(--text-main)' : 'var(--text-muted)';
-        });
+        document.getElementById('tab-cronograma').style.background = 'var(--bg)';
+        document.getElementById('tab-detalle').style.background = 'var(--bg)';
+        document.getElementById('tab-presupuesto').style.background = 'var(--bg)';
+        document.getElementById('tab-resumen').style.background = 'var(--bg)';
+
+        document.getElementById('tab-cronograma').style.color = 'var(--text-muted)';
+        document.getElementById('tab-detalle').style.color = 'var(--text-muted)';
+        document.getElementById('tab-presupuesto').style.color = 'var(--text-muted)';
+        document.getElementById('tab-resumen').style.color = 'var(--text-muted)';
+
+        if (tab === 'cronograma') {
+            document.getElementById('panelCronograma').style.display = 'block';
+            document.getElementById('tab-cronograma').style.background = 'var(--card-bg)';
+            document.getElementById('tab-cronograma').style.color = 'var(--text-main)';
+        } else if (tab === 'detalle') {
+            document.getElementById('panelDetalle').style.display = 'block';
+            document.getElementById('tab-detalle').style.background = 'var(--card-bg)';
+            document.getElementById('tab-detalle').style.color = 'var(--text-main)';
+        } else if (tab === 'presupuesto' || tab === 'apu') {
+            document.getElementById('panelAPU').style.display = 'block';
+            document.getElementById('tab-presupuesto').style.background = 'var(--card-bg)';
+            document.getElementById('tab-presupuesto').style.color = 'var(--text-main)';
+        } else if (tab === 'resumen') {
+            document.getElementById('panelResumen').style.display = 'block';
+            document.getElementById('tab-resumen').style.background = 'var(--card-bg)';
+            document.getElementById('tab-resumen').style.color = 'var(--text-main)';
+        }
+        localStorage.setItem('repexActiveTab', tab);
 
         // Update export link
         const btnExport = document.getElementById('btnExportExcel');
@@ -879,37 +963,100 @@
     }
 
     // ── Toggle rows ──
-    function toggleRows(group, header) {
+    // ── Toggle rows with persistence ──
+    function saveToggleState(key, isOpen) {
+        let states = JSON.parse(localStorage.getItem('repexToggles') || '{}');
+        states[key] = isOpen;
+        localStorage.setItem('repexToggles', JSON.stringify(states));
+    }
+
+    function toggleRows(group, header, skipSave = false) {
         const rows = document.querySelectorAll('.group-' + group);
         const icon = header.querySelector('.toggle-icon');
         const isOpen = rows.length > 0 && rows[0].classList.contains('visible');
+        const newState = !isOpen;
 
-        rows.forEach(r => r.classList.toggle('visible', !isOpen));
+        rows.forEach(r => r.classList.toggle('visible', newState));
         if (icon) {
-            icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+            icon.style.transform = newState ? 'rotate(90deg)' : 'rotate(0deg)';
         }
+        if (!skipSave) saveToggleState('c-' + group, newState);
     }
 
-    function toggleDetailRows(group, header) {
+    function toggleDetailRows(group, header, skipSave = false) {
         const rows = document.querySelectorAll('.det-group-' + group);
         const icon = header.querySelector('.toggle-icon');
         const isOpen = rows.length > 0 && rows[0].classList.contains('visible');
+        const newState = !isOpen;
 
-        rows.forEach(r => r.classList.toggle('visible', !isOpen));
+        rows.forEach(r => r.classList.toggle('visible', newState));
         if (icon) {
-            icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+            icon.style.transform = newState ? 'rotate(90deg)' : 'rotate(0deg)';
         }
+        if (!skipSave) saveToggleState('d-' + group, newState);
     }
 
-    function toggleApuRows(group, header) {
+    function toggleApuRows(group, header, skipSave = false) {
         const rows = document.querySelectorAll('.apu-group-' + group);
         const icon = header.querySelector('.toggle-icon');
         const isOpen = rows.length > 0 && rows[0].classList.contains('visible');
+        const newState = !isOpen;
 
-        rows.forEach(r => r.classList.toggle('visible', !isOpen));
+        rows.forEach(r => r.classList.toggle('visible', newState));
         if (icon) {
-            icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+            icon.style.transform = newState ? 'rotate(90deg)' : 'rotate(0deg)';
         }
+        if (!skipSave) saveToggleState('a-' + group, newState);
+    }
+
+    function toggleResumenRows(group, header, skipSave = false) {
+        const rows = document.querySelectorAll('.res-group-' + group);
+        const icon = header.querySelector('.toggle-icon');
+        const isOpen = rows.length > 0 && rows[0].classList.contains('visible');
+        const newState = !isOpen;
+
+        rows.forEach(r => r.classList.toggle('visible', newState));
+        if (icon) {
+            icon.style.transform = newState ? 'rotate(90deg)' : 'rotate(0deg)';
+        }
+        if (!skipSave) saveToggleState('r-' + group, newState);
+    }
+
+    function restoreToggles() {
+        const states = JSON.parse(localStorage.getItem('repexToggles') || '{}');
+        Object.keys(states).forEach(key => {
+            if (!states[key]) return;
+            const prefix = key.substring(0, 2); // 'c-', 'd-', 'a-', 'r-'
+            const group = key.substring(2);
+            
+            let selector = '';
+            let toggleFn = null;
+            let headerSelector = '';
+
+            if (prefix === 'c-') {
+                selector = '.group-' + group;
+                headerSelector = `tr[onclick*="toggleRows('${group}'"]`;
+            } else if (prefix === 'd-') {
+                selector = '.det-group-' + group;
+                headerSelector = `tr[onclick*="toggleDetailRows('${group}'"]`;
+            } else if (prefix === 'a-') {
+                selector = '.apu-group-' + group;
+                headerSelector = `tr[onclick*="toggleApuRows('${group}'"]`;
+            } else if (prefix === 'r-') {
+                selector = '.res-group-' + group;
+                headerSelector = `tr[onclick*="toggleResumenRows('${group}'"]`;
+            }
+
+            if (selector) {
+                const rows = document.querySelectorAll(selector);
+                rows.forEach(r => r.classList.add('visible'));
+                const header = document.querySelector(headerSelector);
+                if (header) {
+                    const icon = header.querySelector('.toggle-icon');
+                    if (icon) icon.style.transform = 'rotate(90deg)';
+                }
+            }
+        });
     }
 
     // ── Save monto (inline edit) ──
@@ -1280,6 +1427,37 @@
         });
     }
 
+    // ── Save APU (cantidad o precio unitario) ──
+    function saveRepexAPU(cell) {
+        const itemId = cell.dataset.itemId;
+        const field = cell.dataset.field;
+        const rawValue = cell.innerText.trim();
+        const value = parseLocalFloat(rawValue);
+
+        fetch('{% url "presupuestos:api_update_repex_item_apu" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ item_id: itemId, field: field, value: value })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                showToast('Cambio guardado');
+                // Recargar para sincronizar totales e importe
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                showToast('Error: ' + (data.message || 'Desconocido'), 'error');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showToast('Error de conexión', 'error');
+        });
+    }
+
     // ── Delete item ──
     function deleteRepexItem(itemId, nombre) {
         if (!confirm(`¿Quitar "${nombre}" del plan REPEX?`)) return;
@@ -1321,6 +1499,14 @@
 
     jQuery(document).ready(function() {
         console.log("REPEX Dashboard ready.");
+        // Restore active tab
+        const savedTab = localStorage.getItem('repexActiveTab');
+        if (savedTab) {
+            switchTab(savedTab);
+        }
+        // Restore expanded categories
+        restoreToggles();
     });
 </script>
+</div>
 {% endblock %}

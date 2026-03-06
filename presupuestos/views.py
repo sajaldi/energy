@@ -972,7 +972,8 @@ def cronograma_repex(request, pk):
     items_detalle = []
     items_qs = repex.items.select_related(
         'activo', 'activo__modelo', 'activo__modelo__marca',
-        'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia'
+        'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia',
+        'modelo', 'modelo__marca', 'modelo__categoria'
     ).all()
 
     for item in items_qs:
@@ -1014,15 +1015,38 @@ def cronograma_repex(request, pk):
             })
         else:
             # Item manual sin activo
+            modelo_str = '-'
+            marca_str = '-'
+            if item.modelo:
+                modelo_str = item.modelo.nombre
+                if hasattr(item.modelo, 'marca') and item.modelo.marca:
+                    marca_str = item.modelo.marca.nombre
+
+            ruta_categoria = item.categoria_manual
+            if not ruta_categoria and item.modelo and item.modelo.categoria:
+                cat = item.modelo.categoria
+                path = [cat.nombre]
+                curr = cat.padre
+                visited = {cat.id}
+                while curr:
+                    if curr.id in visited: break
+                    visited.add(curr.id)
+                    path.append(curr.nombre)
+                    curr = curr.padre
+                ruta_categoria = ' → '.join(reversed(path))
+            
+            if not ruta_categoria:
+                ruta_categoria = 'Sin Categoría'
+
             items_detalle.append({
                 'id': item.id,
                 'activo_nombre': item.nombre_item or 'Ítem manual',
                 'codigo': '-',
-                'marca': '-',
-                'modelo': '-',
+                'marca': marca_str,
+                'modelo': modelo_str,
                 'ruta_ubicacion': item.ubicacion_manual or '-',
-                'ruta_categoria': item.categoria_manual or 'Sin Categoría',
-                'familia': item.categoria_manual or 'Sin Categoría',
+                'ruta_categoria': ruta_categoria,
+                'familia': ruta_categoria,
                 'costo_reposicion': float(item.costo_reposicion or 0),
                 'prioridad': item.prioridad,
                 'es_manual': True,
@@ -1034,14 +1058,46 @@ def cronograma_repex(request, pk):
     # Agrupar por categoría para vista colapsable
     from collections import OrderedDict
     categorias_dict = OrderedDict()
+    resumen_dict = OrderedDict() # Para la nueva pestaña de Resumen por Modelo
+
     for item in items_detalle:
         cat = item['ruta_categoria']
+        # Categoría detalle (existente)
         if cat not in categorias_dict:
             categorias_dict[cat] = {'nombre': cat, 'items': [], 'total': 0.0, 'count': 0}
         categorias_dict[cat]['items'].append(item)
         categorias_dict[cat]['total'] += item['costo_reposicion']
         categorias_dict[cat]['count'] += 1
+
+        # Resumen por Modelo (nueva agrupación)
+        if cat not in resumen_dict:
+            resumen_dict[cat] = {'nombre': cat, 'modelos': OrderedDict(), 'total': 0.0}
+        
+        modelo_key = f"{item['marca']} | {item['modelo']}"
+        if modelo_key not in resumen_dict[cat]['modelos']:
+            resumen_dict[cat]['modelos'][modelo_key] = {
+                'marca': item['marca'],
+                'modelo': item['modelo'],
+                'cantidad': 0,
+                'precio_unitario': item['precio_unitario'], # Tomamos el del primer item
+                'total': 0.0
+            }
+        
+        m_data = resumen_dict[cat]['modelos'][modelo_key]
+        m_data['cantidad'] += item['cantidad']
+        m_data['total'] += item['costo_reposicion']
+        resumen_dict[cat]['total'] += item['costo_reposicion']
+
     categorias_detalle = list(categorias_dict.values())
+    
+    # Convertir resumen_dict a lista para el template
+    resumen_modelos = []
+    for cat_name, c_data in resumen_dict.items():
+        resumen_modelos.append({
+            'nombre': cat_name,
+            'modelos': list(c_data['modelos'].values()),
+            'total': c_data['total']
+        })
 
     context = {
         'repex': repex,
@@ -1052,6 +1108,7 @@ def cronograma_repex(request, pk):
         'total_items': data['total_items'],
         'items_detalle': items_detalle,
         'categorias_detalle': categorias_detalle,
+        'resumen_modelos': resumen_modelos,
     }
     return render(request, 'presupuestos/cronograma_repex.html', context)
 
@@ -1155,7 +1212,8 @@ def exportar_repex_excel(request, pk):
         # ── PRESUPUESTO / APU ──
         items_qs = repex.items.select_related(
             'activo', 'activo__modelo', 'activo__modelo__marca',
-            'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia'
+            'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia',
+            'modelo', 'modelo__marca', 'modelo__categoria'
         ).all()
         
         categorias = OrderedDict()
@@ -1167,20 +1225,49 @@ def exportar_repex_excel(request, pk):
                     cat = activo.modelo.categoria
                     path = [cat.nombre]
                     curr = cat.padre
+                    visited = {cat.id}
                     while curr:
+                        if curr.id in visited: break
+                        visited.add(curr.id)
                         path.append(curr.nombre)
                         curr = curr.padre
                     cat_name = ' → '.join(reversed(path))
             else:
-                cat_name = item.categoria_manual or 'Sin Categoría'
+                cat_name = item.categoria_manual
+                if not cat_name and item.modelo and item.modelo.categoria:
+                    cat = item.modelo.categoria
+                    path = [cat.nombre]
+                    curr = cat.padre
+                    visited = {cat.id}
+                    while curr:
+                        if curr.id in visited: break
+                        visited.add(curr.id)
+                        path.append(curr.nombre)
+                        curr = curr.padre
+                    cat_name = ' → '.join(reversed(path))
+                
+                if not cat_name:
+                    cat_name = 'Sin Categoría'
             
             if cat_name not in categorias:
                 categorias[cat_name] = {'items': [], 'total': 0.0}
             
+            modelo_str = '-'
+            marca_str = '-'
+            if activo and activo.modelo:
+                modelo_str = activo.modelo.nombre
+                if activo.modelo.marca:
+                    marca_str = activo.modelo.marca.nombre
+            elif item.modelo:
+                modelo_str = item.modelo.nombre
+                if hasattr(item.modelo, 'marca') and item.modelo.marca:
+                    marca_str = item.modelo.marca.nombre
+
             val = {
                 'codigo': activo.codigo_interno if activo else '-',
                 'nombre': item.display_nombre,
-                'modelo': (activo.modelo.nombre if activo and activo.modelo else '-') if activo else '-',
+                'marca': marca_str,
+                'modelo': modelo_str,
                 'ubicacion': (activo.ubicacion.ruta_completa if activo and activo.ubicacion else '-') if activo else (item.ubicacion_manual or '-'),
                 'unidades': item.unidades or 'Unidad',
                 'cantidad': float(item.cantidad or 1),
@@ -1252,7 +1339,8 @@ def exportar_repex_excel(request, pk):
         ws.title = f"Detalle REPEX {repex.anio}"
         items_qs = repex.items.select_related(
             'activo', 'activo__modelo', 'activo__modelo__marca',
-            'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia'
+            'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia',
+            'modelo', 'modelo__marca', 'modelo__categoria'
         ).all()
         
         categorias = OrderedDict()
@@ -1264,21 +1352,49 @@ def exportar_repex_excel(request, pk):
                     cat = activo.modelo.categoria
                     path = [cat.nombre]
                     curr = cat.padre
+                    visited = {cat.id}
                     while curr:
+                        if curr.id in visited: break
+                        visited.add(curr.id)
                         path.append(curr.nombre)
                         curr = curr.padre
                     cat_name = ' → '.join(reversed(path))
             else:
-                cat_name = item.categoria_manual or 'Sin Categoría'
+                cat_name = item.categoria_manual
+                if not cat_name and item.modelo and item.modelo.categoria:
+                    cat = item.modelo.categoria
+                    path = [cat.nombre]
+                    curr = cat.padre
+                    visited = {cat.id}
+                    while curr:
+                        if curr.id in visited: break
+                        visited.add(curr.id)
+                        path.append(curr.nombre)
+                        curr = curr.padre
+                    cat_name = ' → '.join(reversed(path))
+                
+                if not cat_name:
+                    cat_name = 'Sin Categoría'
             
             if cat_name not in categorias:
                 categorias[cat_name] = {'items': [], 'total': 0.0}
             
+            modelo_str = '-'
+            marca_str = '-'
+            if activo and activo.modelo:
+                modelo_str = activo.modelo.nombre
+                if activo.modelo.marca:
+                    marca_str = activo.modelo.marca.nombre
+            elif item.modelo:
+                modelo_str = item.modelo.nombre
+                if hasattr(item.modelo, 'marca') and item.modelo.marca:
+                    marca_str = item.modelo.marca.nombre
+
             val = {
                 'codigo': activo.codigo_interno if activo else '-',
                 'nombre': item.display_nombre,
-                'marca': (activo.modelo.marca.nombre if activo.modelo and activo.modelo.marca else '-') if activo else '-',
-                'modelo': (activo.modelo.nombre if activo and activo.modelo else '-') if activo else '-',
+                'marca': marca_str,
+                'modelo': modelo_str,
                 'ubicacion': (activo.ubicacion.ruta_completa if activo and activo.ubicacion else '-') if activo else (item.ubicacion_manual or '-'),
                 'prioridad': item.prioridad,
                 'costo': float(item.costo_reposicion or 0),
@@ -1352,7 +1468,7 @@ def _get_repex_cronograma_data(repex):
     meses_nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-    items = repex.items.select_related('activo', 'activo__familia').all()
+    items = repex.items.select_related('activo', 'activo__familia', 'modelo', 'modelo__categoria').all()
 
     # Agrupar por Familia
     familias = {}
@@ -1361,8 +1477,12 @@ def _get_repex_cronograma_data(repex):
             familia_nombre = item.activo.familia.nombre if item.activo.familia else "Sin Familia"
             familia_id = item.activo.familia.id if item.activo.familia else 0
         else:
-            familia_nombre = item.categoria_manual or "Ítems Manuales"
-            familia_id = -1  # ID especial para manuales
+            if item.modelo and item.modelo.categoria:
+                familia_nombre = item.modelo.categoria.nombre
+                familia_id = item.modelo.categoria.id
+            else:
+                familia_nombre = item.categoria_manual or "Ítems Manuales"
+                familia_id = -1  # ID especial para manuales
 
         key = (familia_id, familia_nombre)
 
@@ -1433,6 +1553,7 @@ def api_update_repex_item(request):
     """Actualiza costo_reposicion y fecha_proyectada de un REPEXItem."""
     if request.method == "POST":
         import json
+        from decimal import Decimal
         from .models import REPEXItem
         from django.http import JsonResponse
         from datetime import date
@@ -1440,8 +1561,8 @@ def api_update_repex_item(request):
         try:
             data = json.loads(request.body)
             item_id = data.get('item_id')
-            mes = int(data.get('mes'))
-            monto = float(data.get('monto'))
+            mes = int(data.get('mes') or 0)
+            monto = Decimal(str(data.get('monto', 0)))
 
             item = get_object_or_404(REPEXItem, pk=item_id)
             item.costo_reposicion = monto
@@ -1453,6 +1574,43 @@ def api_update_repex_item(request):
 
             item.save()
             return JsonResponse({'status': 'ok', 'new_total': float(item.costo_reposicion)})
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+
+@login_required
+def api_update_repex_item_apu(request):
+    """Actualiza cantidad o precio_unitario de un REPEXItem."""
+    if request.method == "POST":
+        import json
+        from decimal import Decimal
+        from .models import REPEXItem
+        from django.http import JsonResponse
+
+        try:
+            data = json.loads(request.body)
+            item_id = data.get('item_id')
+            field = data.get('field')  # 'cantidad' o 'precio_unitario'
+            value = Decimal(str(data.get('value', 0)))
+
+            item = get_object_or_404(REPEXItem, pk=item_id)
+            if field == 'cantidad':
+                item.cantidad = value
+            elif field == 'precio_unitario':
+                item.precio_unitario = value
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Campo inválido'}, status=400)
+
+            item.save()  # El método save() recalcula costo_reposicion (Decimal * Decimal)
+            return JsonResponse({
+                'status': 'ok', 
+                'new_total': float(item.costo_reposicion),
+                'cantidad': float(item.cantidad),
+                'precio_unitario': float(item.precio_unitario)
+            })
 
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
@@ -1477,6 +1635,10 @@ def api_add_repex_item(request):
 
             repex = get_object_or_404(REPEX, pk=repex_id)
             activo = get_object_or_404(Activo, pk=activo_id)
+
+            # Si el costo no viene en el request (es 0), intentar usar el precio promedio del modelo
+            if costo <= 0 and activo.modelo and activo.modelo.precio_promedio:
+                costo = float(activo.modelo.precio_promedio)
 
             # Verificar que no exista ya
             if REPEXItem.objects.filter(repex=repex, activo=activo).exists():
@@ -1707,6 +1869,9 @@ def api_add_manual_repex_item(request):
                     
                 if not unidades_val and hasattr(modelo_obj, 'unidad_medida') and modelo_obj.unidad_medida:
                     unidades_val = modelo_obj.unidad_medida.nombre
+
+                if (not precio_val or float(precio_val) == 0) and modelo_obj.precio_promedio:
+                    precio_val = float(modelo_obj.precio_promedio)
 
         if not nombre:
              return JsonResponse({'status': 'error', 'message': 'Nombre del ítem es requerido.'}, status=400)
