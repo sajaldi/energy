@@ -5,10 +5,8 @@
 
 {% block extrahead %}
 {{ block.super }}
-<!-- jQuery first, then Select2 -->
+<!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <!-- IonIcons -->
 <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js" type="module"></script>
 <script src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js" nomodule></script>
@@ -791,10 +789,12 @@
             Para reposiciones masivas o partidas sin activo específico vinculado.
         </p>
 
-        <div class="form-group">
-            <label for="manualModelo">Seleccionar Modelo *</label>
-            <select id="manualModelo" class="form-control" style="width: 100%;"></select>
+        <div class="form-group" style="position: relative;">
+            <label for="manualModeloBusqueda">Seleccionar Modelo *</label>
+            <input type="text" id="manualModeloBusqueda" class="form-control" placeholder="🔍 Escribe para buscar modelo (Activos)..." autocomplete="off" oninput="searchModelos(this.value)">
+            <input type="hidden" id="manualModeloId">
             <input type="hidden" id="manualNombre">
+            <div id="searchResultsModelos" class="search-results"></div>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group">
@@ -998,7 +998,7 @@
     function openManualItemModal() {
         console.log("Abriendo modal manual...");
         
-        // Mostrar modal primero
+        // Mostrar modal
         if (modalManual) {
             modalManual.classList.add('show');
         } else {
@@ -1006,7 +1006,9 @@
             if (m) m.classList.add('show');
         }
 
-        // Limpiar campos inmediatamente
+        // Limpiar campos
+        document.getElementById('manualModeloBusqueda').value = '';
+        document.getElementById('manualModeloId').value = '';
         document.getElementById('manualNombre').value = '';
         document.getElementById('manualUbicacion').value = '';
         document.getElementById('manualCategoria').value = '';
@@ -1017,70 +1019,53 @@
         document.getElementById('manualTotalPreview').textContent = '$0.00';
         document.getElementById('manualItemBtn').disabled = false;
         document.getElementById('manualItemBtn').innerHTML = '<ion-icon name="create-outline"></ion-icon> Agregar Ítem';
+        
+        const resultsDiv = document.getElementById('searchResultsModelos');
+        if (resultsDiv) resultsDiv.classList.remove('show');
+    }
 
-        // Inicializar Select2 con un pequeño delay para asegurar visibilidad
-        setTimeout(function() {
-            try {
-                // Preferir jQuery cargado, fallback a django.jQuery
-                const jq = (typeof jQuery !== 'undefined') ? jQuery : (typeof django !== 'undefined' ? django.jQuery : null);
-                if (!jq) {
-                    console.error("jQuery no encontrado para Select2");
-                    return;
+    let searchModelosTimeout = null;
+    function searchModelos(query) {
+        clearTimeout(searchModelosTimeout);
+        const resultsDiv = document.getElementById('searchResultsModelos');
+
+        if (query.length < 2) {
+            resultsDiv.classList.remove('show');
+            return;
+        }
+
+        searchModelosTimeout = setTimeout(() => {
+            fetch(`{% url "activos:api_buscar_modelos_json" %}?q=${encodeURIComponent(query)}`)
+            .then(r => r.json())
+            .then(data => {
+                resultsDiv.innerHTML = '';
+                if (!data.results || data.results.length === 0) {
+                    resultsDiv.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center;">Sin resultados</div>';
+                } else {
+                    data.results.forEach(m => {
+                        const div = document.createElement('div');
+                        div.className = 'search-result-item';
+                        div.innerHTML = `
+                            <div class="sr-name">${m.text}</div>
+                            <div class="sr-meta">${m.categoria} · ${m.unidad || 'Sin unidad'}</div>
+                        `;
+                        div.onclick = () => selectModelo(m);
+                        resultsDiv.appendChild(div);
+                    });
                 }
+                resultsDiv.classList.add('show');
+            })
+            .catch(err => console.error(err));
+        }, 300);
+    }
 
-                const $m = jq('#manualModelo');
-                if ($m.length) {
-                    // Si ya estaba inicializado, destruir para evitar duplicados
-                    if ($m.hasClass('select2-hidden-accessible')) {
-                        $m.select2('destroy');
-                    }
-
-                    console.log("Iniciando Select2 AJAX...");
-                    $m.select2({
-                        dropdownParent: jq('#manualItemModal'),
-                        ajax: {
-                            url: "{% url 'activos:api_buscar_modelos_json' %}",
-                            dataType: 'json',
-                            delay: 300,
-                            data: function (params) {
-                                return { q: params.term || '' };
-                            },
-                            processResults: function (data) {
-                                return { results: data.results }; 
-                            },
-                            cache: true
-                        },
-                        placeholder: '🔍 Buscar modelo (Activos)...',
-                        minimumInputLength: 0,
-                        allowClear: true,
-                        width: '100%',
-                        language: {
-                            noResults: function() { return "No se encontraron modelos"; },
-                            searching: function() { return "Buscando..."; }
-                        }
-                    });
-
-                    // Eventos
-                    $m.off('select2:select').on('select2:select', function (e) {
-                        const data = e.params.data;
-                        document.getElementById('manualNombre').value = data.text || '';
-                        document.getElementById('manualCategoria').value = data.categoria || '';
-                        document.getElementById('manualUnidades').value = data.unidad || '';
-                    });
-                    
-                    $m.off('select2:unselect').on('select2:unselect', function () {
-                        document.getElementById('manualNombre').value = '';
-                        document.getElementById('manualCategoria').value = '';
-                        document.getElementById('manualUnidades').value = '';
-                    });
-
-                    // Reset inicial
-                    $m.val(null).trigger('change');
-                }
-            } catch (e) {
-                console.error("Error crítico en Select2:", e);
-            }
-        }, 150);
+    function selectModelo(modelo) {
+        document.getElementById('manualModeloId').value = modelo.id;
+        document.getElementById('manualModeloBusqueda').value = modelo.text;
+        document.getElementById('manualNombre').value = modelo.text;
+        document.getElementById('manualCategoria').value = modelo.categoria || '';
+        document.getElementById('manualUnidades').value = modelo.unidad || '';
+        document.getElementById('searchResultsModelos').classList.remove('show');
     }
 
     function closeManualItemModal() {
@@ -1095,8 +1080,7 @@
     }
 
     function submitManualItem() {
-        const jq = (typeof jQuery !== 'undefined') ? jQuery : (typeof django !== 'undefined' ? django.jQuery : null);
-        const modeloId = jq ? jq('#manualModelo').val() : document.getElementById('manualModelo').value;
+        const modeloId = document.getElementById('manualModeloId').value;
         const nombre = document.getElementById('manualNombre').value.trim();
         
         if (!modeloId || !nombre) {
@@ -1323,9 +1307,20 @@
         });
     }
 
-    // Select2 se inicializa en openManualItemModal
+    // Cerrar resultados al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#searchResults') && !e.target.closest('#searchActivo')) {
+            const dr = document.getElementById('searchResults');
+            if (dr) dr.classList.remove('show');
+        }
+        if (!e.target.closest('#searchResultsModelos') && !e.target.closest('#manualModeloBusqueda')) {
+            const dr = document.getElementById('searchResultsModelos');
+            if (dr) dr.classList.remove('show');
+        }
+    });
+
     jQuery(document).ready(function() {
-        console.log("Página cargada. Select2 listo para activarse en modal.");
+        console.log("REPEX Dashboard ready.");
     });
 </script>
 {% endblock %}
