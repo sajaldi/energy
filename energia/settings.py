@@ -91,7 +91,7 @@ USE_X_FORWARDED_PORT = True
 if IS_LOCAL:
      N8N_BASE_URL = 'http://181.115.47.107:5678'
 else:
-     # URL interna para comunicación entre contenedores
+     # URL interna para comunicación entre contenedores (Manifest producción)
      N8N_BASE_URL = os.environ.get('N8N_INTERNAL_URL', 'http://n8n-z8wscww488scgs84oo4os008:5678')
 
 # Webhook para notificar nuevo documento
@@ -383,11 +383,9 @@ else:
     # Apuntamos al proxy de Django para evitar problemas de SSL/CORS.
     AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/media-proxy'
     AWS_S3_URL_PROTOCOL = 'https:' 
-    # Usamos el nombre del servicio interno de Coolify (minio) para UPLOADS
-    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio-cksckkgkcoogow4o4kg0gsog:9000')
+    # Usamos el nombre del servicio interno de Coolify exacto detectado
+    AWS_S3_ENDPOINT_URL = 'http://minio-cksckkgkcoogow4o4kg0gsog:9000'
     AWS_S3_USE_SSL = False
-    # Para el proxy interno usamos firmas (AWS_QUERYSTRING_AUTH = True) 
-    # pero aseguramos que el endpoint sea el correcto.
     AWS_QUERYSTRING_AUTH = True
 
 # Configuración general de S3/MinIO
@@ -646,7 +644,7 @@ else:
     # Producción: Redis interno de Coolify (usa nombre del servicio)
     CELERY_BROKER_URL = os.environ.get(
         'CELERY_BROKER_URL', 
-        'redis://coolify-redis:6379/0'  # Nombre exacto sugerido por el usuario
+        'redis://coolify-redis:6379/0'
     )
     print(f"[DEBUG] Entorno PRODUCCION detectado. Redis: {CELERY_BROKER_URL}")
 
