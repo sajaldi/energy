@@ -386,6 +386,8 @@ else:
     # Usamos el nombre del servicio interno de Coolify (minio) para UPLOADS
     AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio-cksckkgkcoogow4o4kg0gsog:9000')
     AWS_S3_USE_SSL = False
+    # Para el proxy interno usamos firmas (AWS_QUERYSTRING_AUTH = True) 
+    # pero aseguramos que el endpoint sea el correcto.
     AWS_QUERYSTRING_AUTH = True
 
 # Configuración general de S3/MinIO
@@ -644,7 +646,7 @@ else:
     # Producción: Redis interno de Coolify (usa nombre del servicio)
     CELERY_BROKER_URL = os.environ.get(
         'CELERY_BROKER_URL', 
-        'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'  # Nombre del servicio en Coolify
+        'redis://coolify-redis:6379/0'  # Nombre exacto sugerido por el usuario
     )
     print(f"[DEBUG] Entorno PRODUCCION detectado. Redis: {CELERY_BROKER_URL}")
 
