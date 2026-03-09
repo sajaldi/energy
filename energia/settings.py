@@ -386,8 +386,8 @@ else:
     MEDIA_URL = '/media-proxy/'
     AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/media-proxy'
     AWS_S3_URL_PROTOCOL = 'https:' 
-    # FORZAR endpoint interno de Coolify (ignorar env var si existe)
-    AWS_S3_ENDPOINT_URL = 'http://minio-cksckkgkcoogow4o4kg0gsog:9000'
+    # Usar la variable de entorno de Coolify (http://minio:9000) como prioridad
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio-cksckkgkcoogow4o4kg0gsog:9000')
     AWS_S3_USE_SSL = False
     # REVERTIDO a False (era así ayer cuando funcionaba)
     AWS_QUERYSTRING_AUTH = False
