@@ -412,6 +412,9 @@ STORAGES = {
     },
 }
 
+# Evitar errores en producción si falta algún archivo en el manifest (común con temas de Jazzmin)
+WHITENOISE_MANIFEST_STRICT = False
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

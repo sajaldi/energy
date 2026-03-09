@@ -1658,14 +1658,16 @@
                     <div id="comments-list">${commentsListHtml}</div>
                 `;
 
+                const isPdf = data.url_archivo && (data.url_archivo.toLowerCase().split('?')[0].endsWith('.pdf'));
+                const isDocx = data.url_archivo && (data.url_archivo.toLowerCase().split('?')[0].endsWith('.docx'));
 
                 let previewHtml = '';
-                if (data.url_archivo && data.url_archivo.toLowerCase().endsWith('.pdf')) {
+                if (isPdf) {
                     previewHtml = `
                         <div class="section-title" style="margin-top: 40px; display:flex; justify-content:space-between; align-items:center;">
                             <span>Vista Previa del Documento</span>
                             <div style="display:flex; gap:10px; align-items:center;">
-                                <button onclick="togglePdfFullscreen()" class="btn-icon" style="background:#0ea5e9; color:white; border:none; padding:4px 12px; font-weight:700;">Abrir</button>
+                                <button onclick="togglePdfFullscreen()" class="btn-icon" style="background:#0ea5e9; color:white; border:none; padding:4px 12px; font-weight:700;">Abrir PDF</button>
                                 <button onclick="changePage(-1)" class="btn-icon" style="padding:2px 8px;">←</button>
                                 <span id="page-num-display" style="font-size:0.8rem; font-weight:600; min-width:60px; text-align:center;">Pág 1 / ?</span>
                                 <button onclick="changePage(1)" class="btn-icon" style="padding:2px 8px;">→</button>
@@ -1690,7 +1692,7 @@
                         </div>
                     `;
                     setTimeout(() => initPDF(data.url_archivo), 100);
-                } else if (data.url_archivo && data.url_archivo.toLowerCase().endsWith('.docx')) {
+                } else if (isDocx) {
                     previewHtml = `
                         <div class="section-title" style="margin-top: 40px; display:flex; justify-content:space-between; align-items:center;">
                             <span>Vista Previa (DOCX)</span>
@@ -1744,9 +1746,16 @@
                             <button onclick="syncMetadata(${data.id}, this)" class="button" style="text-align: center; background: #0ea5e9; color: white; padding: 12px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer;">
                                 ⚙️ Sincronizar campos
                             </button>
+                            ${isPdf ? `
                             <button onclick="togglePdfFullscreen()" class="button" style="text-align: center; background: #6366f1; color: white; padding: 12px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer;">
-                                👁️ Abrir PDF (Vista Rápida)
+                                👁️ Ver PDF (Vista Rápida)
                             </button>
+                            ` : ''}
+                            ${isDocx ? `
+                            <a href="/documentos/editor-docx/${data.id}/" class="button" style="text-align: center; background: #16a34a; color: white; padding: 12px; border-radius: 10px; font-weight: 700; text-decoration: none; display:flex; align-items:center; justify-content:center; gap:8px;">
+                                📝 Editar Contenido DOCX
+                            </a>
+                            ` : ''}
                             <a href="/documentos/visor-pines/${data.id}/" target="_blank" class="button" style="text-align: center; background: #ef4444; color: white; padding: 12px; border-radius: 10px; font-weight: 700; text-decoration: none; display:flex; align-items:center; justify-content:center; gap:8px;">
                                 📍 Abrir Visor de Anotaciones
                             </a>
@@ -1754,6 +1763,11 @@
                                 <a href="/admin/documentos/documento/${data.id}/change/" target="_blank" class="button" style="flex: 1; text-align: center; background: #0f172a; color: white; padding: 12px; border-radius: 10px; font-weight: 600; text-decoration: none;">Admin ↗</a>
                                 <a href="/documentos/nuevo/?step=3&doc_id=${data.id}" class="button" style="flex: 1; text-align: center; background: var(--primary); color: white; padding: 12px; border-radius: 10px; font-weight: 600; text-decoration: none;">Wizard</a>
                             </div>
+                            ${data.url_archivo && data.url_archivo.toLowerCase().endsWith('.docx') ? `
+                            <a href="/documentos/editor-docx/${data.id}/" class="button" style="text-align: center; background: #16a34a; color: white; padding: 12px; border-radius: 10px; font-weight: 700; text-decoration: none; display:flex; align-items:center; justify-content:center; gap:8px;">
+                                📝 Editar Contenido DOCX
+                            </a>
+                            ` : ''}
                         </div>
                         ${commentsSection}
                         ${previewHtml}

@@ -1,0 +1,261 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- TinyMCE CDN -->
+<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+
+<style>
+    :root {
+        --primary: #4f46e5;
+        --primary-dark: #4338ca;
+        --bg-editor: #f8fafc;
+        --border: #e2e8f0;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .editor-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        background: var(--bg-editor);
+    }
+
+    .toolbar-top {
+        padding: 15px 30px;
+        background: white;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 100;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .doc-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .doc-info h1 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin: 0;
+        color: #1e293b;
+    }
+
+    .doc-info span {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-secondary {
+        background: white;
+        border-color: var(--border);
+        color: #475569;
+    }
+
+    .btn-secondary:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .editor-container {
+        flex: 1;
+        padding: 40px;
+        overflow-y: auto;
+        display: flex;
+        justify-content: center;
+    }
+
+    .editor-paper {
+        width: 100%;
+        max-width: 850px;
+        background: white;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        border: 1px solid var(--border);
+        min-height: 1000px;
+        padding: 0;
+    }
+
+    #loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.9);
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid var(--primary-light);
+        border-top: 4px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Override TinyMCE default border */
+    .tox-tinymce {
+        border: none !important;
+        border-radius: 0 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <p>Cargando editor y documento...</p>
+</div>
+
+<div class="editor-wrapper">
+    <div class="toolbar-top">
+        <div class="doc-info">
+            <h1>Editar: {{ documento.titulo }}</h1>
+            <span>Código: {{ documento.codigo }} | Revisión Actual: {{ revision.revision }}</span>
+        </div>
+        
+        <div class="actions">
+            <a href="{% url 'documentos:documento_trazabilidad' documento.id %}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancelar
+            </a>
+            <button id="save-btn" class="btn btn-primary">
+                <i class="fas fa-save"></i> Guardar Nueva Versión
+            </button>
+        </div>
+    </div>
+
+    <div class="editor-container">
+        <div class="editor-paper">
+            <textarea id="docx-editor">{{ html_content|safe }}</textarea>
+        </div>
+    </div>
+</div>
+
+<form id="save-form" method="POST" style="display:none;">
+    {% csrf_token %}
+    <textarea name="html_content" id="form-html"></textarea>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        tinymce.init({
+            selector: '#docx-editor',
+            height: '100%',
+            menubar: true,
+            plugins: [
+                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                'insertdatetime', 'media', 'table', 'help', 'wordcount'
+            ],
+            toolbar: 'undo redo | blocks | ' +
+                'bold italic backcolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | help',
+            content_style: 'body { font-family:Inter,Helvetica,Arial,sans-serif; font-size:14px; padding: 40px; }',
+            setup: function(editor) {
+                editor.on('init', function() {
+                    document.getElementById('loading-overlay').style.display = 'none';
+                });
+            }
+        });
+
+        document.getElementById('save-btn').addEventListener('click', function() {
+            const btn = this;
+            const content = tinymce.get('docx-editor').getContent();
+            
+            if (!content || content.trim() === "") {
+                alert("El documento no puede estar vacío.");
+                return;
+            }
+
+            if (!confirm("¿Deseas guardar estos cambios como una nueva revisión?")) {
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+            // Enviar vía fetch para manejo de errores
+            const formData = new FormData();
+            formData.append('html_content', content);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.href = "{% url 'documentos:documento_trazabilidad' documento.id %}";
+                } else {
+                    alert("Error al guardar: " + data.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-save"></i> Guardar Nueva Versión';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Error de conexión al guardar.");
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Guardar Nueva Versión';
+            });
+        });
+    });
+</script>
+{% endblock %}

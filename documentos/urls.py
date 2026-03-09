@@ -13,6 +13,7 @@ urlpatterns = [
     path('reprocesar/<int:doc_id>/', views_wizard.documento_reprocesar_verificacion, name='documento_reprocesar'),
     # Trazabilidad
     path('trazabilidad/<int:doc_id>/', views.documento_trazabilidad, name='documento_trazabilidad'),
+    path('editor-docx/<int:doc_id>/', views.documento_editor_docx, name='documento_editor_docx'),
     path('visor-pines/<int:doc_id>/', views.documento_visor_pines, name='visor_pines'),
     path('proxy/pdf/<int:doc_id>/', views.documento_proxy_pdf, name='documento_proxy_pdf'),
     path('api/detalle/<int:doc_id>/', views.documento_detalle_json, name='documento_detalle_json'),
