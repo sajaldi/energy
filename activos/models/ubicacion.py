@@ -1,4 +1,5 @@
 from django.db import models
+from core.storage import MinIOStorage
 
 class Ubicacion(models.Model):
     TIPO_CHOICES = [
@@ -16,6 +17,10 @@ class Ubicacion(models.Model):
     orden = models.PositiveIntegerField(default=0, help_text="Orden de visualización y programación")
     es_almacen = models.BooleanField(default=False, help_text="Marcar si esta ubicación funciona como bodega/almacén de materiales")
     categoria = models.ForeignKey('Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='ubicaciones', help_text="Categoría asociada para rutinas de mantenimiento")
+    
+    archivo_3d = models.FileField(upload_to='ubicaciones_3d/', blank=True, null=True, storage=MinIOStorage(), help_text="Escaneo 3D o modelo de la ubicación (.glb)")
+    puntos_3d_data = models.JSONField(default=list, blank=True, help_text="Pines/Hotspots 3D en esta ubicación")
+
 
     def get_ruta_completa(self, separador=' → '):
         """

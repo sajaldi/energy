@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.urls import reverse
 from django.db import models
+import json
 from django.contrib import admin, messages
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
@@ -399,15 +400,20 @@ class ModeloAdmin(ImportExportModelAdmin):
 
     def vista_3d(self, obj):
         if obj.archivo_3d:
-            # Forzamos el uso del proxy local para evitar problemas de CORS/Mixed Content con la IP de MinIO
             proxy_url = f"/media-proxy/{obj.archivo_3d.name}"
+            hotspots_json = json.dumps(obj.puntos_3d_data or [])
             return format_html(
-                '<div style="width: 100%; height: 400px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">'
-                '<model-viewer src="{}" alt="{}" auto-rotate camera-controls crossorigin="anonymous" shadow-intensity="1" loading="lazy" style="width: 100%; height: 100%;">'
+                '<div class="viewer-container" style="width: 100%; height: 500px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">'
+                '<button type="button" class="fullscreen-btn" onclick="toggle3DFullscreen(this)" style="position: absolute; top: 12px; right: 12px; z-index: 10; background: rgba(255,255,255,0.9); border: none; border-radius: 8px; padding: 8px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: all 0.2s;">'
+                '   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>'
+                '</button>'
+                '<model-viewer src="{}" alt="{}" auto-rotate camera-controls crossorigin="anonymous" shadow-intensity="1" loading="lazy" style="width: 100%; height: 100%;" '
+                'data-model-type="modelo" data-object-id="{}" data-hotspots=\'{}\'>'
                 '<div slot="poster" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b; font-size: 0.9rem;">Cargando modelo 3D...</div>'
                 '</model-viewer>'
-                '</div>',
-                proxy_url, obj.nombre
+                '</div>'
+                '<div style="margin-top: 8px; font-size: 0.8rem; color: #64748b;">💡 <b>Clic Derecho</b> para agregar/eliminar pines.</div>',
+                proxy_url, obj.nombre, obj.id, hotspots_json
             )
         return format_html('<span style="color: #94a3b8; font-style: italic;">No hay modelo 3D configurado</span>')
     vista_3d.short_description = 'Vista 3D Interactiva'
@@ -553,7 +559,7 @@ class ModeloAdmin(ImportExportModelAdmin):
     )
 
     class Media:
-        js = ('core/js/model-viewer-loader.js',)
+        js = ('core/js/model-viewer-loader.js', 'core/js/model-viewer-pines.js',)
 
 
 @admin.register(Ubicacion)
@@ -581,11 +587,15 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
     autocomplete_fields = ('padre', 'categoria')
     inlines = [UbicacionHijaInline, PlanoInline, UbicacionEnPlanosInline]
     change_list_template = 'admin/activos/ubicacion/change_list.html'
-    readonly_fields = ('rutinas_mantenimiento',)
+    readonly_fields = ('rutinas_mantenimiento', 'vista_3d')
 
     fieldsets = (
         ('Datos Principales', {
             'fields': (('nombre', 'tipo'), ('padre', 'orden'), ('categoria', 'es_almacen'))
+        }),
+        ('Diseño 3D (Escaneos/Modelo)', {
+            'fields': ('archivo_3d', 'vista_3d'),
+            'description': 'Sube un gemelo digital (.glb) de este espacio o área.'
         }),
         ('Detalles', {
             'fields': ('descripcion',)
@@ -595,6 +605,28 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
             'description': 'Rutinas de mantenimiento asociadas a la categoría de esta ubicación.'
         }),
     )
+
+    def vista_3d(self, obj):
+        if obj.archivo_3d:
+            proxy_url = f"/media-proxy/{obj.archivo_3d.name}"
+            hotspots_json = json.dumps(obj.puntos_3d_data or [])
+            return format_html(
+                '<div class="viewer-container" style="width: 100%; height: 500px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">'
+                '<button type="button" class="fullscreen-btn" onclick="toggle3DFullscreen(this)" style="position: absolute; top: 12px; right: 12px; z-index: 10; background: rgba(255,255,255,0.9); border: none; border-radius: 8px; padding: 8px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: all 0.2s;">'
+                '   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>'
+                '</button>'
+                '<model-viewer src="{}" alt="{}" auto-rotate camera-controls crossorigin="anonymous" shadow-intensity="1" loading="lazy" style="width: 100%; height: 100%;" '
+                'data-model-type="ubicacion" data-object-id="{}" data-hotspots=\'{}\'>'
+                '<div slot="poster" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b; font-size: 0.9rem;">Cargando espacio 3D...</div>'
+                '</model-viewer>'
+                '</div>'
+                '<div style="margin-top: 8px; font-size: 0.8rem; color: #64748b;">💡 <b>Clic Derecho</b> para interactuar.</div>',
+                proxy_url, obj.nombre, obj.id, hotspots_json
+            )
+        return format_html('<span style="color: #94a3b8; font-style: italic;">No hay escaneo 3D para esta ubicación.</span>')
+
+    class Media:
+        js = ('core/js/model-viewer-loader.js', 'core/js/model-viewer-pines.js',)
 
     def rutinas_mantenimiento(self, obj):
         if not obj.categoria:
@@ -901,26 +933,39 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
     actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv', 'limpiar_todo_el_inventario']
 
     def vista_3d(self, obj):
-        # Obtenemos el nombre del archivo (path relativo en el bucket)
         path_name = None
+        current_puntos = []
+        target_id = obj.id
+        target_type = "activo"
+
         if obj.archivo_3d:
             path_name = obj.archivo_3d.name
+            current_puntos = obj.puntos_3d_data or []
         elif obj.modelo and obj.modelo.archivo_3d:
             path_name = obj.modelo.archivo_3d.name
+            current_puntos = obj.modelo.puntos_3d_data or []
+            target_id = obj.modelo.id
+            target_type = "modelo"
 
         if path_name:
             source = "Específico de este activo" if obj.archivo_3d else f"Heredado del modelo: {obj.modelo.nombre}"
             proxy_url = f"/media-proxy/{path_name}"
+            hotspots_json = json.dumps(current_puntos)
             return format_html(
                 '<div>'
                 '<div style="margin-bottom: 8px; font-size: 0.85rem; color: #64748b; font-style: italic;">Fuente: {}</div>'
-                '<div style="width: 100%; height: 400px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">'
-                '<model-viewer src="{}" alt="{}" auto-rotate camera-controls crossorigin="anonymous" shadow-intensity="1" loading="lazy" style="width: 100%; height: 100%;">'
+                '<div class="viewer-container" style="width: 100%; height: 500px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">'
+                '<button type="button" class="fullscreen-btn" onclick="toggle3DFullscreen(this)" style="position: absolute; top: 12px; right: 12px; z-index: 10; background: rgba(255,255,255,0.9); border: none; border-radius: 8px; padding: 8px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: all 0.2s;">'
+                '   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>'
+                '</button>'
+                '<model-viewer src="{}" alt="{}" auto-rotate camera-controls crossorigin="anonymous" shadow-intensity="1" loading="lazy" style="width: 100%; height: 100%;" '
+                'data-model-type="{}" data-object-id="{}" data-hotspots=\'{}\'>'
                 '<div slot="poster" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b; font-size: 0.9rem;">Cargando modelo 3D...</div>'
                 '</model-viewer>'
                 '</div>'
+                '<div style="margin-top: 8px; font-size: 0.8rem; color: #64748b;">💡 <b>Clic Derecho</b> para interactuar.</div>'
                 '</div>',
-                source, proxy_url, obj.nombre
+                source, proxy_url, obj.nombre, target_type, target_id, hotspots_json
             )
         return format_html('<span style="color: #94a3b8; font-style: italic;">No hay modelo 3D configurado (ni en el modelo ni en el activo).</span>')
     vista_3d.short_description = 'Vista 3D Interactiva'
@@ -964,7 +1009,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
     )
 
     class Media:
-        js = ('core/js/model-viewer-loader.js',)
+        js = ('core/js/model-viewer-loader.js', 'core/js/model-viewer-pines.js',)
 
     @admin.action(description="BORRADO RÁPIDO: Eliminar selección actual (evita error de límites)")
     def limpiar_todo_el_inventario(self, request, queryset):

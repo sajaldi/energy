@@ -29,6 +29,7 @@ class Modelo(models.Model):
     imagen_archivo = models.ImageField(upload_to='modelos_fotos/', blank=True, null=True, storage=minio_storage, help_text="Cargar imagen desde el equipo")
     imagen_url = models.URLField(max_length=500, blank=True, null=True, help_text="O pegar una URL externa de la imagen")
     archivo_3d = models.FileField(upload_to='modelos_3d/', blank=True, null=True, storage=minio_storage, help_text="Archivo de modelo 3D (formato .glb o .gltf)")
+    puntos_3d_data = models.JSONField(default=list, blank=True, help_text="Datos de hotspots/pines en formato JSON")
 
     @property
     def imagen(self):
@@ -94,6 +95,7 @@ class Activo(models.Model):
     
     foto = models.ImageField(upload_to='activos_fotos/', blank=True, null=True, storage=minio_storage)
     archivo_3d = models.FileField(upload_to='activos_3d/', blank=True, null=True, storage=minio_storage, help_text="Archivo de modelo 3D específico para este activo (formato .glb). Si se deja en blanco, usará el del modelo asociado (si tiene uno).")
+    puntos_3d_data = models.JSONField(default=list, blank=True, help_text="Datos de hotspots/pines en formato JSON")
     
     creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
     actualizado_en = models.DateTimeField(auto_now=True)
