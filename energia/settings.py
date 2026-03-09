@@ -386,7 +386,7 @@ else:
     # Usamos el nombre del servicio interno de Coolify (minio) para UPLOADS
     AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio-cksckkgkcoogow4o4kg0gsog:9000')
     AWS_S3_USE_SSL = False
-    AWS_QUERYSTRING_AUTH = False
+    AWS_QUERYSTRING_AUTH = True
 
 # Configuración general de S3/MinIO
 AWS_S3_VERIFY = False 
@@ -394,7 +394,8 @@ AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
 AWS_S3_ADDRESSING_STYLE = 'path' # Crítico para compatibilidad con MinIO
-AWS_S3_SECURE_URLS = not IS_LOCAL # Generar https:// en producción
+AWS_S3_SECURE_URLS = True 
+AWS_DEFAULT_ACL = None
 
 # Configuración de Import-Export
 # 'utf-8-sig' es más robusto para archivos CSV generados por Excel con BOM
