@@ -625,11 +625,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
             )
         return format_html('<span style="color: #94a3b8; font-style: italic;">No hay escaneo 3D para esta ubicación.</span>')
 
-    class Media:
-        js = ('core/js/model-viewer-loader.js', 'core/js/model-viewer-pines.js',)
-
     def rutinas_mantenimiento(self, obj):
-        if not obj.categoria:
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay categoría asignada. Asigne una categoría (ej: "Quirófano", "Subestación") para ver las rutinas.</span>')
         
         # Buscar la categoría de mantenimiento vinculada
@@ -715,13 +711,15 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
         css = {
             'all': (
                 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap',
-                # CSS inyectado para ajustar anchos de columnas del inline
                 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css',
             )
         }
-        js = ('https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js', 
-              'https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js',
-              'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js')
+        js = (
+            'https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js', 
+            'https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js',
+            'core/js/model-viewer-loader.js', 
+            'core/js/model-viewer-pines.js',
+        )
 
     # Añadimos un pequeño hack de CSS inline para el admin
     def get_inline_instances(self, request, obj=None):
