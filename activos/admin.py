@@ -626,6 +626,7 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
         return format_html('<span style="color: #94a3b8; font-style: italic;">No hay escaneo 3D para esta ubicación.</span>')
 
     def rutinas_mantenimiento(self, obj):
+        if not obj.categoria:
             return format_html('<span style="color: #94a3b8; font-style: italic;">No hay categoría asignada. Asigne una categoría (ej: "Quirófano", "Subestación") para ver las rutinas.</span>')
         
         # Buscar la categoría de mantenimiento vinculada
