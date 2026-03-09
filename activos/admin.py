@@ -395,7 +395,22 @@ class ModeloAdmin(ImportExportModelAdmin):
     def get_export_resource_kwargs(self, request, *args, **kwargs):
         return {'user': request.user}
     search_fields = ('nombre', 'marca__nombre')
-    readonly_fields = ('preview_imagen', 'lista_activos_ubicacion', 'rutinas_aplicables')
+    readonly_fields = ('preview_imagen', 'vista_3d', 'lista_activos_ubicacion', 'rutinas_aplicables')
+
+    def vista_3d(self, obj):
+        if obj.archivo_3d:
+            # Forzamos el uso del proxy local para evitar problemas de CORS/Mixed Content con la IP de MinIO
+            proxy_url = f"/media-proxy/{obj.archivo_3d.name}"
+            return format_html(
+                '<div style="width: 100%; height: 400px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">'
+                '<model-viewer src="{}" alt="{}" auto-rotate camera-controls crossorigin="anonymous" shadow-intensity="1" loading="lazy" style="width: 100%; height: 100%;">'
+                '<div slot="poster" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b; font-size: 0.9rem;">Cargando modelo 3D...</div>'
+                '</model-viewer>'
+                '</div>',
+                proxy_url, obj.nombre
+            )
+        return format_html('<span style="color: #94a3b8; font-style: italic;">No hay modelo 3D configurado</span>')
+    vista_3d.short_description = 'Vista 3D Interactiva'
 
     def thumbnail(self, obj):
         if obj.imagen:
@@ -523,6 +538,10 @@ class ModeloAdmin(ImportExportModelAdmin):
             'fields': (('imagen_archivo', 'imagen_url'), 'preview_imagen'),
             'description': 'Puedes subir una imagen local o proporcionar una URL externa. Si usas ambas, tendrá prioridad el archivo cargado.'
         }),
+        ('Modelo 3D', {
+            'fields': ('archivo_3d', 'vista_3d'),
+            'description': 'Sube un archivo .glb o .gltf para previsualizar el equipo en 3D interactivo.'
+        }),
         ('Mantenimiento Preventivo Sugerido', {
             'fields': ('rutinas_aplicables',),
             'description': 'Listado de rutinas que aplican a todos los activos de este modelo basándose en su categoría.'
@@ -532,6 +551,9 @@ class ModeloAdmin(ImportExportModelAdmin):
             'description': 'Listado completo de equipos físicos asociados a este modelo, organizados jerárquicamente por su ubicación.'
         }),
     )
+
+    class Media:
+        js = ('core/js/model-viewer-loader.js',)
 
 
 @admin.register(Ubicacion)
@@ -666,7 +688,8 @@ class UbicacionAdmin(ImportExportMixin, admin.ModelAdmin):
             )
         }
         js = ('https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js', 
-              'https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js')
+              'https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js',
+              'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js')
 
     # Añadimos un pequeño hack de CSS inline para el admin
     def get_inline_instances(self, request, obj=None):
@@ -869,13 +892,79 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
         'familia',
         'plano'
     )
-    search_fields = ('nombre', 'descripcion', 'codigo_interno', 'epc', 'serie', 'referencia', 'familia__nombre', 'plano__nombre', 'modelo__marca__nombre', 'modelo__nombre', 'marca_legacy', 'modelo_legacy', 'ubicacion__nombre', 'ubicacion_legacy')
-    autocomplete_fields = ('familia', 'modelo', 'ubicacion', 'responsable', 'padre', 'plano')
+    search_fields = ('nombre', 'codigo_interno', 'serie', 'epc', 'referencia')
+    autocomplete_fields = ('familia', 'modelo', 'responsable', 'ubicacion', 'padre', 'plano')
 
 
     inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline, AuditoriasActivoInline]
-    readonly_fields = ('ultima_auditoria_display', 'get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'tickets_asociados', 'crear_aviso_link', 'get_puntos_medicion_summary')
+    readonly_fields = ('get_modelo_img', 'ver_en_plano', 'historial_ordenes', 'tickets_asociados', 'rutinas_aplicables', 'ordenes_programadas', 'ultima_auditoria_display', 'crear_aviso_link', 'vista_3d', 'get_marca', 'get_ubicacion_ruta', 'get_puntos_medicion_summary')
     actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv', 'limpiar_todo_el_inventario']
+
+    def vista_3d(self, obj):
+        # Obtenemos el nombre del archivo (path relativo en el bucket)
+        path_name = None
+        if obj.archivo_3d:
+            path_name = obj.archivo_3d.name
+        elif obj.modelo and obj.modelo.archivo_3d:
+            path_name = obj.modelo.archivo_3d.name
+
+        if path_name:
+            source = "Específico de este activo" if obj.archivo_3d else f"Heredado del modelo: {obj.modelo.nombre}"
+            proxy_url = f"/media-proxy/{path_name}"
+            return format_html(
+                '<div>'
+                '<div style="margin-bottom: 8px; font-size: 0.85rem; color: #64748b; font-style: italic;">Fuente: {}</div>'
+                '<div style="width: 100%; height: 400px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">'
+                '<model-viewer src="{}" alt="{}" auto-rotate camera-controls crossorigin="anonymous" shadow-intensity="1" loading="lazy" style="width: 100%; height: 100%;">'
+                '<div slot="poster" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #64748b; font-size: 0.9rem;">Cargando modelo 3D...</div>'
+                '</model-viewer>'
+                '</div>'
+                '</div>',
+                source, proxy_url, obj.nombre
+            )
+        return format_html('<span style="color: #94a3b8; font-style: italic;">No hay modelo 3D configurado (ni en el modelo ni en el activo).</span>')
+    vista_3d.short_description = 'Vista 3D Interactiva'
+
+    def get_modelo_img(self, obj):
+        if obj.foto:
+            return format_html('<img src="{}" style="max-height: 200px; border-radius: 8px; border: 1px solid #e2e8f0;"/>', obj.foto.url)
+        elif obj.modelo and obj.modelo.imagen:
+            return format_html(
+                '<div>'
+                '<img src="{}" style="max-height: 200px; border-radius: 8px; border: 1px solid #e2e8f0; opacity: 0.9;"/><br>'
+                '<small style="color: #64748b; font-style: italic;">(Imagen heredada del modelo)</small>'
+                '</div>', 
+                obj.modelo.imagen
+            )
+        return format_html('<span style="color: #94a3b8; font-style: italic;">Sin imagen referencial</span>')
+    get_modelo_img.short_description = 'Imagen de Referencia'
+
+    fieldsets = (
+        (None, {
+            'fields': ('nombre', 'codigo_interno', 'epc', 'descripcion', 'serie', 'referencia', 'estado', 'familia', 'modelo', 'ubicacion', 'responsable', 'padre', 'plano', 'archivo_3d')
+        }),
+        ('Detalles Adicionales', {
+            'fields': ('costo', 'fecha_compra', 'proveedor', 'garantia_expira', 'vida_util_esperada', 'criticidad', 'observaciones'),
+            'classes': ('collapse',),
+        }),
+        ('Información de Auditoría y Mantenimiento', {
+            'fields': ('ultima_auditoria_display', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'tickets_asociados', 'crear_aviso_link', 'get_puntos_medicion_summary'),
+            'classes': ('collapse',),
+        }),
+        ('Visualización 3D', {
+            'fields': ('vista_3d',),
+            'classes': ('wide',),
+            'description': 'Visualización interactiva del modelo 3D del activo.'
+        }),
+        ('Campos Legacy (No editar)', {
+            'fields': ('marca_legacy', 'modelo_legacy', 'ubicacion_legacy'),
+            'classes': ('collapse',),
+            'description': 'Estos campos son para compatibilidad con datos antiguos y no deben ser modificados.'
+        }),
+    )
+
+    class Media:
+        js = ('core/js/model-viewer-loader.js',)
 
     @admin.action(description="BORRADO RÁPIDO: Eliminar selección actual (evita error de límites)")
     def limpiar_todo_el_inventario(self, request, queryset):
@@ -1578,7 +1667,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             )
         }),
         ('Detalles Adicionales', {
-            'fields': ('descripcion', 'foto', 'marca_legacy', 'modelo_legacy'),
+            'fields': ('descripcion', 'foto', 'archivo_3d', 'vista_3d', 'marca_legacy', 'modelo_legacy'),
             'classes': ('collapse',)
         }),
         ('Mantenimiento Preventivo', {

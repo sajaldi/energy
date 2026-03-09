@@ -28,6 +28,7 @@ class Modelo(models.Model):
     
     imagen_archivo = models.ImageField(upload_to='modelos_fotos/', blank=True, null=True, storage=minio_storage, help_text="Cargar imagen desde el equipo")
     imagen_url = models.URLField(max_length=500, blank=True, null=True, help_text="O pegar una URL externa de la imagen")
+    archivo_3d = models.FileField(upload_to='modelos_3d/', blank=True, null=True, storage=minio_storage, help_text="Archivo de modelo 3D (formato .glb o .gltf)")
 
     @property
     def imagen(self):
@@ -92,6 +93,7 @@ class Activo(models.Model):
     plano = models.ForeignKey('activos.Plano', on_delete=models.SET_NULL, null=True, blank=True, related_name='activos_principales', help_text="Plano principal donde se ubica este activo")
     
     foto = models.ImageField(upload_to='activos_fotos/', blank=True, null=True, storage=minio_storage)
+    archivo_3d = models.FileField(upload_to='activos_3d/', blank=True, null=True, storage=minio_storage, help_text="Archivo de modelo 3D específico para este activo (formato .glb). Si se deja en blanco, usará el del modelo asociado (si tiene uno).")
     
     creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
     actualizado_en = models.DateTimeField(auto_now=True)
@@ -102,6 +104,15 @@ class Activo(models.Model):
         if hasattr(self, 'num_hijos'):
             return self.num_hijos > 0
         return self.componentes.exists()
+
+    @property
+    def archivo_3d_url(self):
+        """Devuelve la URL del archivo 3D, priorizando el del activo específico; si no hay, el de su modelo."""
+        if self.archivo_3d:
+            return self.archivo_3d.url
+        elif self.modelo and self.modelo.archivo_3d:
+            return self.modelo.archivo_3d.url
+        return None
 
     def __str__(self):
         return f"{self.nombre} ({self.codigo_interno or 'S/C'})"

@@ -1,6 +1,28 @@
 import os
+import datetime as real_datetime
+import botocore.auth
 from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
+
+# --- BOTOCORE CLOCK SKEW MONKEYPATCH ---
+# Solución al error "403 Forbidden" (RequestTimeTooSkewed) causado porque
+# el reloj de la VM local tiene un gran desfase con el servidor remoto MinIO.
+class _MockDatetime:
+    @classmethod
+    def utcnow(cls):
+        return real_datetime.datetime.utcnow() + real_datetime.timedelta(hours=7, minutes=5)
+    
+    @classmethod
+    def strptime(cls, *args, **kwargs):
+        return real_datetime.datetime.strptime(*args, **kwargs)
+
+class _MockDatetimeModule:
+    datetime = _MockDatetime
+    timedelta = real_datetime.timedelta
+    tzinfo = real_datetime.tzinfo
+
+botocore.auth.datetime = _MockDatetimeModule()
+# ---------------------------------------
 
 class MinIOStorage(S3Boto3Storage):
     """
