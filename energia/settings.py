@@ -408,12 +408,14 @@ STORAGES = {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 
-# Evitar errores en producción si falta algún archivo en el manifest (común con temas de Jazzmin)
+# Configuración de WhiteNoise para mayor robustez en producción
 WHITENOISE_MANIFEST_STRICT = False
+WHITENOISE_USE_FINDERS = True  # Fallback a finders si no está en STATIC_ROOT
+WHITENOISE_KEEP_ONLY_HASHED_FILES = False
 
 
 # Default primary key field type
