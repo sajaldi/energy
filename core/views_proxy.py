@@ -7,57 +7,23 @@ logger = logging.getLogger(__name__)
 def media_proxy(request, path):
     """
     Proxy de medios usando el motor de storage de Django.
-    Resuelve problemas de Mixed Content (HTTP vs HTTPS) y CORS al cargar modelos 3D y fotos.
+    Usa automáticamente las credenciales de MinIO (boto3)
+    para saltarse el error 403 Forbidden.
     """
     clean_path = path.lstrip('/')
-    # Log para ver qué llega exactamente al proxy en producción
-    print(f"[DEBUG-PROXY] Request received for: '{path}' -> cleaned to: '{clean_path}'")
-    try:
-        from django.conf import settings
-        print(f"[DEBUG-PROXY] Storage Config - Bucket: {settings.AWS_STORAGE_BUCKET_NAME}, Endpoint: {settings.AWS_S3_ENDPOINT_URL}")
-        # Diagnóstico PROFUNDO: ver qué endpoint usa realmente boto3
-        storage = default_storage
-        if hasattr(storage, 'connection'):
-            client = storage.connection.meta.client
-            endpoint = client._endpoint.host
-            creds = client._request_signer._credentials
-            ak = creds.access_key if creds else 'N/A'
-            print(f"[DEBUG-PROXY] BOTO3 Real Endpoint: {endpoint}, AccessKey: {ak}")
-    except Exception as diag_err:
-        print(f"[DEBUG-PROXY] Diag error: {diag_err}")
     
     try:
-        # 1. Verificar si el archivo existe
+        # Verificamos si el archivo existe usando el driver oficial de S3/MinIO
         if not default_storage.exists(clean_path):
-            print(f"[DEBUG-PROXY] 404 - File NOT found in S3/MinIO: '{clean_path}'")
-            # Intento de fallback: algunas versiones de django-storages incluyen el bucket o prefijos extra
-            return HttpResponseNotFound(f"Archivo '{clean_path}' no encontrado en el storage.")
+            logger.warning(f"Archivo no encontrado en MinIO: {clean_path}")
+            return HttpResponseNotFound("Archivo no encontrado en el servidor de almacenamiento.")
         
-        # 2. Abrir el archivo desde el storage
+        # Abrimos el archivo. Boto3 se encarga de la autenticación automáticamente.
         file_obj = default_storage.open(clean_path)
-        print(f"[DEBUG-PROXY] 200 - Serving file from storage: '{clean_path}'")
         
-        # 3. Determinar el Content-Type básico para evitar problemas de descarga
-        import mimetypes
-        content_type, _ = mimetypes.guess_type(clean_path)
-        if not content_type:
-             if clean_path.endswith('.glb'): content_type = 'model/gltf-binary'
-             elif clean_path.endswith('.gltf'): content_type = 'model/gltf+json'
-             else: content_type = 'application/octet-stream'
-
-        # 4. Servir el archivo
-        response = FileResponse(file_obj, content_type=content_type)
-        
-        # CORS obligatorio para que model-viewer pueda cargar el modelo desde el dominio del proxy
-        response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
-        response["Access-Control-Allow-Headers"] = "X-Requested-With, Content-Type"
-        
-        return response
+        # Servimos el archivo directamente al navegador
+        return FileResponse(file_obj)
             
     except Exception as e:
-        import traceback
-        error_msg = f"Error en media_proxy: {str(e)}"
-        print(f"[DEBUG-PROXY] 500 - {error_msg}")
-        print(traceback.format_exc())
-        return HttpResponseNotFound(error_msg)
+        logger.error(f"Error fatal en MinIO Proxy: {str(e)}")
+        return HttpResponseNotFound(f"Error al acceder al archivo: {str(e)}")

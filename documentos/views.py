@@ -12,10 +12,6 @@ import logging
 import json
 import requests
 import datetime
-import mammoth
-import io
-from htmldocx import HtmlToDocx
-from django.core.files.base import ContentFile
 from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina, Revision, MetadatoConfig, ComentarioImagen
 from django.contrib.contenttypes.models import ContentType
 
@@ -155,88 +151,6 @@ def documento_trazabilidad(request, doc_id):
         'usuarios': User.objects.filter(is_active=True).order_by('first_name')
     }
     return render(request, 'documentos/documento_trazabilidad.html', context)
-
-@login_required
-def documento_editor_docx(request, doc_id):
-    """
-    Vista para editar el contenido de un archivo .docx en el navegador.
-    Convierte Docx -> HTML para el editor y HTML -> Docx para guardar.
-    """
-    documento = get_object_or_404(Documento, id=doc_id)
-    revision_actual = documento.ultima_revision
-
-    if not revision_actual or not revision_actual.archivo:
-        return render(request, 'core/error.html', {'message': 'El documento no tiene una revisión con archivo.'})
-
-    # Verificar que sea un DOCX
-    ext = revision_actual.archivo.name.split('.')[-1].lower()
-    if ext != 'docx':
-        return render(request, 'core/error.html', {'message': 'Solo se pueden editar archivos con extensión .docx en este editor.'})
-
-    if request.method == 'POST':
-        # Guardar nueva versión
-        html_content = request.POST.get('html_content')
-        if not html_content:
-            return JsonResponse({'status': 'error', 'message': 'No se recibió contenido.'})
-
-        try:
-            # 1. Convertir HTML a DOCX
-            parser = HtmlToDocx()
-            docx_output = parser.parse_html_string(html_content)
-            
-            # Guardar a buffer
-            buffer = io.BytesIO()
-            docx_output.save(buffer)
-            buffer.seek(0)
-
-            # 2. Determinar el nombre de la nueva revisión (A -> B, B -> C, etc.)
-            last_rev_code = revision_actual.revision
-            try:
-                # Lógica simple: si es una letra, pasar a la siguiente
-                if len(last_rev_code) == 1 and last_rev_code.isalpha():
-                    new_rev_code = chr(ord(last_rev_code.upper()) + 1)
-                else:
-                    # Si es número o algo raro, intentar sumarle 1 o poner .1
-                    import re
-                    match = re.search(r'(\d+)$', last_rev_code)
-                    if match:
-                        num = int(match.group(1)) + 1
-                        new_rev_code = last_rev_code[:match.start(1)] + str(num)
-                    else:
-                        new_rev_code = last_rev_code + ".1"
-            except:
-                new_rev_code = last_rev_code + "+"
-
-            # 3. Crear la nueva revisión
-            filename = f"{documento.codigo}_Rev_{new_rev_code}.docx"
-            new_revision = Revision.objects.create(
-                documento=documento,
-                revision=new_rev_code,
-                creado_por=request.user,
-                comentarios=f"Editado desde el navegador (Reemplaza a Rev {last_rev_code})"
-            )
-            new_revision.archivo.save(filename, ContentFile(buffer.read()), save=True)
-
-            return JsonResponse({'status': 'success', 'doc_id': documento.id})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)})
-
-    # GET: Cargar el contenido para el editor
-    try:
-        # Leer el archivo desde storage
-        with revision_actual.archivo.open('rb') as docx_file:
-            result = mammoth.convert_to_html(docx_file)
-            html_content = result.value
-            messages = result.messages # Opcional: loguear advertencias
-    except Exception as e:
-        html_content = f"<p>Error al abrir el documento: {str(e)}</p>"
-
-    context = {
-        'documento': documento,
-        'revision': revision_actual,
-        'html_content': html_content
-    }
-    return render(request, 'documentos/editor_docx.html', context)
 
 @login_required
 def documento_visor_pines(request, doc_id):
