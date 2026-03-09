@@ -367,35 +367,40 @@ AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', 'rootminio')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', 'PasswordRoot07')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-media')
 
+# DEBUG: Mostrar qué credenciales se están usando (censuradas por seguridad)
+_ak = AWS_ACCESS_KEY_ID
+_sk = AWS_SECRET_ACCESS_KEY
+print(f"[DEBUG-S3] Credenciales: AK='{_ak}', SK='{_sk[:4]}***' (len={len(_sk)}), Bucket='{AWS_STORAGE_BUCKET_NAME}'")
+
 # Configuración de comunicación interna vs pública
 if IS_LOCAL:
     # EN DESARROLLO: Usamos la IP directa (Sin Custom Domain para evitar errores)
     MEDIA_URL = f'http://181.115.47.107:9000/{AWS_STORAGE_BUCKET_NAME}/'
     AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
     AWS_S3_CUSTOM_DOMAIN = None 
-    AWS_S3_URL_PROTOCOL = 'http:' # Importante el :
+    AWS_S3_URL_PROTOCOL = 'http:'
     AWS_S3_USE_SSL = False
     AWS_QUERYSTRING_AUTH = True
 else:
     # EN PRODUCCIÓN: Proxy de Django para evitar Mixed Content
     MEDIA_URL = '/media-proxy/'
-    # CUSTOM_DOMAIN se usa para generar URLs públicas. 
-    # Apuntamos al proxy de Django para evitar problemas de SSL/CORS.
     AWS_S3_CUSTOM_DOMAIN = 'softcom.ccg.hn/media-proxy'
     AWS_S3_URL_PROTOCOL = 'https:' 
-    # Usamos el nombre del servicio interno de Coolify exacto detectado
+    # FORZAR endpoint interno de Coolify (ignorar env var si existe)
     AWS_S3_ENDPOINT_URL = 'http://minio-cksckkgkcoogow4o4kg0gsog:9000'
     AWS_S3_USE_SSL = False
-    AWS_QUERYSTRING_AUTH = True
+    # REVERTIDO a False (era así ayer cuando funcionaba)
+    AWS_QUERYSTRING_AUTH = False
+
+print(f"[DEBUG-S3] Endpoint final: {AWS_S3_ENDPOINT_URL}")
 
 # Configuración general de S3/MinIO
 AWS_S3_VERIFY = False 
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
-AWS_S3_ADDRESSING_STYLE = 'path' # Crítico para compatibilidad con MinIO
-AWS_S3_SECURE_URLS = True 
-AWS_DEFAULT_ACL = None
+AWS_S3_ADDRESSING_STYLE = 'path'
+AWS_S3_SECURE_URLS = not IS_LOCAL
 
 # Configuración de Import-Export
 # 'utf-8-sig' es más robusto para archivos CSV generados por Excel con BOM

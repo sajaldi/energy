@@ -15,7 +15,16 @@ def media_proxy(request, path):
     try:
         from django.conf import settings
         print(f"[DEBUG-PROXY] Storage Config - Bucket: {settings.AWS_STORAGE_BUCKET_NAME}, Endpoint: {settings.AWS_S3_ENDPOINT_URL}")
-    except: pass
+        # Diagnóstico PROFUNDO: ver qué endpoint usa realmente boto3
+        storage = default_storage
+        if hasattr(storage, 'connection'):
+            client = storage.connection.meta.client
+            endpoint = client._endpoint.host
+            creds = client._request_signer._credentials
+            ak = creds.access_key if creds else 'N/A'
+            print(f"[DEBUG-PROXY] BOTO3 Real Endpoint: {endpoint}, AccessKey: {ak}")
+    except Exception as diag_err:
+        print(f"[DEBUG-PROXY] Diag error: {diag_err}")
     
     try:
         # 1. Verificar si el archivo existe
