@@ -12,6 +12,10 @@ def media_proxy(request, path):
     clean_path = path.lstrip('/')
     # Log para ver qué llega exactamente al proxy en producción
     print(f"[DEBUG-PROXY] Request received for: '{path}' -> cleaned to: '{clean_path}'")
+    try:
+        from django.conf import settings
+        print(f"[DEBUG-PROXY] Storage Config - Bucket: {settings.AWS_STORAGE_BUCKET_NAME}, Endpoint: {settings.AWS_S3_ENDPOINT_URL}")
+    except: pass
     
     try:
         # 1. Verificar si el archivo existe
