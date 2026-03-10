@@ -293,12 +293,20 @@ def trigger_n8n_extraction(request, doc_id):
              return JsonResponse({'error': 'El documento no tiene archivo asociado'}, status=400)
 
         # URL del webhook para extracción de texto
-        n8n_url = settings.N8N_EXTRACT_TEXTO_WEBHOOK_URL
+        import os
+        webhook_path = 'webhook-test/process-document' if getattr(settings, 'IS_LOCAL', False) else 'webhook/process-document'
+        
+        # En producción n8n no es localhost, usualmente es http://energy-n8n:5678 o similar
+        # Intentar tomar de variables de entorno de extracción específicas, si no, fallback a N8N_BASE_URL genérico
+        n8n_url = os.environ.get(
+            'N8N_EXTRACT_TEXTO_WEBHOOK_URL', 
+            f"{getattr(settings, 'N8N_BASE_URL', 'http://localhost:5678')}/{webhook_path}"
+        )
         
         # Enviar payload a n8n
         payload = {
             'documento_id': doc.id,
-            'codigo': doc.codigo,
+            'codigo': doc.codigo, # Mantener el código
             'filepath': doc.ultima_revision.archivo.name, # Para que n8n lo baje de S3/MinIO
             'callback_url': f"{settings.INTERNAL_SITE_URL}/documentos/api/update-texto/{doc.id}/" # Donde n8n responderá
         }
@@ -348,25 +356,22 @@ def api_analizar_oficios_trazabilidad(request, doc_id):
                 valor = str(mv.objeto_vinculado) if mv.objeto_vinculado else mv.valor
                 metadatos_dict[mv.config.etiqueta] = valor
 
-            # Limpiar y limitar el texto para no abrumar a la IA
+            # Limpiar y limitar el texto para no abrumar a la IA (Adaptado para GROQ max 12000 TPM limit)
             texto = doc.contenido_texto or ""
             if texto:
                 # Quitar espacios múltiples y saltos de línea excesivos
                 import re
                 texto = re.sub(r'\s+', ' ', texto).strip()
-                # Limitar a ~1500 palabras máximo por documento (aprox 2000 tokens)
+                # Limitar a ~400 palabras máximo por documento (aprox 500 tokens)
                 palabras = texto.split()
-                if len(palabras) > 1500:
-                    texto = " ".join(palabras[:1500]) + "... [TEXTO TRUNCADO POR LONGITUD]"
+                if len(palabras) > 400:
+                    texto = " ".join(palabras[:400]) + "... [TEXTO TRUNCADO POR LÍMITE DE TOKENS]"
 
             cadena.append({
-                'id': doc.id,
                 'codigo': doc.codigo,
                 'titulo': doc.titulo,
-                'tipo': doc.tipo_documento.nombre if doc.tipo_documento else "S/T",
                 'estado': doc.estado_actual,
-                'fecha_emision': doc.fecha_inicio.isoformat() if doc.fecha_inicio else None,
-                'metadatos': metadatos_dict,
+                'fecha': doc.fecha_inicio.isoformat() if doc.fecha_inicio else None,
                 'texto_extraido': texto
             })
             for hijo in doc.respuestas.all().order_by('fecha_inicio'):
@@ -385,7 +390,8 @@ def api_analizar_oficios_trazabilidad(request, doc_id):
         import os
         n8n_url = os.environ.get('N8N_ANALIZAR_OFICIOS_WEBHOOK_URL', f"{getattr(settings, 'N8N_BASE_URL', 'http://localhost:5678')}/{webhook_path}")
         
-        resp = requests.post(n8n_url, json=payload, timeout=15)
+        resp = requests.post(n8n_url, json=payload, timeout=90) # Aumentado a 90s para darle tiempo a la IA a pensar
+        
         if resp.status_code >= 400:
             import logging
             logging.getLogger(__name__).error(f"Error n8n analizar-oficios {resp.status_code}: {resp.text}")
@@ -422,14 +428,16 @@ def api_analizar_biblioteca_ia(request, bib_id):
                 valor = str(mv.objeto_vinculado) if mv.objeto_vinculado else mv.valor
                 metadatos_dict[mv.config.etiqueta] = valor
 
-            # Limpiar y limitar el texto para no abrumar a la IA
+            # Limpiar y limitar el texto drásticamente para no exceder los límites
+            # de las capas gratuitas (ej. Groq: 12,000 Tokens Por Minuto)
             texto = doc.contenido_texto or ""
             if texto:
                 import re
                 texto = re.sub(r'\s+', ' ', texto).strip()
                 palabras = texto.split()
-                if len(palabras) > 1500:
-                    texto = " ".join(palabras[:1500]) + "... [TEXTO TRUNCADO POR LONGITUD]"
+                # Reducimos de 1500 a 350 palabras (~500 tokens). La IA igual entenderá la idea principal de un oficio común en su primer y segundo párrafo.
+                if len(palabras) > 400:
+                    texto = " ".join(palabras[:400]) + "... [TRUNCADO PARA AHORRAR TOKENS]"
 
             # Recopilar trazabilidad (hijos) del documento actua
             respuestas_info = []
@@ -437,8 +445,6 @@ def api_analizar_biblioteca_ia(request, bib_id):
                 respuestas_info.append({
                     'id': resp_doc.id,
                     'codigo': resp_doc.codigo,
-                    'titulo': resp_doc.titulo,
-                    'fecha_emision': resp_doc.fecha_inicio.isoformat() if resp_doc.fecha_inicio else None,
                     'estado': resp_doc.estado_actual
                 })
 
@@ -446,12 +452,9 @@ def api_analizar_biblioteca_ia(request, bib_id):
                 'id': doc.id,
                 'codigo': doc.codigo,
                 'titulo': doc.titulo,
-                'tipo': doc.tipo_documento.nombre if doc.tipo_documento else "S/T",
-                'estado': doc.estado_actual,
-                'fecha_emision': doc.fecha_inicio.isoformat() if doc.fecha_inicio else None,
-                'metadatos': metadatos_dict,
-                'texto_extraido': texto,
-                'trazabilidad_hijos': respuestas_info # <--- Trazabilidad enlazada directamente
+                'fecha': doc.fecha_inicio.isoformat() if doc.fecha_inicio else None,
+                'texto_extraido': texto, # Ahora muy corto
+                'trazabilidad_hijos': respuestas_info 
             })
             
         payload = {
@@ -464,7 +467,7 @@ def api_analizar_biblioteca_ia(request, bib_id):
         webhook_path = 'webhook/analizar-biblioteca' if getattr(settings, 'IS_LOCAL', False) else 'webhook/analizar-biblioteca'
         n8n_url = os.environ.get('N8N_ANALIZAR_BIBLIOTECA_WEBHOOK_URL', f"{getattr(settings, 'N8N_BASE_URL', 'http://localhost:5678')}/{webhook_path}")
         
-        resp = requests.post(n8n_url, json=payload, timeout=20)
+        resp = requests.post(n8n_url, json=payload, timeout=90) # Aumentado a 90s para peticiones largas a Groq/OpenAI
         
         if resp.status_code >= 400:
             import logging
