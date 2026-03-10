@@ -480,6 +480,24 @@ class Biblioteca(models.Model):
         return self.documentos.count()
     cantidad_documentos.short_description = "Documentos"
 
+class ComentarioBiblioteca(models.Model):
+    """
+    Notas o comentarios adicionales asociados a una biblioteca.
+    Sirven como insumo extra para el análisis de IA.
+    """
+    biblioteca = models.ForeignKey(Biblioteca, on_delete=models.CASCADE, related_name='comentarios')
+    titulo = models.CharField(_("Título"), max_length=255)
+    contenido = models.TextField(_("Contenido"))
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Comentario de Biblioteca"
+        verbose_name_plural = "Comentarios de Biblioteca"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.titulo} ({self.fecha.strftime('%d/%m/%Y')})"
+
 
 # Importar modelos del sistema de firmas electrónicas
 from .models_firmas import (

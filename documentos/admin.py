@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca
+from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca, ComentarioBiblioteca
 import json
 
 from django.forms import TextInput, Textarea
@@ -565,6 +565,12 @@ class N8nChatHistoryAdmin(admin.ModelAdmin):
     respuesta_preview.short_description = "Respuesta"
 
 
+class ComentarioBibliotecaInline(admin.TabularInline):
+    model = ComentarioBiblioteca
+    extra = 1
+    fields = ('titulo', 'contenido', 'fecha')
+    readonly_fields = ('fecha',)
+
 @admin.register(Biblioteca)
 class BibliotecaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'cantidad_documentos', 'gestionar_biblioteca_button', 'visualizar_biblioteca_link', 'creado_por', 'creado_en')
@@ -572,6 +578,7 @@ class BibliotecaAdmin(admin.ModelAdmin):
     search_fields = ('nombre', 'descripcion', 'documentos__codigo', 'documentos__titulo')
     filter_horizontal = ('documentos',)
     readonly_fields = ('creado_en', 'actualizado_en', 'gestionar_biblioteca_button')
+    inlines = [ComentarioBibliotecaInline]
 
     fieldsets = (
         ('Información', {

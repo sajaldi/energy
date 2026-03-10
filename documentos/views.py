@@ -457,9 +457,20 @@ def api_analizar_biblioteca_ia(request, bib_id):
                 'trazabilidad_hijos': respuestas_info 
             })
             
+        # Recopilar comentarios/notas de la biblioteca (Insumo IA)
+        comentarios_ia = []
+        for com in biblioteca.comentarios.all():
+            comentarios_ia.append({
+                'titulo': com.titulo,
+                'contenido': com.contenido,
+                'fecha': com.fecha.strftime('%d/%m/%Y')
+            })
+            
         payload = {
             'biblioteca_id': biblioteca.id,
             'biblioteca_nombre': biblioteca.nombre,
+            'biblioteca_descripcion': biblioteca.descripcion,
+            'comentarios_adicionales': comentarios_ia, # Insumo extra solicitado por usuario
             'cadena_oficios': cadena # Se usa la misma estructura para simplificar en n8n
         }
         
@@ -1219,6 +1230,7 @@ def biblioteca_visualizar(request, bib_id):
     return render(request, 'documentos/biblioteca_visualizar.html', {
         'biblioteca': biblioteca,
         'documentos': documentos,
+        'comentarios': biblioteca.comentarios.all().order_by('-fecha'),
         'cadenas_trazabilidad': cadenas_trazabilidad,
         'estados': Documento.ESTADOS
     })
