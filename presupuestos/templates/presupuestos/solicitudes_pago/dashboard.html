@@ -38,20 +38,17 @@
             </div>
             <div class="metric-card" style="border-left: 4px solid var(--info);">
                 <span class="metric-label">Total Aprobado</span>
-                <span class="metric-value" style="color: var(--info);">{{ metrics.total_aprobado|floatformat:2|intcomma
-                    }}</span>
+                <span class="metric-value" style="color: var(--info);">{{ metrics.total_aprobado|floatformat:2|intcomma }}</span>
                 <span class="metric-sub">Listo para pago</span>
             </div>
             <div class="metric-card" style="border-left: 4px solid var(--success);">
                 <span class="metric-label">Total Pagado</span>
-                <span class="metric-value" style="color: var(--success);">{{ metrics.total_pagado|floatformat:2|intcomma
-                    }}</span>
+                <span class="metric-value" style="color: var(--success);">{{ metrics.total_pagado|floatformat:2|intcomma }}</span>
                 <span class="metric-sub">Efectivo desembolsado</span>
             </div>
             <div class="metric-card">
                 <span class="metric-label">Por Pagar</span>
-                <span class="metric-value" style="color: var(--danger);">{{
-                    metrics.total_pendiente|floatformat:2|intcomma }}</span>
+                <span class="metric-value" style="color: var(--danger);">{{ metrics.total_pendiente|floatformat:2|intcomma }}</span>
                 <span class="metric-sub">Pendiente de pago</span>
             </div>
         </div>
@@ -62,10 +59,25 @@
                 <i class="ph ph-magnifying-glass"
                     style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
                 <form method="get" id="search-form">
-                    <input type="text" name="q" class="search-input"
+                    <input type="text" name="q" class="search-input" id="search-input"
                         placeholder="Buscar por referencia, ID o solicitante..." value="{{ search_query|default:'' }}">
                     {% if current_filter %}<input type="hidden" name="estado" value="{{ current_filter }}">{% endif %}
                 </form>
+                <script>
+                    const searchInput = document.getElementById('search-input');
+                    const searchForm = document.getElementById('search-form');
+                    let timeout = null;
+
+                    searchInput.addEventListener('keyup', () => {
+                        clearTimeout(timeout);
+                        timeout = setTimeout(() => {
+                            // Solo enviamos si el valor cambió significativamente o se presionó Enter
+                            // Para dashboard, mejor dejar que el usuario presione Enter o usar AJAX
+                            // Pero para ser responsivo, enviamos tras 800ms de inactividad
+                            searchForm.submit();
+                        }, 800);
+                    });
+                </script>
             </div>
 
             <div class="filter-group">

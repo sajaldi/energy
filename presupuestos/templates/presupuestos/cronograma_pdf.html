@@ -151,7 +151,14 @@
                 <td>{% if val > 0 %}{{ val|floatformat:2|intcomma }}{% else %}<span style="color:#cbd5e1">-</span>{%
                     endif %}</td>
                 {% endfor %}
-                <td>{{ item.total_anual|floatformat:2|intcomma }}</td>
+                <td style="font-weight: bold;">{{ item.total_anual|floatformat:2|intcomma }}</td>
+            </tr>
+            <tr style="background-color: #f0f7ff; color: #3b82f6;">
+                <td style="text-align: left; padding-left: 30px; font-style: italic;">(Pagado)</td>
+                {% for pval in item.ejecucion %}
+                <td style="color: #3b82f6;">{% if pval > 0 %}{{ pval|floatformat:2|intcomma }}{% else %}-{% endif %}</td>
+                {% endfor %}
+                <td style="font-weight: bold; color: #3b82f6;">{{ item.total_ejecutado_anual|floatformat:2|intcomma }}</td>
             </tr>
             {% endfor %}
             {% endfor %}

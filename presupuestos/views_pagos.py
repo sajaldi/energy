@@ -92,19 +92,90 @@ def detalle_solicitud_pago(request, pk):
         )
     ).select_related('proveedor').order_by('-cr8ca_requisicion')
     
-    # Agrupar items por proveedor y calcular totales
+    # Agregadores para gráficos y tablas
     items_por_proveedor = {}
-    for item in solicitud.items.all():
-        prov_nombre = item.requisicion.proveedor.nombre if item.requisicion.proveedor else "Sin Proveedor Asignado"
-        if prov_nombre not in items_por_proveedor:
-            items_por_proveedor[prov_nombre] = {'lista_items': [], 'total': 0}
-        items_por_proveedor[prov_nombre]['lista_items'].append(item)
-        items_por_proveedor[prov_nombre]['total'] += (item.monto_solicitado or 0)
+    
+    prov_totals = {}
+    rutina_totals = {}
+    partida_totals = {}
+    item_budget_totals = {}
+
+    detalle_prov = {}
+    detalle_rutina = {}
+    detalle_partida = {}
+    detalle_item_budget = {}
+
+    for item in solicitud.items.all().select_related('requisicion__proveedor', 'requisicion__tipo_rutina', 'requisicion__partida__disciplina', 'requisicion__item_presupuesto'):
+        # --- Datos para la tabla principal ---
+        p_name = item.requisicion.proveedor.nombre if item.requisicion.proveedor else "Sin Proveedor"
+        if p_name not in items_por_proveedor:
+            items_por_proveedor[p_name] = {'lista_items': [], 'total': 0}
+        items_por_proveedor[p_name]['lista_items'].append(item)
+        items_por_proveedor[p_name]['total'] += (item.monto_solicitado or 0)
+
+        # --- Agregación para Gráficos ---
+        prov_totals[p_name] = prov_totals.get(p_name, 0) + float(item.monto_solicitado or 0)
+        
+        r_name = item.requisicion.tipo_rutina.nombre if item.requisicion.tipo_rutina else "No Asignada"
+        rutina_totals[r_name] = rutina_totals.get(r_name, 0) + float(item.monto_solicitado or 0)
+
+        partida_obj = item.requisicion.partida
+        pa_name = "Sin Partida"
+        if partida_obj and partida_obj.disciplina:
+            pa_name = partida_obj.disciplina.nombre
+        elif partida_obj:
+            pa_name = partida_obj.descripcion or "Partida General"
+        partida_totals[pa_name] = partida_totals.get(pa_name, 0) + float(item.monto_solicitado or 0)
+
+        ib_obj = item.requisicion.item_presupuesto
+        ib_name = ib_obj.concepto if ib_obj else "Sin Ítem Budget"
+        item_budget_totals[ib_name] = item_budget_totals.get(ib_name, 0) + float(item.monto_solicitado or 0)
+
+        # Totales para el desglose del modal
+        total_rq = float(item.requisicion.cr8ca_totalenarticulos or 0)
+        pagado_rq = float(item.requisicion.monto_pagado or 0)
+        item_dict = {
+            'req': item.requisicion.cr8ca_requisicion,
+            'pk': str(item.requisicion.pk),
+            'asunto': item.requisicion.cr8ca_asunto,
+            'monto': float(item.monto_solicitado or 0),
+            'total_rq': total_rq,
+            'pagado_rq': pagado_rq,
+            'pendiente_rq': total_rq - pagado_rq
+        }
+
+        # Llenar detalles por categoría para el modal interactivo
+        if p_name not in detalle_prov: detalle_prov[p_name] = []
+        detalle_prov[p_name].append(item_dict)
+
+        if r_name not in detalle_rutina: detalle_rutina[r_name] = []
+        detalle_rutina[r_name].append(item_dict)
+
+        if pa_name not in detalle_partida: detalle_partida[pa_name] = []
+        detalle_partida[pa_name].append(item_dict)
+
+        if ib_name not in detalle_item_budget: detalle_item_budget[ib_name] = []
+        detalle_item_budget[ib_name].append(item_dict)
+
+    # Preparar data final
+    graph_data = {
+        'proveedores': sorted([{'nombre': k, 'total': v} for k, v in prov_totals.items()], key=lambda x: x['total'], reverse=True),
+        'rutinas': sorted([{'nombre': k, 'total': v} for k, v in rutina_totals.items()], key=lambda x: x['total'], reverse=True),
+        'partidas': sorted([{'nombre': k, 'total': v} for k, v in partida_totals.items()], key=lambda x: x['total'], reverse=True),
+        'items_budget': sorted([{'nombre': k, 'total': v} for k, v in item_budget_totals.items()], key=lambda x: x['total'], reverse=True),
+        'detalle_proveedores': detalle_prov,
+        'detalle_rutinas': detalle_rutina,
+        'detalle_partidas': detalle_partida,
+        'detalle_items_budget': detalle_item_budget,
+    }
 
     context = {
         'solicitud': solicitud,
         'requisiciones': requisiciones,
         'items_por_proveedor': items_por_proveedor,
+        'graph_data': graph_data,
+        'ESTATUS_CHOICES': ItemSolicitudPago.ESTATUS_CHOICES,
+        'CONDICION_CHOICES': ItemSolicitudPago.CONDICION_PAGO_CHOICES,
     }
     
     return render(request, 'presupuestos/solicitudes_pago/detalle.html', context)
@@ -131,6 +202,10 @@ def api_update_item_pago(request):
                 item.monto_solicitado = valor
             elif campo == 'descripcion':
                 item.descripcion = valor
+            elif campo == 'estatus':
+                item.estatus = valor
+            elif campo == 'condicion_pago':
+                item.condicion_pago = valor
                 
             item.save()
             return JsonResponse({'status': 'success'})
@@ -162,12 +237,29 @@ def api_add_requisicion_pago(request):
                     'message': f'La requisición {requisicion.cr8ca_requisicion} ya existe en esta solicitud.'
                 }, status=400)
             
-            ItemSolicitudPago.objects.create(
+            new_item = ItemSolicitudPago.objects.create(
                 solicitud=solicitud,
                 requisicion=requisicion,
                 monto_solicitado=monto,
                 descripcion=descripcion
             )
+            return JsonResponse({'status': 'success', 'item_id': new_item.pk})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Solo POST'}, status=405)
+
+@login_required
+def api_delete_item_pago(request):
+    """
+    Elimina un item de la solicitud de pago.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            item_id = data.get('id')
+            from .models import ItemSolicitudPago
+            item = get_object_or_404(ItemSolicitudPago, pk=item_id)
+            item.delete()
             return JsonResponse({'status': 'success'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)

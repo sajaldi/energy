@@ -1689,7 +1689,10 @@
                             </div>
                         </div>
                     `;
-                    setTimeout(() => initPDF(data.url_archivo), 100);
+                    setTimeout(() => {
+                        const pdfUrl = data.url_archivo_proxy || data.url_archivo;
+                        initPDF(pdfUrl);
+                    }, 100);
                 } else if (data.url_archivo && data.url_archivo.toLowerCase().endsWith('.docx')) {
                     previewHtml = `
                         <div class="section-title" style="margin-top: 40px; display:flex; justify-content:space-between; align-items:center;">

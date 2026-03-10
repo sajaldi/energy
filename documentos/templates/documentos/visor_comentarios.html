@@ -806,21 +806,10 @@
             const proxyUrl = "{% url 'documentos:documento_proxy_pdf' doc_id=documento.id %}";
             const directUrl = "{{ documento.ultima_revision.archivo.url|default:'' }}";
 
-            console.log("Iniciando carga de PDF. Intento 1: Proxy");
-            initPDF(proxyUrl).catch(err => {
-                console.warn("Intento 1 (Proxy) falló:", err);
-                if (directUrl && directUrl.startsWith('http')) {
-                    console.log("Intento 2: URL Directa");
-                    // Pequeño delay para limpiar el estado
-                    setTimeout(() => {
-                        initPDF(directUrl).catch(err2 => {
-                            console.error("Fallo total al cargar PDF:", err2);
-                            showPDFError("No se pudo visualizar el PDF. El archivo podría estar dañado o el servidor de archivos es inaccesible. Detalles: " + err2.message);
-                        });
-                    }, 500);
-                } else {
-                    showPDFError("Error al cargar por proxy y no hay URL alterna. Error: " + err.message);
-                }
+            console.log("Iniciando carga de PDF directo...");
+            initPDF(directUrl).catch(err => {
+                console.error("Fallo al cargar PDF directo:", err);
+                showPDFError("No se pudo visualizar el PDF. Detalles: " + err.message);
             });
 
             // --- MANEJO DE PARÁMETROS URL ---

@@ -538,7 +538,7 @@
                     {% for item in pd.items %}
                     <tr class="row-item group-items-{{ forloop.parentloop.counter }}">
                         <td class="sticky-col"
-                            style="padding-left: 48px !important; color: var(--text-muted); font-size: 0.8rem;">
+                            style="padding-left: 48px !important; color: var(--text-main); font-size: 0.85rem; font-weight: 500;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span>{{ item.concepto }}</span>
                                 {% if item.id %}
@@ -565,8 +565,30 @@
                             {{val|stringformat:".2f"}}
                         </td>
                         {% endfor %}
-                        <td id="total-item-{{ item.id }}" class="val-money" style="font-weight: 500;">
+                        <td id="total-item-{{ item.id }}" class="val-money" style="font-weight: 600;">
                             {{ item.total_anual|stringformat:".2f" }}
+                        </td>
+                    </tr>
+                    <!-- Fila de Ejecución (Trazabilidad de Pagos) -->
+                    <tr class="row-item row-paid group-items-{{ forloop.parentloop.counter }}" 
+                        style="background-color: #f0f7ff; font-size: 0.75rem; color: #3b82f6; border-bottom: 2px solid #e0f0ff;">
+                        <td class="sticky-col" style="padding-left: 64px !important; background-color: #f0f7ff !important;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <ion-icon name="card-outline" style="font-size: 0.9rem;"></ion-icon>
+                                <span>Pagado</span>
+                            </div>
+                        </td>
+                        {% for pval in item.ejecucion %}
+                        <td style="background-color: #f0f7ff; font-weight: 500;">
+                            {% if pval > 0 %}
+                            <span class="val-money">{{ pval|stringformat:".2f" }}</span>
+                            {% else %}
+                            <span style="color: #cbd5e1;">-</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td style="background-color: #f0f7ff; font-weight: 700;" class="val-money">
+                            {{ item.total_ejecutado_anual|stringformat:".2f" }}
                         </td>
                     </tr>
                     {% endfor %}

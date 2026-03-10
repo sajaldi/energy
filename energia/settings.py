@@ -369,13 +369,14 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'energia-med
 
 # Configuración de comunicación interna vs pública
 if IS_LOCAL:
-    # EN DESARROLLO: Usamos la IP directa (Sin Custom Domain para evitar errores)
-    MEDIA_URL = f'http://181.115.47.107:9000/{AWS_STORAGE_BUCKET_NAME}/'
-    AWS_S3_ENDPOINT_URL = 'http://181.115.47.107:9000'
+    # EN DESARROLLO: Usamos localhost a través del túnel Softcom
+    MEDIA_URL = f'http://localhost:9000/{AWS_STORAGE_BUCKET_NAME}/'
+    AWS_S3_ENDPOINT_URL = 'http://localhost:9000'
     AWS_S3_CUSTOM_DOMAIN = None 
-    AWS_S3_URL_PROTOCOL = 'http:' # Importante el :
+    AWS_S3_URL_PROTOCOL = 'http:'
     AWS_S3_USE_SSL = False
     AWS_QUERYSTRING_AUTH = True
+    AWS_QUERYSTRING_EXPIRE = 604800 # 1 semana de vida para el link en local
 else:
     # EN PRODUCCIÓN: Proxy de Django para evitar Mixed Content
     MEDIA_URL = '/media-proxy/'

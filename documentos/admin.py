@@ -114,7 +114,7 @@ class MetadatoValorInline(admin.TabularInline):
 
 @admin.register(Documento)
 class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
-    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'fecha_inicio', 'analizar_ia_button', 'trazabilidad_link')
+    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'fecha_inicio', 'vista_rapida_button', 'trazabilidad_link')
     list_filter = ('tipo_documento', 'disciplina', 'estado_actual', 'fecha_inicio')
     search_fields = ('codigo', 'titulo', 'revisiones__comentarios')
 
@@ -134,8 +134,8 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         ('Identificación', {
             'fields': (('codigo', 'titulo'), ('tipo_documento', 'disciplina'), ('respuesta_a', 'fecha_inicio'), 'trazabilidad_link')
         }),
-        ('Estado e IA', {
-            'fields': (('estado_actual', 'ultima_revision'), ('analizar_ia_button', 'sync_metadatos_button', 'get_word_templates_buttons'))
+        ('Estado y Herramientas', {
+            'fields': (('estado_actual', 'ultima_revision'), ('vista_rapida_button', 'sync_metadatos_button', 'get_word_templates_buttons'))
         }),
         ('Relaciones', {
             'fields': ('activos', 'ubicaciones')
@@ -146,7 +146,7 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         }),
     )
     
-    readonly_fields = ('ultima_revision', 'gestionar_bibliotecas_button', 'analizar_ia_button', 'trazabilidad_link', 'contenido_texto_display', 'get_word_templates_buttons', 'sync_metadatos_button') 
+    readonly_fields = ('ultima_revision', 'gestionar_bibliotecas_button', 'vista_rapida_button', 'trazabilidad_link', 'contenido_texto_display', 'get_word_templates_buttons', 'sync_metadatos_button') 
 
     def gestionar_bibliotecas_button(self, obj):
         if not obj.pk: return "-"
@@ -301,14 +301,14 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         )
     trazabilidad_link.short_description = "Flujo / Trazabilidad"
 
-    def analizar_ia_button(self, obj):
+    def vista_rapida_button(self, obj):
         if not obj.pk: return "-"
-        url = reverse('documentos:documento_reprocesar', args=[obj.pk])
+        url = reverse('documentos:visor_pines', args=[obj.pk])
         return format_html(
-            '<a class="button" href="{}" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem; display: inline-block;">🤖 Analizar IA</a>',
+            '<a class="button" href="{}" target="_blank" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem; display: inline-block;">👁️ Vista Rápida</a>',
             url
         )
-    analizar_ia_button.short_description = "IA"
+    vista_rapida_button.short_description = "Visor"
 
     def sync_metadatos_button(self, obj):
         if not obj.pk: return "-"

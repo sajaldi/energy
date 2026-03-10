@@ -205,11 +205,23 @@ def documento_detalle_json(request, doc_id):
 
         # Info de archivo
         url_archivo = ""
+        url_archivo_proxy = ""
         try:
             if doc.ultima_revision and doc.ultima_revision.archivo:
+                # URL firmada (MinIO/S3)
                 url_archivo = doc.ultima_revision.archivo.url
+                
+                # Proxy local (Django)
+                from django.urls import reverse
+                url_path = reverse('documentos:documento_proxy_pdf', kwargs={'doc_id': doc.id})
+                url_archivo_proxy = request.build_absolute_uri(url_path)
+            else:
+                url_archivo = ""
+                url_archivo_proxy = ""
         except Exception as e:
-            url_archivo = f"Error al generar URL: {str(e)}"
+            url_archivo = ""
+            url_archivo_proxy = ""
+            print(f"Error generando URLs de archivo: {e}")
             
         data = {
             'id': doc.id,
@@ -223,6 +235,7 @@ def documento_detalle_json(request, doc_id):
             'fecha_creacion': doc.creado_en.strftime('%d/%m/%Y') if doc.creado_en else "N/A",
             'fecha_documento': doc.fecha_inicio.isoformat() if doc.fecha_inicio else "",
             'url_archivo': url_archivo,
+            'url_archivo_proxy': url_archivo_proxy,
             'metadatos': metadatos,
             'comentarios': comentarios,
             'usuarios_disponibles': usuarios,
@@ -742,31 +755,42 @@ def documento_busqueda_avanzada(request):
 @login_required
 def documento_proxy_pdf(request, doc_id):
     """
-    Proxy para servir el PDF evitando problemas de CORS con MinIO.
+    Proxy para servir el PDF evitando problemas de CORS y expiración de firmas en MinIO.
     Usa el motor de almacenamiento directamente para mayor confiabilidad.
     """
     from django.http import FileResponse, Http404
+    import logging
+    logger = logging.getLogger(__name__)
 
     doc = get_object_or_404(Documento, id=doc_id)
     if not doc.ultima_revision or not doc.ultima_revision.archivo:
+        logger.warning(f"Intento de acceso a proxy PDF sin archivo: Doc {doc_id}")
         raise Http404("Documento sin archivo")
     
     try:
         # Abrir el archivo usando el driver de almacenamiento (S3/MinIO)
         archivo = doc.ultima_revision.archivo
+        
+        # Verificar si el archivo existe físicamente en el storage
+        if not archivo.storage.exists(archivo.name):
+            logger.error(f"Archivo no encontrado en storage: {archivo.name}")
+            raise Http404("Archivo no encontrado en el servidor de almacenamiento")
+
         file_handle = archivo.open('rb')
         
         response = FileResponse(file_handle, content_type='application/pdf')
+        # Content-Disposition inline permite ver en el navegador sin descargar forzosamente
         response['Content-Disposition'] = f'inline; filename="{doc.codigo}.pdf"'
-        # Asegurar headers de seguridad y CORS para PDF.js
+        
+        # Headers de seguridad y CORS para PDF.js y visores modernos
         response["Access-Control-Allow-Origin"] = "*"
         response["X-Frame-Options"] = "SAMEORIGIN"
+        response["Content-Security-Policy"] = "frame-ancestors 'self'"
+        
         return response
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error en documento_proxy_pdf para doc {doc_id}: {str(e)}")
-        raise Http404(f"Error al abrir el PDF desde el almacenamiento.")
+        logger.error(f"Error crítico en documento_proxy_pdf para doc {doc_id}: {str(e)}", exc_info=True)
+        raise Http404(f"Error al servir el PDF: {str(e)}")
 
 @csrf_exempt
 @require_POST

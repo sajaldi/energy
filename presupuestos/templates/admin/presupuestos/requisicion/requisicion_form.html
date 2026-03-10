@@ -138,8 +138,25 @@
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div class="form-group"><label class="form-label">Fecha</label>{{ form.fecha }}</div>
-                            <div class="form-group"><label class="form-label">Prioridad</label>{{ form.cr8ca_prioridad
-                                }}</div>
+                            <div class="form-group"><label class="form-label">Prioridad</label>{{ form.cr8ca_prioridad }}</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Partida Presupuestaria</label>
+                            {{ form.partida }}
+                            <small class="form-hint">Seleccione la línea presupuestaria que afecta esta compra</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Ítem de Presupuesto (Granular)</label>
+                            {{ form.item_presupuesto }}
+                            <small class="form-hint">Seleccione el ítem específico del cronograma</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Tipo de Rutina</label>
+                            {{ form.tipo_rutina }}
+                            <small class="form-hint">Especifique el tipo de mantenimiento (Mecánica, Eléctrica, etc.)</small>
                         </div>
 
                         <div class="form-group">
@@ -317,6 +334,24 @@
                         <span class="review-label">Fecha</span>
                         <span class="review-value">{{ instance.fecha|default:"-" }}</span>
                     </div>
+                    {% if instance.partida %}
+                    <div class="review-item" style="grid-column: span 2;">
+                        <span class="review-label">Partida Presupuestaria</span>
+                        <span class="review-value">{{ instance.partida }}</span>
+                    </div>
+                    {% endif %}
+                    {% if instance.item_presupuesto %}
+                    <div class="review-item" style="grid-column: span 2;">
+                        <span class="review-label">Ítem de Presupuesto</span>
+                        <span class="review-value">{{ instance.item_presupuesto.concepto }}</span>
+                    </div>
+                    {% endif %}
+                    {% if instance.tipo_rutina %}
+                    <div class="review-item" style="grid-column: span 2;">
+                        <span class="review-label">Tipo de Rutina</span>
+                        <span class="review-value">{{ instance.tipo_rutina }}</span>
+                    </div>
+                    {% endif %}
                     <div class="review-item">
                         <span class="review-label">Prioridad</span>
                         <span class="review-value">{{ instance.get_cr8ca_prioridad_display }}</span>
@@ -453,7 +488,7 @@
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                     {% if instance.pk %}
                     {% for doc in instance.documentos.all %}
-                    <div class="document-preview-item" data-url="{{ doc.archivo.url }}"
+                    <div class="document-preview-item" data-url="{{ doc.get_proxy_url }}"
                         data-name="{{ doc.nombre|default:doc.archivo.name }}"
                         style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.8rem; background: #f8fafc; cursor: pointer; transition: all 0.2s;">
                         📄 {{ doc.nombre|default:doc.archivo.name }}</div>
@@ -480,4 +515,40 @@
 {% include "admin/presupuestos/requisicion/includes/requisicion_modals.html" %}
 {% include "admin/presupuestos/requisicion/includes/requisicion_scripts.html" %}
 
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const partidaSelect = document.querySelector('select[name="partida"]');
+        const itemSelect = document.querySelector('select[name="item_presupuesto"]');
+
+        if (partidaSelect && itemSelect) {
+            partidaSelect.addEventListener('change', async function() {
+                const partidaId = this.value;
+                
+                // Limpiar opciones actuales
+                itemSelect.innerHTML = '<option value="">---------</option>';
+                
+                if (!partidaId) return;
+
+                try {
+                    const response = await fetch(`/presupuestos/api/partida/${partidaId}/items/`);
+                    const data = await response.json();
+                    
+                    data.items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = item.concepto;
+                        itemSelect.appendChild(option);
+                    });
+                    
+                    // Si estás usando Select2, necesitas disparar el cambio
+                    if ($(itemSelect).data('select2')) {
+                        $(itemSelect).trigger('change');
+                    }
+                } catch (error) {
+                    console.error('Error fetching items:', error);
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

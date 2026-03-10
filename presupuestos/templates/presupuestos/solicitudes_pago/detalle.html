@@ -19,10 +19,13 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         .detail-container {
-            max-width: 1200px;
+            width: 95%;
+            max-width: 1800px;
             margin: 0 auto;
             padding-bottom: 5rem;
         }
@@ -429,6 +432,191 @@
                 background: transparent !important;
             }
         }
+        /* Estilos de Pestañas */
+        .tabs-header {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Estilos de Resumen Gráfico */
+        .graph-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        @media (max-width: 1200px) {
+            .graph-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .graph-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .graph-card.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10000;
+            border-radius: 0;
+            padding: 2.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            background: #ffffff;
+        }
+
+        .graph-card.fullscreen .graph-card-content {
+            display: flex;
+            flex-direction: row;
+            gap: 3rem;
+            align-items: flex-start;
+            flex-wrap: nowrap !important; /* Forzar side-by-side en pantalla grande */
+        }
+
+        @media (max-width: 1024px) {
+            .graph-card.fullscreen .graph-card-content {
+                flex-direction: column;
+                flex-wrap: wrap !important;
+            }
+        }
+
+        .graph-card.fullscreen .graph-container {
+            flex: 2 !important;
+            height: 70vh !important;
+            min-height: 500px;
+        }
+
+        .graph-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .graph-card.fullscreen .summary-table-container {
+            flex: 1 !important;
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 1rem;
+        }
+
+        .graph-card.fullscreen .graph-card-header {
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+            margin-bottom: 2rem;
+            padding-top: 1rem;
+            padding-bottom: 1.5rem;
+        }
+
+        .graph-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 0.75rem;
+        }
+
+        .btn-fullscreen {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-fullscreen:hover {
+            background: #f1f5f9;
+            color: var(--primary);
+        }
+
+        .graph-card.fullscreen .btn-fullscreen {
+            background: var(--primary);
+            color: white;
+            padding: 8px 16px;
+            gap: 8px;
+        }
+
+        .graph-card.fullscreen .btn-fullscreen::after {
+            content: 'Volver a la vista normal';
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .graph-container {
+            height: 300px;
+            position: relative;
+        }
+
+        .summary-table {
+            width: 100%;
+            font-size: 0.85rem;
+            border-collapse: collapse;
+        }
+
+        .summary-table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .summary-table .amount {
+            text-align: right;
+            font-weight: 700;
+            color: var(--primary);
+        }
     </style>
 </head>
 
@@ -481,7 +669,7 @@
                 <div class="info-item">
                     <label>Solicitante</label>
                     {% with u=solicitud.usuario_solicitante %}
-                    <span>{{ u.get_full_name|default:u.username }}</span>
+                    <span>{% if u %}{{ u.get_full_name|default:u.username }}{% else %}-{% endif %}</span>
                     {% endwith %}
                 </div>
                 <div class="info-item">
@@ -499,20 +687,30 @@
             </div>
         </div>
 
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
-            <h2 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="ph ph-list-numbers" style="color: var(--primary);"></i> Ítems y Requisiciones
-            </h2>
-
-            <div style="position: relative; flex: 1; max-width: 400px;">
-                <i class="ph ph-magnifying-glass"
-                    style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
-                <input type="text" id="table-search" placeholder="Buscar ítems..."
-                    style="width: 100%; padding: 0.5rem 0.75rem 0.5rem 2.25rem; border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.9rem; outline: none; transition: border-color 0.2s;"
-                    onkeyup="filterTable()">
-            </div>
+        <div class="tabs-header no-print">
+            <button class="tab-btn active" onclick="switchTab('items-tab', this)">
+                <i class="ph ph-list-numbers"></i> Ítems y Requisiciones
+            </button>
+            <button class="tab-btn" onclick="switchTab('graph-tab', this)">
+                <i class="ph ph-chart-pie-slice"></i> Resumen Gráfico
+            </button>
         </div>
+
+        <div id="items-tab" class="tab-content active">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
+                <h2 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="ph ph-list-numbers" style="color: var(--primary);"></i> Detalle de Ítems
+                </h2>
+
+                <div style="position: relative; flex: 1; max-width: 400px;" title="Filtra los ítems que ya han sido agregados a esta solicitud">
+                    <i class="ph ph-magnifying-glass"
+                        style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                    <input type="text" id="table-search" placeholder="Filtrar ítems..."
+                        style="width: 100%; padding: 0.5rem 0.75rem 0.5rem 2.25rem; border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 0.9rem; outline: none; transition: border-color 0.2s;"
+                        onkeyup="filterTable()">
+                </div>
+            </div>
 
         <div class="items-section">
             <table class="items-table" id="items-table">
@@ -521,29 +719,31 @@
                         <th style="width: 140px;">N° Requisición</th>
                         <th>Asunto/Desc. Item</th>
                         <th>Descripción del Pago</th>
-                        <th style="width: 140px; text-align: right;">Monto</th>
-                        <th style="width: 140px; text-align: right;">Pagado RQ</th>
-                        <th style="width: 130px; text-align: center;">Avance</th>
-                        <th style="width: 50px;"></th>
+                        <th style="width: 120px;">Condición</th>
+                        <th style="width: 120px;">Estatus</th>
+                        <th style="width: 110px; text-align: right;">Monto</th>
+                        <th style="width: 110px; text-align: right;">Pagado RQ</th>
+                        <th style="width: 100px; text-align: center;">Avance</th>
+                        <th style="width: 100px; text-align: center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for proveedor, data in items_por_proveedor.items %}
                     <tr class="provider-header">
-                        <td colspan="4">
+                        <td colspan="5" style="padding: 0.75rem 1rem;">
                             <i class="ph ph-buildings" style="margin-right: 0.5rem; color: var(--primary);"></i>
                             {{ proveedor }}
                         </td>
-                        <td style="text-align: right; font-weight: 800; font-size: 1rem;">
-                            Total: {{ data.total|currency }}
+                        <td colspan="3" style="text-align: right; font-weight: 800; font-size: 1.1rem; padding-right: 3rem; color: var(--text-main);">
+                            {{ data.total|currency }}
                         </td>
-                        <td colspan="2"></td>
+                        <td></td>
                     </tr>
                     {% for item in data.lista_items %}
                     <tr data-item-id="{{ item.pk }}">
                         <td>
-                            <a href="{% url 'admin:presupuestos_requisicion_change' item.requisicion.pk %}"
-                                class="req-link">
+                            <a href="javascript:void(0)" onclick="openRequisitionModal('{{ item.requisicion.pk }}')"
+                               class="req-link" style="text-decoration: none;">
                                 {{ item.requisicion.cr8ca_requisicion }}
                             </a>
                         </td>
@@ -554,6 +754,22 @@
                             <input type="text" class="editable-input" value="{{ item.descripcion }}"
                                 onchange="updateItem({{ item.pk }}, 'descripcion', this.value)"
                                 placeholder="Click para editar descripción...">
+                        </td>
+                        <td>
+                            <select class="editable-input" onchange="updateItem({{ item.pk }}, 'condicion_pago', this.value)" style="font-size: 0.8rem; padding: 2px;">
+                                <option value="">--</option>
+                                {% for val, label in CONDICION_CHOICES %}
+                                <option value="{{ val }}" {% if item.condicion_pago == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select class="editable-input" onchange="updateItem({{ item.pk }}, 'estatus', this.value)" 
+                                    style="font-size: 0.8rem; padding: 2px; font-weight: 700; color: {% if item.estatus == 'PAGADO' %}var(--success){% elif item.estatus == 'APROBADO' %}var(--info){% elif item.estatus == 'RECHAZADO' %}var(--danger){% else %}var(--text-main){% endif %};">
+                                {% for val, label in ESTATUS_CHOICES %}
+                                <option value="{{ val }}" {% if item.estatus == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
                         </td>
                         <td>
                             <input type="text" class="editable-input amount-input"
@@ -583,11 +799,16 @@
                             {% endif %}
                             {% endwith %}
                         </td>
-                        <td style="text-align: center;">
+                        <td style="text-align: center; white-space: nowrap;">
                             <button onclick="openRequisitionModal('{{ item.requisicion.pk }}')"
                                 title="Ver detalle de requisición"
-                                style="color: var(--text-muted); opacity: 0.5; background: none; border: none; cursor: pointer; padding: 0.5rem;">
-                                <i class="ph ph-arrow-square-out" style="font-size: 1.2rem;"></i>
+                                style="color: var(--text-muted); opacity: 0.7; background: none; border: none; cursor: pointer; padding: 0.25rem;">
+                                <i class="ph ph-arrow-square-out" style="font-size: 1.1rem;"></i>
+                            </button>
+                            <button onclick="deleteItem({{ item.pk }})"
+                                title="Eliminar ítem"
+                                style="color: var(--danger); opacity: 0.7; background: none; border: none; cursor: pointer; padding: 0.25rem; margin-left: 4px;">
+                                <i class="ph ph-trash" style="font-size: 1.1rem;"></i>
                             </button>
                         </td>
                     </tr>
@@ -632,7 +853,7 @@
                     <!-- Slider Porcentual -->
                     <div
                         style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.75rem; background: #fff; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
-                        <input type="range" id="payment-slider" min="0" max="100" value="100"
+                        <input type="range" id="payment-slider" min="0" max="100" value="100" step="5"
                             style="flex: 1; cursor: pointer; height: 6px; accent-color: var(--primary);">
                         <span id="slider-pct"
                             style="font-size: 0.8rem; font-weight: 800; color: var(--primary); min-width: 40px; text-align: right;">100%</span>
@@ -641,6 +862,152 @@
                 <button class="btn-add" onclick="addNewRequisition()">
                     <i class="ph ph-plus-bold"></i> Agregar
                 </button>
+            </div>
+            </div>
+        </div>
+
+        <div id="graph-tab" class="tab-content">
+            <div class="graph-grid">
+                <!-- Gráfico Proveedores -->
+                <div class="graph-card">
+                    <div class="graph-card-header">
+                        <h3 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="ph ph-buildings" style="color: var(--primary);"></i> Distribución por Proveedor
+                        </h3>
+                        <button class="btn-fullscreen" onclick="toggleFullscreen(this)" title="Pantalla Completa">
+                            <i class="ph ph-corners-out" style="font-size: 1.2rem;"></i>
+                        </button>
+                    </div>
+                    <div class="graph-card-content" style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+                        <div class="graph-container" style="flex: 1; min-width: 250px;">
+                            <canvas id="chartProviders"></canvas>
+                        </div>
+                        <div class="summary-table-container" style="flex: 1; min-width: 200px;">
+                            <table class="summary-table">
+                                <thead>
+                                    <tr style="font-weight: bold; color: var(--text-muted);">
+                                        <td>Proveedor</td>
+                                        <td style="text-align: right;">Solicitado</td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for prov in graph_data.proveedores %}
+                                    <tr>
+                                        <td>{{ prov.nombre }}</td>
+                                        <td class="amount">{{ prov.total|currency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico Rutinas -->
+                <div class="graph-card">
+                    <div class="graph-card-header">
+                        <h3 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="ph ph-wrench" style="color: #8b5cf6;"></i> Inversión por Tipo de Rutina
+                        </h3>
+                        <button class="btn-fullscreen" onclick="toggleFullscreen(this)" title="Pantalla Completa">
+                            <i class="ph ph-corners-out" style="font-size: 1.2rem;"></i>
+                        </button>
+                    </div>
+                    <div class="graph-card-content" style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+                        <div class="graph-container" style="flex: 1; min-width: 250px;">
+                            <canvas id="chartRoutines"></canvas>
+                        </div>
+                        <div class="summary-table-container" style="flex: 1; min-width: 200px;">
+                            <table class="summary-table">
+                                <thead>
+                                    <tr style="font-weight: bold; color: var(--text-muted);">
+                                        <td>Tipo de Rutina</td>
+                                        <td style="text-align: right;">Monto</td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for rut in graph_data.rutinas %}
+                                    <tr>
+                                        <td>{{ rut.nombre }}</td>
+                                        <td class="amount">{{ rut.total|currency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico Partidas -->
+                <div class="graph-card">
+                    <div class="graph-card-header">
+                        <h3 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="ph ph-folder-notched" style="color: #10b981;"></i> Por Partida Presupuestaria
+                        </h3>
+                        <button class="btn-fullscreen" onclick="toggleFullscreen(this)" title="Pantalla Completa">
+                            <i class="ph ph-corners-out" style="font-size: 1.2rem;"></i>
+                        </button>
+                    </div>
+                    <div class="graph-card-content" style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+                        <div class="graph-container" style="flex: 1; min-width: 250px;">
+                            <canvas id="chartPartidas"></canvas>
+                        </div>
+                        <div class="summary-table-container" style="flex: 1; min-width: 200px;">
+                            <table class="summary-table">
+                                <thead>
+                                    <tr style="font-weight: bold; color: var(--text-muted);">
+                                        <td>Partida</td>
+                                        <td style="text-align: right;">Total</td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in graph_data.partidas %}
+                                    <tr>
+                                        <td>{{ p.nombre }}</td>
+                                        <td class="amount">{{ p.total|currency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico Ítems Budget -->
+                <div class="graph-card">
+                    <div class="graph-card-header">
+                        <h3 style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="ph ph-list-star" style="color: #f59e0b;"></i> Por Ítem del Budget
+                        </h3>
+                        <button class="btn-fullscreen" onclick="toggleFullscreen(this)" title="Pantalla Completa">
+                            <i class="ph ph-corners-out" style="font-size: 1.2rem;"></i>
+                        </button>
+                    </div>
+                    <div class="graph-card-content" style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+                        <div class="graph-container" style="flex: 1; min-width: 250px;">
+                            <canvas id="chartItemsBudget"></canvas>
+                        </div>
+                        <div class="summary-table-container" style="flex: 1; min-width: 200px;">
+                            <table class="summary-table">
+                                <thead>
+                                    <tr style="font-weight: bold; color: var(--text-muted);">
+                                        <td>Ítem del Budget</td>
+                                        <td style="text-align: right;">Total</td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for i in graph_data.items_budget %}
+                                    <tr>
+                                        <td>{{ i.nombre }}</td>
+                                        <td class="amount">{{ i.total|currency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -700,6 +1067,14 @@
                 </div>
 
                 <h3
+                    style="font-size: 1rem; margin-top: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem;">
+                    <i class="ph ph-chart-bar"></i> Línea de Tiempo de Pagos
+                </h3>
+                <div style="height: 180px; margin-bottom: 2rem;">
+                    <canvas id="requisitionTimelineChart"></canvas>
+                </div>
+
+                <h3
                     style="font-size: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem;">
                     <i class="ph ph-shopping-cart"></i> Artículos de la Requisición
                 </h3>
@@ -735,6 +1110,38 @@
         </div>
     </div>
 
+    <!-- Nuevo Modal para Desglose de Gráficos -->
+    <div id="graph-detail-modal" class="modal-overlay" onclick="closeGraphModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 900px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <i class="ph ph-magnifying-glass-plus" style="font-size: 1.5rem; color: var(--primary);"></i>
+                    <h2 id="graph-modal-title" style="margin: 0; font-size: 1.25rem;">Desglose</h2>
+                </div>
+                <button onclick="closeGraphModal()"
+                    style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8;">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="graph-modal-summary" style="margin-bottom: 1rem; font-weight: 600; color: var(--text-muted);"></div>
+                <table class="modal-table">
+                    <thead>
+                        <tr>
+                            <th>Requisición</th>
+                            <th>Asunto</th>
+                            <th style="text-align: right;">Total RQ</th>
+                            <th style="text-align: right;">Pagado</th>
+                            <th style="text-align: right;">Pendiente</th>
+                            <th style="text-align: right; color: var(--primary);">Este Pago</th>
+                        </tr>
+                    </thead>
+                    <tbody id="graph-modal-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Formato moneda para JS
         const currencyFormatter = new Intl.NumberFormat('en-US', {
@@ -744,6 +1151,7 @@
         });
 
         const formatCurrency = (val) => currencyFormatter.format(val);
+        let timelineChart = null;
 
         async function openRequisitionModal(reqId) {
             const modal = document.getElementById('req-modal');
@@ -753,6 +1161,12 @@
             title.textContent = 'Cargando...';
             document.getElementById('modal-articulos-body').innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando...</td></tr>';
             document.getElementById('modal-pagos-body').innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
+
+            // Limpiar chart anterior si existe
+            if (timelineChart) {
+                timelineChart.destroy();
+                timelineChart = null;
+            }
 
             try {
                 const response = await fetch(`/presupuestos/api/requisicion/${reqId}/detalle/`);
@@ -769,6 +1183,47 @@
                 commentsArea.value = data.comentarios;
                 commentsArea.dataset.reqId = reqId;
 
+                // Renderizar Línea de Tiempo (Bar Chart)
+                const ctxTime = document.getElementById('requisitionTimelineChart').getContext('2d');
+                // Revertir pagos para que salgan cronológicos (de más viejo a más nuevo en el chart)
+                const timelineData = [...data.pagos].reverse();
+                
+                timelineChart = new Chart(ctxTime, {
+                    type: 'bar',
+                    data: {
+                        labels: timelineData.map(p => p.fecha),
+                        datasets: [{
+                            label: 'Monto Pagado',
+                            data: timelineData.map(p => p.monto),
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderRadius: 4,
+                            barThickness: 20
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => ` Pago: ${formatCurrency(ctx.raw)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                ticks: { font: { size: 9 } }
+                            },
+                            x: { 
+                                grid: { display: false },
+                                ticks: { font: { size: 9 } }
+                            }
+                        }
+                    }
+                });
+
                 // Llenar artículos
                 let artHtml = '';
                 data.articulos.forEach(art => {
@@ -777,38 +1232,41 @@
                             <td>${art.descripcion}</td>
                             <td style="text-align: center;">${art.cantidad}</td>
                             <td style="text-align: right;">${formatCurrency(art.costo)}</td>
-                            <td style="text-align: right; font-weight: 600;">${formatCurrency(art.subtotal)}</td>
+                            <td style="text-align: right; font-weight: bold;">${formatCurrency(art.subtotal)}</td>
                         </tr>
                     `;
                 });
                 document.getElementById('modal-articulos-body').innerHTML = artHtml || '<tr><td colspan="4" style="text-align:center;">No hay artículos</td></tr>';
 
-                // Llenar pagos
+                // Llenar historial pagos
                 let pagosHtml = '';
-                data.pagos.forEach(pago => {
+                data.pagos.forEach(p => {
                     pagosHtml += `
                         <tr>
-                            <td>${pago.fecha}</td>
-                            <td><a href="/presupuestos/pagos/solicitud/${pago.solicitud_id}/" style="color: var(--primary); text-decoration: none; font-weight: 600;">#${pago.solicitud_id}</a></td>
-                            <td>${pago.descripcion}</td>
-                            <td style="text-align: right; font-weight: 700;">${formatCurrency(pago.monto)}</td>
-                            <td style="text-align: center;">
-                                <span class="badge-pago badge-${pago.estatus}">${pago.estatus}</span>
-                            </td>
+                            <td>${p.fecha}</td>
+                            <td style="color: var(--primary); font-weight: 600;">#${p.solicitud_id}</td>
+                            <td>${p.descripcion || '-'}</td>
+                            <td style="text-align: right; font-weight: bold;">${formatCurrency(p.monto)}</td>
+                            <td style="text-align: center;"><span class="badge badge-${p.estatus}">${p.estatus}</span></td>
                         </tr>
                     `;
                 });
                 document.getElementById('modal-pagos-body').innerHTML = pagosHtml || '<tr><td colspan="5" style="text-align:center;">Sin historial de pagos</td></tr>';
 
-            } catch (error) {
-                console.error('Error fetching req info:', error);
-                title.textContent = 'Error al cargar';
-                Swal.fire('Error', 'No se pudo obtener el detalle de la requisición', 'error');
+            } catch (err) {
+                console.error(err);
+                title.textContent = 'Error';
             }
         }
 
-        function closeModal(event) {
-            document.getElementById('req-modal').style.display = 'none';
+        function closeModal(e) {
+            if (!e || e.target === document.getElementById('req-modal')) {
+                document.getElementById('req-modal').style.display = 'none';
+                if (timelineChart) {
+                    timelineChart.destroy();
+                    timelineChart = null;
+                }
+            }
         }
 
         async function saveRequisitionComments(event) {
@@ -922,6 +1380,24 @@
                 allowClear: true,
                 width: '100%'
             });
+            
+            // Check for highlight parameter on load
+            const urlParams = new URLSearchParams(window.location.search);
+            const highlightId = urlParams.get('highlight');
+            if (highlightId) {
+                const row = document.querySelector(`tr[data-item-id="${highlightId}"]`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.style.backgroundColor = '#dcfce7'; // Verde claro
+                    row.style.transition = 'background-color 2s ease';
+                    setTimeout(() => {
+                        row.style.backgroundColor = '';
+                        // Limpiar URL sin recargar
+                        const newUrl = window.location.pathname;
+                        window.history.replaceState({}, document.title, newUrl);
+                    }, 3000);
+                }
+            }
 
             // Autocompletar monto al seleccionar requisición (adaptado para Select2)
             $('#new-req-id').on('change', function () {
@@ -987,14 +1463,53 @@
 
                 const data = await response.json();
                 if (data.status === 'success') {
-                    // Feedback visual sutil si quieres, o solo actualizar los totales (que requeriría recargar o calcular)
-                    console.log('Actualizado correctamente');
+                    // Feedback visual sutil si quieres
+                    const row = document.querySelector(`tr[data-item-id="${id}"]`);
+                    if (row) {
+                        row.style.backgroundColor = '#ecfdf5';
+                        setTimeout(() => row.style.backgroundColor = '', 500);
+                    }
                 } else {
                     Swal.fire('Error', data.message || 'Error al actualizar', 'error');
                 }
             } catch (err) {
                 console.error(err);
                 Swal.fire('Error', 'Error de conexión', 'error');
+            }
+        }
+
+        async function deleteItem(id) {
+            const result = await Swal.fire({
+                title: '¿Eliminar ítem?',
+                text: "Se quitará esta requisición de la solicitud.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: 'var(--danger)',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch('{% url "presupuestos:api_delete_item_pago" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: JSON.stringify({ id })
+                    });
+
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        location.reload();
+                    } else {
+                        Swal.fire('Error', data.message || 'No se pudo eliminar', 'error');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    Swal.fire('Error', 'Error de conexión', 'error');
+                }
             }
         }
 
@@ -1029,9 +1544,13 @@
                         title: 'Agregado',
                         text: 'La requisición se añadió correctamente',
                         icon: 'success',
-                        timer: 1500
+                        timer: 1000,
+                        showConfirmButton: false
                     }).then(() => {
-                        location.reload(); // Recargar para ver el nuevo item y actualizar totales
+                        // Recargar con parámetro de highlight
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('highlight', data.item_id);
+                        window.location.href = url.toString();
                     });
                 } else {
                     Swal.fire('Error', data.message || 'No se pudo agregar', 'error');
@@ -1041,6 +1560,265 @@
                 Swal.fire('Error', 'Error de conexión', 'error');
             }
         }
+        // Sistema de Pestañas
+        function switchTab(tabId, btn) {
+            // Ocultar todos los contenidos
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Desactivar todos los botones
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+            });
+
+            // Activar actual
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+
+            // Si es la pestaña de gráficos, redimensionar charts
+            if (tabId === 'graph-tab') {
+                window.dispatchEvent(new Event('resize'));
+            }
+        }
+
+        function toggleFullscreen(btn) {
+            const card = btn.closest('.graph-card');
+            const icon = btn.querySelector('i');
+            
+            card.classList.toggle('fullscreen');
+            
+            if (card.classList.contains('fullscreen')) {
+                icon.className = 'ph ph-corners-in';
+                document.body.style.overflow = 'hidden'; // Evitar scroll de fondo
+            } else {
+                icon.className = 'ph ph-corners-out';
+                document.body.style.overflow = '';
+            }
+            
+            // Forzar redimensionado de Chart.js
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 300);
+        }
+
+        function closeGraphModal(e) {
+            if (!e || e.target === document.getElementById('graph-detail-modal')) {
+                document.getElementById('graph-detail-modal').style.display = 'none';
+            }
+        }
+
+        function showGraphDetails(type, label) {
+            const graphData = {{ graph_data|safe }};
+            let details = [];
+            
+            if (type === 'prov') details = graphData.detalle_proveedores[label];
+            else if (type === 'rut') details = graphData.detalle_rutinas[label];
+            else if (type === 'part') details = graphData.detalle_partidas[label];
+            else if (type === 'ib') details = graphData.detalle_items_budget[label];
+            
+            if (!details) return;
+
+            document.getElementById('graph-modal-title').textContent = label;
+            document.getElementById('graph-modal-summary').textContent = `Total ítems: ${details.length}`;
+            
+            let html = '';
+            details.forEach(item => {
+                const pend = item.pendiente_rq;
+                const pendColor = pend > 0 ? 'var(--danger)' : 'var(--success)';
+                html += `
+                    <tr>
+                        <td style="font-weight: 600;">
+                            <a href="javascript:void(0)" onclick="openRequisitionModal('${item.pk}')" 
+                               style="color: var(--primary); text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                                <i class="ph ph-arrow-square-out"></i> ${item.req}
+                            </a>
+                        </td>
+                        <td style="font-size: 0.8rem;">${item.asunto}</td>
+                        <td style="text-align: right;">${formatCurrency(item.total_rq)}</td>
+                        <td style="text-align: right;">${formatCurrency(item.pagado_rq)}</td>
+                        <td style="text-align: right; color: ${pendColor}; font-weight: 600;">${formatCurrency(pend)}</td>
+                        <td style="text-align: right; font-weight: 700; background: #eff6ff;">${formatCurrency(item.monto)}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('graph-modal-body').innerHTML = html;
+            document.getElementById('graph-detail-modal').style.display = 'flex';
+        }
+
+        // Inicialización de Gráficos
+        document.addEventListener('DOMContentLoaded', () => {
+            const graphData = {{ graph_data|safe }};
+
+            // Chart Proveedores
+            const ctxProv = document.getElementById('chartProviders').getContext('2d');
+            new Chart(ctxProv, {
+                type: 'doughnut',
+                data: {
+                    labels: graphData.proveedores.map(p => p.nombre),
+                    datasets: [{
+                        data: graphData.proveedores.map(p => p.total),
+                        backgroundColor: [
+                            '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', 
+                            '#06b6d4', '#ec4899', '#84cc16', '#6366f1', '#f43f5e'
+                        ],
+                        borderWidth: 2,
+                        hoverOffset: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%',
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const label = graphData.proveedores[index].nombre;
+                            showGraphDetails('prov', label);
+                        }
+                    }
+                }
+            });
+
+            // Chart Rutinas
+            const ctxRut = document.getElementById('chartRoutines').getContext('2d');
+            new Chart(ctxRut, {
+                type: 'bar',
+                data: {
+                    labels: graphData.rutinas.map(r => r.nombre),
+                    datasets: [{
+                        label: 'Monto Solicitado',
+                        data: graphData.rutinas.map(r => r.total),
+                        backgroundColor: '#8b5cf6',
+                        borderRadius: 6,
+                        barThickness: 30
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { font: { size: 11, weight: '600' } }
+                        }
+                    },
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const label = graphData.rutinas[index].nombre;
+                            showGraphDetails('rut', label);
+                        }
+                    }
+                }
+            });
+
+            // Chart Partidas
+            const ctxPart = document.getElementById('chartPartidas').getContext('2d');
+            new Chart(ctxPart, {
+                type: 'doughnut',
+                data: {
+                    labels: graphData.partidas.map(p => p.nombre),
+                    datasets: [{
+                        data: graphData.partidas.map(p => p.total),
+                        backgroundColor: [
+                            '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6',
+                            '#06b6d4', '#ec4899', '#84cc16', '#6366f1', '#f43f5e'
+                        ],
+                        borderWidth: 2,
+                        hoverOffset: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%',
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const label = graphData.partidas[index].nombre;
+                            showGraphDetails('part', label);
+                        }
+                    }
+                }
+            });
+
+            // Chart Items Budget
+            const ctxIB = document.getElementById('chartItemsBudget').getContext('2d');
+            new Chart(ctxIB, {
+                type: 'bar',
+                data: {
+                    labels: graphData.items_budget.map(i => i.nombre),
+                    datasets: [{
+                        label: 'Monto',
+                        data: graphData.items_budget.map(i => i.total),
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 6,
+                        barThickness: 30
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                        y: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' } } }
+                    },
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const label = graphData.items_budget[index].nombre;
+                            showGraphDetails('ib', label);
+                        }
+                    }
+                }
+            });
+        });
     </script>
 
 </body>

@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['scripts\\db_tunnel.py'],
+    ['scripts\\Softcom_DB_Tunnel.py'],
     pathex=[],
     binaries=[],
     datas=[],

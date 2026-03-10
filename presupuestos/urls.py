@@ -32,12 +32,14 @@ urlpatterns = [
     path('requisiciones/import-background/process/', views_import.import_requisiciones_process, name='import_requisiciones_process'),
     path('requisiciones/import-background/progress/', views_import.import_requisiciones_progress, name='import_requisiciones_progress'),
     path('requisiciones/import-background/template/', views_import.download_template, name='import_requisiciones_template'),
+    path('api/partida/<int:partida_id>/items/', views_import.api_get_partida_items, name='api_get_partida_items'),
     
     # Pagos Dashboard
     path('pagos/dashboard/', views_pagos.dashboard_pagos, name='dashboard_pagos'),
     path('pagos/solicitud/<int:pk>/', views_pagos.detalle_solicitud_pago, name='detalle_solicitud_pago'),
     path('api/pagos/update-item/', views_pagos.api_update_item_pago, name='api_update_item_pago'),
     path('api/pagos/add-requisicion/', views_pagos.api_add_requisicion_pago, name='api_add_requisicion_pago'),
+    path('api/pagos/delete-item/', views_pagos.api_delete_item_pago, name='api_delete_item_pago'),
     path('api/requisicion/<uuid:pk>/detalle/', views_pagos.api_requisicion_detalle, name='api_requisicion_detalle'),
     path('api/requisicion/<uuid:pk>/update-comentarios/', views_pagos.api_update_requisicion_comentarios, name='api_update_requisicion_comentarios'),
     path('pagos/solicitud/<int:pk>/export/', views_pagos.exportar_solicitud_pago_excel, name='exportar_pago_excel'),
@@ -55,4 +57,5 @@ urlpatterns = [
     path('api/repex/import-items/', views.api_import_repex_items, name='api_import_repex_items'),
     path('api/repex/add-manual-item/', views.api_add_manual_repex_item, name='api_add_manual_repex_item'),
     path('repex/<int:pk>/exportar/', views.exportar_repex_excel, name='exportar_repex_excel'),
+    path('requisiciones/documento-proxy/<int:doc_id>/', views.requisicion_documento_proxy, name='requisicion_documento_proxy'),
 ]

@@ -6,13 +6,16 @@ class RequisicionForm(forms.ModelForm):
     class Meta:
         model = Requisicion
         fields = [
-            'cr8ca_requisicion', 'fecha', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
+            'cr8ca_requisicion', 'fecha', 'partida', 'item_presupuesto', 'tipo_rutina', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
             'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos',
             'proveedores_sugeridos'
         ]
         widgets = {
             'cr8ca_requisicion': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
             'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'partida': forms.Select(attrs={'class': 'form-control select2-material'}),
+            'item_presupuesto': forms.Select(attrs={'class': 'form-control select2-material'}),
+            'tipo_rutina': forms.Select(attrs={'class': 'form-control select2-material'}),
             'cr8ca_asunto': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Asunto de la requisición'}),
             'cr8ca_prioridad': forms.Select(attrs={'class': 'form-control'}),
             'cr8ca_motivo': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Explica por qué se requiere la compra', 'title': 'Explica el por qué se requiere la compra'}),

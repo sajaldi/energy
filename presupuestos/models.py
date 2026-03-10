@@ -311,7 +311,10 @@ class ItemPresupuesto(models.Model):
         verbose_name_plural = "Ítems de Presupuesto"
 
     def __str__(self):
-        return f"{self.concepto} ({self.partida.disciplina.nombre})"
+        try:
+            return f"{self.concepto} ({self.partida.disciplina.nombre})"
+        except AttributeError:
+            return f"{self.concepto}"
     
     def save(self, *args, **kwargs):
         is_new = self.pk is None
@@ -477,6 +480,33 @@ class Requisicion(models.Model):
     wizard_step = models.IntegerField(default=1, verbose_name="Paso del Wizard")
     usuario_solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Solicitante", related_name='requisiciones_solicitadas')
     usuario_en_nombre_de = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="En nombre de", related_name='requisiciones_en_nombre_de')
+
+    partida = models.ForeignKey(
+        'PartidaPresupuestaria',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisiciones',
+        verbose_name="Partida Presupuestaria"
+    )
+
+    item_presupuesto = models.ForeignKey(
+        'ItemPresupuesto',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisiciones',
+        verbose_name="Ítem de Presupuesto"
+    )
+
+    tipo_rutina = models.ForeignKey(
+        'mantenimiento.Tipo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisiciones',
+        verbose_name="Tipo de Rutina"
+    )
 
     proveedor = models.ForeignKey(
         'mantenimiento.Empresa',
@@ -674,6 +704,11 @@ class DocumentoRequisicion(models.Model):
         blank=True
     )
     creado_en = models.DateTimeField(auto_now_add=True)
+
+    def get_proxy_url(self):
+        """Retorna la URL directa del archivo"""
+        if not self.archivo: return ""
+        return self.archivo.url
 
     def __str__(self):
         return self.nombre or f"Documento de {self.requisicion}"

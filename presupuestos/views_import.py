@@ -459,3 +459,10 @@ def download_template(request):
     response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="formato_importacion_requisiciones.xlsx"'
     return response
+
+@login_required
+def api_get_partida_items(request, partida_id):
+    """Retorna JSON con los ítems de presupuesto de una partida específica."""
+    from .models import ItemPresupuesto
+    items = ItemPresupuesto.objects.filter(partida_id=partida_id).values('id', 'concepto')
+    return JsonResponse({'items': list(items)})

@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.db import models
 from .models import PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, ItemPresupuesto, PresupuestoAgrupado
 from django.contrib.auth.decorators import login_required
@@ -70,6 +70,26 @@ def _get_cronograma_data(presupuestos_list):
     global_ejecutado_mes = [0.0] * 12
     presupuestos_data = []
 
+    from .models import ItemSolicitudPago
+    
+    # Pre-cargar todos los pagos de los presupuestos involucrados con estatus PAGADO
+    pagos_mapeo = {}
+    pagos_qs = ItemSolicitudPago.objects.filter(
+        estatus='PAGADO'
+    ).filter(
+        Q(requisicion__partida__presupuesto_anual__in=presupuestos_list) |
+        Q(requisicion__item_presupuesto__partida__presupuesto_anual__in=presupuestos_list)
+    ).select_related('requisicion', 'solicitud').distinct()
+    
+    for p_item in pagos_qs:
+        it_id = p_item.requisicion.item_presupuesto_id
+        if it_id:
+            if it_id not in pagos_mapeo:
+                pagos_mapeo[it_id] = [0.0] * 12
+            if p_item.solicitud.fecha_solicitud:
+                mes = p_item.solicitud.fecha_solicitud.month
+                pagos_mapeo[it_id][mes-1] += float(p_item.monto_solicitado)
+
     for presupuesto in presupuestos_list:
         partidas = presupuesto.partidas.select_related('disciplina').prefetch_related(
             'items', 
@@ -102,13 +122,16 @@ def _get_cronograma_data(presupuestos_list):
             top_items = [i for i in partida_items if not i.parent_id]
             
             for item in top_items:
-                item_data = _get_item_recursive_data(item, partida_items)
+                item_data = _get_item_recursive_data(item, partida_items, pagos_mapeo)
                 items_tree.append(item_data)
                 
                 for i in range(12):
                     proyeccion_partida[i] += item_data['proyeccion'][i]
                     p_total_proyectado_mensual[i] += item_data['proyeccion'][i]
                     global_proyectado_mes[i] += item_data['proyeccion'][i]
+                    # La ejecución global ya se suma desde gastos (GastoEjecutado)
+                    # Pero aquí podríamos agregar la ejecución por ítem si fuera necesario.
+                    # Por ahora el usuario pidió una línea debajo del ítem para trazabilidad.
 
             partidas_desglose.append({
                 'partida': p,
@@ -143,7 +166,7 @@ def _get_cronograma_data(presupuestos_list):
         'total_general_ejecutado': sum(global_ejecutado_mes),
     }
 
-def _get_item_recursive_data(item, all_items):
+def _get_item_recursive_data(item, all_items, pagos_mapeo):
     """
     Obtiene datos de un ítem y sus sub-ítems recursivamente del cache 'all_items'.
     """
@@ -152,21 +175,27 @@ def _get_item_recursive_data(item, all_items):
         if 1 <= detalle.mes <= 12:
             proyeccion[detalle.mes - 1] += float(detalle.monto)
     
+    # Obtener ejecución (pagos) para este ítem
+    ejecucion = list(pagos_mapeo.get(item.id, [0.0] * 12))
+    
     subitems_data = []
     # Buscar subitems en la lista precargada
     item_subitems = [i for i in all_items if i.parent_id == item.id]
     
     for subitem in item_subitems:
-        sub_data = _get_item_recursive_data(subitem, all_items)
+        sub_data = _get_item_recursive_data(subitem, all_items, pagos_mapeo)
         subitems_data.append(sub_data)
         for i in range(12):
             proyeccion[i] += sub_data['proyeccion'][i]
+            ejecucion[i] += sub_data['ejecucion'][i]
 
     return {
         'id': item.id,
         'concepto': item.concepto,
         'proyeccion': proyeccion,
+        'ejecucion': ejecucion,
         'total_anual': sum(proyeccion),
+        'total_ejecutado_anual': sum(ejecucion),
         'subitems': subitems_data
     }
 
@@ -239,14 +268,19 @@ def exportar_cronograma_excel(request, pk):
         
         # Filas Items
         for item in pd['items']:
-            ws.cell(row=current_row, column=1, value=f"   {item['concepto']}")
+            current_row += 1
             
-            for m_idx, val in enumerate(item['proyeccion']):
+            # Fila Pagado del Item (Trazabilidad)
+            ws.cell(row=current_row, column=1, value=f"      (Pagado)").font = Font(italic=True, size=9, color="3b82f6")
+            
+            for m_idx, val in enumerate(item['ejecucion']):
                 c = ws.cell(row=current_row, column=m_idx + 2, value=val if val > 0 else "")
                 c.number_format = '#,##0'
+                c.font = Font(italic=True, size=9, color="3b82f6")
                 
-            c_annual = ws.cell(row=current_row, column=14, value=item['total_anual'])
-            c_annual.number_format = '#,##0'
+            c_annual_exec = ws.cell(row=current_row, column=14, value=item['total_ejecutado_anual'])
+            c_annual_exec.number_format = '#,##0'
+            c_annual_exec.font = Font(italic=True, size=9, color="3b82f6", bold=True)
             
             current_row += 1
 
@@ -486,10 +520,29 @@ def exportar_cronograma_grupal_excel(request, pk):
                 c_annual.number_format = '#,##0'
                 c_annual.border = thin_border
 
-                c_ejec = ws.cell(row=current_row, column=15, value=item.get('total_ejecutado', 0))
+                c_ejec = ws.cell(row=current_row, column=15, value=item.get('total_ejecutado_anual', 0))
                 c_ejec.number_format = '#,##0'
                 c_ejec.border = thin_border
 
+                current_row += 1
+                
+                # Fila Pagado para este Item
+                ws.cell(row=current_row, column=1, value=f"      Pagado").font = Font(italic=True, size=9, color="3b82f6")
+                ws.cell(row=current_row, column=1).border = thin_border
+                
+                for m_idx, pval in enumerate(item['ejecucion']):
+                    c = ws.cell(row=current_row, column=m_idx + 2, value=pval if pval > 0 else 0)
+                    c.number_format = '#,##0'
+                    c.font = Font(italic=True, size=9, color="3b82f6")
+                    c.border = thin_border
+                    
+                c_total_exec = ws.cell(row=current_row, column=14, value=item['total_ejecutado_anual'])
+                c_total_exec.number_format = '#,##0'
+                c_total_exec.font = Font(italic=True, size=9, color="3b82f6", bold=True)
+                c_total_exec.border = thin_border
+                
+                ws.cell(row=current_row, column=15, value=item['total_ejecutado_anual']).border = thin_border
+                
                 current_row += 1
 
     # Ajustar anchos de columnas adicionales
@@ -728,11 +781,18 @@ def exportar_cronograma_grupal_excel_pivot(request, pk):
                     # Columna E: Mes
                     ws.cell(row=current_row, column=5, value=data['meses_nombres'][m_idx]).border = thin_border
 
-                    # Columna F: Valor
+                    # Columna F: Valor (Proyectado)
                     c = ws.cell(row=current_row, column=6, value=val if val > 0 else 0)
                     c.number_format = '#,##0'
                     c.alignment = Alignment(horizontal='right')
                     c.border = thin_border
+                    
+                    # Columna G: Pagado (Ejecutado de Solicitudes)
+                    pval = item['ejecucion'][m_idx]
+                    c2 = ws.cell(row=current_row, column=7, value=pval if pval > 0 else 0)
+                    c2.number_format = '#,##0'
+                    c2.alignment = Alignment(horizontal='right')
+                    c2.border = thin_border
 
                     current_row += 1
 
@@ -1912,3 +1972,25 @@ def api_add_manual_repex_item(request):
         return JsonResponse({'status': 'error', 'message': 'Plan REPEX no encontrado.'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+@login_required
+def requisicion_documento_proxy(request, doc_id):
+    from .models import DocumentoRequisicion
+    from django.http import FileResponse, Http404
+    import mimetypes
+    
+    doc = get_object_or_404(DocumentoRequisicion, id=doc_id)
+    if not doc.archivo:
+        raise Http404("Documento no tiene archivo")
+        
+    try:
+        file_handle = doc.archivo.open("rb")
+        content_type, _ = mimetypes.guess_type(doc.archivo.name)
+        response = FileResponse(file_handle, content_type=content_type)
+        response["Content-Disposition"] = f"inline; filename=\"{doc.archivo.name.split('/')[-1]}\""
+        # Cabeceras de seguridad
+        response["X-Frame-Options"] = "SAMEORIGIN"
+        response["Content-Security-Policy"] = "frame-ancestors 'self'"
+        return response
+    except Exception as e:
+        raise Http404(f"Error al acceder al archivo: {str(e)}")

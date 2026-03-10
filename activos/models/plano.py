@@ -69,6 +69,11 @@ class Plano(models.Model):
             return f"Rev {self.documento.ultima_revision.revision}"
         return None
 
+    def get_proxy_url(self):
+        """Retorna la URL directa del archivo actual"""
+        if not self.archivo_actual: return ""
+        return self.archivo_actual.url
+
     def __str__(self):
         try:
             if self.ubicacion:

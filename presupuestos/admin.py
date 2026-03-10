@@ -304,9 +304,10 @@ class DocumentoRequisicionInline(admin.TabularInline):
 
 @admin.register(Requisicion)
 class RequisicionAdmin(admin.ModelAdmin):
-    list_display = ('cr8ca_requisicion', 'fecha', 'proveedor', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'createdon')
-    list_filter = ('fecha', 'proveedor', 'cr8ca_prioridad', 'createdon')
+    list_display = ('cr8ca_requisicion', 'fecha', 'partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'createdon')
+    list_filter = ('fecha', 'partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_prioridad', 'createdon')
     search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
+    autocomplete_fields = ['partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'usuario_solicitante', 'usuario_en_nombre_de']
     ordering = ('-fecha',)
     inlines = [ArticuloRequisicionInline, DocumentoRequisicionInline]
     readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon', 'total_estimado', 'monto_pagado', 'import_background_btn')
@@ -369,7 +370,7 @@ class RequisicionAdmin(admin.ModelAdmin):
             'fields': ('cr8ca_requisicionid', 'cr8ca_requisicion', 'cr8ca_asunto', 'versionnumber', 'import_background_btn')
         }),
         ('Detalles y Estado', {
-            'fields': ('proveedor', 'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'total_estimado', 'monto_pagado', 'cr8ca_prioridad')
+            'fields': ('partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_totalenarticulos', 'total_estimado', 'monto_pagado', 'cr8ca_prioridad')
         }),
         ('Flags y Control', {
             'fields': ('cr8ca_ejecutado', 'cr8ca_cerrar', 'cr8ca_cajachica', 'cr8ca_solicituddetabladepago', 'cr8ca_seleccionar', 'statecode', 'statuscode')

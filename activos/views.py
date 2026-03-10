@@ -1023,3 +1023,26 @@ def print_altabaja(request, pk):
         'archivos_img': archivos_img,
         'photos_exist': photos_exist,
     })
+
+@staff_member_required
+def plano_documento_proxy(request, plano_id):
+    from .models import Plano
+    from django.http import FileResponse, Http404
+    import mimetypes
+    
+    plano = get_object_or_404(Plano, id=plano_id)
+    archivo = plano.archivo_actual
+    if not archivo:
+        raise Http404("Plano no tiene archivo")
+        
+    try:
+        file_handle = archivo.open("rb")
+        content_type, _ = mimetypes.guess_type(archivo.name)
+        response = FileResponse(file_handle, content_type=content_type)
+        response["Content-Disposition"] = f"inline; filename=\"{archivo.name.split('/')[-1]}\""
+        # Cabeceras de seguridad
+        response["X-Frame-Options"] = "SAMEORIGIN"
+        response["Content-Security-Policy"] = "frame-ancestors 'self'"
+        return response
+    except Exception as e:
+        raise Http404(f"Error al acceder al archivo: {str(e)}")

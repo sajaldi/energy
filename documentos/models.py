@@ -410,6 +410,16 @@ class Revision(models.Model):
     )
     datos_extraidos = models.JSONField(null=True, blank=True)
 
+    def get_proxy_url(self):
+        """Retorna la URL directa del archivo"""
+        if not self.archivo:
+            return ""
+        return self.archivo.url
+
+    @property
+    def url_proxy(self):
+        return self.get_proxy_url()
+
     class Meta:
         verbose_name = "Revisión"
         verbose_name_plural = "Revisiones"

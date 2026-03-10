@@ -64,28 +64,37 @@ def documento_carga_masiva_submit(request):
         try:
             with transaction.atomic():
                 # Verificar si ya existe el código
-                if Documento.objects.filter(codigo=codigo).exists():
-                    resultados.append({
-                        'archivo': archivo.name,
-                        'ok': False,
-                        'mensaje': f"El código '{codigo}' ya existe en el sistema."
-                    })
-                    continue
+                documento = Documento.objects.filter(codigo=codigo).first()
+                es_actualizacion = False
+                
+                if documento:
+                    es_actualizacion = True
+                    # Calcular siguiente revisión
+                    ultima_rev = documento.revisiones.all().order_by('-creado_en').first()
+                    try:
+                        # Intentar incrementar si es numérico (0 -> 1)
+                        if ultima_rev and ultima_rev.revision.isdigit():
+                            nueva_rev_str = str(int(ultima_rev.revision) + 1)
+                        else:
+                            nueva_rev_str = "REV_N"
+                    except:
+                        nueva_rev_str = "NEW"
+                else:
+                    # Crear documento maestro
+                    documento = Documento.objects.create(
+                        codigo=codigo,
+                        titulo=titulo,
+                        tipo_documento_id=tipo_id,
+                        disciplina_id=disciplina_id,
+                        responsable=request.user,
+                        estado_actual='RECIBIDO',
+                    )
+                    nueva_rev_str = '0'
 
-                # Crear documento maestro
-                documento = Documento.objects.create(
-                    codigo=codigo,
-                    titulo=titulo,
-                    tipo_documento_id=tipo_id,
-                    disciplina_id=disciplina_id,
-                    responsable=request.user,
-                    estado_actual='RECIBIDO',
-                )
-
-                # Crear revisión inicial (sube a MinIO automáticamente)
+                # Crear la revisión (sube a MinIO automáticamente)
                 revision = Revision.objects.create(
                     documento=documento,
-                    revision='0',
+                    revision=nueva_rev_str,
                     archivo=archivo,
                     creado_por=request.user,
                     estado_extraccion='PENDIENTE',
@@ -104,7 +113,7 @@ def documento_carga_masiva_submit(request):
                     'codigo': codigo,
                     'titulo': titulo,
                     'doc_id': documento.id,
-                    'mensaje': 'Subido exitosamente.'
+                    'mensaje': 'Actualizado (Nueva Rev)' if es_actualizacion else 'Subido exitosamente.'
                 })
 
         except Exception as e:
