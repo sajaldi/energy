@@ -17,7 +17,7 @@ SSH_PASS = 'PasswordRoot07'
 
 # IPs y Puertos
 VM_IP = '10.30.1.11'
-REDIS_HOST = VM_IP # Usar IP de la VM ya que el nombre de servicio no resuelve por SSH
+REDIS_HOST = '127.0.0.1' # Probar loopback remoto si la IP de la VM falla
 LOCAL_IP = '127.0.0.1'
 
 # Forward (Local -> Remoto)

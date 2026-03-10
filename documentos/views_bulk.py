@@ -117,10 +117,14 @@ def documento_carga_masiva_submit(request):
                 })
 
         except Exception as e:
+            import traceback
+            error_detail = f"{type(e).__name__}: {str(e)}"
+            print(f"[CARGA_MASIVA ERROR] Archivo: {archivo.name} | {error_detail}")
+            print(traceback.format_exc())
             resultados.append({
                 'archivo': archivo.name,
                 'ok': False,
-                'mensaje': str(e)
+                'mensaje': error_detail
             })
 
     total = len(resultados)
