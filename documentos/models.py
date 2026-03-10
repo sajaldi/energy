@@ -450,6 +450,7 @@ class Biblioteca(models.Model):
     """
     nombre = models.CharField(_("Nombre"), max_length=200)
     descripcion = models.TextField(_("Descripción"), blank=True, null=True)
+    resumen_ia = models.TextField(_("Resumen IA"), blank=True, null=True, help_text="Resultado guardado del análisis automatizado de todos los documentos.")
     documentos = models.ManyToManyField(
         Documento,
         blank=True,

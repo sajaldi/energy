@@ -6,6 +6,8 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- Markdown Parser -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 {% endblock %}
 
 {% block extrastyle %}
@@ -702,10 +704,43 @@
         color: #ef4444;
     }
 
-    .toggle-btn.remove:hover {
-        background: #ef4444;
-        color: white;
+    /* Contenedor Resumen IA */
+    .resumen-ia-container {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        position: relative;
     }
+    
+    .resumen-ia-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .resumen-ia-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: var(--ia-color);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Estilos Markdown */
+    .md-content h1, .md-content h2, .md-content h3 { color: #1e293b; margin-top: 1.2em; margin-bottom: 0.5em; font-weight: 600; font-size: 1.1rem; }
+    .md-content p { margin-bottom: 1em; color: #475569; line-height: 1.6; }
+    .md-content ul, .md-content ol { margin-bottom: 1em; padding-left: 1.5em; color: #475569; }
+    .md-content li { margin-bottom: 0.25em; }
+    .md-content strong { color: #0f172a; font-weight: 600; }
+    .md-content blockquote { border-left: 4px solid var(--ia-color); background: #f8fafc; padding: 10px 15px; margin: 0 0 1em 0; border-radius: 0 4px 4px 0; font-style: italic; }
 </style>
 
 {% endblock %}
@@ -718,12 +753,35 @@
             <a href="javascript:history.back()" class="btn-back" style="display:inline-block; margin-bottom:20px;">←
                 Volver</a>
             <h1>{{ biblioteca.nombre }}</h1>
-            <div class="bib-stats">
+            <div class="bib-stats" style="margin-top:10px;">
                 <span
                     style="background:var(--primary); color:white; padding: 2px 10px; border-radius:6px; font-size:0.9rem; font-weight: 700;">
                     {{ documentos | length }} Documentos Registrados
                 </span>
             </div>
+            
+            <!-- Representación Jerárquica Lineal -->
+            {% if cadenas_trazabilidad %}
+            <div style="margin-top: 15px; font-size: 0.85rem; color: var(--text-muted); background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px dashed #cbd5e1; display: inline-block;">
+                <strong style="color:var(--text-main); font-size:0.75rem; text-transform:uppercase; display:block; margin-bottom:6px;">Trazabilidad Registrada:</strong>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                {% for cadena in cadenas_trazabilidad %}
+                    {% if cadena|length > 1 %}
+                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                        {% for nodo in cadena %}
+                            <a href="{% url 'documentos:documento_trazabilidad' nodo.id %}" target="_blank" style="text-decoration:none; background:white; border: 1px solid #e2e8f0; padding: 2px 8px; border-radius: 4px; color: var(--primary); font-weight: 600; display:flex; align-items:center; gap: 4px; transition: all 0.2s;">
+                                {{ nodo.codigo }} <span style="font-size: 0.7rem; color:#94a3b8;">({{ nodo.fecha }})</span>
+                            </a>
+                            {% if not forloop.last %}
+                                <span style="color: #cbd5e1; font-weight: 800;">⟶</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         {% if documentos %}
@@ -741,6 +799,9 @@
             <button class="export-btn" onclick="openManageModal()" style="background:var(--primary); color:white; border:none;" title="Gestionar documentos de esta biblioteca">
                 ➕ Gestionar Documentos
             </button>
+            <button class="export-btn" id="btn-analizar-bib" onclick="analizarBibliotecaIA()" style="background:var(--ia-color); color:white; border:none;" title="Analizar el contenido de toda esta Biblioteca usando Inteligencia Artificial">
+                ✨ Resumir (IA)
+            </button>
 
             <button class="export-btn excel" onclick="exportToExcel()" title="Exportar a Excel">
                 📊 Excel
@@ -751,6 +812,20 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- Contenedor Resumen IA Renderizado si Existe -->
+    {% if biblioteca.resumen_ia %}
+    <div class="resumen-ia-container">
+        <div class="resumen-ia-header">
+            <h3>✨ Resumen de Análisis (IA)</h3>
+            <span style="font-size: 0.8rem; color: #94a3b8; background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">Generado automáticamente</span>
+        </div>
+        <div class="md-content" id="resumen-ia-content" style="font-size: 0.95rem;">
+            <!-- Contenido cargado con JS/Marked.js -->
+            <textarea id="raw-resumen" style="display:none;">{{ biblioteca.resumen_ia }}</textarea>
+        </div>
+    </div>
+    {% endif %}
 
     {% if documentos %}
     <div class="bib-grid">
@@ -1302,6 +1377,64 @@
             btn.disabled = false;
         }
     }
+
+    // Funciones de IA
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    async function analizarBibliotecaIA() {
+        const btn = document.getElementById('btn-analizar-bib');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '⏳ Analizando...';
+        btn.disabled = true;
+
+        try {
+            const resp = await fetch(`/documentos/api/analizar-biblioteca/${bibId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await resp.json();
+            
+            if (!resp.ok) {
+                throw new Error(data.error || 'Error al analizar la biblioteca');
+            }
+            
+            // Recargar la pagina para que se muestre el resumen usando el engine de la plantilla
+            window.location.reload();
+            
+        } catch (err) {
+            console.error(err);
+            alert(`⚠️ Error: ${err.message}`);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // Render Markup on Init si existe resumen
+    document.addEventListener("DOMContentLoaded", () => {
+        const rawElem = document.getElementById("raw-resumen");
+        if (rawElem) {
+            const container = document.getElementById("resumen-ia-content");
+            container.innerHTML = marked.parse(rawElem.value);
+        }
+    });
+
 </script>
 
 {% endblock %}

@@ -130,6 +130,14 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         from django.shortcuts import redirect
         return redirect('documentos:documento_wizard')
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'respuesta_a':
+            # Obtener el ID del objeto actual desde la URL para excluirlo del dropdown
+            object_id = request.resolver_match.kwargs.get('object_id')
+            if object_id:
+                kwargs['queryset'] = Documento.objects.exclude(pk=object_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     fieldsets = (
         ('Identificación', {
             'fields': (('codigo', 'titulo'), ('tipo_documento', 'disciplina'), ('respuesta_a', 'fecha_inicio'), 'trazabilidad_link')

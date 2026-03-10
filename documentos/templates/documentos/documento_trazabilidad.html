@@ -1108,6 +1108,10 @@
                 <div id="search-results" class="search-results-dropdown"></div>
             </div>
 
+            <button onclick="analizarOficiosIA()" id="btn-analizar-oficios" class="button"
+                style="background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <span>🧠</span> Analizar Oficios (IA)
+            </button>
             <button onclick="exportToPDF()" class="button"
                 style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
                 <span>💾</span> Exportar PDF
@@ -1129,6 +1133,10 @@
         </div>
         <div class="context-menu-item" onclick="contextAction('view')">
             <span>📄</span> Ver Documento (Pines)
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="contextAction('copyPath')">
+            <span>📋</span> Copiar Ruta
         </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" onclick="contextAction('edit')" style="color: #6366f1;">
@@ -1160,14 +1168,6 @@
     </div>
 
     <!-- Premium Sidebar for details -->
-    <div id="doc-details">
-        <button class="close-sidebar-btn" onclick="closeDetails()">
-            <span>Cerrar</span>
-        </button>
-        <div id="details-body" class="sidebar-content" style="padding:0;">
-            <div style="padding: 100px 40px; text-align: center; color: #64748b;">
-                <div style="font-size: 3rem; margin-bottom: 20px;">📂</div>
-                <h3>Seleccione un documento</h3>
                 <p>Haga clic en un nodo del árbol para ver metadatos y vista previa.</p>
             </div>
         </div>
@@ -1176,6 +1176,23 @@
 
 <script>
     console.log("Trace script cargado");
+    
+    // CSRF Helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
     const sysUsers = JSON.parse(document.getElementById('sys-users-data').textContent);
     let currentPdf = null;
     let pageNum = 1;
@@ -1395,11 +1412,149 @@
             window.location.href = `/documentos/trazabilidad/${contextDocId}/`;
         } else if (type === 'view') {
             window.location.href = `/documentos/visor-pines/${contextDocId}/`;
+        } else if (type === 'copyPath') {
+            copyDocumentPath(contextDocId);
         } else if (type === 'edit') {
             window.open(`/admin/documentos/documento/${contextDocId}/change/`, '_blank');
         }
 
         hideContextMenu();
+    }
+
+    async function analizarOficiosIA() {
+        const btn = document.getElementById('btn-analizar-oficios');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span>⏳</span> Analizando...';
+        btn.disabled = true;
+
+        try {
+            const resp = await fetch(`/documentos/api/analizar-oficios/{{ documento.id }}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await resp.json();
+            
+            if (!resp.ok) {
+                throw new Error(data.error || 'Error al analizar oficios');
+            }
+
+            // Mostrar el resultado devuelto por n8n en el alert o consola
+            console.log("Respuesta n8n:", data.n8n_response);
+            
+            // Extraer mensaje (texto o texto_redactado si existe)
+            let mdText = "No se recibió texto de la IA.";
+            if (data.n8n_response && typeof data.n8n_response === 'object') {
+                mdText = data.n8n_response.message || data.n8n_response.text || data.n8n_response.texto_redactado || JSON.stringify(data.n8n_response, null, 2);
+            } else if (typeof data.n8n_response === 'string') {
+                mdText = data.n8n_response;
+            }
+
+            openIAModal(mdText);
+
+        } catch (err) {
+            console.error(err);
+            openIAModal(`### ⚠️ Ocurrió un Error\n\nNo se pudo completar el análisis.\n\n**Detalle:** ${err.message}`);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // Modal Control Functions
+    function openIAModal(markdownText) {
+        const overlay = document.getElementById('ia-modal-overlay');
+        const content = document.getElementById('ia-modal-content');
+        
+        // Guardar raw para copiar
+        overlay.dataset.rawMarkdown = markdownText;
+        
+        // Parsear Markdown a HTML usando parse() en lugar del marcado obsoleto
+        content.innerHTML = marked.parse(markdownText);
+        
+        overlay.style.display = 'flex';
+        // Trigger de animación
+        setTimeout(() => {
+            overlay.style.opacity = '1';
+            overlay.querySelector('.ia-modal').style.transform = 'translateY(0)';
+        }, 10);
+    }
+
+    function closeIAModal() {
+        const overlay = document.getElementById('ia-modal-overlay');
+        overlay.style.opacity = '0';
+        overlay.querySelector('.ia-modal').style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
+    }
+
+    async function copyIAModalText() {
+        const overlay = document.getElementById('ia-modal-overlay');
+        const text = overlay.dataset.rawMarkdown || document.getElementById('ia-modal-content').innerText;
+        try {
+            await navigator.clipboard.writeText(text);
+            const btn = document.querySelector('.ia-modal-footer button:first-child');
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = '<span>✅</span> ¡Copiado!';
+            setTimeout(() => btn.innerHTML = originalIcon, 2000);
+        } catch (e) {
+            console.error('Error copiando:', e);
+        }
+    }
+
+    async function copyDocumentPath(docId) {
+        // Encontrar el nodo clickeado en el DOM
+        const targetNode = document.querySelector(`.doc-node[data-id="${docId}"]`);
+        if (!targetNode) return;
+
+        let pathCodes = [];
+        
+        // El arbol principal está en li anidados. Para los vinculados externos 
+        // están al lado, pero si queremos la ruta vertical principal:
+        let currentLi = targetNode.closest('li');
+        
+        // Si no está en un <li> (es un raiz o algo externo), al menos cogemos el suyo
+        if (!currentLi) {
+            pathCodes.push(targetNode.querySelector('.code').innerText.trim());
+        } else {
+            // Recorrer hacia arriba buscando los li padres
+            while (currentLi) {
+                // Dentro del li, el .doc-node principal está en .node-row > .doc-node
+                // o si es la raiz puede estar directo (aunque nuestro tree_node.html lo mete en .node-row)
+                const nodeRowNode = currentLi.querySelector(':scope > .node-row > .doc-node') 
+                                 || currentLi.querySelector(':scope > .doc-node');
+                                 
+                if (nodeRowNode) {
+                    const code = nodeRowNode.querySelector('.code').innerText.trim();
+                    pathCodes.unshift(code); // Agregar al inicio para tener "A -> B -> C"
+                }
+
+                // Subir al padre (el ul contenedor, luego el li padre)
+                const parentUl = currentLi.parentElement;
+                if (!parentUl || !parentUl.closest('li')) break;
+                currentLi = parentUl.closest('li');
+            }
+        }
+
+        const pathString = pathCodes.join(' -> ');
+        
+        try {
+            await navigator.clipboard.writeText(pathString);
+            alert(`Ruta copiada al portapapeles:\n${pathString}`);
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            // Fallback
+            const textArea = document.createElement("textarea");
+            textArea.value = pathString;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textArea);
+            alert(`Ruta copiada al portapapeles:\n${pathString}`);
+        }
     }
 
     function updateTransform() {

@@ -306,13 +306,188 @@ def trigger_n8n_extraction(request, doc_id):
         # Opcional: Ejecutar asíncronamente con Celery si tarda mucho, 
         # pero aquí solo disparamos el webhook, debería ser rápido.
         try:
-            requests.post(n8n_url, json=payload, timeout=5)
+            resp = requests.post(n8n_url, json=payload, timeout=10)
+            if resp.status_code >= 400:
+                import logging
+                logging.getLogger(__name__).error(f"Error HTTP devolviendo de n8n {resp.status_code}: {resp.text}")
+                return JsonResponse({'error': f'El servidor n8n devolvió un error {resp.status_code}: {resp.text}'}, status=resp.status_code)
         except Exception as e:
-             # Loguear error pero no detener, o retornar error
-             pass
+             import logging
+             logging.getLogger(__name__).error(f"Error de conexión con n8n en extraccion de texto: {str(e)}")
+             return JsonResponse({'error': f"Error conectando con n8n: {str(e)}"}, status=500)
 
         return JsonResponse({'status': 'ok', 'message': 'Solicitud de extracción enviada'})
     except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
+def api_analizar_oficios_trazabilidad(request, doc_id):
+    """
+    Recopila la trazabilidad de un oficio (cadena de respuestas), extrae metadatos
+    y texto, y lo envía a n8n para su análisis.
+    """
+    try:
+        documento = get_object_or_404(Documento, id=doc_id)
+        
+        # 1. Encontrar la raíz
+        root = documento
+        visited = {root.id}
+        while root.respuesta_a:
+            if root.respuesta_a.id in visited:
+                break
+            root = root.respuesta_a
+            visited.add(root.id)
+            
+        # 2. Recopilar cadena
+        cadena = []
+        def recopilar(doc):
+            metadatos_qs = doc.metadatos_valores.all().select_related('config')
+            metadatos_dict = {}
+            for mv in metadatos_qs:
+                valor = str(mv.objeto_vinculado) if mv.objeto_vinculado else mv.valor
+                metadatos_dict[mv.config.etiqueta] = valor
+
+            # Limpiar y limitar el texto para no abrumar a la IA
+            texto = doc.contenido_texto or ""
+            if texto:
+                # Quitar espacios múltiples y saltos de línea excesivos
+                import re
+                texto = re.sub(r'\s+', ' ', texto).strip()
+                # Limitar a ~1500 palabras máximo por documento (aprox 2000 tokens)
+                palabras = texto.split()
+                if len(palabras) > 1500:
+                    texto = " ".join(palabras[:1500]) + "... [TEXTO TRUNCADO POR LONGITUD]"
+
+            cadena.append({
+                'id': doc.id,
+                'codigo': doc.codigo,
+                'titulo': doc.titulo,
+                'tipo': doc.tipo_documento.nombre if doc.tipo_documento else "S/T",
+                'estado': doc.estado_actual,
+                'fecha_emision': doc.fecha_inicio.isoformat() if doc.fecha_inicio else None,
+                'metadatos': metadatos_dict,
+                'texto_extraido': texto
+            })
+            for hijo in doc.respuestas.all().order_by('fecha_inicio'):
+                recopilar(hijo)
+                
+        recopilar(root)
+        
+        payload = {
+            'documento_origen_id': doc_id,
+            'cadena_oficios': cadena
+        }
+        
+        # URL del webhook
+        webhook_path = 'webhook/analizar-oficios' if getattr(settings, 'IS_LOCAL', False) else 'webhook/analizar-oficios'
+        # Usamos N8N_BASE_URL que en local por el script tunneler es apuntado al port 5678
+        import os
+        n8n_url = os.environ.get('N8N_ANALIZAR_OFICIOS_WEBHOOK_URL', f"{getattr(settings, 'N8N_BASE_URL', 'http://localhost:5678')}/{webhook_path}")
+        
+        resp = requests.post(n8n_url, json=payload, timeout=15)
+        if resp.status_code >= 400:
+            import logging
+            logging.getLogger(__name__).error(f"Error n8n analizar-oficios {resp.status_code}: {resp.text}")
+            return JsonResponse({'error': f'n8n HTTP {resp.status_code}: {resp.text}'}, status=resp.status_code)
+            
+        try:
+            n8n_response = resp.json()
+        except:
+            n8n_response = resp.text
+            
+        return JsonResponse({'status': 'ok', 'message': 'Oficios enviados a analizar con éxito.', 'n8n_response': n8n_response})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error en api_analizar_oficios_trazabilidad: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
+def api_analizar_biblioteca_ia(request, bib_id):
+    """
+    Recopila todos los documentos de una biblioteca y los envía a n8n para
+    generar un resumen o historiograma que se guarda en el campo resumen_ia.
+    """
+    try:
+        from .models import Biblioteca
+        biblioteca = get_object_or_404(Biblioteca, id=bib_id)
+        
+        # Recopilar documentos de la biblioteca
+        cadena = []
+        for doc in biblioteca.documentos.all():
+            metadatos_qs = doc.metadatos_valores.all().select_related('config')
+            metadatos_dict = {}
+            for mv in metadatos_qs:
+                valor = str(mv.objeto_vinculado) if mv.objeto_vinculado else mv.valor
+                metadatos_dict[mv.config.etiqueta] = valor
+
+            # Limpiar y limitar el texto para no abrumar a la IA
+            texto = doc.contenido_texto or ""
+            if texto:
+                import re
+                texto = re.sub(r'\s+', ' ', texto).strip()
+                palabras = texto.split()
+                if len(palabras) > 1500:
+                    texto = " ".join(palabras[:1500]) + "... [TEXTO TRUNCADO POR LONGITUD]"
+
+            # Recopilar trazabilidad (hijos) del documento actua
+            respuestas_info = []
+            for resp_doc in doc.respuestas.all().order_by('fecha_inicio'):
+                respuestas_info.append({
+                    'id': resp_doc.id,
+                    'codigo': resp_doc.codigo,
+                    'titulo': resp_doc.titulo,
+                    'fecha_emision': resp_doc.fecha_inicio.isoformat() if resp_doc.fecha_inicio else None,
+                    'estado': resp_doc.estado_actual
+                })
+
+            cadena.append({
+                'id': doc.id,
+                'codigo': doc.codigo,
+                'titulo': doc.titulo,
+                'tipo': doc.tipo_documento.nombre if doc.tipo_documento else "S/T",
+                'estado': doc.estado_actual,
+                'fecha_emision': doc.fecha_inicio.isoformat() if doc.fecha_inicio else None,
+                'metadatos': metadatos_dict,
+                'texto_extraido': texto,
+                'trazabilidad_hijos': respuestas_info # <--- Trazabilidad enlazada directamente
+            })
+            
+        payload = {
+            'biblioteca_id': biblioteca.id,
+            'biblioteca_nombre': biblioteca.nombre,
+            'cadena_oficios': cadena # Se usa la misma estructura para simplificar en n8n
+        }
+        
+        import os
+        webhook_path = 'webhook/analizar-biblioteca' if getattr(settings, 'IS_LOCAL', False) else 'webhook/analizar-biblioteca'
+        n8n_url = os.environ.get('N8N_ANALIZAR_BIBLIOTECA_WEBHOOK_URL', f"{getattr(settings, 'N8N_BASE_URL', 'http://localhost:5678')}/{webhook_path}")
+        
+        resp = requests.post(n8n_url, json=payload, timeout=20)
+        
+        if resp.status_code >= 400:
+            import logging
+            logging.getLogger(__name__).error(f"Error n8n analizar-biblioteca {resp.status_code}: {resp.text}")
+            return JsonResponse({'error': f'n8n HTTP {resp.status_code}: {resp.text}'}, status=resp.status_code)
+            
+        try:
+            n8n_response = resp.json()
+            mdText = n8n_response.get('message', '') or n8n_response.get('text', '') or n8n_response.get('texto_redactado', '') or n8n_response
+        except:
+            mdText = resp.text
+            n8n_response = resp.text
+            
+        # Actualizamos el campo resumen en base de datos
+        if mdText and isinstance(mdText, str):
+            biblioteca.resumen_ia = mdText
+            biblioteca.save(update_fields=['resumen_ia'])
+            
+        return JsonResponse({'status': 'ok', 'message': 'Biblioteca analizada con éxito.', 'n8n_response': n8n_response, 'resumen_ia': mdText})
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error en api_analizar_biblioteca_ia: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 @csrf_exempt
@@ -1006,11 +1181,42 @@ def biblioteca_visualizar(request, bib_id):
     """
     from .models import Biblioteca
     biblioteca = get_object_or_404(Biblioteca, id=bib_id)
-    documentos = biblioteca.documentos.all().order_by('-actualizado_en')
+    documentos = biblioteca.documentos.all().select_related('tipo_documento', 'respuesta_a').order_by('-actualizado_en')
     
+    # Construir listado de trazabilidad jerárquica
+    # Encontrar doc "raíces" (los que no responden a ningún otro en esta biblioteca)
+    doc_ids_en_bib = set(doc.id for doc in documentos)
+    cadenas_trazabilidad = []
+    
+    # Función recursiva para armar la cadena visual
+    def build_chain(doc):
+        fecha_str = doc.fecha_inicio.strftime('%d/%m/%Y') if doc.fecha_inicio else 'Sin fecha'
+        chain = [{
+            'codigo': doc.codigo,
+            'fecha': fecha_str,
+            'id': doc.id
+        }]
+        
+        # Buscar respuestas inmediatas que también pertenezcan a esta biblioteca
+        hijos_en_bib = [h for h in doc.respuestas.all().order_by('fecha_inicio') if h.id in doc_ids_en_bib]
+        
+        if hijos_en_bib:
+             # Por simplicidad en la UI lineal, tomamos el primer hijo directo para la cadena principal
+             # Si hay múltiples respuestas se podría ramificar, pero el ejemplo del usuario es lineal: A -> B -> C
+             chain.extend(build_chain(hijos_en_bib[0]))
+        return chain
+
+    docs_raiz = [d for d in documentos if not d.respuesta_a or d.respuesta_a.id not in doc_ids_en_bib]
+    
+    for raiz in docs_raiz:
+        cadena = build_chain(raiz)
+        if len(cadena) > 0:
+            cadenas_trazabilidad.append(cadena)
+
     return render(request, 'documentos/biblioteca_visualizar.html', {
         'biblioteca': biblioteca,
         'documentos': documentos,
+        'cadenas_trazabilidad': cadenas_trazabilidad,
         'estados': Documento.ESTADOS
     })
 

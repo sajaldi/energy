@@ -149,6 +149,7 @@ def start_tunnel():
             ) as tunnel:
                 print(f"[{time.strftime('%H:%M:%S')}] ✅ CONEXIÓN EXITOSA")
                 print(f"› DB:       localhost:{DB_LOCAL}")
+                print(f"› n8n:      http://localhost:{N8N_LOCAL}")
                 print(f"› MinIO:    http://localhost:{MINIO_LOCAL} (API)")
                 print(f"› Redis:    localhost:{REDIS_LOCAL} (Coolify)")
                 print(f"› Web 8070: http://localhost:{APP_LOCAL}")
