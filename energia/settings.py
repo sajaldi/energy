@@ -106,7 +106,7 @@ N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', f'{N8N_BASE_URL}/w
 
 # Webhook para procesamiento de documentos (PDF Conversion + Metadata)
 if IS_LOCAL:
-    _default_process_webhook = f'{N8N_BASE_URL}/webhook-test/process-document'
+    _default_process_webhook = f'{N8N_BASE_URL}/webhook/process-document'
 else:
     _default_process_webhook = f'{N8N_BASE_URL}/webhook/process-document'
 N8N_PROCESS_DOCUMENT_WEBHOOK_URL = os.environ.get('N8N_PROCESS_DOCUMENT_WEBHOOK_URL', _default_process_webhook)

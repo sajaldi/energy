@@ -42,4 +42,5 @@ urlpatterns = [
     path('biblioteca/visualizar/<int:bib_id>/', views.biblioteca_visualizar, name='biblioteca_visualizar'),
     path('api/model-fields/', views.api_get_model_fields, name='api_get_model_fields'),
     path('api/metadato/u/<int:mv_id>/', views.api_actualizar_metadato, name='api_actualizar_metadato'),
+    path('api/biblioteca/comentar/<int:bib_id>/', views.api_biblioteca_crear_comentario, name='api_biblioteca_crear_comentario'),
 ]

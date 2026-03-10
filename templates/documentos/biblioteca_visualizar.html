@@ -398,6 +398,57 @@
         letter-spacing: 0.05em;
     }
 
+    /* ====== Notas de Biblioteca ====== */
+    .notas-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .nota-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s;
+    }
+
+    .nota-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary);
+    }
+
+    .nota-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 8px;
+    }
+
+    .nota-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+
+    .nota-date {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+
+    .nota-content {
+        font-size: 0.9rem;
+        color: #475569;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
     .bib-table td {
         padding: 14px 20px;
         border-bottom: 1px solid #f1f5f9;
@@ -840,32 +891,30 @@
 {% block content %}
 {% csrf_token %}
 <div class="bib-container" id="bib-container" data-bib-name="{{ biblioteca.nombre | escapejs }}">
-    <div class="bib-header">
-        <div class="bib-title">
-            <a href="javascript:history.back()" class="btn-back" style="display:inline-block; margin-bottom:20px;">←
-                Volver</a>
+    <div class="bib-header" style="margin-bottom: 30px;">
+        <div class="bib-title" style="flex: 1; min-width: 300px;">
+            <a href="javascript:history.back()" class="btn-back" style="display:inline-block; margin-bottom:20px;">← Volver</a>
             <h1>{{ biblioteca.nombre }}</h1>
             <div class="bib-stats" style="margin-top:10px;">
-                <span
-                    style="background:var(--primary); color:white; padding: 2px 10px; border-radius:6px; font-size:0.9rem; font-weight: 700;">
+                <span style="background:var(--primary); color:white; padding: 4px 12px; border-radius:6px; font-size:0.9rem; font-weight: 700;">
                     {{ documentos | length }} Documentos Registrados
                 </span>
             </div>
             
             <!-- Representación Jerárquica Lineal -->
             {% if cadenas_trazabilidad %}
-            <div style="margin-top: 15px; font-size: 0.85rem; color: var(--text-muted); background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px dashed #cbd5e1; display: inline-block;">
-                <strong style="color:var(--text-main); font-size:0.75rem; text-transform:uppercase; display:block; margin-bottom:6px;">Trazabilidad Registrada:</strong>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e1; width: 100%; box-sizing: border-box;">
+                <strong style="color:var(--text-main); font-size:0.75rem; text-transform:uppercase; display:block; margin-bottom:10px; letter-spacing: 0.05em;">Trazabilidad Registrada en esta Biblioteca:</strong>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
                 {% for cadena in cadenas_trazabilidad %}
                     {% if cadena|length > 1 %}
-                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
                         {% for nodo in cadena %}
-                            <a href="{% url 'documentos:documento_trazabilidad' nodo.id %}" target="_blank" style="text-decoration:none; background:white; border: 1px solid #e2e8f0; padding: 2px 8px; border-radius: 4px; color: var(--primary); font-weight: 600; display:flex; align-items:center; gap: 4px; transition: all 0.2s;">
+                            <a href="{% url 'documentos:documento_trazabilidad' nodo.id %}" target="_blank" style="text-decoration:none; background:white; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 6px; color: var(--primary); font-weight: 600; display:flex; align-items:center; gap: 6px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                                 {{ nodo.codigo }} <span style="font-size: 0.7rem; color:#94a3b8;">({{ nodo.fecha }})</span>
                             </a>
                             {% if not forloop.last %}
-                                <span style="color: #cbd5e1; font-weight: 800;">⟶</span>
+                                <span style="color: #cbd5e1; font-weight: 800; font-size: 1.2rem;">⟶</span>
                             {% endif %}
                         {% endfor %}
                     </div>
@@ -875,167 +924,126 @@
             </div>
             {% endif %}
         </div>
+    </div>
 
-        {% if documentos %}
-        <div class="bib-tabs" style="margin: 20px 0;">
-            <div class="bib-tab active" onclick="switchTab('docs', this)">📁 Documentos</div>
-            <div class="bib-tab" onclick="switchTab('notas', this)">📝 Notas e Insumos</div>
-        </div>
+    <!-- SISTEMA DE PESTAÑAS -->
+    {% if documentos or comentarios %}
+    <div class="bib-tabs" style="margin-bottom: 30px;">
+        <div class="bib-tab active" id="tab-btn-docs" onclick="switchTab('docs', this)">📁 Documentos y Análisis</div>
+        <div class="bib-tab" id="tab-btn-notas" onclick="switchTab('notas', this)">📝 Notas e Insumos ({{ comentarios|length }})</div>
+    </div>
 
-        <div id="tab-docs" class="tab-content active">
-        <div class="bib-toolbar">
+    <!-- CONTENIDO PESTAÑA: DOCUMENTOS -->
+    <div id="tab-docs" class="tab-content active">
+        
+        <!-- Toolbar interna de documentos -->
+        <div class="bib-toolbar" style="margin-bottom: 25px;">
             <div class="toolbar-group">
-                <button class="toolbar-btn active" id="btn-view-grid" onclick="switchView('grid')"
-                    title="Vista Tarjetas">
-                    🗂️ Tarjetas
-                </button>
-                <button class="toolbar-btn" id="btn-view-list" onclick="switchView('list')" title="Vista Lista">
-                    📋 Lista
-                </button>
+                <button class="toolbar-btn active" id="btn-view-grid" onclick="switchView('grid')" title="Vista Tarjetas">🗂️ Tarjetas</button>
+                <button class="toolbar-btn" id="btn-view-list" onclick="switchView('list')" title="Vista Lista">📋 Lista</button>
             </div>
 
-            <button class="export-btn" onclick="openManageModal()" style="background:var(--primary); color:white; border:none;" title="Gestionar documentos de esta biblioteca">
-                ➕ Gestionar Documentos
-            </button>
-            <button class="export-btn" id="btn-analizar-bib" onclick="analizarBibliotecaIA()" style="background:var(--ia-color); color:white; border:none;" title="Analizar el contenido de toda esta Biblioteca usando Inteligencia Artificial">
-                ✨ Resumir (IA)
-            </button>
-
-            <button class="export-btn excel" onclick="exportToExcel()" title="Exportar a Excel">
-                📊 Excel
-            </button>
-            <button class="export-btn pdf-exp" onclick="exportToPDF()" title="Exportar a PDF">
-                📕 PDF
-            </button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="export-btn" onclick="openManageModal()" style="background:var(--primary); color:white; border:none;" title="Gestionar documentos">➕ Gestionar</button>
+                <button class="export-btn" id="btn-analizar-bib" onclick="analizarBibliotecaIA()" style="background:var(--ia-color); color:white; border:none;" title="Analizar biblioteca con IA">✨ Resumir (IA)</button>
+                <button class="export-btn excel" onclick="exportToExcel()" title="Exportar a Excel">📊 Excel</button>
+                <button class="export-btn pdf-exp" onclick="exportToPDF()" title="Exportar a PDF">📕 PDF</button>
+            </div>
         </div>
+
+        <!-- Resumen IA (Dentro de Documentos) -->
+        {% if biblioteca.resumen_ia %}
+        <div class="resumen-ia-container" style="margin-bottom: 30px; border: 2px solid #e0f2fe; background: #f0f9ff;">
+            <div class="resumen-ia-header">
+                <h3>✨ Resumen de Análisis (IA)</h3>
+                <span style="font-size: 0.8rem; color: #0369a1; background: #e0f2fe; padding: 4px 10px; border-radius: 6px; font-weight: 600;">INTELIGENCIA ARTIFICIAL</span>
+            </div>
+            <div class="md-content" id="resumen-ia-content">
+                <textarea id="raw-resumen" style="display:none;">{{ biblioteca.resumen_ia }}</textarea>
+                <div style="text-align:center; padding: 20px; color:#64748b;">Cargando análisis...</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if documentos %}
+            <!-- Grid de Documentos -->
+            <div class="bib-grid" id="bib-grid-view">
+                {% for doc in documentos %}
+                <div class="doc-card" onclick="openTraceability({{ doc.id }})">
+                    <div class="save-toast" id="loader-{{ doc.id }}">ESTADO GUARDADO ✓</div>
+                    <div class="doc-header">
+                        <div class="doc-type-badge">{{ doc.tipo_documento.nombre | default:"SIN TIPO" }}</div>
+                        <div class="status-wrapper" onclick="event.stopPropagation()">
+                            <select class="status-select status-{{ doc.estado_actual }}" onchange="updateDocStatus({{ doc.id }}, this)">
+                                {% for key, val in estados %}
+                                <option value="{{ key }}" {% if doc.estado_actual == key %}selected{% endif %}>{{ val }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="doc-content">
+                        <div class="doc-code">{{ doc.codigo }}</div>
+                        <div class="doc-title">{{ doc.titulo }}</div>
+                    </div>
+                    <div class="doc-actions" onclick="event.stopPropagation()">
+                        <div class="action-row">
+                            <button class="btn-main-action" onclick="openDocModal('{% url 'documentos:documento_proxy_pdf' doc.id %}')">📄 Ver PDF</button>
+                            <a href="{% url 'documentos:documento_reprocesar' doc.id %}" class="btn-special btn-ia" title="Analizar IA">🤖</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Tabla de Documentos -->
+            <div class="bib-table-wrapper" id="bib-table-wrapper" style="display:none;">
+                <table class="bib-table">
+                    <thead>
+                        <tr><th>#</th><th>Código</th><th>Título</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for doc in documentos %}
+                        <tr onclick="openTraceability({{ doc.id }})">
+                            <td>{{ forloop.counter }}</td>
+                            <td class="table-code">{{ doc.codigo }}</td>
+                            <td>{{ doc.titulo }}</td>
+                            <td>{{ doc.tipo_documento.nombre | default:"S/T" }}</td>
+                            <td><span class="table-status status-{{ doc.estado_actual }}">{{ doc.get_estado_actual_display }}</span></td>
+                            <td onclick="event.stopPropagation()"><button class="table-action-btn" onclick="openDocModal('/documentos/proxy/pdf/{{ doc.id }}/')">📄</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div style="text-align:center; padding: 60px 20px; background: white; border-radius: 20px; border: 2px dashed #e2e8f0;">
+                <p style="color: #64748b;">No hay documentos vinculados aún.</p>
+            </div>
         {% endif %}
     </div>
 
-    <!-- Contenedor Resumen IA Renderizado si Existe -->
-    {% if biblioteca.resumen_ia %}
-    <div class="resumen-ia-container">
-        <div class="resumen-ia-header">
-            <h3>✨ Resumen de Análisis (IA)</h3>
-            <span style="font-size: 0.8rem; color: #94a3b8; background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">Generado automáticamente</span>
-        </div>
-        <div class="md-content" id="resumen-ia-content" style="font-size: 0.95rem;">
-            <!-- Contenido cargado con JS/Marked.js -->
-            <textarea id="raw-resumen" style="display:none;">{{ biblioteca.resumen_ia }}</textarea>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if documentos %}
-    <div class="bib-grid">
-        {% for doc in documentos %}
-        <div class="doc-card" onclick="openTraceability({{ doc.id }})">
-            <div class="save-toast" id="loader-{{ doc.id }}">ESTADO GUARDADO ✓</div>
-
-            <div class="doc-header">
-                <div class="doc-type-badge">{{ doc.tipo_documento.nombre | default:"SIN TIPO" }}</div>
-
-                <div class="status-wrapper" onclick="event.stopPropagation()">
-                    <span class="status-label">Estado Actual</span>
-                    <select class="status-select status-{{ doc.estado_actual }}"
-                        onchange="updateDocStatus({{ doc.id }}, this)">
-                        {% for key, val in estados %}
-                        <option value="{{ key }}" {% if doc.estado_actual == key %}selected{% endif %}>{{ val }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+    <!-- CONTENIDO PESTAÑA: NOTAS -->
+    <div id="tab-notas" class="tab-content" style="display:none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+            <h2 style="margin:0; font-size: 1.4rem; color: #1e293b;">📝 Notas y Referencias de Análisis</h2>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="openAddNoteModal()" class="export-btn" style="background:var(--primary); color:white; border:none;">
+                    ➕ Nueva Nota
+                </button>
+                <a href="/admin/documentos/biblioteca/{{ biblioteca.id }}/change/" target="_blank" class="export-btn" style="background:#64748b; color:white; text-decoration:none; font-size:0.85rem;">
+                    ⚙️ Gestionar en Admin
+                </a>
             </div>
-
-            <div class="doc-content">
-                <div class="doc-code">{{ doc.codigo }}</div>
-                <div class="doc-title">{{ doc.titulo }}</div>
-            </div>
-
-            <div class="doc-actions" onclick="event.stopPropagation()">
-                <div class="action-row">
-                    <button class="btn-main-action"
-                        onclick="openDocModal('{% url 'documentos:documento_proxy_pdf' doc.id %}')">
-                        📄 Visualizar PDF
-                    </button>
-                    <a href="{% url 'documentos:documento_reprocesar' doc.id %}" class="btn-special btn-ia"
-                        title="Analizar IA">
-                        🤖
-                    </a>
-                </div>
-
-                <div class="action-row">
-                    <a href="{% url 'documentos:documento_sync_metadatos' doc.id %}"
-                        class="btn-main-action btn-sync-text"
-                        style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">
-                        ⚙️ Sincronizar Metadatos
-                    </a>
-                    <a href="/admin/documentos/documento/{{ doc.id }}/change/" target="_blank"
-                        class="btn-special btn-admin-config" title="Configuración Admin">
-                        🛠
-                    </a>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    <!-- Vista Lista / Tabla -->
-    <div class="bib-table-wrapper" id="bib-table-wrapper">
-        <table class="bib-table" id="bib-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Código</th>
-                    <th>Título</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Responde a</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for doc in documentos %}
-                <tr onclick="openTraceability({{ doc.id }})">
-                    <td style="color:var(--text-muted); font-weight:600;">{{ forloop.counter }}</td>
-                    <td class="table-code">{{ doc.codigo }}</td>
-                    <td>{{ doc.titulo }}</td>
-                    <td>{{ doc.tipo_documento.nombre | default:"S/T" }}</td>
-                    <td>
-                        <span class="table-status status-{{ doc.estado_actual }}">
-                            {{ doc.get_estado_actual_display }}
-                        </span>
-                    </td>
-                    <td style="font-size:0.8rem; color:var(--text-muted);">{{ doc.respuesta_a.codigo | default:"—" }}
-                    </td>
-                    <td onclick="event.stopPropagation()">
-                        <div class="table-actions">
-                            <button class="table-action-btn"
-                                onclick="openDocModal('/documentos/proxy/pdf/{{ doc.id }}/')"
-                                title="Ver PDF">📄</button>
-                            <a href="/documentos/trazabilidad/{{ doc.id }}/" class="table-action-btn"
-                                title="Árbol">🗺️</a>
-                            <a href="/admin/documentos/documento/{{ doc.id }}/change/" class="table-action-btn"
-                                target="_blank" title="Editar">🛠</a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    </div> <!-- Cierre tab-docs -->
-
-    <!-- Nueva pestaña de Notas/Comentarios -->
-    <div id="tab-notas" class="tab-content">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin:0; font-size: 1.2rem; color: #1e293b;">📝 Notas y Comentarios Adicionales</h2>
-            <a href="/admin/documentos/biblioteca/{{ biblioteca.id }}/change/" target="_blank" class="export-btn" style="background:#64748b; color:white; text-decoration:none; font-size:0.8rem; display:flex; align-items:center; gap:8px;">
-                ⚙️ Gestionar en Admin
-            </a>
         </div>
         
-        <p style="color:#64748b; font-size: 0.9rem; margin-bottom: 25px; background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 15px; border-radius: 4px;">
-            <strong>Nota:</strong> Estas observaciones se envían como contexto adicional al Agente IA cuando presionas el botón de análisis en la pestaña de documentos.
-        </p>
+        <div style="color:#854d0e; font-size: 0.95rem; margin-bottom: 30px; background: #fffbeb; border-left: 5px solid #f59e0b; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display:flex; gap:12px; align-items:center;">
+                <span style="font-size:1.5rem;">💡</span>
+                <div>
+                    <strong>Contexto para la IA:</strong> Estas notas se envían al Agente IA cuando inicias un análisis. Úsalas para darle instrucciones específicas o datos que no están en los archivos.
+                </div>
+            </div>
+        </div>
 
         {% if comentarios %}
         <div class="notas-grid">
@@ -1050,23 +1058,19 @@
             {% endfor %}
         </div>
         {% else %}
-        <div style="text-align:center; padding: 100px 20px; background:white; border-radius:12px; border: 2px dashed #e2e8f0;">
-            <div style="font-size: 3rem; margin-bottom: 20px;">📝</div>
-            <h3 style="color:#64748b; margin-bottom:10px;">No hay notas registradas</h3>
-            <p style="color:#94a3b8; max-width: 400px; margin: 0 auto;">
-                Puedes agregar notas desde el panel de administración de esta biblioteca para que sirvan como contexto al análisis de IA.
-            </p>
+        <div style="text-align:center; padding: 80px 20px; background:white; border-radius:24px; border: 2px dashed #e2e8f0;">
+            <div style="font-size: 4rem; margin-bottom: 15px;">✍️</div>
+            <h3 style="color:#64748b;">Sin notas registradas</h3>
+            <p style="color:#94a3b8;">Agrega comentarios en el Admin para enriquecer esta biblioteca.</p>
         </div>
         {% endif %}
     </div>
-
     {% else %}
-    <div
-        style="text-align:center; padding: 100px 20px; background: white; border-radius: 32px; border: 3px dashed #e2e8f0; margin-top: 40px;">
-        <div style="font-size: 5rem; margin-bottom: 20px;">📁</div>
-        <h2 style="color: var(--text-main); font-weight: 800;">Biblioteca Vacía</h2>
-        <p style="color: var(--text-muted); font-size: 1.1rem;">Vincule algunos documentos para visualizarlos aquí.</p>
-    </div>
+        <div style="text-align:center; padding: 100px 20px; background: white; border-radius: 32px; border: 3px dashed #e2e8f0; margin-top: 40px;">
+            <div style="font-size: 5rem; margin-bottom: 20px;">📁</div>
+            <h2 style="color: var(--text-main); font-weight: 800;">Biblioteca Vacía</h2>
+            <p style="color: var(--text-muted); font-size: 1.2rem;">Vincule documentos o agregue notas para comenzar.</p>
+        </div>
     {% endif %}
 </div>
 
@@ -1142,7 +1146,108 @@
     </div>
 </div>
 
+<!-- Modal para Agregar Nueva Nota -->
+<div id="add-note-modal-overlay"
+    style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); backdrop-filter:blur(8px); z-index:99998; display:none; opacity:0; transition:all 0.3s ease;">
+</div>
+<div id="add-note-modal"
+    style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%) scale(0.9); width:500px; max-width:95%; background:white; border-radius:24px; z-index:99999; display:none; flex-direction:column; opacity:0; transition:all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); box-shadow: 0 40px 80px -15px rgba(0,0,0,0.5);">
+    
+    <div style="padding: 24px 32px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin:0; font-size:1.3rem; font-weight:800; color:var(--text-main);">📝 Nueva Nota / Insumo</h3>
+        <button onclick="closeAddNoteModal()" style="background:none; border:none; font-size:2rem; cursor:pointer; color:#94a3b8; line-height:1;">&times;</button>
+    </div>
+
+    <div style="padding: 32px;">
+        <div style="margin-bottom: 20px;">
+            <label style="display:block; font-size:0.85rem; font-weight:700; color:#64748b; margin-bottom:8px; text-transform:uppercase;">Título de la Nota</label>
+            <input type="text" id="note-title" placeholder="Ej: Instrucciones específicas de análisis..." 
+                   style="width:100%; padding:12px 16px; border-radius:12px; border:2px solid #e2e8f0; font-size:1rem; outline:none; transition:all 0.2s;">
+        </div>
+        <div>
+            <label style="display:block; font-size:0.85rem; font-weight:700; color:#64748b; margin-bottom:8px; text-transform:uppercase;">Contenido / Detalle</label>
+            <textarea id="note-content" placeholder="Escriba aquí la información adicional para la IA..." 
+                      style="width:100%; height:150px; padding:12px 16px; border-radius:12px; border:2px solid #e2e8f0; font-size:1rem; outline:none; resize:none; transition:all 0.2s;"></textarea>
+        </div>
+    </div>
+
+    <div style="padding: 24px 32px; background: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 24px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button onclick="closeAddNoteModal()" class="export-btn" style="background:#e2e8f0; color:#475569; border:none;">Cancelar</button>
+        <button onclick="submitNewNote()" id="btn-save-note" class="export-btn" style="background:var(--primary); color:white; border:none; padding:12px 30px; font-weight:700;">💾 Guardar Nota</button>
+    </div>
+</div>
+
 <script>
+    // Modal Note Logic
+    function openAddNoteModal() {
+        const overlay = document.getElementById('add-note-modal-overlay');
+        const modal = document.getElementById('add-note-modal');
+        overlay.style.display = 'block';
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            overlay.style.opacity = '1';
+            modal.style.opacity = '1';
+            modal.style.transform = 'translate(-50%, -50%) scale(1)';
+        }, 10);
+        document.getElementById('note-title').focus();
+    }
+
+    function closeAddNoteModal() {
+        const overlay = document.getElementById('add-note-modal-overlay');
+        const modal = document.getElementById('add-note-modal');
+        overlay.style.opacity = '0';
+        modal.style.opacity = '0';
+        modal.style.transform = 'translate(-50%, -50%) scale(0.9)';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            modal.style.display = 'none';
+            document.getElementById('note-title').value = '';
+            document.getElementById('note-content').value = '';
+        }, 300);
+    }
+
+    async function submitNewNote() {
+        const title = document.getElementById('note-title').value.trim();
+        const content = document.getElementById('note-content').value.trim();
+        const btn = document.getElementById('btn-save-note');
+
+        if (!content) {
+            alert("Por favor, ingrese el contenido de la nota.");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "⏳ Guardando...";
+
+        try {
+            const response = await fetch(`/documentos/api/biblioteca/comentar/{{ biblioteca.id }}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    titulo: title || "Nota sin título",
+                    contenido: content
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                location.reload(); 
+            } else {
+                alert("Error: " + data.message);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Ocurrió un error al guardar la nota.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "💾 Guardar Nota";
+        }
+    }
+
     async function updateDocStatus(docId, selectEl) {
         const nuevoEstado = selectEl.value;
         const toast = document.getElementById('loader-' + docId);

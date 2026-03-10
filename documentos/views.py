@@ -294,7 +294,7 @@ def trigger_n8n_extraction(request, doc_id):
 
         # URL del webhook para extracción de texto
         import os
-        webhook_path = 'webhook-test/process-document' if getattr(settings, 'IS_LOCAL', False) else 'webhook/process-document'
+        webhook_path = 'webhook/process-document' if getattr(settings, 'IS_LOCAL', False) else 'webhook/process-document'
         
         # En producción n8n no es localhost, usualmente es http://energy-n8n:5678 o similar
         # Intentar tomar de variables de entorno de extracción específicas, si no, fallback a N8N_BASE_URL genérico
@@ -1399,6 +1399,42 @@ def api_actualizar_metadato(request, mv_id):
         return JsonResponse({
             'status': 'success',
             'nuevo_valor': mv.valor
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@require_POST
+@login_required
+def api_biblioteca_crear_comentario(request, bib_id):
+    """
+    Crea un nuevo comentario/nota para una biblioteca via AJAX.
+    """
+    import json
+    from .models import Biblioteca, ComentarioBiblioteca
+    try:
+        biblioteca = get_object_or_404(Biblioteca, id=bib_id)
+        data = json.loads(request.body)
+        
+        titulo = data.get('titulo', 'Nota sin título')
+        contenido = data.get('contenido')
+        
+        if not contenido:
+            return JsonResponse({'status': 'error', 'message': 'El contenido es requerido'}, status=400)
+            
+        comentario = ComentarioBiblioteca.objects.create(
+            biblioteca=biblioteca,
+            titulo=titulo,
+            contenido=contenido
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'comentario': {
+                'id': comentario.id,
+                'titulo': comentario.titulo,
+                'contenido': comentario.contenido,
+                'fecha': comentario.fecha.strftime('%d/%m/%Y %H:%M')
+            }
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
