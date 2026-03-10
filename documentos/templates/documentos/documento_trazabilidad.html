@@ -2013,7 +2013,10 @@
     }
 
     async function initPDF(url) {
-        const loadingTask = pdfjsLib.getDocument(url);
+        const loadingTask = pdfjsLib.getDocument({
+            url: url,
+            withCredentials: false
+        });
         currentPdf = await loadingTask.promise;
         totalPages = currentPdf.numPages;
         pageNum = 1;

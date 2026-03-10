@@ -467,11 +467,12 @@ def api_analizar_biblioteca_ia(request, bib_id):
             })
             
         payload = {
+            'mision_sistema': 'Tu misión siempre es analizar la información y responder protegiendo y promoviendo los intereses del IOP (Interventoría Óptima de Proyectos).',
             'biblioteca_id': biblioteca.id,
             'biblioteca_nombre': biblioteca.nombre,
             'biblioteca_descripcion': biblioteca.descripcion,
-            'comentarios_adicionales': comentarios_ia, # Insumo extra solicitado por usuario
-            'cadena_oficios': cadena # Se usa la misma estructura para simplificar en n8n
+            'comentarios_adicionales': comentarios_ia, # Notas e insumos manuales
+            'cadena_oficios': cadena 
         }
         
         import os
