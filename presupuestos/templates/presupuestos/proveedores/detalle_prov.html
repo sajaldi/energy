@@ -172,13 +172,7 @@
                                 L. {{ r.monto_pagado|floatformat:2|intcomma }}
                             </td>
                             <td class="amount-td" style="color: var(--danger);">
-                                {# Calculamos el pendiente: Total - Pagado #}
-                                {% with pagado=r.monto_pagado total=r.cr8ca_totalenarticulos %}
-                                    L. {{ total|add:pagado|floatformat:2|intcomma }} {# Nota: add con negativo no funciona directo en django tags de forma simple sin filtros custom, pero total - pagado #}
-                                    {% load mathfilters %}
-                                    {# Si no tengo mathfilters, usaré una aproximación o asumiré que el usuario quiere ver el saldo #}
-                                    {# Re-intentando con una lógica más segura para template estándar #}
-                                {% endwith %}
+                                {# Calculamos el pendiente: Total + (Pagado * -1) usando la propiedad del modelo #}
                                 L. {{ r.cr8ca_totalenarticulos|default:0|add:r.monto_pagado_negativo|floatformat:2|intcomma }}
                             </td>
                         </tr>
