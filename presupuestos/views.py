@@ -1568,24 +1568,14 @@ def exportar_repex_excel(request, pk):
 def _get_repex_cronograma_data(repex):
     """
     Genera datos matriciales de un plan REPEX agrupados por Familia del Activo.
-    Timespan de 2 años (24 meses): año del REPEX + año siguiente.
+    Timespan de 5 años: 2026, 2027, 2028, 2029, 2030.
     """
-    meses_base = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-                  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    anios_rango = [2026, 2027, 2028, 2029, 2030]
+    anios_nombres = [str(a) for a in anios_rango]
     
-    anio_actual = repex.anio
-    anio_siguiente = anio_actual + 1
-    
-    # Generar 24 nombres de meses con el año truncado
-    meses_nombres = []
-    for m in meses_base:
-        meses_nombres.append(f"{m} {str(anio_actual)[2:]}")
-    for m in meses_base:
-        meses_nombres.append(f"{m} {str(anio_siguiente)[2:]}")
-
-    # Ampliamos el filtro para cubrir ambos años
+    # Ampliamos el filtro para cubrir el rango de años solicitado
     items = repex.items.select_related('activo', 'activo__familia', 'modelo', 'modelo__categoria').filter(
-        Q(fecha_proyectada__year=anio_actual) | Q(fecha_proyectada__year=anio_siguiente) | Q(fecha_proyectada__isnull=True)
+        Q(fecha_proyectada__year__in=anios_rango) | Q(fecha_proyectada__isnull=True)
     ).all()
 
     # Agrupar por Familia > Categoría > Ubicación
@@ -1609,7 +1599,7 @@ def _get_repex_cronograma_data(repex):
                 'familia_nombre': familia_nombre,
                 'familia_id': familia_id,
                 'categorias': {},
-                'mensual': [0.0] * 24,
+                'mensual': [0.0] * 5, # Usamos 'mensual' pero ahora representa años
                 'total': 0.0,
             }
 
@@ -1626,7 +1616,7 @@ def _get_repex_cronograma_data(repex):
             familias[fam_key]['categorias'][cat_key] = {
                 'nombre': cat_nombre,
                 'ubicaciones': {},
-                'mensual': [0.0] * 24,
+                'mensual': [0.0] * 5,
                 'total': 0.0,
             }
 
@@ -1651,25 +1641,21 @@ def _get_repex_cronograma_data(repex):
             familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key] = {
                 'nombre': ubicacion_nombre,
                 'items': [],
-                'mensual': [0.0] * 24,
+                'mensual': [0.0] * 5,
                 'total': 0.0,
             }
 
-        # 4. Determinar monto mensual (horizonte 24 meses)
-        item_mensual = [0.0] * 24
+        # 4. Determinar monto anual (horizonte 5 años)
+        item_anual = [0.0] * 5
         costo = float(item.costo_reposicion or 0)
-        mes_proyectado = None
+        anio_proyectado = None
 
         if item.fecha_proyectada:
             fp = item.fecha_proyectada
-            if fp.year == anio_actual:
-                mes_idx = fp.month - 1
-                item_mensual[mes_idx] = costo
-                mes_proyectado = mes_idx + 1
-            elif fp.year == anio_siguiente:
-                mes_idx = 12 + (fp.month - 1)
-                item_mensual[mes_idx] = costo
-                mes_proyectado = mes_idx + 1
+            if fp.year in anios_rango:
+                anio_idx = anios_rango.index(fp.year)
+                item_anual[anio_idx] = costo
+                anio_proyectado = fp.year
 
         # Agregar Item
         familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['items'].append({
@@ -1678,14 +1664,14 @@ def _get_repex_cronograma_data(repex):
             'descripcion': item.descripcion or '',
             'prioridad': item.prioridad,
             'costo_reposicion': costo,
-            'mensual': item_mensual,
+            'mensual': item_anual, # Seguimos llamando 'mensual' para no romper el template excesivamente
             'total': costo,
-            'mes_proyectado': mes_proyectado,
+            'anio_proyectado': anio_proyectado,
         })
 
         # Acumular Subtotales
-        for i in range(24):
-            val = item_mensual[i]
+        for i in range(5):
+            val = item_anual[i]
             familias[fam_key]['mensual'][i] += val
             familias[fam_key]['categorias'][cat_key]['mensual'][i] += val
             familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['mensual'][i] += val
@@ -1694,7 +1680,7 @@ def _get_repex_cronograma_data(repex):
         familias[fam_key]['categorias'][cat_key]['total'] += costo
         familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['total'] += costo
 
-    # Convertir a listas ordenadas para el template
+    # Convertir a listas ordenadas
     familias_data = []
     for f_key in sorted(familias.keys(), key=lambda x: x[1]):
         f_val = familias[f_key]
@@ -1710,7 +1696,7 @@ def _get_repex_cronograma_data(repex):
         familias_data.append(f_val)
 
     # Totales globales
-    total_mensual = [0.0] * 24
+    total_anual = [0.0] * 5
     total_general = 0.0
     total_items = 0
 
@@ -1720,13 +1706,13 @@ def _get_repex_cronograma_data(repex):
             for ub in cat['ubicaciones']:
                 total_items += len(ub['items'])
         
-        for i in range(24):
-            total_mensual[i] += fam['mensual'][i]
+        for i in range(5):
+            total_anual[i] += fam['mensual'][i]
         total_general += fam['total']
 
+    from datetime import datetime
     return {
         'familias_data': familias_data,
-        'meses_nombres': meses_nombres,
         'total_mensual': total_mensual,
         'total_general': total_general,
         'total_items': total_items,
