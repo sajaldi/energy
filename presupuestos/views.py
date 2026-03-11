@@ -1266,8 +1266,9 @@ def exportar_repex_excel(request, pk):
         ws.title = f"Cronograma REPEX {repex.anio}"
         data = _get_repex_cronograma_data(repex)
         
-        # Title
-        ws.merge_cells(f'A1:{get_column_letter(14)}')
+        # Title (Col A to Z, since 1+1+24 = 26)
+        last_col = get_column_letter(26)
+        ws.merge_cells(f'A1:{last_col}')
         ws['A1'].value = f"REPEX {repex.anio} — {repex.nombre} (Cronograma Mensual)"
         ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='2C4A6E')
         ws.row_dimensions[1].height = 30
@@ -1285,15 +1286,15 @@ def exportar_repex_excel(request, pk):
         ws.row_dimensions[hr].height = 25
         ws.column_dimensions['A'].width = 45
         ws.column_dimensions['B'].width = 15
-        for col in range(3, 15):
-            ws.column_dimensions[get_column_letter(col)].width = 12
+        for col in range(3, 27):
+            ws.column_dimensions[get_column_letter(col)].width = 10
 
         for fam in data['familias_data']:
             # Familia row
             row_data = [fam['familia_nombre'].upper(), fam['total']] + fam['mensual']
             ws.append(row_data)
             r_fam = ws.max_row
-            for col in range(1, 15):
+            for col in range(1, 27): # Changed from 15 to 27
                 ws.cell(row=r_fam, column=col).fill = total_fill
                 ws.cell(row=r_fam, column=col).font = total_font
                 if col >= 2:
@@ -1306,7 +1307,7 @@ def exportar_repex_excel(request, pk):
                 ws.append(row_cat)
                 r_cat = ws.max_row
                 ws.cell(row=r_cat, column=1).alignment = Alignment(indent=2)
-                for col in range(1, 15):
+                for col in range(1, 27): # Changed from 15 to 27
                     ws.cell(row=r_cat, column=col).fill = cat_fill
                     ws.cell(row=r_cat, column=col).font = cat_font
                     if col >= 2:
@@ -1319,7 +1320,7 @@ def exportar_repex_excel(request, pk):
                     ws.append(row_ub)
                     r_ub = ws.max_row
                     ws.cell(row=r_ub, column=1).alignment = Alignment(indent=4)
-                    for col in range(1, 15):
+                    for col in range(1, 27): # Changed from 15 to 27
                         ws.cell(row=r_ub, column=col).font = Font(name='Calibri', bold=True, size=10)
                         if col >= 2:
                             ws.cell(row=r_ub, column=col).number_format = money_fmt
@@ -1330,7 +1331,7 @@ def exportar_repex_excel(request, pk):
                         ws.append(row_item)
                         ir = ws.max_row
                         ws.cell(row=ir, column=1).alignment = Alignment(indent=6)
-                        for col in range(1, 15):
+                        for col in range(1, 27): # Changed from 15 to 27
                             ws.cell(row=ir, column=col).font = item_font
                             ws.cell(row=ir, column=col).border = thin_border
                             if col >= 2:
@@ -1354,7 +1355,7 @@ def exportar_repex_excel(request, pk):
         total_row = ['TOTAL MENSUAL', data['total_general']] + data['total_mensual']
         ws.append(total_row)
         tr = ws.max_row
-        for col in range(1, 15):
+        for col in range(1, 27): # Changed from 15 to 27
             ws.cell(row=tr, column=col).fill = total_fill
             ws.cell(row=tr, column=col).font = total_font
             if col >= 2:
@@ -1567,12 +1568,25 @@ def exportar_repex_excel(request, pk):
 def _get_repex_cronograma_data(repex):
     """
     Genera datos matriciales de un plan REPEX agrupados por Familia del Activo.
-    Cada REPEXItem tiene un único costo_reposicion que se asigna al mes de fecha_proyectada.
+    Timespan de 2 años (24 meses): año del REPEX + año siguiente.
     """
-    meses_nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    meses_base = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    
+    anio_actual = repex.anio
+    anio_siguiente = anio_actual + 1
+    
+    # Generar 24 nombres de meses con el año truncado
+    meses_nombres = []
+    for m in meses_base:
+        meses_nombres.append(f"{m} {str(anio_actual)[2:]}")
+    for m in meses_base:
+        meses_nombres.append(f"{m} {str(anio_siguiente)[2:]}")
 
-    items = repex.items.select_related('activo', 'activo__familia', 'modelo', 'modelo__categoria').all()
+    # Ampliamos el filtro para cubrir ambos años
+    items = repex.items.select_related('activo', 'activo__familia', 'modelo', 'modelo__categoria').filter(
+        Q(fecha_proyectada__year=anio_actual) | Q(fecha_proyectada__year=anio_siguiente) | Q(fecha_proyectada__isnull=True)
+    ).all()
 
     # Agrupar por Familia > Categoría > Ubicación
     familias = {}
@@ -1595,7 +1609,7 @@ def _get_repex_cronograma_data(repex):
                 'familia_nombre': familia_nombre,
                 'familia_id': familia_id,
                 'categorias': {},
-                'mensual': [0.0] * 12,
+                'mensual': [0.0] * 24,
                 'total': 0.0,
             }
 
@@ -1612,7 +1626,7 @@ def _get_repex_cronograma_data(repex):
             familias[fam_key]['categorias'][cat_key] = {
                 'nombre': cat_nombre,
                 'ubicaciones': {},
-                'mensual': [0.0] * 12,
+                'mensual': [0.0] * 24,
                 'total': 0.0,
             }
 
@@ -1637,19 +1651,25 @@ def _get_repex_cronograma_data(repex):
             familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key] = {
                 'nombre': ubicacion_nombre,
                 'items': [],
-                'mensual': [0.0] * 12,
+                'mensual': [0.0] * 24,
                 'total': 0.0,
             }
 
-        # 4. Determinar monto mensual
-        item_mensual = [0.0] * 12
+        # 4. Determinar monto mensual (horizonte 24 meses)
+        item_mensual = [0.0] * 24
         costo = float(item.costo_reposicion or 0)
         mes_proyectado = None
 
-        if item.fecha_proyectada and item.fecha_proyectada.year == repex.anio:
-            mes_idx = item.fecha_proyectada.month - 1
-            item_mensual[mes_idx] = costo
-            mes_proyectado = mes_idx + 1
+        if item.fecha_proyectada:
+            fp = item.fecha_proyectada
+            if fp.year == anio_actual:
+                mes_idx = fp.month - 1
+                item_mensual[mes_idx] = costo
+                mes_proyectado = mes_idx + 1
+            elif fp.year == anio_siguiente:
+                mes_idx = 12 + (fp.month - 1)
+                item_mensual[mes_idx] = costo
+                mes_proyectado = mes_idx + 1
 
         # Agregar Item
         familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['items'].append({
@@ -1664,7 +1684,7 @@ def _get_repex_cronograma_data(repex):
         })
 
         # Acumular Subtotales
-        for i in range(12):
+        for i in range(24):
             val = item_mensual[i]
             familias[fam_key]['mensual'][i] += val
             familias[fam_key]['categorias'][cat_key]['mensual'][i] += val
@@ -1690,7 +1710,7 @@ def _get_repex_cronograma_data(repex):
         familias_data.append(f_val)
 
     # Totales globales
-    total_mensual = [0.0] * 12
+    total_mensual = [0.0] * 24
     total_general = 0.0
     total_items = 0
 
@@ -1700,7 +1720,7 @@ def _get_repex_cronograma_data(repex):
             for ub in cat['ubicaciones']:
                 total_items += len(ub['items'])
         
-        for i in range(12):
+        for i in range(24):
             total_mensual[i] += fam['mensual'][i]
         total_general += fam['total']
 
@@ -1731,8 +1751,11 @@ def api_update_repex_item(request):
 
             item = get_object_or_404(REPEXItem, pk=item_id)
             item.costo_reposicion = monto
-            if monto > 0 and 1 <= mes <= 12:
-                item.fecha_proyectada = date(item.repex.anio, mes, 1)
+            if monto > 0 and 1 <= mes <= 24:
+                if mes <= 12:
+                    item.fecha_proyectada = date(item.repex.anio, mes, 1)
+                else:
+                    item.fecha_proyectada = date(item.repex.anio + 1, mes - 12, 1)
             elif monto == 0:
                 item.fecha_proyectada = None
                 item.costo_reposicion = 0
