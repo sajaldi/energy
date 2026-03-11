@@ -318,6 +318,8 @@ def api_requisicion_detalle(request, pk):
         'total_estimado': float(requisicion.total_estimado),
         'total_pagado': float(requisicion.monto_pagado),
         'comentarios': requisicion.cr8ca_comentarios or "",
+        'partida_id': requisicion.partida_id,
+        'item_id': requisicion.item_presupuesto_id,
         'articulos': articulos,
         'pagos': pagos
     }
@@ -544,3 +546,56 @@ def detalle_proveedor(request, empresa_id):
         'total_pagado': pagos,
     }
     return render(request, 'presupuestos/proveedores/detalle_prov.html', context)
+
+@login_required
+def api_get_budget_selection_data(request):
+    """Retorna todas las partidas y facultativamente ítems de una partida."""
+    from .models import PartidaPresupuestaria, ItemPresupuesto
+    partida_id = request.GET.get('partida_id')
+    
+    partidas = PartidaPresupuestaria.objects.select_related('disciplina', 'presupuesto_anual').all().order_by('-presupuesto_anual__anio', 'disciplina__nombre')
+    
+    data_partidas = [
+        {
+            'id': p.id,
+            'nombre': str(p)
+        } for p in partidas
+    ]
+    
+    items = []
+    if partida_id:
+        items = list(ItemPresupuesto.objects.filter(partida_id=partida_id).values('id', 'concepto'))
+        
+    return JsonResponse({
+        'partidas': data_partidas,
+        'items': items
+    })
+
+@login_required
+def api_requisicion_update_budget(request):
+    """Actualiza la partida e ítem de una requisición."""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            requisicion_id = data.get('requisicion_id')
+            partida_id = data.get('partida_id')
+            item_id = data.get('item_id')
+            
+            from .models import Requisicion, PartidaPresupuestaria, ItemPresupuesto
+            requisicion = get_object_or_404(Requisicion, pk=requisicion_id)
+            
+            if partida_id:
+                requisicion.partida_id = partida_id
+            else:
+                requisicion.partida = None
+                
+            if item_id:
+                requisicion.item_presupuesto_id = item_id
+            else:
+                requisicion.item_presupuesto = None
+                
+            requisicion.save()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Solo POST'}, status=405)

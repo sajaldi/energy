@@ -62,4 +62,8 @@ urlpatterns = [
     path('api/repex/add-manual-item/', views.api_add_manual_repex_item, name='api_add_manual_repex_item'),
     path('repex/<int:pk>/exportar/', views.exportar_repex_excel, name='exportar_repex_excel'),
     path('requisiciones/documento-proxy/<int:doc_id>/', views.requisicion_documento_proxy, name='requisicion_documento_proxy'),
+    
+    # API Selección Presupuesto
+    path('api/requisicion/budget-selection-data/', views_pagos.api_get_budget_selection_data, name='api_get_budget_selection_data'),
+    path('api/requisicion/update-budget/', views_pagos.api_requisicion_update_budget, name='api_requisicion_update_budget'),
 ]

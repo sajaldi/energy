@@ -823,7 +823,9 @@
                         <td></td>
                     </tr>
                     {% for item in data.lista_items %}
-                    <tr data-item-id="{{ item.pk }}" class="item-row-group-{{ forloop.parentloop.counter }} {% if item.estatus == 'POSPUESTO' or item.estatus == 'RECHAZADO' %}row-item-warning{% endif %}">
+                    <tr data-item-id="{{ item.pk }}" 
+                        oncontextmenu="showRequisitionContextMenu(event, '{{ item.requisicion.pk }}')"
+                        class="item-row-group-{{ forloop.parentloop.counter }} {% if item.estatus == 'POSPUESTO' or item.estatus == 'RECHAZADO' %}row-item-warning{% endif %}">
                         <td>
                             <a href="javascript:void(0)" onclick="openRequisitionModal('{{ item.requisicion.pk }}')"
                                class="req-link" style="text-decoration: none;">
@@ -1233,7 +1235,58 @@
                     <tbody id="graph-modal-body"></tbody>
                 </table>
             </div>
+        <!-- Menú Contextual para Proveedores -->
+    <div id="provider-context-menu" class="context-menu">
+        <div class="context-menu-item" onclick="viewProviderDetails()">
+            <i class="ph ph-buildings"></i> Ver Detalles del Proveedor
         </div>
+    </div>
+
+    <!-- Menú Contextual para Requisiciones -->
+    <div id="requisition-context-menu" class="context-menu">
+        <div class="context-menu-item" onclick="viewRequisitionDetailsFromCtx()">
+            <i class="ph ph-eye"></i> Ver Requisición
+        </div>
+        <div class="context-menu-item" onclick="openBudgetEditModal()">
+            <i class="ph ph-pencil-line"></i> Editar Presupuesto
+        </div>
+    </div>
+
+    <!-- Modal para Editar Presupuesto de Requisición -->
+    <div id="budget-edit-modal" class="modal-overlay" onclick="closeBudgetModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <i class="ph ph-pencil-line" style="font-size: 1.5rem; color: var(--primary);"></i>
+                    <h2 style="margin: 0; font-size: 1.25rem;">Editar Clasificación</h2>
+                </div>
+                <button onclick="closeBudgetModal()"
+                    style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8;">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="budget-edit-form" onsubmit="saveBudgetEdit(event)">
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Partida Presupuestaria</label>
+                        <select id="edit-partida-id" class="form-control" onchange="loadBudgetItems(this.value)" style="width: 100%; padding: 0.75rem;">
+                            <option value="">Seleccione una partida...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Ítem de Presupuesto</label>
+                        <select id="edit-item-id" class="form-control" style="width: 100%; padding: 0.75rem;">
+                            <option value="">Seleccione un ítem...</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                        <button type="button" onclick="closeBudgetModal()" class="btn-detail" style="border: 1px solid #e2e8f0;">Cancelar</button>
+                        <button type="submit" class="btn-detail" style="background: var(--primary); color: white;">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     </div>
 
     <script>
@@ -1424,6 +1477,7 @@
         }
         // Context Menu Logic
         let currentCtxProviderId = null;
+        let currentCtxRequisitionId = null;
 
         function showContextMenu(e, providerId, name) {
             if (!providerId || providerId === 'None') return;
@@ -1436,7 +1490,6 @@
             let x = e.clientX;
             let y = e.clientY;
             
-            // Ajustar si está muy a la derecha o abajo
             const winW = window.innerWidth;
             const winH = window.innerHeight;
             if (x + 220 > winW) x -= 220;
@@ -1446,26 +1499,160 @@
             menu.style.top = `${y}px`;
             menu.style.display = 'block';
 
-            // Evitar que el clic en el menú cierre el menú inmediatamente
             e.stopPropagation();
+        }
+
+        function showRequisitionContextMenu(e, reqId) {
+            e.preventDefault();
+            currentCtxRequisitionId = reqId;
+            const menu = document.getElementById('requisition-context-menu');
+            
+            let x = e.clientX;
+            let y = e.clientY;
+            
+            const winW = window.innerWidth;
+            const winH = window.innerHeight;
+            if (x + 220 > winW) x -= 220;
+            if (y + 120 > winH) y -= 120;
+
+            menu.style.left = `${x}px`;
+            menu.style.top = `${y}px`;
+            menu.style.display = 'block';
+
+            e.stopPropagation();
+        }
+
+        function viewRequisitionDetailsFromCtx() {
+            if (currentCtxRequisitionId) {
+                openRequisitionModal(currentCtxRequisitionId);
+            }
+            hideContextMenus();
+        }
+
+        async function openBudgetEditModal() {
+            if (!currentCtxRequisitionId) return;
+            
+            const modal = document.getElementById('budget-edit-modal');
+            modal.style.display = 'flex';
+            
+            hideContextMenus();
+
+            // Cargar datos actuales y partidas iniciales
+            try {
+                // Primero obtener detalle de la requisición para saber qué tiene seleccionado
+                const resDetalle = await fetch(`/presupuestos/api/requisicion/${currentCtxRequisitionId}/detalle/`);
+                const reqData = await resDetalle.json();
+
+                const response = await fetch('/presupuestos/api/requisicion/budget-selection-data/');
+                const data = await response.json();
+                
+                const partidaSelect = document.getElementById('edit-partida-id');
+                partidaSelect.innerHTML = '<option value="">Seleccione una partida...</option>';
+                data.partidas.forEach(p => {
+                    const selected = p.id == reqData.partida_id ? 'selected' : '';
+                    partidaSelect.innerHTML += `<option value="${p.id}" ${selected}>${p.nombre}</option>`;
+                });
+
+                // Si tiene partida, cargar los ítems correspondientes
+                if (reqData.partida_id) {
+                    await loadBudgetItems(reqData.partida_id, reqData.item_id);
+                } else {
+                    document.getElementById('edit-item-id').innerHTML = '<option value="">Seleccione un ítem...</option>';
+                }
+            } catch (error) {
+                console.error('Error al cargar datos de presupuesto:', error);
+            }
+        }
+
+        async function loadBudgetItems(partidaId, selectedItemId = null) {
+            const itemSelect = document.getElementById('edit-item-id');
+            itemSelect.innerHTML = '<option value="">Cargando...</option>';
+            
+            if (!partidaId) {
+                itemSelect.innerHTML = '<option value="">Seleccione un ítem...</option>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/presupuestos/api/requisicion/budget-selection-data/?partida_id=${partidaId}`);
+                const data = await response.json();
+                
+                itemSelect.innerHTML = '<option value="">Seleccione un ítem...</option>';
+                data.items.forEach(i => {
+                    const selected = i.id == selectedItemId ? 'selected' : '';
+                    itemSelect.innerHTML += `<option value="${i.id}" ${selected}>${i.concepto}</option>`;
+                });
+            } catch (error) {
+                console.error('Error al cargar ítems:', error);
+                itemSelect.innerHTML = '<option value="">Error al cargar</option>';
+            }
+        }
+
+        async function saveBudgetEdit(e) {
+            e.preventDefault();
+            const partidaId = document.getElementById('edit-partida-id').value;
+            const itemId = document.getElementById('edit-item-id').value;
+
+            if (!currentCtxRequisitionId) return;
+
+            try {
+                const response = await fetch('/presupuestos/api/requisicion/update-budget/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        requisicion_id: currentCtxRequisitionId,
+                        partida_id: partidaId,
+                        item_id: itemId
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Actualizado!',
+                        text: 'La clasificación presupuestaria se ha guardado.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    closeBudgetModal();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                console.error('Error al guardar:', error);
+                Swal.fire('Error', 'No se pudo guardar la clasificación.', 'error');
+            }
         }
 
         function viewProviderDetails() {
             if (currentCtxProviderId) {
                 window.open(`/presupuestos/proveedores/${currentCtxProviderId}/detalle/`, '_blank');
             }
-            hideContextMenu();
+            hideContextMenus();
         }
 
-        function hideContextMenu() {
-            document.getElementById('provider-context-menu').style.display = 'none';
+        function hideContextMenus() {
+            document.querySelectorAll('.context-menu').forEach(m => m.style.display = 'none');
         }
 
-        // Cerrar menú al hacer clic fuera o scroll
-        document.addEventListener('click', hideContextMenu);
-        window.addEventListener('scroll', hideContextMenu, true);
+        function closeBudgetModal(e) {
+            if (!e || e.target === document.getElementById('budget-edit-modal')) {
+                document.getElementById('budget-edit-modal').style.display = 'none';
+            }
+        }
+
+        // Cerrar menús al hacer clic fuera o scroll
+        document.addEventListener('click', hideContextMenus);
+        window.addEventListener('scroll', hideContextMenus, true);
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') hideContextMenu();
+            if (e.key === 'Escape') {
+                hideContextMenus();
+                closeBudgetModal();
+            }
         });
 
         function toggleProviderGroup(index, headerRow) {
