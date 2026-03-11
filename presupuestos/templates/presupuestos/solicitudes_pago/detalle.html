@@ -789,18 +789,16 @@
                             {% if total > 0 %}
                             {% widthratio r.monto_pagado total 100 as p_paid %}
                             
-                            {# El segmento azul (solicitado) solo se muestra si el item NO está pagado aún #}
+                            {# Calculamos el p_req solo si no está PAGADO #}
                             {% if item.estatus != 'PAGADO' %}
                                 {% widthratio item.monto_solicitado total 100 as p_req %}
-                            {% else %}
-                                {% define 0 as p_req %}
                             {% endif %}
                             
                             <div class="progress-wrapper"
                                 title="Pagado RQ: {{ r.monto_pagado|currency }}&#10;Solicitado Item: {{ item.monto_solicitado|currency }}&#10;Total Est. RQ: {{ total|currency }}">
                                 <div class="mini-progress-bg">
                                     <div class="progress-segment segment-paid" style="width: {{ p_paid }}%"></div>
-                                    <div class="progress-segment segment-requested" style="width: {{ p_req }}%"></div>
+                                    <div class="progress-segment segment-requested" style="width: {{ p_req|default:0 }}%"></div>
                                 </div>
                                 <span style="font-size: 0.75rem; font-weight: 700; min-width: 35px; text-align: right;">
                                     {% if item.estatus != 'PAGADO' %}
