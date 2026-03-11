@@ -575,6 +575,11 @@ class Requisicion(models.Model):
         return sum(item.monto_solicitado for item in self.items_pago.filter(estatus='PAGADO'))
 
     @property
+    def monto_pagado_negativo(self):
+        """Monto pagado multiplicado por -1 para facilitar restas en templates usando |add"""
+        return self.monto_pagado * -1
+
+    @property
     def resumen_por_proveedor(self):
         """Retorna una lista de diccionarios con proveedor, sus artículos y el subtotal"""
         from mantenimiento.models import Empresa
