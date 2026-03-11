@@ -735,7 +735,12 @@
                             {{ proveedor }}
                         </td>
                         <td colspan="3" style="text-align: right; font-weight: 800; font-size: 1.1rem; padding-right: 3rem; color: var(--text-main);">
-                            {{ data.total|currency }}
+                            <div style="line-height: 1.2;">
+                                <div>{{ data.total|currency }}</div>
+                                <div style="font-size: 0.75rem; color: #10b981; font-weight: 600; margin-top: 2px;">
+                                    Valor Pagado: {{ data.total_pagado|currency }}
+                                </div>
+                            </div>
                         </td>
                         <td></td>
                     </tr>
@@ -782,16 +787,29 @@
                         <td style="text-align: center;">
                             {% with r=item.requisicion total=item.requisicion.cr8ca_totalenarticulos %}
                             {% if total > 0 %}
-                            {% widthratio r.monto_pagado total 100 as p1 %}
-                            {% widthratio item.monto_solicitado total 100 as p2 %}
+                            {% widthratio r.monto_pagado total 100 as p_paid %}
+                            
+                            {# El segmento azul (solicitado) solo se muestra si el item NO está pagado aún #}
+                            {% if item.estatus != 'PAGADO' %}
+                                {% widthratio item.monto_solicitado total 100 as p_req %}
+                            {% else %}
+                                {% define 0 as p_req %}
+                            {% endif %}
+                            
                             <div class="progress-wrapper"
-                                title="Pagado: {{ r.monto_pagado|currency }}&#10;Solicitado: {{ item.monto_solicitado|currency }}&#10;Total RQ: {{ total|currency }}">
+                                title="Pagado RQ: {{ r.monto_pagado|currency }}&#10;Solicitado Item: {{ item.monto_solicitado|currency }}&#10;Total Est. RQ: {{ total|currency }}">
                                 <div class="mini-progress-bg">
-                                    <div class="progress-segment segment-paid" style="width: {{ p1 }}%"></div>
-                                    <div class="progress-segment segment-requested" style="width: {{ p2 }}%"></div>
+                                    <div class="progress-segment segment-paid" style="width: {{ p_paid }}%"></div>
+                                    <div class="progress-segment segment-requested" style="width: {{ p_req }}%"></div>
                                 </div>
                                 <span style="font-size: 0.75rem; font-weight: 700; min-width: 35px; text-align: right;">
-                                    {% widthratio r.monto_pagado|add:item.monto_solicitado total 100 %}%
+                                    {% if item.estatus != 'PAGADO' %}
+                                        {# Si no está pagado, sumamos lo ya pagado + lo que este item solicita #}
+                                        {% widthratio r.monto_pagado|add:item.monto_solicitado total 100 %}%
+                                    {% else %}
+                                        {# Si ya está pagado, el r.monto_pagado ya incluye este item #}
+                                        {{ p_paid }}%
+                                    {% endif %}
                                 </span>
                             </div>
                             {% else %}

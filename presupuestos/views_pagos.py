@@ -109,9 +109,12 @@ def detalle_solicitud_pago(request, pk):
         # --- Datos para la tabla principal ---
         p_name = item.requisicion.proveedor.nombre if item.requisicion.proveedor else "Sin Proveedor"
         if p_name not in items_por_proveedor:
-            items_por_proveedor[p_name] = {'lista_items': [], 'total': 0}
+            items_por_proveedor[p_name] = {'lista_items': [], 'total': 0, 'total_pagado': 0}
         items_por_proveedor[p_name]['lista_items'].append(item)
         items_por_proveedor[p_name]['total'] += (item.monto_solicitado or 0)
+        
+        if item.estatus == 'PAGADO':
+            items_por_proveedor[p_name]['total_pagado'] += (item.monto_solicitado or 0)
 
         # --- Agregación para Gráficos ---
         prov_totals[p_name] = prov_totals.get(p_name, 0) + float(item.monto_solicitado or 0)
