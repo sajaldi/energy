@@ -130,6 +130,28 @@
             color: var(--text-main);
             font-size: 0.9rem;
             border-left: 4px solid var(--primary);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            user-select: none;
+        }
+
+        .provider-header:hover {
+            background-color: #e2e8f0;
+        }
+
+        .row-item-warning {
+            background-color: #fffbeb !important; /* Amarillo suave */
+        }
+
+        .toggle-icon {
+            display: inline-block;
+            transition: transform 0.2s;
+            font-size: 0.7rem;
+            color: var(--primary);
+        }
+
+        .collapsed-header .toggle-icon {
+            transform: rotate(-90deg);
         }
 
         .req-link {
@@ -729,8 +751,9 @@
                 </thead>
                 <tbody>
                     {% for proveedor, data in items_por_proveedor.items %}
-                    <tr class="provider-header">
+                    <tr class="provider-header" onclick="toggleProviderGroup({{ forloop.counter }}, this)">
                         <td colspan="5" style="padding: 0.75rem 1rem;">
+                            <span class="toggle-icon">▼</span>
                             <i class="ph ph-buildings" style="margin-right: 0.5rem; color: var(--primary);"></i>
                             {{ proveedor }}
                         </td>
@@ -747,7 +770,7 @@
                         <td></td>
                     </tr>
                     {% for item in data.lista_items %}
-                    <tr data-item-id="{{ item.pk }}">
+                    <tr data-item-id="{{ item.pk }}" class="item-row-group-{{ forloop.parentloop.counter }} {% if item.estatus == 'POSPUESTO' or item.estatus == 'RECHAZADO' %}row-item-warning{% endif %}">
                         <td>
                             <a href="javascript:void(0)" onclick="openRequisitionModal('{{ item.requisicion.pk }}')"
                                class="req-link" style="text-decoration: none;">
@@ -1346,7 +1369,22 @@
             }
             return cookieValue;
         }
-        const csrftoken = getCookie('csrftoken');
+        function toggleProviderGroup(index, headerRow) {
+            const rows = document.querySelectorAll(`.item-row-group-${index}`);
+            const isCollapsed = headerRow.classList.contains('collapsed-header');
+            
+            rows.forEach(row => {
+                row.style.display = isCollapsed ? '' : 'none';
+            });
+
+            if (isCollapsed) {
+                headerRow.classList.remove('collapsed-header');
+            } else {
+                headerRow.classList.add('collapsed-header');
+            }
+        }
+
+        // Configuración de CSRF para fetch
 
         function filterTable() {
             const input = document.getElementById('table-search');
