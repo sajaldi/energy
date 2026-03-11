@@ -1292,30 +1292,62 @@ def exportar_repex_excel(request, pk):
             # Familia row
             row_data = [fam['familia_nombre'].upper(), fam['total']] + fam['mensual']
             ws.append(row_data)
-            r = ws.max_row
+            r_fam = ws.max_row
             for col in range(1, 15):
-                ws.cell(row=r, column=col).fill = cat_fill
-                ws.cell(row=r, column=col).font = cat_font
+                ws.cell(row=r_fam, column=col).fill = total_fill
+                ws.cell(row=r_fam, column=col).font = total_font
                 if col >= 2:
-                    ws.cell(row=r, column=col).number_format = money_fmt
+                    ws.cell(row=r_fam, column=col).number_format = money_fmt
             
-            # Items
-            group_start = ws.max_row + 1
-            for item in fam['items']:
-                row_data = [item['activo_nombre'], item['total']] + item['mensual']
-                ws.append(row_data)
-                ir = ws.max_row
-                ws.cell(row=ir, column=1).alignment = Alignment(indent=2)
+            group_fam_start = ws.max_row + 1
+            for cat in fam['categorias']:
+                # Categoria Row
+                row_cat = [cat['nombre'].upper(), cat['total']] + cat['mensual']
+                ws.append(row_cat)
+                r_cat = ws.max_row
+                ws.cell(row=r_cat, column=1).alignment = Alignment(indent=2)
                 for col in range(1, 15):
-                    ws.cell(row=ir, column=col).font = item_font
-                    ws.cell(row=ir, column=col).border = thin_border
+                    ws.cell(row=r_cat, column=col).fill = cat_fill
+                    ws.cell(row=r_cat, column=col).font = cat_font
                     if col >= 2:
-                        ws.cell(row=ir, column=col).number_format = money_fmt
-                        ws.cell(row=ir, column=col).alignment = Alignment(horizontal='right')
-
-            group_end = ws.max_row
-            if group_end >= group_start:
-                ws.row_dimensions.group(group_start, group_end, outline_level=1, hidden=False)
+                        ws.cell(row=r_cat, column=col).number_format = money_fmt
+                
+                group_cat_start = ws.max_row + 1
+                for ub in cat['ubicaciones']:
+                    # Ubicacion Row
+                    row_ub = [ub['nombre'], ub['total']] + ub['mensual']
+                    ws.append(row_ub)
+                    r_ub = ws.max_row
+                    ws.cell(row=r_ub, column=1).alignment = Alignment(indent=4)
+                    for col in range(1, 15):
+                        ws.cell(row=r_ub, column=col).font = Font(name='Calibri', bold=True, size=10)
+                        if col >= 2:
+                            ws.cell(row=r_ub, column=col).number_format = money_fmt
+                    
+                    group_ub_start = ws.max_row + 1
+                    for item in ub['items']:
+                        row_item = [item['activo_nombre'], item['total']] + item['mensual']
+                        ws.append(row_item)
+                        ir = ws.max_row
+                        ws.cell(row=ir, column=1).alignment = Alignment(indent=6)
+                        for col in range(1, 15):
+                            ws.cell(row=ir, column=col).font = item_font
+                            ws.cell(row=ir, column=col).border = thin_border
+                            if col >= 2:
+                                ws.cell(row=ir, column=col).number_format = money_fmt
+                                ws.cell(row=ir, column=col).alignment = Alignment(horizontal='right')
+                    
+                    group_ub_end = ws.max_row
+                    if group_ub_end >= group_ub_start:
+                        ws.row_dimensions.group(group_ub_start, group_ub_end, outline_level=3, hidden=True)
+                
+                group_cat_end = ws.max_row
+                if group_cat_end >= group_cat_start:
+                    ws.row_dimensions.group(group_cat_start, group_cat_end, outline_level=2, hidden=True)
+            
+            group_fam_end = ws.max_row
+            if group_fam_end >= group_fam_start:
+                ws.row_dimensions.group(group_fam_start, group_fam_end, outline_level=1, hidden=True)
 
         # Totales mensuales
         ws.append([])
@@ -1542,9 +1574,10 @@ def _get_repex_cronograma_data(repex):
 
     items = repex.items.select_related('activo', 'activo__familia', 'modelo', 'modelo__categoria').all()
 
-    # Agrupar por Familia
+    # Agrupar por Familia > Categoría > Ubicación
     familias = {}
     for item in items:
+        # 1. Familia
         if item.activo:
             familia_nombre = item.activo.familia.nombre if item.activo.familia else "Sin Familia"
             familia_id = item.activo.familia.id if item.activo.familia else 0
@@ -1554,20 +1587,61 @@ def _get_repex_cronograma_data(repex):
                 familia_id = item.modelo.categoria.id
             else:
                 familia_nombre = item.categoria_manual or "Ítems Manuales"
-                familia_id = -1  # ID especial para manuales
-
-        key = (familia_id, familia_nombre)
-
-        if key not in familias:
-            familias[key] = {
+                familia_id = -1
+        
+        fam_key = (familia_id, familia_nombre)
+        if fam_key not in familias:
+            familias[fam_key] = {
                 'familia_nombre': familia_nombre,
                 'familia_id': familia_id,
+                'categorias': {},
+                'mensual': [0.0] * 12,
+                'total': 0.0,
+            }
+
+        # 2. Categoría (Ruta completa o categoría principal)
+        if item.activo and item.activo.modelo and item.activo.modelo.categoria:
+            cat_nombre = item.activo.modelo.categoria.nombre
+        elif item.modelo and item.modelo.categoria:
+            cat_nombre = item.modelo.categoria.nombre
+        else:
+            cat_nombre = item.categoria_manual or "Sin Categoría"
+        
+        cat_key = cat_nombre
+        if cat_key not in familias[fam_key]['categorias']:
+            familias[fam_key]['categorias'][cat_key] = {
+                'nombre': cat_nombre,
+                'ubicaciones': {},
+                'mensual': [0.0] * 12,
+                'total': 0.0,
+            }
+
+        # 3. Ubicación
+        if item.activo and item.activo.ubicacion:
+            edificio_obj = item.activo.ubicacion
+            visited_ub = {edificio_obj.id}
+            found_edificio = edificio_obj if edificio_obj.tipo == 'EDIFICIO' else None
+            temp_curr = edificio_obj.padre
+            while temp_curr:
+                if temp_curr.id in visited_ub: break
+                visited_ub.add(temp_curr.id)
+                if temp_curr.tipo == 'EDIFICIO':
+                    found_edificio = temp_curr
+                temp_curr = temp_curr.padre
+            ubicacion_nombre = found_edificio.nombre if found_edificio else edificio_obj.get_root().nombre
+        else:
+            ubicacion_nombre = item.ubicacion_manual or "Sin Ubicación"
+
+        ub_key = ubicacion_nombre
+        if ub_key not in familias[fam_key]['categorias'][cat_key]['ubicaciones']:
+            familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key] = {
+                'nombre': ubicacion_nombre,
                 'items': [],
                 'mensual': [0.0] * 12,
                 'total': 0.0,
             }
 
-        # Determinar en qué mes cae este item
+        # 4. Determinar monto mensual
         item_mensual = [0.0] * 12
         costo = float(item.costo_reposicion or 0)
         mes_proyectado = None
@@ -1576,29 +1650,44 @@ def _get_repex_cronograma_data(repex):
             mes_idx = item.fecha_proyectada.month - 1
             item_mensual[mes_idx] = costo
             mes_proyectado = mes_idx + 1
-        elif item.fecha_proyectada is None and costo > 0:
-            # Sin fecha, mostrar sin asignar a ningún mes (total suelto)
-            pass
 
-        familias[key]['items'].append({
+        # Agregar Item
+        familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['items'].append({
             'id': item.id,
             'activo_nombre': item.display_nombre,
             'descripcion': item.descripcion or '',
             'prioridad': item.prioridad,
             'costo_reposicion': costo,
-            'costo_original': float(item.costo_original or 0),
             'mensual': item_mensual,
             'total': costo,
             'mes_proyectado': mes_proyectado,
         })
 
-        # Acumular en familia
+        # Acumular Subtotales
         for i in range(12):
-            familias[key]['mensual'][i] += item_mensual[i]
-        familias[key]['total'] += costo
+            val = item_mensual[i]
+            familias[fam_key]['mensual'][i] += val
+            familias[fam_key]['categorias'][cat_key]['mensual'][i] += val
+            familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['mensual'][i] += val
+        
+        familias[fam_key]['total'] += costo
+        familias[fam_key]['categorias'][cat_key]['total'] += costo
+        familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['total'] += costo
 
-    # Ordenar familias por nombre
-    familias_data = sorted(familias.values(), key=lambda x: x['familia_nombre'])
+    # Convertir a listas ordenadas para el template
+    familias_data = []
+    for f_key in sorted(familias.keys(), key=lambda x: x[1]):
+        f_val = familias[f_key]
+        cats_list = []
+        for c_key in sorted(f_val['categorias'].keys()):
+            c_val = f_val['categorias'][c_key]
+            ubs_list = []
+            for u_key in sorted(c_val['ubicaciones'].keys()):
+                ubs_list.append(c_val['ubicaciones'][u_key])
+            c_val['ubicaciones'] = ubs_list
+            cats_list.append(c_val)
+        f_val['categorias'] = cats_list
+        familias_data.append(f_val)
 
     # Totales globales
     total_mensual = [0.0] * 12
@@ -1606,7 +1695,11 @@ def _get_repex_cronograma_data(repex):
     total_items = 0
 
     for fam in familias_data:
-        total_items += len(fam['items'])
+        # Contar items en todos los niveles
+        for cat in fam['categorias']:
+            for ub in cat['ubicaciones']:
+                total_items += len(ub['items'])
+        
         for i in range(12):
             total_mensual[i] += fam['mensual'][i]
         total_general += fam['total']

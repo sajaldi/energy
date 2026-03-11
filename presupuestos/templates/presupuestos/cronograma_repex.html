@@ -207,13 +207,12 @@
         background-color: var(--partition-hover);
     }
 
-    .row-item {
-        background-color: #ffffff;
+    .row-item, .row-partition[class*="group-"] {
         display: none;
     }
 
-    .row-item.visible {
-        display: table-row;
+    .row-item.visible, .row-partition.visible {
+        display: table-row !important;
     }
 
     .row-item:hover td {
@@ -539,47 +538,81 @@
                 </thead>
                 <tbody>
                     {% for fam in familias_data %}
-                    <tr class="row-partition" onclick="toggleRows('items-{{ forloop.counter }}', this)">
-                        <td class="sticky-col">
+                    {% with fam_idx=forloop.counter %}
+                    <tr class="row-partition" onclick="toggleRows('fam-{{ fam_idx }}', this)" style="background-color: var(--header-bg); color: white;">
+                        <td class="sticky-col" style="background-color: inherit !important; color: inherit !important;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s;">▶</span>
-                                <ion-icon name="layers-outline"></ion-icon>
-                                {{ fam.familia_nombre }}
-                                <span style="font-size: 0.7rem; color: #6b7280; margin-left: 4px;">({{ fam.items|length }})</span>
+                                <ion-icon name="folder-open-outline"></ion-icon>
+                                <strong>{{ fam.familia_nombre|upper }}</strong>
                             </div>
                         </td>
                         {% for val in fam.mensual %}
-                        <td>
-                            {% if val > 0 %}
-                            <span class="val-positive">{{ val|floatformat:2 }}</span>
-                            {% else %}
-                            <span class="val-none">-</span>
-                            {% endif %}
-                        </td>
+                        <td style="font-weight: 700;">{{ val|floatformat:2 }}</td>
                         {% endfor %}
-                        <td style="font-weight: 700; color: #2c4a6e;">{{ fam.total|floatformat:2 }}</td>
+                        <td style="font-weight: 800;">{{ fam.total|floatformat:2 }}</td>
                     </tr>
 
-                    {% for item in fam.items %}
-                    <tr class="row-item group-items-{{ forloop.parentloop.counter }}">
-                        <td class="sticky-col" style="padding-left: 48px !important; color: var(--text-muted); font-size: 0.8rem;">
+                    {% for cat in fam.categorias %}
+                    {% with cat_idx=forloop.counter %}
+                    <tr class="row-partition group-fam-{{ fam_idx }}" 
+                        data-parent="fam-{{ fam_idx }}"
+                        onclick="toggleRows('cat-{{ fam_idx }}-{{ cat_idx }}', this)" 
+                        style="background-color: var(--partition-bg); display: none;">
+                        <td class="sticky-col" style="padding-left: 40px !important;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="toggle-icon l2-icon" style="font-size: 0.6rem; transition: transform 0.2s;">▶</span>
+                                <ion-icon name="layers-outline" style="font-size: 0.9rem;"></ion-icon>
+                                {{ cat.nombre }}
+                            </div>
+                        </td>
+                        {% for val in cat.mensual %}
+                        <td style="font-weight: 600;">{{ val|floatformat:2 }}</td>
+                        {% endfor %}
+                        <td style="font-weight: 700;">{{ cat.total|floatformat:2 }}</td>
+                    </tr>
+
+                    {% for ub in cat.ubicaciones %}
+                    {% with ub_idx=forloop.counter %}
+                    <tr class="row-partition group-fam-{{ fam_idx }} group-cat-{{ fam_idx }}-{{ cat_idx }}" 
+                        data-parent="cat-{{ fam_idx }}-{{ cat_idx }}"
+                        onclick="toggleRows('ub-{{ fam_idx }}-{{ cat_idx }}-{{ ub_idx }}', this)" 
+                        style="background-color: #f1f5f9; color: var(--text-muted); display: none; font-size: 0.8rem;">
+                        <td class="sticky-col" style="padding-left: 60px !important;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="toggle-icon l3-icon" style="font-size: 0.55rem; transition: transform 0.2s;">▶</span>
+                                <ion-icon name="business-outline" style="font-size: 0.85rem;"></ion-icon>
+                                {{ ub.nombre }}
+                            </div>
+                        </td>
+                        {% for val in ub.mensual %}
+                        <td>{{ val|floatformat:2 }}</td>
+                        {% endfor %}
+                        <td style="font-weight: 600;">{{ ub.total|floatformat:2 }}</td>
+                    </tr>
+
+                    {% for item in ub.items %}
+                    <tr class="row-item group-fam-{{ fam_idx }} group-cat-{{ fam_idx }}-{{ cat_idx }} group-ub-{{ fam_idx }}-{{ cat_idx }}-{{ ub_idx }}" 
+                        data-parent="ub-{{ fam_idx }}-{{ cat_idx }}-{{ ub_idx }}"
+                        style="display: none;">
+                        <td class="sticky-col" style="padding-left: 85px !important; color: var(--text-muted); font-size: 0.75rem;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
                                     <span>{{ item.activo_nombre }}</span>
-                                    <span class="priority-badge priority-{{ item.prioridad }}">{{ item.prioridad }}</span>
+                                    <span class="priority-badge priority-{{ item.prioridad }}" style="font-size: 0.6rem;">{{ item.prioridad }}</span>
                                 </div>
-                                 <div style="display: flex; gap: 4px;">
-                                    <button onclick="deleteRepexItem('{{ item.id }}', '{{ item.activo_nombre|escapejs }}')"
-                                        class="delete-repex-btn"
-                                        style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;"
-                                        title="Quitar del Plan">
-                                        <ion-icon name="trash-bin-outline" style="font-size: 1.1rem;"></ion-icon>
-                                    </button>
-                                </div>
+                                <button onclick="deleteRepexItem('{{ item.id }}', '{{ item.activo_nombre|escapejs }}')"
+                                    class="delete-repex-btn"
+                                    style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 2px;">
+                                    <ion-icon name="trash-bin-outline" style="font-size: 1rem;"></ion-icon>
+                                </button>
                             </div>
                         </td>
                         {% for val in item.mensual %}
-                        <td class="editable-cell" data-item-id="{{ item.id }}" data-month="{{ forloop.counter }}"
+                        <td class="editable-cell" 
+                            data-item-id="{{ item.id }}" 
+                            data-month="{{ forloop.counter }}"
+                            data-total="{{ item.total|stringformat:'.2f' }}"
                             contenteditable="true" onblur="saveRepexMonto(this)" onkeydown="handleEnter(event, this)">
                             {{ val|floatformat:2 }}
                         </td>
@@ -589,6 +622,11 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    {% endwith %}
+                    {% endfor %}
+                    {% endwith %}
+                    {% endfor %}
+                    {% endwith %}
                     {% endfor %}
 
                     <tr class="total-row">
@@ -1015,15 +1053,28 @@
     }
 
     function toggleRows(group, header, skipSave = false) {
-        const rows = document.querySelectorAll('.group-' + group);
         const icon = header.querySelector('.toggle-icon');
-        const isOpen = rows.length > 0 && rows[0].classList.contains('visible');
+        const isOpen = icon.style.transform === 'rotate(90deg)';
         const newState = !isOpen;
 
-        rows.forEach(r => r.classList.toggle('visible', newState));
-        if (icon) {
-            icon.style.transform = newState ? 'rotate(90deg)' : 'rotate(0deg)';
+        if (newState) {
+            // Expanding: Show direct children only
+            document.querySelectorAll(`[data-parent="${group}"]`).forEach(r => {
+                r.classList.add('visible');
+            });
+            icon.style.transform = 'rotate(90deg)';
+        } else {
+            // Collapsing: Hide all children and sub-children
+            const descendants = document.querySelectorAll('.group-' + group);
+            descendants.forEach(r => {
+                r.classList.remove('visible');
+                // Also reset their icons if they are parents
+                const childIcon = r.querySelector('.toggle-icon');
+                if (childIcon) childIcon.style.transform = 'rotate(0deg)';
+            });
+            icon.style.transform = 'rotate(0deg)';
         }
+        
         if (!skipSave) saveToggleState('c-' + group, newState);
     }
 
@@ -1073,31 +1124,28 @@
             const prefix = key.substring(0, 2); // 'c-', 'd-', 'a-', 'r-'
             const group = key.substring(2);
             
-            let selector = '';
-            let toggleFn = null;
             let headerSelector = '';
-
             if (prefix === 'c-') {
-                selector = '.group-' + group;
                 headerSelector = `tr[onclick*="toggleRows('${group}'"]`;
             } else if (prefix === 'd-') {
-                selector = '.det-group-' + group;
                 headerSelector = `tr[onclick*="toggleDetailRows('${group}'"]`;
             } else if (prefix === 'a-') {
-                selector = '.apu-group-' + group;
                 headerSelector = `tr[onclick*="toggleApuRows('${group}'"]`;
             } else if (prefix === 'r-') {
-                selector = '.res-group-' + group;
                 headerSelector = `tr[onclick*="toggleResumenRows('${group}'"]`;
             }
 
-            if (selector) {
-                const rows = document.querySelectorAll(selector);
-                rows.forEach(r => r.classList.add('visible'));
+            if (headerSelector) {
                 const header = document.querySelector(headerSelector);
                 if (header) {
                     const icon = header.querySelector('.toggle-icon');
                     if (icon) icon.style.transform = 'rotate(90deg)';
+                    
+                    // Show only direct children for this group
+                    // This works recursively because if a child is also a saved-open parent, 
+                    // its own iteration will show its children.
+                    let directSelector = `[data-parent="${group}"]`;
+                    document.querySelectorAll(directSelector).forEach(r => r.classList.add('visible'));
                 }
             }
         });
@@ -1106,16 +1154,46 @@
     // ── Save monto (inline edit) ──
     function parseLocalFloat(str) {
         if (!str) return 0;
-        str = str.toString().trim().replace(/,/g, '');
-        const val = parseFloat(str);
+        let s = str.toString().trim();
+        
+        // Detectar si el formato es europeo (1.234,56)
+        // Si hay una coma y un punto, y el punto está antes que la coma
+        if (s.includes(',') && s.includes('.') && s.indexOf('.') < s.indexOf(',')) {
+            s = s.replace(/\./g, '').replace(',', '.');
+        } 
+        // Si solo hay una coma y parece ser el separador decimal (ej. 1234,56)
+        else if (s.includes(',') && !s.includes('.')) {
+            s = s.replace(',', '.');
+        }
+        // Formato estándar/US (1,234.56) - quitar comas
+        else {
+            s = s.replace(/,/g, '');
+        }
+
+        const val = parseFloat(s);
         return isNaN(val) ? 0 : val;
     }
 
     function saveRepexMonto(cell) {
         const itemId = cell.dataset.itemId;
         const month = cell.dataset.month;
-        const rawValue = cell.innerText.trim();
-        const monto = parseLocalFloat(rawValue);
+        const itemTotal = parseFloat(cell.dataset.total || 0);
+        let rawValue = cell.innerText.trim();
+        let monto = 0;
+
+        // Atajo *N (Multiplicar total por N)
+        if (rawValue.startsWith('*')) {
+            const factorStr = rawValue.substring(1).trim();
+            const factor = factorStr === '' ? 1 : parseFloat(factorStr);
+            if (!isNaN(factor)) {
+                monto = itemTotal * factor;
+                cell.innerText = monto.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            } else {
+                monto = parseLocalFloat(rawValue);
+            }
+        } else {
+            monto = parseLocalFloat(rawValue);
+        }
 
         fetch('{% url "presupuestos:api_update_repex_item" %}', {
             method: 'POST',
