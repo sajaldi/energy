@@ -714,9 +714,19 @@ class CachedManyToManyCodeWidget(ManyToManyWidget):
             return self.model.objects.none()
         codes = [c.strip() for c in str(value).split(',') if c.strip()]
         if self._cache is not None:
-            pks = [self._cache[c].pk for c in codes if c in self._cache]
+            pks = []
+            for c in codes:
+                c_norm = c.lower()
+                if c_norm in self._cache:
+                    pks.append(self._cache[c_norm].pk)
             return self.model.objects.filter(pk__in=pks)
-        return self.model.objects.filter(codigo_interno__in=codes)
+        
+        # Fallback query si no hay caché
+        from django.db.models import Q
+        q_objs = Q()
+        for c in codes:
+            q_objs |= Q(codigo_interno__iexact=c) | Q(nombre__iexact=c)
+        return self.model.objects.filter(q_objs)
 
     def render(self, value, obj=None):
         if not value:
@@ -965,12 +975,18 @@ class OrdenTrabajoResource(ProgressResourceMixin, resources.ModelResource):
             ubicacion_field.widget.set_cache(dict(ubicaciones_by_name), parent_map)
         print(f"[DEBUG] [Import OT]   Ubicaciones cacheadas: {sum(len(v) for v in ubicaciones_by_name.values())}")
 
-        # 4. Caché de Activos (codigo_interno -> Activo)
-        activo_cache = {a.codigo_interno: a for a in Activo.objects.only('id', 'codigo_interno') if a.codigo_interno}
+        # 4. Caché de Activos (codigo_interno -> Activo AND nombre -> Activo)
+        activo_cache = {}
+        for a in Activo.objects.only('id', 'codigo_interno', 'nombre'):
+            if a.codigo_interno:
+                activo_cache[a.codigo_interno.lower().strip()] = a
+            if a.nombre:
+                activo_cache[a.nombre.lower().strip()] = a
+                
         activos_field = self.fields.get('activos_codigos')
         if activos_field and hasattr(activos_field.widget, 'set_cache'):
             activos_field.widget.set_cache(activo_cache)
-        print(f"[DEBUG] [Import OT]   Activos cacheados: {len(activo_cache)}")
+        print(f"[DEBUG] [Import OT]   Activos cacheados (por código y nombre): {len(activo_cache)}")
 
         # 5. Caché de OTs existentes (codigo_de_orden -> OrdenTrabajo) para get_instance
         self._ot_cache = {}
@@ -993,6 +1009,23 @@ class OrdenTrabajoResource(ProgressResourceMixin, resources.ModelResource):
         export_order = ('id', 'codigo_de_orden', 'tipo', 'prioridad', 'rutina_codigo', 'ubicacion_nombre', 
                         'tecnico_usuario', 'activos_codigos', 'inicio_programado', 'fin_programado', 
                         'descripcion_corta', 'descripcion_detallada', 'estado', 'notas')
+
+    def import_field(self, field, obj, row, is_m2m=False, **kwargs):
+        """
+        Sparse Update: No sobrescribir con valores vacíos para OTs.
+        """
+        column_name = field.column_name
+        
+        # El código base siempre debe evaluarse para matching
+        if column_name in ['id', 'codigo_de_orden']:
+            return super().import_field(field, obj, row, is_m2m, **kwargs)
+
+        if column_name in row:
+            value = row.get(column_name)
+            if value is None or str(value).strip() == '':
+                return # No hacer nada si viene vacío (Sparse Update)
+        
+        super().import_field(field, obj, row, is_m2m, **kwargs)
 
     def before_import_row(self, row, **kwargs):
         """Limpieza de datos y cálculo automático de campos faltantes (optimizado)"""
