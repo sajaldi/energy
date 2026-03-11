@@ -279,6 +279,45 @@
             background-color: #f59e0b; /* Ambar/Naranja para alto contraste */
         }
 
+        /* Context Menu Styles */
+        .context-menu {
+            position: fixed;
+            z-index: 10000;
+            width: 220px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            padding: 5px 0;
+            display: none;
+            animation: fadeIn 0.15s ease-out;
+        }
+
+        .context-menu-item {
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #475569;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .context-menu-item:hover {
+            background: #f1f5f9;
+            color: var(--primary);
+        }
+
+        .context-menu-item i {
+            font-size: 1.1rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         /* Modal Styles */
         .modal-overlay {
             position: fixed;
@@ -644,6 +683,18 @@
 
 <body>
 
+    <!-- Context Menu -->
+    <div id="provider-context-menu" class="context-menu">
+        <div class="context-menu-item" onclick="viewProviderDetails()">
+            <i class="ph ph-user-focus"></i>
+            <span>Ver Detalles del Proveedor</span>
+        </div>
+        <div class="context-menu-item" style="color: #94a3b8; cursor: default;">
+            <i class="ph ph-copy"></i>
+            <span id="ctx-copy-name">Copiar Nombre</span>
+        </div>
+    </div>
+
     <div class="detail-container">
         <!-- Header / Navigation -->
         <div
@@ -751,7 +802,9 @@
                 </thead>
                 <tbody>
                     {% for proveedor, data in items_por_proveedor.items %}
-                    <tr class="provider-header" onclick="toggleProviderGroup({{ forloop.counter }}, this)">
+                    <tr class="provider-header" 
+                        onclick="toggleProviderGroup({{ forloop.counter }}, this)"
+                        oncontextmenu="showContextMenu(event, '{{ data.id }}', '{{ proveedor|escapejs }}')">
                         <td colspan="5" style="padding: 0.75rem 1rem;">
                             <span class="toggle-icon">▼</span>
                             <i class="ph ph-buildings" style="margin-right: 0.5rem; color: var(--primary);"></i>
@@ -1369,6 +1422,52 @@
             }
             return cookieValue;
         }
+        // Context Menu Logic
+        let currentCtxProviderId = null;
+
+        function showContextMenu(e, providerId, name) {
+            if (!providerId || providerId === 'None') return;
+            e.preventDefault();
+            
+            currentCtxProviderId = providerId;
+            const menu = document.getElementById('provider-context-menu');
+            
+            // Posicionamiento inteligente
+            let x = e.clientX;
+            let y = e.clientY;
+            
+            // Ajustar si está muy a la derecha o abajo
+            const winW = window.innerWidth;
+            const winH = window.innerHeight;
+            if (x + 220 > winW) x -= 220;
+            if (y + 100 > winH) y -= 100;
+
+            menu.style.left = `${x}px`;
+            menu.style.top = `${y}px`;
+            menu.style.display = 'block';
+
+            // Evitar que el clic en el menú cierre el menú inmediatamente
+            e.stopPropagation();
+        }
+
+        function viewProviderDetails() {
+            if (currentCtxProviderId) {
+                window.open(`/presupuestos/proveedores/${currentCtxProviderId}/detalle/`, '_blank');
+            }
+            hideContextMenu();
+        }
+
+        function hideContextMenu() {
+            document.getElementById('provider-context-menu').style.display = 'none';
+        }
+
+        // Cerrar menú al hacer clic fuera o scroll
+        document.addEventListener('click', hideContextMenu);
+        window.addEventListener('scroll', hideContextMenu, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') hideContextMenu();
+        });
+
         function toggleProviderGroup(index, headerRow) {
             const rows = document.querySelectorAll(`.item-row-group-${index}`);
             const isCollapsed = headerRow.classList.contains('collapsed-header');

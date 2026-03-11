@@ -110,7 +110,12 @@ def detalle_solicitud_pago(request, pk):
         # --- Datos para la tabla principal ---
         p_name = item.requisicion.proveedor.nombre if item.requisicion.proveedor else "Sin Proveedor"
         if p_name not in items_por_proveedor:
-            items_por_proveedor[p_name] = {'lista_items': [], 'total': 0, 'total_pagado': 0}
+            items_por_proveedor[p_name] = {
+                'id': item.requisicion.proveedor.id if item.requisicion.proveedor else None,
+                'lista_items': [], 
+                'total': 0, 
+                'total_pagado': 0
+            }
         items_por_proveedor[p_name]['lista_items'].append(item)
         items_por_proveedor[p_name]['total'] += (item.monto_solicitado or 0)
         
