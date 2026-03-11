@@ -1,4 +1,6 @@
 from django.shortcuts import render, get_object_or_404
+from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Q, Count, OuterRef, Subquery, DecimalField
@@ -15,6 +17,7 @@ from openpyxl.utils import get_column_letter
 import json
 import os
 
+@staff_member_required
 @login_required
 def dashboard_pagos(request):
     """
@@ -56,6 +59,7 @@ def dashboard_pagos(request):
     }
 
     context = {
+        **admin.site.each_context(request),
         'solicitudes': solicitudes,
         'metrics': {
             'total_count': total_solicitudes,
@@ -67,10 +71,11 @@ def dashboard_pagos(request):
         'conteo_estados': conteo_estados,
         'current_filter': estado_filter,
         'search_query': search_query,
-        'today': datetime.now()
+        'today': datetime.now(),
+        'title': 'Dashboard de Pagos',
     }
 
-    return render(request, 'presupuestos/solicitudes_pago/dashboard.html', context)
+    return render(request, 'admin/presupuestos/solicitudpago/dashboard.html', context)
 
 @login_required
 def detalle_solicitud_pago(request, pk):

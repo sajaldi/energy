@@ -596,6 +596,14 @@ JAZZMIN_SETTINGS = {
                 "permissions": ["documentos.add_documento"],
             },
         ],
+        "presupuestos": [
+            {
+                "name": "📊 Dashboard de Pagos",
+                "url": "/presupuestos/pagos/dashboard/",
+                "icon": "fas fa-chart-pie",
+                "permissions": ["presupuestos.view_solicitudpago"],
+            },
+        ],
     },
     "changeform_format": "horizontal_tabs",
 }
