@@ -3,7 +3,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Q, Count, OuterRef, Subquery, DecimalField
 from django.db.models.functions import Coalesce
-from .models import SolicitudPago
+from .models import SolicitudPago, Requisicion, ItemSolicitudPago
+from mantenimiento.models import Empresa
 from datetime import datetime
 from django.http import HttpResponse, JsonResponse
 from django.core.files.storage import default_storage
@@ -482,3 +483,54 @@ def import_items_pago_progress(request):
     cache_key = f"import_items_pago_progress_{request.user.id}"
     data = cache.get(cache_key)
     return JsonResponse(data or {'status': 'waiting'})
+
+@login_required
+def dashboard_proveedores(request):
+    """
+    Lista de proveedores que tienen requisiciones, con métricas resumidas.
+    """
+    search_query = request.GET.get('q', '')
+    
+    # Proveedores con al menos una requisición
+    proveedores = Empresa.objects.annotate(
+        total_requisiciones=Count('requisiciones_asignadas'),
+        monto_total_solicitado=Sum('requisiciones_asignadas__cr8ca_totalenarticulos')
+    ).filter(total_requisiciones__gt=0).order_by('-monto_total_solicitado')
+
+    if search_query:
+        proveedores = proveedores.filter(nombre__icontains=search_query)
+
+    context = {
+        'proveedores': proveedores,
+        'search_query': search_query,
+    }
+    return render(request, 'presupuestos/proveedores/dashboard_prov.html', context)
+
+@login_required
+def detalle_proveedor(request, empresa_id):
+    """
+    Detalle estadístico de un proveedor específico.
+    """
+    empresa = get_object_or_404(Empresa, pk=empresa_id)
+    
+    requisiciones = empresa.requisiciones_asignadas.all().order_by('-fecha')
+    
+    # Requisiciones Pendientes (Estado PENDIENTE)
+    pendientes = requisiciones.filter(estado_requisicion='PENDIENTE')
+    count_pendientes = pendientes.count()
+    monto_pendiente = pendientes.aggregate(total=Sum('cr8ca_totalenarticulos'))['total'] or 0
+    
+    # Pagos realizados (Items de Solicitud de Pago con estatus PAGADO)
+    pagos = ItemSolicitudPago.objects.filter(
+        requisicion__proveedor=empresa,
+        estatus='PAGADO'
+    ).aggregate(total=Sum('monto_solicitado'))['total'] or 0
+
+    context = {
+        'empresa': empresa,
+        'requisiciones': requisiciones[:10],  # Últimas 10
+        'count_pendientes': count_pendientes,
+        'monto_pendiente': monto_pendiente,
+        'total_pagado': pagos,
+    }
+    return render(request, 'presupuestos/proveedores/detalle_prov.html', context)

@@ -1,0 +1,146 @@
+{% load static %}
+{% load humanize %}
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Proveedores | Energy</title>
+    <link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        .prov-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .prov-card {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .prov-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary);
+        }
+        .prov-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .prov-icon {
+            width: 40px;
+            height: 40px;
+            background: #eff6ff;
+            color: var(--primary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        .prov-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .prov-stats {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #f3f4f6;
+        }
+        .stat-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        .stat-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .stat-value.amount {
+            color: var(--primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="header-title">
+                <h1>Dashboard de Proveedores</h1>
+                <p>Análisis de requisiciones por empresa activa</p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'presupuestos:dashboard_pagos' %}" class="btn">
+                    <i class="ph ph-calendar-check"></i> Ir a Pagos
+                </a>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-bar">
+            <div class="search-box">
+                <i class="ph ph-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                <form method="get">
+                    <input type="text" name="q" class="search-input" placeholder="Buscar proveedor por nombre..." value="{{ search_query|default:'' }}">
+                </form>
+            </div>
+        </div>
+
+        <!-- Grid -->
+        <div class="prov-grid">
+            {% for p in proveedores %}
+            <div class="prov-card" onclick="location.href='{% url 'presupuestos:detalle_proveedor' p.pk %}'">
+                <div class="prov-header">
+                    <div class="prov-icon">
+                        <i class="ph ph-buildings"></i>
+                    </div>
+                    <div class="prov-name" title="{{ p.nombre }}">{{ p.nombre }}</div>
+                </div>
+                <div class="prov-stats">
+                    <div class="stat-group">
+                        <span class="stat-label">Requisiciones</span>
+                        <span class="stat-value">{{ p.total_requisiciones }}</span>
+                    </div>
+                    <div class="stat-group" style="text-align: right;">
+                        <span class="stat-label">Total Solicitado</span>
+                        <span class="stat-value amount">L. {{ p.monto_total_solicitado|floatformat:2|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 5rem; background: white; border-radius: 1rem;">
+                <i class="ph ph-magnifying-glass" style="font-size: 3rem; color: var(--text-muted); opacity: 0.3;"></i>
+                <p style="margin-top: 1rem; color: var(--text-muted);">No se encontraron proveedores activos con requisiciones.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+
+</html>

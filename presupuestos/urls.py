@@ -47,6 +47,10 @@ urlpatterns = [
     path('api/pagos/import/process/', views_pagos.import_items_pago_process, name='import_items_pago_process'),
     path('api/pagos/import/progress/', views_pagos.import_items_pago_progress, name='import_items_pago_progress'),
     
+    # Dashboard por Proveedor
+    path('proveedores/dashboard/', views_pagos.dashboard_proveedores, name='dashboard_proveedores'),
+    path('proveedores/<int:empresa_id>/detalle/', views_pagos.detalle_proveedor, name='detalle_proveedor'),
+    
     # REPEX Cronograma / Visualizador
     path('repex/<int:pk>/', views.cronograma_repex, name='cronograma_repex'),
     path('api/repex/update-item/', views.api_update_repex_item, name='api_update_repex_item'),

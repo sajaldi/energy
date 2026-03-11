@@ -1,0 +1,184 @@
+{% load static %}
+{% load humanize %}
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle Proveedor | {{ empresa.nombre }}</title>
+    <link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        .detail-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .stats-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .summary-card {
+            background: white;
+            padding: 1.75rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border-left: 5px solid var(--primary);
+        }
+        .summary-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+        .summary-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1;
+        }
+        .summary-sub {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .table-card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .table-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+            background: #fdfdfd;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background: #f9fafb;
+            padding: 1rem 1.5rem;
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+        td {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #f9fafb;
+            font-size: 0.9rem;
+        }
+        .amount-td {
+            text-align: right;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="header-title">
+                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+                    <a href="{% url 'presupuestos:dashboard_proveedores' %}" style="color: var(--text-muted); text-decoration: none;">
+                        <i class="ph ph-buildings"></i> Dashboard Proveedores
+                    </a>
+                    <i class="ph ph-caret-right" style="font-size: 0.8rem; color: var(--text-muted);"></i>
+                </div>
+                <h1>{{ empresa.nombre }}</h1>
+                <p>Identificación: {{ empresa.identificacion|default:"-" }} | {{ empresa.tipo_identificacion|default:"RNC" }}</p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'presupuestos:dashboard_proveedores' %}" class="btn" style="background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); box-shadow: none;">
+                    <i class="ph ph-arrow-left"></i> Volver a la Lista
+                </a>
+            </div>
+        </div>
+
+        <div class="detail-layout">
+            <!-- Sidebar Stats -->
+            <div class="stats-sidebar">
+                <div class="summary-card" style="border-left-color: var(--danger);">
+                    <div class="summary-label">Pendientes de Pago</div>
+                    <div class="summary-value" style="color: var(--danger);">{{ count_pendientes }}</div>
+                    <div class="summary-sub">
+                        Monto total estimado: <br>
+                        <strong>L. {{ monto_pendiente|floatformat:2|intcomma }}</strong>
+                    </div>
+                </div>
+
+                <div class="summary-card" style="border-left-color: var(--success);">
+                    <div class="summary-label">Total Pagado Histórico</div>
+                    <div class="summary-value" style="color: var(--success);">L. {{ total_pagado|floatformat:2|intcomma }}</div>
+                    <div class="summary-sub">
+                        Suma de todas las solicitudes con estatus <strong>PAGADO</strong>.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-card">
+                <div class="table-header">
+                    <span>Últimas 10 Requisiciones</span>
+                    <a href="{% url 'admin:presupuestos_requisicion_changelist' %}?proveedor__cr8ca_empresaid={{ empresa.pk }}" 
+                       style="font-size: 0.85rem; color: var(--primary); text-decoration: none; font-weight: 500;">
+                        Ver todas <i class="ph ph-arrow-square-out"></i>
+                    </a>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Requisición</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th style="text-align: right;">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in requisiciones %}
+                        <tr>
+                            <td>
+                                <div style="font-weight: 700; color: var(--text-main);">{{ r.cr8ca_requisicion }}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">{{ r.cr8ca_asunto|truncatechars:40 }}</div>
+                            </td>
+                            <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                            <td>
+                                <span class="status-badge" style="padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; 
+                                      background: #f3f4f6; color: var(--text-main);">
+                                    {{ r.get_estado_requisicion_display }}
+                                </span>
+                            </td>
+                            <td class="amount-td">
+                                L. {{ r.cr8ca_totalenarticulos|floatformat:2|intcomma }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-muted);">
+                                No se encontraron requisiciones para este proveedor.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
