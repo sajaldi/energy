@@ -1222,8 +1222,8 @@ def cronograma_repex(request, pk):
     context = {
         'repex': repex,
         'familias_data': data['familias_data'],
-        'meses_nombres': data['meses_nombres'],
-        'total_mensual': data['total_mensual'],
+        'anios_nombres': data['anios_nombres'],
+        'total_anual': data['total_mensual'], # Renombrando key para template y vista
         'total_general': data['total_general'],
         'total_items': data['total_items'],
         'items_detalle': items_detalle,
@@ -1713,7 +1713,8 @@ def _get_repex_cronograma_data(repex):
     from datetime import datetime
     return {
         'familias_data': familias_data,
-        'total_mensual': total_anual,
+        'anios_nombres': anios_nombres,
+        'total_mensual': total_anual, # Mantenemos el key total_mensual por retrocompatibilidad con openpyxl views/template u otra ref, pero arriba pasamos 'total_anual'
         'total_general': total_general,
         'total_items': total_items,
     }
