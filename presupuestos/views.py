@@ -1713,7 +1713,7 @@ def _get_repex_cronograma_data(repex):
     from datetime import datetime
     return {
         'familias_data': familias_data,
-        'total_mensual': total_mensual,
+        'total_mensual': total_anual,
         'total_general': total_general,
         'total_items': total_items,
     }
