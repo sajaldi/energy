@@ -712,16 +712,29 @@ class CachedManyToManyCodeWidget(ManyToManyWidget):
     def clean(self, value, row=None, *args, **kwargs):
         if not value:
             return self.model.objects.none()
+        
+        import unicodedata
+        def _normalize_key(text):
+            if not text: return ""
+            # Quita acentos y pasa a minúsculas
+            text = unicodedata.normalize('NFD', str(text))
+            text = "".join([c for c in text if unicodedata.category(c) != 'Mn'])
+            return text.lower().strip()
+
         codes = [c.strip() for c in str(value).split(',') if c.strip()]
         if self._cache is not None:
             pks = []
             for c in codes:
-                c_norm = c.lower()
+                c_norm = _normalize_key(c)
                 if c_norm in self._cache:
                     pks.append(self._cache[c_norm].pk)
+                else:
+                    # Intento secundario si llega un ID directamente?
+                    # No necesario en este momento, fallback cubre
+                    pass
             return self.model.objects.filter(pk__in=pks)
         
-        # Fallback query si no hay caché
+        # Fallback query si no hay caché (Menos preciso con acentos)
         from django.db.models import Q
         q_objs = Q()
         for c in codes:
@@ -979,9 +992,21 @@ class OrdenTrabajoResource(ProgressResourceMixin, resources.ModelResource):
         activo_cache = {}
         for a in Activo.objects.only('id', 'codigo_interno', 'nombre'):
             if a.codigo_interno:
-                activo_cache[a.codigo_interno.lower().strip()] = a
+                code_norm = normalize(a.codigo_interno)
+                # El normalize de import ya reemplaza espacios por '_', mantendremos una key extra directa
+                activo_cache[code_norm] = a
+                # Guardar tambien lower y acentos quitados pero con espacios originales
+                code_clean = unicodedata.normalize('NFD', str(a.codigo_interno))
+                code_clean = "".join([c for c in code_clean if unicodedata.category(c) != 'Mn']).lower().strip()
+                activo_cache[code_clean] = a
+                
             if a.nombre:
-                activo_cache[a.nombre.lower().strip()] = a
+                name_norm = normalize(a.nombre)
+                activo_cache[name_norm] = a
+                # Guardar copia clean con espacios
+                name_clean = unicodedata.normalize('NFD', str(a.nombre))
+                name_clean = "".join([c for c in name_clean if unicodedata.category(c) != 'Mn']).lower().strip()
+                activo_cache[name_clean] = a
                 
         activos_field = self.fields.get('activos_codigos')
         if activos_field and hasattr(activos_field.widget, 'set_cache'):
