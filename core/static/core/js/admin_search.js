@@ -3,29 +3,35 @@
  * Redirige la búsqueda del navbar a nuestra vista global unificada.
  */
 document.addEventListener('DOMContentLoaded', function () {
-    // Jazzmin suele usar una estructura específica en el navbar para la búsqueda
-    // Intentamos capturar cualquier input de búsqueda (name="q") que esté en el navbar superior
-    const searchInputs = document.querySelectorAll('.navbar input[name="q"], .navbar-search input[name="q"], .nav-sidebar input[name="q"]');
-    
-    searchInputs.forEach(searchInput => {
+    // Buscar TODOS los inputs con name="q" en la página
+    // Esto cubre cualquier versión de Jazzmin o AdminLTE
+    const allSearchInputs = document.querySelectorAll('input[name="q"]');
+
+    allSearchInputs.forEach(function(searchInput) {
         const searchForm = searchInput.closest('form');
+        if (!searchForm) return;
 
-        if (searchForm) {
-            // Modificar la acción del formulario directamente para asegurar la redirección nativa
-            searchForm.action = "/admin/global-search/";
-            searchForm.method = "GET";
+        // Sólo interceptar si el form NO es el de la lista de cambios de Django admin
+        // (esos tienen action que apunta a una URL específica del modelo, no la global)
+        // Regla: si el input está en el header/navbar (no en #content), lo interceptamos
+        const inContent = searchInput.closest('#content, .content-wrapper > .content');
+        if (inContent) return; // Dejar pasar el buscador inline de la lista de objetos
 
-            // Personalizar el placeholder para indicar búsqueda global
-            searchInput.placeholder = "Buscador Global (Apps, Modelos, Códigos, Contenido)...";
-            searchInput.style.width = "400px"; // Opcional: Hacerlo un poco más ancho
-            searchInput.style.transition = "width 0.3s";
+        // Modificar la acción del formulario directamente
+        searchForm.action = "/admin/global-search/";
+        searchForm.method = "GET";
 
-            // Eliminar parámetros ocultos que Jazzmin podría agregar (si los hay)
-            const hiddenInputs = searchForm.querySelectorAll('input[type="hidden"]');
-            hiddenInputs.forEach(input => input.remove());
-        }
+        // Cambiar el placeholder
+        searchInput.placeholder = "Buscador Global...";
+
+        // Limpiar inputs ocultos que Jazzmin/AdminLTE puedan haberle agregado
+        searchForm.querySelectorAll('input[type="hidden"]').forEach(function(hidden) {
+            hidden.remove();
+        });
+
+        // Asegurar nombre correcto del campo
+        searchInput.name = "q";
     });
 
-    // DEBUG: Log para confirmar carga en entorno de desarrollo
-    console.log("Global Search hijacker initialized.");
+    console.log("[SoftCom] Global Search hijacker loaded. Inputs intercepted:", allSearchInputs.length);
 });

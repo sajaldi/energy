@@ -147,7 +147,7 @@ def import_tickets_from_df(df):
         # y se tratan con update_or_create a continuación para garantizar que sus datos
         # estén actualizados.
         created_objs = SolicitudTicket.objects.bulk_create(
-            to_create, batch_size=500, ignore_conflicts=True
+            to_create, batch_size=100, ignore_conflicts=True
         )
         # Detectar cuáles NO se insertaron (ya existían) y actualizarlos individualmente
         created_ids = {obj.id_solicitud for obj in created_objs if obj.pk}
@@ -157,9 +157,9 @@ def import_tickets_from_df(df):
             SolicitudTicket.objects.filter(id_solicitud=obj.id_solicitud).update(**data_fields)
             actualizados += 1
             creados -= 1  # No era un nuevo registro, ajustar contador
-
+ 
     if to_update:
-        SolicitudTicket.objects.bulk_update(to_update, update_fields, batch_size=500)
+        SolicitudTicket.objects.bulk_update(to_update, update_fields, batch_size=100)
 
     return creados, actualizados
 
