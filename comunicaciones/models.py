@@ -139,3 +139,20 @@ def crear_notificaciones_al_enviar(sender, instance, created, **kwargs):
                 message = f"Has recibido una nueva comunicación en el sistema.\n\nAsunto: {instance.asunto}\nDe: {instance.remitente.get_full_name() or instance.remitente.username}\nConsecutivo: {instance.consecutivo}\n\nPuedes revisarlo en el portal del proyecto."
                 send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [d.usuario.email], fail_silently=True)
                 # NOTA: send_mail fallará si no hay SMTP configurado. Por ahora lo dejamos comentado o con fail_silently.
+
+class BotSession(models.Model):
+    """
+    Control de estado de los usuarios para el bot de WhatsApp.
+    Mapea la tabla bot_sessions requerida para el flujo de n8n.
+    """
+    phone_number = models.CharField(max_length=20, primary_key=True)
+    status = models.CharField(max_length=50, default='IDLE')
+    last_update = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'bot_sessions'
+        verbose_name = "Sesión de Bot"
+        verbose_name_plural = "Sesiones de Bot"
+
+    def __str__(self):
+        return f"{self.phone_number} ({self.status})"

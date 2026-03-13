@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
-from .models import TipoComunicado, Comunicado, Destinatario, AdjuntoComunicado, Notificacion
+from .models import TipoComunicado, Comunicado, Destinatario, AdjuntoComunicado, Notificacion, BotSession
 
 class DestinatarioInline(admin.TabularInline):
     model = Destinatario
@@ -95,3 +95,10 @@ class NotificacionAdmin(admin.ModelAdmin):
     list_filter = ('leida', 'fecha_creacion')
     search_fields = ('usuario__username', 'comunicado__asunto')
     readonly_fields = ('fecha_creacion',)
+
+@admin.register(BotSession)
+class BotSessionAdmin(admin.ModelAdmin):
+    list_display = ('phone_number', 'status', 'last_update')
+    search_fields = ('phone_number', 'status')
+    list_filter = ('status', 'last_update')
+    readonly_fields = ('last_update',)
