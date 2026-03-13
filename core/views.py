@@ -652,6 +652,7 @@ def global_search(request):
         'materiales': [],
         'rutinas': [],
         'presupuestos': [],
+        'ordenes': [],
     }
     
     if query:
@@ -659,7 +660,7 @@ def global_search(request):
         from callcenter.models import SolicitudTicket
         from documentos.models import Documento
         from inventarios.models import Material
-        from mantenimiento.models import Rutina
+        from mantenimiento.models import Rutina, OrdenTrabajo
         from presupuestos.models import PresupuestoAnual
         
         # 1. Activos
@@ -683,25 +684,32 @@ def global_search(request):
         results['documentos'] = Documento.objects.filter(
             Q(codigo__icontains=query) |
             Q(titulo__icontains=query) |
-            Q(contenido_extraido__icontains=query)
+            Q(contenido_texto__icontains=query)
         ).select_related('tipo_documento')[:20]
 
         # 4. Materiales
         results['materiales'] = Material.objects.filter(
             Q(nombre__icontains=query) |
             Q(descripcion__icontains=query)
-        ).select_related('categoria_material', 'unidad_medida')[:20]
+        ).select_related('categoria', 'unidad_medida')[:20]
 
         # 5. Rutinas
         results['rutinas'] = Rutina.objects.filter(
             Q(nombre__icontains=query)
-        ).select_related('categoria')[:20]
+        ).select_related('tipo')[:20]
 
         # 6. Presupuestos
         results['presupuestos'] = PresupuestoAnual.objects.filter(
             Q(nombre__icontains=query) |
             Q(anio__icontains=query)
         )[:20]
+
+        # 7. Órdenes de Trabajo
+        results['ordenes'] = OrdenTrabajo.objects.filter(
+            Q(codigo_de_orden__icontains=query) |
+            Q(descripcion_corta__icontains=query) |
+            Q(descripcion_detallada__icontains=query)
+        ).select_related('rutina', 'ubicacion')[:20]
 
     from django.contrib import admin
     total_results = sum(len(v) for v in results.values())

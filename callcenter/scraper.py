@@ -319,4 +319,5 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
 if __name__ == "__main__":
 
     # Prueba local
-    download_tickets_excel("saul.alvarado", "***REMOVED***", "Centro Cívico Gubernamental de Honduras")
+    import os
+    download_tickets_excel("saul.alvarado", os.environ.get('PASS_SIG', ''), "Centro Cívico Gubernamental de Honduras")

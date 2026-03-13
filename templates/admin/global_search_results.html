@@ -91,6 +91,9 @@
                 <li class="nav-item">
                     <a class="nav-link" id="presupuestos-tab" data-toggle="tab" href="#presupuestos" role="tab"><i class="fas fa-wallet mr-1"></i> Presupuestos ({{ results.presupuestos|length }})</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="ordenes-tab" data-toggle="tab" href="#ordenes" role="tab"><i class="fas fa-clipboard-list mr-1"></i> Órdenes de Trabajo ({{ results.ordenes|length }})</a>
+                </li>
             </ul>
 
             <div class="tab-content pt-4" id="searchTabsContent">
@@ -103,7 +106,7 @@
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <h5 class="mb-1 text-success">
-                                            <a href="{% url 'admin:activos_activo_change' activo.id %}">{{ activo.nombre }}</a>
+                                            <a href="{% url 'admin:activos_activo_change' activo.id %}" class="stretched-link">{{ activo.nombre }}</a>
                                         </h5>
                                         <span class="badge badge-success">Activo</span>
                                     </div>
@@ -138,7 +141,7 @@
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <h5 class="mb-1 text-primary">
-                                            <a href="{% url 'admin:callcenter_solicitudticket_change' ticket.id %}">{{ ticket.folio|default:ticket.id_solicitud }}</a>
+                                            <a href="{% url 'admin:callcenter_solicitudticket_change' ticket.id %}" class="stretched-link">{{ ticket.folio|default:ticket.id_solicitud }}</a>
                                         </h5>
                                         <span class="badge badge-primary">Ticket</span>
                                     </div>
@@ -171,7 +174,7 @@
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <h5 class="mb-1" style="color: #6f42c1;">
-                                            <a href="{% url 'documentos:documento_trazabilidad' doc.id %}" target="_blank">{{ doc.codigo }}</a>
+                                            <a href="{% url 'documentos:documento_trazabilidad' doc.id %}" target="_blank" class="stretched-link">{{ doc.codigo }}</a>
                                         </h5>
                                         <span class="badge badge-info">{{ doc.tipo_documento.nombre }}</span>
                                     </div>
@@ -199,8 +202,8 @@
                             <div class="card h-100 search-result-card" style="border-left-color: #fd7e14;">
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start">
-                                        <h5 class="mb-1" style="color: #fd7e14;">
-                                            <a href="{% url 'admin:inventarios_material_change' material.id %}">{{ material.nombre }}</a>
+                                        <h5 class="mb-1 text-info">
+                                            <a href="{% url 'admin:inventarios_material_change' material.id %}" class="stretched-link">{{ material.nombre }}</a>
                                         </h5>
                                         <span class="badge badge-warning">Material</span>
                                     </div>
@@ -230,8 +233,8 @@
                             <div class="card h-100 search-result-card" style="border-left-color: #17a2b8;">
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start">
-                                        <h5 class="mb-1" style="color: #17a2b8;">
-                                            <a href="{% url 'admin:mantenimiento_rutina_change' rutina.id %}">{{ rutina.nombre }}</a>
+                                        <h5 class="mb-1 text-secondary">
+                                            <a href="{% url 'admin:mantenimiento_rutina_change' rutina.id %}" class="stretched-link">{{ rutina.nombre }}</a>
                                         </h5>
                                         <span class="badge badge-info">Rutina</span>
                                     </div>
@@ -257,8 +260,8 @@
                             <div class="card h-100 search-result-card" style="border-left-color: #dc3545;">
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start">
-                                        <h5 class="mb-1" style="color: #dc3545;">
-                                            <a href="{% url 'admin:presupuestos_presupuestoanual_change' p.id %}">{{ p.nombre }}</a>
+                                        <h5 class="mb-1 text-dark">
+                                            <a href="{% url 'admin:presupuestos_presupuestoanual_change' p.id %}" class="stretched-link">{{ p.nombre }}</a>
                                         </h5>
                                         <span class="badge badge-danger">Presupuesto</span>
                                     </div>
@@ -271,6 +274,37 @@
                         {% empty %}
                         <div class="col-12 text-center py-4 text-muted">
                             <i class="fas fa-info-circle mr-1"></i> No se encontraron presupuestos
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Pestaña Órdenes de Trabajo -->
+                <div class="tab-pane fade" id="ordenes" role="tabpanel">
+                    <div class="row">
+                        {% for orden in results.ordenes %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 search-result-card" style="border-left-color: #ffc107;">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <h5 class="mb-1 text-warning">
+                                            <a href="{% url 'admin:mantenimiento_ordentrabajo_change' orden.id %}" class="stretched-link">{{ orden.codigo_de_orden|default:"Sin Código" }}</a>
+                                        </h5>
+                                        <span class="badge badge-warning">Orden de Trabajo</span>
+                                    </div>
+                                    <div class="text-muted small">
+                                        <strong>Rutina:</strong> {{ orden.rutina.nombre|default:"Correctiva" }} |
+                                        <strong>Estado:</strong> {{ orden.get_estado_display }}
+                                    </div>
+                                    {% if orden.descripcion_corta %}
+                                    <p class="text-muted small mb-0 mt-2 text-truncate">{{ orden.descripcion_corta }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center py-4 text-muted">
+                            <i class="fas fa-info-circle mr-1"></i> No se encontraron órdenes de trabajo
                         </div>
                         {% endfor %}
                     </div>

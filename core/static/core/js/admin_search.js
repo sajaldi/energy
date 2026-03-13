@@ -4,37 +4,27 @@
  */
 document.addEventListener('DOMContentLoaded', function () {
     // Jazzmin suele usar una estructura específica en el navbar para la búsqueda
-    // Intentamos capturar el formulario tanto por clase como por el input name 'q'
-    const searchInput = document.querySelector('.navbar-search input[name="q"], .nav-sidebar input[name="q"]');
-    const searchForm = searchInput ? searchInput.closest('form') : null;
+    // Intentamos capturar cualquier input de búsqueda (name="q") que esté en el navbar superior
+    const searchInputs = document.querySelectorAll('.navbar input[name="q"], .navbar-search input[name="q"], .nav-sidebar input[name="q"]');
+    
+    searchInputs.forEach(searchInput => {
+        const searchForm = searchInput.closest('form');
 
-    if (searchForm) {
-        // Personalizar el placeholder para indicar búsqueda global
-        if (searchInput) {
+        if (searchForm) {
+            // Modificar la acción del formulario directamente para asegurar la redirección nativa
+            searchForm.action = "/admin/global-search/";
+            searchForm.method = "GET";
+
+            // Personalizar el placeholder para indicar búsqueda global
             searchInput.placeholder = "Buscador Global (Apps, Modelos, Códigos, Contenido)...";
             searchInput.style.width = "400px"; // Opcional: Hacerlo un poco más ancho
             searchInput.style.transition = "width 0.3s";
+
+            // Eliminar parámetros ocultos que Jazzmin podría agregar (si los hay)
+            const hiddenInputs = searchForm.querySelectorAll('input[type="hidden"]');
+            hiddenInputs.forEach(input => input.remove());
         }
-
-        searchForm.addEventListener('submit', function (e) {
-            // Evitamos el comportamiento por defecto de redirección a un modelo específico
-            e.preventDefault();
-
-            const query = searchInput.value.trim();
-            if (query) {
-                // Redirigir a nuestra vista global unificada
-                window.location.href = `/admin/global-search/?q=${encodeURIComponent(query)}`;
-            }
-        });
-
-        // También manejamos el clic en el botón de la lupa si existe
-        const searchButton = searchForm.querySelector('button[type="submit"]');
-        if (searchButton) {
-            searchButton.addEventListener('click', function (e) {
-                // El evento submit del form se disparará y el listener anterior lo manejará
-            });
-        }
-    }
+    });
 
     // DEBUG: Log para confirmar carga en entorno de desarrollo
     console.log("Global Search hijacker initialized.");

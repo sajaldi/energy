@@ -5,8 +5,11 @@ from django.conf.urls.static import static
 from django.urls import re_path
 from django.views.static import serve
 from core.views_proxy import media_proxy
+from core.views import global_search
 
 urlpatterns = [
+    # Override global search before Django admin intercepts it
+    path('admin/global-search/', global_search, name='global_search'),
     # La ruta del admin oficial de Django
     path('admin/', admin.site.urls),
     # Proxy de medios para MinIO (Solución a Mixed Content)

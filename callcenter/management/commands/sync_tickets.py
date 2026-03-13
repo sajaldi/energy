@@ -17,7 +17,7 @@ class Command(BaseCommand):
         # Estas credenciales deberían estar en variables de entorno o settings por seguridad
         # Por ahora las usamos directamente como solicitó el usuario
         username = os.environ.get('CALLCENTER_USER', 'saul.alvarado')
-        password = os.environ.get('CALLCENTER_PASS', '***REMOVED***')
+        password = os.environ.get('CALLCENTER_PASS') or os.environ.get('PASS_SIG', 'S@4l2689*')
         company = "Centro Cívico Gubernamental de Honduras"
         
         self.stdout.write(f'Iniciando sincronización de los últimos {days} días...')
