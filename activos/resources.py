@@ -319,18 +319,14 @@ class ActivoResource(resources.ModelResource):
         use_transactions = True 
 
     def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
-        """Lógica rápida para omitir filas irrelevantes"""
-        if not any(row.values()): return True
-        
-        # Si no hay nombre ni código, no podemos hacer nada
-        nombre = str(row.get('nombre') or '').strip()
-        codigo = str(row.get('codigo_interno') or '').strip()
-        if not nombre and not codigo:
+        """Omitir filas que no tienen datos mínimos"""
+        if not any(str(v).strip() for v in row.values() if v is not None):
             return True
-
-        # Si el objeto es nuevo (no hay original), no omitimos
-        if not original:
-            return False
+        
+        # El código interno es OBLIGATORIO para identificar el activo
+        codigo = str(row.get('codigo_interno') or '').strip()
+        if not codigo:
+            return True
 
         return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
 
@@ -363,13 +359,53 @@ class ActivoResource(resources.ModelResource):
         """Precarga cachés para velocidad y precisión en jerarquías"""
         from django.core.cache import cache
         from .models import Marca, Modelo, Categoria, Ubicacion
-        from django.db.models import Count
         
-        # 0. Normalizar cabeceras a minúsculas para asegurar coincidencia con Resource
+        # 0. Normalizar cabeceras de forma ROBUSTA
         if dataset.headers:
-            dataset.headers = [str(h).lower() for h in dataset.headers]
+            import unicodedata
+            import re
+            
+            new_headers = []
+            # Mapeo de alias comunes a nombres de campos del Resource
+            aliases = {
+                'codigo': 'codigo_interno',
+                'cod': 'codigo_interno',
+                'codigo_de_inventario': 'codigo_interno',
+                'cod_inventario': 'codigo_interno',
+                'codigo_inventario': 'codigo_interno',
+                'inventario': 'codigo_interno',
+                'id_interno': 'codigo_interno',
+                'num_inventario': 'codigo_interno',
+                'codigo_activo': 'codigo_interno',
+                'id_activo': 'codigo_interno',
+                'nombre_del_activo': 'nombre',
+                'activo': 'nombre',
+                'marca': 'marca_nombre',
+                'modelo': 'modelo_nombre',
+                'categoria': 'categoria_nombre',
+                'ubicacion': 'ubicacion_nombre',
+                'responsable': 'responsable_username',
+                'padre': 'padre_codigo',
+                'familia': 'familia_nombre',
+                'plano': 'plano_nombre',
+            }
 
-        # 0.1 Cachear dataset.dict (OPTIMIZACIÓN CRÍTICA para tablib)
+            for h in dataset.headers:
+                h_str = str(h)
+                # Quitar acentos
+                h_norm = "".join(c for c in unicodedata.normalize('NFD', h_str) if unicodedata.category(c) != 'Mn')
+                # A minúsculas, quitar espacios y caracteres raros
+                h_norm = h_norm.lower().strip().replace(' ', '_')
+                h_norm = re.sub(r'[^a-z0-9_]', '', h_norm)
+                
+                # Aplicar alias si existe
+                final_header = aliases.get(h_norm, h_norm)
+                new_headers.append(final_header)
+            
+            dataset.headers = new_headers
+
+        # 0.1 Cachear dataset.dict (OPTIMIZACIÓN CRÍTICA)
+        # IMPORTANTE: Re-generar dataset.dict después de cambiar headers
         self.dataset_dict = dataset.dict
 
         # 0.1 Inicializar progreso detallado

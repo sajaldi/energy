@@ -792,28 +792,33 @@
         : data.exitosos === 0 ? 'error'
           : 'partial';
       const icono = tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : '⚠️';
-      mostrarResultado(
-        tipo,
-        `${icono} ${data.exitosos} de ${data.total} documento(s) subido(s) correctamente`,
-        data.fallidos > 0
+      
+      let mensajeCuerpo = data.fallidos > 0
           ? `${data.fallidos} archivo(s) tuvieron error. Revisa el detalle en la tabla.`
-          : 'Todos los archivos fueron procesados correctamente.'
-      );
+          : 'Todos los archivos fueron procesados correctamente.';
 
-      // Si todo OK, limpiar archivos exitosos después de 2 s
-      if (data.fallidos === 0) {
-        setTimeout(() => {
-          files = [];
-          renderTabla();
-        }, 2000);
-      } else {
-        // Dejar solo los fallidos
-        const idsExitosos = data.resultados
-          .filter(r => r.ok)
-          .map(r => r.archivo);
-        files = files.filter(f => !idsExitosos.includes(f.file.name));
-        setTimeout(renderTabla, 2000);
+      // Lógica de Redirección si hubo éxitos
+      if (data.exitosos > 0) {
+        const docIds = data.resultados
+          .filter(r => r.ok && r.doc_id)
+          .map(r => r.doc_id);
+        
+        if (docIds.length > 0) {
+          const filterUrl = `/admin/documentos/documento/?id__in=${docIds.join(',')}`;
+          mensajeCuerpo += `<br><br><b>Redirigiendo al listado de documentos en 3 segundos...</b>`;
+          
+          mostrarResultado(tipo, `${icono} ${data.exitosos} de ${data.total} documento(s) subido(s) correctamente`, mensajeCuerpo);
+          // Convertir el texto a HTML para que el <br> funcione
+          document.getElementById('result-body').innerHTML = mensajeCuerpo;
+
+          setTimeout(() => {
+            window.location.href = filterUrl;
+          }, 3000);
+          return; // Detener flujo de limpieza manual ya que vamos a navegar
+        }
       }
+
+      mostrarResultado(tipo, `${icono} ${data.exitosos} de ${data.total} documento(s) subido(s) correctamente`, mensajeCuerpo);
 
     } catch (err) {
       ocultarOverlay();

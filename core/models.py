@@ -1,5 +1,6 @@
 from django.db import models
 from colorfield.fields import ColorField
+from pgvector.django import VectorField
 from .models_config import ConfiguracionUI
 
 class TipoMedidor(models.Model):
@@ -261,3 +262,21 @@ class VistaPersonalizada(models.Model):
         verbose_name_plural = "Vistas Personalizadas"
         ordering = ['nombre']
         unique_together = ['usuario', 'nombre', 'app_label', 'model_name']
+
+
+class KnowledgeChunk(models.Model):
+    """
+    Fragmento de conocimiento para búsqueda vectorial.
+    """
+    content = models.TextField()
+    embedding = VectorField(dimensions=384, null=True, blank=True)
+    source = models.CharField(max_length=255, blank=True, null=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Fragmento de Conocimiento"
+        verbose_name_plural = "Fragmentos de Conocimiento"
+
+    def __str__(self):
+        return f"Chunk {self.id} from {self.source}"

@@ -1,11 +1,12 @@
-import requests
+import os
+import google.generativeai as genai
+from core.ai_utils import API_KEY
 
-API_KEY = "AIzaSyD6NlcfSsDPTxNzefz6M8z_mEpEsJVaGkE"
-URL = f"https://generativelanguage.googleapis.com/v1beta/models?key={API_KEY}"
+genai.configure(api_key=API_KEY)
 
-try:
-    response = requests.get(URL)
-    print(f"Status: {response.status_code}")
-    print(f"Response: {response.text}")
-except Exception as e:
-    print(f"Error: {e}")
+print("Listing models...")
+for m in genai.list_models():
+    if 'embedContent' in m.supported_generation_methods:
+        print(f"Model ID: {m.name}")
+        print(f"  Description: {m.description}")
+        print(f"  Supported Tasks: {m.supported_generation_methods}")

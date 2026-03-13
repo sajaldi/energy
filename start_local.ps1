@@ -13,7 +13,7 @@ Write-Host ""
 $SSH_USER     = "vboxuser"
 $SSH_HOST     = "181.115.47.107"
 $SSH_PORT     = 3456
-$LOCAL_PORT   = 5433
+$LOCAL_PORT   = 5434
 $REMOTE_HOST  = "10.30.1.11"
 $REMOTE_PORT  = 5432
 

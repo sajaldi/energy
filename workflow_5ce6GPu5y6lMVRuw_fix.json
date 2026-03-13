@@ -1,0 +1,417 @@
+{
+  "updatedAt": "2026-03-13T00:07:00.146Z",
+  "createdAt": "2026-03-10T18:26:23.135Z",
+  "id": "5ce6GPu5y6lMVRuw",
+  "name": "My workflow 9",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analizar-biblioteca",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c8de10fa-be01-41f4-853a-9ab0c8cbe3f2",
+      "name": "Webhook",
+      "webhookId": "deadcf85-4aee-460b-81ea-2705029483d1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body;\nconst cadena = body.cadena_oficios;\nconst nombre_biblioteca = body.biblioteca_nombre;\nconst mision_sistema = body.mision_sistema || \"An\u00e1lisis de documentos.\";\nconst notas_insumos = body.comentarios_adicionales || [];\n\n// 1. Definici\u00f3n de Misi\u00f3n e Instrucciones Base\nlet texto_para_ia = `MISION CR\u00cdTICA: ${mision_sistema}\\n\\n`;\ntexto_para_ia += `Instrucciones: Eres un experto en an\u00e1lisis de documentos y procesos. Analiza los siguientes ${cadena.length} documentos de la biblioteca \"${nombre_biblioteca}\". Haz \u00e9nfasis en la trazabilidad: qu\u00e9 documento responde a cu\u00e1l y si el flujo est\u00e1 completado.\\n\\n`;\n\n// 2. Integraci\u00f3n de Notas e Insumos del Usuario (Si existen)\nif (notas_insumos.length > 0) {\n    texto_para_ia += `======= NOTAS E INSUMOS DEL USUARIO (Prioridad de Contexto) =======\\n`;\n    notas_insumos.forEach((nota, idx) => {\n        texto_para_ia += `Nota ${idx + 1}: ${nota.titulo}\\nContenido: ${nota.contenido}\\n\\n`;\n    });\n}\n\ntexto_para_ia += `Tu tarea es devolver un resumen ejecutivo en Markdown que proteja los intereses del IOP:\\n1. **Contexto**\\n2. **Trazabilidad y Flujos** (Qui\u00e9n respondi\u00f3 a qui\u00e9n)\\n3. **An\u00e1lisis de Riesgos/Oportunidades para el IOP**\\n4. **Pendientes Cr\u00edticos**\\n\\n`;\n\ntexto_para_ia += `======= DOCUMENTOS =======\\n\\n`;\n\n// 3. Procesamiento de Documentos y su Trazabilidad\nfor(let i=0; i<cadena.length; i++) {\n    const doc = cadena[i];\n    texto_para_ia += `--- DOCUMENTO: ${doc.codigo} ---\\n`;\n    texto_para_ia += `T\u00edtulo: ${doc.titulo}\\n`;\n    texto_para_ia += `Estado: ${doc.estado}\\n`;\n    \n    if (doc.trazabilidad_hijos && doc.trazabilidad_hijos.length > 0) {\n        texto_para_ia += `Trazabilidad (Respuestas a este doc):\\n`;\n        doc.trazabilidad_hijos.forEach(hijo => {\n            texto_para_ia += `  -> Respondido con: ${hijo.codigo} (${hijo.estado})\\n`;\n        });\n    } else {\n        texto_para_ia += `Trazabilidad: Este documento no tiene respuestas registradas a\u00fan.\\n`;\n    }\n\n    texto_para_ia += `Texto Extra\u00eddo:\\n${doc.texto_extraido || 'Sin texto disponible.'}\\n\\n`;\n}\n\nreturn { texto_redactado: texto_para_ia };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -96
+      ],
+      "id": "7aef804c-d45f-40e2-936a-41e86377bd67",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.texto_redactado }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -160
+      ],
+      "id": "2f95ca3d-1939-4e20-9557-cdf9e93e69b3",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1008,
+        272
+      ],
+      "id": "b354cea0-5703-42a7-95c6-0819a83ed344",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        304,
+        304
+      ],
+      "id": "890cbd6b-8f1a-4d72-9521-1ae46a09c3e3",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Wpexi3r5YS6ckVwQ",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableName": "agent_memory",
+        "sessionId": "={{ $('Webhook').item.json.body.biblioteca_id || 'default' }}"
+      },
+      "id": "052e96e2-303b-4afa-9f7b-7a59c2f1c224",
+      "name": "Postgres Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "fe51482c-2d9f-4098-8718-d44015206d24",
+  "activeVersionId": "fe51482c-2d9f-4098-8718-d44015206d24",
+  "versionCounter": 41,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-03-10T18:26:23.135Z",
+      "createdAt": "2026-03-10T18:26:23.135Z",
+      "role": "workflow:owner",
+      "workflowId": "5ce6GPu5y6lMVRuw",
+      "projectId": "GSSLoLeG6jElPBJW",
+      "project": {
+        "updatedAt": "2026-02-06T01:47:25.632Z",
+        "createdAt": "2026-01-15T18:28:33.381Z",
+        "id": "GSSLoLeG6jElPBJW",
+        "name": "saul alvarado <saul.alvarado@outlook.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "09342586-c7c3-46f1-ba52-421790dae4fd",
+        "projectRelations": [
+          {
+            "updatedAt": "2026-01-15T18:28:33.381Z",
+            "createdAt": "2026-01-15T18:28:33.381Z",
+            "userId": "09342586-c7c3-46f1-ba52-421790dae4fd",
+            "projectId": "GSSLoLeG6jElPBJW",
+            "user": {
+              "updatedAt": "2026-03-12T23:16:07.574Z",
+              "createdAt": "2026-01-15T18:28:32.310Z",
+              "id": "09342586-c7c3-46f1-ba52-421790dae4fd",
+              "email": "saul.alvarado@outlook.com",
+              "firstName": "saul",
+              "lastName": "alvarado",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2026-01-16T01:54:05.800Z",
+                "personalization_survey_n8n_version": "1.119.2",
+                "companyType": "personal",
+                "reportedSource": "google"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "mNnJ3JL47Qn4sVkM",
+                "userActivatedAt": 1770948948287,
+                "easyAIWorkflowOnboarded": true,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1771260310182
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-03-13",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-13T00:07:00.147Z",
+    "createdAt": "2026-03-13T00:07:00.147Z",
+    "versionId": "fe51482c-2d9f-4098-8718-d44015206d24",
+    "workflowId": "5ce6GPu5y6lMVRuw",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "analizar-biblioteca",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "c8de10fa-be01-41f4-853a-9ab0c8cbe3f2",
+        "name": "Webhook",
+        "webhookId": "deadcf85-4aee-460b-81ea-2705029483d1"
+      },
+      {
+        "parameters": {
+          "jsCode": "const body = $input.item.json.body;\nconst cadena = body.cadena_oficios;\nconst nombre_biblioteca = body.biblioteca_nombre;\nconst mision_sistema = body.mision_sistema || \"An\u00e1lisis de documentos.\";\nconst notas_insumos = body.comentarios_adicionales || [];\n\n// 1. Definici\u00f3n de Misi\u00f3n e Instrucciones Base\nlet texto_para_ia = `MISION CR\u00cdTICA: ${mision_sistema}\\n\\n`;\ntexto_para_ia += `Instrucciones: Eres un experto en an\u00e1lisis de documentos y procesos. Analiza los siguientes ${cadena.length} documentos de la biblioteca \"${nombre_biblioteca}\". Haz \u00e9nfasis en la trazabilidad: qu\u00e9 documento responde a cu\u00e1l y si el flujo est\u00e1 completado.\\n\\n`;\n\n// 2. Integraci\u00f3n de Notas e Insumos del Usuario (Si existen)\nif (notas_insumos.length > 0) {\n    texto_para_ia += `======= NOTAS E INSUMOS DEL USUARIO (Prioridad de Contexto) =======\\n`;\n    notas_insumos.forEach((nota, idx) => {\n        texto_para_ia += `Nota ${idx + 1}: ${nota.titulo}\\nContenido: ${nota.contenido}\\n\\n`;\n    });\n}\n\ntexto_para_ia += `Tu tarea es devolver un resumen ejecutivo en Markdown que proteja los intereses del IOP:\\n1. **Contexto**\\n2. **Trazabilidad y Flujos** (Qui\u00e9n respondi\u00f3 a qui\u00e9n)\\n3. **An\u00e1lisis de Riesgos/Oportunidades para el IOP**\\n4. **Pendientes Cr\u00edticos**\\n\\n`;\n\ntexto_para_ia += `======= DOCUMENTOS =======\\n\\n`;\n\n// 3. Procesamiento de Documentos y su Trazabilidad\nfor(let i=0; i<cadena.length; i++) {\n    const doc = cadena[i];\n    texto_para_ia += `--- DOCUMENTO: ${doc.codigo} ---\\n`;\n    texto_para_ia += `T\u00edtulo: ${doc.titulo}\\n`;\n    texto_para_ia += `Estado: ${doc.estado}\\n`;\n    \n    if (doc.trazabilidad_hijos && doc.trazabilidad_hijos.length > 0) {\n        texto_para_ia += `Trazabilidad (Respuestas a este doc):\\n`;\n        doc.trazabilidad_hijos.forEach(hijo => {\n            texto_para_ia += `  -> Respondido con: ${hijo.codigo} (${hijo.estado})\\n`;\n        });\n    } else {\n        texto_para_ia += `Trazabilidad: Este documento no tiene respuestas registradas a\u00fan.\\n`;\n    }\n\n    texto_para_ia += `Texto Extra\u00eddo:\\n${doc.texto_extraido || 'Sin texto disponible.'}\\n\\n`;\n}\n\nreturn { texto_redactado: texto_para_ia };\n"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          208,
+          -96
+        ],
+        "id": "7aef804c-d45f-40e2-936a-41e86377bd67",
+        "name": "Code in JavaScript"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "={{ $json.texto_redactado }}",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 3.1,
+        "position": [
+          400,
+          -160
+        ],
+        "id": "2f95ca3d-1939-4e20-9557-cdf9e93e69b3",
+        "name": "AI Agent"
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ $json.output }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          1008,
+          272
+        ],
+        "id": "b354cea0-5703-42a7-95c6-0819a83ed344",
+        "name": "Respond to Webhook"
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "typeVersion": 1,
+        "position": [
+          304,
+          304
+        ],
+        "id": "890cbd6b-8f1a-4d72-9521-1ae46a09c3e3",
+        "name": "Google Gemini Chat Model",
+        "credentials": {
+          "googlePalmApi": {
+            "id": "Wpexi3r5YS6ckVwQ",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "tableName": "agent_memory",
+          "sessionId": "={{ $('Webhook').item.json.body.biblioteca_id || 'default' }}"
+        },
+        "id": "052e96e2-303b-4afa-9f7b-7a59c2f1c224",
+        "name": "Postgres Chat Memory",
+        "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+        "typeVersion": 1.1,
+        "position": [
+          560,
+          160
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Code in JavaScript",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code in JavaScript": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Google Gemini Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Postgres Chat Memory": {
+        "ai_memory": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "saul alvarado",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-13T00:07:00.252Z",
+        "id": 152,
+        "workflowId": "5ce6GPu5y6lMVRuw",
+        "versionId": "fe51482c-2d9f-4098-8718-d44015206d24",
+        "event": "activated",
+        "userId": "09342586-c7c3-46f1-ba52-421790dae4fd"
+      }
+    ]
+  }
+}

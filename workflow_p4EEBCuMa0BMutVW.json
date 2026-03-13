@@ -1,0 +1,768 @@
+{
+  "updatedAt": "2026-03-10T17:47:25.009Z",
+  "createdAt": "2026-02-16T21:40:46.898Z",
+  "id": "p4EEBCuMa0BMutVW",
+  "name": "Extract PDF Text",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "bucketName": "energia-media",
+        "fileKey": "={{ $json.body.filepath }}"
+      },
+      "id": "06e5c6bc-f413-43e3-a974-ef3895a8c912",
+      "name": "MinIO - Download PDF",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        144
+      ],
+      "credentials": {
+        "s3": {
+          "id": "8QNeVz7QEL7RcrkC",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "622fd49d-0d6b-44a7-9150-5000f9e9b870",
+      "name": "Extract Text from PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        192,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://softcom.ccg.hn/documentos/api/update-texto/{{ $json.documento_id }}/",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "texto",
+              "value": "=={{ $json.texto }}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "timeout": 5000
+        }
+      },
+      "id": "fc083622-f1d6-4a67-9c47-6443568e6e9b",
+      "name": "Callback to Django",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1760,
+        -368
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"message\": \"Texto extra\u00eddo y enviado correctamente\" } }}",
+        "options": {}
+      },
+      "id": "b4cb787d-9d22-48c1-ac8a-6a9f289218e7",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1936,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-document",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a06d5825-502e-4ea1-bd77-51d71fd30803",
+      "name": "Webhook1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        144
+      ],
+      "webhookId": "extract-text"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $node[\"Extract Text from PDF\"].json.text.length }}",
+              "operation": "larger",
+              "value2": 50
+            }
+          ]
+        }
+      },
+      "id": "d2b4d88b-d1c4-4b4f-8004-4d9c2f57d93c",
+      "name": "IF: Has Text?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        336,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://stirling-pdf-b8o0g8gwg0okkoos0oo48kcg:8080/api/v1/misc/ocr-pdf",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "fileInput",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "ocrType",
+              "value": "ocr-only"
+            },
+            {
+              "name": "languages",
+              "value": "spa"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4b96c291-1811-4f3e-b64e-a8b6e2b2cdac",
+      "name": "Stirling-PDF OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        848,
+        768
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "uz6EzICWKdyW6bYM",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Inicializar el texto\nlet final_text = '';\n// 2. Intentar obtener el texto del nodo IF (camino de extracci\u00f3n normal)\ntry {\n  final_text = $input.first().json.text\n} catch (e) {\n  // Si falla (porque venimos por el camino del OCR), intentamos el otro\n  try {\n    final_text = $('Stirling-PDF OCR').$input.first().json.text\n  } catch (err) {\n    final_text = '';\n  }\n}\n// 3. Obtener los datos del Webhook (Aseg\u00farate de que se llame Webhook1)\nconst webhookBody = $('Webhook1').first().json.body\n// 4. Devolver el resultado limpio\nreturn {\n  texto: final_text ? final_text.replace(/\\s+/g, ' ').trim() : \"\",\n  documento_id: webhookBody.documento_id,\n  callback_url: webhookBody.callback_url\n};"
+      },
+      "id": "15fa0584-10f9-4fcb-8339-c4d1a817c071",
+      "name": "Merge & Clean",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "name": "Merge Binary Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        608,
+        896
+      ],
+      "notesInFlow": true,
+      "id": "eb5b27c3-e1cb-422c-9141-81e54a8f4799",
+      "notes": "Esto recupera el archivo original de MinIO y lo une con el flujo del IF"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1056,
+        768
+      ],
+      "id": "03d0bed3-0b18-4018-a753-5d0a64526e5b",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE documentos_documento\nSET \n  contenido_texto = '{{ $json.texto }}',\n  actualizado_en = NOW()\nWHERE\n  id = {{ $('Webhook1').item.json.body.documento_id }};\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1536,
+        352
+      ],
+      "id": "fe9e7c11-a58c-4354-9875-6393ccc5cb9e",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "MinIO - Download PDF": {
+      "main": [
+        [
+          {
+            "node": "Extract Text from PDF",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Binary Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extract Text from PDF": {
+      "main": [
+        [
+          {
+            "node": "IF: Has Text?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback to Django": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "MinIO - Download PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Has Text?": {
+      "main": [
+        [
+          {
+            "node": "Merge & Clean",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Binary Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stirling-PDF OCR": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge & Clean": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Binary Data": {
+      "main": [
+        [
+          {
+            "node": "Stirling-PDF OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Merge & Clean",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "534d1726-426d-4b1e-bc04-449f140a077f",
+  "activeVersionId": "534d1726-426d-4b1e-bc04-449f140a077f",
+  "versionCounter": 199,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-02-16T21:40:46.898Z",
+      "createdAt": "2026-02-16T21:40:46.898Z",
+      "role": "workflow:owner",
+      "workflowId": "p4EEBCuMa0BMutVW",
+      "projectId": "GSSLoLeG6jElPBJW",
+      "project": {
+        "updatedAt": "2026-02-06T01:47:25.632Z",
+        "createdAt": "2026-01-15T18:28:33.381Z",
+        "id": "GSSLoLeG6jElPBJW",
+        "name": "saul alvarado <saul.alvarado@outlook.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "09342586-c7c3-46f1-ba52-421790dae4fd",
+        "projectRelations": [
+          {
+            "updatedAt": "2026-01-15T18:28:33.381Z",
+            "createdAt": "2026-01-15T18:28:33.381Z",
+            "userId": "09342586-c7c3-46f1-ba52-421790dae4fd",
+            "projectId": "GSSLoLeG6jElPBJW",
+            "user": {
+              "updatedAt": "2026-03-12T21:25:51.892Z",
+              "createdAt": "2026-01-15T18:28:32.310Z",
+              "id": "09342586-c7c3-46f1-ba52-421790dae4fd",
+              "email": "saul.alvarado@outlook.com",
+              "firstName": "saul",
+              "lastName": "alvarado",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2026-01-16T01:54:05.800Z",
+                "personalization_survey_n8n_version": "1.119.2",
+                "companyType": "personal",
+                "reportedSource": "google"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "mNnJ3JL47Qn4sVkM",
+                "userActivatedAt": 1770948948287,
+                "easyAIWorkflowOnboarded": true,
+                "npsSurvey": {
+                  "responded": true,
+                  "lastShownAt": 1771260310182
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-03-12",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-10T17:47:29.208Z",
+    "createdAt": "2026-03-10T17:47:25.011Z",
+    "versionId": "534d1726-426d-4b1e-bc04-449f140a077f",
+    "workflowId": "p4EEBCuMa0BMutVW",
+    "nodes": [
+      {
+        "parameters": {
+          "bucketName": "energia-media",
+          "fileKey": "={{ $json.body.filepath }}"
+        },
+        "id": "06e5c6bc-f413-43e3-a974-ef3895a8c912",
+        "name": "MinIO - Download PDF",
+        "type": "n8n-nodes-base.s3",
+        "typeVersion": 1,
+        "position": [
+          -176,
+          144
+        ],
+        "credentials": {
+          "s3": {
+            "id": "8QNeVz7QEL7RcrkC",
+            "name": "S3 account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        },
+        "id": "622fd49d-0d6b-44a7-9150-5000f9e9b870",
+        "name": "Extract Text from PDF",
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          192,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://softcom.ccg.hn/documentos/api/update-texto/{{ $json.documento_id }}/",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "texto",
+                "value": "=={{ $json.texto }}"
+              }
+            ]
+          },
+          "options": {
+            "allowUnauthorizedCerts": true,
+            "timeout": 5000
+          }
+        },
+        "id": "fc083622-f1d6-4a67-9c47-6443568e6e9b",
+        "name": "Callback to Django",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          1760,
+          -368
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { \"status\": \"ok\", \"message\": \"Texto extra\u00eddo y enviado correctamente\" } }}",
+          "options": {}
+        },
+        "id": "b4cb787d-9d22-48c1-ac8a-6a9f289218e7",
+        "name": "Respond to Webhook",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          1936,
+          96
+        ]
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "process-document",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "a06d5825-502e-4ea1-bd77-51d71fd30803",
+        "name": "Webhook1",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [
+          -368,
+          144
+        ],
+        "webhookId": "extract-text"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "number": [
+              {
+                "value1": "={{ $node[\"Extract Text from PDF\"].json.text.length }}",
+                "operation": "larger",
+                "value2": 50
+              }
+            ]
+          }
+        },
+        "id": "d2b4d88b-d1c4-4b4f-8004-4d9c2f57d93c",
+        "name": "IF: Has Text?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          336,
+          320
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://stirling-pdf-b8o0g8gwg0okkoos0oo48kcg:8080/api/v1/misc/ocr-pdf",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "contentType": "multipart-form-data",
+          "bodyParameters": {
+            "parameters": [
+              {
+                "parameterType": "formBinaryData",
+                "name": "fileInput",
+                "inputDataFieldName": "data"
+              },
+              {
+                "name": "ocrType",
+                "value": "ocr-only"
+              },
+              {
+                "name": "languages",
+                "value": "spa"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "4b96c291-1811-4f3e-b64e-a8b6e2b2cdac",
+        "name": "Stirling-PDF OCR",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          848,
+          768
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "uz6EzICWKdyW6bYM",
+            "name": "Header Auth account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// 1. Inicializar el texto\nlet final_text = '';\n// 2. Intentar obtener el texto del nodo IF (camino de extracci\u00f3n normal)\ntry {\n  final_text = $input.first().json.text\n} catch (e) {\n  // Si falla (porque venimos por el camino del OCR), intentamos el otro\n  try {\n    final_text = $('Stirling-PDF OCR').$input.first().json.text\n  } catch (err) {\n    final_text = '';\n  }\n}\n// 3. Obtener los datos del Webhook (Aseg\u00farate de que se llame Webhook1)\nconst webhookBody = $('Webhook1').first().json.body\n// 4. Devolver el resultado limpio\nreturn {\n  texto: final_text ? final_text.replace(/\\s+/g, ' ').trim() : \"\",\n  documento_id: webhookBody.documento_id,\n  callback_url: webhookBody.callback_url\n};"
+        },
+        "id": "15fa0584-10f9-4fcb-8339-c4d1a817c071",
+        "name": "Merge & Clean",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1328,
+          352
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "mergeByIndex"
+        },
+        "name": "Merge Binary Data",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 1,
+        "position": [
+          608,
+          896
+        ],
+        "notesInFlow": true,
+        "id": "eb5b27c3-e1cb-422c-9141-81e54a8f4799",
+        "notes": "Esto recupera el archivo original de MinIO y lo une con el flujo del IF"
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1.1,
+        "position": [
+          1056,
+          768
+        ],
+        "id": "03d0bed3-0b18-4018-a753-5d0a64526e5b",
+        "name": "Extract from File"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "UPDATE documentos_documento\nSET \n  contenido_texto = '{{ $json.texto }}',\n  actualizado_en = NOW()\nWHERE\n  id = {{ $('Webhook1').item.json.body.documento_id }};\n",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1536,
+          352
+        ],
+        "id": "fe9e7c11-a58c-4354-9875-6393ccc5cb9e",
+        "name": "Execute a SQL query",
+        "credentials": {
+          "postgres": {
+            "id": "0GI4GAGRXkWfR6pK",
+            "name": "Postgres account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "MinIO - Download PDF": {
+        "main": [
+          [
+            {
+              "node": "Extract Text from PDF",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Merge Binary Data",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Extract Text from PDF": {
+        "main": [
+          [
+            {
+              "node": "IF: Has Text?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Callback to Django": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook1": {
+        "main": [
+          [
+            {
+              "node": "MinIO - Download PDF",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF: Has Text?": {
+        "main": [
+          [
+            {
+              "node": "Merge & Clean",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Merge Binary Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Stirling-PDF OCR": {
+        "main": [
+          [
+            {
+              "node": "Extract from File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge & Clean": {
+        "main": [
+          [
+            {
+              "node": "Execute a SQL query",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge Binary Data": {
+        "main": [
+          [
+            {
+              "node": "Stirling-PDF OCR",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract from File": {
+        "main": [
+          [
+            {
+              "node": "Merge & Clean",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "saul alvarado",
+    "name": "Version 534d1726",
+    "description": "",
+    "autosaved": true,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-10T17:47:29.166Z",
+        "id": 139,
+        "workflowId": "p4EEBCuMa0BMutVW",
+        "versionId": "534d1726-426d-4b1e-bc04-449f140a077f",
+        "event": "activated",
+        "userId": "09342586-c7c3-46f1-ba52-421790dae4fd"
+      }
+    ]
+  }
+}
