@@ -12,6 +12,9 @@ from .utils import resolve_ticket_ubicacion
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from datetime import datetime
+from django.http import HttpResponse, Http404
+from django.template.loader import render_to_string
+from playwright.sync_api import sync_playwright
 logger = logging.getLogger(__name__)
 
 @staff_member_required
@@ -148,4 +151,50 @@ def sync_single_ticket(request, ticket_id):
         messages.error(request, f"Error al enviar la tarea a Celery: {e}")
 
     return redirect('admin:callcenter_solicitudticket_change', ticket_id)
+
+@csrf_exempt
+def generate_ticket_pdf_view(request, folio):
+    """
+    Endpoint (API o Vista normal) para generar un archivo PDF 
+    del reporte de un ticket, impulsado por N8n o Web.
+    """
+    ticket = SolicitudTicket.objects.filter(folio=folio).first()
+    if not ticket:
+        try:
+            # Quizás folio contenga en realidad el ID
+            ticket = SolicitudTicket.objects.filter(id_solicitud=int(folio)).first()
+        except ValueError:
+            pass
+
+    if not ticket:
+        raise Http404("El ticket no existe o no se encontró con ese folio.")
+
+    html_content = render_to_string('callcenter/ticket_pdf.html', {'ticket': ticket}, request=request)
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox', 
+                    '--disable-setuid-sandbox', 
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu'
+                ]
+            )
+            page = browser.new_page()
+            page.set_content(html_content, wait_until='networkidle')
+            pdf_bytes = page.pdf(
+                format="A4",
+                print_background=True,
+                margin={'top': '20px', 'right': '20px', 'bottom': '20px', 'left': '20px'}
+            )
+            browser.close()
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="Comprobante_{ticket.folio or ticket.id_solicitud}.pdf"'
+        return response
+    except Exception as e:
+        logger.error(f"Error generando PDF del ticket {folio}: {str(e)}", exc_info=True)
+        return HttpResponse(f"Error interno generando el PDF: {str(e)}", status=500)
 

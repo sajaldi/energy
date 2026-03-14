@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Comprobante de Ticket {{ ticket.folio }}</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #333;
+            margin: 0;
+            padding: 40px;
+            font-size: 14px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 150px;
+            margin-bottom: 10px;
+        }
+        h1 {
+            color: #0056b3;
+            margin: 0;
+            font-size: 24px;
+        }
+        .ticket-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .column {
+            width: 48%;
+        }
+        h3 {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            color: #444;
+            font-size: 16px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 8px 0;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            width: 40%;
+            color: #666;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .badge {
+            background-color: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .badge.open {
+            background-color: #ffc107;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <!-- Puedes cambiar esta URL por el logo de tu empresa -->
+        <h1>Reporte de Servicio Técnico</h1>
+        <p style="color: #666; margin-top: 5px;">Centro Cívico Gubernamental</p>
+    </div>
+
+    <div class="ticket-info">
+        <div class="column">
+            <h3>Información General</h3>
+            <table>
+                <tr>
+                    <th>Folio:</th>
+                    <td><strong>{{ ticket.folio|default:ticket.id_solicitud }}</strong></td>
+                </tr>
+                <tr>
+                    <th>Solicitante:</th>
+                    <td>{{ ticket.solicitante|default:"N/D" }}</td>
+                </tr>
+                <tr>
+                    <th>Ubicación:</th>
+                    <td>{{ ticket.ubicacion|default:"N/D" }}</td>
+                </tr>
+                <tr>
+                    <th>Nivel / Grupo:</th>
+                    <td>{{ ticket.nivel|default:"-" }} / {{ ticket.grupo|default:"-" }}</td>
+                </tr>
+                <tr>
+                    <th>Servicio:</th>
+                    <td>{{ ticket.servicio|default:"N/D" }}</td>
+                </tr>
+            </table>
+            
+            <div class="badge {% if not ticket.fecha_cierre %}open{% endif %}">
+                Estado: {% if ticket.fecha_cierre %}CERRADO{% else %}ABIERTO{% endif %}
+            </div>
+        </div>
+        
+        <div class="column">
+            <h3>Tiempos y Responsable</h3>
+            <table>
+                <tr>
+                    <th>Responsable:</th>
+                    <td>{{ ticket.responsable|default:"No Asignado" }}</td>
+                </tr>
+                <tr>
+                    <th>Fecha Solicitud:</th>
+                    <td>{{ ticket.fecha_solicitud|date:"d/m/Y H:i"|default:"N/D" }}</td>
+                </tr>
+                <tr>
+                    <th>Fecha Diagnóstico:</th>
+                    <td>{{ ticket.fecha_diagnostico|date:"d/m/Y H:i"|default:"N/D" }}</td>
+                </tr>
+                <tr>
+                    <th>Fecha Actividades:</th>
+                    <td>{{ ticket.fecha_actividades|date:"d/m/Y H:i"|default:"N/D" }}</td>
+                </tr>
+                <tr>
+                    <th>Fecha Cierre:</th>
+                    <td>{{ ticket.fecha_cierre|date:"d/m/Y H:i"|default:"N/D" }}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <h3>Descripción del Problema</h3>
+    <p style="background: #f9f9f9; padding: 15px; border-left: 4px solid #0056b3; line-height: 1.5;">
+        <strong>Falla Reportada:</strong> {{ ticket.falla_descripcion|default:"Ninguna" }}<br><br>
+        <strong>Diagnóstico:</strong> {{ ticket.diagnostico|default:"Ninguno" }}
+    </p>
+
+    <h3>Actividades y Resoluciones</h3>
+    <p style="background: #f9f9f9; padding: 15px; border-left: 4px solid #28a745; line-height: 1.5;">
+        <strong>Acciones Realizadas:</strong> {{ ticket.actividades|default:"Ninguna" }}<br><br>
+        <strong>Observaciones Finales:</strong> {{ ticket.observaciones_usuario|default:"Ninguna" }}<br>
+        <small style="color: #666; display: block; margin-top: 10px;">Notas adicionales: {{ ticket.observaciones|default:"Ninguna" }}</small>
+    </p>
+
+    <div class="footer">
+        <p>Documento generado automáticamente por el sistema de Gestión de Call Center (MAO).</p>
+        <p>Fecha de emisión: {% now "d/m/Y H:i" %}</p>
+    </div>
+
+</body>
+</html>

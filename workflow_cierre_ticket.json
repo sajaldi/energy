@@ -1,0 +1,1569 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "telefono",
+              "value": "={{ String($json.body?.payload?.from || $json.body?.from || '').split('@')[0] }}"
+            },
+            {
+              "name": "mensaje_limpio",
+              "value": "={{ String($json.body?.payload?.body || $json.body?.body || $json.body?.message || '').toLowerCase().trim() }}"
+            },
+            {
+              "name": "mensaje_original",
+              "value": "={{ String($json.body?.payload?.body || $json.body?.body || $json.body?.message || '').trim() }}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "fromMe",
+              "value": "={{ $json.body?.payload?.fromMe === true || $json.body?.fromMe === true }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a9ee127d-cda9-406e-bd2f-6466d50b6dfc",
+      "name": "Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        -7104,
+        4368
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COALESCE((SELECT status FROM bot_sessions WHERE phone_number = '{{ $('Variables').item.json.telefono }}'), 'IDLE') as status;",
+        "options": {}
+      },
+      "id": "76754716-c733-4142-a928-4b6c924ecf24",
+      "name": "→ Obtener Estado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -6688,
+        4368
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Variables').item.json.mensaje_limpio.replace('ó', 'o') }}",
+              "value2": "adios"
+            }
+          ]
+        }
+      },
+      "id": "2e65887f-a8d4-42f4-939f-5b54294d0db6",
+      "name": "IF → Adios?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -6496,
+        4368
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO bot_sessions (phone_number, status, last_update)\nVALUES ('{{ $('Variables').item.json.telefono }}', 'IDLE', NOW())\nON CONFLICT (phone_number) DO UPDATE SET status = 'IDLE', last_update = NOW();",
+        "options": {}
+      },
+      "id": "ca640069-5555-437e-9e4c-97f226eb31d3",
+      "name": "Reset → IDLE (Adios)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -6288,
+        4224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "✅ Tu conversación ha sido reiniciada.\n\nEscribe *hola* o *menu* cuando desees volver a empezar. ¡Adiós! 👋"
+      },
+      "id": "7304825b-4d55-4ca7-8f16-f5575926a5fa",
+      "name": "Enviar Despedida",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -6096,
+        4224
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.status.split(':')[0].toUpperCase() }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "IDLE"
+            },
+            {
+              "value2": "ESPERANDO_CONSULTA",
+              "output": 1
+            },
+            {
+              "value2": "ESPERANDO_CIERRE",
+              "output": 2
+            },
+            {
+              "value2": "CERRANDO",
+              "output": 3
+            }
+          ]
+        },
+        "fallbackOutput": 0
+      },
+      "id": "a4590f00-dcb8-4ba7-a1d5-beb9b3293281",
+      "name": "Switch → Estado",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -6336,
+        4608
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('Variables').item.json.mensaje_limpio }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "hola",
+              "output": 1
+            },
+            {
+              "value2": "menu",
+              "output": 1
+            }
+          ]
+        },
+        "fallbackOutput": 0
+      },
+      "id": "4c72a4cf-d728-457e-85dd-036867ec860e",
+      "name": "Comando Inicio?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -6064,
+        4416
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO bot_sessions (phone_number, status, last_update)\nVALUES ('{{ $('Variables').item.json.telefono }}', 'IDLE', NOW())\nON CONFLICT (phone_number) DO UPDATE SET status = 'IDLE', last_update = NOW();",
+        "options": {}
+      },
+      "id": "0a3e9112-5484-49a5-b390-b7b581ab40ad",
+      "name": "Reset → IDLE",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5840,
+        4432
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "👋 *Menú Principal*\n\n1️⃣ Consultar Ticket\n2️⃣ Cerrar Ticket\n\n_Escribe el número de la opción:_"
+      },
+      "id": "399fb085-cd01-4fda-a3a8-1d6ff9aba20b",
+      "name": "Enviar Menú",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5440,
+        4432
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('Variables').item.json.mensaje_limpio }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "1",
+              "output": 1
+            },
+            {
+              "value2": "2",
+              "output": 2
+            }
+          ]
+        },
+        "fallbackOutput": 0
+      },
+      "id": "28c379d6-be41-43de-9b8f-1cc8c42ba7b9",
+      "name": "Switch → Opción Menú",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -5840,
+        4256
+      ]
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "⚠️ Opción no válida. Por favor escribe *1* o *2*, o *menu* para volver."
+      },
+      "id": "e66f6b94-f27f-40b3-bd3c-1519bb9a5a83",
+      "name": "Opcion Invalida",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5600,
+        3888
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp",
+        "options": {}
+      },
+      "id": "5cdb2f22-18a9-4999-beda-aa97515d0612",
+      "name": "Webhook1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -7328,
+        4368
+      ],
+      "webhookId": "c9230c84-f1ac-49d6-af09-7a45bd3b0df8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.fromMe }}"
+            }
+          ],
+          "string": [
+            {
+              "value1": "={{ $json.mensaje_original }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "9443fbcd-18ab-4feb-b178-3c7f71c0349a",
+      "name": "Filtro Anti-Loop1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -6896,
+        4368
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions SET status = 'ESPERANDO_CONSULTA', last_update = NOW() WHERE phone_number = '{{ $('Variables').item.json.telefono }}';",
+        "options": {}
+      },
+      "id": "0d8d052d-9afb-4ce1-bae9-1e17d9ab40c5",
+      "name": "Set → ESPERAR_CONSULTA",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5584,
+        4080
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "🔍 Has elegido Consultar.\nPor favor, escribe el *Folio* o *Número* del ticket a consultar:"
+      },
+      "id": "c7ee5eb2-2a7e-4074-b52e-fb0cdbe571f5",
+      "name": "Pedir Folio Consulta",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5360,
+        4080
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions SET status = 'ESPERANDO_CIERRE', last_update = NOW() WHERE phone_number = '{{ $('Variables').item.json.telefono }}';",
+        "options": {}
+      },
+      "id": "c1a0be5f-b52e-4b69-baab-2b369c7cc9bd",
+      "name": "Set → ESPERAR_CIERRE",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5584,
+        4256
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "🔒 Has elegido Cerrar Ticket.\nPor favor, ingresa el *Folio* exacto del ticket que deseas cerrar:"
+      },
+      "id": "e2ba7e1d-c419-4fcf-8dc4-b152d5b6eacb",
+      "name": "Pedir Folio Cierre",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5360,
+        4256
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM callcenter_solicitudticket\nWHERE folio = '{{ $('Variables').item.json.mensaje_original }}'\nOR CAST(id_solicitud AS TEXT) = '{{ $('Variables').item.json.mensaje_original }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "b3fbdadd-bd91-4c60-a29d-4355ddccf7de",
+      "name": "Buscar Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -6048,
+        4624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Object.keys($json).length === 0 }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "c07d3c0e-ff6c-4861-b51e-61614f08e50b",
+      "name": "IF → No encontrado? (Consulta)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -5824,
+        4624
+      ]
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "⚠️ No encontramos ningún ticket.\nEscribe *menu* para volver."
+      },
+      "id": "f51bbda8-a0d0-4740-9da7-0f666f44d5d9",
+      "name": "Error Consulta",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5600,
+        4576
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "=🎫 *Ticket {{ $json.folio || $json.id_solicitud }}*\n*Responsable:* {{ $json.responsable || 'N/A' }}\n*Falla:* {{ $json.falla_descripcion || 'Sin descripción' }}\n\nEscribe *menu* para volver."
+      },
+      "id": "ac1b1a7d-e6b9-4bd2-97ba-a27beea92d80",
+      "name": "Enviar Info Ticket",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5600,
+        4768
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM callcenter_solicitudticket\nWHERE folio = '{{ $('Variables').item.json.mensaje_original.trim() }}'\nOR CAST(id_solicitud AS TEXT) = '{{ $('Variables').item.json.mensaje_original.trim() }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "5f1b1c6d-9b0d-451e-b83c-1b7fcf711d9d",
+      "name": "Validar Folio a Cerrar",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -6048,
+        4992
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Object.keys($json).length === 0 }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "4b6113b3-1e90-48e0-bb72-d7cbffb2c2fb",
+      "name": "IF → No Existe Folio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -5856,
+        4992
+      ]
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "⚠️ El folio no existe.\nIntenta de nuevo o escribe *menu*."
+      },
+      "id": "e5c1bf23-f2b1-4b16-9dc5-dcb74b6c3111",
+      "name": "Error Folio",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5616,
+        4912
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions SET status = 'CERRANDO:' || COALESCE('{{ $json.folio }}', CAST('{{ $json.id_solicitud }}' AS TEXT)) || ':DIAGNOSTICO' WHERE phone_number = '{{ $('Variables').item.json.telefono }}';",
+        "options": {}
+      },
+      "id": "e7b01d36-7bb2-48ec-9ff6-dcffc1d9f8c6",
+      "name": "Set → Esperar Diagnóstico",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5616,
+        5088
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "=🎫 *Detalles del Ticket {{ $('Validar Folio a Cerrar').item.json.folio || $('Validar Folio a Cerrar').item.json.id_solicitud }}*\n*Falla reportada:* {{ $('Validar Folio a Cerrar').item.json.falla_descripcion || 'Sin descripción' }}\n*Solicitante:* {{ $('Validar Folio a Cerrar').item.json.solicitante || 'N/A' }}\n\nPerfecto, estás a punto de cerrarlo.\nPor favor, escribe el *Diagnóstico*:"
+      },
+      "id": "d0fbf7ea-8d69-450f-bdc1-1e9fa07eebc5",
+      "name": "Pedir Diagnostico",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5408,
+        5088
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('→ Obtener Estado').item.json.status.split(':')[2] }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "DIAGNOSTICO",
+              "output": 0
+            },
+            {
+              "value2": "ACCION",
+              "output": 1
+            },
+            {
+              "value2": "INICIO",
+              "output": 2
+            }
+          ]
+        },
+        "fallbackOutput": 3
+      },
+      "id": "f8d83db0-1dfd-40d9-b2f5-d576b509f6e6",
+      "name": "Switch → Cierre 1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -6080,
+        5488
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('→ Obtener Estado').item.json.status.split(':')[2] }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "FIN",
+              "output": 0
+            },
+            {
+              "value2": "OBS",
+              "output": 1
+            },
+            {
+              "value2": "FOTO",
+              "output": 2
+            },
+            {
+              "value2": "CONFIRMAR",
+              "output": 3
+            }
+          ]
+        },
+        "fallbackOutput": 0
+      },
+      "id": "41a1eb3d-8ab1-4be5-9b2f-9cd2bf33cc85",
+      "name": "Switch → Cierre 2",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -5856,
+        5632
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}:ACCION' \nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';\n\nUPDATE callcenter_solicitudticket \nSET diagnostico = '{{ $('Variables').item.json.mensaje_original }}' \nWHERE folio = '{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}';",
+        "options": {}
+      },
+      "id": "a9eebc3f-40e1-45bd-8ff1-71eab0ec2a5b",
+      "name": "Guarda Diag > Pide Acción",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5776,
+        5312
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "Registrado. Ahora escribe la *Acción realizada*:"
+      },
+      "id": "dfad0f46-5f6d-4d7a-b50a-e275f10adcfd",
+      "name": "Msg Accion",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5552,
+        5312
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}:INICIO' \nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';\n\nUPDATE callcenter_solicitudticket \nSET actividades = '{{ $('Variables').item.json.mensaje_original }}' \nWHERE folio = '{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}';",
+        "options": {}
+      },
+      "id": "c62bf64a-2b73-45ab-a70d-fec7e5ccdbf4",
+      "name": "Guarda Acc > Pide Inicio",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5776,
+        5456
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "Registrado. Escribe la *Hora de inicio* (Ejemplo: 10:30 am):"
+      },
+      "id": "18fbaebc-e4e1-4c12-88ef-2dd1bd9d6dff",
+      "name": "Msg Inicio",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5552,
+        5456
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}:FIN' \nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';\n\nUPDATE callcenter_solicitudticket \nSET observaciones_usuario = 'Inicio: ' || '{{ $('Variables').item.json.mensaje_original }}' || ' - ' || (COALESCE(observaciones_usuario, ''))\nWHERE folio = '{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}';",
+        "options": {}
+      },
+      "id": "ef2e987c-d68a-4462-bed4-7935cf91dff6",
+      "name": "Guarda Ini > Pide Fin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5552,
+        5632
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "¿Cuál es la *Hora de finalización*? (Ejemplo 11:45 am)"
+      },
+      "id": "df47e6ff-fedd-4dd6-81c8-db4bb92a7e4b",
+      "name": "Msg Fin",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5344,
+        5632
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}:OBS' \nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';\n\nUPDATE callcenter_solicitudticket \nSET observaciones_usuario = 'Fin: ' || '{{ $('Variables').item.json.mensaje_original }}' || ' | ' || (COALESCE(observaciones_usuario, ''))\nWHERE folio = '{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}';",
+        "options": {}
+      },
+      "id": "19b4b08f-2875-452f-a0bb-2a1bd7db5b68",
+      "name": "Guarda Fin > Pide Obs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5552,
+        5776
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "Anota las *Observaciones generales* (si no tienes, escribe 'Ninguna'):"
+      },
+      "id": "95781a8b-18a7-47b2-8ec2-1ba4e34e56c1",
+      "name": "Msg Obs",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5344,
+        5776
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}:FOTO' \nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';\n\nUPDATE callcenter_solicitudticket \nSET observaciones = '{{ $('Variables').item.json.mensaje_original }}' \nWHERE folio = '{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}';",
+        "options": {}
+      },
+      "id": "6d3defb8-07e3-463d-b4f7-e7d4db1c8808",
+      "name": "Guarda Obs > Pide Foto",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5552,
+        5936
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "📸 Adicionalmente, por favor *envía imagen(es)* como evidencia.\n\nCuando hayas enviado todo, o si no vas a enviar imagen, responde con la palabra *Listo*."
+      },
+      "id": "cbb26284-93ad-4e6f-9ab8-e3ea6cbb7319",
+      "name": "Msg Foto",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5344,
+        5936
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Variables').item.json.mensaje_limpio }}",
+              "value2": "listo"
+            }
+          ]
+        }
+      },
+      "id": "8bdef74b-e85e-4c7b-b35f-1ae66fc505bc",
+      "name": "IF → Escribió Listo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -5552,
+        6096
+      ]
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "OK, foto/documento recibido. ¿Añadirás algo más? (sino, envía *Listo*)"
+      },
+      "id": "ac823126-e17b-40fa-aafe-2ff9eadeba1c",
+      "name": "Mensaje Recibiendo Doc",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5344,
+        6000
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}:CONFIRMAR' \nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';",
+        "options": {}
+      },
+      "id": "18029fd5-e0bb-4bf5-b44c-35cd218a58ec",
+      "name": "Set → Confirmar",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5344,
+        6176
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "Perfecto.\n\nEscribe *SI* para confirmar el cierre del ticket y generar el PDF, o *NO* para abortar."
+      },
+      "id": "e6745167-e9fa-47fa-9252-f47053eaf199",
+      "name": "Pide Confirmación",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5136,
+        6176
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('Variables').item.json.mensaje_limpio }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "si",
+              "output": 0
+            },
+            {
+              "value2": "no",
+              "output": 1
+            }
+          ]
+        },
+        "fallbackOutput": 0
+      },
+      "id": "d0f1b200-aee3-49d7-83c9-0b1a0e0e1596",
+      "name": "Switch → Si / No Cierre",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -5552,
+        6384
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions \nSET status = 'IDLE', last_update = NOW()\nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';\n\nUPDATE callcenter_solicitudticket\nSET fecha_cierre = NOW()\nWHERE folio = '{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}';",
+        "options": {}
+      },
+      "id": "de5121b6-aae3-4fe6-8051-7eb9c2c61ce5",
+      "name": "Cerrar e IDLE",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5312,
+        6336
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE bot_sessions \nSET status = 'IDLE', last_update = NOW()\nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';",
+        "options": {}
+      },
+      "id": "90e3cd14-1eec-4a24-9dfc-2ec19728cf01",
+      "name": "Abortar e IDLE",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        -5312,
+        6480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "0GI4GAGRXkWfR6pK",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "🛑 Operación cancelada. El ticket no se cerró.\nEscribe *menu* para volver."
+      },
+      "id": "e446ab56-324c-4e8c-ab30-f4728fdebc2f",
+      "name": "Msg Abortado",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5088,
+        6480
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "⌛ Ticket cerrado exitosamente. Estamos generando tu comprobante PDF..."
+      },
+      "id": "84325aed-5353-4315-ae75-3e289bf44a46",
+      "name": "Msg Cierre Final",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5088,
+        6336
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:8000/callcenter/api/ticket/{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}/pdf/",
+        "responseFormat": "file",
+        "options": {}
+      },
+      "id": "e6a18d1a-4c2d-4871-b84b-017fb9b6cd8e",
+      "name": "Generar PDF (Django)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -4864,
+        6336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendDocument",
+        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
+        "message": "✅ Aquí tienes tu Comprobante de Servicio Técnico en formato PDF. ¡Gracias!",
+        "fileProperty": "data"
+      },
+      "id": "b9a54bb6-2d6f-4d32-8415-ef6ff9ae9b5e",
+      "name": "Enviar Documento PDF",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -4640,
+        6336
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Variables": {
+      "main": [
+        [
+          {
+            "node": "Filtro Anti-Loop1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "→ Obtener Estado": {
+      "main": [
+        [
+          {
+            "node": "IF → Adios?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF → Adios?": {
+      "main": [
+        [
+          {
+            "node": "Reset → IDLE (Adios)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch → Estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset → IDLE (Adios)": {
+      "main": [
+        [
+          {
+            "node": "Enviar Despedida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch → Estado": {
+      "main": [
+        [
+          {
+            "node": "Comando Inicio?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Validar Folio a Cerrar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch → Cierre 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comando Inicio?": {
+      "main": [
+        [
+          {
+            "node": "Switch → Opción Menú",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reset → IDLE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset → IDLE": {
+      "main": [
+        [
+          {
+            "node": "Enviar Menú",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch → Opción Menú": {
+      "main": [
+        [
+          {
+            "node": "Opcion Invalida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set → ESPERAR_CONSULTA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set → ESPERAR_CIERRE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtro Anti-Loop1": {
+      "main": [
+        [
+          {
+            "node": "→ Obtener Estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set → ESPERAR_CONSULTA": {
+      "main": [
+        [
+          {
+            "node": "Pedir Folio Consulta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set → ESPERAR_CIERRE": {
+      "main": [
+        [
+          {
+            "node": "Pedir Folio Cierre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Ticket": {
+      "main": [
+        [
+          {
+            "node": "IF → No encontrado? (Consulta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF → No encontrado? (Consulta)": {
+      "main": [
+        [
+          {
+            "node": "Error Consulta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar Info Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Info Ticket": {
+      "main": [
+        [
+          {
+            "node": "Reset → IDLE (Adios)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Consulta": {
+      "main": [
+        [
+          {
+            "node": "Reset → IDLE (Adios)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Folio a Cerrar": {
+      "main": [
+        [
+          {
+            "node": "IF → No Existe Folio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF → No Existe Folio?": {
+      "main": [
+        [
+          {
+            "node": "Error Folio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set → Esperar Diagnóstico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Folio": {
+      "main": [
+        [
+          {
+            "node": "Reset → IDLE (Adios)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set → Esperar Diagnóstico": {
+      "main": [
+        [
+          {
+            "node": "Pedir Diagnostico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch → Cierre 1": {
+      "main": [
+        [
+          {
+            "node": "Guarda Diag > Pide Acción",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Guarda Acc > Pide Inicio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Guarda Ini > Pide Fin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch → Cierre 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch → Cierre 2": {
+      "main": [
+        [
+          {
+            "node": "Guarda Fin > Pide Obs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Guarda Obs > Pide Foto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF → Escribió Listo?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch → Si / No Cierre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guarda Diag > Pide Acción": {
+      "main": [
+        [
+          {
+            "node": "Msg Accion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guarda Acc > Pide Inicio": {
+      "main": [
+        [
+          {
+            "node": "Msg Inicio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guarda Ini > Pide Fin": {
+      "main": [
+        [
+          {
+            "node": "Msg Fin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guarda Fin > Pide Obs": {
+      "main": [
+        [
+          {
+            "node": "Msg Obs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guarda Obs > Pide Foto": {
+      "main": [
+        [
+          {
+            "node": "Msg Foto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF → Escribió Listo?": {
+      "main": [
+        [
+          {
+            "node": "Set → Confirmar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensaje Recibiendo Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set → Confirmar": {
+      "main": [
+        [
+          {
+            "node": "Pide Confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch → Si / No Cierre": {
+      "main": [
+        [
+          {
+            "node": "Cerrar e IDLE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Abortar e IDLE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cerrar e IDLE": {
+      "main": [
+        [
+          {
+            "node": "Msg Cierre Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abortar e IDLE": {
+      "main": [
+        [
+          {
+            "node": "Msg Abortado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Msg Cierre Final": {
+      "main": [
+        [
+          {
+            "node": "Generar PDF (Django)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar PDF (Django)": {
+      "main": [
+        [
+          {
+            "node": "Enviar Documento PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
