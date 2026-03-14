@@ -185,7 +185,9 @@ def generate_ticket_pdf_view(request, folio):
                 ]
             )
             page = browser.new_page()
-            page.set_content(html_content, wait_until='networkidle')
+            # Usar build_absolute_uri('/') como base_url para que Playwright resuelva rutas relativas
+            base_url = request.build_absolute_uri('/')
+            page.set_content(html_content, wait_until='networkidle', base_url=base_url)
             pdf_bytes = page.pdf(
                 format="A4",
                 print_background=True,
@@ -235,6 +237,7 @@ def webhook_evidencia_ticket(request, folio):
             return JsonResponse({'error': 'Not found'}, status=404)
 
         data = json.loads(request.body)
+        logger.info(f"Recibiendo webhook evidencia para ticket {folio}. Keys en data: {list(data.keys())}")
         
         # Explorar el payload de GoWA en N8N para buscar la base64
         body_data = data

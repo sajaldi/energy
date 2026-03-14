@@ -63,8 +63,17 @@
             {
               "value1": "={{ $('Variables').item.json.mensaje_limpio.replace('ó', 'o') }}",
               "value2": "adios"
+            },
+            {
+              "value1": "={{ $('Variables').item.json.mensaje_limpio }}",
+              "value2": "salir"
+            },
+            {
+              "value1": "={{ $('Variables').item.json.mensaje_limpio }}",
+              "value2": "cancelar"
             }
-          ]
+          ],
+          "combinator": "or"
         }
       },
       "id": "2e65887f-a8d4-42f4-939f-5b54294d0db6",
@@ -393,7 +402,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "=SELECT * FROM callcenter_solicitudticket\nWHERE folio = '{{ $('Variables').item.json.mensaje_original }}'\nOR CAST(id_solicitud AS TEXT) = '{{ $('Variables').item.json.mensaje_original }}'\nLIMIT 1;",
-        "options": {}
+        "options": {
+          "alwaysOutputData": true
+        }
       },
       "id": "b3fbdadd-bd91-4c60-a29d-4355ddccf7de",
       "name": "Buscar Ticket",
@@ -413,10 +424,10 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "string": [
             {
-              "value1": "={{ Object.keys($json).length === 0 }}",
-              "value2": true
+              "value1": "={{ $json.id_solicitud }}",
+              "operation": "isEmpty"
             }
           ]
         }
@@ -474,7 +485,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "=SELECT * FROM callcenter_solicitudticket\nWHERE folio = '{{ $('Variables').item.json.mensaje_original.trim() }}'\nOR CAST(id_solicitud AS TEXT) = '{{ $('Variables').item.json.mensaje_original.trim() }}'\nLIMIT 1;",
-        "options": {}
+        "options": {
+          "alwaysOutputData": true
+        }
       },
       "id": "5f1b1c6d-9b0d-451e-b83c-1b7fcf711d9d",
       "name": "Validar Folio a Cerrar",
@@ -494,10 +507,10 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "string": [
             {
-              "value1": "={{ Object.keys($json).length === 0 }}",
-              "value2": true
+              "value1": "={{ $json.id_solicitud }}",
+              "operation": "isEmpty"
             }
           ]
         }
@@ -889,7 +902,7 @@
         "url": "=http://kgogwsw00cwcw8g0wk0gsogg.10.30.1.11.sslip.io/callcenter/api/ticket/{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}/upload_evidencia/",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($('Variables').item.json) }}",
+        "jsonBody": "={{ JSON.stringify($('Webhook1').item.json) }}",
         "options": {}
       },
       "id": "e81d763a-23b9-470a-811c-2af47fbb34e1",
