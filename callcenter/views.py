@@ -171,7 +171,8 @@ def generate_ticket_pdf_view(request, folio):
     if not ticket:
         raise Http404("El ticket no existe o no se encontró con ese folio.")
 
-    html_content = render_to_string('callcenter/ticket_pdf.html', {'ticket': ticket}, request=request)
+    base_url = request.build_absolute_uri('/').rstrip('/')
+    html_content = render_to_string('callcenter/ticket_pdf.html', {'ticket': ticket, 'base_url': base_url}, request=request)
 
     try:
         with sync_playwright() as p:
@@ -185,9 +186,7 @@ def generate_ticket_pdf_view(request, folio):
                 ]
             )
             page = browser.new_page()
-            # Usar build_absolute_uri('/') como base_url para que Playwright resuelva rutas relativas
-            base_url = request.build_absolute_uri('/')
-            page.set_content(html_content, wait_until='networkidle', base_url=base_url)
+            page.set_content(html_content, wait_until='networkidle')
             pdf_bytes = page.pdf(
                 format="A4",
                 print_background=True,
