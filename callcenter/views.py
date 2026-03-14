@@ -236,7 +236,7 @@ import base64
 @csrf_exempt
 def webhook_evidencia_ticket(request, folio):
     """
-    Endpoint (Webhook) para que n8n mande las imágenes que el usuario
+    Endpoint para que n8n mande las imágenes que el usuario
     adjunta durante el proceso de cierre y poder guardarlas.
     """
     if request.method != 'POST':
@@ -254,49 +254,59 @@ def webhook_evidencia_ticket(request, folio):
             return JsonResponse({'error': 'Not found'}, status=404)
 
         data = json.loads(request.body)
-        logger.info(f"Recibiendo webhook evidencia para ticket {folio}. Keys en data: {list(data.keys())}")
         
-        # Explorar el payload de GoWA en N8N para buscar la base64
-        body_data = data
-        if 'body' in data:
-            if isinstance(data['body'], dict):
-                body_data = data['body']
-            elif isinstance(data['body'], str):
+        # LOG COMPLETO para diagnosticar la estructura del payload de GoWA
+        import pprint
+        payload_str = pprint.pformat(data, width=200)
+        logger.info(f"=== WEBHOOK EVIDENCIA ticket {folio} ===\n{payload_str[:3000]}")
+
+        # Buscar base64 recursivamente en todo el payload
+        def find_base64(obj, depth=0):
+            if depth > 5:
+                return None
+            if isinstance(obj, str) and len(obj) > 100:
+                if 'base64,' in obj:
+                    return obj
+                # A veces viene como string puro base64 sin prefijo data:
                 try:
-                    body_data = json.loads(data['body'])
-                except:
+                    test = base64.b64decode(obj[:100])
+                    # Si los primeros bytes parecen JPEG o PNG
+                    if test[:2] == b'\xff\xd8' or test[:4] == b'\x89PNG':
+                        return f'data:image/jpeg;base64,{obj}'
+                except Exception:
                     pass
+            elif isinstance(obj, dict):
+                for key in obj:
+                    result = find_base64(obj[key], depth + 1)
+                    if result:
+                        logger.info(f"Base64 encontrada en key: {key}")
+                        return result
+            elif isinstance(obj, list):
+                for item in obj:
+                    result = find_base64(item, depth + 1)
+                    if result:
+                        return result
+            return None
 
-        # Gowa payload suele traer { "message": "data:image/jpeg;base64,xxxxx..." }
-        base64_str = ""
-        for key in ['message', 'base64', 'body', 'data']:
-            val = body_data.get(key)
-            if isinstance(val, str) and 'base64,' in val:
-                base64_str = val
-                break
+        base64_str = find_base64(data)
         
-        if not base64_str and isinstance(body_data.get('payload'), dict):
-            for key in ['message', 'base64', 'body', 'data']:
-                val = body_data['payload'].get(key)
-                if isinstance(val, str) and 'base64,' in val:
-                    base64_str = val
-                    break
-
         if base64_str and 'base64,' in base64_str:
-            format, imgstr = base64_str.split('base64,') 
-            ext = format.split('/')[-1].split(';')[0]
+            format_part, imgstr = base64_str.split('base64,', 1)
+            ext = format_part.split('/')[-1].split(';')[0] if '/' in format_part else 'jpg'
             if ext == 'jpeg': ext = 'jpg'
             
             file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
-            
             data_bytes = base64.b64decode(imgstr)
+            
             from callcenter.models import EvidenciaTicket
-            evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp', archivo=None)
+            evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp')
             evidencia.archivo.save(file_name, ContentFile(data_bytes))
             
+            logger.info(f"Evidencia guardada: {file_name} ({len(data_bytes)} bytes)")
             return JsonResponse({'success': True, 'msg': 'Imagen guardada'})
 
-        return JsonResponse({'success': False, 'msg': 'No base64 found'})
+        logger.warning(f"No se encontró base64 en payload para ticket {folio}. Keys raíz: {list(data.keys())}")
+        return JsonResponse({'success': False, 'msg': 'No base64 found in payload'})
     except Exception as e:
         logger.error(f"Error parseando imagen: {e}", exc_info=True)
         return JsonResponse({'success': False, 'msg': str(e)}, status=500)
