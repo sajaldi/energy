@@ -171,8 +171,26 @@ def generate_ticket_pdf_view(request, folio):
     if not ticket:
         raise Http404("El ticket no existe o no se encontró con ese folio.")
 
-    base_url = request.build_absolute_uri('/').rstrip('/')
-    html_content = render_to_string('callcenter/ticket_pdf.html', {'ticket': ticket, 'base_url': base_url}, request=request)
+    # Pre-cargar evidencias como base64 para que Playwright las renderice inline
+    evidencias_b64 = []
+    for ev in ticket.evidencias.all():
+        if ev.archivo and '.pdf' not in ev.archivo.name:
+            try:
+                img_bytes = ev.archivo.read()
+                ext = ev.archivo.name.rsplit('.', 1)[-1].lower()
+                mime = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp'}.get(ext, 'image/jpeg')
+                b64 = base64.b64encode(img_bytes).decode('utf-8')
+                evidencias_b64.append({
+                    'data_uri': f'data:{mime};base64,{b64}',
+                    'descripcion': ev.descripcion or '',
+                })
+            except Exception as img_err:
+                logger.warning(f"No se pudo leer evidencia {ev.id}: {img_err}")
+
+    html_content = render_to_string('callcenter/ticket_pdf.html', {
+        'ticket': ticket,
+        'evidencias_b64': evidencias_b64,
+    }, request=request)
 
     try:
         with sync_playwright() as p:

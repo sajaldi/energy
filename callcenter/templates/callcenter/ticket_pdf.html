@@ -83,7 +83,7 @@
 
     <div class="header">
         <!-- Puedes cambiar esta URL por el logo de tu empresa -->
-        <h1>Reporte de Servicio Técnico</h1>
+        <h1>Cierre de Solicitud de Servicio</h1>
         <p style="color: #666; margin-top: 5px;">Centro Cívico Gubernamental</p>
     </div>
 
@@ -158,18 +158,16 @@
         <small style="color: #666; display: block; margin-top: 10px;">Notas adicionales: {{ ticket.observaciones|default:"Ninguna" }}</small>
     </p>
 
-    {% if ticket.evidencias.all %}
+    {% if evidencias_b64 %}
     <h3>Evidencias Fotográficas</h3>
     <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 30px;">
-        {% for evidencia in ticket.evidencias.all %}
-        {% if '.pdf' not in evidencia.archivo.name %}
+        {% for ev in evidencias_b64 %}
         <div style="width: 45%; border: 1px solid #ddd; padding: 10px; text-align: center; border-radius: 5px;">
-            <img src="{{ base_url }}{{ evidencia.archivo.url }}" style="max-width: 100%; max-height: 250px; object-fit: contain;">
-            {% if evidencia.descripcion %}
-            <p style="font-size: 11px; color: #666; margin-top: 5px; margin-bottom: 0;">{{ evidencia.descripcion }}</p>
+            <img src="{{ ev.data_uri }}" style="max-width: 100%; max-height: 250px; object-fit: contain;">
+            {% if ev.descripcion %}
+            <p style="font-size: 11px; color: #666; margin-top: 5px; margin-bottom: 0;">{{ ev.descripcion }}</p>
             {% endif %}
         </div>
-        {% endif %}
         {% endfor %}
     </div>
     {% endif %}
