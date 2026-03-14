@@ -12,8 +12,10 @@ from .utils import resolve_ticket_ubicacion
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from datetime import datetime
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, JsonResponse
 from django.template.loader import render_to_string
+from django.core.files.base import ContentFile
+import uuid
 from playwright.sync_api import sync_playwright
 logger = logging.getLogger(__name__)
 
@@ -191,10 +193,24 @@ def generate_ticket_pdf_view(request, folio):
             )
             browser.close()
 
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = f'inline; filename="Comprobante_{ticket.folio or ticket.id_solicitud}.pdf"'
-        return response
+        # Guardar como Evidencia y en Storage MinIO
+        file_name = f'comprobante_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.pdf'
+        
+        from callcenter.models import EvidenciaTicket
+        evidencia = EvidenciaTicket.objects.create(
+            ticket=ticket,
+            descripcion="Comprobante de Cierre Generado Automáticamente"
+        )
+        evidencia.archivo.save(file_name, ContentFile(pdf_bytes))
+        
+        pdf_url = request.build_absolute_uri(evidencia.archivo.url)
+
+        return JsonResponse({
+            'success': True, 
+            'url': pdf_url, 
+            'folio': ticket.folio or ticket.id_solicitud
+        })
     except Exception as e:
         logger.error(f"Error generando PDF del ticket {folio}: {str(e)}", exc_info=True)
-        return HttpResponse(f"Error interno generando el PDF: {str(e)}", status=500)
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
