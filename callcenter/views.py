@@ -212,5 +212,72 @@ def generate_ticket_pdf_view(request, folio):
         })
     except Exception as e:
         logger.error(f"Error generando PDF del ticket {folio}: {str(e)}", exc_info=True)
-        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+import base64
+
+@csrf_exempt
+def webhook_evidencia_ticket(request, folio):
+    """
+    Endpoint (Webhook) para que n8n mande las imágenes que el usuario
+    adjunta durante el proceso de cierre y poder guardarlas.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST allowed'}, status=405)
+
+    try:
+        ticket = SolicitudTicket.objects.filter(folio=folio).first()
+        if not ticket:
+            try:
+                ticket = SolicitudTicket.objects.filter(id_solicitud=int(folio)).first()
+            except ValueError:
+                pass
+
+        if not ticket:
+            return JsonResponse({'error': 'Not found'}, status=404)
+
+        data = json.loads(request.body)
+        
+        # Explorar el payload de GoWA en N8N para buscar la base64
+        body_data = data
+        if 'body' in data:
+            if isinstance(data['body'], dict):
+                body_data = data['body']
+            elif isinstance(data['body'], str):
+                try:
+                    body_data = json.loads(data['body'])
+                except:
+                    pass
+
+        # Gowa payload suele traer { "message": "data:image/jpeg;base64,xxxxx..." }
+        base64_str = ""
+        for key in ['message', 'base64', 'body', 'data']:
+            val = body_data.get(key)
+            if isinstance(val, str) and 'base64,' in val:
+                base64_str = val
+                break
+        
+        if not base64_str and isinstance(body_data.get('payload'), dict):
+            for key in ['message', 'base64', 'body', 'data']:
+                val = body_data['payload'].get(key)
+                if isinstance(val, str) and 'base64,' in val:
+                    base64_str = val
+                    break
+
+        if base64_str and 'base64,' in base64_str:
+            format, imgstr = base64_str.split('base64,') 
+            ext = format.split('/')[-1].split(';')[0]
+            if ext == 'jpeg': ext = 'jpg'
+            
+            file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
+            
+            data_bytes = base64.b64decode(imgstr)
+            from callcenter.models import EvidenciaTicket
+            evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp', archivo=None)
+            evidencia.archivo.save(file_name, ContentFile(data_bytes))
+            
+            return JsonResponse({'success': True, 'msg': 'Imagen guardada'})
+
+        return JsonResponse({'success': False, 'msg': 'No base64 found'})
+    except Exception as e:
+        logger.error(f"Error parseando imagen: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'msg': str(e)}, status=500)
 

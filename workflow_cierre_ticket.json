@@ -885,6 +885,24 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "=http://kgogwsw00cwcw8g0wk0gsogg.10.30.1.11.sslip.io/callcenter/api/ticket/{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}/upload_evidencia/",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Variables').item.json) }}",
+        "options": {}
+      },
+      "id": "e81d763a-23b9-470a-811c-2af47fbb34e1",
+      "name": "Subir Foto (Django)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -5444,
+        6000
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
         "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}:CONFIRMAR' \nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';",
         "options": {}
@@ -1035,8 +1053,8 @@
     },
     {
       "parameters": {
-        "url": "=http://localhost:8000/callcenter/api/ticket/{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}/pdf/",
-        "responseFormat": "file",
+        "url": "=http://kgogwsw00cwcw8g0wk0gsogg.10.30.1.11.sslip.io/callcenter/api/ticket/{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}/pdf/",
+        "responseFormat": "json",
         "options": {}
       },
       "id": "e6a18d1a-4c2d-4871-b84b-017fb9b6cd8e",
@@ -1050,10 +1068,8 @@
     },
     {
       "parameters": {
-        "operation": "sendDocument",
         "phoneNumber": "={{ $('Variables').item.json.telefono }}",
-        "message": "✅ Aquí tienes tu Comprobante de Servicio Técnico en formato PDF. ¡Gracias!",
-        "fileProperty": "data"
+        "message": "=✅ Ticket *{{ $json.folio }}* cerrado con éxito.\nAquí tienes tu Comprobante en formato PDF: {{ $json.url }} \n¡Gracias!"
       },
       "id": "b9a54bb6-2d6f-4d32-8415-ef6ff9ae9b5e",
       "name": "Enviar Documento PDF",
@@ -1483,6 +1499,17 @@
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Subir Foto (Django)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir Foto (Django)": {
+      "main": [
         [
           {
             "node": "Mensaje Recibiendo Doc",
