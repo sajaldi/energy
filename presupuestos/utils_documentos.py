@@ -3,6 +3,7 @@ import io
 import logging
 import tempfile
 import base64
+import qrcode
 from datetime import datetime
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -31,6 +32,24 @@ def generate_requisicion_pdf(requisicion):
             except Exception as e:
                 logger.warning(f"No se pudo cargar el logo para el PDF: {e}")
 
+        # Generar QR en base64
+        qr_base64 = ""
+        try:
+            # URL de validación o acceso al PDF
+            site_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+            target_url = f"{site_url}/presupuestos/requisiciones/{requisicion.pk}/pdf/"
+            
+            qr = qrcode.QRCode(version=1, box_size=10, border=0)
+            qr.add_data(target_url)
+            qr.make(fit=True)
+            img_qr = qr.make_image(fill_color="black", back_color="white")
+            
+            buffered = io.BytesIO()
+            img_qr.save(buffered, format="PNG")
+            qr_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+        except Exception as e:
+            logger.warning(f"Error generando QR para el PDF: {e}")
+
         # Obtener artículos
         articulos_data = []
         for i, art in enumerate(requisicion.articulos.all(), 1):
@@ -48,6 +67,7 @@ def generate_requisicion_pdf(requisicion):
 
         context = {
             'LOGO_BASE64': logo_base64,
+            'QR_BASE64': qr_base64,
             'EMPRESA_NOMBRE': "OPERADORA DE INFRAESTRUCTURA DE HONDURAS S.A. DE C.V",
             'PROYECTO_NOMBRE': "Centro Cívico Gubernamental Honduras",
             'CODIGO_FORMATO': "OCC-PYS-FOR-02",
@@ -94,7 +114,7 @@ def generate_requisicion_pdf(requisicion):
                 
                 browser.close()
         except Exception as pw_err:
-            logger.error(f"Error crítico en Playwright: {str(pw_err)}")
+            logger.error(f"Error crítico en Playwright: {pw_err}")
             # Si falla Playwright (ej. no están los binarios del browser), lanzamos para el fallback
             raise pw_err
 
@@ -118,5 +138,5 @@ def generate_requisicion_pdf(requisicion):
             return doc_obj
 
     except Exception as e:
-        logger.exception(f"Error inesperado generando PDF: {str(e)}")
+        logger.exception(f"Error inesperado generando PDF: {e}")
         return None
