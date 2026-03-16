@@ -2,6 +2,7 @@ import os
 import io
 import logging
 import tempfile
+import base64
 from datetime import datetime
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -20,37 +21,47 @@ def generate_requisicion_pdf(requisicion):
         solicitante = requisicion.usuario_solicitante
         perfil_sol = getattr(solicitante, 'perfil', None) if solicitante else None
         
+        # Cargar logo en base64
+        logo_base64 = ""
+        logo_path = os.path.join(settings.BASE_DIR, 'plantilla_files', 'image001.png')
+        if os.path.exists(logo_path):
+            try:
+                with open(logo_path, "rb") as f:
+                    logo_base64 = base64.b64encode(f.read()).decode('utf-8')
+            except Exception as e:
+                logger.warning(f"No se pudo cargar el logo para el PDF: {e}")
+
         # Obtener artículos
         articulos_data = []
         for i, art in enumerate(requisicion.articulos.all(), 1):
             articulos_data.append({
                 'idx': i,
                 'descripcion': art.cr8ca_articulo,
-                'cantidad': float(art.cr8ca_cantidad),
+                'cantidad': float(art.cr8ca_cantidad or 0),
                 'precio': float(art.cr8ca_costoaproximado or 0),
-                'subtotal': float(art.subtotal)
+                'subtotal': float(art.subtotal or 0),
+                'unidad': 'UND' # Default ya que no tenemos un nombre descriptivo directo
             })
 
-        # Extraer comentarios de aprobación del historial si existen
-        comentarios_aprov = ""
-        if requisicion.cr8ca_comentarios:
-            # Intentar sacar el último comentario de Power Automate
-            lines = requisicion.cr8ca_comentarios.split('\n')
-            for line in reversed(lines):
-                if "Power Automate" in line:
-                    comentarios_aprov = line
-                    break
+        # Extraer comentarios de aprobación
+        comentarios_aprov = requisicion.cr8ca_comentarios or ""
 
         context = {
+            'LOGO_BASE64': logo_base64,
+            'EMPRESA_NOMBRE': "OPERADORA DE INFRAESTRUCTURA DE HONDURAS S.A. DE C.V",
+            'PROYECTO_NOMBRE': "Centro Cívico Gubernamental Honduras",
+            'CODIGO_FORMATO': "OCC-PYS-FOR-02",
+            'ESTADO_TEXTO': "Aprobado" if requisicion.estado_requisicion == 'AUTORIZADO' else (requisicion.get_estado_requisicion_display() if hasattr(requisicion, 'get_estado_requisicion_display') else "En Revisión"),
+            'FECHA_CABECERA': datetime.now().strftime('%d/%m/%Y'),
+            
             'NUMERO': requisicion.cr8ca_requisicion,
-            'ASUNTO': requisicion.cr8ca_asunto,
+            'ASUNTO': getattr(requisicion, 'cr8ca_asunto', 'N/A'),
             'FECHA': requisicion.fecha.strftime('%d/%m/%Y %H:%M') if requisicion.fecha else '',
             'SOLICITANTE': f"{solicitante.first_name} {solicitante.last_name}".strip() if (solicitante and (solicitante.first_name or solicitante.last_name)) else (solicitante.username if solicitante else 'N/A'),
             'DEPARTAMENTO': perfil_sol.departamento.nombre if perfil_sol and perfil_sol.departamento else 'N/A',
             'MOTIVO': requisicion.cr8ca_motivo,
             'TOTAL': float(requisicion.total_estimado),
             'ARTICULOS': articulos_data,
-            'PROVEEDORES': ", ".join([p.nombre for p in requisicion.proveedores_sugeridos.all()]) or (requisicion.proveedor.nombre if requisicion.proveedor else 'N/A'),
             'COMENTARIOS_APROBACION': comentarios_aprov,
             'FECHA_GENERACION': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
             'FECHA_ISO': datetime.now().strftime('%Y%m%d%H%M'),
@@ -74,11 +85,11 @@ def generate_requisicion_pdf(requisicion):
                 # Esperamos un momento para que los estilos carguen si fuera necesario
                 # (en este caso es CSS inline o en <style>, así que es instantáneo)
                 
-                # Generamos el PDF
+                # Generamos el PDF con márgenes mínimos para que la tabla ocupe bien la hoja
                 pdf_content = page.pdf(
                     format="Letter",
                     print_background=True,
-                    margin={"top": "0px", "right": "0px", "bottom": "0px", "left": "0px"}
+                    margin={"top": "20px", "right": "20px", "bottom": "20px", "left": "20px"}
                 )
                 
                 browser.close()
@@ -98,7 +109,7 @@ def generate_requisicion_pdf(requisicion):
             
             doc_obj = DocumentoRequisicion(
                 requisicion=requisicion,
-                nombre=f"Documento de Requisición Oficial - {requisicion.cr8ca_requisicion}"
+                nombre=f"Requisición Oficial - {requisicion.cr8ca_requisicion}"
             )
             doc_obj.archivo.save(file_name, ContentFile(pdf_content))
             doc_obj.save()
