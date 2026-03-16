@@ -12,10 +12,9 @@ from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
 
-def generate_requisicion_pdf(requisicion):
+def render_requisicion_pdf(requisicion):
     """
-    Renderiza un HTML basado en la requisición y lo convierte a PDF usando Playwright.
-    Luego guarda el resultado en el storage (MinIO).
+    Renderiza el HTML de la requisición y lo convierte a PDF (bytes) usando Playwright.
     """
     try:
         # 1. Preparar datos para la plantilla
@@ -59,7 +58,7 @@ def generate_requisicion_pdf(requisicion):
                 'cantidad': float(art.cr8ca_cantidad or 0),
                 'precio': float(art.cr8ca_costoaproximado or 0),
                 'subtotal': float(art.subtotal or 0),
-                'unidad': 'UND' # Default ya que no tenemos un nombre descriptivo directo
+                'unidad': 'UND' 
             })
 
         # Extraer comentarios de aprobación
@@ -95,48 +94,46 @@ def generate_requisicion_pdf(requisicion):
         pdf_content = None
         try:
             with sync_playwright() as p:
-                # Usamos chromium en modo headless
                 browser = p.chromium.launch(headless=True)
                 page = browser.new_page()
-                
-                # Seteamos el contenido HTML
                 page.set_content(html_content)
                 
-                # Esperamos un momento para que los estilos carguen si fuera necesario
-                # (en este caso es CSS inline o en <style>, así que es instantáneo)
-                
-                # Generamos el PDF con márgenes mínimos para que la tabla ocupe bien la hoja
                 pdf_content = page.pdf(
                     format="Letter",
                     print_background=True,
                     margin={"top": "20px", "right": "20px", "bottom": "20px", "left": "20px"}
                 )
-                
                 browser.close()
+            return pdf_content
         except Exception as pw_err:
             logger.error(f"Error crítico en Playwright: {pw_err}")
-            # Si falla Playwright (ej. no están los binarios del browser), lanzamos para el fallback
             raise pw_err
 
-        # 4. Guardar en MinIO vinculado a la requisición
-        if pdf_content:
-            from .models import DocumentoRequisicion
-            
-            file_name = f"Requisicion_{requisicion.cr8ca_requisicion}.pdf"
-            
-            # Borrar documentos previos que tengan el mismo nombre "Final" para no duplicar
-            # Requisicion.documentos.filter(nombre__icontains="Final").delete()
-            
-            doc_obj = DocumentoRequisicion(
-                requisicion=requisicion,
-                nombre=f"Requisición Oficial - {requisicion.cr8ca_requisicion}"
-            )
-            doc_obj.archivo.save(file_name, ContentFile(pdf_content))
-            doc_obj.save()
-            
-            logger.info(f"PDF generado y guardado exitosamente para {requisicion.cr8ca_requisicion}")
-            return doc_obj
-
     except Exception as e:
-        logger.exception(f"Error inesperado generando PDF: {e}")
+        logger.exception(f"Error inesperado renderizando PDF: {e}")
+        return None
+
+def generate_requisicion_pdf(requisicion):
+    """
+    Genera el PDF y lo guarda en MinIO vinculado a la requisición.
+    """
+    pdf_content = render_requisicion_pdf(requisicion)
+    if not pdf_content:
+        return None
+        
+    try:
+        from .models import DocumentoRequisicion
+        file_name = f"Requisicion_{requisicion.cr8ca_requisicion}.pdf"
+        
+        doc_obj = DocumentoRequisicion(
+            requisicion=requisicion,
+            nombre=f"Requisición Oficial - {requisicion.cr8ca_requisicion}"
+        )
+        doc_obj.archivo.save(file_name, ContentFile(pdf_content))
+        doc_obj.save()
+        
+        logger.info(f"PDF generado y guardado exitosamente para {requisicion.cr8ca_requisicion}")
+        return doc_obj
+    except Exception as e:
+        logger.exception(f"Error guardando PDF en MinIO: {e}")
         return None

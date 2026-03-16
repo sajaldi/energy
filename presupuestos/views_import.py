@@ -334,52 +334,22 @@ def requisicion_qr(request, pk):
 
 @login_required
 def requisicion_pdf(request, pk):
-    """Genera un PDF de la requisición"""
-    from django.template.loader import get_template
-    from xhtml2pdf import pisa
-    from .models import Requisicion, ArticuloRequisicion, DocumentoRequisicion
-    import io
-    import qrcode
-    import base64
+    """Genera un PDF de la requisición usando Playwright"""
+    from .models import Requisicion
+    from .utils_documentos import render_requisicion_pdf
     from django.http import HttpResponse
 
     requisicion = get_object_or_404(Requisicion, pk=pk)
+    
+    # Generar PDF bytes
+    pdf_content = render_requisicion_pdf(requisicion)
+    
+    if not pdf_content:
+        return HttpResponse('Error generando el PDF. Verifique con administración.', status=500)
 
-    # Generar QR code
-    relative_url = reverse('presupuestos:requisicion_editar', kwargs={'pk': requisicion.cr8ca_requisicionid})
-    qr_data = request.build_absolute_uri(relative_url)
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(qr_data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-
-    buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
-    buffer.seek(0)
-    qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-
-    # Obtener artículos y documentos
-    articulos = requisicion.articulos.all()
-    documentos = requisicion.documentos.all()
-
-    context = {
-        'requisicion': requisicion,
-        'articulos': articulos,
-        'documentos': documentos,
-        'qr_code': qr_base64,
-    }
-
-    template = get_template('admin/presupuestos/requisicion/requisicion_pdf.html')
-    html = template.render(context)
-
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="Requisicion_{requisicion.cr8ca_requisicion}.pdf"'
-
-    pisa_status = pisa.CreatePDF(html, dest=response)
-
-    if pisa_status.err:
-        return HttpResponse('Error creating PDF', status=500)
-
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Requisicion_{requisicion.cr8ca_requisicion}.pdf"'
+    
     return response
 
 
