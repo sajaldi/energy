@@ -558,8 +558,7 @@
     },
     {
       "parameters": {
-        "phoneNumber": "={{ $('Variables').item.json.telefono }}",
-        "message": "=🎫 *Detalles del Ticket {{ $('Validar Folio a Cerrar').item.json.folio || $('Validar Folio a Cerrar').item.json.id_solicitud }}*\n*Falla reportada:* {{ $('Validar Folio a Cerrar').item.json.falla_descripcion || 'Sin descripción' }}\n*Solicitante:* {{ $('Validar Folio a Cerrar').item.json.solicitante || 'N/A' }}\n\nPerfecto, estás a punto de cerrarlo.\nPor favor, escribe el *Diagnóstico*:"
+        "message": "=🎫 *Detalles del Ticket {{ $('Validar Folio a Cerrar').item.json.folio || $('Validar Folio a Cerrar').item.json.id_solicitud }}*\n*Falla reportada:* {{ $('Validar Folio a Cerrar').item.json.falla_descripcion || 'Sin descripción' }}\n*Solicitante:* {{ $('Validar Folio a Cerrar').item.json.solicitante || 'N/A' }}\n\nPerfecto, estás a punto de cerrarlo. Por favor, envía la información con el siguiente formato:\n\n-Diagnóstico: ...\n-Acción realizada: ...\n-HI: ...\n-HF: ...\n-UF: ...\n-Observaciones: ..."
       },
       "id": "d0fbf7ea-8d69-450f-bdc1-1e9fa07eebc5",
       "name": "Pedir Diagnostico",
@@ -644,8 +643,7 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}:ACCION' \nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';\n\nUPDATE callcenter_solicitudticket \nSET diagnostico = '{{ $('Variables').item.json.mensaje_original }}' \nWHERE folio = '{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}';",
+        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}:FOTO' \nWHERE phone_number = '{{ $('Variables').item.json.telefono }}';\n\nUPDATE callcenter_solicitudticket \nSET \n  diagnostico = COALESCE(TRIM(substring('{{ $('Variables').item.json.mensaje_original }}' from '(?i)Diagn[oó]stico[: ]*(.+?)(?:\\r?\\n-|$)')), '{{ $('Variables').item.json.mensaje_original }}'),\n  actividades = COALESCE(TRIM(substring('{{ $('Variables').item.json.mensaje_original }}' from '(?i)Acci[oó]n realizada[: ]*(.+?)(?:\\r?\\n-|$)')), 'Ver bloque de diagnóstico'),\n  ubicacion = TRIM(substring('{{ $('Variables').item.json.mensaje_original }}' from '(?i)UF[: ]*(.+?)(?:\\r?\\n-|$)')),\n  observaciones_usuario = 'HI: ' || COALESCE(TRIM(substring('{{ $('Variables').item.json.mensaje_original }}' from '(?i)HI[: ]*(.+?)(?:\\r?\\n-|$)')), 'N/A') || \n                          ' | HF: ' || COALESCE(TRIM(substring('{{ $('Variables').item.json.mensaje_original }}' from '(?i)HF[: ]*(.+?)(?:\\r?\\n-|$)')), 'N/A'),\n  observaciones = COALESCE(TRIM(substring('{{ $('Variables').item.json.mensaje_original }}' from '(?i)Observaciones[: ]*(.+?)$')), 'Ninguna')\nWHERE folio = '{{ $('→ Obtener Estado').item.json.status.split(':')[1] }}';",
         "options": {}
       },
       "id": "a9eebc3f-40e1-45bd-8ff1-71eab0ec2a5b",
@@ -1443,7 +1441,7 @@
       "main": [
         [
           {
-            "node": "Msg Accion",
+            "node": "Msg Foto",
             "type": "main",
             "index": 0
           }
