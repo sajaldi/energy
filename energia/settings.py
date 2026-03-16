@@ -127,10 +127,9 @@ N8N_SOLICITUD_WEBHOOK_URL = os.environ.get('N8N_SOLICITUD_WEBHOOK_URL', _default
 
 # URL base del sitio para callbacks de n8n y comunicación interna
 if os.environ.get('COOLIFY_FQDN'):
-    # URL pública
-    SITE_URL = f"http://{os.environ.get('COOLIFY_FQDN')}"
-    # URL interna para que n8n llame a Django (usualmente el nombre del servicio en Docker)
-    # Usamos el prefijo (UUID de Coolify) que es estable para comunicación interna entre contenedores
+    # URL pública (forzar https para producción)
+    SITE_URL = f"https://{os.environ.get('COOLIFY_FQDN')}"
+    # URL interna para que n8n llame a Django
     INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://kgogwsw00cwcw8g0wk0gsogg:8000')
 else:
     SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
