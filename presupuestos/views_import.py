@@ -145,6 +145,7 @@ def requisicion_upsert(request, pk=None):
     """Vista para crear o editar requisiciones usando un Wizard"""
     from .models import Requisicion
     from .forms import RequisicionForm, ArticuloFormSet, DocumentoFormSet
+    from .webhooks import notify_requisicion_finalizada
     from django.urls import reverse
 
     instance = get_object_or_404(Requisicion, pk=pk) if pk else None
@@ -242,6 +243,14 @@ def requisicion_upsert(request, pk=None):
 
         if success:
             if is_final_save:
+                # Cambiar a estado PENDIENTE si estaba en BORRADOR (lógica de flujo)
+                if instance.estado_requisicion == 'BORRADOR':
+                    instance.estado_requisicion = 'PENDIENTE'
+                    instance.save()
+                
+                # Disparar Webhook
+                notify_requisicion_finalizada(instance)
+                
                 messages.success(request, f"Requisición {instance.cr8ca_requisicion} finalizada correctamente.")
                 return redirect('presupuestos:requisicion_dashboard')
             

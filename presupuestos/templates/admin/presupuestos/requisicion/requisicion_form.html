@@ -181,6 +181,12 @@
                         </div>
 
                         <div class="form-group">
+                            <label class="form-label">Proveedor Asignado / Principal</label>
+                            {{ form.proveedor }}
+                            <small class="form-hint">Si ya tiene un proveedor definido, selecciónelo aquí.</small>
+                        </div>
+
+                        <div class="form-group">
                             <label class="form-label">Proveedores Sugeridos</label>
                             <div class="provider-search-wrapper">
                                 <input type="text" id="provider-search-input" class="form-control"
@@ -192,6 +198,12 @@
                             <div id="selected-providers-list" class="selected-providers-list">
                                 <!-- Tags will appear here -->
                             </div>
+                        </div>
+
+                        <div class="form-group" id="notes-container" style="display: none;">
+                            <label class="form-label">Detalle por Proveedor Sugerido</label>
+                            {{ form.proveedores_sugeridos_notas }}
+                            <small class="form-hint">Especifique qué artículos corresponden a cada proveedor sugerido.</small>
                         </div>
                     </div>
                 </div>
@@ -318,9 +330,7 @@
                     </div>
                     <div class="review-item">
                         <span class="review-label">Solicitante</span>
-                        <span class="review-value">{% if instance.usuario_solicitante %}{{
-                            instance.usuario_solicitante.get_full_name|default:instance.usuario_solicitante.username
-                            }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}</span>
+                        <span class="review-value">{% if instance.usuario_solicitante %}{{ instance.usuario_solicitante.get_full_name|default:instance.usuario_solicitante.username }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}</span>
                     </div>
                     {% if instance.usuario_en_nombre_de %}
                     <div class="review-item">
@@ -331,9 +341,15 @@
                     </div>
                     {% endif %}
                     <div class="review-item">
-                        <span class="review-label">Fecha</span>
-                        <span class="review-value">{{ instance.fecha|default:"-" }}</span>
+                        <span class="review-label">Fecha Solicitud</span>
+                        <span class="review-value">{{ instance.fecha|date:"d/m/Y H:i"|default:"-" }}</span>
                     </div>
+                    {% if instance.fecha_aprobacion %}
+                    <div class="review-item">
+                        <span class="review-label">Aprobado el</span>
+                        <span class="review-value" style="color: #059669; font-weight: bold;">{{ instance.fecha_aprobacion|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    {% endif %}
                     {% if instance.partida %}
                     <div class="review-item" style="grid-column: span 2;">
                         <span class="review-label">Partida Presupuestaria</span>
@@ -356,10 +372,15 @@
                         <span class="review-label">Prioridad</span>
                         <span class="review-value">{{ instance.get_cr8ca_prioridad_display }}</span>
                     </div>
+                    {% if instance.proveedor %}
+                    <div class="review-item">
+                        <span class="review-label">Proveedor Asignado</span>
+                        <span class="review-value" style="font-weight: bold; color: var(--primary);">{{ instance.proveedor.nombre }}</span>
+                    </div>
+                    {% endif %}
                     <div class="review-item">
                         <span class="review-label">Estado</span>
-                        <span class="review-value" style="font-weight: bold; color: var(--primary);">{{
-                            instance.get_estado_requisicion_display|default:"Borrador" }}</span>
+                        <span class="review-value" style="font-weight: bold; color: var(--primary);">{{ instance.get_estado_requisicion_display|default:"Borrador" }}</span>
                     </div>
                 </div> <!-- Cierre de grid de info general -->
 
@@ -369,8 +390,7 @@
                         <div class="review-value" style="padding-top: 8px;">
                             {% for prov in instance.proveedores_sugeridos.all %}
                             <span
-                                style="background: var(--bg-body); padding: 4px 10px; border-radius: 15px; margin-right: 5px; border: 1px solid var(--border); font-size: 0.8rem; display: inline-block; margin-bottom: 4px;">{{
-                                prov.nombre }}</span>
+                                style="background: var(--bg-body); padding: 4px 10px; border-radius: 15px; margin-right: 5px; border: 1px solid var(--border); font-size: 0.8rem; display: inline-block; margin-bottom: 4px;">{{ prov.nombre }}</span>
                             {% empty %}
                             <span style="color: var(--text-muted); font-style: italic;">Sin proveedores
                                 seleccionados</span>
@@ -449,8 +469,7 @@
                                 </td>
                                 <td style="padding: 12px 10px; color: var(--text-muted);">{{ art.cr8ca_articulo }}</td>
                                 <td style="padding: 12px 10px; text-align: center;">{{ art.cr8ca_cantidad }}</td>
-                                <td style="padding: 12px 10px; text-align: right; font-weight: 600;">L. {{
-                                    art.cr8ca_costoaproximado|floatformat:2 }}</td>
+                                <td style="padding: 12px 10px; text-align: right; font-weight: 600;">L. {{ art.cr8ca_costoaproximado|floatformat:2 }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -473,8 +492,7 @@
                         <span
                             style="display: block; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total
                             Estimado Requisición</span>
-                        <span style="font-size: 2rem; font-weight: 800; color: var(--primary-dark);">L. {{
-                            instance.total_estimado|default:0|floatformat:2 }}</span>
+                        <span style="font-size: 2rem; font-weight: 800; color: var(--primary-dark);">L. {{ instance.total_estimado|default:0|floatformat:2 }}</span>
                     </div>
                 </div>
                 {% else %}

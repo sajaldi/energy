@@ -6,13 +6,14 @@ class RequisicionForm(forms.ModelForm):
     class Meta:
         model = Requisicion
         fields = [
-            'cr8ca_requisicion', 'fecha', 'partida', 'item_presupuesto', 'tipo_rutina', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
+            'cr8ca_requisicion', 'fecha', 'fecha_aprobacion', 'partida', 'item_presupuesto', 'tipo_rutina', 'usuario_solicitante', 'usuario_en_nombre_de', 'cr8ca_asunto', 'cr8ca_prioridad', 
             'cr8ca_motivo', 'cr8ca_comentarios', 'cr8ca_id_oc', 'wizard_step', 'estado_requisicion', 'cr8ca_totalenarticulos',
-            'proveedores_sugeridos'
+            'proveedor', 'proveedores_sugeridos', 'proveedores_sugeridos_notas'
         ]
         widgets = {
             'cr8ca_requisicion': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
-            'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'fecha_aprobacion': forms.DateTimeInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
             'partida': forms.Select(attrs={'class': 'form-control select2-material'}),
             'item_presupuesto': forms.Select(attrs={'class': 'form-control select2-material'}),
             'tipo_rutina': forms.Select(attrs={'class': 'form-control select2-material'}),
@@ -25,10 +26,12 @@ class RequisicionForm(forms.ModelForm):
             'cr8ca_id_oc': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ID de Orden de Compra'}),
             'estado_requisicion': forms.Select(attrs={'class': 'form-control', 'disabled': 'disabled'}),
             'cr8ca_totalenarticulos': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'}),
+            'proveedor': forms.Select(attrs={'class': 'form-control select2-material'}),
             'proveedores_sugeridos': forms.SelectMultiple(attrs={
                 'class': 'form-control select2-material',
                 'multiple': 'multiple'
             }),
+            'proveedores_sugeridos_notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Detalle de qué artículos corresponden a cada proveedor...'}),
         }
         labels = {
             'cr8ca_totalenarticulos': 'Costo Aproximado'

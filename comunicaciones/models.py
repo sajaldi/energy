@@ -147,6 +147,7 @@ class BotSession(models.Model):
     """
     phone_number = models.CharField(max_length=20, primary_key=True)
     status = models.CharField(max_length=50, default='IDLE')
+    context = models.JSONField(default=dict, blank=True, help_text="Datos temporales de la sesión (ej. en medio de un wizard)")
     last_update = models.DateTimeField(auto_now=True)
 
     class Meta:

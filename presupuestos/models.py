@@ -455,7 +455,8 @@ class Requisicion(models.Model):
     _ownerid_value = models.UUIDField(null=True, blank=True)
     
     # Fechas y Metadatos
-    fecha = models.DateField(default=timezone.now, null=True, blank=True, verbose_name="Fecha")
+    fecha = models.DateTimeField(default=timezone.now, null=True, blank=True, verbose_name="Fecha")
+    fecha_aprobacion = models.DateTimeField(null=True, blank=True, verbose_name="Aprobado el")
     cr8ca_fechadegasto = models.DateTimeField(null=True, blank=True)
     createdon = models.DateTimeField(null=True, blank=True, verbose_name="Creado en Dynamics")
     modifiedon = models.DateTimeField(null=True, blank=True, verbose_name="Modificado en Dynamics")
@@ -553,6 +554,9 @@ class Requisicion(models.Model):
                 new_num = 1
             
             self.cr8ca_requisicion = f"{prefix}{str(new_num).zfill(5)}{suffix}"
+            
+        if not self.fecha:
+            self.fecha = timezone.now()
             
         super().save(*args, **kwargs)
 

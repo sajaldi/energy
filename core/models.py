@@ -215,10 +215,24 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+class Departamento(models.Model):
+    """Representa un departamento de la empresa."""
+    nombre = models.CharField(max_length=100, unique=True, verbose_name="Nombre del Departamento")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
+    responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='departamentos_a_cargo', verbose_name="Responsable / Jefe de departamento")
+    
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Departamento"
+        verbose_name_plural = "Departamentos"
+
 class PerfilUsuario(models.Model):
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
     visto_tutorial = models.BooleanField(default=False, verbose_name="Visto tutorial")
     telefono = models.CharField(max_length=20, blank=True, null=True, verbose_name="Teléfono")
+    departamento = models.ForeignKey(Departamento, on_delete=models.SET_NULL, null=True, blank=True, related_name='usuarios', verbose_name="Departamento")
     ubicacion_defecto = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Ubicación por Defecto")
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='subordinados', verbose_name="Responsable / Jefe Directo")
     

@@ -139,10 +139,15 @@
 
                 renderSelected() {
                     const $list = $('#selected-providers-list');
+                    const $notesContainer = $('#notes-container');
+                    
                     if (this.selectedIds.length === 0) {
                         $list.html('<small style="color:var(--text-muted); font-style:italic;">Ningún proveedor seleccionado</small>');
+                        $notesContainer.slideUp();
                         return;
                     }
+
+                    $notesContainer.slideDown();
 
                     const html = this.selectedIds.map(id => {
                         const p = this.allProviders.find(prov => prov.id === id);

@@ -18,7 +18,7 @@ from django.db import transaction
 from .models import (
     Consumo, InterfaceConsumo, Medidor, PuntoMedicion, Equipo,
     CaracteristicaMedicion, CategoriaPuntoMedicion, DocumentoMedicion, RangoMedicion, TipoMedidor, UnidadMedida, VistaConsumoDiferencia,
-    Servicio, KPI, PerfilUsuario, ConfiguracionUI
+    Servicio, KPI, PerfilUsuario, ConfiguracionUI, Departamento
 )
 
 @admin.register(ConfiguracionUI)
@@ -47,14 +47,16 @@ class PerfilUsuarioInline(admin.StackedInline):
     fk_name = 'usuario'
     can_delete = False
     verbose_name_plural = 'Perfil de Usuario / Configuración'
-    raw_id_fields = ('ubicacion_defecto', 'responsable')
+    raw_id_fields = ('ubicacion_defecto',)
+    autocomplete_fields = ('responsable', 'departamento')
 
 @admin.register(PerfilUsuario)
 class PerfilUsuarioAdmin(admin.ModelAdmin):
-    list_display = ('usuario', 'telefono', 'visto_tutorial', 'ubicacion_defecto')
-    list_filter = ('visto_tutorial', 'ubicacion_defecto')
-    search_fields = ('usuario__username', 'usuario__email')
+    list_display = ('usuario', 'departamento', 'telefono', 'visto_tutorial', 'ubicacion_defecto')
+    list_filter = ('departamento', 'visto_tutorial', 'ubicacion_defecto')
+    search_fields = ('usuario__username', 'usuario__email', 'departamento__nombre')
     raw_id_fields = ('ubicacion_defecto',)
+    autocomplete_fields = ('departamento',)
 
 # Unregister standard User and Register with Profile Inline
 admin.site.unregister(User)
@@ -259,6 +261,12 @@ admin.site.register(CaracteristicaMedicion)
 admin.site.register(CategoriaPuntoMedicion)
 admin.site.register(DocumentoMedicion)
 admin.site.register(RangoMedicion)
+
+@admin.register(Departamento)
+class DepartamentoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'responsable', 'descripcion')
+    search_fields = ('nombre', 'responsable__username', 'responsable__first_name', 'responsable__last_name')
+    autocomplete_fields = ('responsable',)
 class ServicioResource(resources.ModelResource):
     class Meta:
         model = Servicio

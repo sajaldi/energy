@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404
 from .models import Requisicion
+from .utils_documentos import generate_requisicion_pdf
 import json
 import logging
 
@@ -40,8 +41,11 @@ def requisicion_webhook_update(request):
         
         # Validar campos requeridos
         numero_requisicion = data.get('numero_requisicion')
-        accion = data.get('accion', '').upper().strip()
-        comentarios = data.get('comentarios', '').strip()
+        accion_raw = data.get('accion')
+        accion = accion_raw.upper().strip() if accion_raw else ""
+        
+        comentarios_raw = data.get('comentarios')
+        comentarios = comentarios_raw.strip() if comentarios_raw else ""
         
         if not numero_requisicion:
             return JsonResponse({
@@ -92,6 +96,11 @@ def requisicion_webhook_update(request):
         estado_anterior = requisicion.estado_requisicion
         requisicion.estado_requisicion = nuevo_estado
         
+        # Guardar fecha de aprobación si aplica
+        if nuevo_estado == 'AUTORIZADO':
+            from django.utils import timezone
+            requisicion.fecha_aprobacion = timezone.now()
+        
         # Agregar comentarios al historial si se proporcionan
         if comentarios:
             from django.utils import timezone
@@ -106,12 +115,25 @@ def requisicion_webhook_update(request):
         
         requisicion.save()
         
+        pdf_url = ""
+        # SI SE APRUEBA: Generar el documento PDF basado en la plantilla
+        if nuevo_estado == 'AUTORIZADO':
+            logger.info(f"Generando PDF para requisición aprobada {numero_requisicion}...")
+            doc_obj = generate_requisicion_pdf(requisicion)
+            if doc_obj and doc_obj.archivo:
+                # Intentamos generar la URL absoluta para que n8n la reciba lista
+                pdf_url = doc_obj.archivo.url
+                if pdf_url.startswith('/'):
+                    pdf_url = request.build_absolute_uri(pdf_url)
+
         logger.info(f"Requisición {numero_requisicion} actualizada de {estado_anterior} a {nuevo_estado} vía webhook")
         
         # CREAR NOTIFICACIÓN FLOTANTE para el usuario solicitante
         if requisicion.usuario_solicitante:
             try:
                 from mantenimiento.models import NotificacionMantenimiento
+                mensaje_usuario = 'aprobada' if nuevo_estado == 'AUTORIZADO' else 'rechazada'
+                tipo_notif = 'SUCCESS' if nuevo_estado == 'AUTORIZADO' else 'ERROR'
                 mensaje_notif = f"Tu requisición {numero_requisicion} ha sido {mensaje_usuario}."
                 if comentarios:
                     mensaje_notif += f" Comentarios: {comentarios[:100]}"
@@ -123,9 +145,8 @@ def requisicion_webhook_update(request):
                 )
                 logger.info(f"Notificación creada para usuario {requisicion.usuario_solicitante.username}")
             except Exception as e:
-                # No fallar el webhook si la notificación falla
                 logger.error(f"Error al crear notificación: {str(e)}")
-        
+
         return JsonResponse({
             'success': True, 
             'message': f'Requisición {numero_requisicion} actualizada exitosamente a estado {nuevo_estado}',
@@ -133,7 +154,8 @@ def requisicion_webhook_update(request):
                 'numero_requisicion': numero_requisicion,
                 'estado_anterior': estado_anterior,
                 'estado_nuevo': nuevo_estado,
-                'accion': accion
+                'accion': accion,
+                'pdf_url': pdf_url
             }
         }, status=200)
     
