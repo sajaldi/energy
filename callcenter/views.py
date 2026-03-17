@@ -5,59 +5,42 @@ from django.contrib.admin.views.decorators import staff_member_required
 import logging
 import json
 import re
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from .models import SolicitudTicket
-from .utils import resolve_ticket_ubicacion
-from django.utils.dateparse import parse_datetime
-from django.utils import timezone
+import uuid
+import base64
+import os
 from datetime import datetime
-from django.http import HttpResponse, Http404, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse, HttpResponse, Http404
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
-import uuid
+from django.utils import timezone
 from playwright.sync_api import sync_playwright
+from .models import SolicitudTicket, EvidenciaTicket
+from .utils import resolve_ticket_ubicacion
+
 logger = logging.getLogger(__name__)
 
 @staff_member_required
 def trigger_sync_tickets(request):
-    """
-    Vista para activar la sincronización de tickets de forma manual.
-    """
     days = int(request.GET.get('days', 2))
-    
     try:
-        logger.info(f"[DEBUG] Despachando tarea sync_tickets_task para los últimos {days} días...")
         sync_tickets_task.delay(days=days)
-        logger.info("[DEBUG] Tarea despachada correctamente a Celery.")
         messages.success(request, f"Se ha iniciado la sincronización de los últimos {days} días en segundo plano.")
     except Exception as e:
-        logger.error(f"[ERROR] No se pudo enviar la tarea a Celery: {e}")
+        logger.error(f"Error al iniciar la sincronización: {e}")
         messages.error(request, f"Error al iniciar la sincronización: {e}")
-    
-    # Redirigir al listado de tickets en el admin
     return redirect('admin:callcenter_solicitudticket_changelist')
 
 @csrf_exempt
 def webhook_new_ticket(request):
-    """
-    Endpoint para recibir tickets desde n8n/Power Automate.
-    Identifica tickets primariamente por FOLIO.
-    """
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST allowed'}, status=405)
-    
     try:
         data = json.loads(request.body)
         folio = data.get('folio', '').strip()
-        
         if not folio:
             return JsonResponse({'error': 'Folio is required'}, status=400)
-            
-        # Extraer un ID numérico provisional del folio o del tiempo
-        # Esto es necesario porque id_solicitud es campo obligatorio y único en BD
-        # Si el ticket ya existe por Folio, usaremos su ID actual.
-        # Si es nuevo, usaremos el numérico del folio o un timestamp negativo para indicar 'provisional'
+        
         id_provisional = None
         match = re.search(r'(\d+)$', folio)
         if match:
@@ -65,12 +48,9 @@ def webhook_new_ticket(request):
         else:
             id_provisional = int(datetime.now().timestamp())
 
-        # Buscar por Folio (Nuestra clave de verdad para webhooks)
         ticket = SolicitudTicket.objects.filter(folio=folio).first()
-        
         target_id_solicitud = ticket.id_solicitud if ticket else id_provisional
 
-        # Formatear fecha
         fecha_solicitud = None
         fecha_str = data.get('fecha')
         if fecha_str:
@@ -80,7 +60,6 @@ def webhook_new_ticket(request):
             except:
                 fecha_solicitud = timezone.now()
 
-        # Resolver Ubicación
         loc_str = data.get('ubicacion_raw', '')
         edificio = ""
         nivel = ""
@@ -93,8 +72,6 @@ def webhook_new_ticket(request):
 
         ubicacion_obj = resolve_ticket_ubicacion(edificio, nivel)
 
-        # Crear o Actualizar Ticket usando id_solicitud como clave de integridad en DB
-        # pero habiendo resuelto primero si el folio ya existía.
         ticket, created = SolicitudTicket.objects.update_or_create(
             id_solicitud=target_id_solicitud,
             defaults={
@@ -110,82 +87,39 @@ def webhook_new_ticket(request):
                 'fecha_solicitud': fecha_solicitud,
             }
         )
-
-        return JsonResponse({
-            'status': 'success',
-            'action': 'created' if created else 'updated',
-            'ticket_id': ticket.id,
-            'folio': ticket.folio,
-            'id_solicitud': ticket.id_solicitud
-        })
-
+        return JsonResponse({'status': 'success', 'folio': ticket.folio})
     except Exception as e:
         logger.error(f"Error in webhook_new_ticket: {e}", exc_info=True)
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-from .scraper import sync_individual_ticket
-import os
-
 @staff_member_required
 def sync_single_ticket(request, ticket_id):
-    """
-    Vista impulsada por el botón de "Sincronizar este Ticket" en el admin.
-    """
-    from .models import SolicitudTicket
-    ticket = SolicitudTicket.objects.get(id=ticket_id)
-    
-    username = os.environ.get('CALLCENTER_USER')
-    password = os.environ.get('CALLCENTER_PASS')
-    company = "Centro Cívico Gubernamental de Honduras"
-
-    if not username or not password:
-        messages.error(request, "Credenciales (CALLCENTER_USER/PASS) no configuradas.")
-        return redirect('admin:callcenter_solicitudticket_change', ticket_id)
-
-    try:
-        # Enviamos la tarea a Celery
-        from .tasks import sync_single_ticket_task
-        sync_single_ticket_task.delay(ticket_id)
-        
-        messages.info(request, f"Se ha iniciado la sincronización del ticket {ticket.folio} en segundo plano. El robot tardará unos segundos.")
-            
-    except Exception as e:
-        messages.error(request, f"Error al enviar la tarea a Celery: {e}")
-
+    from .tasks import sync_single_ticket_task
+    sync_single_ticket_task.delay(ticket_id)
+    messages.info(request, f"Se ha iniciado la sincronización en segundo plano.")
     return redirect('admin:callcenter_solicitudticket_change', ticket_id)
 
 @csrf_exempt
 def generate_ticket_pdf_view(request, folio):
-    """
-    Endpoint (API o Vista normal) para generar un archivo PDF 
-    del reporte de un ticket, impulsado por N8n o Web.
-    """
     ticket = SolicitudTicket.objects.filter(folio=folio).first()
     if not ticket:
         try:
-            # Quizás folio contenga en realidad el ID
             ticket = SolicitudTicket.objects.filter(id_solicitud=int(folio)).first()
-        except ValueError:
-            pass
-
+        except: pass
     if not ticket:
-        raise Http404("El ticket no existe o no se encontró con ese folio.")
+        raise Http404("Ticket no encontrado")
 
-    # Pre-cargar evidencias como base64 para que Playwright las renderice inline
     evidencias_b64 = []
     for ev in ticket.evidencias.all():
-        if ev.archivo and '.pdf' not in ev.archivo.name:
+        if ev.archivo and not ev.archivo.name.endswith('.pdf'):
             try:
                 img_bytes = ev.archivo.read()
                 ext = ev.archivo.name.rsplit('.', 1)[-1].lower()
-                mime = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp'}.get(ext, 'image/jpeg')
+                mime = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png'}.get(ext, 'image/jpeg')
                 b64 = base64.b64encode(img_bytes).decode('utf-8')
-                evidencias_b64.append({
-                    'data_uri': f'data:{mime};base64,{b64}',
-                    'descripcion': ev.descripcion or '',
-                })
-            except Exception as img_err:
-                logger.warning(f"No se pudo leer evidencia {ev.id}: {img_err}")
+                evidencias_b64.append({'data_uri': f'data:{mime};base64,{b64}', 'descripcion': ev.descripcion or ''})
+            except Exception as e:
+                logger.warning(f"Error leyendo imagen {ev.id}: {e}")
 
     html_content = render_to_string('callcenter/ticket_pdf.html', {
         'ticket': ticket,
@@ -194,120 +128,80 @@ def generate_ticket_pdf_view(request, folio):
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=[
-                    '--no-sandbox', 
-                    '--disable-setuid-sandbox', 
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu'
-                ]
-            )
+            browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
             page = browser.new_page()
             page.set_content(html_content, wait_until='networkidle')
-            pdf_bytes = page.pdf(
-                format="A4",
-                print_background=True,
-                margin={'top': '20px', 'right': '20px', 'bottom': '20px', 'left': '20px'}
-            )
+            pdf_bytes = page.pdf(format="A4", print_background=True)
             browser.close()
 
-        # Guardar como Evidencia y en Storage MinIO
+        desc_pdf = "Comprobante de Cierre Generado Automáticamente"
         file_name = f'comprobante_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.pdf'
         
-        from callcenter.models import EvidenciaTicket
-        evidencia = EvidenciaTicket.objects.create(
-            ticket=ticket,
-            descripcion="Comprobante de Cierre Generado Automáticamente"
-        )
-        evidencia.archivo.save(file_name, ContentFile(pdf_bytes))
+        evidencia = EvidenciaTicket.objects.filter(ticket=ticket, descripcion=desc_pdf).first()
+        if not evidencia:
+            evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion=desc_pdf)
+        elif evidencia.archivo:
+            try: evidencia.archivo.delete(save=False)
+            except: pass
         
+        evidencia.archivo.save(file_name, ContentFile(pdf_bytes))
         pdf_url = request.build_absolute_uri(evidencia.archivo.url)
-
-        return JsonResponse({
-            'success': True, 
-            'url': pdf_url, 
-            'folio': ticket.folio or ticket.id_solicitud
-        })
+        return JsonResponse({'success': True, 'url': pdf_url})
     except Exception as e:
-        logger.error(f"Error generando PDF del ticket {folio}: {str(e)}", exc_info=True)
-import base64
+        logger.error(f"Error PDF: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
 @csrf_exempt
 def webhook_evidencia_ticket(request, folio):
-    """
-    Endpoint para que n8n mande las imágenes que el usuario
-    adjunta durante el proceso de cierre y poder guardarlas.
-    """
     if request.method != 'POST':
         return JsonResponse({'error': 'POST allowed'}, status=405)
-
     try:
         ticket = SolicitudTicket.objects.filter(folio=folio).first()
         if not ticket:
-            try:
-                ticket = SolicitudTicket.objects.filter(id_solicitud=int(folio)).first()
-            except ValueError:
-                pass
+            try: ticket = SolicitudTicket.objects.filter(id_solicitud=int(folio)).first()
+            except: pass
+        if not ticket: return JsonResponse({'error': 'Not found'}, status=404)
 
-        if not ticket:
-            return JsonResponse({'error': 'Not found'}, status=404)
+        if request.FILES:
+            for field, file_obj in request.FILES.items():
+                evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp (File)')
+                ext = file_obj.name.split('.')[-1] if '.' in file_obj.name else 'jpg'
+                file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
+                evidencia.archivo.save(file_name, file_obj)
+            return JsonResponse({'success': True, 'msg': 'Imagen guardada vía FILES'})
 
-        data = json.loads(request.body)
-        
-        # LOG COMPLETO para diagnosticar la estructura del payload de GoWA
-        import pprint
-        payload_str = pprint.pformat(data, width=200)
-        logger.info(f"=== WEBHOOK EVIDENCIA ticket {folio} ===\n{payload_str[:3000]}")
-
-        # Buscar base64 recursivamente en todo el payload
-        def find_base64(obj, depth=0):
-            if depth > 5:
+        try:
+            data = json.loads(request.body)
+            def find_base64(obj):
+                if isinstance(obj, str) and len(obj) > 100:
+                    if 'base64,' in obj: return obj
+                    try:
+                        test = base64.b64decode(obj[:100], validate=False)
+                        if test[:2] == b'\xff\xd8' or test[:4] == b'\x89PNG':
+                            return f'data:image/jpeg;base64,{obj}'
+                    except: pass
+                elif isinstance(obj, dict):
+                    for k in obj:
+                        res = find_base64(obj[k])
+                        if res: return res
+                elif isinstance(obj, list):
+                    for i in obj:
+                        res = find_base64(i)
+                        if res: return res
                 return None
-            if isinstance(obj, str) and len(obj) > 100:
-                if 'base64,' in obj:
-                    return obj
-                # A veces viene como string puro base64 sin prefijo data:
-                try:
-                    test = base64.b64decode(obj[:100])
-                    # Si los primeros bytes parecen JPEG o PNG
-                    if test[:2] == b'\xff\xd8' or test[:4] == b'\x89PNG':
-                        return f'data:image/jpeg;base64,{obj}'
-                except Exception:
-                    pass
-            elif isinstance(obj, dict):
-                for key in obj:
-                    result = find_base64(obj[key], depth + 1)
-                    if result:
-                        logger.info(f"Base64 encontrada en key: {key}")
-                        return result
-            elif isinstance(obj, list):
-                for item in obj:
-                    result = find_base64(item, depth + 1)
-                    if result:
-                        return result
-            return None
 
-        base64_str = find_base64(data)
-        
-        if base64_str and 'base64,' in base64_str:
-            format_part, imgstr = base64_str.split('base64,', 1)
-            ext = format_part.split('/')[-1].split(';')[0] if '/' in format_part else 'jpg'
-            if ext == 'jpeg': ext = 'jpg'
-            
-            file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
-            data_bytes = base64.b64decode(imgstr)
-            
-            from callcenter.models import EvidenciaTicket
-            evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp')
-            evidencia.archivo.save(file_name, ContentFile(data_bytes))
-            
-            logger.info(f"Evidencia guardada: {file_name} ({len(data_bytes)} bytes)")
-            return JsonResponse({'success': True, 'msg': 'Imagen guardada'})
+            b64_str = find_base64(data)
+            if b64_str and 'base64,' in b64_str:
+                format_part, imgstr = b64_str.split('base64,', 1)
+                ext = format_part.split('/')[-1].split(';')[0] if '/' in format_part else 'jpg'
+                if ext == 'jpeg': ext = 'jpg'
+                file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
+                evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp (B64)')
+                evidencia.archivo.save(file_name, ContentFile(base64.b64decode(imgstr)))
+                return JsonResponse({'success': True, 'msg': 'Imagen guardada vía B64'})
+        except: pass
 
-        logger.warning(f"No se encontró base64 en payload para ticket {folio}. Keys raíz: {list(data.keys())}")
-        return JsonResponse({'success': False, 'msg': 'No base64 found in payload'})
+        return JsonResponse({'success': False, 'msg': 'No image found'})
     except Exception as e:
         logger.error(f"Error parseando imagen: {e}", exc_info=True)
         return JsonResponse({'success': False, 'msg': str(e)}, status=500)
-
