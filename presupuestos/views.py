@@ -1737,14 +1737,23 @@ def api_update_repex_item(request):
             monto = Decimal(str(data.get('monto', 0)))
 
             item = get_object_or_404(REPEXItem, pk=item_id)
-            item.costo_reposicion = monto
-            if monto > 0 and 1 <= mes <= 24:
-                if mes <= 12:
-                    item.fecha_proyectada = date(item.repex.anio, mes, 1)
-                else:
-                    item.fecha_proyectada = date(item.repex.anio + 1, mes - 12, 1)
+            
+            # Actualizar precio unitario si hay cantidad para que save() lo asuma correctamente
+            if item.cantidad > 0:
+                item.precio_unitario = monto / item.cantidad
+            else:
+                item.costo_reposicion = monto
+
+            # El cronograma anual usa 5 años: 2026 (1), 2027 (2), 2028 (3), 2029 (4), 2030 (5)
+            if monto > 0 and 1 <= mes <= 5:
+                anios_rango = [2026, 2027, 2028, 2029, 2030]
+                target_year = anios_rango[mes - 1]
+                # Si el ítem ya tenía una fecha, intentamos preservar el mes
+                current_month = item.fecha_proyectada.month if item.fecha_proyectada else 1
+                item.fecha_proyectada = date(target_year, current_month, 1)
             elif monto == 0:
                 item.fecha_proyectada = None
+                item.precio_unitario = 0
                 item.costo_reposicion = 0
 
             item.save()
