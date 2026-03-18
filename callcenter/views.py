@@ -111,15 +111,27 @@ def generate_ticket_pdf_view(request, folio):
 
     evidencias_b64 = []
     for ev in ticket.evidencias.all():
-        if ev.archivo and not ev.archivo.name.endswith('.pdf'):
+        if ev.archivo and not ev.archivo.name.lower().endswith('.pdf'):
             try:
-                img_bytes = ev.archivo.read()
+                # Asegurarse de leer los bytes correctamente
+                with ev.archivo.open('rb') as f:
+                    img_bytes = f.read()
+                
                 ext = ev.archivo.name.rsplit('.', 1)[-1].lower()
-                mime = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png'}.get(ext, 'image/jpeg')
+                mime = {
+                    'jpg': 'image/jpeg', 
+                    'jpeg': 'image/jpeg', 
+                    'png': 'image/png',
+                    'webp': 'image/webp'
+                }.get(ext, 'image/jpeg')
+                
                 b64 = base64.b64encode(img_bytes).decode('utf-8')
-                evidencias_b64.append({'data_uri': f'data:{mime};base64,{b64}', 'descripcion': ev.descripcion or ''})
+                evidencias_b64.append({
+                    'data_uri': f'data:{mime};base64,{b64}', 
+                    'descripcion': ev.descripcion or ''
+                })
             except Exception as e:
-                logger.warning(f"Error leyendo imagen {ev.id}: {e}")
+                logger.warning(f"Error procesando imagen {ev.id} para PDF: {e}")
 
     html_content = render_to_string('callcenter/ticket_pdf.html', {
         'ticket': ticket,
@@ -162,14 +174,32 @@ def webhook_evidencia_ticket(request, folio):
             except: pass
         if not ticket: return JsonResponse({'error': 'Not found'}, status=404)
 
+        # 1. Intentar por Archivo Directo (Multipart)
         if request.FILES:
             for field, file_obj in request.FILES.items():
-                evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp (File)')
+                evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp (Files)')
                 ext = file_obj.name.split('.')[-1] if '.' in file_obj.name else 'jpg'
                 file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
                 evidencia.archivo.save(file_name, file_obj)
             return JsonResponse({'success': True, 'msg': 'Imagen guardada vía FILES'})
 
+        # 2. Intentar por Cuerpo Binario Directo (n8n "Send Binary Data")
+        # Si no es JSON y tiene longitud, y no hay FILES, probablemente es el binario crudo
+        content_type = request.META.get('CONTENT_TYPE', '')
+        if 'application/json' not in content_type and len(request.body) > 100:
+            # Detectar formato por bytes mágicos
+            ext = 'jpg'
+            if request.body.startswith(b'\xff\xd8'): ext = 'jpg'
+            elif request.body.startswith(b'\x89PNG'): ext = 'png'
+            elif request.body.startswith(b'RIFF') and b'WEBP' in request.body[:15]: ext = 'webp'
+            
+            file_name = f'foto_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.{ext}'
+            evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion='Adjunto desde WhatsApp (Body)')
+            evidencia.archivo.save(file_name, ContentFile(request.body))
+            logger.info(f"Evidencia guardada vía BODY Raw: {file_name}")
+            return JsonResponse({'success': True, 'msg': 'Imagen guardada vía Body'})
+
+        # 3. Intentar por JSON (Base64)
         try:
             data = json.loads(request.body)
             def find_base64(obj):
@@ -201,7 +231,7 @@ def webhook_evidencia_ticket(request, folio):
                 return JsonResponse({'success': True, 'msg': 'Imagen guardada vía B64'})
         except: pass
 
-        return JsonResponse({'success': False, 'msg': 'No image found'})
+        return JsonResponse({'success': False, 'msg': 'No image found', 'body_len': len(request.body)})
     except Exception as e:
         logger.error(f"Error parseando imagen: {e}", exc_info=True)
         return JsonResponse({'success': False, 'msg': str(e)}, status=500)
