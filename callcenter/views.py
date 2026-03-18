@@ -133,9 +133,30 @@ def generate_ticket_pdf_view(request, folio):
             except Exception as e:
                 logger.warning(f"Error procesando imagen {ev.id} para PDF: {e}")
 
+    # Cálculos adicionales para el nuevo diseño
+    tiempo_total = None
+    if ticket.fecha_solicitud and ticket.fecha_cierre:
+        # Calcular diferencia en minutos (HF - Solicitud)
+        diff = ticket.fecha_cierre - ticket.fecha_solicitud
+        tiempo_total = int(diff.total_seconds() / 60)
+
+    # El bot puede pasar el nombre de quien cerró por parámetro
+    closed_by = request.GET.get('closed_by', ticket.responsable or 'N/D')
+
+    # Encode logos for PDF
+    logo_dcc_b64 = ""
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'activos', 'static', 'activos', 'img', 'logo_operadora_cc.png')
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as image_file:
+            logo_dcc_b64 = base64.b64encode(image_file.read()).decode('utf-8')
+
     html_content = render_to_string('callcenter/ticket_pdf.html', {
         'ticket': ticket,
         'evidencias_b64': evidencias_b64,
+        'tiempo_total': tiempo_total,
+        'closed_by': closed_by,
+        'ahora': timezone.now(),
+        'logo_dcc_b64': logo_dcc_b64,
     }, request=request)
 
     try:

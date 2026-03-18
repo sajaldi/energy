@@ -2,189 +2,246 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Comprobante de Ticket {{ ticket.folio }}</title>
+    <title>Solicitud Atención - {{ ticket.folio|default:ticket.id_solicitud }}</title>
     <style>
+        @page {
+            margin: 0.5cm;
+            size: A4;
+        }
         body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            color: #333;
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            color: black;
             margin: 0;
-            padding: 40px;
-            font-size: 14px;
-        }
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #0056b3;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }
-        .logo {
-            max-width: 150px;
-            margin-bottom: 10px;
-        }
-        h1 {
-            color: #0056b3;
-            margin: 0;
-            font-size: 24px;
-        }
-        .ticket-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 30px;
-        }
-        .column {
-            width: 48%;
-        }
-        h3 {
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 5px;
-            color: #444;
-            font-size: 16px;
+            padding: 0;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            table-layout: fixed;
         }
-        th, td {
-            padding: 8px 0;
-            text-align: left;
-            border-bottom: 1px solid #eee;
+        td {
+            border: 1px solid black;
+            padding: 4px 6px;
+            vertical-align: top;
+            word-wrap: break-word;
         }
-        th {
-            width: 40%;
-            color: #666;
-            font-weight: bold;
-        }
-        .footer {
-            margin-top: 50px;
+        .header-logo {
+            border: none;
             text-align: center;
-            font-size: 12px;
-            color: #888;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
         }
-        .badge {
-            background-color: #28a745;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
+        .title-container {
+            text-align: center;
+            border: none;
+        }
+        .title {
+            font-size: 18px;
             font-weight: bold;
-            display: inline-block;
-            margin-top: 10px;
+            margin: 0;
         }
-        .badge.open {
-            background-color: #ffc107;
-            color: #333;
+        .subtitle {
+            font-size: 14px;
+            margin: 5px 0 0 0;
+        }
+        .section-header {
+            background-color: #d9d9d9;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .label {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            width: 120px;
+        }
+        .value {
+            background-color: white;
+        }
+        .logo-img {
+            max-height: 50px;
+        }
+        .ccg-logo-text {
+            border: none;
+            padding: 0;
+        }
+        .ccg-logo-text h2 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 2px;
+            border-bottom: 2px solid navy;
+        }
+        .ccg-logo-text p {
+            margin: 2px 0 0 0;
+            font-size: 8px;
+            font-weight: bold;
+        }
+        .large-field {
+            height: 40px;
+        }
+        .full-width {
+            width: 100%;
         }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <!-- Puedes cambiar esta URL por el logo de tu empresa -->
-        <h1>Cierre de Solicitud de Servicio</h1>
-        <p style="color: #666; margin-top: 5px;">Centro Cívico Gubernamental</p>
-    </div>
-
-    <div class="ticket-info">
-        <div class="column">
-            <h3>Información General</h3>
-            <table>
-                <tr>
-                    <th>Folio:</th>
-                    <td><strong>{{ ticket.folio|default:ticket.id_solicitud }}</strong></td>
-                </tr>
-                <tr>
-                    <th>Solicitante:</th>
-                    <td>{{ ticket.solicitante|default:"N/D" }}</td>
-                </tr>
-                <tr>
-                    <th>Ubicación:</th>
-                    <td>{{ ticket.ubicacion|default:"N/D" }}</td>
-                </tr>
-                <tr>
-                    <th>Nivel / Grupo:</th>
-                    <td>{{ ticket.nivel|default:"-" }} / {{ ticket.grupo|default:"-" }}</td>
-                </tr>
-                <tr>
-                    <th>Servicio:</th>
-                    <td>{{ ticket.servicio|default:"N/D" }}</td>
-                </tr>
-            </table>
-            
-            <div class="badge {% if not ticket.fecha_cierre %}open{% endif %}">
-                Estado: {% if ticket.fecha_cierre %}CERRADO{% else %}ABIERTO{% endif %}
-            </div>
-        </div>
-        
-        <div class="column">
-            <h3>Tiempos y Responsable</h3>
-            <table>
-                <tr>
-                    <th>Responsable:</th>
-                    <td>{{ ticket.responsable|default:"No Asignado" }}</td>
-                </tr>
-                <tr>
-                    <th>Fecha Solicitud:</th>
-                    <td>{{ ticket.fecha_solicitud|date:"d/m/Y H:i"|default:"N/D" }}</td>
-                </tr>
-                <tr>
-                    <th>Fecha Diagnóstico:</th>
-                    <td>{{ ticket.fecha_diagnostico|date:"d/m/Y H:i"|default:"N/D" }}</td>
-                </tr>
-                <tr>
-                    <th>Fecha Actividades:</th>
-                    <td>{{ ticket.fecha_actividades|date:"d/m/Y H:i"|default:"N/D" }}</td>
-                </tr>
-                <tr>
-                    <th>Fecha Cierre:</th>
-                    <td>{{ ticket.fecha_cierre|date:"d/m/Y H:i"|default:"N/D" }}</td>
-                </tr>
-            </table>
-        </div>
-    </div>
-
-    <h3>Descripción del Problema</h3>
-    <p style="background: #f9f9f9; padding: 15px; border-left: 4px solid #0056b3; line-height: 1.5;">
-        <strong>Falla Reportada:</strong> {{ ticket.falla_descripcion|default:"Ninguna" }}<br><br>
-        <strong>Diagnóstico:</strong> {{ ticket.diagnostico|default:"Ninguno" }}
-    </p>
-
-    <h3>Actividades y Resoluciones</h3>
-    <p style="background: #f9f9f9; padding: 15px; border-left: 4px solid #28a745; line-height: 1.5;">
-        <strong>Acciones Realizadas:</strong> {{ ticket.actividades|default:"Ninguna" }}<br><br>
-        <strong>Observaciones Finales:</strong> {{ ticket.observaciones_usuario|default:"Ninguna" }}<br>
-        <small style="color: #666; display: block; margin-top: 10px;">Notas adicionales: {{ ticket.observaciones|default:"Ninguna" }}</small>
-    </p>
-
-    {% if evidencias_b64 %}
-    <h3>Evidencias Fotográficas</h3>
-    <table style="width: 100%; border: none;">
-        {% for ev in evidencias_b64 %}
-            {% if forloop.counter0|divisibleby:2 %}
-            <tr>
-            {% endif %}
-            
-            <td style="width: 50%; padding: 10px; vertical-align: top;">
-                <div style="border: 1px solid #ddd; padding: 10px; text-align: center; border-radius: 5px;">
-                    <img src="{{ ev.data_uri }}" style="max-width: 100%; max-height: 300px; object-fit: contain;">
-                    {% if ev.descripcion %}
-                    <p style="font-size: 11px; color: #666; margin-top: 5px; margin-bottom: 0;">{{ ev.descripcion }}</p>
-                    {% endif %}
+    <!-- Header Section -->
+    <table style="border: none; margin-bottom: 5px;">
+        <tr>
+            <td style="border: none; width: 25%;">
+                <div class="ccg-logo-text">
+                    <h2>CCG</h2>
+                    <p>José Cecilio del Valle</p>
                 </div>
             </td>
+            <td style="border: none; width: 50%; text-align: center;">
+                <div class="title">Solicitud Atención</div>
+                <div class="subtitle">Centro Cívico Gubernamental de Honduras</div>
+            </td>
+            <td style="border: none; width: 25%; text-align: right;">
+                {% if logo_dcc_b64 %}
+                <img src="data:image/png;base64,{{ logo_dcc_b64 }}" class="logo-img">
+                {% endif %}
+            </td>
+        </tr>
+    </table>
 
-            {% if forloop.counter|divisibleby:2 or forloop.last %}
-            </tr>
-            {% endif %}
-        {% endfor %}
+    <!-- Generic Info -->
+    <table>
+        <tr>
+            <td class="label">Fecha y hora solicitud</td>
+            <td class="value">{{ ticket.fecha_solicitud|date:"d/m/Y H:i:s"|default:"-" }}</td>
+            <td class="label">Tiempo total</td>
+            <td class="value">{{ tiempo_total|default:"0" }} min.</td>
+            <td class="label">Categoria</td>
+            <td class="value">{{ ticket.categoria_falla|default:"-" }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="4">Servicio</td></tr>
+        <tr>
+            <td class="label">No. Solicitud</td>
+            <td class="value">{{ ticket.folio|default:ticket.id_solicitud }}</td>
+            <td class="label">Estado</td>
+            <td class="value">{% if ticket.fecha_cierre %}Cerrado{% else %}En proceso{% endif %}</td>
+        </tr>
+        <tr>
+            <td class="label">Solicitante</td>
+            <td class="value" colspan="3">{{ ticket.solicitante|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Descripción</td>
+            <td class="value" colspan="3">{{ ticket.solicitud_description|default:ticket.solicitud_descripcion|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Falla</td>
+            <td class="value" colspan="3">{{ ticket.falla_descripcion|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Servicio</td>
+            <td class="value" colspan="3">{{ ticket.servicio|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Subservicio</td>
+            <td class="value" colspan="3">{{ ticket.subservicio|default:"-" }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="6">Ubicación</td></tr>
+        <tr>
+            <td class="label">Activo</td>
+            <td class="value" colspan="2">{{ ticket.activo.nombre|default:"-" }}</td>
+            <td class="label">Familia Activo</td>
+            <td class="value" colspan="2">{{ ticket.activo.familia.nombre|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">grupo</td>
+            <td class="value">{{ ticket.nivel|default:"-" }}</td>
+            <td class="label">Nivel</td>
+            <td class="value">{{ ticket.grupo|default:"-" }}</td>
+            <td class="label"></td>
+            <td class="value"></td>
+        </tr>
+        <tr>
+            <td class="label">Unidad funcional</td>
+            <td class="value" colspan="2">{{ ticket.unidad|default:"-" }}</td>
+            <td class="label">Área funcional</td>
+            <td class="value" colspan="2">{{ ticket.area|default:"-" }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="2">Atención</td></tr>
+        <tr>
+            <td class="label">Responsable</td>
+            <td class="value">{{ ticket.responsable|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Diagnóstico</td>
+            <td class="value large-field">{{ ticket.diagnostico|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Actividades realizadas</td>
+            <td class="value large-field">{{ ticket.actividades|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Observaciones</td>
+            <td class="value large-field">{{ ticket.observaciones|default:"-" }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header" colspan="4">Seguimiento</td></tr>
+        <tr>
+            <td class="label" style="width: 80px;">Cerró</td>
+            <td class="label" style="width: 80px;">Fecha/Hora</td>
+            <td class="value">{{ ticket.fecha_cierre|date:"d/m/Y H:i:s"|default:"-" }}</td>
+            <td class="label" style="width: 100px;">Nombre / Firma</td>
+            <td class="value">{{ closed_by|default:"-" }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr><td class="section-header">Adjuntos</td></tr>
+    </table>
+
+    {% if evidencias_b64 %}
+    <div style="margin-top: 5px;">
+        <table style="width: 100%; border: none;">
+            {% for ev in evidencias_b64 %}
+                {% if forloop.counter0|divisibleby:2 %}
+                <tr>
+                {% endif %}
+                
+                <td style="width: 50%; padding: 5px; border: 1px solid #ddd; text-align: center;">
+                    <img src="{{ ev.data_uri }}" style="max-width: 100%; max-height: 250px; object-fit: contain;">
+                    {% if ev.descripcion %}
+                    <p style="font-size: 9px; color: #666; margin-top: 2px;">{{ ev.descripcion }}</p>
+                    {% endif %}
+                </td>
+
+                {% if forloop.counter|divisibleby:2 or forloop.last %}
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </table>
+    </div>
+    {% else %}
+    <table style="margin-top: -1px;">
+        <tr>
+            <td class="label" style="width: 33%;">Nombre del archivo</td>
+            <td class="label" style="width: 44%;">Descripción</td>
+            <td class="label" style="width: 23%;">Tamaño</td>
+        </tr>
+        <tr>
+            <td class="value" colspan="3" style="height: 30px; text-align: center; color: #999;">Sin adjuntos</td>
+        </tr>
     </table>
     {% endif %}
 
-    <div class="footer">
-        <p>Documento Generado Automàticamente por SoftCoM-CCG</p>
-        <p>Fecha de emisión: {% now "d/m/Y H:i" %}</p>
+    <div style="margin-top: 10px; font-size: 8px; color: #666; text-align: center;">
+        Comprobante generado el {{ ahora|date:"d/m/Y H:i:s" }} - CCG-Bot System
     </div>
 
 </body>
