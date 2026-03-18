@@ -749,8 +749,17 @@
         "method": "POST",
         "url": "=http://kgogwsw00cwcw8g0wk0gsogg.10.30.1.11.sslip.io/callcenter/api/ticket/{{ $node[\"-> Obtener Estado\"].json.status.split(':')[1] }}/upload_evidencia/",
         "options": {},
-        "sendBinaryData": true,
-        "binaryPropertyName": "data"
+        "sendBody": true,
+        "bodyContentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file",
+              "parameterType": "formBinaryData",
+              "inputDataFieldName": "data"
+            }
+          ]
+        }
       },
       "id": "e81d763a-23b9-470a-811c-2af47fbb34e1",
       "name": "Subir Foto (Django)",
@@ -1187,7 +1196,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst msg = $node[\"Variables\"].json.mensaje_original || \"\";\n\nfunction extract(regex, defaultVal = \"\") {\n  const match = msg.match(regex);\n  return (match && match[1]) ? match[1].trim() : defaultVal;\n}\n\n// Regex more robust as suggested by user\nconst diagnostico = extract(/Diagn[oó]stico:[ ]*([^\n\r-]+)/i, msg);\nconst actividades = extract(/Acci[oó]n realizada:[ ]*([^\n\r-]+)/i, \"Ver diagnóstico\");\nconst hi_str = extract(/HI:[ ]*([^\n\r-]+)/i, \"\");\nconst hf_str = extract(/HF:[ ]*([^\n\r-]+)/i, \"\");\nconst observaciones = extract(/Observa[cv]iones:[ ]*([^\n\r-]+)/i, \"Ninguna\");\nconst uf = extract(/UF:[ ]*([^\n\r-]+)/i, \"N/A\");\n\nreturn {\n  diagnostico,\n  actividades,\n  hi_str,\n  hf_str,\n  observaciones,\n  uf\n};\n"
+        "jsCode": "\nconst msg = $node[\"Variables\"].json.mensaje_original || \"\";\n\nfunction extract(regex, defaultVal = \"\") {\n  const match = msg.match(regex);\n  return (match && match[1]) ? match[1].trim() : defaultVal;\n}\n\n// Regex more robust as suggested by user\nconst diagnostico = extract(/Diagn[oó]stico:[ ]*([^\\n\\r-]+)/i, msg);\nconst actividades = extract(/Acci[oó]n realizada:[ ]*([^\\n\\r-]+)/i, \"Ver diagnóstico\");\nconst hi_str = extract(/HI:[ ]*([^\\n\\r-]+)/i, \"\");\nconst hf_str = extract(/HF:[ ]*([^\\n\\r-]+)/i, \"\");\nconst observaciones = extract(/Observa[cv]iones:[ ]*([^\\n\\r-]+)/i, \"Ninguna\");\nconst uf = extract(/UF:[ ]*([^\\n\\r-]+)/i, \"N/A\");\n\nreturn {\n  diagnostico,\n  actividades,\n  hi_str,\n  hf_str,\n  observaciones,\n  uf\n};\n"
       },
       "id": "3926c3f4-6ac5-4120-b831-ad9327253752",
       "name": "Parsear Bloque Cierre",
@@ -1196,6 +1205,26 @@
       "position": [
         -5500,
         5300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node[\"Variables\"].json.media_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "b05ba84e-8f6b-4de4-b10c-bb20ec483b8d",
+      "name": "Hay Foto?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -5500,
+        6100
       ]
     }
   ],
@@ -1673,7 +1702,7 @@
         ],
         [
           {
-            "node": "Descargar Foto (GOWA)",
+            "node": "Hay Foto?",
             "type": "main",
             "index": 0
           }
@@ -1780,6 +1809,24 @@
         [
           {
             "node": "Procesar Bloque Cierre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hay Foto?": {
+      "main": [
+        [
+          {
+            "node": "Descargar Foto (GOWA)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set -> Confirmar",
             "type": "main",
             "index": 0
           }
