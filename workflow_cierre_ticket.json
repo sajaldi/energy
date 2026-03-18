@@ -15,6 +15,10 @@
             {
               "name": "mensaje_original",
               "value": "={{ String($json.body?.payload?.body || $json.body?.body || $json.body?.message || '').trim() }}"
+            },
+            {
+              "name": "media_id",
+              "value": "={{ $json.body?.payload?.id || $json.body?.id || $json.body?.payload?.mediaId || $json.body?.mediaId || \"\" }}"
             }
           ],
           "boolean": [
@@ -559,7 +563,7 @@
     },
     {
       "parameters": {
-        "message": "=🎫 *Detalles del Ticket {{ $('Validar Folio a Cerrar').item.json.folio || $('Validar Folio a Cerrar').item.json.id_solicitud }}*\n*Falla reportada:* {{ $('Validar Folio a Cerrar').item.json.falla_descripcion || 'Sin descripción' }}\n*Ubicación:* {{ $('Validar Folio a Cerrar').item.json.area || 'N/A' }}\n*Grupo:* {{ $('Validar Folio a Cerrar').item.json.nivel || 'N/A' }}\n*Nivel:* {{ $('Validar Folio a Cerrar').item.json.grupo || 'N/A' }}\n*UF:* {{ $('Validar Folio a Cerrar').item.json.unidad || 'N/A' }}\n*Solicitante:* {{ $('Validar Folio a Cerrar').item.json.solicitante || 'N/A' }}\n\nPerfecto, estás a punto de cerrarlo. Por favor, envía la información con el siguiente formato:\n\n-Diagnóstico: ...\n-Acción realizada: ...\n-HI: ...\n-HF: ...\n-UF: ...\n-Observaciones: ...",
+        "message": "=🎫 *Detalles del Ticket {{ $node[\"Validar Folio a Cerrar\"].json.folio || $node[\"Validar Folio a Cerrar\"].json.id_solicitud }}*\n*Falla reportada:* {{ $node[\"Validar Folio a Cerrar\"].json.falla_descripcion || 'Sin descripción' }}\n*Ubicación:* {{ $node[\"Validar Folio a Cerrar\"].json.area || 'N/A' }}\n*Grupo:* {{ $node[\"Validar Folio a Cerrar\"].json.nivel || 'N/A' }}\n*Nivel:* {{ $node[\"Validar Folio a Cerrar\"].json.grupo || 'N/A' }}\n*UF:* {{ $node[\"Validar Folio a Cerrar\"].json.unidad || 'N/A' }}\n*Solicitante:* {{ $node[\"Validar Folio a Cerrar\"].json.solicitante || 'N/A' }}\n\nPerfecto, estás a punto de cerrarlo. Por favor, envía la información con el siguiente formato:\n\n-Diagnóstico: ...\n-Acción realizada: ...\n-HI: ...\n-HF: ...\n-UF: ...\n-Observaciones: ...",
         "phoneNumber": "={{ $node[\"Variables\"].json.telefono }}"
       },
       "id": "d0fbf7ea-8d69-450f-bdc1-1e9fa07eebc5",
@@ -580,7 +584,7 @@
     {
       "parameters": {
         "dataType": "string",
-        "value1": "={{ $('-> Obtener Estado').item.json.status.split(':')[2] }}",
+        "value1": "={{ $node[\"-> Obtener Estado\"].json.status.split(':')[2] }}",
         "rules": {
           "rules": [
             {
@@ -623,7 +627,7 @@
     {
       "parameters": {
         "dataType": "string",
-        "value1": "={{ $('-> Obtener Estado').item.json.status.split(':')[2] }}",
+        "value1": "={{ $node[\"-> Obtener Estado\"].json.status.split(':')[2] }}",
         "rules": {
           "rules": [
             {
@@ -662,7 +666,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE bot_sessions \nSET status = 'CERRANDO:' || split_part(status, ':', 2) || ':VALIDANDO' \nWHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}';\n\nUPDATE callcenter_solicitudticket \nSET \n  diagnostico = COALESCE(NULLIF(TRIM(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)Diagn[oó]stico:[ ]*([^\\n\\r-]*)')), ''), $${{ $node[\"Variables\"].json.mensaje_original }}$$),\n  actividades = COALESCE(NULLIF(TRIM(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)Acci[oó]n realizada:[ ]*([^\\n\\r-]*)')), ''), 'Ver diagnóstico'),\n  fecha_actividades = COALESCE(\n    (to_date(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)HI:[ ]*([0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4})'), 'DD/MM/YYYY') + COALESCE(NULLIF(TRIM(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)HI:[ ]*[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}[ ]+([0-9]{1,2}:[0-9]{2}[ ]*[a-zA-Z]*)')), '')::time, '00:00'::time))::timestamp + INTERVAL '6 hours',\n    (CURRENT_DATE + NULLIF(TRIM(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)HI:[ ]*([0-9]{1,2}:[0-9]{2}[ ]*[a-zA-Z]*)')), '')::time)::timestamp + INTERVAL '6 hours',\n    fecha_actividades\n  ),\n  fecha_cierre = COALESCE(\n    (to_date(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)HF:[ ]*([0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4})'), 'DD/MM/YYYY') + COALESCE(NULLIF(TRIM(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)HF:[ ]*[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}[ ]+([0-9]{1,2}:[0-9]{2}[ ]*[a-zA-Z]*)')), '')::time, '00:00'::time))::timestamp + INTERVAL '6 hours',\n    (CURRENT_DATE + NULLIF(TRIM(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)HF:[ ]*([0-9]{1,2}:[0-9]{2}[ ]*[a-zA-Z]*)')), '')::time)::timestamp + INTERVAL '6 hours',\n    fecha_cierre\n  ),\n  observaciones = COALESCE(NULLIF(TRIM(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)Observa[cv]iones:[ ]*([^\\n\\r-]*)')), ''), 'Ninguna') || \n                  ' | UF: ' || COALESCE(NULLIF(TRIM(substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)UF:[ ]*([^\\n\\r-]*)')), ''), 'N/A')\nWHERE folio = split_part((SELECT status FROM bot_sessions WHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}'), ':', 2)\nRETURNING \n  (fecha_cierre < fecha_actividades) as es_negativo,\n  (substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)HI:[ ]*([^\\n\\r-]*)') NOT LIKE '%/%') as hi_sin_fecha,\n  (substring($${{ $node[\"Variables\"].json.mensaje_original }}$$ from '(?i)HF:[ ]*([^\\n\\r-]*)') NOT LIKE '%/%') as hf_sin_fecha;",
+        "query": "UPDATE bot_sessions \nSET status = 'CERRANDO:' || split_part(status, ':', 2) || ':VALIDANDO' \nWHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}';\n\nUPDATE callcenter_solicitudticket \nSET \n  diagnostico = $${{ $node[\"Parsear Bloque Cierre\"].json.diagnostico }}$$,\n  actividades = $${{ $node[\"Parsear Bloque Cierre\"].json.actividades }}$$,\n  fecha_actividades = COALESCE(\n    -- Try full date from HI\n    (to_date(substring($${{ $node[\"Parsear Bloque Cierre\"].json.hi_str }}$$ from '([0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4})'), 'DD/MM/YYYY') + \n     COALESCE(NULLIF(TRIM(substring($${{ $node[\"Parsear Bloque Cierre\"].json.hi_str }}$$ from '([0-9]{1,2}:[0-9]{2}[ ]*[a-zA-Z]*)')), '')::time, '00:00'::time))::timestamp + INTERVAL '6 hours',\n    -- fallback to today if only time provided\n    (CURRENT_DATE + NULLIF(TRIM(substring($${{ $node[\"Parsear Bloque Cierre\"].json.hi_str }}$$ from '([0-9]{1,2}:[0-9]{2}[ ]*[a-zA-Z]*)')), '')::time)::timestamp + INTERVAL '6 hours',\n    fecha_actividades\n  ),\n  fecha_cierre = COALESCE(\n    -- Try full date from HF\n    (to_date(substring($${{ $node[\"Parsear Bloque Cierre\"].json.hf_str }}$$ from '([0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4})'), 'DD/MM/YYYY') + \n     COALESCE(NULLIF(TRIM(substring($${{ $node[\"Parsear Bloque Cierre\"].json.hf_str }}$$ from '([0-9]{1,2}:[0-9]{2}[ ]*[a-zA-Z]*)')), '')::time, '00:00'::time))::timestamp + INTERVAL '6 hours',\n    -- fallback to today if only time provided\n    (CURRENT_DATE + NULLIF(TRIM(substring($${{ $node[\"Parsear Bloque Cierre\"].json.hf_str }}$$ from '([0-9]{1,2}:[0-9]{2}[ ]*[a-zA-Z]*)')), '')::time)::timestamp + INTERVAL '6 hours',\n    fecha_cierre\n  ),\n  observaciones = $${{ $node[\"Parsear Bloque Cierre\"].json.observaciones }}$$ || ' | UF: ' || $${{ $node[\"Parsear Bloque Cierre\"].json.uf }}$$\nWHERE folio = split_part((SELECT status FROM bot_sessions WHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}'), ':', 2)\nRETURNING \n  (fecha_cierre < fecha_actividades) as es_negativo,\n  ($${{ $node[\"Parsear Bloque Cierre\"].json.hi_str }}$$ NOT LIKE '%/%') as hi_sin_fecha,\n  ($${{ $node[\"Parsear Bloque Cierre\"].json.hf_str }}$$ NOT LIKE '%/%') as hf_sin_fecha;",
         "options": {}
       },
       "id": "a9eebc3f-40e1-45bd-8ff1-71eab0ec2a5b",
@@ -743,7 +747,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://kgogwsw00cwcw8g0wk0gsogg.10.30.1.11.sslip.io/callcenter/api/ticket/{{ $('-> Obtener Estado').item.json.status.split(':')[1] }}/upload_evidencia/",
+        "url": "=http://kgogwsw00cwcw8g0wk0gsogg.10.30.1.11.sslip.io/callcenter/api/ticket/{{ $node[\"-> Obtener Estado\"].json.status.split(':')[1] }}/upload_evidencia/",
         "options": {},
         "sendBinaryData": true,
         "binaryPropertyName": "data"
@@ -760,7 +764,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $('-> Obtener Estado').item.json.status.split(':')[1] }}:CONFIRMAR' \nWHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}';",
+        "query": "=UPDATE bot_sessions \nSET status = 'CERRANDO:{{ $node[\"-> Obtener Estado\"].json.status.split(':')[1] }}:CONFIRMAR' \nWHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}';",
         "options": {}
       },
       "id": "18029fd5-e0bb-4bf5-b44c-35cd218a58ec",
@@ -828,7 +832,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE bot_sessions \nSET status = 'IDLE', last_update = NOW()\nWHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}';\n\nUPDATE callcenter_solicitudticket\nSET fecha_cierre = COALESCE(fecha_cierre, NOW())\nWHERE folio = '{{ $('-> Obtener Estado').item.json.status.split(':')[1] }}';",
+        "query": "=UPDATE bot_sessions \nSET status = 'IDLE', last_update = NOW()\nWHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}';\n\nUPDATE callcenter_solicitudticket\nSET fecha_cierre = COALESCE(fecha_cierre, NOW())\nWHERE folio = '{{ $node[\"-> Obtener Estado\"].json.status.split(':')[1] }}';",
         "options": {}
       },
       "id": "de5121b6-aae3-4fe6-8051-7eb9c2c61ce5",
@@ -909,7 +913,7 @@
     },
     {
       "parameters": {
-        "url": "=http://kgogwsw00cwcw8g0wk0gsogg.10.30.1.11.sslip.io/callcenter/api/ticket/{{ $('-> Obtener Estado').item.json.status.split(':')[1] }}/pdf/",
+        "url": "=http://kgogwsw00cwcw8g0wk0gsogg.10.30.1.11.sslip.io/callcenter/api/ticket/{{ $node[\"-> Obtener Estado\"].json.status.split(':')[1] }}/pdf/",
         "responseFormat": "json",
         "options": {}
       },
@@ -1159,6 +1163,40 @@
           "name": "Postgres account"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "messageId": "={{ $node[\"Variables\"].json.media_id }}",
+        "binaryPropertyName": "data"
+      },
+      "id": "a8113f74-2c99-4c51-9673-be722de7d12f",
+      "name": "Descargar Foto (GOWA)",
+      "type": "@aldinokemal2104/n8n-nodes-gowa.gowa",
+      "typeVersion": 1,
+      "position": [
+        -5300,
+        6100
+      ],
+      "credentials": {
+        "goWhatsappApi": {
+          "id": "3ZCyhP63fGLpPiQN",
+          "name": "GOWA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst msg = $node[\"Variables\"].json.mensaje_original || \"\";\n\nfunction extract(regex, defaultVal = \"\") {\n  const match = msg.match(regex);\n  return (match && match[1]) ? match[1].trim() : defaultVal;\n}\n\n// Regex more robust as suggested by user\nconst diagnostico = extract(/Diagn[oó]stico:[ ]*([^\n\r-]+)/i, msg);\nconst actividades = extract(/Acci[oó]n realizada:[ ]*([^\n\r-]+)/i, \"Ver diagnóstico\");\nconst hi_str = extract(/HI:[ ]*([^\n\r-]+)/i, \"\");\nconst hf_str = extract(/HF:[ ]*([^\n\r-]+)/i, \"\");\nconst observaciones = extract(/Observa[cv]iones:[ ]*([^\n\r-]+)/i, \"Ninguna\");\nconst uf = extract(/UF:[ ]*([^\n\r-]+)/i, \"N/A\");\n\nreturn {\n  diagnostico,\n  actividades,\n  hi_str,\n  hf_str,\n  observaciones,\n  uf\n};\n"
+      },
+      "id": "3926c3f4-6ac5-4120-b831-ad9327253752",
+      "name": "Parsear Bloque Cierre",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -5500,
+        5300
+      ]
     }
   ],
   "connections": {
@@ -1449,7 +1487,7 @@
       "main": [
         [
           {
-            "node": "Procesar Bloque Cierre",
+            "node": "Parsear Bloque Cierre",
             "type": "main",
             "index": 0
           }
@@ -1635,7 +1673,7 @@
         ],
         [
           {
-            "node": "Subir Foto (Django)",
+            "node": "Descargar Foto (GOWA)",
             "type": "main",
             "index": 0
           }
@@ -1720,6 +1758,28 @@
         [
           {
             "node": "Enviar Documento PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Foto (GOWA)": {
+      "main": [
+        [
+          {
+            "node": "Subir Foto (Django)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Bloque Cierre": {
+      "main": [
+        [
+          {
+            "node": "Procesar Bloque Cierre",
             "type": "main",
             "index": 0
           }
