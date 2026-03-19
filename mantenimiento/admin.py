@@ -1696,15 +1696,15 @@ class ValorPasoOrdenInline(admin.TabularInline):
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('codigo_de_orden', 'tipo', 'prioridad', 'descripcion_corta', 'get_ubicacion_jerarquia', 'get_activos_format', 'inicio_programado', 'estado', 'registrar_salida_link')
+    list_display = ('codigo_de_orden', 'tipo', 'prioridad', 'descripcion_corta', 'get_ubicacion_jerarquia', 'get_activos_format', 'inicio_programado', 'estado', 'registrar_salida_link', 'ver_pdf_link')
     list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'equipo')
-    readonly_fields = ('registrar_salida_link',)
+    readonly_fields = ('registrar_salida_link', 'ver_pdf_link')
     list_select_related = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
     search_fields = ('id', 'codigo_de_orden', 'descripcion_corta', 'descripcion_detallada', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
     autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion', 'activos')
     ordering = ('-inicio_programado',)
     date_hierarchy = 'inicio_programado'
-    actions = ['generar_permiso_action', 'exportar_seleccionadas_action']
+    actions = ['generar_permiso_action', 'exportar_seleccionadas_action', 'generar_pdf_masivo_action']
 
     @admin.action(description="📥 Exportar seleccionadas (Formato Importación)")
     def exportar_seleccionadas_action(self, request, queryset):
@@ -1762,6 +1762,31 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
                 return "-"
         return "-"
     registrar_salida_link.short_description = "Acc."
+
+    def ver_pdf_link(self, obj):
+        if obj.estado == 'REALIZADA':
+            try:
+                url = reverse('mantenimiento:rutina_pdf', args=[obj.id])
+                return mark_safe(f'<a class="button" href="{url}" target="_blank" style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-decoration: none; font-size: 0.9em;">📄 PDF</a>')
+            except Exception:
+                return "-"
+        return "-"
+    ver_pdf_link.short_description = "Reporte"
+
+    @admin.action(description="📄 Generar Reportes PDF (Masivo)")
+    def generar_pdf_masivo_action(self, request, queryset):
+        # Para masivo, solo podemos redirigir al primero o mostrar un mensaje.
+        # En este caso, por simplicidad, abriremos el primero en una pestaña nueva si es uno solo,
+        # o informaremos que deben generarse individualmente si son muchos (Playwright es lento).
+        if queryset.count() == 1:
+            ot = queryset.first()
+            if ot.estado == 'REALIZADA':
+                url = reverse('mantenimiento:rutina_pdf', args=[ot.id])
+                return HttpResponseRedirect(url)
+            else:
+                self.message_user(request, "La OT debe estar en estado REALIZADA para generar el PDF.", messages.WARNING)
+        else:
+            self.message_user(request, "La generación masiva no está disponible actualmente por limitaciones de rendimiento. Use los botones individuales.", messages.INFO)
 
     def generar_permiso_action(self, obj):
         from django.urls import reverse

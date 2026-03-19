@@ -710,6 +710,9 @@
         if (!selections.fecha_inicio) {
             alert("La fecha de inicio es obligatoria."); return;
         }
+        if (selections.fecha_fin && selections.fecha_fin < selections.fecha_inicio) {
+            alert("La fecha de fin no puede ser anterior a la fecha de inicio."); return;
+        }
 
         btnNext.disabled = true;
         btnNext.innerHTML = 'Generando... <ion-icon name="sync" class="rotating"></ion-icon>';
@@ -734,7 +737,13 @@
             const data = await response.json();
 
             if (data.status === 'success') {
-                showMonumentalSuccess(data.message);
+                if (data.count === 0) {
+                    alert("No se generaron órdenes. Verifica el rango de fechas y que existan activos o áreas válidas para esta rutina.");
+                    btnNext.disabled = false;
+                    btnNext.innerHTML = 'Finalizar y Generar <ion-icon name="flash"></ion-icon>';
+                } else {
+                    showMonumentalSuccess(data.message);
+                }
             } else if (data.status === 'projection') {
                 // Redirect to visualizer
                 window.location.href = "{% url 'mantenimiento:visualizador_proyecciones' 0 %}".replace('0', data.prog_id);

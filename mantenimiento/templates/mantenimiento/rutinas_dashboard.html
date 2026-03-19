@@ -317,6 +317,18 @@
             background: #f1f5f9;
             transform: scale(1.1);
         }
+
+        .step-item-header {
+            background: #f1f5f9;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin: 15px 0 10px 0;
+            font-weight: 700;
+            color: #334155;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            border-left: 4px solid #4f46e5;
+        }
     </style>
 </head>
 
@@ -785,7 +797,7 @@
                     row.innerHTML = `
                         <div class="remove-step" onclick="this.parentElement.remove()">&times;</div>
                         <div class="form-group step-full">
-                            <label>Descripción del Paso</label>
+                            <label>Descripción del Paso / Título del Grupo</label>
                             <textarea class="form-control s-desc" rows="2">${p.descripcion}</textarea>
                         </div>
                         <div class="form-group">
@@ -795,6 +807,7 @@
                                 <option value="CHECK" ${p.tipo_respuesta === 'CHECK' ? 'selected' : ''}>Check</option>
                                 <option value="NUMERICO" ${p.tipo_respuesta === 'NUMERICO' ? 'selected' : ''}>Numérico</option>
                                 <option value="TEXTO" ${p.tipo_respuesta === 'TEXTO' ? 'selected' : ''}>Texto</option>
+                                <option value="HEADER" ${p.tipo_respuesta === 'HEADER' ? 'selected' : ''}>ENCABEZADO</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -805,14 +818,19 @@
                     container.appendChild(row);
                 } else {
                     const div = document.createElement('div');
-                    div.className = 'step-item-static';
-                    div.innerHTML = `
-                        <div class="step-number">${index + 1}.</div>
-                        <div class="step-content-view">
-                            <div style="font-weight: 500; color: #1e293b;">${p.descripcion}</div>
-                            ${p.verificacion ? `<div class="step-verif">Ref: ${p.verificacion}</div>` : ''}
-                        </div>
-                    `;
+                    if (p.tipo_respuesta === 'HEADER') {
+                        div.className = 'step-item-header';
+                        div.innerHTML = `<span>${p.descripcion}</span>`;
+                    } else {
+                        div.className = 'step-item-static';
+                        div.innerHTML = `
+                            <div class="step-number">${index + 1}.</div>
+                            <div class="step-content-view">
+                                <div style="font-weight: 500; color: #1e293b;">${p.descripcion}</div>
+                                ${p.verificacion ? `<div class="step-verif">Ref: ${p.verificacion}</div>` : ''}
+                            </div>
+                        `;
+                    }
                     container.appendChild(div);
                 }
             });
@@ -830,7 +848,7 @@
             row.innerHTML = `
                 <div class="remove-step" onclick="this.parentElement.remove()">&times;</div>
                 <div class="form-group step-full">
-                    <label>Descripción del Paso</label>
+                    <label>Descripción del Paso / Título del Grupo</label>
                     <textarea class="form-control s-desc" rows="2"></textarea>
                 </div>
                 <div class="form-group">
@@ -840,6 +858,7 @@
                         <option value="CHECK">Check</option>
                         <option value="NUMERICO">Numérico</option>
                         <option value="TEXTO">Texto</option>
+                        <option value="HEADER">ENCABEZADO</option>
                     </select>
                 </div>
                 <div class="form-group">

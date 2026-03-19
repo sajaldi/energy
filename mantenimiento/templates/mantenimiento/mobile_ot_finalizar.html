@@ -225,6 +225,27 @@
             color: #ef4444;
             font-weight: 600;
         }
+
+        .step-header-group {
+            background: #1e293b;
+            color: white;
+            padding: 12px 18px;
+            border-radius: 12px;
+            margin: 25px 0 15px 0;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .step-header-group ion-icon {
+            font-size: 20px;
+            color: #94a3b8;
+        }
     </style>
 </head>
 
@@ -248,6 +269,12 @@
                 </h2>
 
                 {% for paso in pasos %}
+                {% if paso.tipo_respuesta == 'HEADER' %}
+                <div class="step-header-group">
+                    <ion-icon name="chevron-forward-circle-outline"></ion-icon>
+                    {{ paso.descripcion }}
+                </div>
+                {% else %}
                 <div class="step-item">
                     <div class="step-header">
                         <div class="step-order">{{ paso.orden }}</div>
@@ -313,6 +340,7 @@
                     </div>
                     {% endif %}
                 </div>
+                {% endif %}
                 {% endfor %}
             </div>
             {% endif %}

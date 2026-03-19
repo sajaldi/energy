@@ -150,6 +150,7 @@ class PasoRutina(models.Model):
         ('NUMERICO', 'Valor Numérico'),
         ('TEXTO', 'Texto Libre'),
         ('MEDICION', 'Punto de Medición (SAP)'),
+        ('HEADER', 'ENCABEZADO / GRUPO'),
     ]
     
     rutina = models.ForeignKey('Rutina', on_delete=models.CASCADE, related_name='pasos')
@@ -371,6 +372,9 @@ class Programacion(models.Model):
         else:
             limite = limite_natural
             
+        if limite < self.fecha_inicio:
+            return 0
+            
         restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
         
         # 1. Expandir áreas a sus descendientes
@@ -553,7 +557,7 @@ class Programacion(models.Model):
                             tecnico_idx += 1
                             key = (perfil.id, semana_key)
                             usado = carga_trabajo.get(key, 0.0)
-                            if (usado + (segundos_pendientes/3600)) <= float(perfil.horas_semanales_max):
+                            if (usado + horas_rutina) <= float(perfil.horas_semanales_max):
                                 tecnico_asignado = perfil.user
                                 carga_trabajo[key] = usado + horas_rutina
                                 break

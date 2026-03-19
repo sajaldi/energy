@@ -41,3 +41,4 @@ from .dashboard_general import mantenimiento_dashboard
 from . import import_personal
 from . import import_procedimientos
 from . import import_categorias
+from . import pdf_views

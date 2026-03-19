@@ -64,4 +64,5 @@ urlpatterns = [
     path('api/ot/<int:pk>/detalle/', views.api_get_ot_detail, name='api_get_ot_detail'),
     path('api/ot/<int:pk>/update/', views.api_update_ot_status_notes, name='api_update_ot_status_notes'),
     path('api/search-activos/', views.api_buscar_activos, name='api_buscar_activos'),
+    path('rutina-pdf/<int:ot_id>/', views.pdf_views.generate_rutina_pdf_view, name='rutina_pdf'),
 ]
