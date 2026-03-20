@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
+from django.db.models import Q
 from .forms import ActivoAdminForm
 from .models import VisorPlano, PinPlano, Activo
 import json
@@ -895,24 +896,39 @@ def mobile_activo_detalle(request, pk):
 @staff_member_required
 def mobile_busqueda_activos(request):
     """
-    Buscador de activos optimizado para móviles.
+    Buscador de activos y órdenes de trabajo optimizado para móviles.
     """
+    from mantenimiento.models import OrdenTrabajo
     query = request.GET.get('q', '').strip()
     activos = []
+    ordenes = []
     
     if query:
+        # Buscar activos
         activos = Activo.objects.filter(
-            models.Q(nombre__icontains=query) | 
-            models.Q(codigo_interno__icontains=query) |
-            models.Q(serie__icontains=query)
+            Q(nombre__icontains=query) | 
+            Q(codigo_interno__icontains=query) |
+            Q(serie__icontains=query)
         ).select_related('ubicacion')[:20]
         
-        # Si solo hay uno, redirigir directo
-        if activos.count() == 1:
+        # Buscar órdenes de trabajo activas
+        ordenes = OrdenTrabajo.objects.filter(
+            Q(id__icontains=query) |
+            Q(codigo_de_orden__icontains=query) |
+            Q(descripcion_corta__icontains=query) |
+            Q(activos__nombre__icontains=query) |
+            Q(activos__codigo_interno__icontains=query)
+        ).filter(
+            estado__in=['PROGRAMADA', 'EJECUCION']
+        ).select_related('ubicacion').distinct()[:10]
+        
+        # Si solo hay un activo y ninguna orden, redirigir directo
+        if activos.count() == 1 and not ordenes:
             return redirect('activos:mobile_activo_detalle', pk=activos[0].id)
             
     return render(request, 'activos/mobile_busqueda.html', {
         'activos': activos,
+        'ordenes': ordenes,
         'query': query
     })
 @staff_member_required

@@ -198,10 +198,43 @@
     <div class="container">
         {% if query %}
         <div class="results-count">
-            Se encontraron {{ activos|length }} resultados para "{{ query }}"
+            Resultados para "{{ query }}"
         </div>
         {% endif %}
 
+        {% if ordenes %}
+        <div class="section-title" style="font-size: 14px; font-weight: 700; color: var(--gray-600); margin: 20px 0 10px 5px; text-transform: uppercase;">
+            Órdenes de Trabajo ({{ ordenes|length }})
+        </div>
+        <div class="asset-list">
+            {% for ot in ordenes %}
+            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="asset-item" style="border-left: 5px solid var(--primary);">
+                <div class="asset-icon" style="background: #eff6ff;">
+                    <ion-icon name="construct-outline"></ion-icon>
+                </div>
+                <div class="asset-info">
+                    <h3>{{ ot.rutina.nombre|default:"OT Correctiva" }}</h3>
+                    <p>OT #{{ ot.codigo_de_orden|default:ot.id }} • {{ ot.ubicacion.nombre|truncatechars:25 }}</p>
+                    {% if ot.activos.all %}
+                    <p style="font-size: 11px; color: var(--primary);">
+                        <ion-icon name="cube-outline" style="font-size: 12px; vertical-align: middle;"></ion-icon>
+                        {% for a in ot.activos.all|slice:":2" %}{{ a.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        {% if ot.activos.all.count > 2 %}...{% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="status-badge" style="font-size: 10px; font-weight: 800; background: #fff7ed; color: #c2410c; padding: 4px 8px; border-radius: 8px;">
+                    {{ ot.get_estado_display }}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if activos %}
+        <div class="section-title" style="font-size: 14px; font-weight: 700; color: var(--gray-600); margin: 25px 0 10px 5px; text-transform: uppercase;">
+            Equipos ({{ activos|length }})
+        </div>
         <div class="asset-list">
             {% for activo in activos %}
             <a href="{% url 'activos:mobile_activo_detalle' activo.id %}" class="asset-item">
@@ -218,20 +251,23 @@
                 </div>
                 <div class="asset-status status-{{ activo.estado }}"></div>
             </a>
-            {% empty %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not activos and not ordenes %}
             {% if query %}
             <div class="empty-state">
                 <ion-icon name="alert-circle-outline"></ion-icon>
-                <p>No se encontraron equipos que coincidan con tu búsqueda.</p>
+                <p>No se encontraron resultados que coincidan con "{{ query }}".</p>
             </div>
             {% else %}
             <div class="empty-state">
                 <ion-icon name="search-outline"></ion-icon>
-                <p>Escribe el nombre o código del equipo para buscarlo.</p>
+                <p>Escribe el nombre o código para buscar.</p>
             </div>
             {% endif %}
-            {% endfor %}
-        </div>
+        {% endif %}
     </div>
 
 </body>
