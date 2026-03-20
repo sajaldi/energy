@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Permiso de Trabajo - #{{ permiso.id }}</title>
+    <style>
+        @page {
+            margin: 0.8cm;
+            size: A4;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 9px;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0px;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 3px 5px;
+            vertical-align: middle;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .bold { font-weight: bold; }
+        .bg-gray { background-color: #f2f2f2; }
+        .bg-dark-gray { background-color: #4b5563; color: white; font-weight: bold; text-align: center; }
+        
+        /* Header specific */
+        .header-meta td { font-size: 8px; padding: 2px 4px; }
+        .company-name { font-size: 11px; font-weight: bold; }
+        
+        .section-title {
+            background-color: #334155;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 4px;
+            font-size: 10px;
+        }
+        
+        .label-cell {
+            background-color: #e2e8f0;
+            font-weight: bold;
+            width: 20%;
+        }
+        .value-cell {
+            width: 30%;
+        }
+        
+        /* Checklist Table */
+        .checklist-header th {
+            background-color: #64748b;
+            color: white;
+            text-transform: uppercase;
+        }
+        .step-row td { height: 22px; }
+
+        /* Checkbox styling */
+        .checkbox-row {
+            display: inline-block;
+            margin-right: 15px;
+            font-size: 8px;
+        }
+        .box {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 1px solid #000;
+            margin-right: 3px;
+            vertical-align: middle;
+            text-align: center;
+            line-height: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Header Table -->
+    <table>
+        <tr>
+            <td rowspan="4" style="width: 15%;" class="text-center">
+                {% if logo_dcc_b64 %}
+                <img src="data:image/png;base64,{{ logo_dcc_b64 }}" style="max-height: 50px; max-width: 100px;">
+                {% else %}
+                <div style="font-weight: bold; font-size: 20px;">DCC</div>
+                {% endif %}
+            </td>
+            <td colspan="2" class="text-center company-name">
+                OPERADORA DE INFRAESTRUCTURA DE HONDURAS, S.A. DE C.V.
+            </td>
+            <td style="width: 25%;" class="bg-gray bold">Permiso No: <span style="color:red">#{{ permiso.id }}</span></td>
+        </tr>
+        <tr class="header-meta">
+            <td style="width: 20%;" class="bold">Tipo de Documento:</td>
+            <td style="width: 40%;">Formato de Seguridad</td>
+            <td class="bold">Parámetro: <span style="font-weight: normal;">SST</span></td>
+        </tr>
+        <tr class="header-meta">
+            <td class="bold">Título del Documento:</td>
+            <td style="font-weight: bold; color: #1e40af;">PERMISO DE TRABAJO: {{ permiso.tipo.nombre|upper }}</td>
+            <td class="bold">Fecha: <span style="font-weight: normal;">{{ permiso.fecha_inicio|date:"d/m/Y" }}</span></td>
+        </tr>
+        <tr class="header-meta">
+            <td class="bold">Proyecto:</td>
+            <td>Centro Cívico Gubernamental</td>
+            <td class="bold">Versión: <span style="font-weight: normal;">02</span></td>
+        </tr>
+    </table>
+
+    <div class="section-title" style="margin-top: 5px;">
+        DATOS GENERALES DEL PERMISO
+    </div>
+
+    <table>
+        <tr>
+            <td class="label-cell">Ubicación:</td>
+            <td class="value-cell" colspan="3">{{ permiso.ubicacion.get_ruta_completa|default:permiso.ubicacion.nombre }}</td>
+        </tr>
+        <tr>
+            <td class="label-cell">Solicitante:</td>
+            <td class="value-cell">{{ permiso.solicitante.get_full_name }}</td>
+            <td class="label-cell">Estado:</td>
+            <td class="value-cell" style="font-weight: bold;">{{ permiso.get_estado_display }}</td>
+        </tr>
+        <tr>
+            <td class="label-cell">Fecha Inicio:</td>
+            <td class="value-cell">{{ permiso.fecha_inicio|date:"d/m/Y H:i" }}</td>
+            <td class="label-cell">Fecha Fin:</td>
+            <td class="value-cell">{{ permiso.fecha_fin|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% if permiso.orden_trabajo %}
+        <tr>
+            <td class="label-cell">OT Vinculada:</td>
+            <td class="value-cell">OT-{{ permiso.orden_trabajo.id }}</td>
+            <td class="label-cell">Mantenimiento:</td>
+            <td class="value-cell">{{ permiso.orden_trabajo.rutina.nombre|default:"Correctivo" }}</td>
+        </tr>
+        {% endif %}
+    </table>
+
+    <div style="background-color: #f8fafc; padding: 5px; border: 1px solid #000; border-top: none; font-size: 8px;">
+        <span class="bold">Descripción del Trabajo:</span> {{ permiso.descripcion_trabajo }}
+    </div>
+
+    <div class="bg-dark-gray" style="margin-top: 5px; padding: 4px;">LISTA DE CHEQUEO / REQUISITOS DE SEGURIDAD</div>
+
+    <table class="checklist-table">
+        <thead class="checklist-header">
+            <tr>
+                <th style="width: 5%;">No.</th>
+                <th style="width: 65%;">Requisito / Medida de Control</th>
+                <th style="width: 30%;">Verificación / Observaciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in verificaciones %}
+                <tr class="step-row">
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td>
+                        <span {% if v.requisito.es_critico %}style="color: #b91c1c; font-weight: bold;"{% endif %}>
+                            {{ v.requisito.texto }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="checkbox-row"><span class="box">{% if v.cumple %}X{% endif %}</span> Cumple</div>
+                        <div class="checkbox-row"><span class="box">{% if not v.cumple %}X{% endif %}</span> No / NA</div>
+                        {% if v.observacion %}<div style="font-size: 7px; color: #666;">Obs: {{ v.observacion }}</div>{% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="3" class="text-center" style="padding: 20px; color: #666;">No hay requisitos registrados para este tipo de permiso.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 25px;">
+        <table style="border: none;">
+            <tr>
+                <td style="border: none; width: 45%; text-align: center; padding-top: 35px;">
+                    <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                    <div style="font-size: 8px;">Firma Solicitante</div>
+                    <div style="font-weight: bold;">{{ permiso.solicitante.get_full_name }}</div>
+                </td>
+                <td style="border: none; width: 10%;"></td>
+                <td style="border: none; width: 45%; text-align: center; padding-top: 35px;">
+                    <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                    <div style="font-size: 8px;">Autorizado por (Firma/Sello)</div>
+                    <div style="font-weight: bold;">
+                        {% if permiso.autorizado_por %}
+                            {{ permiso.autorizado_por.get_full_name }}
+                        {% else %}
+                            PENDIENTE DE AUTORIZACIÓN
+                        {% endif %}
+                    </div>
+                    {% if permiso.fecha_autorizacion %}
+                        <div style="font-size: 7px;">{{ permiso.fecha_autorizacion|date:"d/m/Y H:i" }}</div>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+</body>
+</html>

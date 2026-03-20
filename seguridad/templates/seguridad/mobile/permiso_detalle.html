@@ -64,15 +64,11 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;">
                 <div>
                     <div style="font-size: 12px; color: #9ca3af; margin-bottom: 2px;">Inicio</div>
-                    <div style="font-weight: 600; color: #1f2937; font-size: 14px;">{{ permiso.fecha_inicio|date:"d/m/y
-                        H:i"
-                        }}</div>
+                    <div style="font-weight: 600; color: #1f2937; font-size: 14px;">{{ permiso.fecha_inicio|date:"d/m/y H:i" }}</div>
                 </div>
                 <div>
                     <div style="font-size: 12px; color: #9ca3af; margin-bottom: 2px;">Fin</div>
-                    <div style="font-weight: 600; color: #1f2937; font-size: 14px;">{{ permiso.fecha_fin|date:"d/m/y
-                        H:i" }}
-                    </div>
+                    <div style="font-weight: 600; color: #1f2937; font-size: 14px;">{{ permiso.fecha_fin|date:"d/m/y H:i" }}</div>
                 </div>
             </div>
         </div>
@@ -121,8 +117,7 @@
                         Solicitante</div>
                     <div style="padding: 12px; background: #f9fafb; border-radius: 8px; border: 1px dashed #d1d5db;">
                         {% if permiso.solicitante %}
-                        <div style="font-weight: 700; color: #1f2937; font-size: 13px;">{{
-                            permiso.solicitante.get_full_name|default:permiso.solicitante.username }}</div>
+                        <div style="font-weight: 700; color: #1f2937; font-size: 13px;">{{ permiso.solicitante.get_full_name|default:permiso.solicitante.username }}</div>
                         {% else %}
                         <div style="color: #9ca3af; font-size: 12px;">Pendiente</div>
                         {% endif %}
@@ -135,10 +130,8 @@
                     <div
                         style="padding: 12px; background: {% if permiso.autorizado_por %}#d1fae5{% else %}#f9fafb{% endif %}; border-radius: 8px; border: 1px dashed {% if permiso.autorizado_por %}#86efac{% else %}#d1d5db{% endif %};">
                         {% if permiso.autorizado_por %}
-                        <div style="font-weight: 700; color: #065f46; font-size: 13px;">{{
-                            permiso.autorizado_por.get_full_name|default:permiso.autorizado_por.username }}</div>
-                        <div style="font-size: 10px; color: #047857; margin-top: 4px;">{{
-                            permiso.fecha_autorizacion|date:"d/m/y H:i" }}</div>
+                        <div style="font-weight: 700; color: #065f46; font-size: 13px;">{{ permiso.autorizado_por.get_full_name|default:permiso.autorizado_por.username }}</div>
+                        <div style="font-size: 10px; color: #047857; margin-top: 4px;">{{ permiso.fecha_autorizacion|date:"d/m/y H:i" }}</div>
                         {% else %}
                         <div style="color: #9ca3af; font-size: 12px;">Pendiente</div>
                         {% endif %}
@@ -149,10 +142,11 @@
     </div>
 
     <!-- Sticky Bottom Actions -->
-    {% if permiso.estado == 'BORRADOR' or permiso.estado == 'SOLICITADO' %}
     <div
-        style="position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); z-index: 100;">
-        <form method="post">
+        style="position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); z-index: 100; display: flex; gap: 10px;">
+        
+        {% if permiso.estado == 'BORRADOR' or permiso.estado == 'SOLICITADO' %}
+        <form method="post" style="flex: 1;">
             {% csrf_token %}
             {% if permiso.estado == 'BORRADOR' %}
             <button type="submit" name="accion" value="solicitar"
@@ -166,6 +160,14 @@
             </button>
             {% endif %}
         </form>
+        {% endif %}
+
+        {% if permiso.estado == 'APROBADO' or permiso.estado == 'CERRADO' %}
+        <a href="{% url 'seguridad:mobile_permiso_pdf' permiso.id %}" target="_blank"
+            style="flex: 1; text-align: center; background: linear-gradient(135deg, #ef4444 0%, #d32f2f 100%); color: white; text-decoration: none; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <ion-icon name="document-text-outline" style="font-size: 20px;"></ion-icon>
+            EXPORTAR PDF
+        </a>
+        {% endif %}
     </div>
-    {% endif %}
     

@@ -20,7 +20,7 @@ def mobile_mis_permisos(request):
     
     permisos = PermisoTrabajo.objects.filter(query).select_related(
         'tipo', 'ubicacion', 'orden_trabajo', 'solicitante', 'autorizado_por'
-    ).order_by('-creado_en')
+    ).order_by('-id')
     
     return render(request, 'seguridad/mobile/mis_permisos.html', {
         'permisos': permisos,
