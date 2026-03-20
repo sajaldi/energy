@@ -214,6 +214,24 @@
     </header>
 
     <div class="container">
+        <!-- Search Bar -->
+        <div class="search-section" style="margin-bottom: 20px;">
+            <form action="." method="get" class="search-form" style="display: flex; gap: 10px;">
+                <div class="search-input-wrapper" style="flex: 1; position: relative; background: white; border-radius: 12px; display: flex; align-items: center; padding: 0 15px; box-shadow: var(--card-shadow); border: 1px solid #e2e8f0;">
+                    <ion-icon name="search-outline" style="color: #64748b; font-size: 20px;"></ion-icon>
+                    <input type="text" name="q" placeholder="Buscar por activo o rutina..." value="{{ search_query }}" 
+                        style="border: none; background: transparent; padding: 12px 10px; width: 100%; font-family: inherit; font-size: 14px; outline: none;">
+                    {% if search_query %}
+                    <a href="." style="color: #64748b; display: flex; align-items: center;">
+                        <ion-icon name="close-circle-outline" style="font-size: 20px;"></ion-icon>
+                    </a>
+                    {% endif %}
+                </div>
+                <button type="submit" style="background: var(--primary); color: white; border: none; border-radius: 12px; padding: 0 15px; font-weight: 600; cursor: pointer;">
+                    Ir
+                </button>
+            </form>
+        </div>
         {% for prog in programaciones %}
         <a href="{% url 'mantenimiento:mobile_programacion_detalle' prog.id %}"
             style="text-decoration: none; color: inherit;">
