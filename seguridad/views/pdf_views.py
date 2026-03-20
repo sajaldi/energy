@@ -27,7 +27,7 @@ def generar_permiso_pdf_view(request, permiso_id):
     )
 
     # Logo en Base64
-    logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo_dcc.png')
+    logo_path = os.path.join(settings.BASE_DIR, 'activos', 'static', 'activos', 'img', 'logo_operadora_cc.png')
     logo_dcc_b64 = ""
     if os.path.exists(logo_path):
         with open(logo_path, "rb") as image_file:
