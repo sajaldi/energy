@@ -911,16 +911,15 @@ def mobile_busqueda_activos(request):
             Q(serie__icontains=query)
         ).select_related('ubicacion')[:20]
         
-        # Buscar órdenes de trabajo activas
+        # Buscar órdenes de trabajo (Cualquier estado)
         ordenes = OrdenTrabajo.objects.filter(
             Q(id__icontains=query) |
             Q(codigo_de_orden__icontains=query) |
             Q(descripcion_corta__icontains=query) |
             Q(activos__nombre__icontains=query) |
-            Q(activos__codigo_interno__icontains=query)
-        ).filter(
-            estado__in=['PROGRAMADA', 'EJECUCION']
-        ).select_related('ubicacion').distinct()[:10]
+            Q(activos__codigo_interno__icontains=query) |
+            Q(activos__serie__icontains=query)
+        ).select_related('ubicacion').distinct().order_by('-id')[:10]
         
         # Si solo hay un activo y ninguna orden, redirigir directo
         if activos.count() == 1 and not ordenes:
