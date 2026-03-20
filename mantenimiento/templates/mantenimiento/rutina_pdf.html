@@ -67,6 +67,24 @@
             text-align: left;
             padding-left: 10px;
         }
+
+        /* Checkbox styling */
+        .checkbox-row {
+            display: inline-block;
+            margin-right: 15px;
+            font-size: 8px;
+        }
+        .box {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 1px solid #000;
+            margin-right: 3px;
+            vertical-align: middle;
+            text-align: center;
+            line-height: 10px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -94,7 +112,7 @@
         <tr class="header-meta">
             <td class="bold">Título del Documento:</td>
             <td>Reporte Mantenimiento</td>
-            <td class="bold">Fecha: <span style="font-weight: normal;">{{ ot.cierre.fecha_fin_real|date:"d/m/Y"|default:ahora|date:"d/m/Y" }}</span></td>
+            <td class="bold">Fecha: <span style="font-weight: normal;">12/04/2022</span></td>
         </tr>
         <tr class="header-meta">
             <td class="bold">Proyecto:</td>
@@ -158,11 +176,19 @@
                     <td class="text-center">{{ forloop.counter }}</td>
                     <td>
                         {{ item.paso.descripcion }}
-                        {% if item.valor_numerico is not None %}
-                        <div style="font-weight: bold; margin-top: 2px;">Valor: {{ item.valor_numerico }} {{ item.paso.unidad_medida }}</div>
-                        {% elif item.valor_bool is not None %}
-                        <div style="font-weight: bold; margin-top: 2px;">Resultado: {% if item.valor_bool %}CUMPLE{% else %}NO CUMPLE{% endif %}</div>
+                        <div style="margin-top: 4px;">
+                        {% if item.paso.tipo_respuesta == 'CHECK' or item.valor_bool is not None %}
+                            <div class="checkbox-row"><span class="box">{% if item.valor_bool == True %}X{% endif %}</span> Si / Cumple</div>
+                            <div class="checkbox-row"><span class="box">{% if item.valor_bool == False and not item.no_aplica %}X{% endif %}</span> No / No Cumple</div>
+                            <div class="checkbox-row"><span class="box">{% if item.no_aplica %}X{% endif %}</span> N/A</div>
+                        {% elif item.paso.tipo_respuesta == 'NUMERICO' or item.valor_numerico is not None %}
+                            <div style="font-weight: bold;">Valor: {{ item.valor_numerico|default:"____" }} {{ item.paso.unidad_medida }}</div>
+                        {% elif item.paso.tipo_respuesta == 'TEXTO' %}
+                            <div style="font-size: 8px; color: #666; border-bottom: 0.5px solid #ccc; width: 100%; margin-top: 2px;">
+                                {{ item.comentarios|default:"________________________________" }}
+                            </div>
                         {% endif %}
+                        </div>
                     </td>
                     <td>
                         {{ item.comentarios|default:"" }}
@@ -184,7 +210,15 @@
                 <td style="border: none; width: 33%; text-align: center; padding-top: 40px;">
                     <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"></div>
                     <div style="font-size: 8px;">Firma Técnico</div>
-                    <div style="font-weight: bold;">{{ ot.cierre.tecnico.get_full_name|default:ot.tecnico.get_full_name }}</div>
+                    <div style="font-weight: bold;">
+                        {% if ot.cierre.tecnico %}
+                            {{ ot.cierre.tecnico.get_full_name }}
+                        {% elif ot.tecnico %}
+                            {{ ot.tecnico.get_full_name }}
+                        {% else %}
+                            Técnico No Asignado
+                        {% endif %}
+                    </div>
                 </td>
                 <td style="border: none; width: 33%;"></td>
                 <td style="border: none; width: 33%; text-align: center; padding-top: 40px;">
@@ -195,8 +229,7 @@
         </table>
     </div>
 
-    <div style="position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 7px; color: #666;">
-        Generado automáticamente por DCC System el {{ ahora|date:"d/m/Y H:i:s" }} | Página 1 de 1
+
     </div>
 
 </body>
