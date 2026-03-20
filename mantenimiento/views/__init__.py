@@ -29,6 +29,7 @@ from .mobile import (
     mobile_cronograma,
     mobile_programacion_detalle,
     mobile_ot_detalle,
+    mobile_ot_update_ajax,
     mobile_crear_aviso,
     mobile_ot_iniciar,
     mobile_ot_finalizar,
