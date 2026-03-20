@@ -8,6 +8,7 @@
     <title>Explorar Ubicaciones</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    {% include 'core/fiori_tokens.html' %}
     <style>
         :root {
             --primary: #007bff;
@@ -19,28 +20,29 @@
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-body);
-            color: var(--text-main);
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
             margin: 0;
-            padding-bottom: 20px;
+            padding-bottom: 30px;
         }
 
-        header {
-            background: white;
-            padding: 20px;
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            color: white;
+            padding: 16px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             position: sticky;
             top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
         .back-btn {
             font-size: 24px;
-            color: var(--text-main);
+            color: white;
             display: flex;
             align-items: center;
             text-decoration: none;
@@ -69,32 +71,36 @@
         }
 
         .location-card {
-            background: white;
-            padding: 15px;
-            border-radius: 16px;
-            box-shadow: var(--card-shadow);
+            background: var(--sap-card-bg);
+            padding: 16px;
+            border-radius: var(--sap-border-radius);
+            box-shadow: var(--sap-card-shadow);
+            border: 1px solid var(--sap-border-color);
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 16px;
             text-decoration: none;
             color: inherit;
-            transition: transform 0.2s;
+            transition: transform 0.2s, background 0.2s;
+            margin-bottom: 12px;
         }
 
         .location-card:active {
             transform: scale(0.98);
+            background: #f0f2f4;
         }
 
         .location-icon {
-            width: 48px;
-            height: 48px;
-            background: #f1f5f9;
-            border-radius: 12px;
+            width: 44px;
+            height: 44px;
+            background: var(--sap-bg-color);
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            color: var(--primary);
+            font-size: 22px;
+            color: var(--sap-brand-color);
+            border: 1px solid var(--sap-border-color);
         }
 
         .location-info {
@@ -208,12 +214,13 @@
             background: white;
             width: 100%;
             max-height: 85vh;
-            border-radius: 24px 24px 0 0;
+            border-radius: 16px 16px 0 0;
             padding: 0;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            animation: slideUp 0.3s ease-out;
+            animation: slideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.15);
         }
 
         @keyframes slideUp {
@@ -277,7 +284,7 @@
 
 <body>
 
-    <header>
+    <header class="fiori-header">
         {% if parent %}
         <a href="{% if parent.padre %}{% url 'activos:mobile_ubicaciones_child' parent.padre.id %}{% else %}{% url 'activos:mobile_ubicaciones' %}{% endif %}"
             class="back-btn">
@@ -289,11 +296,11 @@
         </a>
         {% endif %}
         <div>
-            <h1>{{ parent.nombre|default:"Ubicaciones" }}</h1>
+            <h1 style="margin: 0; font-size: 18px; font-weight: 700;">{{ parent.nombre|default:"Ubicaciones" }}</h1>
             {% if parent %}
-            <div class="breadcrumb">{{ parent.get_ruta_completa }}</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">{{ parent.get_ruta_completa }}</div>
             {% else %}
-            <div class="breadcrumb">Explora la infraestructura</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Explora la infraestructura</div>
             {% endif %}
         </div>
     </header>
@@ -301,10 +308,9 @@
     <div class="container">
         <div class="location-list">
             {% for u in ubicaciones %}
-            <div class="card-wrapper"
-                style="background: white; border-radius: 16px; box-shadow: var(--card-shadow); padding: 5px;">
+            <div class="fiori-card" style="padding: 0; overflow: hidden; margin-bottom: 12px;">
                 <a href="{% if u.has_sub %}{% url 'activos:mobile_ubicaciones_child' u.id %}{% else %}#{% endif %}"
-                    class="location-card" style="box-shadow: none;">
+                    class="location-card" style="box-shadow: none; border: none; margin-bottom: 0;">
                     <div class="location-icon">
                         {% if u.tipo == 'EDIFICIO' %}
                         <ion-icon name="business-outline"></ion-icon>
@@ -316,19 +322,19 @@
                     </div>
                     <div class="location-info">
                         <h3>{{ u.nombre }}</h3>
-                        <p>{{ u.get_tipo_display }}</p>
-                        <div class="location-badges">
+                        <p style="color: var(--sap-text-muted); font-size: 12px; font-weight: 500;">{{ u.get_tipo_display }}</p>
+                        <div class="location-badges" style="margin-top: 8px;">
                             {% if u.num_sub > 0 %}
-                            <span class="badge">{{ u.num_sub }} Sub-zonas</span>
+                            <span class="badge" style="background: var(--sap-bg-color); border: 1px solid var(--sap-border-color);">{{ u.num_sub }} Sub-zonas</span>
                             {% endif %}
                             {% if u.num_activos > 0 %}
-                            <span class="badge">{{ u.num_activos }} Equipos</span>
+                            <span class="badge" style="background: var(--sap-bg-color); border: 1px solid var(--sap-border-color);">{{ u.num_activos }} Equipos</span>
                             {% endif %}
                             {% if u.visor %}
-                            <span class="badge has-visor">Plano Disponible</span>
+                            <span class="badge" style="background: var(--sap-information-bg); color: var(--sap-information); border: 1px solid var(--sap-information);">Plano</span>
                             {% endif %}
                             {% if u.has_rutinas %}
-                            <span class="badge has-rutinas">Mantenimiento</span>
+                            <span class="badge" style="background: var(--sap-warning-bg); color: var(--sap-warning); border: 1px solid var(--sap-warning);">MPT</span>
                             {% endif %}
                         </div>
                     </div>
@@ -340,8 +346,8 @@
                 </a>
 
                 {% if u.visor %}
-                <div style="padding: 0 15px 15px 15px;">
-                    <a href="{% url 'activos:visor_plano' u.visor.id %}" class="btn-visor">
+                <div style="padding: 0 16px 16px 16px;">
+                    <a href="{% url 'activos:visor_plano' u.visor.id %}" class="fiori-btn fiori-btn-ghost" style="width: 100%; justify-content: center; font-size: 12px; padding: 10px;">
                         <ion-icon name="map-outline"></ion-icon>
                         Ver Plano Interactivo
                     </a>
@@ -349,8 +355,8 @@
                 {% endif %}
 
                 {% if u.has_rutinas %}
-                <div style="padding: 0 15px 15px 15px; margin-top: -8px;">
-                    <button class="btn-routine" onclick="showRoutines({{ u.id }}, '{{ u.nombre|escapejs }}')">
+                <div style="padding: 0 16px 16px 16px; margin-top: -8px;">
+                    <button class="fiori-btn fiori-btn-primary" style="width: 100%; font-size: 12px; padding: 10px;" onclick="showRoutines({{ u.id }}, '{{ u.nombre|escapejs }}')">
                         <ion-icon name="construct-outline"></ion-icon>
                         Crear Orden de Trabajo
                     </button>

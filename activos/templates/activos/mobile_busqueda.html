@@ -9,32 +9,31 @@
     {% include 'core/pwa_tags.html' %}
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
 
     <style>
         :root {
-            --primary: #007bff;
-            --dark: #212529;
-            --gray-100: #f8f9fa;
-            --gray-200: #e9ecef;
-            --gray-600: #6c757d;
-            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --primary: var(--sap-brand-color);
+            --card-shadow: var(--sap-card-shadow);
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: #f0f2f5;
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
             margin: 0;
-            color: var(--dark);
+            color: var(--sap-text-color);
             padding-bottom: 20px;
         }
 
         header {
-            background-color: white;
-            padding: 20px;
+            background-color: var(--sap-shell-bg);
+            color: var(--sap-shell-color);
+            padding: 12px 20px;
             position: sticky;
             top: 0;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .search-container {
@@ -44,8 +43,8 @@
         }
 
         .back-btn {
-            font-size: 28px;
-            color: var(--dark);
+            font-size: 24px;
+            color: white;
             background: none;
             border: none;
             cursor: pointer;
@@ -58,31 +57,37 @@
             position: relative;
         }
 
+        .search-box input {
+            width: 100%;
+            height: 40px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            padding: 0 15px 0 40px;
+            font-family: inherit;
+            font-size: 15px;
+            box-sizing: border-box;
+            outline: none;
+            color: white;
+        }
+
+        .search-box input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .search-box input:focus {
+            background: rgba(255,255,255,0.25);
+            border-color: white;
+        }
+
         .search-box ion-icon {
             position: absolute;
             left: 12px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--gray-600);
+            color: rgba(255,255,255,0.8);
             font-size: 20px;
-        }
-
-        .search-box input {
-            width: 100%;
-            height: 45px;
-            background: var(--gray-100);
-            border: 1px solid var(--gray-200);
-            border-radius: 12px;
-            padding: 0 15px 0 40px;
-            font-family: 'Outfit', sans-serif;
-            font-size: 15px;
-            box-sizing: border-box;
-            outline: none;
-        }
-
-        .search-box input:focus {
-            border-color: var(--primary);
-            background: white;
+            z-index: 5;
         }
 
         .container {
@@ -103,15 +108,16 @@
         }
 
         .asset-item {
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
-            box-shadow: var(--card-shadow);
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            padding: 12px;
+            box-shadow: var(--sap-card-shadow);
             display: flex;
             align-items: center;
             gap: 15px;
             text-decoration: none;
             color: inherit;
+            border: 1px solid var(--sap-border-color);
         }
 
         .asset-icon {
@@ -202,37 +208,34 @@
         </div>
         {% endif %}
 
-        {% if ordenes %}
-        <div class="section-title" style="font-size: 14px; font-weight: 700; color: var(--gray-600); margin: 20px 0 10px 5px; text-transform: uppercase;">
+        <div class="section-title" style="font-size: 13px; font-weight: 700; color: var(--sap-text-muted); margin: 20px 0 10px 5px; text-transform: uppercase; letter-spacing: 0.5px;">
             Órdenes de Trabajo ({{ ordenes|length }})
         </div>
         <div class="asset-list">
             {% for ot in ordenes %}
-            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="asset-item" style="border-left: 5px solid var(--primary);">
-                <div class="asset-icon" style="background: #eff6ff;">
+            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="asset-item" style="border-left: 4px solid var(--sap-brand-color);">
+                <div class="asset-icon" style="background: var(--sap-group-bg); color: var(--sap-brand-color);">
                     <ion-icon name="construct-outline"></ion-icon>
                 </div>
                 <div class="asset-info">
-                    <h3>{{ ot.rutina.nombre|default:"OT Correctiva" }}</h3>
-                    <p>OT #{{ ot.codigo_de_orden|default:ot.id }} • {{ ot.ubicacion.nombre|truncatechars:25 }}</p>
+                    <h3 style="font-size: 15px; margin-bottom: 2px;">{{ ot.rutina.nombre|default:"OT Correctiva" }}</h3>
+                    <p style="font-size: 12px; color: var(--sap-text-muted);">OT #{{ ot.codigo_de_orden|default:ot.id }} • {{ ot.inicio_programado|date:"d M, Y" }} • {{ ot.ubicacion.nombre|truncatechars:25 }}</p>
                     {% if ot.activos.all %}
-                    <p style="font-size: 11px; color: var(--primary);">
-                        <ion-icon name="cube-outline" style="font-size: 12px; vertical-align: middle;"></ion-icon>
+                    <p style="font-size: 11px; color: var(--sap-brand-color); margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+                        <ion-icon name="cube-outline" style="font-size: 12px;"></ion-icon>
                         {% for a in ot.activos.all|slice:":2" %}{{ a.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}
                         {% if ot.activos.all.count > 2 %}...{% endif %}
                     </p>
                     {% endif %}
                 </div>
-                <div class="status-badge" style="font-size: 10px; font-weight: 800; background: #fff7ed; color: #c2410c; padding: 4px 8px; border-radius: 8px;">
+                <div class="status-badge" style="font-size: 10px; font-weight: 700; background: var(--sap-group-bg); color: var(--sap-text-muted); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--sap-border-color); white-space: nowrap;">
                     {{ ot.get_estado_display }}
                 </div>
             </a>
             {% endfor %}
         </div>
-        {% endif %}
 
-        {% if activos %}
-        <div class="section-title" style="font-size: 14px; font-weight: 700; color: var(--gray-600); margin: 25px 0 10px 5px; text-transform: uppercase;">
+        <div class="section-title" style="font-size: 13px; font-weight: 700; color: var(--sap-text-muted); margin: 25px 0 10px 5px; text-transform: uppercase; letter-spacing: 0.5px;">
             Equipos ({{ activos|length }})
         </div>
         <div class="asset-list">
@@ -246,14 +249,13 @@
                     {% endif %}
                 </div>
                 <div class="asset-info">
-                    <h3>{{ activo.nombre }}</h3>
-                    <p>{{ activo.codigo_interno }} • {{ activo.ubicacion.nombre }}</p>
+                    <h3 style="font-size: 15px; margin-bottom: 2px;">{{ activo.nombre }}</h3>
+                    <p style="font-size: 12px; color: var(--sap-text-muted);">{{ activo.codigo_interno }} • {{ activo.ubicacion.nombre }}</p>
                 </div>
                 <div class="asset-status status-{{ activo.estado }}"></div>
             </a>
             {% endfor %}
         </div>
-        {% endif %}
 
         {% if not activos and not ordenes %}
             {% if query %}

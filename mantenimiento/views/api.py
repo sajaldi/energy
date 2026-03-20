@@ -255,10 +255,12 @@ def api_search_ordenes(request):
         Q(id__icontains=query) | 
         Q(codigo_de_orden__icontains=query) |
         Q(descripcion_corta__icontains=query) |
-        Q(ubicacion__nombre__icontains=query)
+        Q(ubicacion__nombre__icontains=query) |
+        Q(activos__nombre__icontains=query) |
+        Q(activos__codigo_interno__icontains=query)
     ).filter(
         estado__in=['PROGRAMADA', 'EJECUCION']
-    ).select_related('ubicacion').only(
+    ).select_related('ubicacion').distinct().only(
         'id', 'codigo_de_orden', 'descripcion_corta', 'ubicacion__nombre'
     )[:30]
     

@@ -16,7 +16,7 @@ def mobile_cronograma(request):
     if not request.user.is_superuser:
         user_filter = Q(ordenes__tecnico=request.user) | Q(ordenes__equipo__in=request.user.groups.all())
     
-    progs = Programacion.objects.select_related('rutina__frecuencia', 'rutina__tipo', 'rutina__categoria')
+    progs = Programacion.objects.select_related('rutina__frecuencia', 'rutina__tipo', 'rutina__puesto_trabajo')
     
     if query:
         progs = progs.filter(

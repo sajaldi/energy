@@ -1221,10 +1221,6 @@ class RutinaAdmin(ImportExportModelAdmin):
         ('Identificación', {
             'fields': ('codigo_rutina', ('nombre', 'programar_rutina_link'), 'tipo', 'frecuencia', 'puesto_trabajo')
         }),
-        ('Asignación', {
-            'fields': ('tecnico', 'supervisor', 'equipo'),
-            'description': 'Personal o equipo responsable de la ejecución.'
-        }),
         ('Manual de Pasos', {
             'fields': ('herramientas',)
         }),

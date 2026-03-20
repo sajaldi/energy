@@ -9,6 +9,7 @@
     {% include 'core/pwa_tags.html' %}
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    {% include 'core/fiori_tokens.html' %}
 
     <style>
         :root {
@@ -25,11 +26,11 @@
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: #f0f2f5;
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
             margin: 0;
-            color: var(--dark);
-            padding-bottom: 80px;
+            color: var(--sap-text-color);
+            padding-bottom: 90px;
         }
 
         /* Status colors */
@@ -53,21 +54,22 @@
             color: #383d41;
         }
 
-        header {
-            background-color: white;
-            padding: 20px;
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            color: white;
+            padding: 16px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             position: sticky;
             top: 0;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
         .back-btn {
             font-size: 28px;
-            color: var(--dark);
+            color: white;
             background: none;
             border: none;
             cursor: pointer;
@@ -91,47 +93,42 @@
 
         /* Asset Header Card */
         .asset-header-card {
-            background: white;
-            border-radius: 20px;
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
             overflow: hidden;
-            box-shadow: var(--card-shadow);
-            margin-bottom: 20px;
+            box-shadow: var(--sap-card-shadow);
+            border: 1px solid var(--sap-border-color);
+            margin-bottom: 16px;
         }
 
         .asset-image {
             width: 100%;
-            height: 200px;
-            background-color: #eee;
+            height: 220px;
+            background-color: var(--sap-bg-color);
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
+            border-bottom: 1px solid var(--sap-border-color);
         }
 
-        .asset-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .asset-image .no-image {
-            font-size: 64px;
-            color: #ccc;
-        }
-
-        .asset-main-info {
-            padding: 20px;
-        }
-
+        /* Status Badges */
         .badge-status {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
             text-transform: uppercase;
             margin-bottom: 12px;
+            border: 1px solid transparent;
         }
+
+        .status-OPERATIVO { background: var(--sap-success-bg); color: var(--sap-success); border-color: var(--sap-success); }
+        .status-MANTENIMIENTO { background: var(--sap-warning-bg); color: var(--sap-warning); border-color: var(--sap-warning); }
+        .status-REPARACION { background: var(--sap-error-bg); color: var(--sap-error); border-color: var(--sap-error); }
+        .status-OBSOLETO { background: var(--sap-neutral-bg); color: var(--sap-neutral); border-color: var(--sap-neutral); }
 
         .asset-title {
             margin: 0 0 8px 0;
@@ -245,12 +242,13 @@
             left: 0;
             right: 0;
             background: white;
-            padding: 15px 20px;
+            padding: 12px 16px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.05);
+            gap: 12px;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
             z-index: 1000;
+            border-top: 1px solid var(--sap-border-color);
         }
 
         .btn {
@@ -324,11 +322,11 @@
 
 <body>
 
-    <header>
+    <header class="fiori-header">
         <button onclick="window.history.back()" class="back-btn">
             <ion-icon name="arrow-back-outline"></ion-icon>
         </button>
-        <h1>Ficha de Equipo</h1>
+        <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Ficha de Equipo</h1>
     </header>
 
     <div class="container">

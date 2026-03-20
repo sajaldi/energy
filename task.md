@@ -101,5 +101,28 @@
 - [x] **Lógica de Activación**
     - [x] Inyectar JS condicionalmente si el usuario es nuevo.
 
+
+# Rediseño SAP Fiori Horizon (Móvil)
+- [x] Aplicar diseño SAP Fiori Horizon en la APP móvil
+    - [x] Crear parcial de tokens `fiori_tokens.html`
+    - [x] Rediseñar Dashboard móvil
+    - [x] Rediseñar Búsqueda móvil
+    - [x] Rediseñar Agenda/Cronograma móvil
+    - [x] Rediseñar Detalles de OT móvil
+    - [x] Rediseñar Lista de Permisos móvil
+    - [x] Rediseñar Detalle de Permiso móvil
+    - [x] Rediseñar Explorador de Ubicaciones móvil
+    - [x] Rediseñar Ficha de Activo móvil
+- [x] Refinamiento de PDF de Permisos de Seguridad
+    - [x] Incluir logo DCC
+    - [x] Cambiar label "Mantenimiento" → "Actividad"
+    - [x] Remover fecha actual del encabezado
+- [x] Mejoras en Búsqueda Global (OTs y Activos por Serie)
+    - [x] Rediseñar Detalle de OT móvil
+    - [x] Rediseñar Lista de Permisos móvil
+    - [ ] Rediseñar Detalle de Permiso móvil
+    - [ ] Rediseñar Explorador de Ubicaciones/Activos móvil
+- [ ] Realizar Stage, Commit y Push de los cambios finales
+
 > [!TIP]
-> Consulta [walkthrough_optimizacion.md](file:///C:/Users/Saul/.gemini/antigravity/brain/9b90c12b-d0ed-40f8-8d1b-9daaeba5c1cf/walkthrough_optimizacion.md) para ver los detalles de las mejoras de rendimiento.
+> Consulta [walkthrough.md](file:///d:/Apps/energia/energy/walkthrough.md) para ver los detalles de las mejoras de UI y PDF.

@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 
+    {% include 'core/fiori_tokens.html' %}
+
     <style>
         :root {
             --primary: #007bff;
@@ -24,20 +26,21 @@
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-body);
-            color: var(--dark);
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
             margin: 0;
-            padding-bottom: 80px;
+            padding-bottom: 90px;
         }
 
         header {
-            background-color: white;
-            padding: 20px;
+            background-color: var(--sap-shell-bg);
+            color: var(--sap-shell-color);
+            padding: 15px 20px;
             position: sticky;
             top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             display: flex;
             align-items: center;
             gap: 15px;
@@ -45,13 +48,14 @@
 
         header h1 {
             margin: 0;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
+            color: white;
         }
 
         .back-btn {
             font-size: 24px;
-            color: var(--dark);
+            color: white;
             display: flex;
             align-items: center;
         }
@@ -61,11 +65,12 @@
         }
 
         .prog-card {
-            background: white;
-            border-radius: 18px;
-            padding: 18px;
-            margin-bottom: 15px;
-            box-shadow: var(--card-shadow);
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--sap-card-shadow);
+            border: 1px solid var(--sap-border-color);
         }
 
         .prog-header {
@@ -120,7 +125,7 @@
 
         .progress-bar {
             height: 100%;
-            background: var(--primary);
+            background: var(--sap-brand-color);
             transition: width 0.3s ease;
         }
 
@@ -129,11 +134,13 @@
             align-items: center;
             gap: 8px;
             font-size: 13px;
-            color: var(--primary);
-            font-weight: 600;
-            background: #eff6ff;
+            color: var(--sap-brand-color);
+            font-weight: 700;
+            background: var(--sap-bg-color);
             padding: 10px;
-            border-radius: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid var(--sap-border-color);
         }
 
         .next-date ion-icon {
@@ -240,7 +247,7 @@
                     <div class="prog-info">
                         <h3>{{ prog.rutina.nombre }}</h3>
                         <span class="badge badge-freq">{{ prog.rutina.frecuencia.nombre }}</span>
-                        <span class="badge badge-cat">{{ prog.rutina.categoria.nombre }}</span>
+                        <span class="badge badge-cat">{{ prog.rutina.tipo.nombre }}</span>
                     </div>
                     <div class="status-indicator">
                         {% if prog.procesada %}
@@ -257,7 +264,7 @@
                         <span>{{ prog.completas_ots }} / {{ prog.total_ots }}</span>
                     </div>
                     <div class="progress-bar-container">
-                        <div class="progress-bar" style="width: {{ prog.progreso_porcentaje }}%"></div>
+                        <div class="progress-bar" style="width: {{ prog.progreso_porcentaje|default:0 }}%;"></div>
                     </div>
                 </div>
 
@@ -282,30 +289,28 @@
         {% endfor %}
     </div>
 
-    <!-- Bottom Navigation -->
-    <nav class="tab-bar">
-        <a href="{% url 'core:mobile_dashboard' %}" class="tab-item">
-            <ion-icon name="home-outline"></ion-icon>
-            <span>Dashboard</span>
+    <!-- Tab Bar -->
+    <nav class="fiori-tab-bar" style="position: fixed; bottom: 0; left: 0; right: 0; height: 70px; background: white; border-top: 1px solid var(--sap-border-color); display: flex; justify-content: space-around; align-items: center; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);">
+        <a href="{% url 'core:mobile_dashboard' %}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: var(--sap-text-muted); font-size: 11px; width: 20%;">
+            <ion-icon name="home-outline" style="font-size: 24px;"></ion-icon>
+            <span>Inicio</span>
         </a>
-        <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item active">
-            <ion-icon name="calendar-outline"></ion-icon>
-            <span>Cronograma</span>
+        <a href="{% url 'mantenimiento:mobile_cronograma' %}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: var(--sap-brand-color); font-size: 11px; font-weight: 700; width: 20%;">
+            <ion-icon name="calendar" style="font-size: 24px;"></ion-icon>
+            <span>Agenda</span>
         </a>
 
-        <div class="tab-item">
-            <a href="{% url 'core:mobile_scanner' %}" class="scan-fab" style="text-decoration: none;">
-                <ion-icon name="qr-code-outline"></ion-icon>
-            </a>
-        </div>
+        <a href="{% url 'core:mobile_scanner' %}" style="width: 50px; height: 50px; background: var(--sap-shell-bg); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); text-decoration: none; transform: translateY(-15px);">
+            <ion-icon name="scan-outline"></ion-icon>
+        </a>
 
-        <a href="{% url 'activos:arbol_activos' %}" class="tab-item">
-            <ion-icon name="business-outline"></ion-icon>
+        <a href="{% url 'activos:arbol_activos' %}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: var(--sap-text-muted); font-size: 11px; width: 20%;">
+            <ion-icon name="cube-outline" style="font-size: 24px;"></ion-icon>
             <span>Activos</span>
         </a>
-        <a href="{% url 'admin:index' %}" class="tab-item">
-            <ion-icon name="settings-outline"></ion-icon>
-            <span>Ajustes</span>
+        <a href="{% url 'admin:index' %}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: var(--sap-text-muted); font-size: 11px; width: 20%;">
+            <ion-icon name="person-outline" style="font-size: 24px;"></ion-icon>
+            <span>Mi Perfil</span>
         </a>
     </nav>
 

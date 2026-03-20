@@ -8,62 +8,94 @@
     <title>Mis Permisos de Trabajo</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
     <style>
         body {
-            font-family: 'Outfit', sans-serif;
-            background: #f0f2f5;
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
             margin: 0;
-            padding: 0;
+            padding-bottom: 90px;
+            color: var(--sap-text-color);
+        }
+
+        .permiso-card {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            box-shadow: var(--sap-card-shadow);
+            padding: 16px;
+            border: 1px solid var(--sap-border-color);
+            margin-bottom: 12px;
+            transition: transform 0.2s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .permiso-card:active {
+            transform: scale(0.98);
+            background: #f0f2f4;
         }
     </style>
 </head>
 
 <body>
 
-    <div
-        style="padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 15px;">
-        <h1 style="margin: 0; font-size: 22px; font-weight: 700;">🛡️ Permisos de Trabajo</h1>
-        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 14px;">
-            {% if puesto %}Equipo: {{ puesto.nombre }}{% else %}Mis permisos{% endif %}
-        </p>
-    </div>
+    <header class="fiori-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{% url 'core:mobile_dashboard' %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <div>
+                <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Permisos de Trabajo</h1>
+                <p style="margin: 0; font-size: 12px; opacity: 0.8;">
+                    {% if puesto %}{{ puesto.nombre }}{% else %}Listado General{% endif %}
+                </p>
+            </div>
+        </div>
+        <div class="avatar">
+            {{ user.username|slice:":1"|upper }}
+        </div>
+    </header>
 
-    <div style="padding: 0 15px 15px 15px;">
+    <div style="padding: 15px;">
         {% if permisos %}
         {% for permiso in permisos %}
-        <a href="{% url 'seguridad:mobile_permiso_detalle' permiso.id %}"
-            style="display: block; text-decoration: none; margin-bottom: 12px;">
-            <div
-                style="background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 15px; border-left: 4px solid {% if permiso.estado == 'APROBADO' %}#10b981{% elif permiso.estado == 'SOLICITADO' %}#f59e0b{% elif permiso.estado == 'CERRADO' %}#6b7280{% else %}#3b82f6{% endif %};">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-                    <div style="flex: 1;">
-                        <div style="font-weight: 700; font-size: 16px; color: #1f2937; margin-bottom: 4px;">
-                            {{ permiso.tipo.nombre }}
-                        </div>
-                        <div style="font-size: 12px; color: #6b7280;">
-                            Permiso #{{ permiso.id|stringformat:"04d" }}
-                        </div>
+        <a href="{% url 'seguridad:mobile_permiso_detalle' permiso.id %}" class="permiso-card" style="border-left: 5px solid {% if permiso.estado == 'APROBADO' %}var(--sap-success){% elif permiso.estado == 'SOLICITADO' %}var(--sap-warning){% elif permiso.estado == 'CERRADO' %}var(--sap-neutral){% else %}var(--sap-information){% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 15px; color: var(--sap-text-color); margin-bottom: 2px;">
+                        {{ permiso.tipo.nombre }}
                     </div>
-                    <div
-                        style="padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; {% if permiso.estado == 'APROBADO' %}background: #d1fae5; color: #065f46;{% elif permiso.estado == 'SOLICITADO' %}background: #fef3c7; color: #92400e;{% elif permiso.estado == 'CERRADO' %}background: #e5e7eb; color: #374151;{% else %}background: #dbeafe; color: #1e40af;{% endif %}">
-                        {{ permiso.get_estado_display }}
+                    <div style="font-size: 11px; color: var(--sap-text-muted); font-weight: 500;">
+                        PERMISO #{{ permiso.id|stringformat:"04d" }}
                     </div>
                 </div>
-
-                <div style="font-size: 13px; color: #4b5563; margin-bottom: 8px;">
-                    📍 {{ permiso.ubicacion.nombre }}
+                <div style="padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; border: 1px solid var(--sap-border-color); {% if permiso.estado == 'APROBADO' %}background: #e5f5ea; color: #107e3e;{% elif permiso.estado == 'SOLICITADO' %}background: #fff4e6; color: #e9730c;{% elif permiso.estado == 'CERRADO' %}background: var(--sap-group-bg); color: var(--sap-text-muted);{% else %}background: #e8f0f8; color: #0a6ed1;{% endif %}">
+                    {{ permiso.get_estado_display }}
                 </div>
+            </div>
 
-                {% if permiso.orden_trabajo %}
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">
-                    🔗 OT-{{ permiso.orden_trabajo.id }}
+            <div style="font-size: 13px; color: var(--sap-text-color); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <ion-icon name="location-outline" style="color: var(--sap-brand-color);"></ion-icon>
+                {{ permiso.ubicacion.nombre }}
+            </div>
+
+            {% if permiso.orden_trabajo %}
+            <div style="font-size: 11px; color: var(--sap-brand-color); margin-bottom: 6px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <ion-icon name="link-outline"></ion-icon>
+                OT-{{ permiso.orden_trabajo.id }}
+            </div>
+            {% endif %}
+
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--sap-text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--sap-border-color);">
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <ion-icon name="person-circle-outline"></ion-icon>
+                    {{ permiso.solicitante.get_full_name|default:permiso.solicitante.username }}
                 </div>
-                {% endif %}
-
-                <div
-                    style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #9ca3af; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6;">
-                    <div>👤 {{ permiso.solicitante.get_full_name|default:permiso.solicitante.username }}</div>
-                    <div>📅 {{ permiso.fecha_inicio|date:"d/m/y" }}</div>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                    {{ permiso.fecha_inicio|date:"d/m/y" }}
                 </div>
             </div>
         </a>

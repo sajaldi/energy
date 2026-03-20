@@ -36,7 +36,7 @@ def programar_rutina_wizard(request):
 
     horarios = Horario.objects.all().prefetch_related('dias')
     ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
-    categorias_activos = CategoriaActivo.objects.filter(padre__isnull=True).order_by('nombre')
+    categorias_activos = CategoriaActivo.objects.all().order_by('nombre')
     rutinas = Rutina.objects.all().select_related('tipo', 'frecuencia')
     pre_cat = rutina.tipo.categoria_activo.id if rutina and rutina.tipo and rutina.tipo.categoria_activo else None
 
