@@ -5,198 +5,261 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Orden de Trabajo #{{ ot.id }}</title>
+    <title>OT #{{ ot.id }} | DCC System</title>
     {% include 'core/pwa_tags.html' %}
 
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=72:wght@300;400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 
     <style>
         :root {
-            --primary: #007bff;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --bg-body: #f0f2f5;
-            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            /* SAP Fiori Horizon Colors */
+            --sap-shell-bg: #354a5f;
+            --sap-page-bg: #f7f7f7;
+            --sap-card-bg: #ffffff;
+            --sap-primary: #0a6ed1;
+            --sap-text: #32363a;
+            --sap-label: #6a6d70;
+            --sap-border: #e5e5e5;
+            --sap-success: #107e3e;
+            --sap-warning: #e9730c;
+            --sap-error: #bb0000;
+            --sap-info: #0a6ed1;
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-body);
+            font-family: 'Inter', '72', sans-serif;
+            background-color: var(--sap-page-bg);
+            color: var(--sap-text);
             margin: 0;
-            padding-bottom: 30px;
+            padding-bottom: 80px; /* Space for sticky footer */
+            -webkit-font-smoothing: antialiased;
         }
 
+        /* SAP Fiori Shell Header */
         header {
-            background-color: white;
-            padding: 20px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            background-color: var(--sap-shell-bg);
+            color: white;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .back-btn {
+            color: white;
             font-size: 24px;
-            color: var(--dark);
+            margin-right: 12px;
             display: flex;
+            text-decoration: none;
         }
 
-        .header-info h1 {
-            margin: 0;
+        .shell-title {
             font-size: 16px;
-            font-weight: 700;
-        }
-
-        .container {
-            padding: 15px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 18px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: var(--card-shadow);
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            margin-bottom: 15px;
-        }
-
-        .status-REALIZADA {
-            background: #dcfce7;
-            color: #15803d;
-        }
-
-        .status-EJECUCION {
-            background: #eff6ff;
-            color: #1e40af;
-        }
-
-        .status-PROGRAMADA {
-            background: #fff7ed;
-            color: #9a3412;
-        }
-
-        .status-ESPERA {
-            background: #f1f5f9;
-            color: #64748b;
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-
-        .info-item label {
-            display: block;
-            font-size: 11px;
-            color: #64748b;
-            text-transform: uppercase;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .info-item p {
-            margin: 0;
-            font-size: 14px;
             font-weight: 600;
+            flex-grow: 1;
         }
 
-        .section-title {
-            font-size: 14px;
+        /* Object Header */
+        .object-header {
+            background-color: white;
+            padding: 20px 16px;
+            border-bottom: 1px solid var(--sap-border);
+            margin-bottom: 12px;
+        }
+
+        .object-id {
+            font-size: 20px;
             font-weight: 700;
-            margin: 0 0 12px 0;
+            margin: 0 0 4px 0;
+            color: var(--sap-primary);
+        }
+
+        .object-subtitle {
+            font-size: 13px;
+            color: var(--sap-label);
+            margin-bottom: 12px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .tag-status-REALIZADA { background: #e7f4e9; color: #107e3e; }
+        .tag-status-EJECUCION { background: #e8f0f8; color: #0a6ed1; }
+        .tag-status-PROGRAMADA { background: #fef4e6; color: #e9730c; }
+        .tag-status-ESPERA { background: #f2f2f2; color: #6a6d70; }
+
+        /* Sections & Cards */
+        .container {
+            padding: 0 12px;
+        }
+
+        .fiori-card {
+            background: white;
+            border: 1px solid var(--sap-border);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sap-border);
+            background: #fafafa;
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #64748b;
-            text-transform: uppercase;
         }
 
-        .asset-list {
-            list-style: none;
-            padding: 0;
+        .card-header h2 {
             margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--sap-label);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
+        .card-content {
+            padding: 16px;
+        }
+
+        /* Fiori Form Layout */
+        .fiori-form-group {
+            margin-bottom: 16px;
+        }
+
+        .fiori-form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--sap-label);
+            margin-bottom: 6px;
+        }
+
+        .fiori-input, .fiori-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #bcbcbc;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--sap-text);
+            background: #ffffff;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .fiori-input:focus, .fiori-select:focus {
+            outline: none;
+            border-color: var(--sap-primary);
+            box-shadow: 0 0 0 1px var(--sap-primary);
+        }
+
+        /* Asset List */
         .asset-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: var(--light);
-            border-radius: 10px;
-            margin-bottom: 8px;
-            font-size: 13px;
-            font-weight: 600;
+            padding: 12px;
+            border-bottom: 1px solid var(--sap-border);
+            text-decoration: none;
+            color: inherit;
         }
 
-        .asset-item ion-icon {
-            color: var(--primary);
-        }
+        .asset-item:last-child { border-bottom: none; }
 
-        .actions {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 10px;
-        }
-
-        .btn {
+        .asset-icon {
+            width: 32px;
+            height: 32px;
+            background: #f0f4f8;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-right: 12px;
+            color: var(--sap-primary);
+        }
+
+        .asset-info h4 { margin: 0; font-size: 14px; font-weight: 600; }
+        .asset-info p { margin: 0; font-size: 12px; color: var(--sap-label); }
+
+        /* Fiori Footer Toolbar */
+        .fiori-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid var(--sap-border);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: flex-end;
             gap: 8px;
-            padding: 14px;
-            border-radius: 14px;
-            font-size: 14px;
-            font-weight: 700;
-            text-decoration: none;
-            transition: transform 0.1s;
+            z-index: 1000;
         }
 
-        .btn:active {
-            transform: scale(0.98);
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-outline {
-            border: 2px solid var(--primary);
-            color: var(--primary);
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .notes-box {
-            background: #fffbeb;
-            border-left: 4px solid var(--warning);
-            padding: 12px;
-            border-radius: 4px 12px 12px 4px;
+        .fiori-btn {
+            padding: 10px 16px;
+            border-radius: 6px;
             font-size: 13px;
-            line-height: 1.5;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            font-family: inherit;
         }
+
+        .fiori-btn-primary {
+            background-color: var(--sap-primary);
+            color: white;
+        }
+
+        .fiori-btn-ghost {
+            background-color: transparent;
+            border-color: var(--sap-primary);
+            color: var(--sap-primary);
+        }
+
+        .fiori-btn-success {
+            background-color: var(--sap-success);
+            color: white;
+        }
+
+        .fiori-btn-purple {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        /* Feedback Toast */
+        #toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #32363a;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 2000;
+            white-space: nowrap;
+        }
+
+        #toast.show { opacity: 1; }
     </style>
 </head>
 
@@ -204,123 +267,175 @@
 
     <header>
         <a href="javascript:history.back()" class="back-btn">
-            <ion-icon name="arrow-back-outline"></ion-icon>
+            <ion-icon name="chevron-back-outline"></ion-icon>
         </a>
-        <div class="header-info">
-            <h1>Orden de Trabajo #{{ ot.id }}</h1>
-        </div>
+        <div class="shell-title">DCC Maintenance</div>
+        <ion-icon name="notifications-outline" style="font-size: 20px;"></ion-icon>
     </header>
 
+    <div class="object-header">
+        <h1 class="object-id">OT #{{ ot.id }}</h1>
+        <div class="object-subtitle">
+            {% if ot.rutina %}{{ ot.rutina.nombre }}{% elif ot.aviso %}{{ ot.aviso.descripcion }}{% else %}Correctiva General{% endif %}
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="tag tag-status-{{ ot.estado|default:'ESPERA' }}">{{ ot.get_estado_display|default:'Pendiente' }}</span>
+            <div style="font-size: 12px; color: var(--sap-label); font-weight: 600;">{{ ot.get_prioridad_display|default:'Media' }}</div>
+        </div>
+    </div>
+
     <div class="container">
-        <div class="card">
-            <span class="status-badge status-{{ ot.estado }}">{{ ot.get_estado_display }}</span>
-
-            <div class="info-grid">
-                <div class="info-item">
-                    <label>Tipo</label>
-                    <p>{{ ot.get_tipo_display }}</p>
-                </div>
-                <div class="info-item">
-                    <label>Prioridad</label>
-                    <p>{{ ot.get_prioridad_display }}</p>
-                </div>
+        <!-- Asignación Section -->
+        <div class="fiori-card">
+            <div class="card-header">
+                <ion-icon name="people-outline"></ion-icon>
+                <h2>Asignación y Planificación</h2>
             </div>
+            <div class="card-content">
+                <form id="assignmentForm">
+                    {% csrf_token %}
+                    <div class="fiori-form-group">
+                        <label>Superior / Supervisor OCC</label>
+                        <select name="supervisor" class="fiori-select" onchange="updateOT()">
+                            <option value="none">-- Seleccionar Supervisor --</option>
+                            {% for s in supervisores %}
+                            <option value="{{ s.id }}" {% if ot.supervisor_id == s.id %}selected{% endif %}>
+                                {{ s.get_full_name|default:s.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-            <div class="info-item" style="margin-bottom: 20px;">
-                <label>Ubicación</label>
-                <p>{{ ot.ubicacion.nombre }}</p>
-            </div>
+                    <div class="fiori-form-group">
+                        <label>Técnico Responsable</label>
+                        <select name="tecnico" class="fiori-select" onchange="updateOT()">
+                            <option value="none">-- Seleccionar Técnico --</option>
+                            {% for t in tecnicos %}
+                            <option value="{{ t.id }}" {% if ot.tecnico_id == t.id %}selected{% endif %}>
+                                {{ t.get_full_name|default:t.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-            <div class="info-item" style="margin-bottom: 20px;">
-                <label>Rutina / Descripción</label>
-                <p>
-                    {% if ot.rutina %}
-                    {{ ot.rutina.nombre }}
-                    {% elif ot.aviso %}
-                    {{ ot.aviso.descripcion }}
-                    {% else %}
-                    Correctiva General
-                    {% endif %}
-                </p>
-            </div>
-
-            <div class="info-grid">
-                <div class="info-item">
-                    <label>Inicio Programado</label>
-                    <p>{{ ot.inicio_programado|date:"d M, H:i" }}</p>
-                </div>
-                <div class="info-item">
-                    <label>Asignación</label>
-                    <p>
-                        {% if ot.tecnico %}
-                        <ion-icon name="person-outline" style="font-size: 0.9em; vertical-align: middle;"></ion-icon>
-                        {{ ot.tecnico.get_full_name|default:ot.tecnico.username }}
-                        {% endif %}
-
-                        {% if ot.tecnico and ot.equipo %}<br>{% endif %}
-
-                        {% if ot.equipo %}
-                        <ion-icon name="people-outline" style="font-size: 0.9em; vertical-align: middle;"></ion-icon>
-                        {{ ot.equipo.name }}
-                        {% endif %}
-
-                        {% if not ot.tecnico and not ot.equipo %}
-                        No asignado
-                        {% endif %}
-                    </p>
-                </div>
+                    <div class="fiori-form-group">
+                        <label>Fecha y Hora Programada</label>
+                        <input type="datetime-local" name="inicio_programado" class="fiori-input" 
+                               value="{{ ot.inicio_programado|date:'Y-m-d\TH:i' }}" onchange="updateOT()">
+                    </div>
+                </form>
             </div>
         </div>
 
-        <div class="card">
-            <h3 class="section-title"><ion-icon name="cube-outline"></ion-icon> Activos vinculados</h3>
+        <!-- Details Section -->
+        <div class="fiori-card">
+            <div class="card-header">
+                <ion-icon name="information-circle-outline"></ion-icon>
+                <h2>Información General</h2>
+            </div>
+            <div class="card-content">
+                <div class="fiori-form-group">
+                    <label>Ubicación</label>
+                    <div style="font-weight: 500;">
+                        {% if ot.ubicacion %}
+                            {{ ot.ubicacion.get_ruta_completa }}
+                        {% else %}
+                            Sin ubicación asignada
+                        {% endif %}
+                    </div>
+                </div>
+                {% if ot.notas %}
+                <div class="fiori-form-group">
+                    <label>Notas / Instrucciones</label>
+                    <div style="font-size: 13px; line-height: 1.4; color: #555;">{{ ot.notas|linebreaks }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Assets Section -->
+        <div class="fiori-card">
+            <div class="card-header">
+                <ion-icon name="cube-outline"></ion-icon>
+                <h2>Activos Vinculados ({{ ot.activos.count }})</h2>
+            </div>
             <div class="asset-list">
                 {% for activo in ot.activos.all %}
-                <a href="{% url 'activos:mobile_activo_detalle' activo.id %}" class="asset-item"
-                    style="text-decoration: none; color: inherit;">
-                    <ion-icon name="hardware-chip-outline"></ion-icon>
-                    {{ activo.nombre }} ({{ activo.codigo_interno|default:"S/C" }})
+                <a href="{% url 'activos:mobile_activo_detalle' activo.id %}" class="asset-item">
+                    <div class="asset-icon">
+                        <ion-icon name="hardware-chip-outline"></ion-icon>
+                    </div>
+                    <div class="asset-info">
+                        <h4>{{ activo.nombre }}</h4>
+                        <p>{{ activo.codigo_interno|default:"Sin Código" }} | {{ activo.serie|default:"S/S" }}</p>
+                    </div>
+                    <ion-icon name="chevron-forward-outline" style="margin-left: auto; color: #ccc;"></ion-icon>
                 </a>
                 {% empty %}
-                <p style="font-size: 13px; color: #64748b;">No hay activos específicos listados.</p>
+                <div style="padding: 20px; text-align: center; color: var(--sap-label); font-size: 13px;">
+                    No hay activos específicos.
+                </div>
                 {% endfor %}
             </div>
         </div>
-
-        {% if ot.notas %}
-        <div class="card">
-            <h3 class="section-title"><ion-icon name="document-text-outline"></ion-icon> Notas / Instrucciones</h3>
-            <div class="notes-box">
-                {{ ot.notas|linebreaks }}
-            </div>
-        </div>
-        {% endif %}
-
-        <div class="actions">
-            {% if ot.estado == 'PROGRAMADA' or ot.estado == 'ESPERA' %}
-            <a href="{% url 'mantenimiento:mobile_ot_iniciar' ot.id %}" class="btn btn-primary">
-                <ion-icon name="play-outline"></ion-icon> Iniciar Ejecución
-            </a>
-            {% elif ot.estado == 'EJECUCION' %}
-            <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id }}" class="btn btn-outline">
-                <ion-icon name="cube-outline"></ion-icon> Registrar Materiales
-            </a>
-            <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="btn btn-success">
-                <ion-icon name="checkmark-done-outline"></ion-icon> Finalizar Orden
-            </a>
-            {% endif %}
-
-            <a href="{% url 'seguridad:mobile_generar_permiso' ot.id %}" class="btn"
-                style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white;">
-                <ion-icon name="shield-checkmark-outline"></ion-icon> Generar Permiso de Trabajo
-            </a>
-
-            <a href="{% url 'admin:mantenimiento_ordentrabajo_change' ot.id %}" class="btn btn-outline"
-                style="border-color: #cbd5e1; color: #64748b;">
-                <ion-icon name="settings-outline"></ion-icon> Ver en Panel Admin
-            </a>
-        </div>
     </div>
+
+    <!-- SAP Fiori Action Bar -->
+    <div class="fiori-footer">
+        {% if ot.estado == 'PROGRAMADA' or ot.estado == 'ESPERA' %}
+        <a href="{% url 'mantenimiento:mobile_ot_iniciar' ot.id %}" class="fiori-btn fiori-btn-primary">
+            <ion-icon name="play-outline"></ion-icon> Iniciar
+        </a>
+        {% elif ot.estado == 'EJECUCION' %}
+        <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id }}" class="fiori-btn fiori-btn-ghost">
+            <ion-icon name="cube-outline"></ion-icon> Materiales
+        </a>
+        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-success">
+            <ion-icon name="checkmark-done-outline"></ion-icon> Finalizar
+        </a>
+        {% endif %}
+        
+        <a href="{% url 'seguridad:mobile_generar_permiso' ot.id %}" class="fiori-btn fiori-btn-purple">
+            <ion-icon name="shield-checkmark-outline"></ion-icon> Permiso
+        </a>
+    </div>
+
+    <div id="toast">Actualizando...</div>
+
+    <script>
+        async function updateOT() {
+            const form = document.getElementById('assignmentForm');
+            const formData = new FormData(form);
+            const toast = document.getElementById('toast');
+            
+            toast.textContent = "Actualizando...";
+            toast.classList.add('show');
+
+            try {
+                const response = await fetch("{% url 'mantenimiento:mobile_ot_update_ajax' ot.id %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    toast.textContent = "¡Guardado!";
+                    setTimeout(() => toast.classList.remove('show'), 2000);
+                } else {
+                    alert("Error: " + result.message);
+                    toast.classList.remove('show');
+                }
+            } catch (error) {
+                console.error("Error updating OT:", error);
+                alert("Error de conexión al guardar cambios.");
+                toast.classList.remove('show');
+            }
+        }
+    </script>
 
 </body>
 

@@ -1,7 +1,8 @@
 import collections
 from datetime import datetime, timedelta
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
+from django.contrib.auth.models import User, Group
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from django.db.models import Count, Q, Min
@@ -10,14 +11,36 @@ from activos.models import Activo, Ubicacion, DocumentoMedicion
 
 @staff_member_required
 def mobile_cronograma(request):
+    query = request.GET.get('q', '').strip()
     user_filter = Q()
     if not request.user.is_superuser:
         user_filter = Q(ordenes__tecnico=request.user) | Q(ordenes__equipo__in=request.user.groups.all())
-    progs = Programacion.objects.select_related('rutina__frecuencia', 'rutina__tipo')
-    if not request.user.is_superuser: progs = progs.filter(user_filter).distinct()
-    progs = progs.annotate(total_ots=Count('ordenes', filter=user_filter if not request.user.is_superuser else None), completas_ots=Count('ordenes', filter=(Q(ordenes__estado='REALIZADA') & user_filter) if not request.user.is_superuser else Q(ordenes__estado='REALIZADA')), proxima_ot=Min('ordenes__inicio_programado', filter=(Q(ordenes__inicio_programado__gte=timezone.now()) & user_filter) if not request.user.is_superuser else Q(ordenes__inicio_programado__gte=timezone.now()))).order_by('rutina__nombre')
-    for p in progs: p.progreso_porcentaje = int((p.completas_ots / p.total_ots) * 100) if p.total_ots > 0 else 0
-    return render(request, 'mantenimiento/mobile_cronograma.html', {'programaciones': progs})
+    
+    progs = Programacion.objects.select_related('rutina__frecuencia', 'rutina__tipo', 'rutina__categoria')
+    
+    if query:
+        progs = progs.filter(
+            Q(rutina__nombre__icontains=query) |
+            Q(ordenes__activos__nombre__icontains=query) |
+            Q(ordenes__activos__codigo_interno__icontains=query)
+        )
+
+    if not request.user.is_superuser: 
+        progs = progs.filter(user_filter)
+    
+    progs = progs.annotate(
+        total_ots=Count('ordenes', filter=user_filter if not request.user.is_superuser else None), 
+        completas_ots=Count('ordenes', filter=(Q(ordenes__estado='REALIZADA') & user_filter) if not request.user.is_superuser else Q(ordenes__estado='REALIZADA')), 
+        proxima_ot=Min('ordenes__inicio_programado', filter=(Q(ordenes__inicio_programado__gte=timezone.now()) & user_filter) if not request.user.is_superuser else Q(ordenes__inicio_programado__gte=timezone.now()))
+    ).distinct().order_by('rutina__nombre')
+    
+    for p in progs: 
+        p.progreso_porcentaje = int((p.completas_ots / p.total_ots) * 100) if p.total_ots > 0 else 0
+        
+    return render(request, 'mantenimiento/mobile_cronograma.html', {
+        'programaciones': progs,
+        'search_query': query
+    })
 
 @staff_member_required
 def mobile_programacion_detalle(request, pk):
@@ -35,8 +58,56 @@ def mobile_programacion_detalle(request, pk):
 
 @staff_member_required
 def mobile_ot_detalle(request, pk):
-    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'aviso', 'programacion').prefetch_related('activos'), pk=pk)
-    return render(request, 'mantenimiento/mobile_ot_detalle.html', {'ot': ot})
+    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'supervisor', 'aviso', 'programacion').prefetch_related('activos'), pk=pk)
+    
+    # Listas para asignación
+    supervisores = User.objects.filter(
+        Q(is_staff=True) |
+        Q(groups__name='Supervisor') | 
+        Q(perfil_tecnico__puesto__nombre__icontains='Supervisor')
+    ).distinct().order_by('first_name')
+    tecnicos = User.objects.filter(Q(groups__name='Tecnicos') | Q(perfil_tecnico__isnull=False)).distinct().order_by('first_name')
+    
+    context = {
+        'ot': ot,
+        'supervisores': supervisores,
+        'tecnicos': tecnicos,
+    }
+    return render(request, 'mantenimiento/mobile_ot_detalle.html', context)
+
+@staff_member_required
+def mobile_ot_update_ajax(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    
+    # Solo permitir cambios si la orden no está FINALIZADA (opcional, pero recomendado)
+    if ot.estado == 'REALIZADA':
+        return JsonResponse({'status': 'error', 'message': 'No se puede modificar una orden finalizada'}, status=400)
+
+    tecnico_id = request.POST.get('tecnico')
+    supervisor_id = request.POST.get('supervisor')
+    fecha_str = request.POST.get('inicio_programado')
+    
+    try:
+        if tecnico_id:
+            ot.tecnico = User.objects.get(pk=tecnico_id) if tecnico_id != 'none' else None
+        
+        if supervisor_id:
+            ot.supervisor = User.objects.get(pk=supervisor_id) if supervisor_id != 'none' else None
+            
+        if fecha_str:
+            # Formato esperado: YYYY-MM-DDTHH:MM (datetime-local)
+            new_date = datetime.fromisoformat(fecha_str)
+            if timezone.is_naive(new_date):
+                new_date = timezone.make_aware(new_date)
+            ot.inicio_programado = new_date
+            
+        ot.save()
+        return JsonResponse({'status': 'success', 'message': 'Orden actualizada correctamente'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 @staff_member_required
 def mobile_crear_aviso(request):
@@ -143,8 +214,8 @@ def mobile_ot_finalizar(request, pk):
     
     # Obtener el procedimiento y sus pasos
     pasos = []
-    if ot.rutina and ot.rutina.procedimiento_estandar:
-        pasos = ot.rutina.procedimiento_estandar.pasos.all().order_by('orden')
+    if ot.rutina:
+        pasos = ot.rutina.pasos.all().order_by('orden')
     
     # Vincular cada paso de tipo MEDICION con un punto real del activo de la OT
     # NOTA: En este sistema, la OT puede tener múltiples activos, pero para el checklist 

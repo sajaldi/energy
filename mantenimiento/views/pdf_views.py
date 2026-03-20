@@ -29,7 +29,15 @@ def generate_rutina_pdf_view(request, ot_id):
     
     # Pre-process data for the template
     empresa_nombre = "Operadora de Infraestructura de Honduras, S.A. de C.V."
-    supervisor_nombre = "Allan Castellanos" # Default per user design
+    
+    # Usuario asignado (Priorizamos el campo supervisor, luego técnico, luego usuario actual)
+    supervisor_nombre = "Allan Castellanos" # Fallback
+    if ot.supervisor:
+        supervisor_nombre = ot.supervisor.get_full_name()
+    elif ot.tecnico:
+        supervisor_nombre = ot.tecnico.get_full_name()
+    elif request.user and request.user.is_authenticated:
+        supervisor_nombre = request.user.get_full_name()
     
     # Get edificio root or first building parent
     edificio = ot.ubicacion.get_root() if ot.ubicacion else None

@@ -723,6 +723,7 @@ class OrdenTrabajo(models.Model):
     rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='ordenes', null=True, blank=True)
     aviso = models.ForeignKey(Aviso, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes')
     tecnico = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asignadas', help_text="Técnico específico asignado")
+    supervisor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_supervisadas', help_text="Supervisor asignado a la orden")
     equipo = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_equipo', help_text="Equipo o Grupo de trabajo asignado")
     
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='ordenes_trabajo', null=True, blank=True)

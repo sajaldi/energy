@@ -1221,6 +1221,10 @@ class RutinaAdmin(ImportExportModelAdmin):
         ('Identificación', {
             'fields': ('codigo_rutina', ('nombre', 'programar_rutina_link'), 'tipo', 'frecuencia', 'puesto_trabajo')
         }),
+        ('Asignación', {
+            'fields': ('tecnico', 'supervisor', 'equipo'),
+            'description': 'Personal o equipo responsable de la ejecución.'
+        }),
         ('Manual de Pasos', {
             'fields': ('herramientas',)
         }),
@@ -1689,22 +1693,29 @@ class ValorPasoOrdenInline(admin.TabularInline):
     model = ValorPasoOrden
     extra = 0
     raw_id_fields = ('paso', 'capturado_por')
-    fields = ('paso', 'valor_texto', 'valor_numerico', 'valor_bool', 'no_aplica', 'comentarios')
-    readonly_fields = ('paso', 'capturado_por', 'creado_en')
+    fields = ('get_paso_desc', 'valor_texto', 'valor_numerico', 'valor_bool', 'no_aplica', 'comentarios')
+    readonly_fields = ('get_paso_desc', 'capturado_por', 'creado_en')
+    
+    def get_paso_desc(self, obj):
+        if obj.paso:
+            return obj.paso.descripcion
+        return "-"
+    get_paso_desc.short_description = 'Descripción del Paso'
 
 
 @admin.register(OrdenTrabajo)
 class OrdenTrabajoAdmin(admin.ModelAdmin):
     list_per_page = 50
     list_display = ('codigo_de_orden', 'tipo', 'prioridad', 'descripcion_corta', 'get_ubicacion_jerarquia', 'get_activos_format', 'inicio_programado', 'estado', 'registrar_salida_link', 'ver_pdf_link')
-    list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'equipo')
+    list_filter = ('tipo', 'prioridad', 'estado', 'inicio_programado', 'tecnico', 'supervisor', 'equipo')
     readonly_fields = ('registrar_salida_link', 'ver_pdf_link')
-    list_select_related = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion')
-    search_fields = ('id', 'codigo_de_orden', 'descripcion_corta', 'descripcion_detallada', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'notas')
+    list_select_related = ('rutina', 'aviso', 'tecnico', 'supervisor', 'equipo', 'ubicacion', 'programacion')
+    search_fields = ('id', 'codigo_de_orden', 'descripcion_corta', 'descripcion_detallada', 'rutina__nombre', 'aviso__descripcion', 'ubicacion__nombre', 'activos__nombre', 'activos__codigo_interno', 'activos__serie', 'notas')
     autocomplete_fields = ('rutina', 'aviso', 'tecnico', 'equipo', 'ubicacion', 'programacion', 'activos')
     ordering = ('-inicio_programado',)
     date_hierarchy = 'inicio_programado'
-    actions = ['generar_permiso_action', 'exportar_seleccionadas_action', 'generar_pdf_masivo_action']
+    actions = ['generar_permiso_action', 'exportar_seleccionadas_action', 'generar_pdf_masivo_action', 'generar_checklist_action']
+    inlines = [CierreOrdenTrabajoInline, ValorPasoOrdenInline, MovimientoInventarioInline, PermisosTrabajoInline]
 
     @admin.action(description="📥 Exportar seleccionadas (Formato Importación)")
     def exportar_seleccionadas_action(self, request, queryset):
@@ -1801,6 +1812,35 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
     
     generar_permiso_action.short_description = "Permiso de Trabajo"
     generar_permiso_action.allow_tags = True
+
+    @admin.action(description="📝 Generar Checklist de Pasos (desde Rutina)")
+    def generar_checklist_action(self, request, queryset):
+        """
+        Crea los registros de ValorPasoOrden basados en los PasoRutina de la rutina asociada.
+        """
+        from .models import ValorPasoOrden
+        total_creados = 0
+        total_ots = queryset.count()
+        
+        for ot in queryset:
+            if not ot.rutina:
+                continue
+            
+            pasos = ot.rutina.pasos.all()
+            for paso in pasos:
+                # Solo crear si no existe ya para esta OT y este paso
+                obj, created = ValorPasoOrden.objects.get_or_create(
+                    orden_trabajo=ot,
+                    paso=paso,
+                    defaults={'capturado_por': request.user}
+                )
+                if created:
+                    total_creados += 1
+        
+        if total_creados > 0:
+            self.message_user(request, f"Se han generado {total_creados} pasos de checklist para {total_ots} órdenes.", messages.SUCCESS)
+        else:
+            self.message_user(request, "No se generaron pasos nuevos (ya existían o las órdenes no tienen rutina).", messages.WARNING)
 
     def get_urls(self):
         urls = super().get_urls()
