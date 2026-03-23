@@ -1,3 +1,3 @@
 git add .
-git commit -m "Feature: OT file attachments with MinIO and PDF photo annexes"
+git commit -m "Fix: ensure all mobile views exported in __init__.py for production worker"
 git push
