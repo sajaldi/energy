@@ -13,7 +13,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from playwright.sync_api import sync_playwright
 
-from ..models import OrdenTrabajo, ValorPasoOrden
+from ..models import OrdenTrabajo, ValorPasoOrden, ArchivoOrdenTrabajo
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,23 @@ def generate_rutina_pdf_view(request, ot_id):
         with open(logo_path, "rb") as bf:
             logo_dcc_b64 = base64.b64encode(bf.read()).decode('utf-8')
 
+    # Fetch image attachments for the PDF
+    fotos_adjuntas = []
+    archivos_img = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, tipo='IMAGEN').order_by('creado_en')
+    for archivo in archivos_img:
+        try:
+            img_data = archivo.archivo.read()
+            ext = os.path.splitext(archivo.archivo.name)[1].lower().replace('.', '')
+            mime = {'jpg': 'jpeg', 'jpeg': 'jpeg', 'png': 'png', 'gif': 'gif', 'webp': 'webp'}.get(ext, 'jpeg')
+            b64 = base64.b64encode(img_data).decode('utf-8')
+            fotos_adjuntas.append({
+                'nombre': archivo.nombre,
+                'data_uri': f'data:image/{mime};base64,{b64}',
+                'creado_en': archivo.creado_en,
+            })
+        except Exception as e:
+            logger.warning(f"Could not read attachment {archivo.id}: {e}")
+
     context = {
         'ot': ot,
         'checklist_items': results,
@@ -60,6 +77,7 @@ def generate_rutina_pdf_view(request, ot_id):
         'edificio_nombre': edificio_nombre,
         'activo_nombre': activo_nombre,
         'logo_dcc_b64': logo_dcc_b64,
+        'fotos_adjuntas': fotos_adjuntas,
         'ahora': timezone.now(),
     }
 

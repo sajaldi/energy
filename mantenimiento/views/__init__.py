@@ -35,7 +35,9 @@ from .mobile import (
     mobile_ot_finalizar,
     mobile_crear_ot_rutina,
     mobile_mis_avisos,
-    mobile_aviso_detalle
+    mobile_aviso_detalle,
+    mobile_ot_upload_file,
+    mobile_ot_delete_file
 )
 from .dashboard import dashboard_cargas
 from .dashboard_general import mantenimiento_dashboard

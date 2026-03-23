@@ -801,6 +801,46 @@ class CierreOrdenTrabajo(models.Model):
             self.orden_trabajo.estado = 'REALIZADA'
             self.orden_trabajo.fecha_ejecucion = self.fecha_fin_real
             self.orden_trabajo.save(update_fields=['estado', 'fecha_ejecucion'])
+
+import os
+
+class ArchivoOrdenTrabajo(models.Model):
+    TIPO_ARCHIVO_CHOICES = [
+        ('IMAGEN', 'Imagen Fotográfica'),
+        ('DOCUMENTO', 'Documento/PDF'),
+        ('OTRO', 'Otro Archivo'),
+    ]
+
+    orden_trabajo = models.ForeignKey(OrdenTrabajo, on_delete=models.CASCADE, related_name='archivos')
+    archivo = models.FileField(upload_to='ot_archivos/')
+    nombre = models.CharField(max_length=255, blank=True)
+    tipo = models.CharField(max_length=20, choices=TIPO_ARCHIVO_CHOICES, default='OTRO')
+    subido_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Archivo de OT"
+        verbose_name_plural = "Archivos de OT"
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return self.nombre or os.path.basename(self.archivo.name) if self.archivo else "Archivo"
+
+    def save(self, *args, **kwargs):
+        if not self.nombre and self.archivo:
+            self.nombre = os.path.basename(self.archivo.name)
+        
+        # Determinar el tipo basado en la extensión
+        if self.archivo:
+            ext = os.path.splitext(self.archivo.name)[1].lower()
+            if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+                self.tipo = 'IMAGEN'
+            elif ext in ['.pdf', '.doc', '.docx', '.xls', '.xlsx']:
+                self.tipo = 'DOCUMENTO'
+            
+        super().save(*args, **kwargs)
+
 class ValorPasoOrden(models.Model):
     """
     Almacena el resultado/valor capturado para un paso específico de una OT.

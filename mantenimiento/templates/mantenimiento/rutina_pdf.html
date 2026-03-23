@@ -232,5 +232,29 @@
 
     </div>
 
+    {% if fotos_adjuntas %}
+    <div style="page-break-before: auto; margin-top: 20px;">
+        <div class="section-title" style="margin-bottom: 5px;">ANEXOS FOTOGRÁFICOS</div>
+        <table style="border: none;">
+            {% for foto in fotos_adjuntas %}
+            {% if forloop.counter|divisibleby:2 or forloop.first %}
+            {% if not forloop.first and forloop.counter|divisibleby:2 %}</tr>{% endif %}
+            {% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+            {% endif %}
+            <td style="border: 1px solid #ddd; text-align: center; padding: 6px; width: 50%; vertical-align: top;">
+                <img src="{{ foto.data_uri }}" style="max-width: 100%; max-height: 280px; border-radius: 4px; object-fit: contain;">
+                <div style="font-size: 7px; color: #666; margin-top: 3px;">{{ foto.nombre }} - {{ foto.creado_en|date:"d/m/Y H:i" }}</div>
+            </td>
+            {% if forloop.last and not forloop.counter|divisibleby:2 %}
+            <td style="border: none;"></td>
+            </tr>
+            {% elif forloop.last %}
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
 </body>
 </html>

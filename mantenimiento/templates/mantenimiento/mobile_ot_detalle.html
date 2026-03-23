@@ -254,6 +254,96 @@
         }
 
         #toast.show { opacity: 1; }
+
+        /* Archivos Adjuntos */
+        .attachments-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+        }
+
+        .attachment-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--sap-border-color);
+            aspect-ratio: 1;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .attachment-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .attachment-item .file-icon {
+            font-size: 32px;
+            color: var(--sap-brand-color);
+            margin-bottom: 4px;
+        }
+
+        .attachment-item .file-name {
+            font-size: 10px;
+            text-align: center;
+            padding: 0 4px;
+            color: var(--sap-text-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+
+        .attachment-delete {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--sap-border-color);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--sap-text-muted);
+            margin-bottom: 12px;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--sap-brand-color);
+            background: rgba(10, 110, 209, 0.04);
+        }
+
+        .upload-area ion-icon {
+            font-size: 28px;
+            display: block;
+            margin: 0 auto 6px;
+        }
+
+        .upload-progress {
+            display: none;
+            text-align: center;
+            padding: 12px;
+            font-size: 13px;
+            color: var(--sap-brand-color);
+        }
     </style>
 </head>
 
@@ -372,6 +462,45 @@
                 {% endfor %}
             </div>
         </div>
+
+        <!-- Archivos Adjuntos Section -->
+        <div class="fiori-card">
+            <div class="card-header">
+                <ion-icon name="attach-outline"></ion-icon>
+                <h2>Archivos Adjuntos (<span id="fileCount">{{ ot.archivos.count }}</span>)</h2>
+            </div>
+            <div class="card-content">
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <ion-icon name="cloud-upload-outline"></ion-icon>
+                    <div style="font-weight: 600; font-size: 13px;">Toca para adjuntar archivos</div>
+                    <div style="font-size: 11px; margin-top: 4px;">Fotos, PDF, documentos</div>
+                </div>
+                <input type="file" id="fileInput" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" style="display: none;" onchange="uploadFiles(this.files)">
+                <div class="upload-progress" id="uploadProgress">
+                    <ion-icon name="sync-outline" style="animation: spin 1s linear infinite;"></ion-icon>
+                    Subiendo archivos...
+                </div>
+                <div class="attachments-grid" id="attachmentsGrid">
+                    {% for archivo in ot.archivos.all %}
+                    <div class="attachment-item" id="file-{{ archivo.id }}">
+                        {% if archivo.tipo == 'IMAGEN' %}
+                        <a href="{{ archivo.archivo.url }}" target="_blank" style="width:100%;height:100%;">
+                            <img src="{{ archivo.archivo.url }}" alt="{{ archivo.nombre }}">
+                        </a>
+                        {% else %}
+                        <a href="{{ archivo.archivo.url }}" target="_blank" style="text-decoration:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
+                            <ion-icon name="document-outline" class="file-icon"></ion-icon>
+                            <span class="file-name">{{ archivo.nombre }}</span>
+                        </a>
+                        {% endif %}
+                        <button class="attachment-delete" onclick="deleteFile({{ archivo.id }})" title="Eliminar">
+                            <ion-icon name="close"></ion-icon>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- SAP Fiori Action Bar -->
@@ -433,6 +562,119 @@
                 toast.classList.remove('show');
             }
         }
+
+        // === File Upload ===
+        async function uploadFiles(files) {
+            if (!files || files.length === 0) return;
+
+            const progress = document.getElementById('uploadProgress');
+            const grid = document.getElementById('attachmentsGrid');
+            const toast = document.getElementById('toast');
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            progress.style.display = 'block';
+
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('archivos', files[i]);
+            }
+
+            try {
+                const response = await fetch("{% url 'mantenimiento:mobile_ot_upload_file' ot.id %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    result.archivos.forEach(a => {
+                        const div = document.createElement('div');
+                        div.className = 'attachment-item';
+                        div.id = 'file-' + a.id;
+
+                        if (a.tipo === 'IMAGEN') {
+                            div.innerHTML = `
+                                <a href="${a.url}" target="_blank" style="width:100%;height:100%;">
+                                    <img src="${a.url}" alt="${a.nombre}">
+                                </a>
+                                <button class="attachment-delete" onclick="deleteFile(${a.id})" title="Eliminar">
+                                    <ion-icon name="close"></ion-icon>
+                                </button>
+                            `;
+                        } else {
+                            div.innerHTML = `
+                                <a href="${a.url}" target="_blank" style="text-decoration:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
+                                    <ion-icon name="document-outline" class="file-icon"></ion-icon>
+                                    <span class="file-name">${a.nombre}</span>
+                                </a>
+                                <button class="attachment-delete" onclick="deleteFile(${a.id})" title="Eliminar">
+                                    <ion-icon name="close"></ion-icon>
+                                </button>
+                            `;
+                        }
+                        grid.appendChild(div);
+                    });
+
+                    document.getElementById('fileCount').textContent = grid.children.length;
+                    toast.textContent = result.message;
+                    toast.classList.add('show');
+                    setTimeout(() => toast.classList.remove('show'), 2500);
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (e) {
+                alert('Error de conexión al subir archivos.');
+            } finally {
+                progress.style.display = 'none';
+                document.getElementById('fileInput').value = '';
+            }
+        }
+
+        // === File Delete ===
+        async function deleteFile(archivoId) {
+            if (!confirm('¿Eliminar este archivo?')) return;
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const toast = document.getElementById('toast');
+
+            try {
+                const response = await fetch(`{% url 'mantenimiento:mobile_ot_delete_file' ot.id 0 %}`.replace('/0/', '/' + archivoId + '/'), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    const el = document.getElementById('file-' + archivoId);
+                    if (el) el.remove();
+                    const grid = document.getElementById('attachmentsGrid');
+                    document.getElementById('fileCount').textContent = grid.children.length;
+                    toast.textContent = 'Archivo eliminado';
+                    toast.classList.add('show');
+                    setTimeout(() => toast.classList.remove('show'), 2000);
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (e) {
+                alert('Error de conexión.');
+            }
+        }
+
+        // Drag & Drop support
+        const uploadArea = document.getElementById('uploadArea');
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            uploadFiles(e.dataTransfer.files);
+        });
     </script>
 
 </body>

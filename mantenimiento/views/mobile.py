@@ -6,7 +6,7 @@ from django.contrib.auth.models import User, Group
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from django.db.models import Count, Q, Min
-from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso
+from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso, ArchivoOrdenTrabajo
 from activos.models import Activo, Ubicacion, DocumentoMedicion
 
 @staff_member_required
@@ -58,7 +58,7 @@ def mobile_programacion_detalle(request, pk):
 
 @staff_member_required
 def mobile_ot_detalle(request, pk):
-    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'supervisor', 'aviso', 'programacion').prefetch_related('activos'), pk=pk)
+    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'supervisor', 'aviso', 'programacion').prefetch_related('activos', 'archivos'), pk=pk)
     
     # Listas para asignación
     supervisores = User.objects.filter(
@@ -380,3 +380,54 @@ def mobile_aviso_detalle(request, pk):
     return render(request, 'mantenimiento/mobile_aviso_detalle.html', {
         'aviso': aviso,
     })
+
+@staff_member_required
+def mobile_ot_upload_file(request, pk):
+    """AJAX endpoint para subir archivos a una Orden de Trabajo."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    files = request.FILES.getlist('archivos')
+    
+    if not files:
+        return JsonResponse({'status': 'error', 'message': 'No se recibieron archivos'}, status=400)
+    
+    created = []
+    for f in files:
+        archivo = ArchivoOrdenTrabajo(
+            orden_trabajo=ot,
+            archivo=f,
+            subido_por=request.user
+        )
+        archivo.save()
+        created.append({
+            'id': archivo.id,
+            'nombre': archivo.nombre,
+            'tipo': archivo.tipo,
+            'url': archivo.archivo.url,
+            'creado_en': archivo.creado_en.strftime('%d/%m/%Y %H:%M'),
+        })
+    
+    return JsonResponse({'status': 'success', 'archivos': created, 'message': f'{len(created)} archivo(s) subido(s)'})
+
+
+@staff_member_required
+def mobile_ot_delete_file(request, pk, archivo_id):
+    """AJAX endpoint para eliminar un archivo de una OT."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    archivo = get_object_or_404(ArchivoOrdenTrabajo, pk=archivo_id, orden_trabajo_id=pk)
+    
+    # Solo el que subió o un superusuario puede borrar
+    if archivo.subido_por != request.user and not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'No tienes permiso para eliminar este archivo'}, status=403)
+    
+    try:
+        archivo.archivo.delete(save=False)  # Borrar del storage (MinIO/local)
+        archivo.delete()
+        return JsonResponse({'status': 'success', 'message': 'Archivo eliminado'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
