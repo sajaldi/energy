@@ -210,9 +210,13 @@ def repositorio_documentos(request, proyecto_id):
     # Extraer los objetos documento reales
     documentos = [dv.documento for dv in documentos_vinculados]
     
+    # Obtener avisos vinculados al proyecto
+    avisos = proyecto.avisos.all()
+    
     context = {
         'proyecto': proyecto,
         'documentos': documentos,
+        'avisos': avisos,
         'estados': Documento.ESTADOS,
     }
     return render(request, 'proyectos/repositorio_documentos.html', context)

@@ -40,6 +40,7 @@ urlpatterns = [
     path('app/avisos/', views.mobile_mis_avisos, name='mobile_mis_avisos'),
     path('app/crear-ot-rutina/<int:rutina_id>/', views.mobile_crear_ot_rutina, name='mobile_crear_ot_rutina'),
     path('dashboard-cargas/', views.dashboard_cargas, name='dashboard_cargas'),
+    path('dashboard-cargas/asignar-puesto/', views.asignar_puesto_ajax, name='asignar_puesto_ajax'),
     path('rutinas/dashboard/', rutinas_dashboard, name='rutinas_dashboard'),
     path('rutinas/dashboard/detail/<int:pk>/', rutina_detail_api, name='rutina_detail_api'),
     path('rutinas/dashboard/save/', rutina_save_api, name='rutina_save_api'),
@@ -68,4 +69,5 @@ urlpatterns = [
     path('api/ot/<int:pk>/update/', views.api_update_ot_status_notes, name='api_update_ot_status_notes'),
     path('api/search-activos/', views.api_buscar_activos, name='api_buscar_activos'),
     path('rutina-pdf/<int:ot_id>/', views.pdf_views.generate_rutina_pdf_view, name='rutina_pdf'),
+    path('aviso-pdf/<int:aviso_id>/', views.pdf_views.generate_aviso_pdf_view, name='aviso_pdf'),
 ]

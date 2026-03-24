@@ -1,31 +1,28 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Detalle Aviso AV-{{ aviso.id }} - SoftCoM</title>
+    <title>Detalle Aviso AV-{{ aviso.id }} - SAP PM Style</title>
     {% include 'core/pwa_tags.html' %}
 
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --accent: #8b5cf6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --bg-body: #f8fafc;
-            --glass-bg: rgba(255, 255, 255, 0.8);
-            --glass-border: rgba(255, 255, 255, 0.3);
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            --sap-blue: #0a6ed1;
+            --sap-shell: #354a5f;
+            --sap-bg: #f7f7f7;
+            --sap-card-bg: #ffffff;
+            --sap-label: #6a6d70;
+            --sap-text: #32363a;
+            --sap-border: #d9d9d9;
+            --sap-success: #107e3e;
+            --sap-error: #bb0000;
+            --sap-warning: #e9730c;
         }
 
         * {
@@ -34,265 +31,226 @@
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-body);
-            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            background-color: var(--sap-bg);
+            color: var(--sap-text);
             margin: 0;
-            padding-bottom: 40px;
-            background: radial-gradient(circle at top right, #e2e8f0 0%, #f8fafc 40%);
+            padding-bottom: env(safe-area-inset-bottom, 40px);
         }
 
-        /* Animations */
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .fade-in {
-            animation: slideUp 0.4s ease-out forwards;
-        }
-
-        /* Header */
+        /* SAP Shell Bar */
         header {
-            padding: 20px;
+            background-color: var(--sap-shell);
+            height: 48px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            padding: 0 16px;
             position: sticky;
             top: 0;
             z-index: 1000;
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--glass-border);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .back-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            background: white;
-            border: 1px solid #e2e8f0;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 8px;
+            margin-right: 8px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: var(--text-main);
-            font-size: 22px;
-            cursor: pointer;
+            font-size: 20px;
+            text-decoration: none;
         }
 
         header h1 {
+            font-size: 16px;
+            font-weight: 500;
             margin: 0;
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-main);
+            flex-grow: 1;
         }
 
         .container {
-            padding: 20px;
+            padding: 12px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* SAP Object Header */
+        .object-header {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border);
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .object-header-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .object-id {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--sap-text);
         }
 
         /* Status Badge */
-        .status-section {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        .aviso-id {
-            font-size: 14px;
-            font-weight: 800;
-            color: var(--text-muted);
-            background: #f1f5f9;
-            padding: 6px 14px;
-            border-radius: 10px;
-        }
-
-        .status-badge {
-            font-size: 12px;
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-weight: 800;
+        .sap-badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
             text-transform: uppercase;
+            white-space: nowrap;
         }
 
-        .status-ABIERTO {
-            background: #fee2e2;
-            color: #b91c1c;
+        .status-ABIERTO { background: #ffebeb; color: var(--sap-error); border: 1px solid #ffcccc; }
+        .status-PROCESO { background: #fff3e5; color: var(--sap-warning); border: 1px solid #ffdfbd; }
+        .status-REALIZADO { background: #e8f5e9; color: var(--sap-success); border: 1px solid #c8e6c9; }
+
+        /* SAP Fiori Section (Blocks) */
+        .fiori-section {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border);
+            border-radius: 4px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         }
 
-        .status-PROCESO {
-            background: #fef3c7;
-            color: #b45309;
-        }
-
-        .status-REALIZADO {
-            background: #dcfce7;
-            color: #15803d;
-        }
-
-        /* Detail Card */
-        .detail-card {
-            background: white;
-            border-radius: 24px;
-            padding: 24px;
-            margin-bottom: 20px;
-            border: 1px solid #f1f5f9;
-            box-shadow: var(--card-shadow);
-        }
-
-        .info-row {
+        .section-header {
+            padding: 12px 16px;
+            background: #fafafa;
+            border-bottom: 1px solid var(--sap-border);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--sap-label);
+            text-transform: uppercase;
             display: flex;
-            align-items: flex-start;
-            gap: 15px;
-            margin-bottom: 20px;
+            align-items: center;
+            gap: 8px;
         }
 
-        .info-row:last-child {
+        .section-header ion-icon {
+            font-size: 16px;
+            color: var(--sap-blue);
+        }
+
+        .section-content {
+            padding: 16px;
+        }
+
+        /* Form attributes */
+        .sap-attribute {
+            margin-bottom: 14px;
+        }
+        
+        .sap-attribute:last-child {
             margin-bottom: 0;
         }
 
-        .info-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            background: #eff6ff;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            flex-shrink: 0;
-        }
-
-        .info-content p {
-            margin: 0;
+        .sap-attribute-label {
+            display: block;
             font-size: 12px;
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            color: var(--sap-label);
+            margin-bottom: 4px;
         }
 
-        .info-content h3 {
-            margin: 4px 0 0 0;
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--text-main);
+        .sap-attribute-value {
+            font-size: 14px;
+            color: var(--sap-text);
+            font-weight: 500;
+            line-height: 1.4;
         }
 
-        .description-box {
-            background: #f8fafc;
-            border-radius: 20px;
-            padding: 20px;
-            margin-top: 25px;
-            border: 1px solid #f1f5f9;
-        }
+        /* Priority Colors */
+        .priority-ALTA, .priority-CRITICA { color: var(--sap-error); }
+        .priority-MEDIA { color: var(--sap-warning); }
+        .priority-BAJA { color: var(--sap-success); }
 
-        .description-box h4 {
-            margin: 0 0 10px 0;
-            font-size: 13px;
-            color: var(--text-muted);
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .description-box p {
-            margin: 0;
-            font-size: 15px;
-            line-height: 1.6;
-            color: var(--text-main);
+        /* Description Box */
+        .description-text {
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--sap-text);
+            background: #f8fbff;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #e0f0ff;
         }
 
         /* Gallery */
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin: 30px 0 15px 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 12px;
         }
 
         .gallery-item {
             aspect-ratio: 1;
-            border-radius: 20px;
+            border-radius: 4px;
             overflow: hidden;
-            border: 2px solid white;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--sap-border);
+            background: #f0f0f0;
         }
 
         .gallery-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.3s ease;
         }
 
-        .gallery-item:active img {
-            transform: scale(1.1);
-        }
-
-        /* Actions */
+        /* SAP Action Buttons */
         .actions-footer {
-            margin-top: 40px;
+            margin-top: 24px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px;
         }
 
-        .btn-action {
+        .sap-btn {
             width: 100%;
-            padding: 16px;
-            border-radius: 20px;
-            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid transparent;
             font-family: inherit;
-            font-size: 16px;
-            font-weight: 700;
+            font-size: 14px;
+            font-weight: 600;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
             text-decoration: none;
             transition: all 0.2s ease;
+            cursor: pointer;
         }
 
-        .btn-primary {
-            background: var(--primary);
+        .sap-btn-primary {
+            background: var(--sap-blue);
             color: white;
-            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
         }
 
-        .btn-secondary {
+        .sap-btn-primary:active { background: #0854a0; }
+
+        .sap-btn-secondary {
             background: white;
-            color: var(--text-main);
-            border: 1px solid #e2e8f0;
+            color: var(--sap-blue);
+            border-color: var(--sap-blue);
         }
 
-        .btn-action:active {
-            transform: scale(0.98);
-            opacity: 0.9;
-        }
+        .sap-btn-secondary:active { background: #eef5fc; }
 
         .metadata-footer {
             text-align: center;
-            margin-top: 30px;
-            font-size: 12px;
-            color: var(--text-muted);
+            margin-top: 24px;
+            font-size: 11px;
+            color: var(--sap-label);
         }
     </style>
 </head>
@@ -306,90 +264,96 @@
         <h1>Detalle del Aviso</h1>
     </header>
 
-    <div class="container fade-in">
-        <div class="status-section">
-            <span class="aviso-id">AV-{{ aviso.id }}</span>
-            <span class="status-badge status-{{ aviso.estado }}">{{ aviso.get_estado_display }}</span>
-        </div>
-
-        <div class="detail-card">
-            <div class="info-row">
-                <div class="info-icon">
-                    <ion-icon name="alert-circle-outline"></ion-icon>
-                </div>
-                <div class="info-content">
-                    <p>Falla Identificada</p>
-                    <h3>{{ aviso.falla.nombre|default:"Sin catalogar" }}</h3>
-                </div>
-            </div>
-
-            <div class="info-row">
-                <div class="info-icon" style="background: #fff7ed; color: var(--warning);">
-                    <ion-icon name="flash-outline"></ion-icon>
-                </div>
-                <div class="info-content">
-                    <p>Prioridad</p>
-                    <h3>{{ aviso.get_prioridad_display }}</h3>
-                </div>
-            </div>
-
-            <div class="info-row">
-                <div class="info-icon" style="background: #f0fdf4; color: var(--success);">
-                    <ion-icon name="location-outline"></ion-icon>
-                </div>
-                <div class="info-content">
-                    <p>Ubicación / Equipo</p>
-                    <h3>{{ aviso.activo.nombre|default:aviso.ubicacion.nombre }}</h3>
-                </div>
-            </div>
-
-            <div class="info-row">
-                <div class="info-icon" style="background: #faf5ff; color: var(--accent);">
-                    <ion-icon name="person-outline"></ion-icon>
-                </div>
-                <div class="info-content">
-                    <p>Reportado por</p>
-                    <h3>{{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}</h3>
-                </div>
-            </div>
-
-            <div class="description-box">
-                <h4>Descripción del Problema</h4>
-                <p>{{ aviso.descripcion }}</p>
+    <div class="container">
+        
+        <!-- Object Header -->
+        <div class="object-header">
+            <div class="object-header-title">
+                <div class="object-id">AV-{{ aviso.id }}</div>
+                <span class="sap-badge status-{{ aviso.estado }}">{{ aviso.get_estado_display }}</span>
             </div>
         </div>
 
-        <h3 class="section-title">
-            <ion-icon name="images-outline"></ion-icon>
-            Evidencia Visual
-        </h3>
+        <!-- Detalles Generales -->
+        <div class="fiori-section">
+            <div class="section-header">
+                <ion-icon name="information-circle-outline"></ion-icon> Detalles Generales
+            </div>
+            <div class="section-content">
+                <div class="sap-attribute">
+                    <span class="sap-attribute-label">Falla Identificada</span>
+                    <span class="sap-attribute-value">{{ aviso.falla.nombre|default:"Sin catalogar" }}</span>
+                </div>
 
-        <div class="gallery-grid">
-            {% for foto in aviso.fotos.all %}
-            <div class="gallery-item">
-                <img src="{{ foto.foto.url }}" alt="Evidencia" onclick="window.open(this.src)">
+                <div class="sap-attribute">
+                    <span class="sap-attribute-label">Prioridad</span>
+                    <span class="sap-attribute-value priority-{{ aviso.prioridad }}">{{ aviso.get_prioridad_display }}</span>
+                </div>
+
+                <div class="sap-attribute">
+                    <span class="sap-attribute-label">Ubicación / Equipo</span>
+                    <span class="sap-attribute-value">{{ aviso.activo.nombre|default:aviso.ubicacion.nombre }}</span>
+                </div>
+
+                <div class="sap-attribute">
+                    <span class="sap-attribute-label">Reportado por</span>
+                    <span class="sap-attribute-value">{{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}</span>
+                </div>
             </div>
-            {% empty %}
-            {% if aviso.foto %}
-            <div class="gallery-item">
-                <img src="{{ aviso.foto.url }}" alt="Evidencia" onclick="window.open(this.src)">
-            </div>
-            {% else %}
-            <p style="grid-column: span 2; text-align: center; color: var(--text-muted); padding: 20px;">
-                No se adjuntó evidencia visual.
-            </p>
-            {% endif %}
-            {% endfor %}
         </div>
 
+        <!-- Descripción -->
+        <div class="fiori-section">
+            <div class="section-header">
+                <ion-icon name="document-text-outline"></ion-icon> Descripción del Problema
+            </div>
+            <div class="section-content">
+                <div class="description-text">
+                    {{ aviso.descripcion }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Evidencias -->
+        <div class="fiori-section">
+            <div class="section-header">
+                <ion-icon name="images-outline"></ion-icon> Evidencia Visual
+            </div>
+            <div class="section-content">
+                <div class="gallery-grid">
+                    {% for foto in aviso.fotos.all %}
+                    <div class="gallery-item">
+                        <img src="{{ foto.foto.url }}" alt="Evidencia" onclick="window.open(this.src)">
+                    </div>
+                    {% empty %}
+                    {% if aviso.foto %}
+                    <div class="gallery-item">
+                        <img src="{{ aviso.foto.url }}" alt="Evidencia" onclick="window.open(this.src)">
+                    </div>
+                    {% else %}
+                    <p style="grid-column: 1 / -1; text-align: center; color: var(--sap-label); font-size: 13px;">
+                        No se adjuntó evidencia visual.
+                    </p>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Acciones -->
         <div class="actions-footer">
+            <a href="{% url 'mantenimiento:aviso_pdf' aviso.id %}" target="_blank" class="sap-btn" style="background: white; border: 1px solid var(--sap-border); color: var(--sap-text);">
+                <ion-icon name="document-text-outline"></ion-icon>
+                Exportar Reporte PDF
+            </a>
+            
             {% if user.is_staff and aviso.estado == 'ABIERTO' %}
-            <a href="{% url 'admin:mantenimiento_aviso_change' aviso.id %}" class="btn-action btn-primary">
+            <a href="{% url 'admin:mantenimiento_aviso_change' aviso.id %}" class="sap-btn sap-btn-primary">
                 <ion-icon name="construct-outline"></ion-icon>
                 Gestionar en Admin
             </a>
             {% endif %}
-            <a href="tel:{{ aviso.solicitante.perfil_usuario.telefono }}" class="btn-action btn-secondary">
+            <a href="tel:{{ aviso.solicitante.perfil_usuario.telefono }}" class="sap-btn sap-btn-secondary">
                 <ion-icon name="call-outline"></ion-icon>
                 Contactar Reportante
             </a>
@@ -401,5 +365,4 @@
     </div>
 
 </body>
-
 </html>

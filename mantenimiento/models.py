@@ -5,6 +5,13 @@ from colorfield.fields import ColorField
 from django.contrib.auth.models import User, Group
 from django.utils import timezone
 
+TIPO_AVISO_CHOICES = [
+    ('AVERIA', 'Avería / Falla (M2)'),
+    ('SOLICITUD', 'Solicitud de Servicio (M1)'),
+    ('MEJORA', 'Mejora / Modificación'),
+    ('LEGAL', 'Requerimiento Legal / Seguridad'),
+]
+
 class Tipo(models.Model):
     """
     Tipo jerárquico para clasificar rutinas de mantenimiento.
@@ -602,8 +609,9 @@ class Programacion(models.Model):
 class Falla(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True, null=True)
-    padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='hijos')
-    puesto_trabajo = models.ForeignKey(PuestoTrabajo, on_delete=models.SET_NULL, null=True, blank=True, related_name='catalogo_fallas', help_text="Vincular a un puesto si es el nodo raíz")
+    padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='hijos', help_text="Dejar en blanco si es nivel superior")
+    puestos_trabajo = models.ManyToManyField(PuestoTrabajo, blank=True, related_name='catalogos_fallas', help_text="Vincular a puestos si es el nodo raíz")
+    tipo_aviso = models.CharField(max_length=20, choices=TIPO_AVISO_CHOICES, null=True, blank=True, db_index=True, help_text="Filtrar por este tipo de aviso en la App móvil")
 
     def get_ruta_completa(self, separador=' → '):
         path = [self.nombre]
@@ -629,12 +637,7 @@ class Aviso(models.Model):
         ('CRITICA', 'Crítica'),
     ]
 
-    TIPO_CHOICES = [
-        ('AVERIA', 'Avería / Falla (M2)'),
-        ('SOLICITUD', 'Solicitud de Servicio (M1)'),
-        ('MEJORA', 'Mejora / Modificación'),
-        ('LEGAL', 'Requerimiento Legal / Seguridad'),
-    ]
+    TIPO_CHOICES = TIPO_AVISO_CHOICES
     
     ESTADO_CHOICES = [
         ('ABIERTO', 'Abierto'),
@@ -644,6 +647,7 @@ class Aviso(models.Model):
     ]
 
     activo = models.ForeignKey('activos.Activo', on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos')
+    proyecto = models.ForeignKey('proyectos.Proyecto', on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos', verbose_name="Proyecto")
     ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='avisos')
     falla = models.ForeignKey(Falla, on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos')
     descripcion = models.TextField(help_text="Descripción detallada de la falla o solicitud")

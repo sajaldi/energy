@@ -22,6 +22,7 @@ from activos.models import Activo, Ubicacion
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.core.cache import cache
+from proyectos.models import Proyecto
 
 class ProgressResourceMixin:
     """
@@ -1456,17 +1457,22 @@ class FallaInline(admin.TabularInline):
     model = Falla
     extra = 1
     fk_name = 'padre'
-    fields = ('nombre', 'descripcion')
-    verbose_name = "Sub-falla / Síntoma"
-    verbose_name_plural = "Sub-fallas (Hijos)"
+    fields = ('nombre', 'tipo_aviso', 'puestos_trabajo')
+    verbose_name = "Sub-falla / Categoría"
+    verbose_name_plural = "Sub-fallas / Categorías"
 
 @admin.register(Falla)
 class FallaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'padre', 'puesto_trabajo', 'get_ruta_completa')
-    list_filter = ('padre', 'puesto_trabajo')
+    list_display = ('nombre', 'tipo_aviso', 'padre', 'get_puestos_trabajo', 'get_ruta_completa')
+    list_filter = ('tipo_aviso', 'padre', 'puestos_trabajo')
     search_fields = ('nombre',)
-    raw_id_fields = ('padre', 'puesto_trabajo')
+    raw_id_fields = ('padre',)
+    filter_horizontal = ('puestos_trabajo',)
     inlines = [FallaInline]
+
+    def get_puestos_trabajo(self, obj):
+        return ", ".join([p.nombre for p in obj.puestos_trabajo.all()])
+    get_puestos_trabajo.short_description = 'Puestos de Trabajo'
 
     def get_ruta_completa(self, obj):
         return obj.get_ruta_completa()
@@ -1482,10 +1488,11 @@ class AvisoResource(resources.ModelResource):
     ubicacion = fields.Field(column_name='ubicacion', attribute='ubicacion', widget=ForeignKeyWidget(Ubicacion, field='nombre'))
     falla = fields.Field(column_name='falla', attribute='falla', widget=ForeignKeyWidget(Falla, field='nombre'))
     solicitante = fields.Field(column_name='solicitante', attribute='solicitante', widget=ForeignKeyWidget(User, field='username'))
+    proyecto = fields.Field(column_name='proyecto', attribute='proyecto', widget=ForeignKeyWidget(Proyecto, field='codigo'))
 
     class Meta:
         model = Aviso
-        fields = ('id', 'activo', 'ubicacion', 'falla', 'descripcion', 'prioridad', 'tipo', 'estado', 'solicitante', 'creado_en', 'actualizado_en')
+        fields = ('id', 'activo', 'ubicacion', 'falla', 'proyecto', 'descripcion', 'prioridad', 'tipo', 'estado', 'solicitante', 'creado_en', 'actualizado_en')
         export_order = fields
         skip_unchanged = True
         report_skipped = True
@@ -1495,11 +1502,11 @@ class AvisoAdmin(ImportExportModelAdmin):
     resource_class = AvisoResource
     change_list_template = "admin/mantenimiento/procedimiento/change_list.html"
     list_per_page = 50
-    list_display = ('id', 'tipo', 'prioridad', 'estado', 'falla', 'descripcion_corta', 'ubicacion', 'activo', 'solicitante', 'creado_en', 'enviar_whatsapp_button', 'import_link')
-    list_filter = ('tipo', 'estado', 'prioridad', 'falla', 'creado_en')
-    list_select_related = ('ubicacion', 'activo', 'solicitante', 'falla')
-    search_fields = ('descripcion', 'ubicacion__nombre', 'activo__nombre')
-    autocomplete_fields = ('activo', 'ubicacion', 'solicitante', 'falla')
+    list_display = ('id', 'tipo', 'prioridad', 'estado', 'falla', 'descripcion_corta', 'ubicacion', 'activo', 'proyecto', 'solicitante', 'creado_en', 'enviar_whatsapp_button', 'import_link')
+    list_filter = ('proyecto', 'tipo', 'estado', 'prioridad', 'falla', 'creado_en')
+    list_select_related = ('ubicacion', 'activo', 'solicitante', 'falla', 'proyecto')
+    search_fields = ('descripcion', 'ubicacion__nombre', 'activo__nombre', 'proyecto__nombre', 'proyecto__codigo')
+    autocomplete_fields = ('activo', 'ubicacion', 'solicitante', 'falla', 'proyecto')
     actions = ['generar_ot_action']
     raw_id_fields = ('activo', 'ubicacion', 'solicitante', 'falla')
     inlines = [FotoAvisoInline]
@@ -1546,7 +1553,7 @@ class AvisoAdmin(ImportExportModelAdmin):
             puesto_tecnico = getattr(request.user, 'perfil_tecnico', None)
             if puesto_tecnico and not request.user.is_superuser:
                 # Filtrar fallas que cuelgan de raíces del puesto
-                roots = Falla.objects.filter(puesto_trabajo=puesto_tecnico.puesto)
+                roots = Falla.objects.filter(puestos_trabajo=puesto_tecnico.puesto)
                 ids = []
                 for r in roots:
                     def get_ids(n):

@@ -371,11 +371,21 @@ def api_buscar_activos(request):
         codigo = a.codigo_interno or "S/C"
         lugar = a.ubicacion.nombre if a.ubicacion else "Sin Ubicación"
         lugar_id = a.ubicacion.id if a.ubicacion else None
+        
+        # Nuevos campos para el detalle
+        modelo_nombre = a.modelo.nombre if a.modelo else (a.modelo_legacy or "S/M")
+        marca_nombre = a.modelo.marca.nombre if (a.modelo and a.modelo.marca) else (a.marca_legacy or "S/M")
+        categoria_nombre = a.modelo.categoria.nombre if (a.modelo and a.modelo.categoria) else "S/C"
+        
         results.append({
             'id': a.id,
             'text': f"{a.nombre} [{codigo}]",
             'ubicacion_id': lugar_id,
-            'ubicacion_nombre': lugar
+            'ubicacion_nombre': lugar,
+            'marca': marca_nombre,
+            'modelo': modelo_nombre,
+            'categoria': categoria_nombre,
+            'serie': a.serie or "S/S"
         })
     
     return JsonResponse({'results': results})

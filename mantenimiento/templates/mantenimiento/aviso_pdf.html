@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Aviso - AV{{ aviso.id }}</title>
+    <style>
+        @page {
+            margin: 0.8cm;
+            size: A4;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 9px;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0px;
+        }
+        td, th {
+            border: 1px solid #000;
+            padding: 3px 5px;
+            vertical-align: middle;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .bold { font-weight: bold; }
+        .bg-gray { background-color: #f2f2f2; }
+        .bg-dark-gray { background-color: #4b5563; color: white; font-weight: bold; text-align: center; }
+        
+        /* Header specific */
+        .header-meta td { font-size: 8px; padding: 2px 4px; }
+        .company-name { font-size: 11px; font-weight: bold; }
+        
+        .section-title {
+            background-color: #334155;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 4px;
+            font-size: 10px;
+        }
+        
+        .label-cell {
+            background-color: #e2e8f0;
+            font-weight: bold;
+            width: 15%;
+        }
+        .value-cell {
+            width: 35%;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Header Table -->
+    <table>
+        <tr>
+            <td rowspan="4" style="width: 15%;" class="text-center">
+                {% if logo_dcc_b64 %}
+                <img src="data:image/png;base64,{{ logo_dcc_b64 }}" style="max-height: 50px; max-width: 100px;">
+                {% else %}
+                <div style="font-weight: bold; font-size: 20px;">DCC</div>
+                {% endif %}
+            </td>
+            <td colspan="2" class="text-center company-name">
+                OPERADORA DE INFRAESTRUCTURA DE HONDURAS, S.A. DE C.V.
+            </td>
+            <td style="width: 25%;" class="bg-gray bold">Correlativo: <span style="color:red">AV-{{ aviso.id }}</span></td>
+        </tr>
+        <tr class="header-meta">
+            <td style="width: 20%;" class="bold">Tipo de Documento:</td>
+            <td style="width: 40%;">Formato</td>
+            <td class="bold">Parámetro: <span style="font-weight: normal;">Soporte</span></td>
+        </tr>
+        <tr class="header-meta">
+            <td class="bold">Título del Documento:</td>
+            <td>Reporte Aviso Mantenimiento</td>
+            <td class="bold">Fecha: <span style="font-weight: normal;">{{ aviso.creado_en|date:"d/m/Y" }}</span></td>
+        </tr>
+        <tr class="header-meta">
+            <td class="bold">Proyecto:</td>
+            <td>Centro Cívico Gubernamental</td>
+            <td class="bold">Versión: <span style="font-weight: normal;">01</span></td>
+        </tr>
+    </table>
+
+    <div class="section-title" style="margin-top: 5px;">
+        REPORTE DE AVISO - ESTADO: {{ aviso.get_estado_display|upper }}
+    </div>
+
+    <!-- General Attributes Header -->
+    <table>
+        <tr>
+            <td class="label-cell">Empresa:</td>
+            <td class="value-cell">{{ empresa_nombre|default:"Operadora CC" }}</td>
+            <td class="label-cell">Edificio / Complejo:</td>
+            <td class="value-cell">{{ edificio_nombre }}</td>
+        </tr>
+        <tr>
+            <td class="label-cell">Reportado por:</td>
+            <td class="value-cell">{{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}</td>
+            <td class="label-cell">Fecha Reporte:</td>
+            <td class="value-cell">{{ aviso.creado_en|date:"d/m/Y H:i" }}</td>
+        </tr>
+        <tr>
+            <td class="label-cell">Tipo / Origen:</td>
+            <td class="value-cell">{{ aviso.get_tipo_display }}</td>
+            <td class="label-cell">Prioridad Asignada:</td>
+            <td class="value-cell">{{ aviso.get_prioridad_display }}</td>
+        </tr>
+    </table>
+
+    <table style="margin-top: -1px;">
+        <tr>
+            <td class="label-cell" style="width: 15%;">Equipo/Ubicación:</td>
+            <td class="value-cell" style="width: 85%;">{{ aviso.activo.nombre|default:aviso.ubicacion.nombre }}</td>
+        </tr>
+        <tr>
+            <td class="label-cell">Falla Reportada:</td>
+            <td>{{ aviso.falla.nombre|default:"Sin catalogar" }}</td>
+        </tr>
+    </table>
+
+    <div class="bg-dark-gray" style="margin-top: 5px; padding: 4px;">DESCRIPCIÓN DEL PROBLEMA</div>
+
+    <table style="margin-top: -1px;">
+        <tr>
+            <td style="padding: 10px; font-size: 10px; line-height: 1.5; min-height: 80px; vertical-align: top;">
+                {{ aviso.descripcion|linebreaksbr }}
+            </td>
+        </tr>
+    </table>
+
+    {% if fotos_adjuntas %}
+    <div style="page-break-before: auto; margin-top: 20px;">
+        <div class="section-title" style="margin-bottom: 5px;">EVIDENCIA FOTOGRÁFICA REGISTRADA</div>
+        <table style="border: none;">
+            {% for foto in fotos_adjuntas %}
+            {% if forloop.counter|divisibleby:2 or forloop.first %}
+            {% if not forloop.first and forloop.counter|divisibleby:2 %}</tr>{% endif %}
+            {% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+            {% endif %}
+            <td style="border: 1px solid #ddd; text-align: center; padding: 6px; width: 50%; vertical-align: top;">
+                <img src="{{ foto.data_uri }}" style="max-width: 100%; max-height: 280px; border-radius: 4px; object-fit: contain;">
+                <div style="font-size: 7px; color: #666; margin-top: 3px;">{{ foto.nombre }} - {{ foto.creado_en|date:"d/m/Y H:i" }}</div>
+            </td>
+            {% if forloop.last and not forloop.counter|divisibleby:2 %}
+            <td style="border: none;"></td>
+            </tr>
+            {% elif forloop.last %}
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 30px;">
+        <table style="border: none;">
+            <tr>
+                <td style="border: none; width: 33%; text-align: center; padding-top: 40px;">
+                    <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                    <div style="font-size: 8px;">Firma de Conformidad Reportante</div>
+                    <div style="font-weight: bold;">
+                        {{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}
+                    </div>
+                </td>
+                <td style="border: none; width: 33%;"></td>
+                <td style="border: none; width: 33%; text-align: center; padding-top: 40px;">
+                    <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                    <div style="font-size: 8px;">Área Gestión de Mantenimiento</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+</body>
+</html>

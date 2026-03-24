@@ -123,20 +123,58 @@ def mobile_crear_aviso(request):
     ubi_defecto = perfil.ubicacion_defecto if perfil else None
     
     # Obtener catálogo de fallas relevante al puesto del usuario
-    puesto_tecnico = getattr(request.user, 'perfil_tecnico', None)
+    # Incluye fallas del puesto + fallas universales (sin puesto asignado)
+    try:
+        puesto_tecnico = request.user.perfil_tecnico
+    except Exception:
+        puesto_tecnico = None
+
     if puesto_tecnico:
-        # Buscamos todas las fallas que cuelgan de un root asociado al puesto
-        roots = Falla.objects.filter(puesto_trabajo=puesto_tecnico.puesto)
+        # Fallas asignadas al puesto del usuario (con sus hijos)
+        # En lugar de un solo árbol genérico, mostramos todos los árboles (raíces) que el puesto de este usuario tiene asignados
+        roots = Falla.objects.filter(puestos_trabajo=puesto_tecnico.puesto)
         fallas_ids = []
+        
+        def get_ids(node):
+            fallas_ids.append(node.id)
+            for h in node.hijos.all(): 
+                get_ids(h)
+
         for r in roots:
-            # Simple recursion for small catalogs
-            def get_ids(node):
-                fallas_ids.append(node.id)
-                for h in node.hijos.all(): get_ids(h)
             get_ids(r)
+
+        # También incluir fallas universales (sin puesto, sin padre = roots genéricas)
+        universales = Falla.objects.filter(puestos_trabajo__isnull=True, padre__isnull=True)
+        for u in universales:
+            get_ids(u)
+            
         fallas = Falla.objects.filter(id__in=fallas_ids)
     else:
         fallas = Falla.objects.all()
+
+    # Format fallas for JS filtering
+    import json
+    fallas_data = []
+    for f in fallas:
+        fallas_data.append({
+            'id': f.id,
+            'nombre': f.get_ruta_completa(),
+            'tipo_aviso': f.tipo_aviso or ''
+        })
+    fallas_json = json.dumps(fallas_data, ensure_ascii=False)
+
+    tipos = [(v, l, v == 'SOLICITUD') for v, l in Aviso.TIPO_CHOICES]
+    prioridades = [(v, l, v == 'MEDIA') for v, l in Aviso.PRIORIDAD_CHOICES]
+    ubicaciones = Ubicacion.objects.all().order_by('nombre')
+
+    context = {
+        'activo': activo,
+        'ubi_defecto': ubi_defecto,
+        'ubicaciones': ubicaciones,
+        'fallas_json': fallas_json,
+        'prioridades': prioridades,
+        'tipos': tipos,
+    }
 
     if request.method == 'POST':
         # Determinamos la ubicación final: 
@@ -160,6 +198,7 @@ def mobile_crear_aviso(request):
                 'tipos': tipos,
                 'ubicacion_defecto': ubi_defecto,
                 'fallas': fallas,
+                'fallas_json': fallas_json,
                 'ubicaciones': ubicaciones,
                 'error_mensaje': 'Debe seleccionar una ubicación para el reporte.'
             })
@@ -196,6 +235,7 @@ def mobile_crear_aviso(request):
         'tipos': tipos,
         'ubicacion_defecto': ubi_defecto,
         'fallas': fallas,
+        'fallas_json': fallas_json,
         'ubicaciones': ubicaciones
     })
 

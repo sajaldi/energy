@@ -49,6 +49,11 @@ def documento_wizard(request):
     Paso 2: Carga y Extracción Inteligente
     Paso 3: Verificación sugiriendo Código y Título extraídos
     """
+    # Capturar proyecto_id si viene por GET
+    proyecto_id = request.GET.get('proyecto_id')
+    if proyecto_id:
+        request.session['doc_wizard_proyecto_id'] = proyecto_id
+    
     step = float(request.GET.get('step', 1))
     doc_id = request.GET.get('doc_id')
     
@@ -298,7 +303,17 @@ def documento_wizard(request):
                 documento.respuesta_a_id = request.POST.get('respuesta_a') or None
                 documento.estado_actual = 'RECIBIDO'
                 documento.save()
-                
+
+                # Vincular con proyecto si existe en sesión
+                proyecto_id = request.session.get('doc_wizard_proyecto_id')
+                if proyecto_id:
+                    try:
+                        from django.apps import apps
+                        DocumentoProyecto = apps.get_model('proyectos', 'DocumentoProyecto')
+                        DocumentoProyecto.objects.get_or_create(proyecto_id=proyecto_id, documento=documento)
+                    except Exception as e:
+                        print(f"[WIZARD ERROR] No se pudo vincular documento {documento.id} con proyecto {proyecto_id}: {e}")
+
                 for config in metadatos_config:
                     val = request.POST.get(f'meta_{config.id}')
                     if val:
@@ -314,8 +329,16 @@ def documento_wizard(request):
                 print(f"Error disparando automatización n8n: {e_n8n}")
 
             messages.success(request, f"Documento {documento.codigo} registrado exitosamente.")
-            if 'doc_wizard_data' in request.session: del request.session['doc_wizard_data']
-            return redirect('admin:documentos_documento_changelist')
+            # Limpiar sesión y redirigir
+            proyecto_id = request.session.get('doc_wizard_proyecto_id')
+            request.session.pop('doc_wizard_step', None)
+            request.session.pop('doc_wizard_data', None)
+            request.session.pop('doc_wizard_revision_id', None)
+            request.session.pop('doc_wizard_proyecto_id', None)
+            
+            if proyecto_id:
+                return redirect(reverse('proyectos:repositorio_documentos', args=[proyecto_id]))
+            return redirect(reverse('admin:documentos_documento_changelist'))
 
     return render(request, 'documentos/documento_wizard.html', context)
 

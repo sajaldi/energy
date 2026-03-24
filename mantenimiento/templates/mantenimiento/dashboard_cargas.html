@@ -264,6 +264,61 @@
             color: var(--danger);
         }
 
+        .assign-card {
+            background: rgba(79, 70, 229, 0.05);
+            border: 1px dashed var(--primary);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .form-group-custom {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .label-custom {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .select-custom, .input-custom {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .select-custom:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-assign {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-assign:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -297,6 +352,36 @@
             <button onclick="window.print()"
                 style="padding: 10px 20px; cursor: pointer; border-radius: 8px; background: var(--primary); color: white; border: none; font-weight: 600;">Imprimir
                 Reporte</button>
+        </div>
+    </div>
+
+    <div class="card" style="border: 1px dashed var(--primary); background: rgba(79, 70, 229, 0.05);">
+        <div class="card-header" style="margin-bottom: 12px;">🛠️ Gestión de Personal</div>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Asigna técnicos a puestos de trabajo para habilitar su seguimiento de carga.</p>
+        <div class="assign-card" style="margin-bottom: 0; padding: 0; border: none; background: transparent;">
+            <div class="form-group-custom">
+                <span class="label-custom">Usuario</span>
+                <select id="userSelect" class="select-custom">
+                    <option value="">Seleccione usuario...</option>
+                    {% for u in usuarios_sin_puesto %}
+                    <option value="{{ u.id }}">{{ u.username }} ({{ u.get_full_name }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group-custom">
+                <span class="label-custom">Puesto de Trabajo</span>
+                <select id="puestoSelect" class="select-custom">
+                    <option value="">Seleccione puesto...</option>
+                    {% for p in puestos %}
+                    <option value="{{ p.id }}">{{ p.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group-custom">
+                <span class="label-custom">Horas/Semana</span>
+                <input type="number" id="horasInput" class="input-custom" value="40.0" step="0.5" style="width: 80px;">
+            </div>
+            <button onclick="asignarPuesto()" class="btn-assign">Asignar Puesto</button>
         </div>
     </div>
 
@@ -344,6 +429,41 @@
                     <tr>
                         <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 40px;">No hay
                             personal disponible registrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">📊 Consolidado por Puesto</div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Puesto</th>
+                        {% for semana in semanas %}
+                        <th class="week-header">
+                            {{ semana.label }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in puestos_data %}
+                    <tr>
+                        <td><span class="tech-name">{{ p.nombre }}</span></td>
+                        {% for s in p.semanas %}
+                        <td align="center">
+                            <span class="pct-label {% if s.is_over %}over-limit{% endif %}">{{ s.total_pct }}%</span>
+                            <div class="progress-container" style="background: #334155; height: 4px;">
+                                <div class="progress-bar {% if s.total_pct < 80 %}bg-success{% elif s.total_pct <= 100 %}bg-warning{% else %}bg-danger{% endif %}"
+                                     style="width: {{ s.pct }}%;"></div>
+                            </div>
+                            <span class="hours-label">{{ s.horas }}h</span>
+                        </td>
+                        {% endfor %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -418,6 +538,42 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeModal();
         });
+
+        async function asignarPuesto() {
+            const userId = document.getElementById('userSelect').value;
+            const puestoId = document.getElementById('puestoSelect').value;
+            const horas = document.getElementById('horasInput').value;
+
+            if (!userId || !puestoId) {
+                alert('Por favor seleccione un usuario y un puesto.');
+                return;
+            }
+
+            try {
+                const response = await fetch('{% url "mantenimiento:asignar_puesto_ajax" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        puesto_id: puestoId,
+                        horas: horas
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Ocurrió un error al procesar la solicitud.');
+            }
+        }
     </script>
 </body>
 

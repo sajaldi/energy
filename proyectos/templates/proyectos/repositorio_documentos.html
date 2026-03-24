@@ -296,77 +296,135 @@
                 </a>
             </div>
             <h1>Repositorio: {{ proyecto.nombre }}</h1>
-            <div class="bib-stats" style="margin-top: 10px;">
-                <span
-                    style="background:var(--primary); color:white; padding: 4px 15px; border-radius:12px; font-size:0.95rem; font-weight: 800;">
-                    📁 {{ documentos|length }} Documentos en el Proyecto
-                </span>
-                <span style="margin-left: 10px; color: var(--text-muted); font-weight: 600;">
-                    Código: {{ proyecto.codigo }}
-                </span>
-            </div>
-        </div>
-    </div>
-
-    {% if documentos %}
-    <div class="bib-grid">
-        {% for doc in documentos %}
-        <div class="doc-card" onclick="openDocModal('{% url 'documentos:documento_proxy_pdf' doc.id %}')">
-            <div class="save-toast" id="loader-{{ doc.id }}">ESTADO GUARDADO ✓</div>
-
-            <div class="doc-header">
-                <div class="doc-type-badge">{{ doc.tipo_documento.nombre|default:"SIN TIPO" }}</div>
-
-                <div class="status-wrapper" onclick="event.stopPropagation()">
-                    <span class="status-label">Estado Actual</span>
-                    <select class="status-select status-{{ doc.estado_actual }}"
-                        onchange="updateDocStatus({{ doc.id }}, this)">
-                        {% for key, val in estados %}
-                        <option value="{{ key }}" {% if doc.estado_actual==key %}selected{% endif %}>{{ val }}</option>
-                        {% endfor %}
-                    </select>
+            <div class="bib-stats" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span
+                        style="background:var(--primary); color:white; padding: 4px 15px; border-radius:12px; font-size:0.95rem; font-weight: 800;">
+                        📁 {{ documentos|length }} Documentos
+                    </span>
+                    <span
+                        style="background:#f59e0b; color:white; padding: 4px 15px; border-radius:12px; font-size:0.95rem; font-weight: 800; margin-left: 10px;">
+                        ⚠️ {{ avisos|length }} Avisos
+                    </span>
+                    <span style="margin-left: 10px; color: var(--text-muted); font-weight: 600;">
+                        Código: {{ proyecto.codigo }}
+                    </span>
                 </div>
-            </div>
-
-            <div class="doc-content">
-                <div class="doc-code">{{ doc.codigo }}</div>
-                <div class="doc-title">{{ doc.titulo }}</div>
-            </div>
-
-            <div class="doc-actions" onclick="event.stopPropagation()">
-                <div class="action-row">
-                    <button class="btn-main-action"
-                        onclick="openDocModal('{% url 'documentos:documento_proxy_pdf' doc.id %}')">
-                        📄 Visualizar PDF
-                    </button>
-                    <a href="{% url 'documentos:documento_reprocesar' doc.id %}" class="btn-special btn-ia"
-                        title="Analizar IA">
-                        🤖
-                    </a>
-                </div>
-                <div class="action-row">
-                    <a href="{% url 'documentos:documento_sync_metadatos' doc.id %}" class="btn-main-action"
-                        style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">
-                        ⚙️ Sincronizar
-                    </a>
-                    <a href="/admin/documentos/documento/{{ doc.id }}/change/" target="_blank"
-                        class="btn-special btn-admin-config" title="Configuración Admin">
-                        🛠
+                <div style="display: flex; gap: 12px;">
+                    <a href="{% url 'documentos:documento_wizard' %}?proyecto_id={{ proyecto.id }}" class="btn-main-action" style="background: var(--primary); color: white; border: none; padding: 12px 24px;">
+                        ➕ Subir Nuevo Documento
                     </a>
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
-    {% else %}
-    <div
-        style="text-align:center; padding: 100px 20px; background: white; border-radius: 32px; border: 3px dashed #e2e8f0; margin-top: 40px;">
-        <div style="font-size: 5rem; margin-bottom: 20px;">📁</div>
-        <h2 style="color: var(--text-main); font-weight: 800;">Sin Documentos Vinculados</h2>
-        <p style="color: var(--text-muted); font-size: 1.1rem;">Agregue documentos desde la sección "Documentos del
-            Proyecto" en el panel administrativo.</p>
+
+    <div class="section-container" style="margin-bottom: 40px;">
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+            📄 Documentos del Proyecto
+        </h2>
+        {% if documentos %}
+        <div class="bib-grid">
+            {% for doc in documentos %}
+            <div class="doc-card" onclick="openDocModal('{% url 'documentos:documento_proxy_pdf' doc.id %}')">
+                <div class="save-toast" id="loader-{{ doc.id }}">ESTADO GUARDADO ✓</div>
+
+                <div class="doc-header">
+                    <div class="doc-type-badge">{{ doc.tipo_documento.nombre|default:"SIN TIPO" }}</div>
+
+                    <div class="status-wrapper" onclick="event.stopPropagation()">
+                        <span class="status-label">Estado Actual</span>
+                        <select class="status-select status-{{ doc.estado_actual }}"
+                            onchange="updateDocStatus({{ doc.id }}, this)">
+                            {% for key, val in estados %}
+                            <option value="{{ key }}" {% if doc.estado_actual == key %}selected{% endif %}>{{ val }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="doc-content">
+                    <div class="doc-code">{{ doc.codigo }}</div>
+                    <div class="doc-title">{{ doc.titulo }}</div>
+                </div>
+
+                <div class="doc-actions" onclick="event.stopPropagation()">
+                    <div class="action-row">
+                        <button class="btn-main-action"
+                            onclick="openDocModal('{% url 'documentos:documento_proxy_pdf' doc.id %}')">
+                            📄 Visualizar PDF
+                        </button>
+                        <a href="{% url 'documentos:documento_reprocesar' doc.id %}" class="btn-special btn-ia"
+                            title="Analizar IA">
+                            🤖
+                        </a>
+                    </div>
+                    <div class="action-row">
+                        <a href="{% url 'documentos:documento_sync_metadatos' doc.id %}" class="btn-main-action"
+                            style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">
+                            ⚙️ Sincronizar
+                        </a>
+                        <a href="/admin/documentos/documento/{{ doc.id }}/change/" target="_blank"
+                            class="btn-special btn-admin-config" title="Configuración Admin">
+                            🛠
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div
+            style="text-align:center; padding: 60px 20px; background: white; border-radius: 24px; border: 2px dashed #e2e8f0;">
+            <p style="color: var(--text-muted); font-size: 1rem;">No hay documentos vinculados aún.</p>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
+
+    <div class="section-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 10px;">
+                ⚠️ Avisos de Mantenimiento
+            </h2>
+            <a href="/admin/mantenimiento/aviso/add/?proyecto={{ proyecto.id }}" class="btn-main-action" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; flex: none; width: auto; padding: 8px 20px;">
+                🚩 Reportar Nuevo Aviso
+            </a>
+        </div>
+        
+        {% if avisos %}
+        <div class="bib-grid">
+            {% for aviso in avisos %}
+            <div class="doc-card" style="border-left: 5px solid {% if aviso.prioridad == 'CRITICAL' or aviso.prioridad == 'ALTA' %}#ef4444{% elif aviso.prioridad == 'MEDIA' %}#f59e0b{% else %}#10b981{% endif %};">
+                <div class="doc-header">
+                    <div class="doc-type-badge">{{ aviso.get_tipo_display }}</div>
+                    <div class="status-wrapper">
+                        <span class="status-label">Prioridad: {{ aviso.get_prioridad_display }}</span>
+                        <div style="font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: #f1f5f9; color: #475569;">
+                            {{ aviso.get_estado_display }}
+                        </div>
+                    </div>
+                </div>
+                <div class="doc-content">
+                    <div class="doc-code">AV-{{ aviso.id }}</div>
+                    <div class="doc-title">{{ aviso.descripcion|truncatechars:100 }}</div>
+                </div>
+                <div class="doc-actions">
+                    <div class="action-row">
+                        <a href="/admin/mantenimiento/aviso/{{ aviso.id }}/change/" target="_blank" class="btn-main-action">
+                            🔍 Ver Detalle en Admin
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div
+            style="text-align:center; padding: 60px 20px; background: white; border-radius: 24px; border: 2px dashed #e2e8f0;">
+            <p style="color: var(--text-muted); font-size: 1rem;">No hay avisos de mantenimiento para este proyecto.</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
 
 <!-- Modal para Visor -->
@@ -436,7 +494,7 @@
         }, 300);
     }
 
-    document.getElementById('visor-modal-overlay').addEventListener('click', function (e) { i f (e.target === this) closeDocModal(); });
+    document.getElementById('visor-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeDocModal(); });
     document.addEventListener('keydown', function (e) {  if (e.key === "Escape") closeDocModal(); });
 </script>
 {% endblock %}

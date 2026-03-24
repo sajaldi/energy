@@ -28,6 +28,19 @@ class DocumentoProyectoInline(admin.TabularInline):
     ver_documento.short_description = "Acción"
 
 
+class AvisoInline(admin.TabularInline):
+    """Inline para ver avisos de mantenimiento vinculados al proyecto"""
+    from mantenimiento.models import Aviso
+    model = Aviso
+    extra = 0
+    fields = ('tipo', 'prioridad', 'estado', 'descripcion', 'solicitante', 'creado_en')
+    readonly_fields = ('creado_en',)
+    autocomplete_fields = ('solicitante',)
+    show_change_link = True
+    verbose_name = "Aviso de Mantenimiento"
+    verbose_name_plural = "Avisos de Mantenimiento"
+
+
 class ActividadInline(admin.TabularInline):
     model = Actividad
     extra = 1
@@ -43,7 +56,7 @@ class ProyectoAdmin(admin.ModelAdmin):
     search_fields = ('codigo', 'nombre', 'descripcion', 'visores__nombre')
     autocomplete_fields = ('responsable', 'ubicacion')
     readonly_fields = ('creado_en', 'actualizado_en', 'resumen_actividades', 'ver_cronograma_btn', 'ver_repositorio_docs_btn', 'visor_planos_dinamico', 'cronograma_interactivo')
-    inlines = [ActividadInline, DocumentoProyectoInline]
+    inlines = [ActividadInline, DocumentoProyectoInline, AvisoInline]
     
     filter_horizontal = ('visores',)
     

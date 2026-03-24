@@ -50,7 +50,7 @@
             top: 0;
             z-index: 1000;
             color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .back-btn {
@@ -84,7 +84,7 @@
             border-radius: 8px;
             margin-bottom: 12px;
             overflow: hidden;
-            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.04);
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.04);
         }
 
         .section-header {
@@ -106,7 +106,9 @@
             margin-bottom: 16px;
         }
 
-        .form-group:last-child { margin-bottom: 0; }
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
 
         label {
             display: block;
@@ -128,7 +130,9 @@
             outline: 2px solid rgba(10, 110, 209, 0.2);
         }
 
-        input, select, textarea {
+        input,
+        select,
+        textarea {
             width: 100%;
             border: none;
             background: transparent;
@@ -142,6 +146,43 @@
         textarea {
             height: 100px;
             resize: none;
+        }
+
+        /* Asset Detail Card */
+        #asset-details-card {
+            background: #f0f4f8;
+            border: 1px solid #d1d9e1;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 12px;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .asset-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .asset-detail-item b {
+            color: var(--sap-label);
+            display: block;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .asset-detail-value {
+            color: var(--sap-text);
+            font-weight: 500;
         }
 
         /* Scanner Button SAP Style */
@@ -160,6 +201,19 @@
             margin-bottom: 12px;
             width: fit-content;
         }
+
+        /* Search Status */
+        #search-status {
+            font-size: 11px;
+            margin-top: 4px;
+            min-height: 16px;
+            display: none;
+            font-weight: 600;
+        }
+
+        .status-searching { color: var(--sap-label); }
+        .status-found { color: var(--sap-success); }
+        .status-not-found { color: var(--sap-error); }
 
         /* Hierarchical Selectors Cascade */
         .cascade-wrapper {
@@ -217,7 +271,7 @@
             z-index: 100;
             max-height: 200px;
             overflow-y: auto;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             border-radius: 0 0 4px 4px;
         }
 
@@ -226,8 +280,14 @@
             border-bottom: 1px solid #f0f0f0;
             font-size: 14px;
         }
-        .search-item:last-child { border-bottom: none; }
-        .search-item:active { background: #f0f7ff; }
+
+        .search-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-item:active {
+            background: #f0f7ff;
+        }
 
         /* Photo Grid */
         .photo-grid {
@@ -236,6 +296,7 @@
             gap: 8px;
             margin-top: 12px;
         }
+
         .photo-item {
             aspect-ratio: 1;
             background: #eee;
@@ -243,12 +304,18 @@
             overflow: hidden;
             position: relative;
         }
-        .photo-item img { width: 100%; height: 100%; object-fit: cover; }
+
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
         .photo-remove {
             position: absolute;
             top: 2px;
             right: 2px;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.6);
             color: white;
             border-radius: 50%;
             width: 18px;
@@ -271,7 +338,8 @@
 
     <div class="container fade-in">
         {% if error_mensaje %}
-        <div style="background: #fff0f0; border-left: 4px solid var(--sap-error); color: var(--sap-error); padding: 12px; border-radius: 4px; margin-bottom: 16px; font-size: 14px;">
+        <div
+            style="background: #fff0f0; border-left: 4px solid var(--sap-error); color: var(--sap-error); padding: 12px; border-radius: 4px; margin-bottom: 16px; font-size: 14px;">
             {{ error_mensaje }}
         </div>
         {% endif %}
@@ -291,10 +359,34 @@
                     <div class="form-group">
                         <label>Buscar Equipo</label>
                         <div class="sap-input-container">
-                            <input type="text" id="asset-search" placeholder="Nombre, modelo o código..." autocomplete="off"
-                                   value="{% if activo %}{{ activo.nombre }} [{{ activo.codigo_interno }}]{% endif %}">
+                            <input type="text" id="asset-search" placeholder="Nombre, modelo o código..."
+                                autocomplete="off"
+                                value="{% if activo %}{{ activo.nombre }} [{{ activo.codigo_interno }}]{% endif %}">
                             <input type="hidden" name="activo" id="asset-id" value="{% if activo %}{{ activo.id }}{% endif %}">
+                            <div id="search-status"></div>
                             <div id="search-results" style="display: none;"></div>
+                        </div>
+
+                        <!-- Asset Detail Card -->
+                        <div id="asset-details-card">
+                            <div class="asset-detail-grid">
+                                <div class="asset-detail-item">
+                                    <b>Marca</b>
+                                    <span class="asset-detail-value" id="detail-marca">-</span>
+                                </div>
+                                <div class="asset-detail-item">
+                                    <b>Modelo</b>
+                                    <span class="asset-detail-value" id="detail-modelo">-</span>
+                                </div>
+                                <div class="asset-detail-item">
+                                    <b>Serie</b>
+                                    <span class="asset-detail-value" id="detail-serie">-</span>
+                                </div>
+                                <div class="asset-detail-item">
+                                    <b>Categoría</b>
+                                    <span class="asset-detail-value" id="detail-categoria">-</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -306,29 +398,29 @@
                 <div class="section-content">
                     <div class="cascade-wrapper">
                         <div class="form-group">
-                            <label>Sede / Campus</label>
+                            <label>Edificio</label>
                             <div class="sap-input-container">
                                 <select id="select-sede">
-                                    <option value="">Seleccione Sede...</option>
+                                    <option value="">Seleccione Edificio...</option>
                                     <!-- Populate roots via JS -->
                                 </select>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>Edificio / Estructura</label>
+                            <label>Nivel</label>
                             <div class="sap-input-container">
                                 <select id="select-edificio" disabled>
-                                    <option value="">Primero seleccione Sede</option>
+                                    <option value="">Primero seleccione Edificio</option>
                                 </select>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>Nivel / Área / Espacio</label>
+                            <label>Area</label>
                             <div class="sap-input-container">
                                 <select id="select-area" disabled>
-                                    <option value="">Primero seleccione Edificio</option>
+                                    <option value="">Primero seleccione Nivel</option>
                                 </select>
                             </div>
                         </div>
@@ -343,6 +435,17 @@
                 <div class="section-header">Detalles Técnicos</div>
                 <div class="section-content">
                     <div class="form-group">
+                        <label>Tipo de Aviso</label>
+                        <div class="sap-input-container">
+                            <select name="tipo">
+                                {% for val, label, is_selected in tipos %}
+                                <option value="{{ val }}" {% if is_selected %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
                         <label>Prioridad</label>
                         <div class="sap-input-container">
                             <select name="prioridad">
@@ -353,14 +456,11 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Categoría de Falla</label>
+                    <div class="form-group" id="falla-group">
+                        <label id="falla-label">Categoría</label>
                         <div class="sap-input-container">
                             <select name="falla">
                                 <option value="">Seleccione categoría...</option>
-                                {% for f in fallas %}
-                                <option value="{{ f.id }}">{{ f.get_ruta_completa }}</option>
-                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -368,7 +468,8 @@
                     <div class="form-group">
                         <label>Descripción de Avería</label>
                         <div class="sap-input-container">
-                            <textarea name="descripcion" placeholder="Ej: Fuga de aceite en el motor principal..." required></textarea>
+                            <textarea name="descripcion" placeholder="Ej: Fuga de aceite en el motor principal..."
+                                required></textarea>
                         </div>
                     </div>
                 </div>
@@ -378,12 +479,13 @@
             <div class="fiori-section" style="margin-bottom: 80px;">
                 <div class="section-header">Evidencias Fotográficas</div>
                 <div class="section-content">
-                    <button type="button" class="scan-btn-fiori" onclick="document.getElementById('foto-input').click()" style="background: white; color: var(--sap-blue); border: 1px solid var(--sap-blue);">
-                        <ion-icon name="image-outline"></ion-icon>
-                        Añadir Fotos
+                    <button type="button" class="scan-btn-fiori" onclick="document.getElementById('foto-input').click()"
+                        style="background: white; color: var(--sap-blue); border: 1px solid var(--sap-blue);">
+                        <ion-icon name="camera-outline"></ion-icon>
+                        Cámara / Galería
                     </button>
                     <input type="file" name="fotos" id="foto-input" accept="image/*" multiple style="display: none;">
-                    
+
                     <div class="photo-grid" id="photo-grid-container"></div>
                 </div>
             </div>
@@ -396,10 +498,12 @@
     </div>
 
     <!-- Scanner Modal SAP Style -->
-    <div id="scanner-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
+    <div id="scanner-modal"
+        style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
         <div style="width: 100%; max-width: 400px; border-radius: 8px; overflow: hidden; position: relative;">
             <div id="reader" style="width: 100%;"></div>
-            <button id="close-scanner" style="position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.5); color: white; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <button id="close-scanner"
+                style="position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.5); color: white; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                 <ion-icon name="close-outline"></ion-icon>
             </button>
         </div>
@@ -428,43 +532,54 @@
             });
         }
 
-        selectSede.onchange = function() {
-            selectEdificio.innerHTML = '<option value="">Seleccione Edificio...</option>';
-            selectArea.innerHTML = '<option value="">Primero seleccione Edificio</option>';
+        function populateEdificios(sedeId) {
+            selectEdificio.innerHTML = '<option value="">Seleccione Nivel...</option>';
+            selectArea.innerHTML = '<option value="">Primero seleccione Nivel</option>';
             selectArea.disabled = true;
             
-            if (this.value) {
-                const hijos = rawUbicaciones.filter(u => u.padre == this.value);
-                if (hijos.length > 0) {
-                    hijos.forEach(h => selectEdificio.add(new Option(h.nombre, h.id)));
-                    selectEdificio.disabled = false;
-                }
-                finalUbiInput.value = this.value;
+            if (!sedeId) {
+                selectEdificio.disabled = true;
+                return;
+            }
+
+            const hijos = rawUbicaciones.filter(u => u.padre == sedeId);
+            if (hijos.length > 0) {
+                hijos.forEach(h => selectEdificio.add(new Option(h.nombre, h.id)));
+                selectEdificio.disabled = false;
             } else {
                 selectEdificio.disabled = true;
-                finalUbiInput.value = '';
             }
-        };
+        }
 
-        selectEdificio.onchange = function() {
-            selectArea.innerHTML = '<option value="">Seleccione Área...</option>';
-            if (this.value) {
-                const hijos = rawUbicaciones.filter(u => u.padre == this.value);
-                if (hijos.length > 0) {
-                    hijos.forEach(h => selectArea.add(new Option(h.nombre, h.id)));
-                    selectArea.disabled = false;
-                }
-                finalUbiInput.value = this.value;
+        function populateAreas(edificioId) {
+            selectArea.innerHTML = '<option value="">Seleccione Area...</option>';
+            if (!edificioId) {
+                selectArea.disabled = true;
+                return;
+            }
+
+            const hijos = rawUbicaciones.filter(u => u.padre == edificioId);
+            if (hijos.length > 0) {
+                hijos.forEach(h => selectArea.add(new Option(h.nombre, h.id)));
+                selectArea.disabled = false;
             } else {
                 selectArea.disabled = true;
-                finalUbiInput.value = selectSede.value;
             }
-        };
+        }
 
-        selectArea.onchange = function() {
-            if (this.value) finalUbiInput.value = this.value;
-            else finalUbiInput.value = selectEdificio.value;
-        };
+        selectSede.addEventListener('change', function() {
+            populateEdificios(this.value);
+            finalUbiInput.value = this.value;
+        });
+
+        selectEdificio.addEventListener('change', function() {
+            populateAreas(this.value);
+            finalUbiInput.value = this.value || selectSede.value;
+        });
+
+        selectArea.addEventListener('change', function() {
+            finalUbiInput.value = this.value || selectEdificio.value;
+        });
 
         populateSedes();
 
@@ -472,12 +587,28 @@
         const assetSearch = document.getElementById('asset-search');
         const assetIdInput = document.getElementById('asset-id');
         const resultsContainer = document.getElementById('search-results');
+        const searchStatus = document.getElementById('search-status');
         let searchTimeout;
 
-        assetSearch.oninput = function() {
+        assetSearch.oninput = function () {
             const q = this.value.trim();
             clearTimeout(searchTimeout);
-            if (q.length < 2) { resultsContainer.style.display = 'none'; return; }
+            
+            // Clear current selection if typing
+            if (q === '') {
+                assetIdInput.value = '';
+                document.getElementById('asset-details-card').style.display = 'none';
+            }
+
+            if (q.length < 2) { 
+                resultsContainer.style.display = 'none'; 
+                searchStatus.style.display = 'none';
+                return; 
+            }
+
+            searchStatus.innerText = 'Buscando...';
+            searchStatus.className = 'status-searching';
+            searchStatus.style.display = 'block';
 
             searchTimeout = setTimeout(() => {
                 fetch(`{% url "mantenimiento:api_buscar_activos" %}?q=${encodeURIComponent(q)}`)
@@ -485,6 +616,9 @@
                     .then(data => {
                         resultsContainer.innerHTML = '';
                         if (data.results.length) {
+                            searchStatus.innerText = '✅ ' + data.results.length + (data.results.length == 1 ? ' activo encontrado' : ' activos encontrados');
+                            searchStatus.className = 'status-found';
+
                             data.results.forEach(i => {
                                 const div = document.createElement('div');
                                 div.className = 'search-item';
@@ -493,41 +627,115 @@
                                 resultsContainer.appendChild(div);
                             });
                             resultsContainer.style.display = 'block';
+
+                            // Auto-select if exact match and only 1 result
+                            if (data.results.length === 1) {
+                                const result = data.results[0];
+                                // Check if query is contained in the text (simple exact-ish match)
+                                if (result.text.toLowerCase().includes(q.toLowerCase())) {
+                                    // If it's a very specific code (longer than 4 chars), auto select
+                                    if (q.length >= 6) {
+                                        selectAsset(result);
+                                    }
+                                }
+                            }
                         } else {
+                            searchStatus.innerText = '❌ No se encontró ningún activo';
+                            searchStatus.className = 'status-not-found';
                             resultsContainer.style.display = 'none';
                         }
                     });
-            }, 300);
+            }, 400);
         };
 
         function selectAsset(item) {
             assetSearch.value = item.text;
             assetIdInput.value = item.id;
             resultsContainer.style.display = 'none';
+            searchStatus.style.display = 'none';
+
+            // Populate Details Card
+            document.getElementById('detail-marca').innerText = item.marca || '-';
+            document.getElementById('detail-modelo').innerText = item.modelo || '-';
+            document.getElementById('detail-serie').innerText = item.serie || '-';
+            document.getElementById('detail-categoria').innerText = item.categoria || '-';
+            document.getElementById('asset-details-card').style.display = 'block';
+
+            console.log("selectAsset called, ubicacion_id:", item.ubicacion_id, "type:", typeof item.ubicacion_id);
             if (item.ubicacion_id) autoSelectHierarchy(item.ubicacion_id);
         }
 
         function autoSelectHierarchy(leafId) {
-            let current = rawUbicaciones.find(u => u.id == leafId);
+            // Find full path from leaf to root
             const path = [];
-            while (current) {
-                path.unshift(current);
-                current = rawUbicaciones.find(u => u.id == current.padre);
+            let currentId = leafId;
+            let visited = new Set();
+
+            while (currentId && !visited.has(currentId)) {
+                const u = rawUbicaciones.find(x => x.id == currentId);
+                if (!u) break;
+                path.unshift(u);
+                visited.add(currentId);
+                currentId = u.padre;
             }
 
-            if (path[0]) {
+            console.log('Hierarchy path:', path.map(p => p.nombre + '(' + p.id + ')'));
+
+            // We have 3 selects: Sede (root), Edificio (level 1), Area (level 2)
+            // If the path is deeper than 3, use only the top 3 levels
+            // If the path is 1 level, only set Sede
+            // If the path is 2, set Sede + Edificio
+            // If the path is 3+, set all three using first 3 levels
+            if (path.length > 0) {
                 selectSede.value = path[0].id;
-                selectSede.onchange();
+                populateEdificios(path[0].id);
+
+                if (path.length > 1) {
+                    selectEdificio.value = path[1].id;
+                    populateAreas(path[1].id);
+
+                    if (path.length > 2) {
+                        // Use the deepest known area in our 3-level display
+                        selectArea.value = path[2].id;
+                    }
+                }
             }
-            if (path[1]) {
-                selectEdificio.value = path[1].id;
-                selectEdificio.onchange();
-            }
-            if (path[2]) {
-                selectArea.value = path[2].id;
-                selectArea.onchange();
-            }
+            // Always set the actual leaf as the final value
             finalUbiInput.value = leafId;
+        }
+
+        // --- Dynamic Catalog Logic ---
+        const rawFallas = {{ fallas_json|default:"[]"|safe }};
+        const tipoSelect = document.querySelector('select[name="tipo"]');
+        const fallaSelect = document.querySelector('select[name="falla"]');
+        const fallaGroup = document.getElementById('falla-group');
+        const fallaLabel = document.getElementById('falla-label');
+
+        function updateFallaCatalog() {
+            const selectedTipo = tipoSelect.value;
+            // Filter fallas matching the selected type OR generic (no specific type)
+            const filtered = rawFallas.filter(f => f.tipo_aviso === selectedTipo || f.tipo_aviso === '');
+            
+            fallaSelect.innerHTML = '<option value="">Seleccione categoría...</option>';
+            filtered.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.id;
+                opt.innerText = f.nombre;
+                fallaSelect.appendChild(opt);
+            });
+
+            // Always show catalog, adapt label
+            const typeText = tipoSelect.options[tipoSelect.selectedIndex].text.split('(')[0].trim();
+            if (selectedTipo === 'AVERIA') {
+                fallaLabel.innerText = 'Categoría de Falla';
+            } else {
+                fallaLabel.innerText = 'Categoría de ' + typeText;
+            }
+        }
+
+        if (tipoSelect) {
+            tipoSelect.addEventListener('change', updateFallaCatalog);
+            updateFallaCatalog();
         }
 
         // Scanner Logic
@@ -544,16 +752,16 @@
                     assetSearch.value = text;
                     assetSearch.oninput();
                 });
-            }).catch(e => { alert("Error cámara"); scannerModal.style.display='none'; });
+            }).catch(e => { alert("Error cámara"); scannerModal.style.display = 'none'; });
         };
-        closeScanBtn.onclick = () => { if(html5QrCode) html5QrCode.stop().then(()=>scannerModal.style.display='none'); else scannerModal.style.display='none'; };
+        closeScanBtn.onclick = () => { if (html5QrCode) html5QrCode.stop().then(() => scannerModal.style.display = 'none'); else scannerModal.style.display = 'none'; };
 
         // Photos
         const photoInput = document.getElementById('foto-input');
         const photoGrid = document.getElementById('photo-grid-container');
         let dt = new DataTransfer();
 
-        photoInput.onchange = function() {
+        photoInput.onchange = function () {
             Array.from(this.files).forEach((file, idx) => {
                 dt.items.add(file);
                 const reader = new FileReader();
@@ -572,12 +780,37 @@
             this.files = dt.files;
         };
 
+        // Initial Load Handling
+        window.addEventListener('load', () => {
+            const initialAssetId = assetIdInput.value;
+            if (initialAssetId) {
+                // If we have an initial asset, we should fetch its details to populate the card
+                // Since api_buscar_activos is a search, we can use it with the exact code or just wait for the user to see it.
+                // However, the cleanest way is to have the data available in the context if possible, 
+                // but for now, let's trigger a search or just show the card if we have the data.
+                
+                {% if activo %}
+                const initialItem = {
+                    id: "{{ activo.id }}",
+                    text: "{{ activo.nombre }} [{{ activo.codigo_interno }}]",
+                    ubicacion_id: "{{ activo.ubicacion.id|default:'' }}",
+                    marca: "{{ activo.modelo.marca.nombre|default:activo.marca_legacy|default:'S/M' }}",
+                    modelo: "{{ activo.modelo.nombre|default:activo.modelo_legacy|default:'S/M' }}",
+                    categoria: "{{ activo.modelo.categoria.nombre|default:'S/C' }}",
+                    serie: "{{ activo.serie|default:'S/S' }}"
+                };
+                selectAsset(initialItem);
+                {% endif %}
+            }
+        });
+
         // Form Submit
-        document.getElementById('order-form').onsubmit = function() {
+        document.getElementById('order-form').onsubmit = function () {
             const btn = document.getElementById('submit-trigger');
             btn.disabled = true;
             btn.innerText = 'Procesando...';
         };
     </script>
 </body>
+
 </html>

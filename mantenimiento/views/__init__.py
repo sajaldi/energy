@@ -39,7 +39,7 @@ from .mobile import (
     mobile_ot_upload_file,
     mobile_ot_delete_file
 )
-from .dashboard import dashboard_cargas
+from .dashboard import dashboard_cargas, asignar_puesto_ajax
 from .dashboard_general import mantenimiento_dashboard
 from . import import_personal
 from . import import_procedimientos
