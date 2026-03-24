@@ -2,104 +2,155 @@
 {% load static humanize %}
 
 {% block extrahead %}
+{% include "core/fiori_tokens.html" %}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
     :root {
-        --primary: #4f46e5;
-        --primary-hover: #4338ca;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --danger: #ef4444;
-        --info: #3b82f6;
-        --bg-card: #ffffff;
-        --text-main: #111827;
-        --text-muted: #6b7280;
-        --border: #e5e7eb;
-    }
-
-    [data-theme='dark'] {
-        --bg-card: #1f2937;
-        --text-main: #f3f4f6;
-        --text-muted: #9ca3af;
-        --border: #374151;
+        --fiori-primary: #0070f2;
+        --fiori-bg: #f5f6f7;
+        --fiori-card-bg: #ffffff;
+        --fiori-text: #32363a;
+        --fiori-text-muted: #6a6d70;
+        --fiori-border: #d9d9d9;
     }
 
     body {
-        font-family: 'Inter', sans-serif !important;
-        background-color: #f3f4f6;
+        font-family: var(--sap-font-family) !important;
+        background-color: var(--fiori-bg);
+        color: var(--fiori-text);
+        margin: 0;
     }
 
-    .dashboard-container {
-        padding: 1.5rem;
-        max-width: 1400px;
-        margin: 0 auto;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .stat-card {
-        background: var(--bg-card);
-        border-radius: 1rem;
-        padding: 1.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        border: 1px solid var(--border);
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    }
-
-    .stat-label {
-        font-size: 0.875rem;
-        color: var(--text-muted);
-        font-weight: 500;
-        margin-bottom: 0.5rem;
-    }
-
-    .stat-value {
-        font-size: 1.875rem;
-        font-weight: 700;
-        color: var(--text-main);
-    }
-
-    .stat-icon {
-        float: right;
-        font-size: 2rem;
-        opacity: 0.2;
-    }
-
-    .card-table {
-        background: var(--bg-card);
-        border-radius: 1rem;
-        border: 1px solid var(--border);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
-
-    .card-header {
-        padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid var(--border);
+    .fiori-shellbar {
+        background: #354a5f;
+        color: white;
+        padding: 0.75rem 2rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
-    .card-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--text-main);
+    .fiori-page-header {
+        background: white;
+        padding: 2rem;
+        border-bottom: 2px solid #d9d9d9;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    .table-responsive {
-        width: 100%;
-        overflow-x: auto;
+    .fiori-section-container {
+        padding: 0 2rem 3rem 2rem;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    .fiori-section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--fiori-text);
+        margin: 2.5rem 0 1.25rem 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .fiori-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1.25rem;
+    }
+
+    .fiori-import-card {
+        background: var(--fiori-card-bg);
+        border: 1px solid var(--fiori-border);
+        border-radius: 8px;
+        padding: 1.5rem;
+        text-decoration: none;
+        color: var(--fiori-text);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .fiori-import-card:hover {
+        border-color: var(--fiori-primary);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+        transform: translateY(-4px);
+    }
+
+    .fiori-import-card i {
+        font-size: 1.75rem;
+        background: #f0f7ff;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        color: var(--fiori-primary);
+    }
+
+    .fiori-import-card span {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .fiori-stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .fiori-stat-card {
+        background: white;
+        border-radius: 8px;
+        border: 1px solid var(--fiori-border);
+        padding: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 4px solid var(--fiori-primary);
+    }
+
+    .fiori-stat-value {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: #32363a;
+    }
+
+    .fiori-stat-label {
+        color: var(--fiori-text-muted);
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .fiori-stat-icon {
+        font-size: 2rem;
+        color: var(--fiori-primary);
+        opacity: 0.15;
+    }
+
+    .fiori-table-container {
+        background: white;
+        border-radius: 8px;
+        border: 1px solid var(--fiori-border);
+        overflow: hidden;
+        margin-top: 2rem;
+    }
+
+    .fiori-table-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--fiori-border);
+        background: #fafafa;
+        font-weight: 700;
     }
 
     table {
@@ -108,324 +159,212 @@
     }
 
     th {
-        background: #f9fafb;
-        padding: 0.75rem 1.5rem;
         text-align: left;
+        padding: 1rem 1.5rem;
+        background: #f2f2f2;
         font-size: 0.75rem;
+        color: var(--fiori-text-muted);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-weight: 600;
-        color: var(--text-muted);
-        border-bottom: 1px solid var(--border);
-    }
-
-    [data-theme='dark'] th {
-        background: #374151;
+        font-weight: 700;
+        border-bottom: 1px solid var(--fiori-border);
     }
 
     td {
-        padding: 1rem 1.5rem;
-        font-size: 0.875rem;
-        color: var(--text-main);
-        border-bottom: 1px solid var(--border);
-        vertical-align: middle;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.9rem;
     }
 
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.25rem 0.75rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .badge-success {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .badge-processing {
-        background: #dbeafe;
-        color: #1e40af;
-    }
-
-    .badge-error {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .badge-warning {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .btn-refresh {
-        background: var(--primary);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        font-weight: 500;
-        text-decoration: none;
-        transition: background 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        border: none;
-        cursor: pointer;
-    }
-
-    .btn-refresh:hover {
-        background: var(--primary-hover);
-        color: white;
-    }
-
-    .progress-mini {
-        width: 100px;
-        height: 8px;
-        background: #e5e7eb;
+    .fiori-badge {
+        padding: 4px 12px;
         border-radius: 4px;
-        overflow: hidden;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
     }
 
-    .progress-bar {
-        height: 100%;
-        background: var(--primary);
-        transition: width 0.3s ease;
-    }
+    .badge-success { background: #e5f5ea; color: #107e3e; }
+    .badge-error { background: #ffebeb; color: #bb0000; }
+    .badge-process { background: #e8f0f8; color: #0a6ed1; }
 
-    .user-info {
+    .btn-fiori-refresh {
+        background: var(--fiori-primary);
+        color: white;
+        border: none;
+        padding: 0.6rem 1.25rem;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-    }
-
-    .user-avatar {
-        width: 24px;
-        height: 24px;
-        background: #e5e7eb;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.65rem;
-        font-weight: bold;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-    }
-
-    .btn-action {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        padding: 0.75rem 1.5rem;
-        border-radius: 0.5rem;
-        color: var(--text-main);
-        font-weight: 500;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.2s;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    }
-
-    .btn-action:hover {
-        border-color: var(--primary);
-        color: var(--primary);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    [data-theme='dark'] .btn-action:hover {
-        background: #374151;
+        gap: 8px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+<div class="fiori-page-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h1 style="margin: 0; font-weight: 700; color: var(--text-main);">Dashboard de Importaciones</h1>
-            <p style="color: var(--text-muted); margin-top: 0.25rem;">Seguimiento en tiempo real de tareas programadas y
-                cargas masivas.</p>
+            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 700; color: #32363a;">Dashboard de Importaciones</h1>
+            <p style="color: var(--fiori-text-muted); margin: 0.5rem 0 0 0;">Seguimiento centralizado de procesos de datos masivos</p>
         </div>
-        <button onclick="window.location.reload()" class="btn-refresh">
-            <i class="fas fa-sync-alt"></i> Actualizar
+        <button onclick="window.location.reload()" class="btn-fiori-refresh">
+            <i class="fas fa-sync-alt"></i> Actualizar Datos
         </button>
     </div>
+</div>
 
-    <!-- Acciones Rápidas -->
-    <div style="margin-bottom: 2rem;">
-        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-size: 1.125rem;">📝 Activos y Proyectos</h3>
-        <div class="action-buttons" style="margin-bottom: 1rem;">
-            <a href="{% url 'activos:celery_import_activos' %}" class="btn-action">
-                <i class="fas fa-boxes" style="color: var(--primary)"></i> Activos (Industrial)
-            </a>
-            <a href="{% url 'activos:celery_import_bienes' %}" class="btn-action">
-                <i class="fas fa-building" style="color: var(--warning)"></i> Bienes Afectos
-            </a>
-            <a href="{% url 'admin:activos_controlsubmittal_import_background' %}" class="btn-action">
-                <i class="fas fa-file-excel" style="color: var(--success)"></i> Control Submittals
-            </a>
-            <a href="{% url 'admin:activos_plano_import_background' %}" class="btn-action">
-                <i class="fas fa-map" style="color: var(--info)"></i> Planos
-            </a>
-            <a href="{% url 'admin:activos_activo_import_background' %}" class="btn-action">
-                <i class="fas fa-box-open" style="color: #8b5cf6"></i> Activos (Admin)
-            </a>
-            <a href="{% url 'activos:celery_import_categorias' %}" class="btn-action">
-                <i class="fas fa-tags" style="color: #10b981"></i> Categorías (Activos)
-            </a>
-        </div>
-
-        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-size: 1.125rem;">⚙️ Mantenimiento</h3>
-        <div class="action-buttons" style="margin-bottom: 1rem;">
-            <a href="{% url 'admin:mantenimiento_tecnicopuesto_import_background' %}" class="btn-action">
-                <i class="fas fa-users-cog" style="color: var(--primary)"></i> Técnicos / Personal
-            </a>
-            <a href="{% url 'admin:mantenimiento_rutina_import_background' %}" class="btn-action">
-                <i class="fas fa-calendar-check" style="color: var(--success)"></i> Rutinas
-            </a>
-            <a href="{% url 'admin:mantenimiento_ordentrabajo_import_background' %}" class="btn-action">
-                <i class="fas fa-tools" style="color: var(--danger)"></i> Órdenes de Trabajo
-            </a>
-            <a href="{% url 'admin:mantenimiento_aviso_import_background' %}" class="btn-action">
-                <i class="fas fa-bell" style="color: #6366f1"></i> Avisos
-            </a>
-            <a href="{% url 'mantenimiento:tipo_import_background' %}" class="btn-action">
-                <i class="fas fa-folder-tree" style="color: #8b5cf6"></i> Tipos (Mant.)
-            </a>
-        </div>
-
-        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-size: 1.125rem;">📊 Servicios y KPIs</h3>
-        <div class="action-buttons" style="margin-bottom: 1rem;">
-            <a href="{% url 'admin:servicios_kpi_import_background' %}" class="btn-action">
-                <i class="fas fa-chart-line" style="color: #ec4899"></i> KPIs / Desempeño
-            </a>
-        </div>
-
-        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-size: 1.125rem;">📦 Inventarios y Presupuestos
-        </h3>
-        <div class="action-buttons" style="margin-bottom: 1rem;">
-            <a href="{% url 'admin:inventarios_material_import_background' %}" class="btn-action">
-                <i class="fas fa-pallet" style="color: var(--info)"></i> Materiales
-            </a>
-            <a href="{% url 'admin:presupuestos_requisicion_import_background' %}" class="btn-action">
-                <i class="fas fa-file-invoice-dollar" style="color: var(--success)"></i> Requisiciones
-            </a>
-        </div>
-
-        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-size: 1.125rem;">📄 Documentos</h3>
-        <div class="action-buttons">
-            <a href="{% url 'admin:documentos_comentariodocumento_import_background' %}" class="btn-action">
-                <i class="fas fa-comments" style="color: #6366f1"></i> Comentarios Documentos
-            </a>
-        </div>
-    </div>
-
-    <!-- Stats Grid -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <i class="fas fa-file-import stat-icon"></i>
-            <div class="stat-label">Total Importaciones</div>
-            <div class="stat-value">{{ importaciones.count }}</div>
-        </div>
-        <div class="stat-card">
-            <i class="fas fa-check-circle stat-icon" style="color: var(--success)"></i>
-            <div class="stat-label">Completadas</div>
-            <div class="stat-value">
-                {{ stats.completadas|default:"0" }}
+<div class="fiori-section-container">
+    
+    <!-- Stats -->
+    <div class="fiori-stats-row">
+        <div class="fiori-stat-card">
+            <div>
+                <div class="fiori-stat-label">Total Procesos</div>
+                <div class="fiori-stat-value">{{ importaciones.count }}</div>
             </div>
+            <i class="fas fa-layer-group fiori-stat-icon"></i>
         </div>
-        <div class="stat-card">
-            <i class="fas fa-exclamation-triangle stat-icon" style="color: var(--danger)"></i>
-            <div class="stat-label">Con Errores</div>
-            <div class="stat-value">{{ stats.errores|default:"0" }}</div>
+        <div class="fiori-stat-card" style="border-bottom-color: #107e3e;">
+            <div>
+                <div class="fiori-stat-label">Exitosos</div>
+                <div class="fiori-stat-value">{{ stats.completadas|default:"0" }}</div>
+            </div>
+            <i class="fas fa-check-circle fiori-stat-icon" style="color: #107e3e;"></i>
+        </div>
+        <div class="fiori-stat-card" style="border-bottom-color: #bb0000;">
+            <div>
+                <div class="fiori-stat-label">Con Errores</div>
+                <div class="fiori-stat-value">{{ stats.errores|default:"0" }}</div>
+            </div>
+            <i class="fas fa-exclamation-triangle fiori-stat-icon" style="color: #bb0000;"></i>
         </div>
     </div>
 
-    <!-- Main Table -->
-    <div class="card-table">
-        <div class="card-header">
-            <div class="card-title">Historial Reciente</div>
-        </div>
-        <div class="table-responsive">
+    <!-- Activos Section -->
+    <h3 class="fiori-section-title"><i class="fas fa-industry"></i> Activos y Proyectos</h3>
+    <div class="fiori-card-grid">
+        <a href="{% url 'activos:celery_import_activos' %}" class="fiori-import-card">
+            <i class="fas fa-boxes"></i>
+            <span>Activos (Industrial)</span>
+        </a>
+        <a href="{% url 'activos:celery_import_bienes' %}" class="fiori-import-card">
+            <i class="fas fa-building" style="color: #e9730c"></i>
+            <span>Bienes Afectos</span>
+        </a>
+        <a href="{% url 'admin:activos_controlsubmittal_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-file-excel" style="color: #107e3e"></i>
+            <span>Control Submittals</span>
+        </a>
+        <a href="{% url 'admin:activos_plano_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-map" style="color: #0a6ed1"></i>
+            <span>Planos</span>
+        </a>
+        <a href="{% url 'activos:celery_import_categorias' %}" class="fiori-import-card">
+            <i class="fas fa-tags" style="color: #107e3e"></i>
+            <span>Categorías (Activos)</span>
+        </a>
+    </div>
+
+    <!-- Mantenimiento Section -->
+    <h3 class="fiori-section-title"><i class="fas fa-tools"></i> Mantenimiento</h3>
+    <div class="fiori-card-grid">
+        <a href="{% url 'admin:mantenimiento_tecnicopuesto_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-users-cog"></i>
+            <span>Técnicos / Personal</span>
+        </a>
+        <a href="{% url 'admin:mantenimiento_rutina_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-calendar-check" style="color: #107e3e"></i>
+            <span>Rutinas</span>
+        </a>
+        <a href="{% url 'mantenimiento:pasorutina_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-list-check" style="color: #107e3e"></i>
+            <span>Pasos de Rutina</span>
+        </a>
+        <a href="{% url 'admin:mantenimiento_ordentrabajo_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-toolbox" style="color: #bb0000"></i>
+            <span>Órdenes de Trabajo</span>
+        </a>
+        <a href="{% url 'admin:mantenimiento_aviso_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-bell"></i>
+            <span>Avisos</span>
+        </a>
+        <a href="{% url 'mantenimiento:tipo_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-folder-tree"></i>
+            <span>Tipos (Mant.)</span>
+        </a>
+    </div>
+
+    <!-- Otros Section -->
+    <h3 class="fiori-section-title"><i class="fas fa-ellipsis-h"></i> Otros Procesos</h3>
+    <div class="fiori-card-grid">
+        <a href="{% url 'admin:servicios_kpi_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-chart-line"></i>
+            <span>KPIs / Desempeño</span>
+        </a>
+        <a href="{% url 'admin:inventarios_material_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-pallet"></i>
+            <span>Materiales</span>
+        </a>
+        <a href="{% url 'admin:presupuestos_requisicion_import_background' %}" class="fiori-import-card">
+            <i class="fas fa-file-invoice-dollar"></i>
+            <span>Requisiciones</span>
+        </a>
+    </div>
+
+    <!-- History Table -->
+    <div class="fiori-table-container">
+        <div class="fiori-table-header">Historial Reciente de Importaciones</div>
+        <div style="overflow-x: auto;">
             <table>
                 <thead>
                     <tr>
-                        <th>ID / Fecha</th>
+                        <th>Proceso</th>
                         <th>Tipo</th>
-                        <th>Nombre / Archivo</th>
                         <th>Usuario</th>
                         <th>Estado</th>
-                        <th>Estadísticas</th>
-                        <th>Progreso</th>
+                        <th>Registros</th>
+                        <th>Fecha</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for imp in importaciones %}
                     <tr>
+                        <td style="font-weight: 700;">{{ imp.nombre }}</td>
+                        <td>{{ imp.tipo }}</td>
                         <td>
-                            <div style="font-weight: 600;">#{{ imp.id }}</div>
-                            <div style="font-size: 0.65rem; color: var(--text-muted);">{{ imp.fecha|naturaltime }}</div>
-                        </td>
-                        <td>
-                            <span class="badge" style="background: #f3f4f6; color: #374151;">{{ imp.tipo }}</span>
-                        </td>
-                        <td>
-                            <div style="font-weight: 500;">{{ imp.nombre }}</div>
-                        </td>
-                        <td>
-                            <div class="user-info">
-                                <div class="user-avatar">{{ imp.usuario.username|slice:":1"|upper }}</div>
-                                <span>{{ imp.usuario.username }}</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 24px; height: 24px; background: #ebeef0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">
+                                    {{ imp.usuario.username|slice:":1"|upper }}
+                                </div>
+                                {{ imp.usuario.username }}
                             </div>
                         </td>
                         <td>
                             {% if imp.estado == 'COMPLETADO' %}
-                            <span class="badge badge-success">Completado</span>
+                                <span class="fiori-badge badge-success">Finalizado</span>
                             {% elif imp.estado == 'PROCESANDO' %}
-                            <span class="badge badge-processing">En Proceso</span>
+                                <span class="fiori-badge badge-process">En Proceso</span>
                             {% elif imp.estado == 'ERROR' %}
-                            <span class="badge badge-error">Error</span>
+                                <span class="fiori-badge badge-error">Error</span>
                             {% else %}
-                            <span class="badge badge-warning">{{ imp.estado }}</span>
+                                <span class="fiori-badge" style="background:#f2f2f2;">{{ imp.estado }}</span>
                             {% endif %}
                         </td>
                         <td>
-                            <div style="font-size: 0.75rem;">
-                                <span title="Nuevos" style="color: var(--success)">+{{ imp.filas_nuevas }}</span> |
-                                <span title="Actualizados" style="color: var(--info)">~{{ imp.filas_actualizadas
-                                    }}</span> |
-                                <span title="Errores" style="color: var(--danger)">!{{ imp.filas_error }}</span>
-                            </div>
+                            <span style="color: #107e3e; font-weight: 700;">+{{ imp.filas_nuevas }}</span> |
+                            <span style="color: #0a6ed1;">~{{ imp.filas_actualizadas }}</span> |
+                            <span style="color: #bb0000;">!{{ imp.filas_error }}</span>
                         </td>
-                        <td>
-                            {% if imp.estado == 'PROCESANDO' %}
-                            <div class="progress-mini">
-                                <div class="progress-bar" style="width: 50%;"></div>
-                            </div>
-                            {% else %}
-                            <div class="progress-mini">
-                                {% if imp.estado == 'ERROR' %}
-                                <div class="progress-bar" style="width: 100%; background: var(--danger);"></div>
-                                {% else %}
-                                <div class="progress-bar" style="width: 100%; background: var(--success);"></div>
-                                {% endif %}
-                            </div> {% endif %}
+                        <td style="color: var(--fiori-text-muted); font-size: 0.8rem;">
+                            {{ imp.fecha|naturaltime }}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                            No se han encontrado registros de importación.
+                        <td colspan="6" style="text-align: center; padding: 4rem; color: var(--fiori-text-muted);">
+                            No se han realizado importaciones recientemente.
                         </td>
                     </tr>
                     {% endfor %}

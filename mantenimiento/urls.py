@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import import_rutinas
+from .views import import_rutinas, import_pasos
 from .views.rutinas_dashboard import rutinas_dashboard, rutina_detail_api, rutina_save_api, rutina_delete_api, rutina_pasos_save_api
 
 app_name = 'mantenimiento'
@@ -56,7 +56,12 @@ urlpatterns = [
     path('import-rutinas/', import_rutinas.import_rutinas_background, name='rutina_import_background'),
     path('import-rutinas/process/', import_rutinas.import_rutinas_process, name='rutina_import_process'),
     path('import-rutinas/progress/', import_rutinas.import_rutinas_progress, name='rutina_import_progress'),
-    # Importación de Procedimientos fue removida porque ahora son Pasos de Rutina
+    
+    # Importación de Pasos de Rutina
+    path('import-pasos/', import_pasos.import_pasos_background, name='pasorutina_import_background'),
+    path('import-pasos/process/', import_pasos.import_pasos_process, name='pasorutina_import_process'),
+    path('import-pasos/progress/', import_pasos.import_pasos_progress, name='pasorutina_import_progress'),
+    path('import-pasos/template/', import_pasos.download_pasos_template, name='pasorutina_download_template'),
 
     # Importación de Tipos (Mantenimiento)
     path('import-tipos/', views.import_categorias.import_categorias_background, name='tipo_import_background'),

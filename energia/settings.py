@@ -644,9 +644,9 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # Celery Broker URL Configuration
 if IS_LOCAL:
-    # Desarrollo local: Redis en Docker local
-    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-    print(f"[DEBUG] Entorno LOCAL detectado. Redis: {CELERY_BROKER_URL}")
+    # FORZADO: Usar DB 1 para evitar que el worker de producción en Coolify (DB 0) robe las tareas
+    CELERY_BROKER_URL = 'redis://default:saul123@localhost:6379/1'
+    print(f"[DEBUG] Entorno LOCAL detectado. Redis (AISLADO DB 1): {CELERY_BROKER_URL}")
 else:
     # Producción: Redis interno de Coolify (usa nombre del servicio)
     CELERY_BROKER_URL = os.environ.get(
@@ -684,8 +684,8 @@ if IS_LOCAL:
     # Local: Intentar usar el mismo Redis que Celery si está configurado
     try:
         import redis
-        # Usar la URL del broker configurada (que viene de env o default)
-        redis_url = CELERY_BROKER_URL
+        # Usar la URL del broker configurada (que viene de env o default) la cual ya usa DB 1
+        redis_url = CELERY_BROKER_URL.replace('/0', '/1') if '/0' in CELERY_BROKER_URL else CELERY_BROKER_URL
         
         # Test connection
         r = redis.from_url(redis_url, socket_connect_timeout=1)

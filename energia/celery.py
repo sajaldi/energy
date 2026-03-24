@@ -14,9 +14,9 @@ app = Celery('energia')
 # - namespace='CELERY' significa que todas las claves de configuración relacionadas con celery
 #   deben tener un prefijo 'CELERY_'.
 app.config_from_object('django.conf:settings', namespace='CELERY')
-
+print(f"[DEBUG] [Celery] Inicializando Celery App 'energia' (PID: {os.getpid()})")
 # Cargar módulos de tareas de todas las aplicaciones Django registradas.
-app.autodiscover_tasks()
+app.autodiscover_tasks(['mantenimiento', 'presupuestos', 'servicios', 'activos', 'callcenter'])
 
 @app.task(bind=True)
 def debug_task(self):

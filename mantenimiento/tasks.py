@@ -1,9 +1,8 @@
 from celery import shared_task
-from import_export import resources
-from .models import Rutina, Tipo
 from django.db import transaction
 import time
 import os
+
 
 def try_decode(content, encodings=['utf-8-sig', 'utf-8', 'windows-1252', 'iso-8859-1', 'latin-1', 'utf-16']):
     """Intenta decodificar el contenido usando una lista de encodings prioritarios."""
@@ -19,6 +18,210 @@ def try_decode(content, encodings=['utf-8-sig', 'utf-8', 'windows-1252', 'iso-88
     # Último recurso: forzar utf-8 reemplazando caracteres inválidos para que no se pierda la fila
     # pero advirtiendo al menos en el log.
     return content.decode('utf-8', errors='replace')
+
+@shared_task(bind=True, name='mantenimiento.tasks.import_pasos_task')
+def import_pasos_task(self, file_path, file_format, user_id=None, verification_mode=False, dry_run=False, import_name="Importación Pasos"):
+    """
+    Tarea Celery para importar o VERIFICAR PASOS DE RUTINA con seguimiento de progreso real.
+    """
+    from tablib import Dataset
+    from django.core.files.storage import default_storage
+    from .admin import PasoRutinaResource
+    from django.core.cache import cache
+    from .models import PasoRutina, Rutina
+    from activos.models import RegistroImportacion
+    from django.contrib.auth.models import User
+    import sys
+
+    user = User.objects.get(id=user_id) if user_id else None
+    registro = None
+    if not verification_mode and not dry_run:
+        registro = RegistroImportacion.objects.create(
+            nombre=import_name,
+            tipo='Pasos de Rutina',
+            usuario=user,
+            estado='PROCESANDO'
+        )
+
+    # Marcador de progreso en caché
+    cache_key = f"import_pasos_progress_{user_id}" if user_id else "import_pasos_progress_system"
+
+    # Inicializar resource
+    resource = PasoRutinaResource()
+    resource.celery_task = self
+    resource.cache_key = cache_key
+    resource.total_rows = 0 
+    print(f"[DEBUG] [Pasos] Resource inicializado para {import_name}")
+
+    # Leer archivo
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(file_content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(file_content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        if registro:
+            registro.estado = 'ERROR'
+            registro.detalles_error = str(e)
+            registro.save()
+        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        cache.set(cache_key, error_res, 3600)
+        return error_res
+
+    total_rows = len(dataset)
+    resource.total_rows = total_rows
+    if registro:
+        registro.total_filas = total_rows
+        registro.save()
+
+    missing_dataset = Dataset()
+    missing_dataset.headers = dataset.headers
+    
+    # Estado inicial
+    progress_info = {
+        'current': 0, 
+        'total': total_rows, 
+        'status': 'Iniciando verificacion...' if verification_mode else 'Iniciando importacion...', 
+        'percent': 0,
+        'new': 0,
+        'updated': 0,
+        'skipped': 0,
+        'errors': 0,
+        'found': 0,
+        'not_found': 0,
+        'verification_mode': verification_mode
+    }
+    cache.set(cache_key, progress_info, 3600)
+    self.update_state(state='PROGRESS', meta=progress_info)
+    sys.stdout.flush()
+
+    if verification_mode:
+        results = []
+        codes_seen = set()
+        codes_duplicated = set()
+        found_count = 0
+        not_found_count = 0
+        
+        for i, row in enumerate(dataset.dict, start=1):
+            obj_id = row.get('id')
+            codigo_rutina = str(row.get('codigo_rutina') or '').strip()
+            orden = str(row.get('orden') or '').strip()
+            
+            exists = False
+            if obj_id:
+                try:
+                    exists = PasoRutina.objects.filter(id=obj_id).exists()
+                except (ValueError, TypeError):
+                    pass
+            
+            identifier = f"{codigo_rutina}-{orden}"
+            if not obj_id and (not codigo_rutina or not orden):
+                status = "SIN RUTINA O ORDEN"
+                not_found_count += 1
+                missing_dataset.append(dataset[i-1])
+            else:
+                if identifier in codes_seen and not obj_id:
+                    codes_duplicated.add(identifier)
+                    status = "REPETIDO EN ARCHIVO"
+                else:
+                    codes_seen.add(identifier)
+                    if exists:
+                        found_count += 1
+                        status = f"EXISTE (ID {obj_id})"
+                    else:
+                        not_found_count += 1
+                        status = "NUEVO PASO (Se creará)"
+                        if not Rutina.objects.filter(codigo_rutina=codigo_rutina).exists():
+                            status += f" - WARNING: La Rutina '{codigo_rutina}' NO EXISTE"
+            
+            results.append(f"Fila {i}: {codigo_rutina}(orden {orden}) -> {status}")
+            
+            if i % 10 == 0 or i == total_rows:
+                progress_info.update({
+                    'current': i,
+                    'status': f'Verificando {i}/{total_rows}...',
+                    'percent': int((i / total_rows) * 100),
+                    'found': found_count,
+                    'not_found': not_found_count,
+                    'duplicates': len(codes_duplicated)
+                })
+                cache.set(cache_key, progress_info, 3600)
+                self.update_state(state='PROGRESS', meta=progress_info)
+
+        final_res = {
+            'status': 'completed',
+            'status_code': 'completed',
+            'total': total_rows,
+            'found': found_count,
+            'not_found': not_found_count,
+            'duplicates': len(codes_duplicated),
+            'duplicate_list': list(codes_duplicated),
+            'results': results,
+            'verification_mode': True
+        }
+    else:
+        # Modo IMPORTACIÓN real
+        try:
+            print(f"[DEBUG] [Actual Import Pasos] Iniciando import_data con {len(dataset)} filas...")
+            sys.stdout.flush()
+            result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False, use_transactions=False)
+            
+            # Recopilar errores
+            detailed_errors = []
+            for error in result.base_errors:
+                detailed_errors.append(f"Error General: {str(error.error)}")
+            
+            for line, errors in result.row_errors():
+                for error in errors:
+                    detailed_errors.append(f"Fila {line}: {str(error.error)}")
+
+            if registro:
+                registro.filas_nuevas = result.totals.get('new', 0)
+                registro.filas_actualizadas = result.totals.get('update', 0)
+                registro.filas_omitidas = result.totals.get('skip', 0)
+                registro.filas_error = len(detailed_errors)
+                registro.estado = 'COMPLETADO'
+                if detailed_errors:
+                    registro.detalles_error = "\n".join(detailed_errors[:50])
+                registro.save()
+
+            final_res = {
+                'status': 'completed',
+                'status_code': 'completed',
+                'total': total_rows,
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(detailed_errors),
+                'error_list': detailed_errors,
+                'verification_mode': False,
+                'dry_run': dry_run,
+                'file_path': file_path
+            }
+        except Exception as e:
+            if registro:
+                registro.estado = 'ERROR'
+                registro.detalles_error = str(e)
+                registro.save()
+            error_msg = f"Error crítico en importación: {str(e)}"
+            progress_info.update({'status': 'error', 'message': error_msg})
+            cache.set(cache_key, progress_info, 3600)
+            return {'status': 'error', 'message': error_msg}
+
+    # Limpiar archivo original SOLO si no es dry_run
+    if not dry_run:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
+        
+    cache.set(cache_key, final_res, 3600)
+    return final_res
 
 @shared_task(bind=True, name='mantenimiento.tasks.import_rutinas_task')
 def import_rutinas_task(self, file_path, file_format, user_id=None, verification_mode=False, dry_run=False, import_name="Importación Rutinas"):
@@ -1134,7 +1337,8 @@ def import_tipos_task(self, file_path, file_format, user_id=None, verification_m
                 registro.estado = 'ERROR'
                 registro.detalles_error = str(e)
                 registro.save()
-            error_msg = f"Error crítico durante el procesamiento: {str(e)}"
+            error_msg = f"Error crítico en importación: {str(e)}"
+            print(f"[ERROR] [Pasos] {error_msg}")
             progress_info.update({'status': 'error', 'message': error_msg})
             cache.set(cache_key, progress_info, 3600)
             return {'status': 'error', 'message': error_msg}
@@ -1149,3 +1353,5 @@ def import_tipos_task(self, file_path, file_format, user_id=None, verification_m
         
     cache.set(cache_key, final_res, 3600)
     return final_res
+
+

@@ -1863,6 +1863,92 @@ class OrdenTrabajoAdmin(admin.ModelAdmin):
         response['Content-Disposition'] = 'attachment; filename="formato_importacion_ots.xlsx"'
         return response
 
+class PasoRutinaResource(ProgressResourceMixin, resources.ModelResource):
+    codigo_rutina = fields.Field(
+        column_name='codigo_rutina',
+        attribute='rutina',
+        widget=ForeignKeyWidget(Rutina, field='codigo_rutina')
+    )
+    
+    class Meta:
+        model = PasoRutina
+        fields = ('id', 'codigo_rutina', 'orden', 'descripcion', 'tipo_respuesta', 'verificacion', 'unidad_medida', 'valor_objetivo', 'rango_min', 'rango_max', 'punto_medicion_codigo')
+        import_id_fields = ('id',)
+        export_order = fields
+        skip_unchanged = True
+        report_skipped = True
+        use_transactions = False
+
+    def get_instance(self, instance_loader, row):
+        obj_id = row.get('id')
+        if obj_id:
+            try:
+                return self.get_queryset().get(id=obj_id)
+            except (PasoRutina.DoesNotExist, ValueError):
+                pass
+        return None
+
+    def skip_row(self, instance, original, row, import_validation_errors=None, **kwargs):
+        codigo = row.get('codigo_rutina')
+        if not codigo or str(codigo).strip() in ['None', 'nan', 'NULL', '']:
+            return True
+        return super().skip_row(instance, original, row, import_validation_errors, **kwargs)
+
+    def before_import_row(self, row, **kwargs):
+        # Mapear etiquetas amigables a claves internas para tipo_respuesta
+        mapping = {
+            'instruccion': 'INSTRUCCION',
+            'instrucción': 'INSTRUCCION',
+            'solo lectura': 'INSTRUCCION',
+            'check': 'CHECK',
+            'si/no': 'CHECK',
+            'si/no/na': 'CHECK',
+            'numerico': 'NUMERICO',
+            'numérico': 'NUMERICO',
+            'valor numerico': 'NUMERICO',
+            'texto': 'TEXTO',
+            'texto libre': 'TEXTO',
+            'medicion': 'MEDICION',
+            'medición': 'MEDICION',
+            'punto de medicion': 'MEDICION',
+            'punto de medicion (sap)': 'MEDICION',
+            'sap': 'MEDICION',
+            'header': 'HEADER',
+            'encabezado': 'HEADER',
+            'grupo': 'HEADER',
+            'encabezado / grupo': 'HEADER',
+        }
+
+        for key in list(row.keys()):
+            val = row.get(key)
+            if val is None:
+                continue
+            val_str = str(val).strip()
+            
+            if key == 'tipo_respuesta':
+                val_norm = val_str.lower()
+                if val_norm in mapping:
+                    row[key] = mapping[val_norm]
+                else:
+                    # Si no está en el mapa, lo pasamos a mayúsculas por si es la clave directa (CHECK, etc)
+                    row[key] = val_str.upper()
+                continue
+
+            if val_str.lower() in ['none', 'nan', 'null', '']:
+                row[key] = None
+            elif isinstance(val, str):
+                row[key] = val.strip()
+            else:
+                row[key] = val_str
+
+@admin.register(PasoRutina)
+class PasoRutinaAdmin(ImportExportModelAdmin):
+    resource_class = PasoRutinaResource
+    change_list_template = "admin/mantenimiento/pasorutina/change_list.html"
+    list_display = ('rutina', 'orden', 'tipo_respuesta', 'verificacion')
+    list_filter = ('tipo_respuesta', 'rutina')
+    search_fields = ('descripcion', 'verificacion', 'rutina__codigo_rutina')
+
 
 
 
