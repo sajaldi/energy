@@ -116,7 +116,15 @@ def mobile_crear_aviso(request):
     if request.method == 'POST' and not aid:
         aid = request.POST.get('activo')
         
-    activo = Activo.objects.filter(id=aid).first() if aid else None
+    try:
+        if aid:
+            # Limpiar comas por si el código viene mal formateado Ej: "144,643"
+            aid_clean = str(aid).replace(',', '').replace('.', '')
+            activo = Activo.objects.filter(id=aid_clean).first()
+        else:
+            activo = None
+    except ValueError:
+        activo = None
     
     # Obtener ubicación por defecto del perfil
     perfil = getattr(request.user, 'perfil', None)
@@ -214,13 +222,16 @@ def mobile_crear_aviso(request):
             solicitante=request.user, 
         )
         
-        # Guardar múltiples fotos
+        # Guardar múltiples fotos con sus descripciones
         fotos = request.FILES.getlist('fotos')
+        descripciones = request.POST.getlist('descripciones[]')
+        
         if fotos:
             aviso.foto = fotos[0]
             aviso.save()
-            for f in fotos:
-                FotoAviso.objects.create(aviso=aviso, foto=f)
+            for i, f in enumerate(fotos):
+                desc = descripciones[i] if i < len(descripciones) else ''
+                FotoAviso.objects.create(aviso=aviso, foto=f, descripcion=desc)
         
         if activo: return redirect('activos:mobile_activo_detalle', pk=activo.id)
         return redirect('mantenimiento:mobile_mis_avisos')
@@ -408,11 +419,13 @@ def mobile_aviso_detalle(request, pk):
     """
     Muestra el detalle expandido de un aviso con sus fotos.
     """
-    aviso = get_object_or_404(Aviso, pk=pk)
+    aviso = get_object_or_404(Aviso.objects.select_related(
+        'falla', 'activo__modelo__marca', 'activo__ubicacion', 'ubicacion', 'solicitante'
+    ), pk=pk)
     # Verificar acceso (mismo puesto o solicitante)
     # Por ahora permitimos visualización si es del mismo puesto o solicitante
     puesto_tecnico = getattr(request.user, 'perfil_tecnico', None)
-    puede_ver = aviso.solicitante == request.user or (puesto_tecnico and aviso.solicitante.perfil_tecnico.puesto == puesto_tecnico.puesto)
+    puede_ver = aviso.solicitante == request.user or (puesto_tecnico and getattr(aviso.solicitante, 'perfil_tecnico', None) and aviso.solicitante.perfil_tecnico.puesto == puesto_tecnico.puesto)
     
     if not puede_ver and not request.user.is_superuser:
         return redirect('mantenimiento:mobile_mis_avisos')

@@ -387,5 +387,27 @@ def api_buscar_activos(request):
             'categoria': categoria_nombre,
             'serie': a.serie or "S/S"
         })
-    
     return JsonResponse({'results': results})
+
+@require_POST
+def api_update_foto_descripcion(request, pk):
+    """
+    Actualiza la descripción de una Foto de Aviso vía AJAX.
+    """
+    from ..models import FotoAviso
+    try:
+        foto = FotoAviso.objects.get(pk=pk)
+        data = json.loads(request.body)
+        descripcion = data.get('descripcion', '').strip()
+        
+        foto.descripcion = descripcion
+        foto.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Descripción actualizada correctamente.'
+        })
+    except FotoAviso.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'La foto no existe.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

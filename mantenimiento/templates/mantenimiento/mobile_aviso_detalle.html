@@ -302,6 +302,47 @@
             </div>
         </div>
 
+        {% if aviso.activo %}
+        <!-- Información del Equipo -->
+        <div class="fiori-section">
+            <div class="section-header">
+                <ion-icon name="cube-outline"></ion-icon> Información del Equipo
+            </div>
+            <div class="section-content" style="display: flex; gap: 16px; align-items: flex-start;">
+                {% if aviso.activo.foto %}
+                <div style="flex-shrink: 0; width: 80px; height: 80px; border-radius: 4px; overflow: hidden; border: 1px solid var(--sap-border); background: #f0f0f0;">
+                    <img src="{{ aviso.activo.foto.url }}" alt="{{ aviso.activo.nombre }}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="window.open(this.src)">
+                </div>
+                {% else %}
+                <div style="flex-shrink: 0; width: 80px; height: 80px; border-radius: 4px; border: 1px solid var(--sap-border); background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #a0a0a0; font-size: 32px;">
+                    <ion-icon name="cube-outline"></ion-icon>
+                </div>
+                {% endif %}
+                <div style="flex-grow: 1;">
+                    <div class="sap-attribute">
+                        <span class="sap-attribute-label">Código ISO / Interno</span>
+                        <span class="sap-attribute-value">{{ aviso.activo.codigo_interno|default:"-" }}</span>
+                    </div>
+                    <div class="sap-attribute">
+                        <span class="sap-attribute-label">Nombre del Activo</span>
+                        <span class="sap-attribute-value">{{ aviso.activo.nombre }}</span>
+                    </div>
+                    {% if aviso.activo.modelo %}
+                    <div class="sap-attribute">
+                        <span class="sap-attribute-label">Marca y Modelo</span>
+                        <span class="sap-attribute-value">{{ aviso.activo.modelo.marca.nombre|default:"-" }} / {{ aviso.activo.modelo.nombre|default:"-" }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="section-content" style="padding-top: 0; padding-bottom: 16px;">
+                <a href="{% url 'activos:mobile_activo_detalle' aviso.activo.id %}" class="sap-btn sap-btn-secondary" style="font-size: 13px; padding: 8px;">
+                    <ion-icon name="eye-outline"></ion-icon> Ver Ficha de Equipo
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Descripción -->
         <div class="fiori-section">
             <div class="section-header">
@@ -322,8 +363,14 @@
             <div class="section-content">
                 <div class="gallery-grid">
                     {% for foto in aviso.fotos.all %}
-                    <div class="gallery-item">
-                        <img src="{{ foto.foto.url }}" alt="Evidencia" onclick="window.open(this.src)">
+                    <div class="gallery-item" style="position: relative;">
+                        <img src="{{ foto.foto.url }}" alt="Evidencia" 
+                             onclick="editPhotoDescription({{ foto.id }}, '{{ foto.foto.url }}', '{{ foto.descripcion|default:''|escapejs }}')">
+                        {% if foto.descripcion %}
+                        <div style="font-size: 0.75rem; color: #666; padding: 0.25rem; text-align: center; background: #f8f9fa;">
+                            {{ foto.descripcion }}
+                        </div>
+                        {% endif %}
                     </div>
                     {% empty %}
                     {% if aviso.foto %}
@@ -366,3 +413,99 @@
 
 </body>
 </html>
+
+<script>
+function editPhotoDescription(fotoId, imageUrl, currentDesc) {
+    Swal.fire({
+        title: 'Descripción de Evidencia',
+        html: `
+            <img src="${imageUrl}" style="max-width: 100%; max-height: 250px; border-radius: 4px; border: 1px solid #ccc; margin-bottom: 15px; cursor: pointer;" onclick="window.open(this.src)">
+            <textarea id="swal-input-desc" class="swal2-textarea" style="margin-top: 5px; width: 90%; font-size: 14px;" rows="3" placeholder="Escribe una descripción o nota sobre esta fotografía...">${currentDesc}</textarea>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<ion-icon name="save-outline"></ion-icon> Guardar Nota',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: 'var(--sap-blue)',
+        focusConfirm: false,
+        preConfirm: () => {
+            return document.getElementById('swal-input-desc').value;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/mantenimiento/api/foto/${fotoId}/update-descripcion/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ descripcion: result.value })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Actualizada',
+                        text: 'La descripción se guardó correctamente.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo guardar la nota.', 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'Error de comunicación con el servidor.', 'error');
+            });
+        }
+    });
+}
+</script>
+
+<script>
+function editPhotoDescription(fotoId, imageUrl, currentDesc) {
+    Swal.fire({
+        title: 'Descripción de Evidencia',
+        html: `
+            <img src="${imageUrl}" style="max-width: 100%; max-height: 250px; border-radius: 4px; border: 1px solid #ccc; margin-bottom: 15px; cursor: pointer;" onclick="window.open(this.src)">
+            <textarea id="swal-input-desc" class="swal2-textarea" style="margin-top: 5px;" placeholder="Escribe una descripción descriptiva...">${currentDesc}</textarea>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<ion-icon name="save-outline"></ion-icon> Guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: 'var(--sap-blue)',
+        focusConfirm: false,
+        preConfirm: () => {
+            return document.getElementById('swal-input-desc').value;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/mantenimiento/api/foto/${fotoId}/update-descripcion/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ descripcion: result.value })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Actualizado',
+                        text: 'La descripción se guardó correctamente.',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo guardar.', 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'Error de comunicación.', 'error');
+            });
+        }
+    });
+}
+</script>

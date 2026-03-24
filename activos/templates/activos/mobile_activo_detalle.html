@@ -429,6 +429,33 @@
         </div>
         {% endif %}
 
+        <!-- Últimos Avisos -->
+        <div class="section-title">
+            <ion-icon name="warning-outline"></ion-icon> Últimos Avisos
+        </div>
+        <div class="history-list">
+            {% for aviso in avisos_recientes %}
+            <a href="{% url 'mantenimiento:mobile_aviso_detalle' aviso.id %}" class="history-item">
+                <div class="history-icon" style="color: var(--sap-warning); background-color: var(--sap-warning-bg);">
+                    <ion-icon name="alert-circle-outline"></ion-icon>
+                </div>
+                <div class="history-info">
+                    <p class="ot-title">{{ aviso.descripcion|truncatechars:40 }}</p>
+                    <p class="ot-date">{{ aviso.creado_en|date:"d M Y, H:i" }}</p>
+                </div>
+                <div class="history-status"
+                    style="color: {% if aviso.estado == 'CERRADO' %}var(--sap-success){% elif aviso.estado == 'RECHAZADO' %}var(--sap-error){% else %}var(--sap-information){% endif %};">
+                    {{ aviso.get_estado_display }}
+                </div>
+            </a>
+            {% empty %}
+            <div class="info-card" style="text-align: center; color: var(--gray-600); padding: 30px;">
+                <ion-icon name="checkmark-circle-outline" style="font-size: 32px; margin-bottom: 10px; color: var(--sap-success);"></ion-icon>
+                <p>No hay avisos recientes</p>
+            </div>
+            {% endfor %}
+        </div>
+
         <!-- Historial de Mantenimiento -->
         <div class="section-title">
             <ion-icon name="time-outline"></ion-icon> Últimas Intervenciones

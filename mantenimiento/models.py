@@ -672,6 +672,7 @@ class Aviso(models.Model):
 class FotoAviso(models.Model):
     aviso = models.ForeignKey(Aviso, on_delete=models.CASCADE, related_name='fotos')
     foto = models.ImageField(upload_to='avisos/fotos/')
+    descripcion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Descripción")
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:

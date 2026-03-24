@@ -142,6 +142,7 @@ def generate_aviso_pdf_view(request, aviso_id):
                     'nombre': 'Evidencia Visual',
                     'data_uri': f'data:image/{mime};base64,{b64}',
                     'creado_en': archivo.creado_en,
+                    'descripcion': archivo.descripcion or '',
                 })
         except Exception as e:
             logger.warning(f"Could not read attachment {archivo.id}: {e}")

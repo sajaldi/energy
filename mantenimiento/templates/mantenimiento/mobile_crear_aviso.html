@@ -759,25 +759,51 @@
         // Photos
         const photoInput = document.getElementById('foto-input');
         const photoGrid = document.getElementById('photo-grid-container');
-        let dt = new DataTransfer();
+        
+        let selectedFiles = []; // Mantener nuestro propio arreglo seguro
+        
+        function syncFilesInput() {
+            const newDt = new DataTransfer();
+            selectedFiles.forEach(f => newDt.items.add(f.file));
+            photoInput.files = newDt.files;
+            
+            // Renombrar dinamicamente los descripciones[] 
+            // para que respeten el orden de la grilla DOM
+            const descInputs = photoGrid.querySelectorAll('input[type="text"]');
+            descInputs.forEach(inp => inp.name = "descripciones[]");
+        }
 
         photoInput.onchange = function () {
-            Array.from(this.files).forEach((file, idx) => {
-                dt.items.add(file);
+            Array.from(this.files).forEach((file) => {
+                const fileObj = {
+                    file: file,
+                    id: Math.random().toString(36).substring(7)
+                };
+                selectedFiles.push(fileObj);
+                
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const div = document.createElement('div');
                     div.className = 'photo-item';
-                    div.innerHTML = `<img src="${e.target.result}"><button type="button" class="photo-remove">×</button>`;
+                    div.style.display = 'flex';
+                    div.style.flexDirection = 'column';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" style="flex-grow: 1; min-height: 0;">
+                        <input type="text" name="descripciones[]" placeholder="Añadir nota..." style="width: 100%; border: none; border-top: 1px solid #ddd; padding: 4px; font-size: 10px; flex-shrink: 0; outline: none; background: #fff;">
+                        <button type="button" class="photo-remove">×</button>
+                    `;
                     div.querySelector('button').onclick = () => {
                         div.remove();
-                        // (Logic to remove from dt if strictly needed, but simple for now)
+                        selectedFiles = selectedFiles.filter(f => f.id !== fileObj.id);
+                        syncFilesInput();
                     };
                     photoGrid.appendChild(div);
+                    syncFilesInput(); // Sincroniza el arrelgo y Nombres []
                 };
                 reader.readAsDataURL(file);
             });
-            this.files = dt.files;
+            // Ocultamos el value nativo para que no repinte dobles al volver a clicar
+            this.value = '';
         };
 
         // Initial Load Handling
