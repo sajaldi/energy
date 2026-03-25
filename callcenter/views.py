@@ -1,4 +1,4 @@
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .tasks import sync_tickets_task
 from django.contrib.admin.views.decorators import staff_member_required
