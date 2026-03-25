@@ -17,8 +17,87 @@ from django.utils import timezone
 from playwright.sync_api import sync_playwright
 from .models import SolicitudTicket, EvidenciaTicket
 from .utils import resolve_ticket_ubicacion
+import requests
 
 logger = logging.getLogger(__name__)
+
+def save_ticket_pdf_helper(ticket, request=None):
+    """
+    Helper para generar y guardar el PDF del ticket como una evidencia.
+    Retorna la URL absoluta del PDF generado.
+    """
+    evidencias_b64 = []
+    # Filtrar evidencias que no sean el propio PDF anterior
+    desc_pdf_ignore = "Comprobante de Cierre Generado Automáticamente"
+    qs_evidencias = EvidenciaTicket.objects.filter(ticket=ticket).exclude(descripcion=desc_pdf_ignore)
+    
+    for ev in qs_evidencias:
+        if ev.archivo:
+            try:
+                img_bytes = ev.archivo.read()
+                ext = ev.archivo.name.split('.')[-1].lower()
+                mime = {
+                    'png': 'image/png',
+                    'webp': 'image/webp',
+                    'gif': 'image/gif'
+                }.get(ext, 'image/jpeg')
+                
+                b64 = base64.b64encode(img_bytes).decode('utf-8')
+                evidencias_b64.append({
+                    'data_uri': f'data:{mime};base64,{b64}', 
+                    'descripcion': ev.descripcion or ''
+                })
+            except Exception as e:
+                logger.warning(f"Error procesando imagen {ev.id} para PDF: {e}")
+
+    # Cálculos adicionales
+    tiempo_total = None
+    if ticket.fecha_solicitud and ticket.fecha_cierre:
+        diff = ticket.fecha_cierre - ticket.fecha_solicitud
+        tiempo_total = int(diff.total_seconds() / 60)
+
+    closed_by = ticket.responsable or 'ADMIN'
+    if request and hasattr(request, 'GET'):
+        closed_by = request.GET.get('closed_by', closed_by)
+
+    # Encode logo
+    logo_dcc_b64 = ""
+    logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'activos', 'static', 'activos', 'img', 'logo_operadora_cc.png')
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as image_file:
+            logo_dcc_b64 = base64.b64encode(image_file.read()).decode('utf-8')
+
+    html_content = render_to_string('callcenter/ticket_pdf.html', {
+        'ticket': ticket,
+        'evidencias_b64': evidencias_b64,
+        'tiempo_total': tiempo_total,
+        'closed_by': closed_by,
+        'ahora': timezone.now(),
+        'logo_dcc_b64': logo_dcc_b64,
+    }, request=request)
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
+        page = browser.new_page()
+        page.set_content(html_content, wait_until='networkidle')
+        pdf_bytes = page.pdf(format="A4", print_background=True)
+        browser.close()
+
+    desc_pdf = "Comprobante de Cierre Generado Automáticamente"
+    file_name = f'comprobante_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.pdf'
+    
+    evidencia = EvidenciaTicket.objects.filter(ticket=ticket, descripcion=desc_pdf).first()
+    if not evidencia:
+        evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion=desc_pdf)
+    elif evidencia.archivo:
+        try: evidencia.archivo.delete(save=False)
+        except: pass
+    
+    evidencia.archivo.save(file_name, ContentFile(pdf_bytes))
+    
+    if request:
+        return request.build_absolute_uri(evidencia.archivo.url)
+    return evidencia.archivo.url
 
 @staff_member_required
 def trigger_sync_tickets(request):
@@ -32,22 +111,26 @@ def trigger_sync_tickets(request):
     return redirect('admin:callcenter_solicitudticket_changelist')
 
 def send_ticket_to_power_automate_view(request, ticket_id):
-    from django.shortcuts import get_object_or_404, redirect
-    from django.contrib import messages
-    from django.utils import timezone
-    import requests
-    import json
-
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
-    # 1. Obtener URL del PDF (Si no existe, se podría intentar generar pero requiere Playwright)
-    # Por ahora buscamos la evidencia existente del PDF autogenerado
-    pdf_url = "N/A"
-    desc_pdf = "Comprobante de Cierre Generado Automáticamente"
-    evidencia = EvidenciaTicket.objects.filter(ticket=ticket, descripcion=desc_pdf).first()
-    if evidencia and evidencia.archivo:
-        pdf_url = request.build_absolute_uri(evidencia.archivo.url)
+    # 0. Validación de campos obligatorios (Backend de seguridad)
+    missing = []
+    if not ticket.fecha_cierre: missing.append("Fecha Cierre")
+    if not ticket.diagnostico: missing.append("Diagnóstico")
+    if not ticket.actividades: missing.append("Actividades")
+    if not ticket.observaciones: missing.append("Observaciones")
     
+    if missing:
+        messages.error(request, f"No se puede enviar el cierre. Faltan campos: {', '.join(missing)}")
+        return redirect('admin:callcenter_solicitudticket_change', ticket_id)
+
+    # 1. Generar/Actualizar PDF automáticamente antes de enviar
+    try:
+        pdf_url = save_ticket_pdf_helper(ticket, request=request)
+    except Exception as e:
+        logger.error(f"Error generando PDF para Power Automate: {e}")
+        pdf_url = "Error en generación"
+
     # 2. Calcular Tiempo Total Min
     tiempo_total = 0
     if ticket.fecha_solicitud and ticket.fecha_cierre:
@@ -56,8 +139,7 @@ def send_ticket_to_power_automate_view(request, ticket_id):
 
     # 3. Formatear Fechas en Local para Power Automate
     def to_local_str(dt):
-        if not dt: return "N/A"
-        # Django maneja la conversión a local si USE_TZ=True y local_time es configurado
+        if not dt: return ""
         local_dt = timezone.localtime(dt)
         return local_dt.strftime('%d/%m/%Y %H:%M:%S')
 
@@ -87,18 +169,16 @@ def send_ticket_to_power_automate_view(request, ticket_id):
 
     url_power_automate = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6260ff428abe4f88b4cd96fae4614a57/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IMrCwJsG1SsgYIYDKimFGYRkvxBFlg0MYpJWURimsLk"
 
-    logger.info(f"Enviando Ticket {ticket.folio} a Power Automate (Admin)... URL: {url_power_automate}")
+    logger.info(f"Enviando Ticket {ticket.folio} a Power Automate (Admin)...")
     
     try:
-        response = requests.post(url_power_automate, json=payload, timeout=20)
-        logger.info(f"Respuesta Power Automate: {response.status_code} - {response.text}")
-        
+        response = requests.post(url_power_automate, json=payload, timeout=30)
         if response.status_code in [200, 202]:
             ticket.cierre_enviado = True
             ticket.save(update_fields=['cierre_enviado'])
             messages.success(request, "Ticket enviado exitosamente a Power Automate.")
         else:
-            messages.warning(request, f"Power Automate respondió con error {response.status_code}: {response.text}")
+            messages.warning(request, f"Power Automate respondió con error {response.status_code}")
     except Exception as e:
         logger.error(f"Error conectando a Power Automate: {e}")
         messages.error(request, f"Error al conectar con Power Automate: {str(e)}")
@@ -207,56 +287,7 @@ def generate_ticket_pdf_view(request, folio):
             except Exception as e:
                 logger.warning(f"Error procesando imagen {ev.id} para PDF: {e}")
 
-    # Cálculos adicionales para el nuevo diseño
-    tiempo_total = None
-    if ticket.fecha_solicitud and ticket.fecha_cierre:
-        # Calcular diferencia en minutos (HF - Solicitud)
-        diff = ticket.fecha_cierre - ticket.fecha_solicitud
-        tiempo_total = int(diff.total_seconds() / 60)
-
-    # El bot puede pasar el nombre de quien cerró por parámetro
-    closed_by = request.GET.get('closed_by', ticket.responsable or 'N/D')
-
-    # Encode logos for PDF
-    logo_dcc_b64 = ""
-    logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'activos', 'static', 'activos', 'img', 'logo_operadora_cc.png')
-    if os.path.exists(logo_path):
-        with open(logo_path, "rb") as image_file:
-            logo_dcc_b64 = base64.b64encode(image_file.read()).decode('utf-8')
-
-    html_content = render_to_string('callcenter/ticket_pdf.html', {
-        'ticket': ticket,
-        'evidencias_b64': evidencias_b64,
-        'tiempo_total': tiempo_total,
-        'closed_by': closed_by,
-        'ahora': timezone.now(),
-        'logo_dcc_b64': logo_dcc_b64,
-    }, request=request)
-
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
-            page = browser.new_page()
-            page.set_content(html_content, wait_until='networkidle')
-            pdf_bytes = page.pdf(format="A4", print_background=True)
-            browser.close()
-
-        desc_pdf = "Comprobante de Cierre Generado Automáticamente"
-        file_name = f'comprobante_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.pdf'
-        
-        evidencia = EvidenciaTicket.objects.filter(ticket=ticket, descripcion=desc_pdf).first()
-        if not evidencia:
-            evidencia = EvidenciaTicket.objects.create(ticket=ticket, descripcion=desc_pdf)
-        elif evidencia.archivo:
-            try: evidencia.archivo.delete(save=False)
-            except: pass
-        
-        evidencia.archivo.save(file_name, ContentFile(pdf_bytes))
-        pdf_url = request.build_absolute_uri(evidencia.archivo.url)
-        return JsonResponse({'success': True, 'url': pdf_url})
-    except Exception as e:
-        logger.error(f"Error PDF: {e}", exc_info=True)
-        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    return save_ticket_pdf_helper(ticket, request=request)
 
 @csrf_exempt
 def webhook_evidencia_ticket(request, folio):

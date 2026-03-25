@@ -28,6 +28,8 @@
 {# Inyectamos el botón en la barra Dynamics personalizada si existe #}
 {% block extrahead %}
 {{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
     .btn-sync-sig {
         background-color: #0078d4 !important;
@@ -38,14 +40,104 @@
     .btn-sync-sig:hover {
         background-color: #106ebe !important;
     }
+
+    .btn-dynamics {
+        padding: 10px 15px;
+        margin: 5px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .btn-dynamics i { margin-right: 8px; }
 </style>
 <script>
+    function validateClosure(event) {
+        event.preventDefault();
+        const url = event.currentTarget.href;
+
+        // 1. Verificar campos obligatorios en el DOM
+        // Nota: fecha_cierre suele ser id_fecha_cierre_0 (fecha) e id_fecha_cierre_1 (hora)
+        const checkFields = [
+            { id: 'id_fecha_cierre_0', name: 'Fecha Cierre' },
+            { id: 'id_diagnostico', name: 'Diagnóstico' },
+            { id: 'id_actividades', name: 'Actividades' },
+            { id: 'id_observaciones', name: 'Observaciones' }
+        ];
+
+        let missing = [];
+        checkFields.forEach(f => {
+            const el = document.getElementById(f.id);
+            if (!el || !el.value || el.value.trim() === '') {
+                missing.push(f.name);
+            }
+        });
+
+        if (missing.length > 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Campos Incompletos',
+                html: 'Para enviar el cierre, debes completar:<br><b>' + missing.join(', ') + '</b><br><br><i>Recuerda GUARDAR los cambios antes de enviar.</i>',
+                confirmButtonColor: '#d33'
+            });
+            return false;
+        }
+
+        // 2. Verificar Evidencias
+        const evidenceRows = document.querySelectorAll('#evidencias-group .form-row:not(.empty-form)');
+        let hasEv = false;
+        evidenceRows.forEach(row => {
+            const fileLink = row.querySelector('.file-upload a');
+            const fileInput = row.querySelector('input[type="file"]');
+            if (fileLink || (fileInput && fileInput.value)) hasEv = true;
+        });
+
+        let confirmMsg = '¿Estás seguro de enviar esta notificación de cierre?';
+        let confirmIcon = 'question';
+
+        if (!hasEv) {
+            confirmMsg = '<b>Atención:</b> No se detectaron evidencias/fotos adjuntas. ¿Deseas enviar el cierre de todos modos?';
+            confirmIcon = 'warning';
+        }
+
+        Swal.fire({
+            title: 'Confirmar Envío',
+            html: confirmMsg + '<br><br><small style="color:red">Se enviará la información que esté GUARDADA en la base de datos.</small>',
+            icon: confirmIcon,
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, enviar ahora',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Mostrar cargando porque la generación del PDF puede tardar
+                Swal.fire({
+                    title: 'Generando Cierre...',
+                    html: 'Generando PDF y notificando a Power Automate. Por favor espera.',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+                window.location.href = url;
+            }
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
-        // Buscamos la barra de herramientas "Dynamics" personalizada del proyecto
+        // Enlazar validación a botones existentes y dinámicos
+        const paButtons = document.querySelectorAll('a[href*="enviar-power-automate"]');
+        paButtons.forEach(btn => {
+            btn.onclick = validateClosure;
+        });
+
         var submitRow = document.querySelector('.submit-row');
         if (submitRow && !document.querySelector('#btn-sync-dynamic')) {
             var ticketId = "{{ original.pk }}";
             if (ticketId && ticketId !== "None") {
+                // Botón Sincronizar
                 var btn = document.createElement('a');
                 btn.id = 'btn-sync-dynamic';
                 btn.href = '../sync-singular/';
@@ -60,17 +152,12 @@
                 btnPA.style.backgroundColor = '#28a745';
                 btnPA.style.color = 'white';
                 btnPA.innerHTML = '<i class="fas fa-paper-plane"></i> <span>Enviar Cierre (PA)</span>';
+                btnPA.onclick = validateClosure;
 
-                // Lo insertamos después del primer botón (usualmente Guardar)
-                if (submitRow.firstChild) {
-                    submitRow.appendChild(btn);
-                    submitRow.appendChild(btnPA);
-                } else {
-                    submitRow.appendChild(btn);
-                    submitRow.appendChild(btnPA);
-                }
+                submitRow.appendChild(btn);
+                submitRow.appendChild(btnPA);
             }
         }
     });
 </script>
-{% endblock %}
+{% endblock %}
