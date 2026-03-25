@@ -1,0 +1,154 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tickets en {{ cluster.correlativo }} | SoftCom-CCG</title>
+    <!-- FontAwesome & Phosphor Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'callcenter/css/ticket_dashboard.css' %}">
+    <style>
+        .list-container {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: var(--sap-shadow);
+            overflow: hidden;
+            border: 1px solid var(--sap-border);
+        }
+        .fiori-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        .fiori-table th {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            border-bottom: 1px solid var(--sap-border);
+            text-transform: uppercase;
+        }
+        .fiori-table td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+        .fiori-table tr:hover {
+            background-color: #fcfdfe;
+        }
+        .badge {
+            padding: 0.4rem 0.75rem;
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .badge-success { background: rgba(40, 167, 69, 0.1); color: var(--sap-success); }
+        .badge-warning { background: rgba(233, 115, 12, 0.1); color: var(--sap-warning); }
+        .btn-action {
+            padding: 0.5rem 1rem;
+            border-radius: 0.4rem;
+            background: var(--sap-primary);
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: opacity 0.2s;
+        }
+        .btn-action:hover { opacity: 0.9; }
+        .cluster-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--sap-shadow);
+            border: 1px solid var(--sap-border);
+            border-top: 4px solid var(--sap-primary);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <header class="header-section">
+            <div class="header-title">
+                <h1>Tickets en Grupo: {{ cluster.correlativo }}</h1>
+                <p>{{ cluster.descripcion }}</p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'callcenter:ticket_dashboard' %}" class="btn-back">
+                    <i class="ph ph-arrow-left"></i> Volver al Dashboard
+                </a>
+            </div>
+        </header>
+
+        <div class="cluster-header">
+            <div style="display: flex; gap: 3rem;">
+                <div>
+                    <span class="metric-label">Fecha de Grupo</span>
+                    <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem;">{{ cluster.fecha|date:"d M, Y" }}</div>
+                </div>
+                <div>
+                    <span class="metric-label">Total Tickets</span>
+                    <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem;">{{ tickets.count }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="list-container">
+            <table class="fiori-table">
+                <thead>
+                    <tr>
+                        <th>Folio / ID</th>
+                        <th>Solicitante</th>
+                        <th>Servicio</th>
+                        <th>Fecha Solicitud</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tickets %}
+                    <tr>
+                        <td style="font-weight: 700;">{{ t.folio|default:t.id_solicitud }}</td>
+                        <td>{{ t.solicitante|default:"-" }}</td>
+                        <td><span style="color: var(--sap-text-muted);">{{ t.servicio|truncatechars:40 }}</span></td>
+                        <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if t.fecha_cierre or t.cierre_enviado %}
+                                <span class="badge badge-success"><i class="ph ph-check-circle"></i> Cerrado</span>
+                            {% else %}
+                                <span class="badge badge-warning"><i class="ph ph-clock"></i> Abierto</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'callcenter:ticket_cierre_fiori' t.id %}" class="btn-action">
+                                <i class="ph ph-eye"></i> Cierre Visual
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
+                            No hay tickets asignados a este grupo.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -489,3 +489,19 @@ def ticket_dashboard_view(request):
         'title': 'Dashboard de Tickets'
     }
     return render(request, 'callcenter/ticket_dashboard.html', context)
+
+@staff_member_required
+def cluster_tickets_view(request, cluster_id):
+    """
+    Lista todos los tickets de un grupo (cluster) específico con diseño Fiori.
+    """
+    from .models import GrupoTicket
+    cluster = get_object_or_404(GrupoTicket, id=cluster_id)
+    tickets = cluster.tickets.all().order_by('-fecha_solicitud')
+    
+    context = {
+        'cluster': cluster,
+        'tickets': tickets,
+        'title': f"Tickets en {cluster.correlativo}"
+    }
+    return render(request, 'callcenter/cluster_tickets.html', context)
