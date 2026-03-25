@@ -473,10 +473,13 @@ def ticket_dashboard_view(request):
     ).count()
     tickets_abiertos = total_tickets - tickets_cerrados
     
-    # Grupos Recientes con conteo de tickets
+    # Grupos Recientes con conteo de tickets y los tickets mismos
+    from django.db.models import Prefetch
     grupos = GrupoTicket.objects.annotate(
         num_tickets=Count('tickets')
-    ).order_by('-fecha')[:15]
+    ).prefetch_related(
+        Prefetch('tickets', queryset=SolicitudTicket.objects.all().only('id', 'folio', 'id_solicitud', 'fecha_cierre', 'cierre_enviado'))
+    ).order_by('-fecha')[:12]
     
     context = {
         'total': total_tickets,

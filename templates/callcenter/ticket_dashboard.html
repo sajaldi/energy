@@ -71,13 +71,32 @@
                         <div class="group-desc" title="{{ grupo.descripcion }}">
                             {{ grupo.descripcion|truncatewords:20 }}
                         </div>
-                        <div class="group-stats">
-                            <div class="stat-item" title="Tickets en este grupo">
-                                <i class="ph ph-ticket"></i>
-                                <span><strong>{{ grupo.num_tickets }}</strong> tickets</span>
-                            </div>
+                        <div class="stat-item" title="Tickets en este grupo">
+                            <i class="ph ph-ticket"></i>
+                            <span><strong>{{ grupo.num_tickets }}</strong> tickets</span>
                         </div>
                     </div>
+
+                    <div class="group-tickets-list">
+                        {% for t in grupo.tickets.all|slice:":5" %}
+                        <div class="ticket-item">
+                            <span class="ticket-folio">{{ t.folio|default:t.id_solicitud }}</span>
+                            {% if t.fecha_cierre or t.cierre_enviado %}
+                                <span class="status-icon closed" title="Cerrado/Notificado">
+                                    <i class="ph ph-check-circle"></i>
+                                </span>
+                            {% else %}
+                                <span class="status-icon open" title="Abierto">
+                                    <i class="ph ph-clock-countdown"></i>
+                                </span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        {% if grupo.num_tickets > 5 %}
+                        <div class="more-tickets">+ {{ grupo.num_tickets|add:"-5" }} más...</div>
+                        {% endif %}
+                    </div>
+                </div>
                     <div class="group-footer">
                         <a href="{% url 'admin:callcenter_grupoticket_change' grupo.id %}" class="btn-view">
                             Ver Detalles <i class="ph ph-arrow-right"></i>
