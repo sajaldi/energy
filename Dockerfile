@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
     postgresql-client \
+    pkg-config \
+    libcairo2-dev \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Instalación de dependencias de Python (Capa con caché persistente)
