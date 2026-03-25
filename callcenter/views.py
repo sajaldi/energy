@@ -457,3 +457,32 @@ def delete_evidencia_ajax(request, ticket_id, evidencia_id):
         evidencia.delete()
         return JsonResponse({'success': True})
     return JsonResponse({'success': False}, status=400)
+
+@staff_member_required
+def ticket_dashboard_view(request):
+    """
+    Dashboard principal de tickets y grupos (clusters).
+    """
+    from .models import SolicitudTicket, GrupoTicket
+    from django.db.models import Count, Q
+    
+    # Métricas Globales
+    total_tickets = SolicitudTicket.objects.count()
+    tickets_cerrados = SolicitudTicket.objects.filter(
+        Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)
+    ).count()
+    tickets_abiertos = total_tickets - tickets_cerrados
+    
+    # Grupos Recientes con conteo de tickets
+    grupos = GrupoTicket.objects.annotate(
+        num_tickets=Count('tickets')
+    ).order_by('-fecha')[:15]
+    
+    context = {
+        'total': total_tickets,
+        'cerrados': tickets_cerrados,
+        'abiertos': tickets_abiertos,
+        'grupos': grupos,
+        'title': 'Dashboard de Tickets'
+    }
+    return render(request, 'callcenter/ticket_dashboard.html', context)

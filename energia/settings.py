@@ -118,6 +118,21 @@ else:
     _default_extract_webhook = f'{N8N_BASE_URL}/webhook/extract-text'
 N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', _default_extract_webhook)
 
+# Webhook para Vectorización de Tickets (Callcenter)
+if IS_LOCAL:
+    _default_vectorizer_webhook = f'{N8N_BASE_URL}/webhook-test/vectorize-ticket'
+else:
+    _default_vectorizer_webhook = f'{N8N_BASE_URL}/webhook/vectorize-ticket'
+N8N_TICKET_VECTORIZER_URL = os.environ.get('N8N_TICKET_VECTORIZER_URL', _default_vectorizer_webhook)
+
+# Ollama API URL (Embeddings)
+if IS_LOCAL:
+    # En local, Ollama no es accesible directamente. Usar túnel o n8n como proxy.
+    OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')
+else:
+    # En producción (Coolify), usar el nombre del servicio interno de Docker
+    OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://ollama-api-fs4sok4sogg44k0gs0k0co40:11434')
+
 # Webhook para solicitudes de materiales
 if IS_LOCAL:
     _default_solicitud_webhook = f'{N8N_BASE_URL}/webhook/solicitud-material'
@@ -474,6 +489,7 @@ JAZZMIN_SETTINGS = {
         {"name": "Asistente AI", "url": "/admin/chatbot_trigger/", "new_window": False},
         {"name": "🔄 Sincronizar SIG", "url": "/admin/callcenter/solicitudticket/sync-tickets/", "permissions": ["callcenter.view_solicitudticket"]},
         {"name": "📊 Dashboard Importaciones", "url": "/activos/import-dashboard/", "permissions": ["activos.view_registroimportacion"]},
+        {"name": "🎫 Dashboard Tickets", "url": "/callcenter/dashboard/", "permissions": ["callcenter.view_solicitudticket"]},
     ],
     "show_sidebar": True,
     "navigation_expanded": False,

@@ -1,0 +1,101 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Tickets | SoftCom-CCG</title>
+    <!-- FontAwesome & Phosphor Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'callcenter/css/ticket_dashboard.css' %}">
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <!-- Header -->
+        <header class="header-section">
+            <div class="header-title">
+                <h1>🎫 Dashboard de Tickets</h1>
+                <p>Análisis de Clusters y Seguimiento de Gestión</p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'admin:callcenter_solicitudticket_changelist' %}" class="btn-back">
+                    <i class="ph ph-arrow-left"></i> Volver al Listado
+                </a>
+            </div>
+        </header>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <span class="metric-label">Total Tickets</span>
+                <span class="metric-value">{{ total|intcomma }}</span>
+                <span class="metric-footer">Histórico acumulado</span>
+            </div>
+            <div class="metric-card cerrados">
+                <span class="metric-label">Tickets Cerrados</span>
+                <span class="metric-value">{{ cerrados|intcomma }}</span>
+                <span class="metric-footer">Sincronizados con Power Automate</span>
+            </div>
+            <div class="metric-card abiertos">
+                <span class="metric-label">Tickets en Gestión</span>
+                <span class="metric-value">{{ abiertos|intcomma }}</span>
+                <span class="metric-footer">Pendientes de cierre visual</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Grupos Activos</span>
+                <span class="metric-value">{{ grupos.count }}</span>
+                <span class="metric-footer">Clusters de IA detectados</span>
+            </div>
+        </div>
+
+        <!-- Groups Section -->
+        <section class="groups-section">
+            <h2 class="section-title">
+                <i class="ph ph-selection-foreground"></i> Últimos Grupos de Tickets (Clusters)
+            </h2>
+
+            <div class="groups-grid">
+                {% for grupo in grupos %}
+                <div class="group-card">
+                    <div class="group-header">
+                        <span class="group-id">{{ grupo.correlativo }}</span>
+                        <span class="group-date">
+                            <i class="ph ph-calendar"></i> {{ grupo.fecha|date:"j M, Y" }}
+                        </span>
+                    </div>
+                    <div class="group-body">
+                        <div class="group-desc" title="{{ grupo.descripcion }}">
+                            {{ grupo.descripcion|truncatewords:20 }}
+                        </div>
+                        <div class="group-stats">
+                            <div class="stat-item" title="Tickets en este grupo">
+                                <i class="ph ph-ticket"></i>
+                                <span><strong>{{ grupo.num_tickets }}</strong> tickets</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="group-footer">
+                        <a href="{% url 'admin:callcenter_grupoticket_change' grupo.id %}" class="btn-view">
+                            Ver Detalles <i class="ph ph-arrow-right"></i>
+                        </a>
+                        <a href="{% url 'admin:callcenter_solicitudticket_changelist' %}?grupos__id__exact={{ grupo.id }}" class="btn-view" style="color: var(--sap-text-muted);">
+                            Listar Tickets <i class="ph ph-list-bullets"></i>
+                        </a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 5rem; background: white; border-radius: 1rem; border: 2px dashed var(--sap-border);">
+                    <i class="ph ph-ghost" style="font-size: 3rem; color: var(--sap-text-muted); opacity: 0.5;"></i>
+                    <p style="color: var(--sap-text-muted); margin-top: 1rem;">No se han generado grupos de tickets todavía.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+</body>
+</html>
