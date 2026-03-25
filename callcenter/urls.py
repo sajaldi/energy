@@ -9,4 +9,9 @@ urlpatterns = [
     path('api/ticket/<str:folio>/upload_evidencia/', views.webhook_evidencia_ticket, name='webhook_evidencia_ticket'),
     path('api/ticket/<int:ticket_id>/enviar-power-automate/', views.send_ticket_to_power_automate_view, name='send_power_automate'),
     path('buscar/', views.ticket_search_view, name='buscar_tickets'),
+    
+    # SAP Fiori Closure Interface
+    path('ticket/<int:ticket_id>/cierre-fiori/', views.ticket_cierre_fiori_view, name='ticket_cierre_fiori'),
+    path('ticket/<int:ticket_id>/upload-evidencia/', views.upload_evidencia_ajax, name='upload_evidencia_fiori'),
+    path('ticket/<int:ticket_id>/delete-evidencia/<int:evidencia_id>/', views.delete_evidencia_ajax, name='delete_evidencia_fiori'),
 ]

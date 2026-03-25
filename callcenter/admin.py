@@ -206,5 +206,6 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             path('sync-tickets/', self.admin_site.admin_view(trigger_sync_tickets), name='sync-tickets'),
             path('<int:ticket_id>/sync-singular/', self.admin_site.admin_view(sync_single_ticket), name='sync-singular'),
             path('<int:ticket_id>/enviar-power-automate/', self.admin_site.admin_view(views.send_ticket_to_power_automate_view), name='enviar_power_automate'),
+            path('<int:ticket_id>/cierre-fiori/', self.admin_site.admin_view(views.ticket_cierre_fiori_view), name='cierre_fiori'),
         ]
         return custom_urls + urls
