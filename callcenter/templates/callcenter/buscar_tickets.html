@@ -1,0 +1,304 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+
+{% block title %}🔍 Búsqueda Semántica de Tickets{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --search-primary: #1a73e8;
+        --search-accent: #34a853;
+        --search-bg: #f8f9fa;
+        --search-card: #ffffff;
+        --search-border: #e0e0e0;
+        --search-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        --search-hover: 0 4px 16px rgba(0,0,0,0.12);
+    }
+
+    .search-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px 16px;
+    }
+
+    .search-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .search-header h1 {
+        font-size: 28px;
+        font-weight: 700;
+        color: #202124;
+        margin-bottom: 8px;
+    }
+
+    .search-header p {
+        color: #5f6368;
+        font-size: 15px;
+        margin: 0;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        background: var(--search-card);
+        border: 2px solid var(--search-border);
+        border-radius: 28px;
+        padding: 6px 6px 6px 20px;
+        box-shadow: var(--search-shadow);
+        transition: all 0.3s ease;
+        margin-bottom: 28px;
+    }
+
+    .search-box:focus-within {
+        border-color: var(--search-primary);
+        box-shadow: 0 2px 12px rgba(26,115,232,0.2);
+    }
+
+    .search-box input[type="text"] {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: 16px;
+        padding: 10px 0;
+        background: transparent;
+        color: #202124;
+    }
+
+    .search-box input[type="text"]::placeholder {
+        color: #9aa0a6;
+    }
+
+    .search-box button {
+        background: var(--search-primary);
+        color: white;
+        border: none;
+        border-radius: 22px;
+        padding: 10px 24px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        white-space: nowrap;
+    }
+
+    .search-box button:hover {
+        background: #1557b0;
+    }
+
+    .search-icon {
+        color: #9aa0a6;
+        margin-right: 8px;
+        font-size: 18px;
+    }
+
+    .results-info {
+        font-size: 14px;
+        color: #5f6368;
+        margin-bottom: 16px;
+        padding-left: 4px;
+    }
+
+    .result-card {
+        background: var(--search-card);
+        border: 1px solid var(--search-border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 12px;
+        transition: all 0.2s ease;
+        cursor: default;
+    }
+
+    .result-card:hover {
+        box-shadow: var(--search-hover);
+        border-color: #c0c0c0;
+    }
+
+    .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+
+    .result-folio {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--search-primary);
+        text-decoration: none;
+    }
+
+    .result-folio:hover {
+        text-decoration: underline;
+    }
+
+    .similarity-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .sim-high { background: #e6f4ea; color: #137333; }
+    .sim-medium { background: #fef7e0; color: #b06000; }
+    .sim-low { background: #fce8e6; color: #c5221f; }
+
+    .result-desc {
+        font-size: 14px;
+        color: #3c4043;
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
+
+    .result-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 13px;
+        color: #5f6368;
+    }
+
+    .result-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .result-meta .fas,
+    .result-meta .far {
+        font-size: 12px;
+        color: #9aa0a6;
+    }
+
+    .error-alert {
+        background: #fce8e6;
+        border: 1px solid #f5c6cb;
+        border-radius: 10px;
+        padding: 16px 20px;
+        color: #c5221f;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #5f6368;
+    }
+
+    .empty-state i {
+        font-size: 48px;
+        color: #dadce0;
+        margin-bottom: 16px;
+    }
+
+    .empty-state h3 {
+        font-size: 18px;
+        color: #3c4043;
+        margin-bottom: 8px;
+    }
+</style>
+
+<div class="search-container">
+    <div class="search-header">
+        <h1>🔍 Búsqueda Semántica de Tickets</h1>
+        <p>Busca tickets por significado, no solo por palabras exactas. Escribe lo que necesitas encontrar.</p>
+    </div>
+
+    <form method="get" action="">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" name="q" value="{{ query }}" 
+                   placeholder="Ej: problemas de aire acondicionado en torre 1, fugas de agua piso 3..."
+                   autofocus autocomplete="off">
+            <button type="submit">
+                <i class="fas fa-brain"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    {% if error %}
+    <div class="error-alert">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    {% if resultados %}
+    <div class="results-info">
+        Se encontraron <strong>{{ resultados|length }}</strong> tickets similares a "<em>{{ query }}</em>"
+    </div>
+
+    {% for ticket in resultados %}
+    <div class="result-card">
+        <div class="result-header">
+            <a class="result-folio" href="/admin/callcenter/solicitudticket/{{ ticket.id }}/change/" target="_blank">
+                📋 {{ ticket.folio|default:ticket.id_solicitud }}
+            </a>
+            {% with sim=ticket.distancia %}
+                {% if sim < 0.3 %}
+                <span class="similarity-badge sim-high">
+                    <i class="fas fa-bullseye"></i>&nbsp; {{ sim|floatformat:3 }} — Alta similitud
+                </span>
+                {% elif sim < 0.6 %}
+                <span class="similarity-badge sim-medium">
+                    <i class="fas fa-dot-circle"></i>&nbsp; {{ sim|floatformat:3 }} — Media
+                </span>
+                {% else %}
+                <span class="similarity-badge sim-low">
+                    <i class="fas fa-circle"></i>&nbsp; {{ sim|floatformat:3 }} — Baja
+                </span>
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <div class="result-desc">
+            {{ ticket.solicitud_descripcion|default:"Sin descripción"|truncatewords:40 }}
+        </div>
+
+        {% if ticket.diagnostico %}
+        <div class="result-desc" style="color: #137333; font-style: italic;">
+            <i class="fas fa-stethoscope"></i> {{ ticket.diagnostico|truncatewords:25 }}
+        </div>
+        {% endif %}
+
+        <div class="result-meta">
+            {% if ticket.servicio %}
+            <span><i class="fas fa-cogs"></i> {{ ticket.servicio }}{% if ticket.subservicio %} › {{ ticket.subservicio }}{% endif %}</span>
+            {% endif %}
+            {% if ticket.ubicacion %}
+            <span><i class="fas fa-map-marker-alt"></i> {{ ticket.ubicacion.nombre }}</span>
+            {% elif ticket.nivel %}
+            <span><i class="fas fa-map-marker-alt"></i> {{ ticket.nivel }}{% if ticket.grupo %} / {{ ticket.grupo }}{% endif %}</span>
+            {% endif %}
+            {% if ticket.fecha_solicitud %}
+            <span><i class="far fa-calendar"></i> {{ ticket.fecha_solicitud|date:"d/M/Y" }}</span>
+            {% endif %}
+            {% if ticket.solicitante %}
+            <span><i class="fas fa-user"></i> {{ ticket.solicitante }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% elif query %}
+    <div class="empty-state">
+        <i class="fas fa-search"></i>
+        <h3>No se encontraron resultados</h3>
+        <p>Intenta con otros términos o verifica que los tickets tengan embeddings generados.</p>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-brain"></i>
+        <h3>Búsqueda Inteligente</h3>
+        <p>Escribe una descripción de lo que buscas. El sistema encontrará tickets similares por contexto semántico.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

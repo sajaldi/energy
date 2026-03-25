@@ -55,7 +55,8 @@ def crear_solicitud_dashboard(request):
     Dashboard premium para crear una Solicitud de Materiales con el selector 
     exacto de la Requisición.
     """
-    ubicaciones = Ubicacion.objects.all()
+    from django.db.models import Q
+    ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
     categorias = CategoriaMaterial.objects.all().order_by('nombre')
     
     # Obtener OTs activas para el buscador inicial
@@ -917,6 +918,7 @@ def api_ingreso_lote(request):
                     
                     comentario_final = comentario_item if comentario_item else comentarios
 
+                    from django.utils import timezone
                     MovimientoInventario.objects.create(
                         material=material,
                         tipo='ENTRADA',
@@ -925,7 +927,10 @@ def api_ingreso_lote(request):
                         ubicacion_destino=ubicacion,
                         usuario=request.user,
                         comentarios=comentario_final,
-                        ingreso=ingreso_header
+                        ingreso=ingreso_header,
+                        estado='APROBADO',
+                        aprobado_por=request.user,
+                        fecha_aprobacion=timezone.now()
                     )
             
             return JsonResponse({'status': 'success', 'message': 'Ingreso registrado correctamente', 'ingreso_id': ingreso_header.id})

@@ -31,6 +31,75 @@ def trigger_sync_tickets(request):
         messages.error(request, f"Error al iniciar la sincronización: {e}")
     return redirect('admin:callcenter_solicitudticket_changelist')
 
+def send_ticket_to_power_automate_view(request, ticket_id):
+    from django.shortcuts import get_object_or_404, redirect
+    from django.contrib import messages
+    from django.utils import timezone
+    import requests
+    import json
+
+    ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+    
+    # 1. Obtener URL del PDF (Si no existe, se podría intentar generar pero requiere Playwright)
+    # Por ahora buscamos la evidencia existente del PDF autogenerado
+    pdf_url = "N/A"
+    desc_pdf = "Comprobante de Cierre Generado Automáticamente"
+    evidencia = EvidenciaTicket.objects.filter(ticket=ticket, descripcion=desc_pdf).first()
+    if evidencia and evidencia.archivo:
+        pdf_url = request.build_absolute_uri(evidencia.archivo.url)
+    
+    # 2. Calcular Tiempo Total Min
+    tiempo_total = 0
+    if ticket.fecha_solicitud and ticket.fecha_cierre:
+        diff = ticket.fecha_cierre - ticket.fecha_solicitud
+        tiempo_total = int(diff.total_seconds() / 60)
+
+    # 3. Formatear Fechas en Local para Power Automate
+    def to_local_str(dt):
+        if not dt: return "N/A"
+        # Django maneja la conversión a local si USE_TZ=True y local_time es configurado
+        local_dt = timezone.localtime(dt)
+        return local_dt.strftime('%d/%m/%Y %H:%M:%S')
+
+    # 4. Construir Payload (Mismo formato que n8n)
+    payload = {
+        "folio": ticket.folio or str(ticket.id_solicitud),
+        "solicitante": ticket.solicitante or "N/A",
+        "descripcion_original": (ticket.solicitud_descripcion or "N/A").replace('\n', ' '),
+        "falla": (ticket.falla_descripcion or "N/A"),
+        "clasificacion_falla": (ticket.falla_clasificacion or "N/A"),
+        "servicio": (ticket.servicio or "N/A"),
+        "ubicacion": (ticket.area or "N/A"),
+        "grupo_torre": (ticket.nivel or "N/A"),
+        "nivel_piso": (ticket.grupo or "N/A"),
+        "unidad_funcional": (ticket.unidad or "N/A"),
+        "fecha_apertura": to_local_str(ticket.fecha_solicitud),
+        "fecha_cierre": to_local_str(ticket.fecha_cierre),
+        "diagnostico": (ticket.diagnostico or "N/A").replace('\n', ' '),
+        "actividades": (ticket.actividades or "N/A").replace('\n', ' '),
+        "observaciones": (ticket.observaciones or "N/A").replace('\n', ' '),
+        "pdf_url": pdf_url,
+        "tiempo_total_min": tiempo_total,
+        "cerrado_por_nombre": request.user.get_full_name() or request.user.username,
+        "telefono_usuario": "Admin Panel",
+        "email_usuario": request.user.email or "N/A"
+    }
+
+    url_power_automate = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6260ff428abe4f88b4cd96fae4614a57/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IMrCwJsG1SsgYIYDKimFGYRkvxBFlg0MYpJWURimsLk"
+
+    try:
+        response = requests.post(url_power_automate, json=payload, timeout=15)
+        if response.status_code in [200, 202]:
+            ticket.cierre_enviado = True
+            ticket.save(update_fields=['cierre_enviado'])
+            messages.success(request, "Ticket enviado exitosamente a Power Automate para cierre/notificación.")
+        else:
+            messages.warning(request, f"Power Automate respondió con error {response.status_code}: {response.text}")
+    except Exception as e:
+        messages.error(request, f"Error al conectar con Power Automate: {str(e)}")
+
+    return redirect('admin:callcenter_solicitudticket_change', ticket_id)
+
 @csrf_exempt
 def webhook_new_ticket(request):
     if request.method != 'POST':
@@ -256,3 +325,50 @@ def webhook_evidencia_ticket(request, folio):
     except Exception as e:
         logger.error(f"Error parseando imagen: {e}", exc_info=True)
         return JsonResponse({'success': False, 'msg': str(e)}, status=500)
+
+
+@staff_member_required
+def ticket_search_view(request):
+    """
+    Buscador semántico de tickets usando embeddings vectoriales.
+    Genera el embedding de la query usando Ollama y busca por distancia coseno.
+    """
+    from django.shortcuts import render
+    from django.conf import settings
+    import requests as http_requests
+    
+    query = request.GET.get('q', '').strip()
+    resultados = []
+    error = None
+    
+    if query:
+        try:
+            # 1. Generar embedding de la query usando Ollama
+            ollama_url = f'{settings.OLLAMA_API_URL}/api/embeddings'
+            
+            resp = http_requests.post(ollama_url, json={
+                'model': 'mxbai-embed-large',
+                'prompt': query
+            }, timeout=15)
+            
+            if resp.status_code != 200:
+                error = f"Error al generar embedding: Ollama respondió {resp.status_code}"
+            else:
+                query_embedding = resp.json().get('embedding')
+                if not query_embedding:
+                    error = "Ollama no devolvió un embedding válido."
+                else:
+                    # 2. Buscar tickets similares
+                    resultados = SolicitudTicket.buscar_vectorial(query_embedding, limit=15)
+                    
+        except http_requests.exceptions.ConnectionError:
+            error = "No se pudo conectar con Ollama. Verifica que esté corriendo."
+        except Exception as e:
+            error = f"Error inesperado: {str(e)}"
+            logger.error(f"Error en ticket_search_view: {e}", exc_info=True)
+    
+    return render(request, 'callcenter/buscar_tickets.html', {
+        'query': query,
+        'resultados': resultados,
+        'error': error,
+    })

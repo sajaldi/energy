@@ -2,6 +2,12 @@
 {% load i18n admin_urls %}
 
 {% block object-tools-items %}
+{% if original.cierre_enviado %}
+<div class="warningnote" style="margin-bottom: 15px; padding: 12px; background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; border-radius: 4px; font-weight: bold; text-align: center; border-left: 6px solid #ffc107;">
+    <i class="fas fa-exclamation-triangle"></i>
+    ESTE TICKET YA FUE NOTIFICADO AL CIERRE. Puedes volver a enviar si deseas corregir los datos.
+</div>
+{% endif %}
 {% if original.pk %}
 <li>
     <a href="../sync-singular/" class="addlink" style="background-color: #007bff !important; color: white !important;">
@@ -10,6 +16,12 @@
     </a>
 </li>
 {% endif %}
+<li>
+    <a href="../enviar-power-automate/" class="addlink" style="background-color: #28a745 !important; color: white !important;">
+        <i class="fas fa-paper-plane"></i>
+        Enviar Cierre (Power Automate)
+    </a>
+</li>
 {{ block.super }}
 {% endblock %}
 
@@ -40,11 +52,22 @@
                 btn.className = 'btn-dynamics btn-sync-sig';
                 btn.innerHTML = '<i class="fas fa-sync"></i> <span>Sincronizar SIG</span>';
 
+                // Botón Cierre (Power Automate)
+                var btnPA = document.createElement('a');
+                btnPA.id = 'btn-pa-dynamic';
+                btnPA.href = '../enviar-power-automate/';
+                btnPA.className = 'btn-dynamics';
+                btnPA.style.backgroundColor = '#28a745';
+                btnPA.style.color = 'white';
+                btnPA.innerHTML = '<i class="fas fa-paper-plane"></i> <span>Enviar Cierre (PA)</span>';
+
                 // Lo insertamos después del primer botón (usualmente Guardar)
                 if (submitRow.firstChild) {
                     submitRow.appendChild(btn);
+                    submitRow.appendChild(btnPA);
                 } else {
                     submitRow.appendChild(btn);
+                    submitRow.appendChild(btnPA);
                 }
             }
         }

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from import_export.admin import ImportExportModelAdmin
-from .models import Servicio, KPI, ChecklistItem
+from .models import Servicio, KPI, ChecklistItem, Auditoria, AuditoriaResultado
 from .resources import ServicioResource, KPIResource
 from django.contrib.contenttypes.admin import GenericTabularInline
 from documentos.models import MetadatoValor
@@ -49,12 +49,22 @@ class ServicioAdmin(ImportExportModelAdmin):
 class KPIAdmin(ImportExportModelAdmin):
     resource_class = KPIResource
     change_list_template = "admin/mantenimiento/procedimiento/change_list.html" 
-    list_display = ('nombre', 'servicio', 'descripcion', 'forma_de_cumplimiento', 'estado')
+    list_display = ('nombre', 'servicio', 'descripcion', 'forma_de_cumplimiento', 'estado', 'comentarios', 'editar_fiori')
     list_filter = ('servicio', 'categoria', 'estado', 'fecha_medicion')
     search_fields = ('nombre', 'descripcion', 'servicio__nombre', 'forma_de_cumplimiento', 'metodo_de_supervision')
     readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
+    filter_horizontal = ('rutinas',)
     ordering = ('nombre', 'servicio')
     inlines = [ChecklistItemInline, DocumentoRelacionadoInline]
+
+    def editar_fiori(self, obj):
+        url = reverse('servicios:kpi_form_edit', args=[obj.pk])
+        return format_html(
+            '<a href="{}" style="background:#0a6ed1;color:#fff;padding:5px 12px;border-radius:6px;'
+            'font-size:12px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">'
+            '<i class="fas fa-pen" style="font-size:10px;"></i> Editar</a>', url
+        )
+    editar_fiori.short_description = "Acciones"
 
 
     def get_urls(self):
@@ -78,3 +88,16 @@ class KPIAdmin(ImportExportModelAdmin):
         response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_kpis.xlsx"'
         return response
+
+
+class AuditoriaResultadoInline(admin.TabularInline):
+    model = AuditoriaResultado
+    extra = 0
+    autocomplete_fields = ['kpi']
+
+@admin.register(Auditoria)
+class AuditoriaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'fecha', 'fecha_creacion')
+    list_filter = ('fecha',)
+    search_fields = ('nombre', 'descripcion')
+    inlines = [AuditoriaResultadoInline]

@@ -1,0 +1,418 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static servicios_tags %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/forms.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    :root {
+        --sap-blue: #0a6ed1;
+        --sap-blue-dark: #0854a0;
+        --sap-border: #d9d9d9;
+        --sap-bg: #f4f6f8;
+        --sap-text: #32363a;
+        --sap-neutral: #6a6d70;
+        --sap-positive: #2b7d2b;
+        --sap-negative: #bb0000;
+        --sap-critical: #e9730c;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--sap-bg) !important;
+        font-family: "72", "72full", Arial, Helvetica, sans-serif;
+    }
+
+    #content { padding: 0 !important; }
+
+    /* Fiori Shell-like Header */
+    .fiori-header {
+        background: white;
+        padding: 16px 32px;
+        border-bottom: 1px solid var(--sap-border);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .header-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 8px;
+    }
+
+    .header-title {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .audit-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--sap-blue);
+        color: white;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+
+    .title-text h1 {
+        margin: 0;
+        font-size: 20px;
+        color: var(--sap-text);
+        font-weight: 500;
+    }
+
+    .subtitle {
+        color: var(--sap-neutral);
+        font-size: 13px;
+    }
+
+    /* Fiori Controls */
+    .sap-btn {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+    }
+
+    .sap-btn-primary {
+        background: var(--sap-blue);
+        color: white;
+    }
+
+    .sap-btn-primary:hover { background: var(--sap-blue-dark); }
+
+    .sap-btn-ghost {
+        background: transparent;
+        color: var(--sap-blue);
+        border-color: var(--sap-blue);
+    }
+
+    .sap-btn-ghost:hover { background: rgba(10,110,209,0.05); }
+
+    .sap-input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--sap-border);
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.2s;
+    }
+
+    .sap-input:focus {
+        outline: none;
+        border-color: var(--sap-blue);
+        box-shadow: 0 0 0 2px rgba(10,110,209,0.1);
+    }
+
+    /* Section Styling */
+    .fiori-content {
+        max-width: 1200px;
+        margin: 32px auto;
+        padding: 0 32px;
+    }
+
+    .fiori-section {
+        background: white;
+        border-radius: 8px;
+        border: 1px solid var(--sap-border);
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+
+    .section-header {
+        padding: 16px 24px;
+        background: #fafafa;
+        border-bottom: 1px solid var(--sap-border);
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--sap-text);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .section-content {
+        padding: 24px;
+    }
+
+    /* KPI Grid */
+    .kpi-audit-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .kpi-audit-table th {
+        text-align: left;
+        padding: 12px;
+        border-bottom: 2px solid var(--sap-bg);
+        color: var(--sap-neutral);
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+
+    .kpi-audit-table td {
+        padding: 16px 12px;
+        border-bottom: 1px solid var(--sap-bg);
+        vertical-align: top;
+    }
+
+    .kpi-info-col {
+        width: 250px;
+    }
+
+    .kpi-name {
+        font-weight: 600;
+        display: block;
+        color: var(--sap-text);
+    }
+
+    .kpi-service {
+        font-size: 12px;
+        color: var(--sap-neutral);
+    }
+
+    /* Cumple Toggle */
+    .cumple-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    .cumple-btn {
+        width: 80px;
+        padding: 6px;
+        text-align: center;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        border: 1px solid var(--sap-border);
+        user-select: none;
+    }
+
+    .cumple-btn.active-yes {
+        background: #e7f4e9;
+        color: var(--sap-positive);
+        border-color: var(--sap-positive);
+    }
+
+    .cumple-btn.active-no {
+        background: #fdeaea;
+        color: var(--sap-negative);
+        border-color: var(--sap-negative);
+    }
+
+    /* Plan Editor */
+    .plan-textarea {
+        width: 100%;
+        min-height: 80px;
+        padding: 8px;
+        border: 1px solid var(--sap-border);
+        border-radius: 4px;
+        font-size: 13px;
+        resize: vertical;
+    }
+
+    /* Footer */
+    .form-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 16px 32px;
+        border-top: 1px solid var(--sap-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 16px;
+        z-index: 1000;
+    }
+
+    /* Search/Filter */
+    .filter-bar {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="fiori-header">
+        <div class="subtitle">Auditorías de Gestión</div>
+        <div class="header-main">
+            <div class="header-title">
+                <div class="audit-icon"><i class="fas fa-clipboard-check"></i></div>
+                <div class="title-text">
+                    <h1>{{ title }}</h1>
+                    <span class="subtitle">{% if auditoria %}{{ auditoria.fecha|date:"d M Y" }}{% else %}Nueva Sesión de Auditoría{% endif %}</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button type="button" class="sap-btn sap-btn-ghost" onclick="window.history.back()">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" class="sap-btn sap-btn-primary" onclick="document.getElementById('audit-form').submit()">
+                    <i class="fas fa-save"></i> Guardar Auditoría
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" id="audit-form" class="fiori-content">
+        {% csrf_token %}
+        
+        <!-- Sesión Info -->
+        <div class="fiori-section">
+            <div class="section-header">
+                <i class="fas fa-info-circle"></i> Información de la Sesión
+            </div>
+            <div class="section-content">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                    <div class="form-group">
+                        <label class="sap-label" style="font-weight: 600; font-size: 13px; margin-bottom: 8px; display: block;">Nombre de la Auditoría</label>
+                        <input type="text" name="nombre" class="sap-input" value="{{ auditoria.nombre|default:'' }}" placeholder="Ej: Auditoría Trimestral Q1 - 2026" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="sap-label" style="font-weight: 600; font-size: 13px; margin-bottom: 8px; display: block;">Fecha</label>
+                        <input type="date" name="fecha" class="sap-input" value="{{ auditoria.fecha|date:'Y-m-d'|default:today_str }}" required>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top: 16px;">
+                    <label class="sap-label" style="font-weight: 600; font-size: 13px; margin-bottom: 8px; display: block;">Descripción / Alcance</label>
+                    <textarea name="descripcion" class="sap-input" style="min-height: 60px;" placeholder="Detalles sobre el alcance de esta auditoría...">{{ auditoria.descripcion|default:'' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Selection & Results -->
+        <div class="fiori-section">
+            <div class="section-header">
+                <i class="fas fa-list-check"></i> Evaluación de KPIs
+            </div>
+            <div class="section-content" style="padding: 0;">
+                <div style="padding: 16px 24px; background: #f8f9fa; border-bottom: 1px solid var(--sap-border);">
+                    <input type="text" class="sap-input" id="kpi-search" placeholder="🔍 Filtrar KPIs..." onkeyup="filterKPIs(this.value)">
+                </div>
+                
+                <table class="kpi-audit-table" id="kpi-table">
+                    <thead>
+                        <tr>
+                            <th>KPI / Servicio</th>
+                            <th>Cumplimiento</th>
+                            <th>Plan de Acción</th>
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for kpi in kpis_todos %}
+                        {% with result=resultados_dict|get_item:kpi.id %}
+                        <tr class="kpi-row" data-search="{{ kpi.nombre|lower }} {{ kpi.servicio.nombre|lower }}">
+                            <td class="kpi-info-col">
+                                <input type="hidden" name="kpi_id[]" value="{{ kpi.id }}">
+                                <span class="kpi-name">{{ kpi.nombre }}</span>
+                                <span class="kpi-service">{{ kpi.servicio.nombre }}</span>
+                            </td>
+                            <td style="width: 120px;">
+                                <div class="cumple-toggle" onclick="toggleCumple(this)">
+                                    <input type="hidden" name="cumple[]" value="true">
+                                    <div class="cumple-btn active-yes">CUMPLE</div>
+                                </div>
+                            </td>
+                            <td>
+                                <textarea name="plan_de_accion[]" class="plan-textarea" placeholder="¿Qué se hará para mejorar?"></textarea>
+                            </td>
+                            <td>
+                                <textarea name="observaciones[]" class="plan-textarea" placeholder="Notas adicionales..."></textarea>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="height: 100px;"></div> <!-- Spacer -->
+    </form>
+
+    <div class="form-footer">
+        <a href="/admin/servicios/auditoria/" class="sap-btn sap-btn-ghost">
+            <i class="fas fa-list"></i> Ver Todas
+        </a>
+        <button type="submit" form="audit-form" class="sap-btn sap-btn-primary">
+            <i class="fas fa-save"></i> Finalizar y Guardar
+        </button>
+    </div>
+</div>
+
+<script>
+    function toggleCumple(container) {
+        const input = container.querySelector('input');
+        const btn = container.querySelector('.cumple-btn');
+        const isCumple = input.value === 'true';
+        
+        if (isCumple) {
+            input.value = 'false';
+            btn.textContent = 'NO CUMPLE';
+            btn.className = 'cumple-btn active-no';
+        } else {
+            input.value = 'true';
+            btn.textContent = 'CUMPLE';
+            btn.className = 'cumple-btn active-yes';
+        }
+    }
+
+    function filterKPIs(term) {
+        term = term.toLowerCase();
+        document.querySelectorAll('.kpi-row').forEach(row => {
+            const search = row.dataset.search;
+            row.style.display = search.includes(term) ? '' : 'none';
+        });
+    }
+
+    // Populate existing results if editing
+    document.addEventListener('DOMContentLoaded', () => {
+        const results = [
+            {% for r in resultados %}
+            {
+                kpi_id: {{ r.kpi_id }},
+                cumple: {{ r.cumple|yesno:"true,false" }},
+                plan: "{{ r.plan_de_accion|escapejs }}",
+                obs: "{{ r.observaciones|escapejs }}"
+            },
+            {% endfor %}
+        ];
+
+        const rows = document.querySelectorAll('.kpi-row');
+        results.forEach(res => {
+            const row = Array.from(rows).find(r => r.querySelector('input[name="kpi_id[]"]').value == res.kpi_id);
+            if (row) {
+                const cumpleInput = row.querySelector('input[name="cumple[]"]');
+                const cumpleBtn = row.querySelector('.cumple-btn');
+                const planText = row.querySelector('textarea[name="plan_de_accion[]"]');
+                const obsText = row.querySelector('textarea[name="observaciones[]"]');
+
+                cumpleInput.value = res.cumple;
+                cumpleBtn.textContent = res.cumple ? 'CUMPLE' : 'NO CUMPLE';
+                cumpleBtn.className = res.cumple ? 'cumple-btn active-yes' : 'cumple-btn active-no';
+                planText.value = res.plan;
+                obsText.value = res.obs;
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -8,335 +8,242 @@
     :root {
         --sap-shell: #354a5f;
         --sap-blue: #0a6ed1;
-        --sap-blue-hover: #0854a0;
-        --sap-bg: #f5f6f7;
+        --sap-highlight: #0854a0;
+        --sap-bg: #f3f5f7;
         --sap-card: #ffffff;
         --sap-border: #d9d9d9;
         --sap-success: #107e3e;
         --sap-warning: #e9730c;
         --sap-error: #bb0000;
-        --sap-info: #0a6ed1;
         --text-main: #32363a;
         --text-muted: #6a6d70;
-        --text-label: #6a6d70;
-        --radius: 4px;
+        --radius-lg: 12px;
+        --radius-sm: 6px;
+        --shadow: 0 2px 10px rgba(0,0,0,0.06);
     }
 
     body {
         font-family: 'Inter', '72', Arial, sans-serif !important;
         background: var(--sap-bg) !important;
         -webkit-font-smoothing: antialiased;
+        margin: 0;
     }
 
-    /* ====== PAGE SHELL ====== */
-    .sap-page-shell {
+    /* ====== FIORI SHELL BAR ====== */
+    .sap-shell-bar {
         background: var(--sap-shell);
-        padding: 20px 32px;
+        height: 64px;
+        padding: 0 2rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 3px solid var(--sap-blue);
+        color: #fff;
+        position: sticky;
+        top: 0; z-index: 1000;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .sap-page-shell h1 {
-        margin: 0; font-size: 1.25rem; font-weight: 700;
-        color: #fff; letter-spacing: -0.3px;
-        display: flex; align-items: center; gap: 12px;
+    .sap-shell-title {
+        display: flex; align-items: center; gap: 1rem;
     }
-    .sap-page-shell h1 ion-icon { font-size: 1.4rem; opacity: 0.8; }
-    .sap-page-shell .subtitle {
-        color: rgba(255,255,255,0.6); font-size: 0.8rem; font-weight: 400; margin-top: 2px;
+    .sap-shell-title h1 {
+        margin: 0; font-size: 1.15rem; font-weight: 700;
+        letter-spacing: -0.2px;
     }
-    .sap-breadcrumb {
-        display: flex; align-items: center; gap: 8px;
-        font-size: 0.8rem; color: rgba(255,255,255,0.5);
+    .sap-shell-icon { 
+        font-size: 1.5rem; color: #fff; opacity: 0.9;
     }
-    .sap-breadcrumb a { color: rgba(255,255,255,0.7); text-decoration: none; }
-    .sap-breadcrumb a:hover { color: #fff; }
 
-    /* ====== TOOLBAR ====== */
-    .sap-toolbar {
-        background: var(--sap-card);
+    /* ====== TOOLBAR / FILTERS ====== */
+    .sap-filter-bar {
+        background: #fff;
+        margin: 1rem 2rem;
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-lg);
         border: 1px solid var(--sap-border);
-        border-radius: var(--radius);
-        padding: 12px 20px;
-        margin: 20px 24px 0;
         display: flex;
-        align-items: center;
-        gap: 12px;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        align-items: flex-end;
+        box-shadow: var(--shadow);
     }
-    .sap-toolbar .search-box {
-        flex: 2; position: relative;
+    .filter-item { flex: 1; min-width: 200px; }
+    .filter-label {
+        font-size: 0.75rem; font-weight: 700; color: var(--text-muted);
+        margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;
     }
-    .sap-toolbar .search-box input {
-        width: 100%; padding: 8px 12px 8px 36px;
-        border: 1px solid var(--sap-border); border-radius: var(--radius);
-        font-size: 0.875rem; font-family: inherit;
-        background: var(--sap-bg); color: var(--text-main);
-        height: 36px; box-sizing: border-box;
+    .sap-input {
+        width: 100%; height: 38px; padding: 0 12px;
+        border: 1px solid var(--sap-border); border-radius: var(--radius-sm);
+        background: #fdfdfd; font-family: inherit; font-size: 0.9rem;
+        transition: all 0.2s; box-sizing: border-box;
     }
-    .sap-toolbar .search-box input:focus {
+    .sap-input:focus {
         border-color: var(--sap-blue); outline: none;
-        box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.15);
+        background: #fff; box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.12);
     }
-    .sap-toolbar .search-box ion-icon {
-        position: absolute; left: 10px; top: 50%;
-        transform: translateY(-50%); color: var(--text-muted); font-size: 1rem;
-    }
-    .sap-toolbar select {
-        flex: 1; padding: 8px 12px; height: 36px;
-        border: 1px solid var(--sap-border); border-radius: var(--radius);
-        font-size: 0.8rem; font-family: inherit;
-        background: var(--sap-card); color: var(--text-main);
-        cursor: pointer;
-    }
-    .sap-toolbar select:focus {
-        border-color: var(--sap-blue); outline: none;
-    }
-    .sap-toolbar .results-count {
-        font-size: 0.8rem; color: var(--text-muted); font-weight: 600;
-        white-space: nowrap; padding: 0 8px;
-    }
-    .sap-btn-back {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 7px 16px; border-radius: var(--radius);
-        border: 1px solid rgba(255,255,255,0.3);
-        background: transparent; color: rgba(255,255,255,0.85);
-        font-size: 0.8rem; font-weight: 600; text-decoration: none;
-        cursor: pointer; transition: all 0.15s;
-    }
-    .sap-btn-back:hover {
-        background: rgba(255,255,255,0.1); color: #fff;
-        border-color: rgba(255,255,255,0.5);
-    }
-
-    /* ====== CONTENT AREA ====== */
-    .sap-content { padding: 16px 24px; }
 
     /* ====== CATALOG GRID ====== */
+    .sap-catalog-container { padding: 0 2rem 3rem; }
     .catalog-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 16px;
+        display: flex; flex-direction: column; gap: 12px;
     }
 
-    /* ====== MATERIAL CARD ====== */
+    .grid-header {
+        display: grid;
+        grid-template-columns: 100px 2.5fr 1fr 1fr 1fr 1fr 80px;
+        gap: 20px; padding: 0 1.5rem; margin-bottom: 8px;
+        font-size: 0.7rem; font-weight: 800; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: 1px;
+    }
+
+    /* ====== PREMIUM HORIZONTAL CARD ====== */
     .mat-card {
-        background: var(--sap-card);
+        background: #fff;
+        border-radius: var(--radius-sm);
         border: 1px solid var(--sap-border);
-        border-radius: var(--radius);
-        overflow: hidden;
+        display: grid;
+        grid-template-columns: 100px 2.5fr 1fr 1fr 1fr 1fr 80px;
+        gap: 20px; align-items: center;
+        padding: 10px 1.5rem;
+        transition: background 0.2s, box-shadow 0.2s;
         cursor: pointer;
-        transition: box-shadow 0.2s, border-color 0.2s;
     }
     .mat-card:hover {
+        background: #f9f9f9;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         border-color: var(--sap-blue);
-        box-shadow: 0 4px 16px rgba(10, 110, 209, 0.12);
     }
     .mat-card .card-img {
-        height: 140px; background: #f5f6f7;
-        display: flex; align-items: center; justify-content: center;
-        border-bottom: 1px solid var(--sap-border);
-        padding: 12px;
+        width: 80px; height: 80px; background: #fff;
+        border-radius: 4px; border: 1px solid #eee;
+        display: flex; align-items: center; justify-content: center; overflow: hidden;
     }
-    .mat-card .card-img img {
-        max-width: 100%; max-height: 100%; object-fit: contain;
-    }
-    .mat-card .card-body {
-        padding: 12px 14px;
-    }
-    .mat-card .card-title {
-        font-size: 0.85rem; font-weight: 700; color: var(--text-main);
-        line-height: 1.3; margin-bottom: 4px;
-        display: -webkit-box; -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical; overflow: hidden;
-    }
-    .mat-card .card-sku {
-        font-size: 0.7rem; color: var(--text-muted);
-        font-family: 'Courier New', monospace; font-weight: 600;
-    }
-    .mat-card .card-cat {
-        font-size: 0.7rem; color: var(--sap-blue); font-weight: 600;
-        margin-top: 4px;
-    }
-    .mat-card .card-footer {
-        padding: 8px 14px;
-        border-top: 1px solid #eee;
-        display: flex; justify-content: space-between; align-items: center;
-    }
-    .stock-available {
-        font-size: 0.75rem; font-weight: 700; color: var(--sap-success);
-        display: flex; align-items: center; gap: 4px;
-    }
-    .stock-empty {
-        font-size: 0.75rem; font-weight: 700; color: var(--sap-error);
-        display: flex; align-items: center; gap: 4px;
-    }
-    .stock-qty {
-        font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+    .mat-card .card-img img { max-width: 90%; max-height: 90%; object-fit: contain; }
+
+    .mat-info-main { display: flex; flex-direction: column; gap: 4px; }
+    .mat-title { font-size: 0.95rem; font-weight: 700; color: var(--text-main); line-height: 1.2; }
+    .mat-sku { font-family: monospace; font-size: 0.75rem; color: var(--sap-blue); font-weight: 600; }
+    
+    .mat-badge {
+        font-size: 0.75rem; padding: 4px 8px; border-radius: 4px;
+        background: #f0f2f5; color: var(--text-muted); font-weight: 600;
+        text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    /* ====== PAGINATION ====== */
-    .sap-pagination {
-        display: flex; justify-content: center; align-items: center;
-        gap: 8px; margin-top: 24px; padding-bottom: 24px;
-    }
-    .sap-pagination button {
-        padding: 6px 16px; border-radius: var(--radius);
-        border: 1px solid var(--sap-border); background: var(--sap-card);
-        color: var(--text-main); font-size: 0.8rem; font-weight: 600;
-        cursor: pointer; font-family: inherit; transition: all 0.15s;
-    }
-    .sap-pagination button:hover {
-        border-color: var(--sap-blue); color: var(--sap-blue);
-    }
-    .sap-pagination .page-info {
-        font-size: 0.8rem; color: var(--text-muted); font-weight: 500;
-    }
+    .stock-val { font-weight: 800; color: var(--text-main); font-size: 1rem; }
+    .stock-unit { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; }
+    
+    .price-val { font-weight: 800; color: var(--sap-blue); font-size: 1.1rem; }
 
-    /* ====== DETAIL MODAL ====== */
+    .qr-container { width: 60px; height: 60px; background: white; padding: 2px; border: 1px solid #eee; border-radius: 4px; }
+    .qr-container img { width: 100%; height: 100%; image-rendering: pixelated; }
+
+    /* ====== MODAL REFINEMENTS ====== */
     .modal-overlay {
         display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(53, 74, 95, 0.85);
-        z-index: 10000; opacity: 0;
-        transition: opacity 0.3s ease;
+        background: rgba(44, 58, 72, 0.9); backdrop-filter: blur(5px);
+        z-index: 10000; opacity: 0; transition: opacity 0.3s;
     }
-    .modal-overlay.active {
-        display: flex; opacity: 1;
-        align-items: center; justify-content: center;
-    }
+    .modal-overlay.active { display: flex; opacity: 1; align-items: center; justify-content: center; }
     .modal-window {
-        background: var(--sap-card); width: 92%; max-width: 1100px;
-        height: 85vh; margin: auto;
-        display: flex; flex-direction: column;
-        border-radius: var(--radius);
-        box-shadow: 0 24px 64px rgba(0,0,0,0.35);
-        overflow: hidden;
-        transform: scale(0.95); transition: transform 0.25s ease;
+        background: #fff; width: 95%; max-width: 1200px; height: 90vh;
+        border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,0.5);
+        display: flex; flex-direction: column; transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     .modal-overlay.active .modal-window { transform: scale(1); }
 
     .modal-header-sap {
-        background: var(--sap-shell); padding: 16px 24px;
+        background: var(--sap-shell); padding: 1.25rem 2rem;
         display: flex; justify-content: space-between; align-items: center;
-        border-bottom: 3px solid var(--sap-blue);
+        color: #fff;
     }
-    .modal-header-sap h2 {
-        margin: 0; font-size: 1rem; font-weight: 700; color: #fff;
-        display: flex; align-items: center; gap: 10px;
-    }
-    .modal-header-sap .close-btn {
-        background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-        color: #fff; width: 32px; height: 32px;
-        border-radius: var(--radius); cursor: pointer;
-        font-size: 1rem; display: flex; align-items: center;
-        justify-content: center; transition: all 0.15s;
-    }
-    .modal-header-sap .close-btn:hover {
-        background: rgba(255,255,255,0.2);
-    }
+    .modal-header-sap h2 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 12px; }
 
-    /* Tabs */
-    .sap-tabs {
-        display: flex; background: #edeff0; padding: 0 24px;
-        border-bottom: 1px solid var(--sap-border); gap: 0;
+    /* ====== RESPONSIVENESS ====== */
+    @media (max-width: 1100px) {
+        .grid-header { display: none; }
+        .mat-card {
+            grid-template-columns: 80px 1fr 1fr; 
+            grid-template-areas: 
+                "img title title"
+                "img cat type"
+                "img price stock"
+                "img qr qr";
+            gap: 10px; padding: 15px; height: auto;
+        }
+        .mat-card .card-img { grid-area: img; width: 70px; height: 70px; }
+        .mat-info-main { grid-area: title; }
+        .col-cat { grid-area: cat; }
+        .col-type { grid-area: type; }
+        .col-price { grid-area: price; }
+        .col-stock { grid-area: stock; }
+        .qr-container { grid-area: qr; justify-self: end; width: 40px; height: 40px; }
     }
-    .sap-tab {
-        padding: 10px 20px; border: none; background: none;
-        font-weight: 600; color: var(--text-muted); cursor: pointer;
-        font-size: 0.8rem; font-family: inherit;
-        border-bottom: 2px solid transparent;
-        transition: all 0.15s; letter-spacing: 0.3px;
-    }
-    .sap-tab:hover { color: var(--text-main); }
-    .sap-tab.active {
-        color: var(--sap-blue); border-bottom-color: var(--sap-blue);
-        background: var(--sap-card);
-    }
-    .tab-content { display: none; height: 100%; }
-    .tab-content.active { display: block; }
-
-    /* Detail grid */
-    .detail-grid {
-        display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
-    }
-    .detail-item {
-        background: var(--sap-bg); padding: 12px 16px;
-        border-radius: var(--radius); border: 1px solid var(--sap-border);
-    }
-    .detail-label {
-        font-size: 0.7rem; font-weight: 700; color: var(--text-label);
-        text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
-    }
-    .detail-value {
-        font-size: 0.95rem; font-weight: 700; color: var(--text-main);
-    }
-
-    /* Fix SweetAlert z-index */
-    .swal2-container { z-index: 20000 !important; }
-
-    /* Loading skeleton */
-    .sap-loading {
-        grid-column: 1/-1; text-align: center; padding: 80px 20px;
-        color: var(--text-muted);
-    }
-    .sap-loading ion-icon {
-        font-size: 2.5rem; display: block; margin: 0 auto 12px;
-        animation: spin 1.5s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 {% endblock %}
 
 {% block content %}
-<!-- SAP Shell Header -->
-<div class="sap-page-shell">
-    <div>
-        <h1>
-            <ion-icon name="cube-outline"></ion-icon>
-            Catálogo Maestro de Materiales
-        </h1>
-        <div class="subtitle">MM01 · Consulta global de existencias y fichas técnicas</div>
-    </div>
-    <div style="display: flex; align-items: center; gap: 16px;">
-        <div class="sap-breadcrumb">
-            <a href="{% url 'inventarios:dashboard' %}">Inventarios</a>
-            <span>›</span>
-            <span style="color: rgba(255,255,255,0.8);">Catálogo Maestro</span>
+<div class="sap-shell-bar">
+    <div class="sap-shell-title">
+        <ion-icon name="cube" class="sap-shell-icon"></ion-icon>
+        <div>
+            <h1>Catálogo Maestro</h1>
+            <div style="font-size:0.7rem; opacity:0.7; font-weight:500;">Sistemas Energía S.A. · Inventarios</div>
         </div>
-        <a href="{% url 'inventarios:dashboard' %}" class="sap-btn-back">
-            <ion-icon name="arrow-back-outline"></ion-icon> Volver
+    </div>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <a href="{% url 'inventarios:dashboard' %}" style="color:#fff; text-decoration:none; font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:6px; opacity:0.8; transition:opacity 0.2s;">
+            <ion-icon name="arrow-back"></ion-icon> Panel Control
         </a>
     </div>
 </div>
 
-<!-- SAP Toolbar -->
-<div class="sap-toolbar">
-    <div class="search-box">
-        <ion-icon name="search-outline"></ion-icon>
-        <input type="text" id="search" placeholder="Buscar por nombre, SKU o descripción...">
+<div class="sap-filter-bar">
+    <div class="filter-item">
+        <div class="filter-label">Búsqueda Rápida</div>
+        <div style="position:relative;">
+            <ion-icon name="search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted);"></ion-icon>
+            <input type="text" id="search" class="sap-input" style="padding-left:36px;" placeholder="SKU, nombre o descripción...">
+        </div>
     </div>
-    <select id="warehouse">
-        <option value="">Todas las Bodegas</option>
-        {% for u in ubicaciones %}
-        <option value="{{ u.id }}">{{ u.nombre }}</option>
-        {% endfor %}
-    </select>
-    <select id="category">
-        <option value="">Todas las Categorías</option>
-        {% for cat in categorias %}
-        <option value="{{ cat.id }}">{{ cat.nombre }}</option>
-        {% endfor %}
-    </select>
-    <div class="results-count" id="results-count"></div>
+    <div class="filter-item">
+        <div class="filter-label">Ubicación / Bodega</div>
+        <select id="warehouse" class="sap-input">
+            <option value="">Todas las Bodegas</option>
+            {% for u in ubicaciones %}
+            <option value="{{ u.id }}">{{ u.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-item">
+        <div class="filter-label">Categoría</div>
+        <select id="category" class="sap-input">
+            <option value="">Todas las Categorías</option>
+            {% for cat in categorias %}
+            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div style="padding-bottom:10px;">
+        <div id="results-count" style="font-size:0.8rem; font-weight:700; color:var(--sap-blue);"></div>
+    </div>
 </div>
 
-<!-- Content Grid -->
-<div class="sap-content">
+<div class="sap-catalog-container">
+    <div class="grid-header">
+        <div>Imagen</div>
+        <div>Producto / SKU</div>
+        <div>Categoría</div>
+        <div>Tipo</div>
+        <div>Stock</div>
+        <div>Precio</div>
+        <div>QR</div>
+    </div>
     <div id="catalog-grid" class="catalog-grid">
         <!-- Dynamic content -->
     </div>
-    <div id="pagination" class="sap-pagination"></div>
+    <div id="pagination" class="sap-pagination" style="margin-top:24px; display:flex; justify-content:center; align-items:center; gap:12px;"></div>
 </div>
 
 <!-- DETAIL MODAL -->
@@ -347,19 +254,25 @@
                 <ion-icon name="document-text-outline"></ion-icon>
                 <span id="modal-title">Ficha de Material</span>
             </h2>
-            <button class="close-btn" onclick="$('#detail-modal').removeClass('active')">✕</button>
+            <button class="close-btn" onclick="$('#detail-modal').removeClass('active')" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">✕</button>
         </div>
-        <div class="sap-tabs">
-            <button class="sap-tab active" onclick="switchTab('tab-general', this)">Información General</button>
-            <button class="sap-tab" onclick="switchTab('tab-locations', this)">Existencias por Ubicación</button>
-            <button class="sap-tab" onclick="switchTab('tab-history', this)">Historial de Movimientos</button>
-            <button class="sap-tab" onclick="switchTab('tab-print', this)">Imprimir Etiqueta</button>
+        <div class="sap-tabs" style="display:flex; background:#f0f2f5; border-bottom:1px solid #ddd;">
+            <button class="sap-tab active" onclick="switchTab('tab-general', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Información</button>
+            <button class="sap-tab" onclick="switchTab('tab-locations', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Bodegas</button>
+            <button class="sap-tab" onclick="switchTab('tab-history', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Historial</button>
+            <button class="sap-tab" onclick="switchTab('tab-print', this)" style="flex:1; padding:12px; border:none; background:none; cursor:pointer; font-weight:600; border-bottom:3px solid transparent;">Etiquetas</button>
         </div>
         <div id="modal-content" style="flex:1; overflow-y:auto; padding: 24px;">
             <!-- Dynamic content -->
         </div>
     </div>
 </div>
+
+<style>
+    .sap-tab.active { border-bottom-color: var(--sap-blue) !important; color: var(--sap-blue); background: white !important; }
+    .sap-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 200px; color: var(--text-muted); }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -374,17 +287,17 @@
             const warehouse = $('#warehouse').val();
             const grid = $('#catalog-grid');
 
-            grid.html('<div class="sap-loading"><ion-icon name="sync-outline"></ion-icon>Cargando catálogo...</div>');
+            grid.html('<div class="sap-loading"><ion-icon name="sync-outline" style="font-size:3rem; animation: spin 2s linear infinite;"></ion-icon><div style="margin-top:10px; font-weight:600;">Cargando catálogo...</div></div>');
 
             try {
                 const res = await fetch(`/inventarios/api/materials/?q=${query}&category=${cat}&ubicacion=${warehouse}&page=${page}`);
                 const data = await res.json();
-                const total = data.total || data.results.length;
-                $('#results-count').text(`${total} materiales`);
+                const total = data.total || (data.results ? data.results.length : 0);
+                $('#results-count').text(`${total} materiales encontrados`);
 
                 grid.empty();
-                if (data.results.length === 0) {
-                    grid.html('<div class="sap-loading" style="animation:none;"><ion-icon name="search-outline" style="animation:none; opacity:0.3;"></ion-icon>No se encontraron materiales con los filtros seleccionados.</div>');
+                if (!data.results || data.results.length === 0) {
+                    grid.html('<div class="sap-loading">No se encontraron materiales.</div>');
                     return;
                 }
                 data.results.forEach(m => {
@@ -394,17 +307,25 @@
                             <div class="card-img">
                                 <img src="${m.image_url}" onerror="this.src='/static/core/img/placeholder.png'">
                             </div>
-                            <div class="card-body">
-                                <div class="card-title">${m.nombre}</div>
-                                <div class="card-sku">${m.sku}</div>
-                                <div class="card-cat">${m.categoria}</div>
+                            <div class="mat-info-main">
+                                <div class="mat-title">${m.nombre}</div>
+                                <div class="mat-sku">${m.sku}</div>
                             </div>
-                            <div class="card-footer">
-                                <div class="${hasStock ? 'stock-available' : 'stock-empty'}">
-                                    <ion-icon name="${hasStock ? 'checkmark-circle' : 'close-circle'}"></ion-icon>
-                                    ${hasStock ? 'Disponible' : 'Sin Stock'}
-                                </div>
-                                <div class="stock-qty">${m.stock} ${m.unidad}</div>
+                            <div class="col-cat">
+                                <span class="mat-badge">${m.categoria}</span>
+                            </div>
+                            <div class="col-type">
+                                <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">${m.tipo_material}</div>
+                            </div>
+                            <div class="col-stock">
+                                <div class="stock-val" style="color:${hasStock ? 'var(--sap-success)' : 'var(--sap-error)'}">${m.stock}</div>
+                                <div class="stock-unit">${m.unidad}</div>
+                            </div>
+                            <div class="col-price">
+                                <div class="price-val">L ${m.precio_estimado.toFixed(2)}</div>
+                            </div>
+                            <div class="qr-container">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${m.sku}" alt="QR">
                             </div>
                         </div>
                     `);
@@ -418,7 +339,7 @@
             const content = $('#modal-content');
             modal.addClass('active');
             $('.sap-tab').removeClass('active').first().addClass('active');
-            content.html('<div class="sap-loading"><ion-icon name="sync-outline"></ion-icon>Cargando ficha técnica...</div>');
+            content.html('<div class="sap-loading"><ion-icon name="sync-outline" style="font-size:3rem; animation: spin 2s linear infinite;"></ion-icon></div>');
 
             try {
                 const res = await fetch(`/inventarios/api/stock/${id}/`);
@@ -426,150 +347,111 @@
                 $('#modal-title').text(data.nombre);
 
                 content.html(`
-                    <div id="tab-general" class="tab-content active">
-                        <div style="display:grid; grid-template-columns: 300px 1fr; gap:32px;">
-                            <div>
-                                <div style="background:var(--sap-bg); padding:24px; border-radius:var(--radius); border:1px solid var(--sap-border); display:flex; align-items:center; justify-content:center; margin-bottom:16px; min-height:250px;">
-                                    <img src="${data.image_url || ''}" class="expandable-img" style="max-width:100%; max-height:250px; object-fit:contain; cursor:zoom-in;">
-                                </div>
-                                <div class="detail-grid">
-                                    <div class="detail-item">
-                                        <div class="detail-label">Precio Est.</div>
-                                        <div class="detail-value">L ${data.precio_estimado.toFixed(2)}</div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <div class="detail-label">Stock Mín.</div>
-                                        <div class="detail-value">${data.stock_minimo} ${data.unidad}</div>
-                                    </div>
+                    <div id="tab-general" class="tab-content">
+                        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:24px;">
+                            <div style="text-align:center;">
+                                <img src="${data.image_url}" style="max-width:100%; border-radius:12px; border:1px solid #eee;">
+                                <div style="margin-top:20px; padding:15px; background:white; border:1px solid #eee; display:inline-block; border-radius:8px;">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${data.sku}" style="width:120px; height:120px;">
+                                    <div style="font-size:0.7rem; font-weight:800; color:var(--sap-blue); margin-top:5px;">${data.sku}</div>
                                 </div>
                             </div>
                             <div>
-                                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-                                    <span style="background:var(--sap-blue); color:#fff; padding:4px 12px; border-radius:var(--radius); font-weight:700; font-size:0.75rem;">${data.categoria || 'GENERAL'}</span>
-                                    <span style="font-family:'Courier New',monospace; color:var(--text-muted); font-size:0.9rem; font-weight:700;"># ${data.sku}</span>
-                                </div>
-                                <h1 style="font-size:1.8rem; font-weight:800; margin:0 0 16px 0; color:var(--text-main); line-height:1.2;">${data.nombre}</h1>
-
-                                <div class="detail-grid" style="margin-bottom:20px;">
-                                    <div class="detail-item">
-                                        <div class="detail-label">Marca</div>
-                                        <div class="detail-value">${data.marca}</div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <div class="detail-label">Tipo Material</div>
-                                        <div class="detail-value">${data.tipo_material}</div>
-                                    </div>
-                                    <div class="detail-item">
-                                        <div class="detail-label">Unidad</div>
-                                        <div class="detail-value">${data.unidad}</div>
-                                    </div>
-                                    <div class="detail-item" style="background:#e8f4fd; border-color:#b3d7f2;">
-                                        <div class="detail-label" style="color:var(--sap-blue);">Existencia Total</div>
-                                        <div class="detail-value" style="color:var(--sap-blue); font-size:1.2rem;">${data.stock_total} ${data.unidad}</div>
-                                    </div>
+                                <div style="margin-bottom:8px; color:var(--text-muted); font-size:0.8rem; font-weight:700;"># ${data.sku} | ${data.marca}</div>
+                                <h3 style="margin:0 0 16px 0; font-size:1.5rem;">${data.nombre}</h3>
+                                
+                                <div style="display:flex; gap:10px; margin-bottom:20px;">
+                                    <span class="mat-badge" style="background:var(--sap-shell); color:white;">${data.categoria}</span>
+                                    <span class="mat-badge" style="background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9;">${data.tipo_material}</span>
                                 </div>
 
-                                <div style="background:var(--sap-bg); padding:16px 20px; border-left:3px solid var(--sap-warning); border-radius:var(--radius); margin-bottom:20px;">
-                                    <div class="detail-label" style="color:var(--sap-warning);">Descripción Técnica</div>
-                                    <p style="font-size:0.9rem; line-height:1.6; color:var(--text-main); margin:6px 0 0;">${data.descripcion || 'Sin descripción disponible.'}</p>
+                                <div style="background:#f8f9fa; padding:16px; border-radius:8px; border-left:4px solid var(--sap-blue);">
+                                    <div style="font-weight:700; font-size:0.75rem; color:var(--sap-blue); text-transform:uppercase;">Descripción</div>
+                                    <p style="margin:4px 0 0; font-size:0.9rem; line-height:1.5;">${data.descripcion || 'Sin descripción'}</p>
                                 </div>
-
-                                <a href="/admin/inventarios/material/${id}/change/" style="display:inline-flex; align-items:center; gap:8px; padding:8px 20px; background:var(--sap-blue); color:#fff; text-decoration:none; border-radius:var(--radius); font-size:0.85rem; font-weight:600;">
-                                    <ion-icon name="create-outline"></ion-icon> Editar Ficha
-                                </a>
+                                <div style="margin-top:16px; display:flex; gap:16px;">
+                                    <div style="flex:1; background:#e8f5e9; padding:12px; border-radius:8px; text-align:center;">
+                                        <div style="font-size:0.7rem; font-weight:700; color:#2e7d32;">STOCK TOTAL</div>
+                                        <div style="font-size:1.2rem; font-weight:800; color:#1b5e20;">${data.stock_total} ${data.unidad}</div>
+                                    </div>
+                                    <div style="flex:1; background:#fff3e0; padding:12px; border-radius:8px; text-align:center;">
+                                        <div style="font-size:0.7rem; font-weight:700; color:#ef6c00;">STOCK MÍNIMO</div>
+                                        <div style="font-size:1.2rem; font-weight:800; color:#e65100;">${data.stock_minimo} ${data.unidad}</div>
+                                    </div>
+                                    <div style="flex:1; background:#e3f2fd; padding:12px; border-radius:8px; text-align:center;">
+                                        <div style="font-size:0.7rem; font-weight:700; color:#1565c0;">PRECIO EST.</div>
+                                        <div style="font-size:1.2rem; font-weight:800; color:#0d47a1;">L ${data.precio_estimado.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                                <div style="margin-top:20px;">
+                                    <a href="/admin/inventarios/material/${id}/change/" target="_blank" class="sap-input" style="display:inline-block; text-align:center; text-decoration:none; background:var(--sap-blue); color:white; border:none; padding:10px 24px; font-weight:700; border-radius:4px;">Ver en Admin</a>
+                                </div>
                             </div>
                         </div>
                     </div>
-
-                    <div id="tab-locations" class="tab-content">
-                        <div style="max-width:700px; margin:0 auto;">
-                            <h3 style="font-weight:700; font-size:0.9rem; color:var(--text-main); margin:0 0 16px; padding-bottom:10px; border-bottom:1px solid var(--sap-border);">Disponibilidad en Bodegas</h3>
-                            ${data.existencias.length > 0 ? data.existencias.map(ex => `
-                                <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:var(--sap-card); border:1px solid var(--sap-border); border-radius:var(--radius); margin-bottom:8px;">
-                                    <span style="font-weight:600; color:var(--text-main); font-size:0.9rem;">${ex.ubicacion}</span>
-                                    <div style="text-align:right;">
-                                        <span style="font-weight:800; color:var(--sap-blue); font-size:1.1rem;">${ex.cantidad} ${data.unidad}</span>
-                                        ${ex.detalle ? `<div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Pasillo: ${ex.detalle}</div>` : ''}
-                                    </div>
-                                </div>
-                            `).join('') : '<div style="text-align:center; padding:40px; color:var(--text-muted);">No hay existencias registradas.</div>'}
-                        </div>
-                    </div>
-
-                    <div id="tab-history" class="tab-content">
-                        <div style="max-width:900px; margin:0 auto; border:1px solid var(--sap-border); border-radius:var(--radius); overflow:hidden;">
-                            <table style="width:100%; border-collapse:collapse;">
-                                <thead>
-                                    <tr style="background:var(--sap-bg); border-bottom:1px solid var(--sap-border);">
-                                        <th style="padding:10px 16px; font-weight:700; color:var(--text-label); font-size:0.75rem; text-align:left;">FECHA</th>
-                                        <th style="padding:10px 16px; font-weight:700; color:var(--text-label); font-size:0.75rem; text-align:left;">TIPO</th>
-                                        <th style="padding:10px 16px; font-weight:700; color:var(--text-label); font-size:0.75rem; text-align:center;">CANTIDAD</th>
-                                        <th style="padding:10px 16px; font-weight:700; color:var(--text-label); font-size:0.75rem; text-align:left;">USUARIO</th>
-                                        <th style="padding:10px 16px; font-weight:700; color:var(--text-label); font-size:0.75rem; text-align:left;">COMENTARIOS</th>
+                    <div id="tab-locations" class="tab-content" style="display:none;">
+                        <table style="width:100%; border-collapse:collapse;">
+                            <thead>
+                                <tr style="border-bottom:2px solid #ddd; text-align:left;">
+                                    <th style="padding:12px;">Ubicación</th>
+                                    <th style="padding:12px; text-align:right;">Cantidad</th>
+                                    <th style="padding:12px;">Detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.existencias.map(ex => `
+                                    <tr style="border-bottom:1px solid #eee;">
+                                        <td style="padding:12px; font-weight:600;">${ex.ubicacion}</td>
+                                        <td style="padding:12px; text-align:right; font-weight:800; color:var(--sap-blue);">${ex.cantidad} ${data.unidad}</td>
+                                        <td style="padding:12px; font-size:0.8rem; color:var(--text-muted);">${ex.detalle || '-'}</td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    ${data.movimientos.length > 0 ? data.movimientos.map(m => `
-                                        <tr style="border-bottom:1px solid #eee;">
-                                            <td style="padding:10px 16px; font-size:0.85rem; color:var(--text-main);">${m.fecha}</td>
-                                            <td style="padding:10px 16px;">
-                                                <span style="background:${m.tipo === 'ENTRADA' ? '#e8f5e9' : '#fce4ec'}; color:${m.tipo === 'ENTRADA' ? 'var(--sap-success)' : 'var(--sap-error)'}; padding:3px 10px; border-radius:var(--radius); font-weight:700; font-size:0.7rem;">
-                                                    ${m.tipo}
-                                                </span>
-                                            </td>
-                                            <td style="padding:10px 16px; font-weight:800; color:var(--text-main); text-align:center;">
-                                                ${m.tipo === 'ENTRADA' ? '+' : '-'}${m.cantidad}
-                                            </td>
-                                            <td style="padding:10px 16px; color:var(--text-muted); font-size:0.85rem;">${m.usuario}</td>
-                                            <td style="padding:10px 16px; color:var(--text-muted); font-size:0.8rem;">${m.comentarios}</td>
-                                        </tr>
-                                    `).join('') : '<tr><td colspan="5" style="padding:40px; text-align:center; color:var(--text-muted);">Sin movimientos registrados.</td></tr>'}
-                                </tbody>
-                            </table>
-                        </div>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>
-
-                    <div id="tab-print" class="tab-content">
-                        <div style="max-width:450px; margin:0 auto; text-align:center; padding:32px 0;">
-                            <ion-icon name="print-outline" style="font-size:3rem; color:var(--sap-blue); margin-bottom:12px;"></ion-icon>
-                            <h3 style="font-weight:700; color:var(--text-main); margin:0 0 6px;">Etiqueta Térmica</h3>
-                            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:20px;">Genera un PDF con código QR y detalles (2" x 1.5").</p>
-
-                            <div style="background:var(--sap-bg); padding:20px; border-radius:var(--radius); border:1px solid var(--sap-border); margin-bottom:20px;">
-                                <div class="detail-label" style="margin-bottom:10px;">Cantidad de Etiquetas</div>
-                                <div style="display:flex; justify-content:center; align-items:center; gap:10px;">
-                                    <button onclick="updatePrintQty(-1)" style="width:36px; height:36px; border:1px solid var(--sap-border); background:var(--sap-card); border-radius:var(--radius); font-size:1.2rem; cursor:pointer;">−</button>
-                                    <input type="number" id="print-qty" value="1" min="1" style="width:60px; height:36px; text-align:center; font-size:1.1rem; font-weight:700; border:1px solid var(--sap-blue); border-radius:var(--radius);">
-                                    <button onclick="updatePrintQty(1)" style="width:36px; height:36px; border:1px solid var(--sap-border); background:var(--sap-card); border-radius:var(--radius); font-size:1.2rem; cursor:pointer;">+</button>
-                                </div>
-                            </div>
-
-                            <button onclick="printMaterialLabel(${id})" style="width:100%; padding:10px; background:var(--sap-blue); color:#fff; border:none; border-radius:var(--radius); font-size:0.9rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit;">
-                                <ion-icon name="download-outline"></ion-icon> Generar PDF
-                            </button>
-                            <p style="font-size:0.75rem; color:var(--text-muted); margin-top:12px;">
-                                Configura tu impresora para papel de 2×1.5 pulgadas.
-                            </p>
+                    <div id="tab-history" class="tab-content" style="display:none;">
+                        <table style="width:100%; border-collapse:collapse;">
+                            <thead>
+                                <tr style="border-bottom:2px solid #ddd; text-align:left;">
+                                    <th style="padding:12px;">Fecha</th>
+                                    <th style="padding:12px;">Tipo</th>
+                                    <th style="padding:12px; text-align:right;">Cantidad</th>
+                                    <th style="padding:12px;">Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.movimientos.map(m => `
+                                    <tr style="border-bottom:1px solid #eee;">
+                                        <td style="padding:12px; font-size:0.85rem;">${m.fecha}</td>
+                                        <td style="padding:12px;">
+                                            <span style="background:${m.tipo === 'ENTRADA' ? '#e6f4ea' : '#fdeded'}; color:${m.tipo === 'ENTRADA' ? '#1e7e34' : '#d32f2f'}; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700;">${m.tipo}</span>
+                                        </td>
+                                        <td style="padding:12px; text-align:right; font-weight:700;">${m.cantidad}</td>
+                                        <td style="padding:12px; font-size:0.85rem;">${m.usuario}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="tab-print" class="tab-content" style="display:none; text-align:center; padding:40px;">
+                        <ion-icon name="print-outline" style="font-size:4rem; color:var(--sap-blue);"></ion-icon>
+                        <h3>Impression de Etiquetas</h3>
+                        <p>Genera un PDF con etiquetas individuales para este material.</p>
+                        <div style="margin-top:20px; display:flex; justify-content:center; align-items:center; gap:12px;">
+                            <span>Copias:</span>
+                            <input type="number" id="print-qty" value="1" min="1" class="sap-input" style="width:80px; text-align:center;">
+                            <button onclick="printMaterialLabel(${id})" style="background:var(--sap-blue); color:white; border:none; padding:10px 24px; font-weight:700; cursor:pointer; border-radius:4px;">Imprimir PDF</button>
                         </div>
                     </div>
                 `);
-            } catch (e) {
-                content.html('<div class="sap-loading" style="color:var(--sap-error);"><ion-icon name="alert-circle-outline" style="animation:none;"></ion-icon>Error al cargar la ficha técnica.</div>');
-            }
+            } catch (e) { console.error(e); }
         };
 
         window.switchTab = (tabId, btn) => {
-            $('.tab-content').removeClass('active');
+            $('.tab-content').hide();
+            $(`#${tabId}`).show();
             $('.sap-tab').removeClass('active');
-            $(`#${tabId}`).addClass('active');
             $(btn).addClass('active');
-        };
-
-        window.updatePrintQty = (delta) => {
-            const input = $('#print-qty');
-            let val = parseInt(input.val()) + delta;
-            if (val < 1) val = 1;
-            input.val(val);
         };
 
         window.printMaterialLabel = (id) => {
@@ -580,12 +462,16 @@
         function renderPagination(data) {
             const pag = $('#pagination');
             pag.empty();
+            if (data.num_pages <= 1) return;
+            
             if (currentPage > 1) {
-                pag.append(`<button onclick="changePage(${currentPage - 1})">← Anterior</button>`);
+                pag.append(`<button onclick="changePage(${currentPage - 1})" style="padding:8px 16px; border:1px solid #ddd; background:white; cursor:pointer; border-radius:4px;">← Anterior</button>`);
             }
-            pag.append(`<span class="page-info">Página ${currentPage}</span>`);
-            if (data.has_next) {
-                pag.append(`<button onclick="changePage(${currentPage + 1})">Siguiente →</button>`);
+            pag.append(`<span style="font-weight:700; color:var(--text-muted);">${currentPage} / ${data.num_pages}</span>`);
+            if (data.results && data.results.length === 30) { // Assuming 30 is the page size
+                 pag.append(`<button onclick="changePage(${currentPage + 1})" style="padding:8px 16px; border:1px solid #ddd; background:white; cursor:pointer; border-radius:4px;">Siguiente →</button>`);
+            } else if (data.has_next) {
+                 pag.append(`<button onclick="changePage(${currentPage + 1})" style="padding:8px 16px; border:1px solid #ddd; background:white; cursor:pointer; border-radius:4px;">Siguiente →</button>`);
             }
         }
 
@@ -594,23 +480,11 @@
         let searchTimer;
         $('#search').on('input', () => {
             clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => loadCatalog(1), 400);
+            searchTimer = setTimeout(() => loadCatalog(1), 500);
         });
         $('#category, #warehouse').on('change', () => loadCatalog(1));
 
         loadCatalog();
-
-        // Image zoom
-        $(document).on('click', '.expandable-img', function () {
-            const src = $(this).attr('src');
-            if (!src) return;
-            Swal.fire({
-                imageUrl: src, imageAlt: 'Material',
-                showCloseButton: true, showConfirmButton: false,
-                width: 'auto', padding: '0',
-                background: 'rgba(0,0,0,0.85)', backdrop: 'rgba(0,0,0,0.9)'
-            });
-        });
     })(jQuery);
 </script>
 {% endblock %}

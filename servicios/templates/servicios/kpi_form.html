@@ -1,0 +1,1423 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extrahead %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Marked.js for MD preview -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- Turndown.js for HTML-to-MD conversion (paste from Gemini) -->
+<script src="https://cdn.jsdelivr.net/npm/turndown/dist/turndown.js"></script>
+<style>
+    :root {
+        --sap-blue: #0a6ed1;
+        --sap-shell: #354a5f;
+        --sap-bg: #f5f6f7;
+        --sap-card-bg: #ffffff;
+        --sap-label: #6a6d70;
+        --sap-text: #32363a;
+        --sap-border: #d9d9d9;
+        --sap-success: #107e3e;
+        --sap-success-bg: #e5f5ea;
+        --sap-warning: #e9730c;
+        --sap-warning-bg: #fef7e0;
+        --sap-error: #bb0000;
+        --sap-error-bg: #ffebeb;
+        --sap-neutral: #6a6d70;
+        --sap-brand-color: #0070f2;
+        --sap-highlight: #0056b3;
+    }
+
+    #content {
+        background: var(--sap-bg) !important;
+        padding: 0 !important;
+    }
+
+    .kpi-container {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px 16px 100px;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Object Page Header */
+    .object-page-header {
+        background: var(--sap-shell);
+        color: white;
+        padding: 20px 24px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .object-page-header .icon-circle {
+        width: 48px;
+        height: 48px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    .object-page-header h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 4px;
+    }
+
+    .object-page-header p {
+        font-size: 13px;
+        margin: 0;
+        opacity: 0.8;
+    }
+
+    /* Fiori Sections */
+    .fiori-section {
+        background: var(--sap-card-bg);
+        border: 1px solid var(--sap-border);
+        border-radius: 10px;
+        margin-bottom: 16px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .section-header {
+        padding: 14px 20px;
+        background: #fafbfc;
+        border-bottom: 1px solid var(--sap-border);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--sap-label);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-header i {
+        color: var(--sap-blue);
+    }
+
+    .section-content {
+        padding: 20px;
+    }
+
+    /* Form Groups */
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    @media (max-width: 768px) {
+        .form-row { grid-template-columns: 1fr; }
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--sap-label);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .sap-input {
+        width: 100%;
+        border: 1px solid var(--sap-border);
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: var(--sap-text);
+        background: white;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        outline: none;
+    }
+
+    .sap-input:focus {
+        border-color: var(--sap-blue);
+        box-shadow: 0 0 0 3px rgba(10,110,209,0.12);
+    }
+
+    select.sap-input {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236a6d70' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 32px;
+    }
+
+    /* MD Editor */
+    .md-editor-wrapper {
+        border: 1px solid var(--sap-border);
+        border-radius: 6px;
+        overflow: hidden;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .md-editor-wrapper:focus-within {
+        border-color: var(--sap-blue);
+        box-shadow: 0 0 0 3px rgba(10,110,209,0.12);
+    }
+
+    .md-toolbar {
+        background: #f8f9fa;
+        border-bottom: 1px solid #e8e8e8;
+        padding: 4px 6px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        flex-wrap: wrap;
+    }
+
+    .md-toolbar button {
+        background: transparent;
+        border: none;
+        color: var(--sap-label);
+        width: 30px;
+        height: 28px;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        transition: all 0.15s;
+    }
+
+    .md-toolbar button:hover {
+        background: #e8ecef;
+        color: var(--sap-text);
+    }
+
+    .md-toolbar button.active {
+        background: var(--sap-blue);
+        color: white;
+    }
+
+    .md-toolbar .separator {
+        width: 1px;
+        height: 20px;
+        background: #ddd;
+        margin: 0 4px;
+    }
+
+    .md-textarea {
+        width: 100%;
+        border: none;
+        outline: none;
+        padding: 12px;
+        font-family: 'JetBrains Mono', 'Consolas', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--sap-text);
+        resize: vertical;
+        min-height: 120px;
+        background: white;
+    }
+
+    .md-preview {
+        padding: 12px 16px;
+        min-height: 120px;
+        background: #fefefe;
+        display: none;
+        font-size: 14px;
+        line-height: 1.7;
+        color: var(--sap-text);
+    }
+
+    .md-preview h1, .md-preview h2, .md-preview h3 {
+        color: var(--sap-shell);
+        margin-top: 12px;
+        margin-bottom: 6px;
+    }
+
+    .md-preview ul, .md-preview ol {
+        padding-left: 20px;
+    }
+
+    .md-preview code {
+        background: #f0f2f4;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 12px;
+    }
+
+    .md-preview pre {
+        background: #2d3436;
+        color: #dfe6e9;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+    }
+
+    .md-preview blockquote {
+        border-left: 3px solid var(--sap-blue);
+        padding-left: 12px;
+        margin-left: 0;
+        color: var(--sap-label);
+    }
+
+    .md-preview table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .md-preview th, .md-preview td {
+        border: 1px solid var(--sap-border);
+        padding: 8px 12px;
+        text-align: left;
+    }
+
+    .md-preview th {
+        background: #f8f9fa;
+        font-weight: 600;
+    }
+
+    /* Estado Badges */
+    .estado-selector {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .estado-option {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .estado-option input[type="radio"] {
+        display: none;
+    }
+
+    .estado-option label.estado-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border: 2px solid var(--sap-border);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.2s;
+        text-transform: none;
+        color: var(--sap-text);
+    }
+
+    .estado-option input:checked + label.estado-label.estado-cumplimiento {
+        border-color: var(--sap-success);
+        background: var(--sap-success-bg);
+        color: var(--sap-success);
+    }
+
+    .estado-option input:checked + label.estado-label.estado-parcial {
+        border-color: var(--sap-warning);
+        background: var(--sap-warning-bg);
+        color: var(--sap-warning);
+    }
+
+    .estado-option input:checked + label.estado-label.estado-incumplimiento {
+        border-color: var(--sap-error);
+        background: var(--sap-error-bg);
+        color: var(--sap-error);
+    }
+
+    /* Checklist */
+    .checklist-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .checklist-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: #fafbfc;
+        border: 1px solid #eee;
+        border-radius: 6px;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .checklist-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--sap-success);
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .checklist-item input[type="text"] {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-size: 14px;
+        font-family: 'Inter', sans-serif;
+        outline: none;
+        color: var(--sap-text);
+    }
+
+    .checklist-item .remove-item {
+        background: none;
+        border: none;
+        color: #ccc;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 4px;
+        transition: color 0.2s;
+    }
+
+    .checklist-item .remove-item:hover {
+        color: var(--sap-error);
+    }
+
+    .add-checklist-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 14px;
+        background: transparent;
+        border: 1px dashed var(--sap-border);
+        border-radius: 6px;
+        color: var(--sap-blue);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .add-checklist-btn:hover {
+        background: rgba(10,110,209,0.05);
+        border-color: var(--sap-blue);
+    }
+
+    /* Footer */
+    .form-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        border-top: 1px solid var(--sap-border);
+        padding: 14px 24px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        z-index: 900;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+    }
+
+    .sap-btn {
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        font-family: 'Inter', sans-serif;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .sap-btn-primary {
+        background: var(--sap-brand-color);
+        color: white;
+    }
+
+    .sap-btn-primary:hover {
+        background: var(--sap-highlight);
+    }
+
+    .sap-btn-ghost {
+        background: white;
+        border-color: var(--sap-blue);
+        color: var(--sap-blue);
+    }
+
+    .sap-btn-ghost:hover {
+        background: rgba(10,110,209,0.05);
+    }
+
+    /* Icon Tab Bar */
+    .sap-icon-tab-bar {
+        display: flex;
+        gap: 24px;
+        background: white;
+        padding: 0 32px;
+        border-bottom: 1px solid var(--sap-border);
+        margin-bottom: 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .sap-tab-item {
+        padding: 16px 8px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        color: var(--sap-neutral);
+        transition: all 0.2s;
+        border-bottom: 3px solid transparent;
+        font-size: 13px;
+        min-width: 100px;
+    }
+
+    .sap-tab-item i {
+        font-size: 18px;
+    }
+
+    .sap-tab-item:hover {
+        color: var(--sap-blue);
+        background: rgba(10,110,209,0.02);
+    }
+
+    .sap-tab-item.active {
+        color: var(--sap-blue);
+        border-bottom-color: var(--sap-blue);
+        font-weight: 500;
+    }
+
+    .tab-container {
+        padding: 32px;
+        background: #f4f6f8;
+        min-height: calc(100vh - 300px);
+    }
+
+    .tab-content {
+        display: none;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .tab-content.active {
+        display: block;
+        animation: tabFadeIn 0.3s ease;
+    }
+
+    @keyframes tabFadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* History Timeline */
+    .audit-timeline {
+        padding: 10px 0;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-left: 32px;
+        margin-bottom: 24px;
+        border-left: 2px solid var(--sap-border);
+    }
+
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -9px;
+        top: 0;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: white;
+        border: 2px solid var(--sap-blue);
+    }
+
+    .timeline-item.no-cumple::before {
+        border-color: var(--sap-negative);
+    }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .timeline-title {
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--sap-blue);
+    }
+
+    .timeline-date {
+        font-size: 12px;
+        color: var(--sap-neutral);
+    }
+
+    .timeline-card {
+        background: white;
+        border: 1px solid var(--sap-border);
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .timeline-status {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .status-positive { background: #e7f4e9; color: #1e6330; }
+    .status-negative { background: #fdeaea; color: #bb2124; }
+
+    .action-plan {
+        background: #fff8e1;
+        border-left: 4px solid #ffc107;
+        padding: 10px;
+        margin-top: 8px;
+        font-size: 13px;
+        color: #856404;
+    }
+
+    /* Document Grid */
+    .doc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .doc-card {
+        background: white;
+        border: 1px solid var(--sap-border);
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .doc-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border-color: var(--sap-blue);
+    }
+
+    .doc-icon {
+        width: 48px;
+        height: 48px;
+        background: #f0f4f8;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: var(--sap-blue);
+    }
+
+    /* Rutinas Searchable List */
+    .rutinas-list-container {
+        border: 1px solid var(--sap-border);
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+    }
+
+    .rutinas-search-wrapper {
+        padding: 10px;
+        background: #f8f9fa;
+        border-bottom: 1px solid var(--sap-border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .rutinas-search-wrapper i {
+        color: var(--sap-neutral);
+    }
+
+    .rutinas-search-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-size: 13px;
+        outline: none;
+    }
+
+    .rutinas-scroll-area {
+        max-height: 250px;
+        overflow-y: auto;
+        padding: 4px 0;
+    }
+
+    .rutina-selection-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .rutina-selection-item:last-child {
+        border-bottom: none;
+    }
+
+    .rutina-selection-item:hover {
+        background: #f5f7f9;
+    }
+
+    .rutina-selection-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--sap-blue);
+        cursor: pointer;
+    }
+
+    .rutina-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .rutina-name {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--sap-text);
+    }
+
+    .rutina-sub {
+        font-size: 11px;
+        color: var(--sap-neutral);
+        text-transform: uppercase;
+    }
+
+    /* Success Message */
+    .fiori-message {
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fiori-message.success {
+        background: var(--sap-success-bg);
+        border: 1px solid #a3d9b1;
+        color: var(--sap-success);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-container">
+
+    <!-- Object Page Header -->
+    <div class="object-page-header">
+        <div class="icon-circle">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div>
+            <h1>{{ title }}</h1>
+            <p>{% if kpi %}Última actualización: {{ kpi.fecha_actualizacion|date:"d/M/Y H:i" }}{% else %}Defina los parámetros del nuevo indicador de desempeño{% endif %}</p>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+    {% for message in messages %}
+    <div class="fiori-message {{ message.tags }}">
+        <i class="fas fa-check-circle"></i>
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <form method="post" id="kpi-form">
+        {% csrf_token %}
+
+        <!-- Section 1: Información General -->
+        <div class="fiori-section">
+            <div class="section-header">
+                <i class="fas fa-info-circle"></i> Información General
+            </div>
+            <div class="section-content">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Servicio *</label>
+                        <select name="servicio" class="sap-input" required>
+                            <option value="">Seleccione servicio...</option>
+                            {% for s in servicios %}
+                            <option value="{{ s.id }}" {% if kpi and kpi.servicio_id == s.id %}selected{% endif %}>{{ s.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre del KPI *</label>
+                        <input type="text" name="nombre" class="sap-input" value="{{ kpi.nombre|default:'' }}" placeholder="Ej: Tiempo de respuesta promedio" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Categoría</label>
+                        <select name="categoria" class="sap-input">
+                            {% for val, label in categorias %}
+                            <option value="{{ val }}" {% if kpi and kpi.categoria == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Medición</label>
+                        <input type="date" name="fecha_medicion" class="sap-input" value="{% if kpi %}{{ kpi.fecha_medicion|date:'Y-m-d' }}{% endif %}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Estado -->
+        <div class="fiori-section">
+            <div class="section-header">
+                <i class="fas fa-traffic-light"></i> Estado de Cumplimiento
+            </div>
+            <div class="section-content">
+                <div class="estado-selector">
+                    {% for val, label in estados %}
+                    <div class="estado-option">
+                        <input type="radio" name="estado" value="{{ val }}" id="estado-{{ val }}"
+                               {% if kpi and kpi.estado == val %}checked{% endif %}
+                               {% if not kpi and val == 'CUMPLIMIENTO' %}checked{% endif %}>
+                        <label for="estado-{{ val }}" class="estado-label estado-{{ val|lower }}">
+                            {% if val == 'CUMPLIMIENTO' %}<i class="fas fa-check-circle"></i>
+                            {% elif val == 'PARCIAL' %}<i class="fas fa-exclamation-circle"></i>
+                            {% else %}<i class="fas fa-times-circle"></i>{% endif %}
+                            {{ label }}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-container">
+            <!-- TAB 1: GENERAL -->
+            <div id="tab-general" class="tab-content active">
+                <!-- Section 1: Cabecera -->
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-id-card"></i> Información Básica
+                    </div>
+                    <div class="section-content">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="sap-label required">Servicio</label>
+                                <select name="servicio" class="sap-input" required>
+                                    <option value="">Seleccione un servicio...</option>
+                                    {% for s in servicios %}
+                                    <option value="{{ s.id }}" {% if kpi.servicio_id == s.id %}selected{% endif %}>{{ s.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="sap-label required">Categoría</label>
+                                <select name="categoria" class="sap-input">
+                                    {% for code, label in categorias %}
+                                    <option value="{{ code }}" {% if kpi.categoria == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="sap-label">Nombre del Indicador</label>
+                                <input type="text" name="nombre" class="sap-input" value="{{ kpi.nombre|default:'' }}" placeholder="Ej: Disponibilidad de Energía Crítica">
+                            </div>
+                            <div class="form-group">
+                                <label class="sap-label">Fecha de Medición</label>
+                                <input type="date" name="fecha_medicion" class="sap-input" value="{{ kpi.fecha_medicion|date:'Y-m-d' }}">
+                            </div>
+                            <div class="form-group">
+                                <label class="sap-label">Estado Actual</label>
+                                <select name="estado" class="sap-input" id="status-select">
+                                    {% for code, label in estados %}
+                                    <option value="{{ code }}" {% if kpi.estado == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Descripción (MD) -->
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-align-left"></i> Descripción del Indicador
+                    </div>
+                    <div class="section-content">
+                        <div class="md-editor-wrapper" data-field="descripcion">
+                            <div class="md-toolbar">
+                                <button type="button" title="Negrita" onclick="mdAction(this, 'bold')"><i class="fas fa-bold"></i></button>
+                                <button type="button" title="Itálica" onclick="mdAction(this, 'italic')"><i class="fas fa-italic"></i></button>
+                                <button type="button" title="Tachado" onclick="mdAction(this, 'strike')"><i class="fas fa-strikethrough"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Título H2" onclick="mdAction(this, 'h2')"><i class="fas fa-heading"></i></button>
+                                <button type="button" title="Cita" onclick="mdAction(this, 'quote')"><i class="fas fa-quote-right"></i></button>
+                                <button type="button" title="Código" onclick="mdAction(this, 'code')"><i class="fas fa-code"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Lista" onclick="mdAction(this, 'ul')"><i class="fas fa-list-ul"></i></button>
+                                <button type="button" title="Lista Numerada" onclick="mdAction(this, 'ol')"><i class="fas fa-list-ol"></i></button>
+                                <button type="button" title="Checkbox" onclick="mdAction(this, 'check')"><i class="fas fa-check-square"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Tabla" onclick="mdAction(this, 'table')"><i class="fas fa-table"></i></button>
+                                <button type="button" title="Enlace" onclick="mdAction(this, 'link')"><i class="fas fa-link"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Vista Previa" onclick="togglePreview(this)" class="preview-toggle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <textarea name="descripcion" class="md-textarea" placeholder="Escribe el propósito de este indicador...">{{ kpi.descripcion|default:'' }}</textarea>
+                            <div class="md-preview"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Forma de Cumplimiento (MD) -->
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-check-double"></i> Forma de Cumplimiento
+                    </div>
+                    <div class="section-content">
+                        <div class="md-editor-wrapper" data-field="forma_de_cumplimiento">
+                            <div class="md-toolbar">
+                                <button type="button" title="Negrita" onclick="mdAction(this, 'bold')"><i class="fas fa-bold"></i></button>
+                                <button type="button" title="Itálica" onclick="mdAction(this, 'italic')"><i class="fas fa-italic"></i></button>
+                                <button type="button" title="Tachado" onclick="mdAction(this, 'strike')"><i class="fas fa-strikethrough"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Título H2" onclick="mdAction(this, 'h2')"><i class="fas fa-heading"></i></button>
+                                <button type="button" title="Cita" onclick="mdAction(this, 'quote')"><i class="fas fa-quote-right"></i></button>
+                                <button type="button" title="Código" onclick="mdAction(this, 'code')"><i class="fas fa-code"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Lista" onclick="mdAction(this, 'ul')"><i class="fas fa-list-ul"></i></button>
+                                <button type="button" title="Lista Numerada" onclick="mdAction(this, 'ol')"><i class="fas fa-list-ol"></i></button>
+                                <button type="button" title="Checkbox" onclick="mdAction(this, 'check')"><i class="fas fa-check-square"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Tabla" onclick="mdAction(this, 'table')"><i class="fas fa-table"></i></button>
+                                <button type="button" title="Enlace" onclick="mdAction(this, 'link')"><i class="fas fa-link"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Vista Previa" onclick="togglePreview(this)" class="preview-toggle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <textarea name="forma_de_cumplimiento" class="md-textarea" placeholder="Describe cómo se cumple este indicador...">{{ kpi.forma_de_cumplimiento|default:'' }}</textarea>
+                            <div class="md-preview"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 5: Método de Supervisión (MD) -->
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-search-plus"></i> Método de Supervisión
+                    </div>
+                    <div class="section-content">
+                        <div class="md-editor-wrapper" data-field="metodo_de_supervision">
+                            <div class="md-toolbar">
+                                <button type="button" title="Negrita" onclick="mdAction(this, 'bold')"><i class="fas fa-bold"></i></button>
+                                <button type="button" title="Itálica" onclick="mdAction(this, 'italic')"><i class="fas fa-italic"></i></button>
+                                <button type="button" title="Tachado" onclick="mdAction(this, 'strike')"><i class="fas fa-strikethrough"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Título H2" onclick="mdAction(this, 'h2')"><i class="fas fa-heading"></i></button>
+                                <button type="button" title="Cita" onclick="mdAction(this, 'quote')"><i class="fas fa-quote-right"></i></button>
+                                <button type="button" title="Código" onclick="mdAction(this, 'code')"><i class="fas fa-code"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Lista" onclick="mdAction(this, 'ul')"><i class="fas fa-list-ul"></i></button>
+                                <button type="button" title="Lista Numerada" onclick="mdAction(this, 'ol')"><i class="fas fa-list-ol"></i></button>
+                                <button type="button" title="Checkbox" onclick="mdAction(this, 'check')"><i class="fas fa-check-square"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Tabla" onclick="mdAction(this, 'table')"><i class="fas fa-table"></i></button>
+                                <button type="button" title="Enlace" onclick="mdAction(this, 'link')"><i class="fas fa-link"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Vista Previa" onclick="togglePreview(this)" class="preview-toggle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <textarea name="metodo_de_supervision" class="md-textarea" placeholder="Describe el método de supervisión y auditoría...">{{ kpi.metodo_de_supervision|default:'' }}</textarea>
+                            <div class="md-preview"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: SEGUIMIENTO -->
+            <div id="tab-seguimiento" class="tab-content">
+                <!-- Section Rutinas: Rutinas Vinculadas -->
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-sync-alt"></i> Rutinas de Mantenimiento Vinculadas
+                    </div>
+                    <div class="section-content">
+                        <div class="rutinas-list-container">
+                            <div class="rutinas-search-wrapper">
+                                <i class="fas fa-search"></i>
+                                <input type="text" class="rutinas-search-input" placeholder="Buscar rutina por nombre o código..." onkeyup="filterRutinas(this)">
+                            </div>
+                            <div class="rutinas-scroll-area">
+                                {% for r in rutinas_todas %}
+                                <label class="rutina-selection-item" data-search="{{ r.nombre|lower }} {{ r.codigo_rutina|lower }}">
+                                    <input type="checkbox" name="rutinas" value="{{ r.id }}" {% if r.id in rutinas_seleccionadas_ids %}checked{% endif %}>
+                                    <div class="rutina-info">
+                                        <span class="rutina-name">{{ r.nombre }}</span>
+                                        <span class="rutina-sub">
+                                            {% if r.codigo_rutina %}{{ r.codigo_rutina }} | {% endif %}
+                                            {{ r.tipo.nombre|default:"Sin Tipo" }} | 
+                                            {{ r.frecuencia.nombre|default:"Sin Frecuencia" }}
+                                        </span>
+                                    </div>
+                                </label>
+                                {% empty %}
+                                <div style="padding: 20px; text-align: center; color: var(--sap-neutral); font-size: 13px;">
+                                    No hay rutinas disponibles para vincular.
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 6: Checklist -->
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-tasks"></i> Checklist de Verificación
+                    </div>
+                    <div class="section-content">
+                        <div class="checklist-container" id="checklist-container">
+                            {% for item in checklist_items %}
+                            <div class="checklist-item">
+                                <input type="checkbox" name="checklist_done[]" value="{{ forloop.counter0 }}" {% if item.completado %}checked{% endif %}>
+                                <input type="text" name="checklist_desc[]" value="{{ item.descripcion }}" placeholder="Descripción del elemento...">
+                                <button type="button" class="remove-item" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button type="button" class="add-checklist-btn" onclick="addChecklistItem()">
+                            <i class="fas fa-plus"></i> Agregar Elemento
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: DOCUMENTOS -->
+            <div id="tab-documentos" class="tab-content">
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-file-pdf"></i> Documentos Relacionados
+                    </div>
+                    <div class="section-content">
+                        <div class="doc-grid">
+                            {% for metadato in documentos_relacionados %}
+                            <div class="doc-card">
+                                <div class="doc-icon">
+                                    <i class="fas fa-file-pdf"></i>
+                                </div>
+                                <div class="doc-info" style="flex: 1;">
+                                    <div style="font-weight: 600; font-size: 14px; color: var(--sap-text);">
+                                        {{ metadato.documento.titulo }}
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--sap-neutral); margin-bottom: 8px;">
+                                        {{ metadato.documento.codigo }} | Rev {{ metadato.documento.ultima_revision.revision|default:"0" }}
+                                    </div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <a href="{{ metadato.documento.ultima_revision.url_proxy }}" target="_blank" class="sap-btn sap-btn-ghost" style="padding: 4px 10px; font-size: 11px;">
+                                            <i class="fas fa-eye"></i> Ver
+                                        </a>
+                                        <a href="/admin/documentos/documento/{{ metadato.documento.id }}/change/" class="sap-btn sap-btn-ghost" style="padding: 4px 10px; font-size: 11px;">
+                                            <i class="fas fa-external-link-alt"></i> Detalles
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div style="grid-column: 1/-1; text-align: center; padding: 48px; background: white; border-radius: 8px; border: 1px dashed var(--sap-border);">
+                                <i class="fas fa-folder-open" style="font-size: 48px; color: #f0f4f8; margin-bottom: 16px;"></i>
+                                <p style="color: var(--sap-neutral); font-size: 14px;">No hay documentos vinculados a este KPI.</p>
+                                <p style="font-size: 12px; color: var(--sap-neutral);">Los documentos se indexan desde el módulo de Documentación mediante metadatos.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: AUDITORIAS -->
+            <div id="tab-auditoria" class="tab-content">
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-history"></i> Historial de Auditorías
+                    </div>
+                    <div class="section-content">
+                        <div class="audit-timeline">
+                            {% for res in historial_auditorias %}
+                            <div class="timeline-item {% if not res.cumple %}no-cumple{% endif %}">
+                                <div class="timeline-header">
+                                    <span class="timeline-title">{{ res.auditoria.nombre }}</span>
+                                    <span class="timeline-date">{{ res.auditoria.fecha|date:"d M Y" }}</span>
+                                </div>
+                                <div class="timeline-card">
+                                    <div class="timeline-status {% if res.cumple %}status-positive{% else %}status-negative{% endif %}">
+                                        {% if res.cumple %}CUMPLE{% else %}NO CUMPLE{% endif %}
+                                    </div>
+                                    
+                                    {% if res.observaciones %}
+                                    <div style="font-size: 13px; color: var(--sap-text); margin-bottom: 8px;">
+                                        <strong>Observaciones:</strong> {{ res.observaciones }}
+                                    </div>
+                                    {% endif %}
+
+                                    {% if res.plan_de_accion %}
+                                    <div class="action-plan">
+                                        <strong>Plan de Acción:</strong><br>
+                                        {{ res.plan_de_accion }}
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div style="margin-top: 12px; text-align: right;">
+                                        <a href="{% url 'servicios:auditoria_form_edit' res.auditoria.pk %}" class="sap-btn sap-btn-ghost" style="padding: 4px 10px; font-size: 11px;">
+                                            <i class="fas fa-search"></i> Ver Auditoría Completa
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div style="text-align: center; padding: 48px; background: white; border-radius: 8px; border: 1px dashed var(--sap-border);">
+                                <i class="fas fa-clipboard-check" style="font-size: 48px; color: #f0f4f8; margin-bottom: 16px;"></i>
+                                <p style="color: var(--sap-neutral); font-size: 14px;">Este KPI aún no ha sido auditado.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: COMENTARIOS -->
+            <div id="tab-comentarios" class="tab-content">
+                <!-- Section 7: Comentarios -->
+                <div class="fiori-section">
+                    <div class="section-header">
+                        <i class="fas fa-comment-alt"></i> Comentarios Adicionales
+                    </div>
+                    <div class="section-content">
+                        <div class="md-editor-wrapper" data-field="comentarios">
+                            <div class="md-toolbar">
+                                <button type="button" title="Negrita" onclick="mdAction(this, 'bold')"><i class="fas fa-bold"></i></button>
+                                <button type="button" title="Itálica" onclick="mdAction(this, 'italic')"><i class="fas fa-italic"></i></button>
+                                <button type="button" title="Tachado" onclick="mdAction(this, 'strike')"><i class="fas fa-strikethrough"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Título H2" onclick="mdAction(this, 'h2')"><i class="fas fa-heading"></i></button>
+                                <button type="button" title="Cita" onclick="mdAction(this, 'quote')"><i class="fas fa-quote-right"></i></button>
+                                <button type="button" title="Código" onclick="mdAction(this, 'code')"><i class="fas fa-code"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Lista" onclick="mdAction(this, 'ul')"><i class="fas fa-list-ul"></i></button>
+                                <button type="button" title="Lista Numerada" onclick="mdAction(this, 'ol')"><i class="fas fa-list-ol"></i></button>
+                                <button type="button" title="Checkbox" onclick="mdAction(this, 'check')"><i class="fas fa-check-square"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Tabla" onclick="mdAction(this, 'table')"><i class="fas fa-table"></i></button>
+                                <button type="button" title="Enlace" onclick="mdAction(this, 'link')"><i class="fas fa-link"></i></button>
+                                <div class="separator"></div>
+                                <button type="button" title="Vista Previa" onclick="togglePreview(this)" class="preview-toggle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <textarea name="comentarios" class="md-textarea" placeholder="Escribe aquí cualquier observación o comentario adicional...">{{ kpi.comentarios|default:'' }}</textarea>
+                            <div class="md-preview"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Actualizado -->
+        <div class="form-footer">
+            <div style="flex: 1; color: var(--sap-neutral); font-size: 12px;">
+                <i class="fas fa-info-circle"></i> Usa las pestañas para navegar entre secciones. 
+                <span style="margin-left: 12px;"><i class="fas fa-keyboard"></i> Ctrl+S para guardar.</span>
+            </div>
+            <a href="/admin/servicios/kpi/" class="sap-btn sap-btn-ghost">
+                <i class="fas fa-arrow-left"></i> Volver al Listado
+            </a>
+            <button type="submit" class="sap-btn sap-btn-primary">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// ── Markdown Toolbar Actions ──
+function mdAction(btn, action) {
+    const wrapper = btn.closest('.md-editor-wrapper');
+    const textarea = wrapper.querySelector('.md-textarea');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.substring(start, end);
+    let replacement = '';
+
+    switch(action) {
+        case 'bold':
+            replacement = `**${selected || 'texto en negrita'}**`;
+            break;
+        case 'italic':
+            replacement = `*${selected || 'texto en itálica'}*`;
+            break;
+        case 'strike':
+            replacement = `~~${selected || 'texto tachado'}~~`;
+            break;
+        case 'h2':
+            replacement = `\n## ${selected || 'Título'}\n`;
+            break;
+        case 'quote':
+            replacement = `\n> ${selected || 'Cita'}\n`;
+            break;
+        case 'code':
+            if (selected.includes('\n')) {
+                replacement = `\n\`\`\`\n${selected}\n\`\`\`\n`;
+            } else {
+                replacement = `\`${selected || 'código'}\``;
+            }
+            break;
+        case 'ul':
+            replacement = `\n- ${selected || 'Elemento de lista'}\n`;
+            break;
+        case 'ol':
+            replacement = `\n1. ${selected || 'Elemento numerado'}\n`;
+            break;
+        case 'check':
+            replacement = `\n- [ ] ${selected || 'Tarea pendiente'}\n`;
+            break;
+        case 'table':
+            replacement = `\n| Columna 1 | Columna 2 | Columna 3 |\n|-----------|-----------|----------|\n| dato 1    | dato 2    | dato 3   |\n`;
+            break;
+        case 'link':
+            replacement = `[${selected || 'texto del enlace'}](url)`;
+            break;
+    }
+
+    textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+    textarea.focus();
+    const newPos = start + replacement.length;
+    textarea.setSelectionRange(newPos, newPos);
+}
+
+// ── Preview Toggle ──
+function togglePreview(btn) {
+    const wrapper = btn.closest('.md-editor-wrapper');
+    const textarea = wrapper.querySelector('.md-textarea');
+    const preview = wrapper.querySelector('.md-preview');
+    const isPreview = btn.classList.toggle('active');
+
+    if (isPreview) {
+        preview.innerHTML = marked.parse(textarea.value || '*Sin contenido*');
+        preview.style.display = 'block';
+        textarea.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-edit"></i>';
+        btn.title = 'Editar';
+    } else {
+        preview.style.display = 'none';
+        textarea.style.display = 'block';
+        btn.innerHTML = '<i class="fas fa-eye"></i>';
+        btn.title = 'Vista Previa';
+    }
+}
+
+// ── Checklist ──
+let checklistIndex = {{ checklist_items|length|default:0 }};
+
+function addChecklistItem() {
+    const container = document.getElementById('checklist-container');
+    const div = document.createElement('div');
+    div.className = 'checklist-item';
+    div.innerHTML = `
+        <input type="checkbox" name="checklist_done[]" value="${checklistIndex}">
+        <input type="text" name="checklist_desc[]" placeholder="Descripción del elemento..." autofocus>
+        <button type="button" class="remove-item" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+    `;
+    container.appendChild(div);
+    div.querySelector('input[type="text"]').focus();
+    checklistIndex++;
+}
+
+// ── Keyboard Shortcuts ──
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        document.getElementById('kpi-form').submit();
+    }
+});
+
+// ── Auto-detect MD on paste & on load ──
+function looksLikeMarkdown(text) {
+    const mdPatterns = [
+        /^#{1,6}\s/m,         // headings
+        /\*\*.+?\*\*/,        // bold
+        /\*.+?\*/,            // italic
+        /^[-*+]\s/m,          // unordered list
+        /^\d+\.\s/m,          // ordered list
+        /^\|.+\|$/m,          // tables
+        /^>\s/m,              // blockquote
+        /```/,                // code block
+        /\[.+?\]\(.+?\)/,    // links
+        /^- \[[ x]\]/m,      // checkboxes
+    ];
+    let matches = 0;
+    for (const p of mdPatterns) { if (p.test(text)) matches++; }
+    return matches >= 2;
+}
+
+function activatePreview(wrapper) {
+    const textarea = wrapper.querySelector('.md-textarea');
+    const preview = wrapper.querySelector('.md-preview');
+    const btn = wrapper.querySelector('.preview-toggle');
+    if (!btn.classList.contains('active')) {
+        preview.innerHTML = marked.parse(textarea.value || '*Sin contenido*');
+        preview.style.display = 'block';
+        textarea.style.display = 'none';
+        btn.classList.add('active');
+        btn.innerHTML = '<i class="fas fa-edit"></i>';
+        btn.title = 'Editar';
+    }
+}
+
+// Listen for paste on all MD textareas — Convert HTML (from Gemini) to Markdown
+document.querySelectorAll('.md-textarea').forEach(textarea => {
+    textarea.addEventListener('paste', function(e) {
+        const html = e.clipboardData.getData('text/html');
+        if (html && html.trim()) {
+            e.preventDefault();
+            
+            // Convert HTML to Markdown using Turndown
+            const td = new TurndownService({
+                headingStyle: 'atx',
+                codeBlockStyle: 'fenced',
+                bulletListMarker: '-',
+            });
+            
+            // Custom rules for better Gemini output
+            td.addRule('strikethrough', {
+                filter: ['del', 's'],
+                replacement: (content) => `~~${content}~~`
+            });
+            
+            let md = td.turndown(html).trim();
+            
+            // Insert at cursor position
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = this.value.substring(0, start) + md + this.value.substring(end);
+            
+            // Move cursor to end of pasted content
+            const newPos = start + md.length;
+            this.setSelectionRange(newPos, newPos);
+            
+            // Auto-preview
+            setTimeout(() => {
+                if (looksLikeMarkdown(this.value)) {
+                    activatePreview(this.closest('.md-editor-wrapper'));
+                }
+            }, 50);
+        } else {
+            // Plain text paste — check after insertion
+            setTimeout(() => {
+                if (looksLikeMarkdown(this.value)) {
+                    activatePreview(this.closest('.md-editor-wrapper'));
+                }
+            }, 100);
+        }
+    });
+});
+
+// Auto-preview on load if content already has MD
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.md-editor-wrapper').forEach(wrapper => {
+        const textarea = wrapper.querySelector('.md-textarea');
+        if (textarea.value.trim() && looksLikeMarkdown(textarea.value)) {
+            activatePreview(wrapper);
+        }
+    });
+});
+// ── Rutinas Filtering ──
+function filterRutinas(input) {
+    const term = input.value.toLowerCase();
+    const items = document.querySelectorAll('.rutina-selection-item');
+    items.forEach(item => {
+        const text = item.getAttribute('data-search');
+        item.style.display = text.includes(term) ? 'flex' : 'none';
+    });
+}
+
+// ── Tab Management ──
+function switchTab(tabId) {
+    // Update tabs
+    document.querySelectorAll('.sap-tab-item').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    
+    // Update content
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    
+    // Save state (optional)
+    localStorage.setItem('activeKpiTab', tabId);
+}
+
+// Restore active tab
+document.addEventListener('DOMContentLoaded', () => {
+    const savedTab = localStorage.getItem('activeKpiTab');
+    if (savedTab && document.getElementById(savedTab)) {
+        switchTab(savedTab);
+    }
+});
+
+// Update status ribbon on change
+document.getElementById('status-select')?.addEventListener('change', function() {
+    const val = this.options[this.selectedIndex].text;
+    const ribbonVal = document.querySelector('.status-item .value');
+    if (ribbonVal) {
+        ribbonVal.textContent = val;
+        ribbonVal.className = 'value status-' + this.value.toLowerCase();
+    }
+});
+
+</script>
+{% endblock %}

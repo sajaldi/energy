@@ -68,6 +68,7 @@ def api_list_materials(request):
             'precio_estimado': float(m.precio_estimado),
             'stock': float(m.stock_total or 0),
             'categoria': m.categoria.nombre if m.categoria else 'General',
+            'tipo_material': m.get_tipo_material_display() if hasattr(m, 'get_tipo_material_display') else m.tipo_material,
             'image_url': image_url 
         })
         

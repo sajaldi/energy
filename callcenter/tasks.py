@@ -95,3 +95,129 @@ def sync_single_ticket_task(ticket_id):
     except Exception as e:
         logger.error(f"Error en sync_single_ticket_task para ticket {ticket_id}: {e}")
         return {"status": "error", "message": str(e)}
+
+@shared_task(name='callcenter.tasks.vectorize_ticket_n8n')
+def vectorize_ticket_n8n(ticket_id):
+    """
+    Envía los datos del ticket al webhook de n8n para generación de embedding.
+    """
+    from .models import SolicitudTicket
+    import requests
+    import json
+    
+    try:
+        ticket = SolicitudTicket.objects.select_related('ubicacion').get(id=ticket_id)
+        
+        n8n_url = getattr(settings, 'N8N_TICKET_VECTORIZER_URL', None)
+        if not n8n_url:
+            logger.warning("N8N_TICKET_VECTORIZER_URL no está configurada.")
+            return False
+            
+        payload = {
+            'ticket_id': ticket.id,
+            'folio': ticket.folio,
+            'solicitud_descripcion': ticket.solicitud_descripcion or '',
+            'falla_descripcion': ticket.falla_descripcion or '',
+            'servicio': ticket.servicio or '',
+            'subservicio': ticket.subservicio or '',
+            'nivel': ticket.nivel or '',
+            'grupo': ticket.grupo or '',
+            'ubicacion_nombre': ticket.ubicacion.nombre if ticket.ubicacion else '',
+            'diagnostico': ticket.diagnostico or 'No diagnosticado',
+            'actividades': ticket.actividades or 'Sin acciones',
+            'observaciones': ticket.observaciones or 'Ninguna',
+            'fecha_solicitud': ticket.fecha_solicitud.isoformat() if ticket.fecha_solicitud else None,
+            'prioridad': ticket.prioridad if hasattr(ticket, 'prioridad') else '',
+            'categoria_falla': ticket.categoria_falla or ''
+        }
+        
+        logger.info(f"Enviando ticket {ticket.folio} a n8n para vectorización: {n8n_url}")
+        response = requests.post(n8n_url, json=payload, timeout=10)
+        
+        if response.status_code in [200, 201]:
+            logger.info(f"Ticket {ticket.folio} enviado exitosamente.")
+            return True
+        else:
+            logger.error(f"Error enviando ticket {ticket.folio} a n8n. Status: {response.status_code}")
+            return False
+            
+    except ObjectDoesNotExist:
+        logger.warning(f"Ticket {ticket_id} no encontrado para vectorización.")
+        return False
+    except Exception as e:
+        logger.error(f"Error en vectorize_ticket_n8n para ticket {ticket_id}: {e}")
+        return False
+
+@shared_task(name='callcenter.tasks.bulk_vectorize_tickets')
+def bulk_vectorize_tickets():
+    """
+    Procesa TODOS los tickets sin embedding usando Ollama local.
+    Genera el embedding directamente y lo guarda en la BD.
+    """
+    from .models import SolicitudTicket
+    import requests
+    
+    ollama_url = f'{settings.OLLAMA_API_URL}/api/embeddings'
+    
+    tickets = SolicitudTicket.objects.select_related('ubicacion').filter(
+        embedding__isnull=True
+    )
+    total = tickets.count()
+    logger.info(f"[VECTORIZE] Iniciando vectorización masiva: {total} tickets pendientes")
+    
+    procesados = 0
+    errores = 0
+    
+    for ticket in tickets.iterator():
+        try:
+            # Construir prompt rico en contexto
+            partes = [f"TICKET: {ticket.folio or ''}"]
+            
+            if ticket.ubicacion:
+                partes.append(f"UBICACIÓN: {ticket.ubicacion.nombre}")
+            elif ticket.nivel:
+                partes.append(f"UBICACIÓN: {ticket.nivel} - {ticket.grupo or ''}")
+            
+            if ticket.servicio:
+                partes.append(f"SERVICIO: {ticket.servicio} - {ticket.subservicio or ''}")
+            
+            if ticket.solicitud_descripcion:
+                partes.append(f"DESCRIPCIÓN: {ticket.solicitud_descripcion}")
+            
+            if ticket.falla_descripcion:
+                partes.append(f"FALLA: {ticket.falla_descripcion}")
+            
+            if ticket.diagnostico:
+                partes.append(f"DIAGNÓSTICO: {ticket.diagnostico}")
+                
+            prompt_text = " | ".join(partes)
+            
+            # Llamar a Ollama
+            resp = requests.post(ollama_url, json={
+                'model': 'mxbai-embed-large',
+                'prompt': prompt_text
+            }, timeout=30)
+            
+            if resp.status_code == 200:
+                embedding = resp.json().get('embedding')
+                if embedding:
+                    ticket.embedding = embedding
+                    ticket.save(update_fields=['embedding'])
+                    procesados += 1
+                else:
+                    errores += 1
+            else:
+                errores += 1
+                logger.warning(f"Ollama error {resp.status_code} para ticket {ticket.folio}")
+            
+            if procesados % 50 == 0 and procesados > 0:
+                logger.info(f"[VECTORIZE] Progreso: {procesados}/{total} procesados, {errores} errores")
+                
+        except Exception as e:
+            errores += 1
+            logger.error(f"Error vectorizando ticket {ticket.id}: {e}")
+            continue
+    
+    msg = f"[VECTORIZE] Finalizado: {procesados}/{total} procesados, {errores} errores"
+    logger.info(msg)
+    return {"procesados": procesados, "total": total, "errores": errores}

@@ -1,4 +1,10 @@
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from pgvector.django import VectorField, CosineDistance
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SolicitudTicket(models.Model):
     # Identificadores
@@ -49,6 +55,12 @@ class SolicitudTicket(models.Model):
     # Clasificación de Falla Final
     clasificacion_falla_final = models.CharField(max_length=255, blank=True, null=True, verbose_name="Clasificación Falla Final")
     categoria_falla = models.CharField(max_length=255, blank=True, null=True, verbose_name="Categoría Falla")
+    
+    # Búsqueda Vectorial Semántica
+    embedding = VectorField(dimensions=1024, null=True, blank=True)
+
+    # Estado de Notificación
+    cierre_enviado = models.BooleanField(default=False, verbose_name="Cierre Notificado", db_index=True)
 
     # Vinculación con Activos (Energía)
     activo = models.ForeignKey('activos.Activo', on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets', verbose_name="Activo Relacionado")
@@ -65,6 +77,18 @@ class SolicitudTicket(models.Model):
         verbose_name = "Solicitud de Ticket"
         verbose_name_plural = "Solicitudes de Tickets"
         ordering = ['-fecha_solicitud']
+
+    @classmethod
+    def buscar_vectorial(cls, query_embedding, limit=10):
+        """
+        Búsqueda semántica de tickets usando distancia coseno.
+        Recibe un vector de embedding (list[float]) y retorna los tickets más similares.
+        """
+        return cls.objects.exclude(
+            embedding__isnull=True
+        ).annotate(
+            distancia=CosineDistance('embedding', query_embedding)
+        ).order_by('distancia')[:limit]
 
 
 class GrupoTicket(models.Model):
@@ -137,3 +161,15 @@ class EvidenciaTicket(models.Model):
         verbose_name_plural = "Evidencias de tickets"
 
 
+# --- Señales ---
+@receiver(post_save, sender=SolicitudTicket)
+def trigger_vectorize_ticket(sender, instance, **kwargs):
+    """
+    Cuando se guarda un ticket sin embedding, envía a n8n para vectorización.
+    """
+    if instance.embedding is None:
+        try:
+            from .tasks import vectorize_ticket_n8n
+            vectorize_ticket_n8n.delay(instance.id)
+        except Exception as e:
+            logger.warning(f"No se pudo encolar vectorización para ticket {instance.id}: {e}")

@@ -181,6 +181,18 @@ class MaterialResource(resources.ModelResource):
                         modelo=modelo
                     )
 
+class MaterialMovimientoInline(admin.TabularInline):
+    model = MovimientoInventario
+    extra = 0
+    readonly_fields = ('fecha_movimiento', 'tipo', 'cantidad', 'ubicacion_origen', 'ubicacion_destino', 'estado', 'usuario')
+    can_delete = False
+    verbose_name = "Historial de Movimiento"
+    verbose_name_plural = "Historial de Movimientos"
+    ordering = ('-fecha_movimiento',)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
 @admin.register(Material)
 class MaterialAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/inventarios/material/change_list.html'
@@ -189,7 +201,7 @@ class MaterialAdmin(ImportExportModelAdmin):
     search_fields = ('nombre', 'sku', 'descripcion')
     list_filter = ('categoria', 'tipo_material', 'unidad_medida')
     list_select_related = ('categoria', 'marca')
-    inlines = [StockRecordInline]
+    inlines = [StockRecordInline, MaterialMovimientoInline]
     readonly_fields = ('imagen_preview',)
 
     def imagen_preview(self, obj):
@@ -234,7 +246,9 @@ class MovimientoInventarioAdmin(admin.ModelAdmin):
     list_display = ('fecha_movimiento', 'material', 'lote', 'tipo', 'cantidad', 'ubicacion_origen', 'ubicacion_destino', 'estado', 'usuario')
     list_filter = ('estado', 'tipo', 'fecha_movimiento')
     search_fields = ('material__nombre', 'material__sku', 'usuario__username', 'orden_trabajo__id')
+    autocomplete_fields = ('material', 'lote', 'ubicacion_origen', 'ubicacion_destino')
     readonly_fields = ('fecha_movimiento', 'fecha_aprobacion', 'aprobado_por')
+    raw_id_fields = ('solicitud', 'orden_trabajo')
     
     actions = ['liquidar_movimientos']
 
