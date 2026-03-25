@@ -16,4 +16,5 @@ urlpatterns = [
     path('ticket/<int:ticket_id>/cierre-fiori/', views.ticket_cierre_fiori_view, name='ticket_cierre_fiori'),
     path('ticket/<int:ticket_id>/upload-evidencia/', views.upload_evidencia_ajax, name='upload_evidencia_fiori'),
     path('ticket/<int:ticket_id>/delete-evidencia/<int:evidencia_id>/', views.delete_evidencia_ajax, name='delete_evidencia_fiori'),
+    path('update-descripcion-evidencia/<int:evidence_id>/', views.update_evidencia_descripcion_ajax, name='update_evidencia_descripcion_ajax'),
 ]

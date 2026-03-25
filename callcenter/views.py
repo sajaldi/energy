@@ -458,6 +458,18 @@ def delete_evidencia_ajax(request, ticket_id, evidencia_id):
         return JsonResponse({'success': True})
     return JsonResponse({'success': False}, status=400)
 
+@csrf_exempt
+@staff_member_required
+def update_evidencia_descripcion_ajax(request, evidence_id):
+    if request.method == 'POST':
+        from .models import EvidenciaTicket
+        evidencia = get_object_or_404(EvidenciaTicket, id=evidence_id)
+        descripcion = request.POST.get('descripcion', '')
+        evidencia.descripcion = descripcion
+        evidencia.save()
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=400)
+
 @staff_member_required
 def ticket_dashboard_view(request):
     """

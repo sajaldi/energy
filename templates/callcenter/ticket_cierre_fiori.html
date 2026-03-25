@@ -160,20 +160,28 @@
 
     .evidence-box {
         position: relative;
-        aspect-ratio: 1;
         border: 1px solid var(--sap-border);
         border-radius: 12px;
         overflow: hidden;
-        background: #f8f9fa;
+        background: #ffffff;
+        padding: 8px; /* Espacio para el input */
         display: flex;
-        align-items: center;
-        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
         transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    .evidence-box:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+    .evidence-img-container {
+        position: relative;
+        aspect-ratio: 1;
+        width: 100%;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f8f9fa;
+    }
 
-    .evidence-box img { width: 100%; height: 100%; object-fit: cover; }
+    .evidence-box:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+    .evidence-img-container img { width: 100%; height: 100%; object-fit: cover; }
     
     .btn-delete-ev {
         position: absolute;
@@ -313,13 +321,21 @@
         <div class="evidence-grid" id="evidence-container">
             {% for ev in evidences %}
             <div class="evidence-box" data-id="{{ ev.id }}">
-                {% if ev.archivo %}
-                    <img src="{{ ev.archivo.url }}" alt="{{ ev.descripcion }}">
-                    <button type="button" class="btn-delete-ev" data-id="{{ ev.id }}" onclick="deleteEvidence(this.dataset.id)"><i class="fas fa-trash-alt"></i></button>
-                {% endif %}
+                <div class="evidence-img-container">
+                    {% if ev.archivo %}
+                        <img src="{{ ev.archivo.url }}" alt="{{ ev.descripcion }}">
+                        <button type="button" class="btn-delete-ev" data-id="{{ ev.id }}" onclick="deleteEvidence(this.dataset.id)"><i class="fas fa-trash-alt"></i></button>
+                    {% endif %}
+                </div>
+                <input type="text" class="fiori-input ev-desc-input" 
+                       style="font-size: 12px; padding: 6px 10px; height: auto;" 
+                       placeholder="¿Qué muestra esta foto?" 
+                       value="{{ ev.descripcion|default:'' }}"
+                       onblur="updateDescription('{{ ev.id }}', this.value)">
             </div>
             {% endfor %}
-            <div class="evidence-box add-evidence-box" onclick="document.getElementById('file-upload').click()">
+            <div class="evidence-box add-evidence-box" onclick="document.getElementById('file-upload').click()" 
+                 style="aspect-ratio: 1; justify-content: center; align-items: center; border: 2px dashed var(--sap-border); background: transparent;">
                 <i class="fas fa-camera"></i>
                 <span>Subir Foto</span>
             </div>
@@ -433,6 +449,21 @@
         });
         
         window.location.href = sendUrl;
+    }
+
+    // Update Evidence Description
+    async function updateDescription(id, value) {
+        const formData = new FormData();
+        formData.append('descripcion', value);
+        try {
+            await fetch(`../../update-descripcion-evidencia/${id}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                body: formData
+            });
+        } catch (e) {
+            console.error("Error al actualizar descripción");
+        }
     }
 </script>
 {% endblock %}
