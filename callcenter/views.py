@@ -61,41 +61,46 @@ def send_ticket_to_power_automate_view(request, ticket_id):
         local_dt = timezone.localtime(dt)
         return local_dt.strftime('%d/%m/%Y %H:%M:%S')
 
-    # 4. Construir Payload (Mismo formato que n8n)
+    # 4. Construir Payload (JSON Schema Exacto)
     payload = {
-        "folio": ticket.folio or str(ticket.id_solicitud),
-        "solicitante": ticket.solicitante or "N/A",
-        "descripcion_original": (ticket.solicitud_descripcion or "N/A").replace('\n', ' '),
-        "falla": (ticket.falla_descripcion or "N/A"),
-        "clasificacion_falla": (ticket.falla_clasificacion or "N/A"),
-        "servicio": (ticket.servicio or "N/A"),
-        "ubicacion": (ticket.area or "N/A"),
-        "grupo_torre": (ticket.nivel or "N/A"),
-        "nivel_piso": (ticket.grupo or "N/A"),
-        "unidad_funcional": (ticket.unidad or "N/A"),
+        "folio": str(ticket.folio or ticket.id_solicitud),
+        "solicitante": str(ticket.solicitante or ""),
+        "descripcion_original": (ticket.solicitud_descripcion or "").replace('\n', ' '),
+        "falla": str(ticket.falla_descripcion or ""),
+        "clasificacion_falla": str(ticket.falla_clasificacion or ""),
+        "servicio": str(ticket.servicio or ""),
+        "ubicacion": str(ticket.area or ""),
+        "grupo_torre": str(ticket.nivel or ""),
+        "nivel_piso": str(ticket.grupo or ""),
+        "unidad_funcional": str(ticket.unidad or ""),
         "fecha_apertura": to_local_str(ticket.fecha_solicitud),
         "fecha_cierre": to_local_str(ticket.fecha_cierre),
-        "diagnostico": (ticket.diagnostico or "N/A").replace('\n', ' '),
-        "actividades": (ticket.actividades or "N/A").replace('\n', ' '),
-        "observaciones": (ticket.observaciones or "N/A").replace('\n', ' '),
-        "pdf_url": pdf_url,
-        "tiempo_total_min": tiempo_total,
-        "cerrado_por_nombre": request.user.get_full_name() or request.user.username,
+        "diagnostico": (ticket.diagnostico or "").replace('\n', ' '),
+        "actividades": (ticket.actividades or "").replace('\n', ' '),
+        "observaciones": (ticket.observaciones or "").replace('\n', ' '),
+        "pdf_url": str(pdf_url),
+        "tiempo_total_min": int(tiempo_total),
+        "cerrado_por_nombre": str(request.user.get_full_name() or request.user.username),
         "telefono_usuario": "Admin Panel",
-        "email_usuario": request.user.email or "N/A"
+        "email_usuario": str(request.user.email or "")
     }
 
     url_power_automate = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6260ff428abe4f88b4cd96fae4614a57/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IMrCwJsG1SsgYIYDKimFGYRkvxBFlg0MYpJWURimsLk"
 
+    logger.info(f"Enviando Ticket {ticket.folio} a Power Automate (Admin)... URL: {url_power_automate}")
+    
     try:
-        response = requests.post(url_power_automate, json=payload, timeout=15)
+        response = requests.post(url_power_automate, json=payload, timeout=20)
+        logger.info(f"Respuesta Power Automate: {response.status_code} - {response.text}")
+        
         if response.status_code in [200, 202]:
             ticket.cierre_enviado = True
             ticket.save(update_fields=['cierre_enviado'])
-            messages.success(request, "Ticket enviado exitosamente a Power Automate para cierre/notificación.")
+            messages.success(request, "Ticket enviado exitosamente a Power Automate.")
         else:
             messages.warning(request, f"Power Automate respondió con error {response.status_code}: {response.text}")
     except Exception as e:
+        logger.error(f"Error conectando a Power Automate: {e}")
         messages.error(request, f"Error al conectar con Power Automate: {str(e)}")
 
     return redirect('admin:callcenter_solicitudticket_change', ticket_id)
