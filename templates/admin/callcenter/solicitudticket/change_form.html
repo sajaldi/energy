@@ -95,16 +95,22 @@
             if (fileLink || (fileInput && fileInput.value)) hasEv = true;
         });
 
+        const alreadySent = {% if original.cierre_enviado %}true{% else %}false{% endif %};
         let confirmMsg = '¿Estás seguro de enviar esta notificación de cierre?';
         let confirmIcon = 'question';
+        let confirmTitle = 'Confirmar Envío';
 
-        if (!hasEv) {
+        if (alreadySent) {
+            confirmTitle = 'Ticket ya Notificado';
+            confirmMsg = '<b>Este ticket ya fue notificado previamente.</b><br>¿Deseas volver a enviar el cierre corregido?';
+            confirmIcon = 'warning';
+        } else if (!hasEv) {
             confirmMsg = '<b>Atención:</b> No se detectaron evidencias/fotos adjuntas. ¿Deseas enviar el cierre de todos modos?';
             confirmIcon = 'warning';
         }
 
         Swal.fire({
-            title: 'Confirmar Envío',
+            title: confirmTitle,
             html: confirmMsg + '<br><br><small style="color:red">Se enviará la información que esté GUARDADA en la base de datos.</small>',
             icon: confirmIcon,
             showCancelButton: true,
