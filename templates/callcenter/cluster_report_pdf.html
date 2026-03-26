@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: letter;
+            margin: 2cm;
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-size: 9pt;
+            }
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #333;
+            font-size: 10pt;
+            line-height: 1.4;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #0070f2;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #0070f2;
+            margin: 0;
+            font-size: 18pt;
+        }
+        .summary-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .summary-grid {
+            width: 100%;
+        }
+        .summary-grid td {
+            width: 33.33%;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 14pt;
+            font-weight: bold;
+            display: block;
+        }
+        .metric-label {
+            font-size: 8pt;
+            color: #666;
+            text-transform: uppercase;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th {
+            background-color: #0070f2;
+            color: white;
+            text-align: left;
+            padding: 8px;
+            font-size: 9pt;
+        }
+        td {
+            border-bottom: 1px solid #dee2e6;
+            padding: 8px;
+            font-size: 8pt;
+            vertical-align: top;
+        }
+        .status-badge {
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 7pt;
+            font-weight: bold;
+        }
+        .status-abierto { background-color: #fef7e0; color: #e9730c; }
+        .status-cerrado { background-color: #e5f5ea; color: #107e3e; }
+        .footer {
+            margin-top: 30px;
+            font-size: 8pt;
+            color: #999;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Reporte de Grupo de Tickets</h1>
+        <p>Grupo: <strong>{{ cluster.correlativo }}</strong> | Generado: {{ fecha_reporte|date:"d/m/Y H:i" }}</p>
+    </div>
+
+    <div class="summary-box">
+        <table class="summary-grid">
+            <tr>
+                <td>
+                    <span class="metric-label">Total Tickets</span>
+                    <span class="metric-value">{{ total }}</span>
+                </td>
+                <td>
+                    <span class="metric-label">Abiertos</span>
+                    <span class="metric-value" style="color: #e9730c;">{{ abiertos }}</span>
+                </td>
+                <td>
+                    <span class="metric-label">Cerrados</span>
+                    <span class="metric-value" style="color: #107e3e;">{{ cerrados }}</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <h3>Descripción del Grupo</h3>
+    <p style="background: #fff; padding: 10px; border: 1px solid #eee;">{{ cluster.descripcion }}</p>
+
+    <h3>Listado de Tickets</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 15%;">Folio/ID</th>
+                <th style="width: 25%;">Solicitante</th>
+                <th style="width: 20%;">Ubicación</th>
+                <th style="width: 20%;">Fecha Sol.</th>
+                <th style="width: 10%;">Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tickets %}
+            <tr>
+                <td><strong>{{ t.folio|default:t.id_solicitud }}</strong></td>
+                <td>{{ t.solicitante|default:"-" }}</td>
+                <td>{{ t.ubicacion.nombre|default:"-" }}</td>
+                <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                <td>
+                    {% if t.fecha_cierre or t.cierre_enviado %}
+                        <span class="status-badge status-cerrado">CERRADO</span>
+                    {% else %}
+                        <span class="status-badge status-abierto">ABIERTO</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <p>SoftCom-CCG | Sistema de Gestión de Call Center</p>
+    </div>
+</body>
+</html>

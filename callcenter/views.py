@@ -506,14 +506,63 @@ def ticket_dashboard_view(request):
 def cluster_tickets_view(request, cluster_id):
     """
     Lista todos los tickets de un grupo (cluster) específico con diseño Visual.
+    Incluye estadísticas y exportación a Excel/PDF.
     """
     from .models import GrupoTicket
+    from django.db.models import Q
+    import pandas as pd
+    from xhtml2pdf import pisa
+    
     cluster = get_object_or_404(GrupoTicket, id=cluster_id)
     tickets = cluster.tickets.all().order_by('-fecha_solicitud')
     
+    # Calcular estadísticas dirigidas
+    total = tickets.count()
+    cerrados = tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).count()
+    abiertos = total - cerrados
+    
+    # Manejo de Exportación
+    export_type = request.GET.get('export')
+    
+    if export_type == 'excel':
+        data = []
+        for t in tickets:
+            data.append({
+                'Folio/ID': t.folio or t.id_solicitud,
+                'Solicitante': t.solicitante,
+                'Ubicación': t.ubicacion.nombre if t.ubicacion else 'N/A',
+                'Servicio': t.servicio,
+                'Fecha Solicitud': t.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if t.fecha_solicitud else '',
+                'Estado': 'Cerrado' if (t.fecha_cierre or t.cierre_enviado) else 'Abierto'
+            })
+        df = pd.DataFrame(data)
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="Reporte_Cluster_{cluster.correlativo}.xlsx"'
+        df.to_excel(response, index=False)
+        return response
+
+    if export_type == 'pdf':
+        html_content = render_to_string('callcenter/cluster_report_pdf.html', {
+            'cluster': cluster,
+            'tickets': tickets,
+            'total': total,
+            'cerrados': cerrados,
+            'abiertos': abiertos,
+            'fecha_reporte': timezone.now()
+        })
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Reporte_Cluster_{cluster.correlativo}.pdf"'
+        pisa_status = pisa.CreatePDF(html_content, dest=response)
+        if pisa_status.err:
+            return HttpResponse('Error al generar PDF', status=500)
+        return response
+
     context = {
         'cluster': cluster,
         'tickets': tickets,
+        'abiertos': abiertos,
+        'cerrados': cerrados,
+        'total': total,
         'title': f"Tickets en {cluster.correlativo}"
     }
     return render(request, 'callcenter/cluster_tickets.html', context)
