@@ -17,4 +17,9 @@ urlpatterns = [
     path('ticket/<int:ticket_id>/upload-evidencia/', views.upload_evidencia_ajax, name='upload_evidencia_visual'),
     path('ticket/<int:ticket_id>/delete-evidencia/<int:evidencia_id>/', views.delete_evidencia_ajax, name='delete_evidencia_visual'),
     path('update-descripcion-evidencia/<int:evidence_id>/', views.update_evidencia_descripcion_ajax, name='update_evidencia_descripcion_ajax'),
+    path('search-activos/', views.search_activos_ajax, name='search_activos_ajax'),
+    path('ticket/<int:ticket_id>/update-activo/', views.update_ticket_activo_ajax, name='update_ticket_activo_ajax'),
+    path('get-assignable-users/', views.get_assignable_users_ajax, name='get_assignable_users'),
+    path('ticket/<int:ticket_id>/assign-user/', views.assign_ticket_user_ajax, name='assign_ticket_user'),
+    path('ticket/<int:ticket_id>/notify-n8n/', views.notify_ticket_n8n_ajax, name='notify_ticket_n8n'),
 ]

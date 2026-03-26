@@ -5,11 +5,7 @@
     <style>
         @page {
             size: letter;
-            margin: 2cm;
-            @bottom-right {
-                content: "Página " counter(page) " de " counter(pages);
-                font-size: 9pt;
-            }
+            margin: 1.5cm;
         }
         body {
             font-family: Helvetica, Arial, sans-serif;
@@ -118,10 +114,12 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 15%;">Folio/ID</th>
-                <th style="width: 25%;">Solicitante</th>
-                <th style="width: 20%;">Ubicación</th>
-                <th style="width: 20%;">Fecha Sol.</th>
+                <th style="width: 10%;">Folio/ID</th>
+                <th style="width: 13%;">Solicitante</th>
+                <th style="width: 12%;">Resp. Orig.</th>
+                <th style="width: 12%;">Técnico</th>
+                <th style="width: 33%;">Descripción</th>
+                <th style="width: 10%;">Fecha Sol.</th>
                 <th style="width: 10%;">Estado</th>
             </tr>
         </thead>
@@ -130,7 +128,9 @@
             <tr>
                 <td><strong>{{ t.folio|default:t.id_solicitud }}</strong></td>
                 <td>{{ t.solicitante|default:"-" }}</td>
-                <td>{{ t.ubicacion.nombre|default:"-" }}</td>
+                <td>{{ t.responsable|default:"-" }}</td>
+                <td>{{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username|default:"Sin asignar" }}</td>
+                <td>{{ t.solicitud_descripcion|truncatechars:100|default:"-" }}</td>
                 <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                 <td>
                     {% if t.fecha_cierre or t.cierre_enviado %}

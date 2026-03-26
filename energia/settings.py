@@ -139,6 +139,13 @@ if IS_LOCAL:
 else:
     _default_solicitud_webhook = f'{N8N_BASE_URL}/webhook/solicitud-material'
 N8N_SOLICITUD_WEBHOOK_URL = os.environ.get('N8N_SOLICITUD_WEBHOOK_URL', _default_solicitud_webhook)
+ 
+# Webhook para notificaciones de tickets (WhatsApp/n8n)
+if IS_LOCAL:
+    _default_notify_webhook = f'{N8N_BASE_URL}/webhook-test/ticket-notification'
+else:
+    _default_notify_webhook = f'{N8N_BASE_URL}/webhook/ticket-notification'
+N8N_TICKET_NOTIFY_URL = os.environ.get('N8N_TICKET_NOTIFY_URL', _default_notify_webhook)
 
 # URL base del sitio para callbacks de n8n y comunicación interna
 if os.environ.get('COOLIFY_FQDN'):

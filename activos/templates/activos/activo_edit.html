@@ -3,561 +3,467 @@
 
 {% block extrahead %}
 {{ block.super }}
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
-
 <style>
     :root {
-        --primary: #2563eb;
-        --primary-dark: #1d4ed8;
-        --secondary: #64748b;
-        --background: #f8fafc;
-        --glass: rgba(255, 255, 255, 0.7);
-        --glass-border: rgba(255, 255, 255, 0.4);
-        --text: #0f172a;
-        --success: #10b981;
-        --error: #ef4444;
+        /* SAP Fiori Horizon Colors */
+        --fiori-shell-bg: #354a5f;
+        --fiori-primary: #0a6ed1;
+        --fiori-primary-hover: #0854a1;
+        --fiori-bg: #eff3f6;
+        --fiori-card-bg: #ffffff;
+        --fiori-border: #d9d9d9;
+        --fiori-text: #32363a;
+        --fiori-text-secondary: #6a6d70;
+        --fiori-success: #107e3e;
+        --fiori-error: #bb0000;
+        --fiori-footer-bg: #ffffff;
     }
 
     body {
-        font-family: 'Inter', sans-serif !important;
-        background-color: var(--background) !important;
+        font-family: 'Inter', Arial, sans-serif;
+        background-color: var(--fiori-bg);
+        color: var(--fiori-text);
         margin: 0;
+        padding-bottom: 60px; /* Space for sticky footer */
     }
 
-    /* Glass Container */
-    .edit-container {
-        max-width: 1200px;
-        margin: 40px auto;
-        padding: 0 20px;
-        animation: slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    /* SAP Object Page Header */
+    .fiori-object-header {
+        background: white;
+        padding: 32px 48px;
+        border-bottom: 1px solid var(--fiori-border);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
     }
 
-    @keyframes slideUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .fiori-breadcrumb {
+        font-size: 0.8rem;
+        color: var(--fiori-text-secondary);
+        margin-bottom: 12px;
     }
 
-    /* Header Section */
-    .edit-header {
+    .fiori-header-title-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
+        align-items: flex-start;
     }
 
-    .edit-header h1 {
+    .fiori-header-main {
+        flex: 1;
+    }
+
+    .fiori-header-title {
         font-size: 1.75rem;
-        font-weight: 800;
-        color: var(--text);
-        margin: 0;
-    }
-
-    .edit-header .badges {
-        display: flex;
-        gap: 10px;
-        margin-top: 5px;
-    }
-
-    .badge {
-        padding: 4px 12px;
-        border-radius: 50px;
-        font-size: 0.75rem;
         font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        margin: 0 0 8px 0;
+        color: var(--fiori-text);
     }
 
-    .badge-id {
-        background: #e2e8f0;
-        color: #475569;
+    .fiori-header-subtitle {
+        font-size: 1rem;
+        color: var(--fiori-text-secondary);
     }
 
-    .badge-status {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    /* Glass Card */
-    .glass-card {
-        background: var(--glass);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid var(--glass-border);
-        border-radius: 24px;
-        box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
-        overflow: hidden;
-    }
-
-    /* Navigation Tabs */
-    .nav-tabs {
+    .fiori-header-actions {
         display: flex;
-        background: rgba(0, 0, 0, 0.03);
-        padding: 10px;
-        gap: 5px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        overflow-x: auto;
-    }
-
-    .tab-btn {
-        padding: 12px 20px;
-        border: none;
-        background: transparent;
-        color: var(--secondary);
-        font-weight: 600;
-        font-size: 0.9rem;
-        border-radius: 14px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
         gap: 8px;
-        white-space: nowrap;
     }
 
-    .tab-btn ion-icon {
-        font-size: 1.2rem;
-    }
-
-    .tab-btn:hover {
-        background: rgba(255, 255, 255, 0.5);
-        color: var(--text);
-    }
-
-    .tab-btn.active {
+    /* SAP Icon Tab Bar */
+    .fiori-tab-bar {
         background: white;
-        color: var(--primary);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        padding: 0 48px;
+        border-bottom: 1px solid var(--fiori-border);
+        display: flex;
+        gap: 32px;
     }
 
-    /* Form Body */
-    .form-content {
-        padding: 40px;
+    .fiori-tab {
+        padding: 16px 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--fiori-text-secondary);
+        cursor: pointer;
+        border-bottom: 4px solid transparent;
+        transition: all 0.2s;
     }
 
-    .tab-pane {
-        display: none;
-        animation: fadeIn 0.4s ease;
+    .fiori-tab:hover {
+        color: var(--fiori-primary);
     }
 
-    .tab-pane.active {
-        display: block;
+    .fiori-tab.active {
+        color: var(--fiori-primary);
+        border-bottom-color: var(--fiori-primary);
     }
 
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
-
-        to {
-            opacity: 1;
-        }
+    /* Page Content */
+    .fiori-content {
+        padding: 32px 48px;
+        max-width: 1400px;
+        margin: 0 auto;
     }
 
-    .form-grid {
+    .fiori-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(12, 1fr);
         gap: 24px;
     }
 
-    .form-field {
+    .fiori-section {
+        grid-column: span 12;
+        background: white;
+        border-radius: 8px;
+        padding: 32px;
+        border: 1px solid var(--fiori-border);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #f0f0f0;
+        color: var(--fiori-primary);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    /* Form Elements */
+    .form-group {
+        margin-bottom: 20px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
     }
 
-    .form-field.full {
-        grid-column: span 2;
-    }
-
-    .form-field label {
+    .form-group label {
         font-size: 0.85rem;
-        font-weight: 700;
-        color: #475569;
+        font-weight: 600;
+        color: var(--fiori-text-secondary);
     }
 
-    .input-wrapper {
-        position: relative;
+    .form-control {
+        padding: 10px 14px;
+        border: 1px solid var(--fiori-border);
+        border-radius: 4px;
+        font-size: 0.95rem;
+        color: var(--fiori-text);
+        background: #fafafa;
+        transition: border 0.2s, box-shadow 0.2s;
     }
 
-    .input-wrapper select,
-    .input-wrapper input,
-    .input-wrapper textarea {
-        width: 100%;
-        padding: 12px 16px;
+    .form-control:focus {
+        border-color: var(--fiori-primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.1);
         background: white;
-        border: 2px solid #e2e8f0;
-        border-radius: 14px;
-        font-size: 1rem;
-        color: var(--text);
+    }
+
+    /* Sticky Footer */
+    .fiori-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        background: var(--fiori-footer-bg);
+        border-top: 1px solid var(--fiori-border);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 48px;
+        gap: 12px;
+        z-index: 1000;
+        box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+    }
+
+    /* Buttons */
+    .fiori-btn {
+        padding: 8px 20px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         transition: all 0.2s;
+        height: 36px;
         box-sizing: border-box;
     }
 
-    .input-wrapper select:focus,
-    .input-wrapper input:focus,
-    .input-wrapper textarea:focus {
-        border-color: var(--primary);
-        outline: none;
-        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-    }
-
-    .errorlist {
-        list-style: none;
-        padding: 0;
-        margin: 5px 0 0 0;
-        color: var(--error);
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-
-    /* Footer Buttons */
-    .form-footer {
-        padding: 24px 40px;
-        background: rgba(0, 0, 0, 0.02);
-        display: flex;
-        justify-content: flex-end;
-        gap: 15px;
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    .btn {
-        padding: 14px 28px;
-        border-radius: 14px;
-        font-weight: 700;
-        font-size: 0.95rem;
-        cursor: pointer;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .btn-secondary {
-        background: #f1f5f9;
-        color: #475569;
-        border: 1px solid #e2e8f0;
-        text-decoration: none;
-    }
-
-    .btn-secondary:hover {
-        background: #e2e8f0;
-    }
-
-    .btn-primary {
-        background: var(--primary);
+    .fiori-btn-primary {
+        background: var(--fiori-primary);
         color: white;
-        border: none;
-        box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+        border: 1px solid var(--fiori-primary);
     }
 
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        background: var(--primary-dark);
-        box-shadow: 0 15px 25px -5px rgba(37, 99, 235, 0.5);
+    .fiori-btn-primary:hover {
+        background: var(--fiori-primary-hover);
     }
 
-    .btn-primary:active {
-        transform: scale(0.98);
+    .fiori-btn-ghost {
+        background: transparent;
+        color: var(--fiori-primary);
+        border: 1px solid var(--fiori-primary);
     }
 
-    /* Info Banner */
-    .info-banner {
-        grid-column: span 2;
-        background: #eff6ff;
-        border: 1px solid #dbeafe;
-        border-radius: 16px;
-        padding: 15px 20px;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        color: #1e40af;
-        font-size: 0.9rem;
-        margin-bottom: 20px;
+    .fiori-btn-ghost:hover {
+        background: #f0f7ff;
     }
 
-    .info-banner ion-icon {
-        font-size: 1.5rem;
+    .fiori-btn-negative {
+        background: transparent;
+        color: var(--fiori-error);
+        border: 1px solid var(--fiori-error);
     }
 
-    /* Multimedia Grid */
-    .media-container {
-        display: grid;
-        grid-template-columns: 200px 1fr;
-        gap: 30px;
-        align-items: start;
-    }
-
-    .preview-box {
+    /* Image Upload Box */
+    .image-upload-zone {
         width: 100%;
-        aspect-ratio: 1;
-        background: #f1f5f9;
-        border: 2px dashed #cbd5e1;
-        border-radius: 20px;
+        height: 250px;
+        background: #f8f9fa;
+        border: 2px dashed var(--fiori-border);
+        border-radius: 8px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        color: #94a3b8;
         overflow: hidden;
+        cursor: pointer;
+        transition: border-color 0.2s;
     }
 
-    .preview-box img {
+    .image-upload-zone:hover {
+        border-color: var(--fiori-primary);
+    }
+
+    .preview-img {
         width: 100%;
         height: 100%;
         object-fit: contain;
     }
 
-    @media (max-width: 768px) {
-        .form-grid {
-            grid-template-columns: 1fr;
-        }
+    /* Toast */
+    .fiori-toast {
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #32363a;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        z-index: 2000;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        display: none;
+        animation: fadeInUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
 
-        .form-field.full {
-            grid-column: span 1;
-        }
+    @keyframes fadeInUp { from { opacity:0; transform:translate(-50%, 20px); } to { opacity:1; transform:translate(-50%, 0); } }
 
-        .media-container {
-            grid-template-columns: 1fr;
-        }
-
-        .edit-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 20px;
-        }
+    /* Override admin bits */
+    #content-main, .content {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="edit-container">
-    <div class="edit-header">
-        <div>
-            <h1>{{ title }}</h1>
-            <div class="badges">
-                <span class="badge badge-id">ID: #{{ activo.id }}</span>
-                <span class="badge badge-id">{{ activo.codigo_interno|default:"Sin Código" }}</span>
-                <span class="badge badge-status">{{ activo.get_estado_display }}</span>
+<div class="fiori-object-page">
+    <!-- Header -->
+    <header class="fiori-object-header">
+        <div class="fiori-breadcrumb">Energía / Gestión de Activos / Detalle</div>
+        <div class="fiori-header-title-row">
+            <div class="fiori-header-main">
+                <h1 class="fiori-header-title">{{ activo.nombre }}</h1>
+                <div class="fiori-header-subtitle">
+                    ID: #{{ activo.id }} | 
+                    Código: {{ activo.codigo_interno|default:"Sin Código" }} |
+                    <span style="font-weight: 700; color: var(--fiori-primary);">{{ activo.get_estado_display }}</span>
+                </div>
+            </div>
+            <div class="fiori-header-actions">
+                <button type="button" class="fiori-btn fiori-btn-ghost" onclick="window.location.href='/admin/activos/activo/{{ activo.id }}/change/'">
+                    <ion-icon name="open-outline"></ion-icon> Admin Original
+                </button>
             </div>
         </div>
-        <div class="actions">
-            <a href="/admin/activos/activo/{{ activo.id }}/change/" class="btn btn-secondary">
-                <ion-icon name="options-outline"></ion-icon>
-                Ir a Admin Original
-            </a>
-        </div>
-    </div>
+    </header>
 
-    <div class="glass-card">
+    <!-- Tab Navigation -->
+    <nav class="fiori-tab-bar">
+        <div class="fiori-tab active" onclick="scrollToSection('sec-basic', this)">Información Básica</div>
+        <div class="fiori-tab" onclick="scrollToSection('sec-location', this)">Ubicación y Responsable</div>
+        <div class="fiori-tab" onclick="scrollToSection('sec-technical', this)">Especificaciones Técnicas</div>
+        <div class="fiori-tab" onclick="scrollToSection('sec-media', this)">Multimedia</div>
+    </nav>
+
+    <!-- Forms Content -->
+    <main class="fiori-content">
         <form id="activo-form" method="POST" enctype="multipart/form-data">
             {% csrf_token %}
-            <div class="nav-tabs">
-                <button type="button" class="tab-btn active" onclick="switchTab(this, 'general')">
-                    <ion-icon name="information-circle-outline"></ion-icon>
-                    Básico
-                </button>
-                <button type="button" class="tab-btn" onclick="switchTab(this, 'ubicacion')">
-                    <ion-icon name="location-outline"></ion-icon>
-                    Ubicación
-                </button>
-                <button type="button" class="tab-btn" onclick="switchTab(this, 'tecnico')">
-                    <ion-icon name="construct-outline"></ion-icon>
-                    Técnico
-                </button>
-                <button type="button" class="tab-btn" onclick="switchTab(this, 'financiero')">
-                    <ion-icon name="card-outline"></ion-icon>
-                    Financiero
-                </button>
-                <button type="button" class="tab-btn" onclick="switchTab(this, 'multimedia')">
-                    <ion-icon name="image-outline"></ion-icon>
-                    Multimedia
-                </button>
-            </div>
-
-            <div class="form-content">
-                <!-- Tab: General -->
-                <div id="general" class="tab-pane active">
-                    <div class="info-banner">
-                        <ion-icon name="shield-checkmark-outline"></ion-icon>
-                        <div>
-                            <strong>Información Crítica</strong><br>
-                            Nombre y código son los identificadores principales del activo en el sistema.
+            
+            <div class="fiori-grid">
+                <!-- Section: Información Básica -->
+                <section id="sec-basic" class="fiori-section">
+                    <div class="section-title"><ion-icon name="information-circle-outline"></ion-icon> Información Básica</div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px;">
+                        <div class="form-group">
+                            <label>Nombre del Activo</label>
+                            <div class="input-ctrl">{{ form.nombre }}</div>
+                            <span style="color:var(--fiori-error); font-size:0.75rem;">{{ form.nombre.errors.0 }}</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Código Interno</label>
+                            <div class="input-ctrl">{{ form.codigo_interno }}</div>
+                             <span style="color:var(--fiori-error); font-size:0.75rem;">{{ form.codigo_interno.errors.0 }}</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Estado Operativo</label>
+                            <div class="input-ctrl">{{ form.estado }}</div>
+                        </div>
+                        <div class="form-group">
+                            <label>EPC (RFID)</label>
+                            <div class="input-ctrl">{{ form.epc }}</div>
+                        </div>
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>Descripción General</label>
+                            <div class="input-ctrl">{{ form.descripcion }}</div>
                         </div>
                     </div>
-                    <div class="form-grid">
-                        <div class="form-field">
-                            <label>{{ form.nombre.label }}</label>
-                            <div class="input-wrapper">{{ form.nombre }}</div>
-                            {{ form.nombre.errors }}
+                </section>
+
+                <!-- Section: Ubicación -->
+                <section id="sec-location" class="fiori-section">
+                    <div class="section-title"><ion-icon name="location-outline"></ion-icon> Ubicación y Responsable</div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px;">
+                        <div class="form-group">
+                            <label>Ubicación Jerárquica</label>
+                            <div class="input-ctrl">{{ form.ubicacion }}</div>
                         </div>
-                        <div class="form-field">
-                            <label>{{ form.codigo_interno.label }}</label>
-                            <div class="input-wrapper">{{ form.codigo_interno }}</div>
-                            {{ form.codigo_interno.errors }}
+                        <div class="form-group">
+                            <label>Persona Responsable</label>
+                            <div class="input-ctrl">{{ form.responsable }}</div>
                         </div>
-                        <div class="form-field">
-                            <label>{{ form.estado.label }}</label>
-                            <div class="input-wrapper">{{ form.estado }}</div>
-                            {{ form.estado.errors }}
-                        </div>
-                        <div class="form-field">
-                            <label>{{ form.epc.label }}</label>
-                            <div class="input-wrapper">{{ form.epc }}</div>
-                            {{ form.epc.errors }}
-                        </div>
-                        <div class="form-field full">
-                            <label>{{ form.descripcion.label }}</label>
-                            <div class="input-wrapper">{{ form.descripcion }}</div>
-                            {{ form.descripcion.errors }}
+                        <div class="form-group">
+                            <label>Plano de Ubicación</label>
+                            <div class="input-ctrl">{{ form.plano }}</div>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Tab: Ubicación -->
-                <div id="ubicacion" class="tab-pane">
-                    <div class="form-grid">
-                        <div class="form-field">
-                            <label>{{ form.ubicacion.label }}</label>
-                            <div class="input-wrapper">{{ form.ubicacion }}</div>
-                            {{ form.ubicacion.errors }}
+                <!-- Section: Técnica -->
+                <section id="sec-technical" class="fiori-section">
+                    <div class="section-title"><ion-icon name="construct-outline"></ion-icon> Especificaciones Técnicas</div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px;">
+                        <div class="form-group">
+                            <label>Familia de Equipo</label>
+                            <div class="input-ctrl">{{ form.familia }}</div>
                         </div>
-                        <div class="form-field">
-                            <label>{{ form.responsable.label }}</label>
-                            <div class="input-wrapper">{{ form.responsable }}</div>
-                            {{ form.responsable.errors }}
+                        <div class="form-group">
+                            <label>Modelo Específico</label>
+                            <div class="input-ctrl">{{ form.modelo }}</div>
                         </div>
-                        <div class="form-field">
-                            <label>{{ form.plano.label }}</label>
-                            <div class="input-wrapper">{{ form.plano }}</div>
-                            {{ form.plano.errors }}
+                        <div class="form-group">
+                            <label>Número de Serie</label>
+                            <div class="input-ctrl">{{ form.serie }}</div>
+                        </div>
+                        <div class="form-group">
+                            <label>Activo Padre (Jerarquía)</label>
+                            <div class="input-ctrl">{{ form.padre }}</div>
+                        </div>
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>Referencias / Comentarios técnicos</label>
+                            <div class="input-ctrl">{{ form.referencia }}</div>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Tab: Técnico -->
-                <div id="tecnico" class="tab-pane">
-                    <div class="form-grid">
-                        <div class="form-field">
-                            <label>{{ form.familia.label }}</label>
-                            <div class="input-wrapper">{{ form.familia }}</div>
-                            {{ form.familia.errors }}
-                        </div>
-                        <div class="form-field">
-                            <label>{{ form.modelo.label }}</label>
-                            <div class="input-wrapper">{{ form.modelo }}</div>
-                            {{ form.modelo.errors }}
-                        </div>
-                        <div class="form-field">
-                            <label>{{ form.serie.label }}</label>
-                            <div class="input-wrapper">{{ form.serie }}</div>
-                            {{ form.serie.errors }}
-                        </div>
-                        <div class="form-field">
-                            <label>{{ form.padre.label }}</label>
-                            <div class="input-wrapper">{{ form.padre }}</div>
-                            {{ form.padre.errors }}
-                        </div>
-                        <div class="form-field full">
-                            <label>{{ form.referencia.label }}</label>
-                            <div class="input-wrapper">{{ form.referencia }}</div>
-                            {{ form.referencia.errors }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tab: Financiero -->
-                <div id="financiero" class="tab-pane">
-                    <div class="form-grid">
-                        <div class="form-field">
-                            <label>{{ form.fecha_compra.label }}</label>
-                            <div class="input-wrapper">{{ form.fecha_compra }}</div>
-                            {{ form.fecha_compra.errors }}
-                        </div>
-                        <div class="form-field">
-                            <label>{{ form.costo.label }}</label>
-                            <div class="input-wrapper">{{ form.costo }}</div>
-                            {{ form.costo.errors }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tab: Multimedia -->
-                <div id="multimedia" class="tab-pane">
-                    <div class="media-container">
-                        <div class="preview-box">
+                <!-- Section: Multimedia -->
+                <section id="sec-media" class="fiori-section">
+                    <div class="section-title"><ion-icon name="image-outline"></ion-icon> Multimedia</div>
+                    <div style="display: grid; grid-template-columns: 350px 1fr; gap: 32px;">
+                        <div class="image-upload-zone" onclick="document.getElementById('id_foto').click()">
                             {% if activo.foto %}
-                            <img src="{{ activo.foto.url }}" id="img-preview" alt="Foto activo">
+                                <img src="{{ activo.foto.url }}" class="preview-img" id="img-preview">
                             {% else %}
-                            <ion-icon name="image-outline" style="font-size: 3rem;"></ion-icon>
-                            <span style="font-size: 0.8rem; margin-top: 10px;">Sin Foto</span>
+                                <ion-icon name="cloud-upload-outline" style="font-size: 3rem; color: var(--fiori-border);"></ion-icon>
+                                <p style="color: var(--fiori-text-secondary); margin-top: 10px;">Haz clic para subir foto</p>
                             {% endif %}
                         </div>
-                        <div class="form-field">
-                            <label>Actualizar Foto del Activo</label>
-                            <div class="input-wrapper">
+                        <div>
+                            <p style="font-size: 0.9rem; color: var(--fiori-text-secondary); line-height: 1.6;">
+                                Las fotografías ayudan a los técnicos a identificar rápidamente el equipo durante tours de inspección o mantenimientos preventivos. Se recomienda subir fotos en alta resolución donde se vean las etiquetas de placa o el conjunto completo.
+                            </p>
+                            <div style="margin-top: 20px; opacity: 0; position: absolute; pointer-events: none;">
                                 {{ form.foto }}
                             </div>
-                            {{ form.foto.errors }}
-                            <p style="font-size: 0.75rem; color: #64748b; margin-top: 10px;">
-                                La imagen debe ser clara y mostrar el equipo completo para facilitar su identificación
-                                durante las rondas de mantenimiento.
-                            </p>
+                            <button type="button" class="fiori-btn fiori-btn-ghost" onclick="document.getElementById('id_foto').click()">
+                                Seleccionar Nueva Archivo
+                            </button>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="form-footer">
-                <button type="submit" class="btn btn-primary" id="save-btn">
-                    <ion-icon name="checkmark-circle-outline"></ion-icon>
-                    Guardar Cambios
-                </button>
+                </section>
             </div>
         </form>
-    </div>
+    </main>
+
+    <!-- Sticky Footer -->
+    <footer class="fiori-footer">
+        <button type="button" class="fiori-btn fiori-btn-primary" id="save-btn" onclick="submitForm()">
+            Guardar Cambios
+        </button>
+        <button type="button" class="fiori-btn fiori-btn-ghost" onclick="window.location.href='/activos/arbol-ubicaciones/'">
+            Cancelar
+        </button>
+        <div style="border-left: 1px solid var(--fiori-border); height: 24px; margin: 0 8px;"></div>
+        <button type="button" class="fiori-btn fiori-btn-negative" onclick="confirmDelete()">
+            Eliminar
+        </button>
+    </footer>
 </div>
 
-<script>
-    function switchTab(btn, tabId) {
-        // Toggle Buttons
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+<div class="fiori-toast" id="fiori-toast">Mensaje guardado</div>
 
-        // Toggle Panes
-        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
+<script>
+    // Styling all inputs as fiori
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+        el.classList.add('form-control');
+        if (el.tagName === 'TEXTAREA') el.rows = 4;
+    });
+
+    function scrollToSection(id, tab) {
+        document.querySelectorAll('.fiori-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const section = document.getElementById(id);
+        window.scrollTo({
+            top: section.offsetTop - 140, // Adjust for header
+            behavior: 'smooth'
+        });
     }
 
-    // AJAX Form Submission
-    const form = document.getElementById('activo-form');
-    const saveBtn = document.getElementById('save-btn');
+    async function submitForm() {
+        const btn = document.getElementById('save-btn');
+        const form = document.getElementById('activo-form');
+        const originalText = btn.innerText;
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const originalContent = saveBtn.innerHTML;
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<span class="loader-mini"></span> Guardando...';
+        btn.disabled = true;
+        btn.innerText = 'Guardando...';
 
         const formData = new FormData(form);
 
-        // Limpiar errores previos
-        document.querySelectorAll('.errorlist').forEach(el => el.remove());
-        document.querySelectorAll('.input-wrapper input, .input-wrapper select, .input-wrapper textarea').forEach(el => {
-            el.style.borderColor = '#e2e8f0';
-        });
-
         try {
-            const response = await fetch(window.location.pathname, {
+            const res = await fetch(window.location.pathname, {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -566,115 +472,49 @@
                 }
             });
 
-            const result = await response.json();
-
+            const result = await res.json();
             if (result.status === 'success') {
-                showToast(result.message, 'success');
+                showToast('✅ ' + result.message);
+                setTimeout(() => window.location.reload(), 1500);
             } else {
-                // Manejo de errores detallados
-                let errorMsg = 'Error en el formulario. Revisa los campos.';
-
-                if (result.errors) {
-                    // Si hay errores globales (agregados en form.clean)
-                    if (result.errors.__all__) {
-                        errorMsg = result.errors.__all__[0];
-                    }
-
-                    // Resaltar campos con error
-                    for (const [field, messages] of Object.entries(result.errors)) {
-                        if (field === '__all__') continue;
-
-                        const input = form.querySelector(`[name="${field}"]`);
-                        if (input) {
-                            input.style.borderColor = 'var(--error)';
-                            // Opcional: Agregar hint de error
-                            const wrapper = input.closest('.input-wrapper');
-                            if (wrapper) {
-                                const errHint = document.createElement('ul');
-                                errHint.className = 'errorlist';
-                                errHint.innerHTML = `<li>${messages[0]}</li>`;
-                                wrapper.appendChild(errHint);
-                            }
-                        }
-                    }
-                }
-
-                showToast(errorMsg, 'error');
+                showToast('❌ Error: Revisa los campos obligatorios.');
+                console.error(result.errors);
             }
-        } catch (error) {
-            console.error('Error:', error);
-            showToast('Error de conexión con el servidor.', 'error');
+        } catch (e) {
+            showToast('❌ Error de red');
         } finally {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalContent;
+            btn.disabled = false;
+            btn.innerText = originalText;
         }
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('fiori-toast');
+        toast.innerText = msg;
+        toast.style.display = 'block';
+        setTimeout(() => toast.style.display = 'none', 3000);
+    }
+
+    function confirmDelete() {
+        if (confirm('¿Estás seguro de que deseas eliminar este activo? Esta acción no se puede deshacer.')) {
+            // Implementation handled by Django admin usually, but we could add AJAX here
+            alert('Funcionalidad de borrado rápido pendiente integracion.');
+        }
+    }
+
+    // Preview image on selection
+    document.getElementById('id_foto').addEventListener('change', function(e) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const preview = document.getElementById('img-preview');
+            if (preview) {
+                preview.src = event.target.result;
+            } else {
+                const zone = document.querySelector('.image-upload-zone');
+                zone.innerHTML = `<img src="${event.target.result}" class="preview-img" id="img-preview">`;
+            }
+        };
+        reader.readAsDataURL(e.target.files[0]);
     });
-
-    function showToast(message, type) {
-        const toast = document.createElement('div');
-        toast.style.position = 'fixed';
-        toast.style.bottom = '30px';
-        toast.style.right = '30px';
-        toast.style.padding = '16px 24px';
-        toast.style.borderRadius = '14px';
-        toast.style.color = 'white';
-        toast.style.fontWeight = '700';
-        toast.style.zIndex = '9999';
-        toast.style.display = 'flex';
-        toast.style.alignItems = 'center';
-        toast.style.gap = '12px';
-        toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.1)';
-        toast.style.animation = 'slideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
-
-        if (type === 'success') {
-            toast.style.background = '#10b981';
-            toast.innerHTML = '<ion-icon name="checkmark-done-circle" style="font-size: 1.5rem;"></ion-icon> ' + message;
-        } else {
-            toast.style.background = '#ef4444';
-            toast.innerHTML = '<ion-icon name="alert-circle" style="font-size: 1.5rem;"></ion-icon> ' + message;
-        }
-
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            toast.style.transition = 'all 0.4s ease';
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateY(20px)';
-            setTimeout(() => toast.remove(), 400);
-        }, 4000);
-    }
 </script>
-
-<style>
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%) scale(0.9);
-            opacity: 0;
-        }
-
-        to {
-            transform: translateX(0) scale(1);
-            opacity: 1;
-        }
-    }
-
-    .loader-mini {
-        width: 18px;
-        height: 18px;
-        border: 3px solid rgba(255, 255, 255, 0.3);
-        border-top: 3px solid white;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-</style>
 {% endblock %}

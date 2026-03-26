@@ -150,10 +150,10 @@ class EvidenciasInline(admin.TabularInline):
 
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
-    list_display = ('folio', 'id_solicitud', 'solicitante', 'ubicacion', 'servicio', 'area', 'activo', 'fecha_solicitud')
-    list_filter = ('servicio', 'area', 'tipo_solicitud', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter))
-    search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'diagnostico', 'activo__nombre', 'activo__codigo_interno')
-    autocomplete_fields = ('activo',)
+    list_display = ('folio', 'id_solicitud', 'solicitante', 'usuario_responsable', 'ubicacion', 'servicio', 'area', 'activo', 'fecha_solicitud')
+    list_filter = ('servicio', 'area', 'tipo_solicitud', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter))
+    search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
+    autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
     readonly_fields = ('creado_en', 'actualizado_en')
     inlines = [EvidenciasInline]
@@ -170,7 +170,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             'fields': (('activo', 'ubicacion'), ('area', 'unidad'), ('servicio', 'subservicio'), ('grupo', 'nivel'))
         }),
         ('Detalle de la Solicitud', {
-            'fields': (('solicitante', 'responsable'), ('tipo_solicitud', 'tiempo_tipo'), 'solicitud_descripcion', 'falla_descripcion', 'falla_clasificacion')
+            'fields': (('solicitante', 'responsable'), 'usuario_responsable', ('tipo_solicitud', 'tiempo_tipo'), 'solicitud_descripcion', 'falla_descripcion', 'falla_clasificacion')
         }),
         ('Seguimiento Técnico', {
             'fields': (('fecha_diagnostico', 'diagnostico'), ('fecha_actividades', 'actividades'), ('fecha_observaciones', 'observaciones'), ('fecha_observaciones_usuario', 'observaciones_usuario'))

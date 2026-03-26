@@ -248,6 +248,26 @@
     .btn-secondary { background: white; border-color: var(--sap-border); color: var(--sap-text); }
     .btn-secondary:hover { background: #f8f9fa; }
     .btn-success { background: var(--sap-success); color: white; }
+
+    /* Asset Search Styles */
+    .asset-search-container { position: relative; margin-top: 15px; }
+    .search-results-popover {
+        position: absolute; top: 100%; left: 0; right: 0;
+        background: white; border: 1px solid var(--sap-border);
+        border-top: none;
+        border-radius: 0 0 8px 8px; box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+        z-index: 1000; max-height: 280px; overflow-y: auto; display: none;
+    }
+    .search-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; transition: background 0.2s; }
+    .search-item:hover { background: #f5f9ff; }
+    .search-item .item-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; color: var(--sap-text); }
+    .search-item .item-sub { font-size: 11px; color: var(--sap-label); text-transform: uppercase; letter-spacing: 0.5px; }
+    .current-asset-card {
+        background: #f8fafd; border: 1px solid #e1e8f0; border-radius: 8px;
+        padding: 15px; margin-top: 15px; display: flex; justify-content: space-between; align-items: center;
+        border-left: 4px solid var(--sap-blue);
+    }
+    .btn-unlink { color: var(--sap-error); cursor: pointer; font-size: 0.8rem; background: none; border: none; font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -284,6 +304,40 @@
             <label style="font-size: 11px; font-weight: 700; color: var(--sap-label); text-transform: uppercase;">Descripción de Solicitud</label>
             <div style="background: #fdfdfd; padding: 16px; border-radius: 8px; border: 1px solid #eee; margin-top: 8px; font-size: 14px; line-height: 1.6;">
                 {{ ticket.solicitud_descripcion|linebreaks }}
+            </div>
+        </div>
+
+        <div style="margin-top: 32px; border-top: 1px dashed #ddd; padding-top: 24px;">
+            <div class="card-title" style="margin-bottom: 8px;"><i class="fas fa-microchip"></i> Equipo / Activo Relacionado</div>
+            <p style="font-size: 12px; color: var(--sap-label); margin-bottom: 15px;">Vincula el equipo físico que originó este ticket para el reporte técnico.</p>
+            
+            <div id="asset-display-container">
+                {% if ticket.activo %}
+                <div class="current-asset-card">
+                    <div>
+                        <div style="font-weight: 700; color: var(--sap-text);">{{ ticket.activo.nombre }}</div>
+                        <div style="font-size: 11px; color: var(--sap-label); text-transform: uppercase;">
+                            {{ ticket.activo.modelo.marca.nombre|default:"S/M" }} - {{ ticket.activo.modelo.nombre|default:"S/M" }} | S/N: {{ ticket.activo.serie|default:"N/S" }} | COD: {{ ticket.activo.codigo_interno }}
+                        </div>
+                    </div>
+                    <button class="btn-unlink" onclick="updateAsset(null)"><i class="fas fa-times"></i> Desvincular</button>
+                </div>
+                {% else %}
+                <div style="padding: 20px; text-align: center; border: 2px dashed #eee; border-radius: 8px; color: #999; font-size: 14px; margin-bottom: 15px;">
+                    <i class="fas fa-search" style="margin-bottom: 8px; font-size: 20px; display: block;"></i>
+                    No hay un activo vinculado aún.
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="asset-search-container" style="display: flex; gap: 0.75rem;">
+                <div style="position: relative; flex: 1;">
+                    <input type="text" id="asset-search-input" class="visual-input" placeholder="Escribe Nombre, Código o Serie para buscar activos (mín. 3 letras)...">
+                    <div id="search-results-box" class="search-results-popover"></div>
+                </div>
+                <button type="button" class="btn-action" onclick="openHierarchyModal()" style="padding: 0 1.25rem; height: 45px; background: #6a6d70; min-width: 170px; flex-shrink: 0; font-size: 0.8rem;">
+                    <i class="ph ph-magnifying-glass"></i> Buscador de activos
+                </button>
             </div>
         </div>
     </div>
@@ -352,6 +406,27 @@
         </button>
     </div>
 </div>
+
+    <!-- Hierarchy Modal HTML -->
+    <div id="hierarchy-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+        <div style="background: white; width: 95%; max-width: 1400px; height: 90vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.2);">
+            <div style="padding: 16px 24px; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center; background: #fafafa;">
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--sap-text);"><i class="ph ph-tree-structure" style="margin-right: 8px;"></i> Explorador Jerárquico de Activos SAP Fiori</h3>
+                <button class="btn-icon" onclick="closeHierarchyModal()" style="font-size: 1.5rem; color: var(--sap-label); cursor: pointer; border: none; background: transparent;"><i class="fas fa-times"></i></button>
+            </div>
+            <div style="flex: 1; position: relative;">
+                <iframe id="hierarchy-iframe" style="width: 100%; height: 100%; border: none;"></iframe>
+                <div id="hierarchy-loader" style="position: absolute; inset: 0; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <div style="border: 3px solid #f3f3f3; border-top: 3px solid var(--sap-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+                    <p style="margin-top: 16px; color: var(--sap-label); font-weight: 500;">Cargando explorador Fiori...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<style>
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
 
 <script>
     // Tab switching
@@ -451,6 +526,34 @@
         window.location.href = sendUrl;
     }
 
+
+    function openHierarchyModal() {
+        const modal = document.getElementById('hierarchy-modal');
+        const iframe = document.getElementById('hierarchy-iframe');
+        const loader = document.getElementById('hierarchy-loader');
+        
+        modal.style.display = 'flex';
+        
+        iframe.onload = function() {
+            loader.style.display = 'none';
+        };
+        
+        if (!iframe.src) {
+            iframe.src = '/activos/arbol-ubicaciones/?select=true&ubicacion_id={{ ticket.ubicacion_id|default:"" }}';
+        } else {
+            loader.style.display = 'none';
+        }
+    }
+
+    function closeHierarchyModal() {
+        document.getElementById('hierarchy-modal').style.display = 'none';
+    }
+
+    window.onAssetSelected = function(assetId, assetName) {
+        closeHierarchyModal();
+        updateAsset(assetId);
+    };
+
     // Update Evidence Description
     async function updateDescription(id, value) {
         const formData = new FormData();
@@ -463,6 +566,79 @@
             });
         } catch (e) {
             console.error("Error al actualizar descripción");
+        }
+    }
+
+    // Asset Search & Update
+    const assetSearchInput = document.getElementById('asset-search-input');
+    const searchResultsBox = document.getElementById('search-results-box');
+
+    if (assetSearchInput) {
+        let searchTimeout;
+        assetSearchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const q = e.target.value.trim();
+            if (q.length < 3) {
+                searchResultsBox.style.display = 'none';
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const resp = await fetch(`../search-activos/?q=${encodeURIComponent(q)}`);
+                    const data = await resp.json();
+                    
+                    searchResultsBox.innerHTML = '';
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(asset => {
+                            const div = document.createElement('div');
+                            div.className = 'search-item';
+                            div.innerHTML = `
+                                <div class="item-title">${asset.nombre}</div>
+                                <div class="item-sub">${asset.marca} - ${asset.modelo} | S/N: ${asset.serie} | COD: ${asset.codigo}</div>
+                            `;
+                            div.onclick = () => updateAsset(asset.id);
+                            searchResultsBox.appendChild(div);
+                        });
+                        searchResultsBox.style.display = 'block';
+                    } else {
+                        searchResultsBox.style.display = 'none';
+                    }
+                } catch (e) {
+                    console.error("Error en búsqueda de activos", e);
+                }
+            }, 400);
+        });
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!assetSearchInput.contains(e.target) && !searchResultsBox.contains(e.target)) {
+                searchResultsBox.style.display = 'none';
+            }
+        });
+    }
+
+    async function updateAsset(assetId) {
+        searchResultsBox.style.display = 'none';
+        Swal.fire({ title: 'Vinculando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        const formData = new FormData();
+        if (assetId) formData.append('activo_id', assetId);
+
+        try {
+            const resp = await fetch(`../update-activo/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                body: formData
+            });
+            const data = await resp.json();
+            if (data.success) {
+                location.reload(); 
+            } else {
+                Swal.fire({ icon: 'error', title: 'Error al vincular' });
+            }
+        } catch (e) {
+            Swal.fire({ icon: 'error', title: 'Error al vincular activo' });
         }
     }
 </script>

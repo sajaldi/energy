@@ -1,5 +1,6 @@
 {% load static %}
 {% load humanize %}
+{% load l10n %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -67,6 +68,19 @@
             transition: opacity 0.2s;
         }
         .btn-action:hover { opacity: 0.9; }
+        .metric-card {
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .metric-card:hover { background: rgba(0,0,0,0.05); }
+        .metric-card.active { 
+            background: rgba(10, 110, 209, 0.05); 
+            border: 1px solid rgba(10, 110, 209, 0.3);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
         .cluster-header {
             background: white;
             padding: 2rem;
@@ -95,30 +109,49 @@
 
         <div class="cluster-header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 3rem;">
-                    <div>
+                <div style="display: flex; gap: 2rem; align-items: center;">
+                    <div style="border-right: 1px solid #eee; padding-right: 2rem;">
                         <span class="metric-label">Fecha de Grupo</span>
                         <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem;">{{ cluster.fecha|date:"d M, Y" }}</div>
                     </div>
-                    <div>
-                        <span class="metric-label">Total Tickets</span>
+                    
+                    <a href="?" class="metric-card {% if not request.GET.status %}active{% endif %}" style="text-decoration: none; color: inherit;">
+                        <span class="metric-label">Total</span>
                         <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem;">{{ total }}</div>
-                    </div>
-                    <div>
+                    </a>
+
+                    <a href="?status=abiertos{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="metric-card {% if request.GET.status == 'abiertos' %}active{% endif %}" style="text-decoration: none; color: inherit;">
                         <span class="metric-label">Abiertos</span>
                         <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem; color: var(--sap-warning);">{{ abiertos }}</div>
-                    </div>
-                    <div>
+                    </a>
+
+                    <a href="?status=cerrados{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="metric-card {% if request.GET.status == 'cerrados' %}active{% endif %}" style="text-decoration: none; color: inherit;">
                         <span class="metric-label">Cerrados</span>
                         <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem; color: var(--sap-success);">{{ cerrados }}</div>
-                    </div>
-                </div>
-                <div class="export-actions" style="display: flex; gap: 0.75rem;">
-                    <a href="?export=excel" class="btn-action" style="background-color: #1d6f42;">
-                        <i class="ph ph-file-xls"></i> Exportar Excel
                     </a>
-                    <a href="?export=pdf" class="btn-action" style="background-color: #bb0000;">
-                        <i class="ph ph-file-pdf"></i> Generar Reporte PDF
+                </div>
+
+                <form method="get" class="search-form" style="display: flex; gap: 0.5rem; flex: 1; max-width: 400px; margin-right: auto; margin-left: 2rem;">
+                    <!-- Preserve existing filters -->
+                    {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
+                    {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+                    <input type="text" name="q" value="{{ q }}" placeholder="Buscar por folio o descripción..." style="flex: 1; padding: 0.5rem 1rem; border: 1px solid var(--sap-border); border-radius: 6px; outline: none; font-family: inherit;">
+                    <button type="submit" class="btn-action" style="background-color: var(--sap-blue); padding: 0.5rem 1rem;">
+                        <i class="ph ph-magnifying-glass"></i>
+                    </button>
+                    {% if q %}
+                    <a href="?{% if request.GET.status %}status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="btn-action" style="background-color: var(--sap-border); color: var(--sap-text);">
+                        <i class="ph ph-x"></i>
+                    </a>
+                    {% endif %}
+                </form>
+
+                <div class="export-actions" style="display: flex; gap: 0.75rem;">
+                    <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-action" style="background-color: #1d6f42;">
+                        <i class="ph ph-file-xls"></i> Excel
+                    </a>
+                    <a href="?export=pdf{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-action" style="background-color: #bb0000;">
+                        <i class="ph ph-file-pdf"></i> PDF
                     </a>
                 </div>
             </div>
@@ -130,18 +163,38 @@
                     <tr>
                         <th>Folio / ID</th>
                         <th>Solicitante</th>
-                        <th>Servicio</th>
+                        <th>Responsable Solicitud</th>
+                        <th>Técnico Asignado</th>
+                        <th>Descripción de Solicitud</th>
                         <th>Fecha Solicitud</th>
-                        <th>Estado</th>
+                        <th style="cursor: pointer; white-space: nowrap; color: var(--sap-primary);" onclick="applySort('estado')">
+                            Estado 
+                            {% if request.GET.sort == 'estado' %}<i class="ph ph-caret-up"></i>{% elif request.GET.sort == '-estado' %}<i class="ph ph-caret-down"></i>{% endif %}
+                            {% if not request.GET.sort %}<i class="ph ph-arrows-down-up" style="opacity: 0.3;"></i>{% endif %}
+                        </th>
                         <th>Acción</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for t in tickets %}
                     <tr>
-                        <td style="font-weight: 700;">{{ t.folio|default:t.id_solicitud }}</td>
+                        <td style="font-weight: 700;">
+                            <a href="#" class="ticket-detail-link" data-id="{{ t.id|unlocalize }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
+                                {{ t.folio|default:t.id_solicitud }}
+                            </a>
+                        </td>
                         <td>{{ t.solicitante|default:"-" }}</td>
-                        <td><span style="color: var(--sap-text-muted);">{{ t.servicio|truncatechars:40 }}</span></td>
+                        <td style="color: var(--sap-text-muted); font-size: 0.85rem;">{{ t.responsable|default:"-" }}</td>
+                        <td>
+                            <a href="#" class="assign-user-link" data-id="{{ t.id|unlocalize }}" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                            {% if t.usuario_responsable_id %}
+                                <span id="user-label-{{ t.id|unlocalize }}" style="font-weight: 600; color: var(--sap-primary);">{{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}</span>
+                            {% else %}
+                                <span id="user-label-{{ t.id|unlocalize }}" style="color: var(--sap-label); font-style: italic;"><i class="ph ph-user-plus"></i> Sin asignar</span>
+                            {% endif %}
+                            </a>
+                        </td>
+                        <td><span style="color: var(--sap-text-muted);" title="{{ t.solicitud_descripcion }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
                         <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                         <td>
                             {% if t.fecha_cierre or t.cierre_enviado %}
@@ -150,15 +203,18 @@
                                 <span class="badge badge-warning"><i class="ph ph-clock"></i> Abierto</span>
                             {% endif %}
                         </td>
-                        <td>
-                            <a href="{% url 'callcenter:ticket_cierre_visual' t.id %}" class="btn-action">
-                                <i class="ph ph-eye"></i> Cierre Visual
+                        <td style="display: flex; gap: 0.5rem; align-items: center;">
+                            <a href="{% url 'callcenter:ticket_cierre_visual' t.id %}" class="btn-action" title="Cerrar Ticket" style="padding: 0.5rem; min-width: 36px; justify-content: center;">
+                                <i class="ph ph-pencil-simple" style="font-size: 1.2rem;"></i>
                             </a>
+                            <button class="btn-action notify-n8n-btn" data-id="{{ t.id|unlocalize }}" title="Notificar a Técnico (WhatsApp/n8n)" style="background-color: var(--sap-warning); border: none; cursor: pointer; padding: 0.5rem; min-width: 36px; justify-content: center;">
+                                <i class="ph ph-bell" style="font-size: 1.2rem;"></i>
+                            </button>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
+                        <td colspan="7" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
                             No hay tickets asignados a este grupo.
                         </td>
                     </tr>
@@ -168,5 +224,198 @@
         </div>
     </div>
 
+    <!-- Ticket Details Modal HTML -->
+    <div id="ticket-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+        <div style="background: white; width: 95%; max-width: 1400px; height: 90vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.2);">
+            <div style="padding: 16px 24px; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center; background: #fafafa;">
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--sap-text);"><i class="ph ph-ticket" style="margin-right: 8px;"></i> Detalles del Ticket</h3>
+                <button class="btn-icon" onclick="closeTicketModal()" style="font-size: 1.5rem; color: var(--sap-label); cursor: pointer; border: none; background: transparent;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="flex: 1; position: relative;">
+                <iframe id="ticket-iframe" style="width: 100%; height: 100%; border: none;"></iframe>
+                <div id="ticket-loader" style="position: absolute; inset: 0; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <div style="border: 3px solid #f3f3f3; border-top: 3px solid var(--sap-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+                    <p style="margin-top: 16px; color: var(--sap-label); font-weight: 500;">Cargando detalles...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<style>
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // User Assignment logic
+        let assignableUsers = null;
+
+        async function assignUser(ticketId) {
+            if (!assignableUsers) {
+                try {
+                    Swal.fire({ title: 'Cargando usuarios...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const res = await fetch("{% url 'callcenter:get_assignable_users' %}");
+                    assignableUsers = await res.json();
+                    Swal.close();
+                } catch (e) {
+                    Swal.fire('Error', 'No se pudieron cargar los usuarios', 'error');
+                    return;
+                }
+            }
+            
+            let optionsHtml = '<option data-id="" value="-- Quitar Asignación --"></option>';
+            for (const [id, name] of Object.entries(assignableUsers)) {
+                const safeName = name.replace(/"/g, '&quot;');
+                optionsHtml += `<option data-id="${id}" value="${safeName}"></option>`;
+            }
+
+            const { value: userId } = await Swal.fire({
+                title: 'Asignar Responsable',
+                html: `
+                    <div style="text-align: left; width: 100%;">
+                        <label for="swal-input-user" style="display: block; margin-bottom: 8px; font-size: 14px; color: #555;">Busca por nombre o apellido:</label>
+                        <input autocomplete="off" list="users-list" id="swal-input-user" class="swal2-input" placeholder="Escribe para buscar..." style="width: 100%; box-sizing: border-box; margin: 0;">
+                        <datalist id="users-list">
+                            ${optionsHtml}
+                        </datalist>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#0070f2',
+                confirmButtonText: 'Guardar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    const inputVal = document.getElementById('swal-input-user').value;
+                    if (!inputVal || inputVal === '-- Quitar Asignación --') return '';
+                    
+                    const option = document.querySelector(`#users-list option[value="${inputVal.replace(/"/g, '\\"')}"]`);
+                    if (option) {
+                        return option.getAttribute('data-id');
+                    } else {
+                        Swal.showValidationMessage('Selecciona un usuario válido de la lista desplegable');
+                        return false;
+                    }
+                }
+            });
+
+            if (userId !== undefined) {
+                try {
+                    const assignUrl = `{% url 'callcenter:assign_ticket_user' 0 %}`.replace('0', ticketId);
+                    const res = await fetch(assignUrl, {
+                        method: 'POST',
+                        headers: { 
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ user_id: userId })
+                    });
+                    
+                    if (!res.ok) {
+                        const errText = await res.text();
+                        console.error("AJAX Error:", errText);
+                        Swal.fire('Error', `HTTP ${res.status}: ${res.statusText}`, 'error');
+                        return;
+                    }
+
+                    const data = await res.json();
+                    if (data.success) {
+                        const label = document.getElementById(`user-label-${ticketId}`);
+                        if (label) {
+                            if (userId === '') {
+                                label.innerHTML = '<i class="ph ph-user-plus"></i> Sin asignar';
+                                label.style.fontWeight = 'normal';
+                                label.style.color = 'var(--sap-label)';
+                                label.style.fontStyle = 'italic';
+                            } else {
+                                label.innerHTML = data.name;
+                                label.style.fontWeight = '600';
+                                label.style.color = 'var(--sap-primary)';
+                                label.style.fontStyle = 'normal';
+                            }
+                            Swal.fire({ icon: 'success', title: 'Guardado', timer: 1500, showConfirmButton: false });
+                        } else {
+                            // If the DOM wasn't hard-refreshed and lacks the ID, just reload the page visually.
+                            Swal.fire({ icon: 'success', title: 'Guardado', timer: 1000, showConfirmButton: false }).then(() => {
+                                window.location.reload();
+                            });
+                        }
+                    }
+                } catch (e) {
+                    Swal.fire('Error', e.message || 'Error de red.', 'error');
+                }
+            }
+        }
+
+        function openTicketModal(ticketId, folio) {
+            console.log(`Opening Modal for Ticket ID: ${ticketId}, Folio: ${folio}`);
+            const modal = document.getElementById('ticket-modal');
+            const iframe = document.getElementById('ticket-iframe');
+            const loader = document.getElementById('ticket-loader');
+            
+            modal.querySelector('h3').innerHTML = `<i class="ph ph-ticket" style="margin-right: 8px;"></i> Detalles del Ticket #${folio}`;
+            modal.style.display = 'flex';
+            loader.style.display = 'flex';
+            
+            iframe.onload = function() {
+                loader.style.display = 'none';
+            };
+            
+            iframe.src = `/admin/callcenter/solicitudticket/${ticketId}/change/?_popup=1`;
+        }
+
+        function closeTicketModal() {
+            document.getElementById('ticket-modal').style.display = 'none';
+            document.getElementById('ticket-iframe').src = '';
+        }
+
+        // Init event listeners for data-attribute based triggers
+        document.addEventListener('click', function(e) {
+            const detailLink = e.target.closest('.ticket-detail-link');
+            if (detailLink) {
+                e.preventDefault();
+                openTicketModal(detailLink.dataset.id, detailLink.dataset.folio);
+            }
+            
+            const assignLink = e.target.closest('.assign-user-link');
+            if (assignLink) {
+                e.preventDefault();
+                assignUser(assignLink.dataset.id);
+            }
+
+            const notifyBtn = e.target.closest('.notify-n8n-btn');
+            if (notifyBtn) {
+                e.preventDefault();
+                notifyTicketN8N(notifyBtn.dataset.id);
+            }
+        });
+
+        async function notifyTicketN8N(ticketId) {
+            try {
+                Swal.fire({ title: 'Enviando notificación...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const notifyUrl = `{% url 'callcenter:notify_ticket_n8n' 0 %}`.replace('0', ticketId);
+                const res = await fetch(notifyUrl, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire({ icon: 'success', title: 'Notificación enviada', timer: 1500, showConfirmButton: false });
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo enviar la notificación', 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Error de red al enviar notificación', 'error');
+            }
+        }
+
+        function applySort(field) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentSort = urlParams.get('sort');
+            const newSort = currentSort === field ? `-${field}` : field;
+            urlParams.set('sort', newSort);
+            window.location.href = "?" + urlParams.toString();
+        }
+    </script>
 </body>
 </html>
