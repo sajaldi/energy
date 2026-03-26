@@ -411,7 +411,7 @@ def ticket_search_view(request):
 
 
 @staff_member_required
-def ticket_cierre_fiori_view(request, ticket_id):
+def ticket_cierre_visual_view(request, ticket_id):
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
     if request.method == 'POST':
@@ -424,7 +424,7 @@ def ticket_cierre_fiori_view(request, ticket_id):
         return JsonResponse({'success': True})
 
     evidences = EvidenciaTicket.objects.filter(ticket=ticket).order_by('-id')
-    return render(request, 'callcenter/ticket_cierre_fiori.html', {
+    return render(request, 'callcenter/ticket_cierre_visual.html', {
         'ticket': ticket,
         'evidences': evidences,
         'evidences_count': evidences.count(),
@@ -440,11 +440,11 @@ def upload_evidencia_ajax(request, ticket_id):
         for f in files:
             evidencia = EvidenciaTicket.objects.create(
                 ticket=ticket, 
-                descripcion=f"Foto Fiori {datetime.now().strftime('%H:%M')}"
+                descripcion=f"Foto Evidencia {datetime.now().strftime('%H:%M')}"
             )
             # Extraer extensión y generar nombre único
             ext = f.name.split('.')[-1] if '.' in f.name else 'jpg'
-            file_name = f'fiori_{ticket.id}_{uuid.uuid4().hex[:6]}.{ext}'
+            file_name = f'evidencia_{ticket.id}_{uuid.uuid4().hex[:6]}.{ext}'
             evidencia.archivo.save(file_name, f)
         return JsonResponse({'success': True})
     return JsonResponse({'success': False}, status=400)
@@ -505,7 +505,7 @@ def ticket_dashboard_view(request):
 @staff_member_required
 def cluster_tickets_view(request, cluster_id):
     """
-    Lista todos los tickets de un grupo (cluster) específico con diseño Fiori.
+    Lista todos los tickets de un grupo (cluster) específico con diseño Visual.
     """
     from .models import GrupoTicket
     cluster = get_object_or_404(GrupoTicket, id=cluster_id)
