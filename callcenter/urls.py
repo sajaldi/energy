@@ -22,4 +22,6 @@ urlpatterns = [
     path('get-assignable-users/', views.get_assignable_users_ajax, name='get_assignable_users'),
     path('ticket/<int:ticket_id>/assign-user/', views.assign_ticket_user_ajax, name='assign_ticket_user'),
     path('ticket/<int:ticket_id>/notify-n8n/', views.notify_ticket_n8n_ajax, name='notify_ticket_n8n'),
+    path('cluster/<int:cluster_id>/create-ticket/', views.create_ticket_in_cluster_ajax, name='create_ticket_in_cluster'),
+    path('api/search-tickets-autocomplete/', views.search_tickets_autocomplete_ajax, name='search_tickets_autocomplete'),
 ]

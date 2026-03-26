@@ -129,7 +129,13 @@
                 <td><strong>{{ t.folio|default:t.id_solicitud }}</strong></td>
                 <td>{{ t.solicitante|default:"-" }}</td>
                 <td>{{ t.responsable|default:"-" }}</td>
-                <td>{{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username|default:"Sin asignar" }}</td>
+                <td>
+                    {% if t.usuario_responsable %}
+                        {{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}
+                    {% else %}
+                        Sin asignar
+                    {% endif %}
+                </td>
                 <td>{{ t.solicitud_descripcion|truncatechars:100|default:"-" }}</td>
                 <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                 <td>

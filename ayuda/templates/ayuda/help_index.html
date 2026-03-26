@@ -1,0 +1,50 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .help-index { max-width: 1000px; margin: 40px auto; }
+    .grid-categorias { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
+    .card-categoria { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
+    .card-categoria:hover { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
+    .cat-header { display: flex; align-items: center; margin-bottom: 20px; }
+    .cat-icon { font-size: 1.5rem; color: #3182ce; margin-right: 15px; width: 45px; height: 45px; background: #ebf8ff; display: flex; align-items: center; justify-content: center; border-radius: 10px; }
+    .cat-title { font-weight: 700; margin: 0; color: #1a202c; font-size: 1.3rem; }
+    .art-list { list-style: none; padding: 0; margin: 0; }
+    .art-item { margin-bottom: 12px; }
+    .art-link { color: #4a5568; text-decoration: none; display: block; padding: 5px 0; transition: color 0.2s; }
+    .art-link:hover { color: #3182ce; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="help-index">
+    <div style="margin-bottom: 40px; text-align: center;">
+        <h1 style="font-size: 2.5rem; font-weight: 800; color: #1a202c;">Centro de Ayuda</h1>
+        <p style="color: #718096; font-size: 1.2rem;">¿En qué podemos ayudarte hoy?</p>
+    </div>
+
+    <div class="grid-categorias">
+        {% for cat in categorias %}
+        <div class="card-categoria">
+            <div class="cat-header">
+                <div class="cat-icon"><i class="{{ cat.icono }}"></i></div>
+                <h2 class="cat-title">{{ cat.nombre }}</h2>
+            </div>
+            <ul class="art-list">
+                {% for art in cat.articulos.all %}
+                <li class="art-item">
+                    <a href="{% url 'ayuda:detail' art.slug %}" class="art-link">
+                        <i class="far fa-file-alt" style="margin-right: 8px; opacity: 0.6;"></i> {{ art.titulo }}
+                    </a>
+                </li>
+                {% empty %}
+                <li style="color: #a0aec0; font-size: 0.9rem;">Próximamente...</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

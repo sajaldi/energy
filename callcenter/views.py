@@ -79,12 +79,17 @@ def save_ticket_pdf_helper(ticket, request=None):
         'logo_dcc_b64': logo_dcc_b64,
     }, request=request)
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
-        page = browser.new_page()
-        page.set_content(html_content, wait_until='networkidle')
-        pdf_bytes = page.pdf(format="A4", print_background=True)
-        browser.close()
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
+            page = browser.new_page()
+            page.set_content(html_content, wait_until='networkidle')
+            pdf_bytes = page.pdf(format="A4", print_background=True)
+            browser.close()
+    except Exception as e:
+        logger.error(f"Error crítico en Playwright al generar PDF para ticket {ticket.id}: {e}")
+        # Retornar algo que indique error o relanzar si es fatal para la vista
+        raise e
 
     desc_pdf = "Comprobante de Cierre Generado Automáticamente"
     file_name = f'comprobante_{ticket.folio or ticket.id_solicitud}_{uuid.uuid4().hex[:6]}.pdf'
@@ -266,31 +271,13 @@ def generate_ticket_pdf_view(request, folio):
     if not ticket:
         raise Http404("Ticket no encontrado")
 
-    evidencias_b64 = []
-    for ev in ticket.evidencias.all():
-        if ev.archivo and not ev.archivo.name.lower().endswith('.pdf'):
-            try:
-                # Asegurarse de leer los bytes correctamente
-                with ev.archivo.open('rb') as f:
-                    img_bytes = f.read()
-                
-                ext = ev.archivo.name.rsplit('.', 1)[-1].lower()
-                mime = {
-                    'jpg': 'image/jpeg', 
-                    'jpeg': 'image/jpeg', 
-                    'png': 'image/png',
-                    'webp': 'image/webp'
-                }.get(ext, 'image/jpeg')
-                
-                b64 = base64.b64encode(img_bytes).decode('utf-8')
-                evidencias_b64.append({
-                    'data_uri': f'data:{mime};base64,{b64}', 
-                    'descripcion': ev.descripcion or ''
-                })
-            except Exception as e:
-                logger.warning(f"Error procesando imagen {ev.id} para PDF: {e}")
-
-    return save_ticket_pdf_helper(ticket, request=request)
+    # Delegar la generación y guardado al helper
+    try:
+        pdf_url = save_ticket_pdf_helper(ticket, request=request)
+        return redirect(pdf_url)
+    except Exception as e:
+        logger.error(f"Error al generar PDF para el folio {folio}: {e}")
+        return HttpResponse("Error interno al generar el PDF. Por favor, verifique los logs del servidor.", status=500)
 
 @csrf_exempt
 def webhook_evidencia_ticket(request, folio):
@@ -488,12 +475,12 @@ def ticket_dashboard_view(request):
     ).count()
     tickets_abiertos = total_tickets - tickets_cerrados
     
-    # Grupos Recientes con conteo de tickets y los tickets mismos
-    from django.db.models import Prefetch
+    # Grupos Recientes con conteo de tickets y estadísticas de cierre
+    from django.db.models import Prefetch, Count, Q
     grupos = GrupoTicket.objects.annotate(
-        num_tickets=Count('tickets')
-    ).prefetch_related(
-        Prefetch('tickets', queryset=SolicitudTicket.objects.all().only('id', 'folio', 'id_solicitud', 'fecha_cierre', 'cierre_enviado'))
+        num_tickets=Count('tickets'),
+        num_cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True)),
+        num_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False))
     ).order_by('-fecha')[:12]
     
     context = {
@@ -746,3 +733,68 @@ def notify_ticket_n8n_ajax(request, ticket_id):
     except Exception as e:
         logger.error(f"Error enviando notificación a n8n: {str(e)}")
         return JsonResponse({'success': False, 'error': str(e)})
+@staff_member_required
+@require_POST
+def create_ticket_in_cluster_ajax(request, cluster_id):
+    """Crea un ticket básico y lo vincula al cluster."""
+    import json
+    from .models import GrupoTicket, SolicitudTicket
+    from django.utils import timezone
+    
+    try:
+        data = json.loads(request.body)
+        id_solicitud = data.get('id_solicitud')
+        solicitante = data.get('solicitante', 'Manual')
+        descripcion = data.get('descripcion', 'Sin descripción')
+        
+        if not id_solicitud:
+            return JsonResponse({'success': False, 'error': 'ID de Solicitud es requerido'})
+            
+        cluster = get_object_or_404(GrupoTicket, id=cluster_id)
+        
+        # Crear el ticket
+        ticket, created = SolicitudTicket.objects.get_or_create(
+            id_solicitud=id_solicitud,
+            defaults={
+                'solicitante': solicitante,
+                'solicitud_descripcion': descripcion,
+                'fecha_solicitud': timezone.now()
+            }
+        )
+        
+        # Vincular al cluster
+        cluster.tickets.add(ticket)
+        
+        return JsonResponse({
+            'success': True, 
+            'folio': ticket.folio or ticket.id_solicitud,
+            'message': 'Ticket creado y vinculado correctamente' if created else 'Ticket existente vinculado correctamente'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@staff_member_required
+def search_tickets_autocomplete_ajax(request):
+    """Búsqueda rápida de tickets para autocompletado."""
+    from .models import SolicitudTicket
+    from django.db.models import Q
+    
+    q = request.GET.get('q', '')
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+        
+    tickets = SolicitudTicket.objects.filter(
+        Q(folio__icontains=q) | Q(id_solicitud__icontains=q) | Q(solicitud_descripcion__icontains=q)
+    )[:10]
+    
+    results = []
+    for t in tickets:
+        results.append({
+            'id': t.id,
+            'id_solicitud': t.id_solicitud,
+            'folio': t.folio,
+            'text': f"{t.folio or t.id_solicitud} - {t.solicitud_descripcion[:50]}..."
+        })
+        
+    return JsonResponse({'results': results})

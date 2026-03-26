@@ -203,6 +203,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'corsheaders',
     'servicios',
+    'ayuda.apps.AyudaConfig',
 ]
 
 
@@ -234,6 +235,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.ui_config',
+                'ayuda.context_processors.help_context',
             ],
         },
     },
@@ -497,6 +499,7 @@ JAZZMIN_SETTINGS = {
         {"name": "🔄 Sincronizar SIG", "url": "/admin/callcenter/solicitudticket/sync-tickets/", "permissions": ["callcenter.view_solicitudticket"]},
         {"name": "📊 Dashboard Importaciones", "url": "/activos/import-dashboard/", "permissions": ["activos.view_registroimportacion"]},
         {"name": "🎫 Dashboard Tickets", "url": "/callcenter/dashboard/", "permissions": ["callcenter.view_solicitudticket"]},
+        {"name": "❓ Ayuda", "url": "/ayuda/", "new_window": True},
     ],
     "show_sidebar": True,
     "navigation_expanded": False,

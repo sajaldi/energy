@@ -60,7 +60,7 @@
 
             <div class="groups-grid">
                 {% for grupo in grupos %}
-                <div class="group-card">
+                <div class="group-card" onclick="window.location.href='{% url 'callcenter:cluster_tickets' grupo.id %}'" style="cursor: pointer;">
                     <div class="group-header">
                         <span class="group-id">{{ grupo.correlativo }}</span>
                         <span class="group-date">
@@ -71,39 +71,35 @@
                         <div class="group-desc" title="{{ grupo.descripcion }}">
                             {{ grupo.descripcion|truncatewords:20 }}
                         </div>
-                        <div class="stat-item" title="Tickets en este grupo">
-                            <i class="ph ph-ticket"></i>
-                            <span><strong>{{ grupo.num_tickets }}</strong> tickets</span>
+                        <div class="group-stats-visual">
+                            <div class="chart-container">
+                                <canvas class="cluster-chart" 
+                                        data-cerrados="{{ grupo.num_cerrados }}" 
+                                        data-abiertos="{{ grupo.num_abiertos }}"
+                                        id="chart-{{ grupo.id }}"></canvas>
+                            </div>
+                            <div class="chart-legend">
+                                <div class="legend-item">
+                                    <span class="dot closed"></span>
+                                    <span>Cerrados: <strong>{{ grupo.num_cerrados }}</strong></span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="dot open"></span>
+                                    <span>Abiertos: <strong>{{ grupo.num_abiertos }}</strong></span>
+                                </div>
+                                <div class="legend-item total">
+                                    <span>Total: <strong>{{ grupo.num_tickets }}</strong></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="group-tickets-list">
-                        {% for t in grupo.tickets.all|slice:":5" %}
-                        <div class="ticket-item">
-                            <span class="ticket-folio">{{ t.folio|default:t.id_solicitud }}</span>
-                            {% if t.fecha_cierre or t.cierre_enviado %}
-                                <span class="status-icon closed" title="Cerrado/Notificado">
-                                    <i class="ph ph-check-circle"></i>
-                                </span>
-                            {% else %}
-                                <span class="status-icon open" title="Abierto">
-                                    <i class="ph ph-clock-countdown"></i>
-                                </span>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                        {% if grupo.num_tickets > 5 %}
-                        <div class="more-tickets">+ {{ grupo.num_tickets|add:"-5" }} más...</div>
-                        {% endif %}
-                    </div>
-                </div>
                     <div class="group-footer">
-                        <a href="{% url 'callcenter:cluster_tickets' grupo.id %}" class="btn-view">
-                            Ver Grupo <i class="ph ph-arrow-right"></i>
-                        </a>
-                        <a href="{% url 'callcenter:cluster_tickets' grupo.id %}" class="btn-view" style="color: var(--sap-text-muted);">
-                            Listar Tickets <i class="ph ph-list-bullets"></i>
-                        </a>
+                        <span class="btn-view">
+                            Analizar Cluster <i class="ph ph-chart-pie-slice"></i>
+                        </span>
+                        <span class="btn-view" style="color: var(--sap-text-muted);">
+                            Detalles <i class="ph ph-caret-right"></i>
+                        </span>
                     </div>
                 </div>
                 {% empty %}
@@ -115,6 +111,40 @@
             </div>
         </section>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const charts = document.querySelectorAll('.cluster-chart');
+            
+            charts.forEach(canvas => {
+                const cerrados = parseInt(canvas.dataset.cerrados);
+                const abiertos = parseInt(canvas.dataset.abiertos);
+                
+                new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Cerrados', 'Abiertos'],
+                        datasets: [{
+                            data: [cerrados, abiertos],
+                            backgroundColor: ['#28a745', '#e9730c'],
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        cutout: '70%',
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: true }
+                        }
+                    }
+                });
+            });
+        });
+    </script>
 
 </body>
 </html>

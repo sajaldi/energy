@@ -32,6 +32,7 @@ urlpatterns = [
     path('seguridad/', include('seguridad.urls', namespace='seguridad')),
     path('callcenter/', include('callcenter.urls', namespace='callcenter')),
     path('servicios/', include('servicios.urls', namespace='servicios')),
+    path('ayuda/', include('ayuda.urls', namespace='ayuda')),
     path('plantillas/', include('plantillas.urls', namespace='plantillas')),
     # PWA Support
     path('manifest.json', serve, {'document_root': settings.STATICFILES_DIRS[0], 'path': 'core/manifest.json'}),

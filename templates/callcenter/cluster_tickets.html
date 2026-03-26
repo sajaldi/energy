@@ -100,7 +100,10 @@
                 <h1>Tickets en Grupo: {{ cluster.correlativo }}</h1>
                 <p>{{ cluster.descripcion }}</p>
             </div>
-            <div class="header-actions">
+            <div class="header-actions" style="display: flex; gap: 0.75rem;">
+                <button onclick="openCreateTicketModal()" class="btn-action" style="background-color: var(--sap-success); border: none; cursor: pointer;">
+                    <i class="ph ph-plus-circle"></i> Nuevo Ticket
+                </button>
                 <a href="{% url 'callcenter:ticket_dashboard' %}" class="btn-back">
                     <i class="ph ph-arrow-left"></i> Volver al Dashboard
                 </a>
@@ -406,6 +409,113 @@
                 }
             } catch (e) {
                 Swal.fire('Error', 'Error de red al enviar notificación', 'error');
+            }
+        }
+
+        async function openCreateTicketModal() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Vincular o Crear Ticket',
+                html: `
+                    <div style="text-align: left; font-family: inherit;">
+                        <div style="margin-bottom: 1rem; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--sap-primary);">1. BUSCAR EXISTENTE (Opcional)</label>
+                            <input id="swal-search-ticket" type="text" class="swal2-input" style="width: 100%; margin: 0;" placeholder="Buscar por folio, ID o descripción..." list="existing-tickets-list">
+                            <datalist id="existing-tickets-list"></datalist>
+                            <p style="font-size: 0.75rem; color: #666; margin-top: 0.25rem;">Si seleccionas uno, se vinculará automáticamente este ticket al cluster.</p>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--sap-success);">2. O CREAR NUEVO / VINCULACIÓN DIRECTA</label>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">ID Solicitud Servicio (Requerido)</label>
+                                <input id="swal-id-solicitud" type="number" class="swal2-input" style="width: 100%; margin: 0;" placeholder="Ej: 141123">
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">Solicitante</label>
+                                <input id="swal-solicitante" type="text" class="swal2-input" style="width: 100%; margin: 0;" placeholder="Nombre del solicitante">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">Descripción</label>
+                                <textarea id="swal-descripcion" class="swal2-textarea" style="width: 100%; margin: 0; min-height: 80px;" placeholder="Detalles de la falla..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                didOpen: () => {
+                    const searchInput = document.getElementById('swal-search-ticket');
+                    const dataList = document.getElementById('existing-tickets-list');
+                    let timeout = null;
+
+                    searchInput.addEventListener('input', (e) => {
+                        clearTimeout(timeout);
+                        const val = e.target.value;
+                        if (val.length < 2) return;
+
+                        // Check if selection was made from list
+                        const options = dataList.childNodes;
+                        for (let i = 0; i < options.length; i++) {
+                            if (options[i].value === val) {
+                                document.getElementById('swal-id-solicitud').value = options[i].dataset.idSolicitud;
+                                document.getElementById('swal-solicitante').value = "Existente";
+                                document.getElementById('swal-descripcion').value = "Vínculo de ticket existente";
+                                return;
+                            }
+                        }
+
+                        timeout = setTimeout(async () => {
+                            try {
+                                const res = await fetch(`{% url 'callcenter:search_tickets_autocomplete' %}?q=${encodeURIComponent(val)}`);
+                                const data = await res.json();
+                                dataList.innerHTML = '';
+                                data.results.forEach(item => {
+                                    const opt = document.createElement('option');
+                                    opt.value = item.text;
+                                    opt.dataset.idSolicitud = item.id_solicitud;
+                                    dataList.appendChild(opt);
+                                });
+                            } catch (err) { console.error(err); }
+                        }, 300);
+                    });
+                },
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Procesar Vinculación',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: 'var(--sap-primary)',
+                preConfirm: () => {
+                    const id = document.getElementById('swal-id-solicitud').value;
+                    const solicitante = document.getElementById('swal-solicitante').value;
+                    const desc = document.getElementById('swal-descripcion').value;
+                    if (!id) {
+                        Swal.showValidationMessage('El ID de Solicitud es obligatorio');
+                        return false;
+                    }
+                    return { id_solicitud: id, solicitante: solicitante, descripcion: desc };
+                }
+            });
+
+            if (formValues) {
+                try {
+                    Swal.fire({ title: 'Creando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const res = await fetch("{% url 'callcenter:create_ticket_in_cluster' cluster.id %}", {
+                        method: 'POST',
+                        headers: { 
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formValues)
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        Swal.fire({ icon: 'success', title: data.message, timer: 1500, showConfirmButton: false }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', data.error, 'error');
+                    }
+                } catch (e) {
+                    Swal.fire('Error', 'Error de red al crear ticket', 'error');
+                }
             }
         }
 
