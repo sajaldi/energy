@@ -1,7 +1,10 @@
 from django.urls import path
 from . import views
 from .views import import_rutinas, import_pasos
-from .views.rutinas_dashboard import rutinas_dashboard, rutina_detail_api, rutina_save_api, rutina_delete_api, rutina_pasos_save_api
+from .views.rutinas_dashboard import (
+    rutinas_dashboard, rutina_detail_api, rutina_save_api, 
+    rutina_delete_api, rutina_pasos_save_api, rutina_qr_pdf
+)
 
 app_name = 'mantenimiento'
 
@@ -44,6 +47,7 @@ urlpatterns = [
     path('dashboard-cargas/asignar-puesto/', views.asignar_puesto_ajax, name='asignar_puesto_ajax'),
     path('rutinas/dashboard/', rutinas_dashboard, name='rutinas_dashboard'),
     path('rutinas/dashboard/detail/<int:pk>/', rutina_detail_api, name='rutina_detail_api'),
+    path('rutinas/dashboard/qr/<int:pk>/', rutina_qr_pdf, name='rutina_qr_pdf'),
     path('rutinas/dashboard/save/', rutina_save_api, name='rutina_save_api'),
     path('rutinas/dashboard/delete/<int:pk>/', rutina_delete_api, name='rutina_delete_api'),
     path('rutinas/dashboard/rutina/pasos/save/', rutina_pasos_save_api, name='rutina_pasos_save_api'),

@@ -431,3 +431,44 @@ def rutina_delete_api(request, pk):
         return JsonResponse({'status': 'error', 'message': 'La rutina no existe'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+def rutina_qr_pdf(request, pk):
+    """Genera la etiqueta QR PDF 3x2 descargas de la rutina."""
+    import io
+    import qrcode
+    import base64
+    from django.http import HttpResponse
+    from django.shortcuts import get_object_or_404
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+    
+    rutina = get_object_or_404(Rutina, pk=pk)
+    
+    qr_data = rutina.codigo_rutina if rutina.codigo_rutina else f"RUTINA-{rutina.id}"
+    
+    qr = qrcode.QRCode(version=1, box_size=5, border=1)
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    qr_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    
+    context = {
+        'rutina': rutina,
+        'qr_code': qr_b64
+    }
+    
+    template = get_template('mantenimiento/rutina_etiqueta_pdf.html')
+    html = template.render(context)
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="etiqueta_rutina_{rutina.codigo_rutina or rutina.id}.pdf"'
+    
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    if pisa_status.err:
+        return HttpResponse(f'Error al generar PDF: {pisa_status.err}', status=500)
+        
+    return response

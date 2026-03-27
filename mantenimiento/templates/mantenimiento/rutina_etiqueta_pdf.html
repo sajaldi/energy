@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Etiqueta QR Rutina</title>
+    <style>
+        @page {
+            size: 3in 2in;
+            margin: 0.05in;
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            line-height: 1.1;
+        }
+        .container {
+            width: 100%;
+            margin-top: 5px;
+            text-align: center;
+        }
+        .header {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 1px;
+        }
+        .subheader {
+            font-size: 8.5pt;
+            color: #444;
+            margin-bottom: 2px;
+        }
+        .qr-code {
+            text-align: center;
+            margin-top: 2px;
+            margin-bottom: 2px;
+        }
+        .qr-code img {
+            width: 0.9in;
+            height: 0.9in;
+        }
+        .footer {
+            font-size: 6.5pt;
+            color: #000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">{{ rutina.nombre|truncatechars:40 }}</div>
+        <div class="subheader">{{ rutina.codigo_rutina|default:"S/C" }}</div>
+        <div class="qr-code">
+            <img src="data:image/png;base64,{{ qr_code }}" />
+        </div>
+        <div class="footer">Escanear para Ejecutar Rutina</div>
+    </div>
+</body>
+</html>
