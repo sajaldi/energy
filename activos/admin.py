@@ -1804,11 +1804,23 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
 
 @admin.register(PuntoMedicion)
 class PuntoMedicionAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'activo', 'codigo', 'unidad', 'es_acumulativo', 'valor_objetivo')
+    list_display = ('nombre', 'activo', 'codigo', 'unidad', 'es_acumulativo', 'valor_objetivo', 'etiqueta_qr')
     list_filter = ('es_acumulativo', 'unidad')
     search_fields = ('nombre', 'codigo', 'activo__nombre', 'activo__codigo_interno')
     list_select_related = ('activo',)
     autocomplete_fields = ('activo',)
+    readonly_fields = ('etiqueta_qr',)
+
+    @admin.display(description='QR PDF')
+    def etiqueta_qr(self, obj):
+        if obj.pk:
+            from django.urls import reverse
+            url = reverse('activos:punto_medicion_qr_pdf', args=[obj.pk])
+            return format_html(
+                '<a class="button" href="{}" target="_blank" style="background:#2563eb; color:white; font-weight:bold; border-radius:4px;">Generar QR PDF</a>',
+                url
+            )
+        return "-"
 
 @admin.register(DocumentoMedicion)
 class DocumentoMedicionAdmin(admin.ModelAdmin):

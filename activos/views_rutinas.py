@@ -60,3 +60,45 @@ def get_rutinas_ubicacion(request):
         })
         
     return JsonResponse({'rutinas': data_rutinas})
+
+
+@staff_member_required
+def punto_medicion_qr_pdf(request, pk):
+    """Genera la etiqueta QR PDF 3x2 pulgadas para un Punto de Medición."""
+    import io
+    import qrcode
+    import base64
+    from django.http import HttpResponse
+    from django.template.loader import get_template
+    from xhtml2pdf import pisa
+    from activos.models import PuntoMedicion
+    
+    punto = get_object_or_404(PuntoMedicion, pk=pk)
+    
+    qr_data = f"PM-{punto.id}"
+    
+    qr = qrcode.QRCode(version=1, box_size=5, border=1)
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    qr_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    
+    context = {
+        'punto': punto,
+        'qr_code': qr_b64
+    }
+    
+    template = get_template('activos/punto_medicion_etiqueta_pdf.html')
+    html = template.render(context)
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="etiqueta_pm_{punto.id}.pdf"'
+    
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    if pisa_status.err:
+        return HttpResponse(f'Error al generar PDF: {pisa_status.err}', status=500)
+        
+    return response

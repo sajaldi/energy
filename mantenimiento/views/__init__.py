@@ -39,7 +39,8 @@ from .mobile import (
     mobile_mis_avisos,
     mobile_aviso_detalle,
     mobile_ot_upload_file,
-    mobile_ot_delete_file
+    mobile_ot_delete_file,
+    mobile_crear_medicion
 )
 from .dashboard import dashboard_cargas, asignar_puesto_ajax
 from .dashboard_general import mantenimiento_dashboard

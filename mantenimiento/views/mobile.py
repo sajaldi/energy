@@ -7,7 +7,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from django.db.models import Count, Q, Min
 from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso, ArchivoOrdenTrabajo
-from activos.models import Activo, Ubicacion, DocumentoMedicion
+from activos.models import Activo, Ubicacion, DocumentoMedicion, PuntoMedicion
 
 @staff_member_required
 def mobile_cronograma(request):
@@ -549,3 +549,30 @@ def mobile_ot_delete_file(request, pk, archivo_id):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+@staff_member_required
+def mobile_crear_medicion(request, pk):
+    """
+    Renderiza interfaz SAP Fiori para registrar lectura de Punto de Medición
+    y procesa el almacenamiento vía POST.
+    """
+    punto = get_object_or_404(PuntoMedicion, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            from django.http import JsonResponse
+            valor = float(request.POST.get('valor', 0))
+            obs = request.POST.get('observaciones', '')
+            
+            DocumentoMedicion.objects.create(
+                punto=punto,
+                activo=punto.activo,
+                valor=valor,
+                observaciones=obs,
+                tecnico=request.user
+            )
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            from django.http import JsonResponse
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            
+    return render(request, 'mantenimiento/mobile_crear_medicion.html', {'punto': punto})

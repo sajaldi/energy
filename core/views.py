@@ -849,6 +849,23 @@ def qr_resolver(request):
             'start_url': reverse('mantenimiento:mobile_crear_ot_rutina', args=[rutina.id])
         })
 
+    # Caso 4: Es un código de Punto de Medición
+    if code.upper().startswith('PM-'):
+        try:
+            pm_id = int(code.split('-')[1])
+            from activos.models import PuntoMedicion
+            pm = PuntoMedicion.objects.get(id=pm_id)
+            return JsonResponse({
+                'success': True,
+                'is_punto_medicion': True,
+                'pm_id': pm.id,
+                'pm_name': pm.nombre,
+                'activo_name': pm.activo.nombre,
+                'start_url': reverse('mantenimiento:mobile_crear_medicion', args=[pm.id])
+            })
+        except (ValueError, IndexError, Exception):
+            pass
+
     return JsonResponse({'success': False, 'error': 'Código no reconocido en el sistema'}, status=404)
 @staff_member_required
 def global_search(request):

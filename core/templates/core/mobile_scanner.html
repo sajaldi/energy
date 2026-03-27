@@ -266,6 +266,23 @@
                                 qrPaused = false;
                             }
                         });
+                    } else if (data.success && data.is_punto_medicion) {
+                        Swal.fire({
+                            title: 'Punto de Medición Detectado',
+                            text: `¿Desea registrar una lectura en: ${data.pm_name}?`,
+                            icon: 'info',
+                            showCancelButton: true,
+                            confirmButtonColor: '#2563eb',
+                            cancelButtonColor: '#64748b',
+                            confirmButtonText: 'Sí, registrar',
+                            cancelButtonText: 'Cancelar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.location.href = data.start_url;
+                            } else {
+                                qrPaused = false;
+                            }
+                        });
                     } else {
                         showToast(data.error || 'Código no válido');
                         setTimeout(() => { qrPaused = false; }, 2000);

@@ -1,0 +1,239 @@
+{% extends 'core/base_mobile.html' %}
+{% load static %}
+
+{% block content %}
+<!-- ESTILO SAP FIORI PARA EL HEADER -->
+<div class="fiori-header">
+    <div class="fiori-header-top">
+        <a href="javascript:history.back()" class="fiori-back-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+        </a>
+        <h1 class="fiori-title">Medición</h1>
+    </div>
+    <div class="fiori-header-bottom">
+        <div class="fiori-subtitle">Registrar Nueva Lectura</div>
+    </div>
+</div>
+
+<div class="mobile-container p-4" style="background-color: #f4f4f4; min-height: calc(100vh - 120px); padding-bottom: 80px;">
+    
+    <!-- CARD DE INFORMACIÓN DEL PUNTO -->
+    <div class="fiori-card mb-4">
+        <div class="fiori-card-header">
+            <h2 class="fiori-card-title">{{ punto.activo.nombre }} <span style="color:#64748b; font-size:12px;">({{ punto.activo.codigo_interno }})</span></h2>
+        </div>
+        <div class="fiori-card-body">
+            <div class="fiori-info-group">
+                <label>Parámetro</label>
+                <div class="value">{{ punto.nombre }}</div>
+            </div>
+            
+            <div style="display: flex; gap: 16px; margin-top: 12px;">
+                <div class="fiori-info-group" style="flex: 1;">
+                    <label>Unidad</label>
+                    <div class="value" style="font-weight: 700; color: #2563eb;">{{ punto.unidad }}</div>
+                </div>
+                {% if punto.valor_objetivo %}
+                <div class="fiori-info-group" style="flex: 1;">
+                    <label>Valor Objetivo</label>
+                    <div class="value">{{ punto.valor_objetivo }} {{ punto.unidad }}</div>
+                </div>
+                {% endif %}
+            </div>
+            
+            {% if punto.ultima_lectura %}
+            <div class="fiori-info-group" style="margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+                <label>Última Lectura</label>
+                <div class="value" style="color: #64748b;">{{ punto.ultima_lectura.valor }} {{ punto.unidad }} <span style="font-size: 11px;">({{ punto.ultima_lectura.fecha_lectura|date:"d M Y H:i" }})</span></div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- FORMULARIO DE INGRESO -->
+    <form id="medicionForm" class="fiori-card">
+        <div class="fiori-card-header">
+            <h2 class="fiori-card-title">Ingresar Datos</h2>
+        </div>
+        <div class="fiori-card-body">
+            <div class="fiori-form-group">
+                <label for="valor">Valor Medido *</label>
+                <input type="number" step="0.01" inputmode="decimal" id="valor" name="valor" class="fiori-input fiori-input-large" required placeholder="0.00">
+            </div>
+
+            <div class="fiori-form-group" style="margin-top: 16px;">
+                <label for="observaciones">Observaciones (Opcional)</label>
+                <textarea id="observaciones" name="observaciones" rows="3" class="fiori-input" placeholder="Condiciones inusuales, ruidos, etc."></textarea>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- FLOATING ACTION BUTTON -->
+<div class="fiori-footer-actions">
+    <button type="button" class="btn btn-primary w-100" onclick="registrarMedicion()" id="btnSave" style="border-radius: 8px; font-weight: bold; padding: 14px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        Registrar Lectura
+    </button>
+</div>
+
+<!-- SCRIPTS DE SWEETALERT2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function registrarMedicion() {
+        const form = document.getElementById('medicionForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(form);
+        const btn = document.getElementById('btnSave');
+        
+        btn.disabled = true;
+        btn.innerHTML = 'Guardando...';
+
+        fetch(window.location.pathname, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    title: '¡Registrado!',
+                    text: 'El documento de medición ha sido creado correctamente.',
+                    icon: 'success',
+                    confirmButtonColor: '#2563eb'
+                }).then(() => {
+                    // Redirigir al dashboard u otra vista
+                    window.location.href = "{% url 'core:mobile_dashboard' %}";
+                });
+            } else {
+                Swal.fire('Error', data.message || 'Error al guardar la lectura', 'error');
+                btn.disabled = false;
+                btn.innerHTML = 'Registrar Lectura';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            Swal.fire('Error', 'Error de conexión', 'error');
+            btn.disabled = false;
+            btn.innerHTML = 'Registrar Lectura';
+        });
+    }
+</script>
+
+<style>
+    /* FIORI STYLES REUSABLES */
+    .fiori-header {
+        background-color: #354a5f;
+        color: white;
+        padding: 16px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+    .fiori-header-top {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .fiori-back-btn {
+        color: white;
+        margin-right: 12px;
+        text-decoration: none;
+    }
+    .fiori-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+    }
+    .fiori-subtitle {
+        font-size: 0.85rem;
+        color: #e2e8f0;
+    }
+    .fiori-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+    .fiori-card-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        background: #f8fafc;
+    }
+    .fiori-card-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+    .fiori-card-body {
+        padding: 16px;
+    }
+    .fiori-info-group label {
+        display: block;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .fiori-info-group .value {
+        font-size: 0.95rem;
+        color: #0f172a;
+    }
+    .fiori-form-group label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+    }
+    .fiori-input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 1rem;
+        background: #f8fafc;
+        transition: all 0.2s;
+    }
+    .fiori-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .fiori-input-large {
+        font-size: 1.5rem;
+        font-weight: 700;
+        text-align: right;
+        padding: 16px;
+        color: #2563eb;
+    }
+    .fiori-footer-actions {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: white;
+        padding: 16px;
+        box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.05);
+        z-index: 40;
+    }
+</style>
+{% endblock %}
