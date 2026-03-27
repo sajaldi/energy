@@ -171,7 +171,7 @@
                 <tr class="group-header-row">
                     <td colspan="3">{{ item.paso.descripcion }}</td>
                 </tr>
-                {% else %}
+                {% elif item.paso.tipo_respuesta != 'FOTO' %}
                 <tr class="step-row">
                     <td class="text-center">{{ forloop.counter }}</td>
                     <td>
@@ -243,7 +243,11 @@
             {% endif %}
             <td style="border: 1px solid #ddd; text-align: center; padding: 6px; width: 50%; vertical-align: top;">
                 <img src="{{ foto.data_uri }}" style="max-width: 100%; max-height: 280px; border-radius: 4px; object-fit: contain;">
-                <div style="font-size: 7px; color: #666; margin-top: 3px;">{{ foto.nombre }} - {{ foto.creado_en|date:"d/m/Y H:i" }}</div>
+                <div style="font-size: 8px; font-weight: bold; margin-top: 5px;">{{ foto.nombre }}</div>
+                {% if foto.descripcion %}
+                <div style="font-size: 8px; color: #444; margin-top: 2px;">{{ foto.descripcion }}</div>
+                {% endif %}
+                <div style="font-size: 7px; color: #888; margin-top: 3px;">{{ foto.creado_en|date:"d/m/Y H:i" }}</div>
             </td>
             {% if forloop.last and not forloop.counter|divisibleby:2 %}
             <td style="border: none;"></td>

@@ -54,15 +54,28 @@ def generate_rutina_pdf_view(request, ot_id):
 
     # Fetch image attachments for the PDF
     fotos_adjuntas = []
-    archivos_img = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, tipo='IMAGEN').order_by('creado_en')
+    archivos_img = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, tipo='IMAGEN').select_related('paso').order_by('creado_en')
+    vpo_dict = {item.paso_id: item for item in results}
+    
     for archivo in archivos_img:
         try:
             img_data = archivo.archivo.read()
             ext = os.path.splitext(archivo.archivo.name)[1].lower().replace('.', '')
             mime = {'jpg': 'jpeg', 'jpeg': 'jpeg', 'png': 'png', 'gif': 'gif', 'webp': 'webp'}.get(ext, 'jpeg')
             b64 = base64.b64encode(img_data).decode('utf-8')
+            
+            nombre = archivo.nombre or 'Evidencia Fotográfica'
+            descripcion = ''
+            
+            if archivo.paso:
+                nombre = archivo.paso.descripcion
+                vpo = vpo_dict.get(archivo.paso_id)
+                if vpo and vpo.comentarios:
+                    descripcion = vpo.comentarios
+
             fotos_adjuntas.append({
-                'nombre': archivo.nombre,
+                'nombre': nombre,
+                'descripcion': descripcion,
                 'data_uri': f'data:image/{mime};base64,{b64}',
                 'creado_en': archivo.creado_en,
             })
