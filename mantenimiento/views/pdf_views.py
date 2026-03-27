@@ -100,7 +100,7 @@ def generate_rutina_pdf_view(request, ot_id):
 
     context = {
         'ot': ot,
-        'checklist_items': results,
+        'checklist_items': checklist_items,
         'empresa_nombre': empresa_nombre,
         'supervisor_nombre': supervisor_nombre,
         'edificio_nombre': edificio_nombre,
