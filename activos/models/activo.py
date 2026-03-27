@@ -97,6 +97,18 @@ class Activo(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
     @property
+    def bien_afecto_actual(self):
+        """Devuelve el BienAfecto al que está asignado actualmente (sin fecha de baja)"""
+        historial = self.historial_bien_afecto.filter(fecha_baja__isnull=True).select_related('bien_afecto').first()
+        return historial.bien_afecto if historial else None
+
+    @property
+    def codigo_inventario(self):
+        """Devuelve el código patrimonial (Bien Afecto) actual"""
+        ba = self.bien_afecto_actual
+        return ba.codigo_interno if ba else "N/A"
+
+    @property
     def tiene_hijos(self):
         """Devuelve True si este activo tiene componentes (hijos). Optimizado para usar anotaciones."""
         if hasattr(self, 'num_hijos'):
