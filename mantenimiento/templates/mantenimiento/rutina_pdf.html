@@ -171,7 +171,7 @@
                 <tr class="group-header-row">
                     <td colspan="3">{{ item.paso.descripcion }}</td>
                 </tr>
-                {% elif item.paso.tipo_respuesta != 'FOTO' %}
+                {% else %}
                 <tr class="step-row">
                     <td class="text-center">{{ forloop.counter }}</td>
                     <td>
@@ -182,11 +182,16 @@
                             <div class="checkbox-row"><span class="box">{% if item.valor_bool == False and not item.no_aplica %}X{% endif %}</span> No / No Cumple</div>
                             <div class="checkbox-row"><span class="box">{% if item.no_aplica %}X{% endif %}</span> N/A</div>
                         {% elif item.paso.tipo_respuesta == 'NUMERICO' or item.valor_numerico is not None %}
-                            <div style="font-weight: bold;">Valor: {{ item.valor_numerico|default:"____" }} {{ item.paso.unidad_medida }}</div>
+                            <div style="display: inline-block; border: 1px solid #000; padding: 2px 8px; min-width: 30px; text-align: center; font-weight: bold;">
+                                {{ item.valor_numerico|default:"&nbsp;&nbsp;&nbsp;&nbsp;" }}
+                            </div>
+                            <span style="margin-left: 4px; font-size: 8px;">{{ item.paso.unidad_medida|default:"" }}</span>
                         {% elif item.paso.tipo_respuesta == 'TEXTO' %}
                             <div style="font-size: 8px; color: #666; border-bottom: 0.5px solid #ccc; width: 100%; margin-top: 2px;">
                                 {{ item.comentarios|default:"________________________________" }}
                             </div>
+                        {% elif item.paso.tipo_respuesta == 'FOTO' %}
+                            <div style="font-size: 8px; font-style: italic; color: #555;">(Ver sección de Anexos Fotográficos)</div>
                         {% endif %}
                         </div>
                     </td>
