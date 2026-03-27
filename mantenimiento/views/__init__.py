@@ -32,6 +32,7 @@ from .mobile import (
     mobile_ot_detalle,
     mobile_ot_update_ajax,
     mobile_crear_aviso,
+    mobile_aviso_editar,
     mobile_ot_iniciar,
     mobile_ot_finalizar,
     mobile_crear_ot_rutina,

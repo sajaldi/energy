@@ -157,6 +157,7 @@ class PasoRutina(models.Model):
         ('NUMERICO', 'Valor Numérico'),
         ('TEXTO', 'Texto Libre'),
         ('MEDICION', 'Punto de Medición (SAP)'),
+        ('FOTO', 'Registro Fotográfico'),
         ('HEADER', 'ENCABEZADO / GRUPO'),
     ]
     
@@ -658,7 +659,8 @@ class Aviso(models.Model):
     solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='avisos_reportados')
     foto = models.ImageField(upload_to='avisos/', null=True, blank=True)
     
-    creado_en = models.DateTimeField(auto_now_add=True)
+    creado_en = models.DateTimeField(default=timezone.now, verbose_name="Fecha de Reporte")
+    fecha_cierre = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Cierre")
     actualizado_en = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -817,6 +819,8 @@ class ArchivoOrdenTrabajo(models.Model):
     ]
 
     orden_trabajo = models.ForeignKey(OrdenTrabajo, on_delete=models.CASCADE, related_name='archivos')
+    paso = models.ForeignKey('PasoRutina', on_delete=models.SET_NULL, null=True, blank=True, related_name='fotos_evidencia',
+                             help_text="Paso del checklist al que pertenece esta foto (opcional)")
     archivo = models.FileField(upload_to='ot_archivos/')
     nombre = models.CharField(max_length=255, blank=True)
     tipo = models.CharField(max_length=20, choices=TIPO_ARCHIVO_CHOICES, default='OTRO')

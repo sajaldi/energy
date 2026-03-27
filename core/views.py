@@ -533,6 +533,205 @@ def reporte_consumo_diario(request, medidor_id, mes_str):
     return HttpResponse(html_response)
 
 
+
+@staff_member_required
+def reporte_consumos_interactivo(request):
+    """
+    Generador de reportes interactivo con Chart.js.
+    Soporta múltiples medidores, rangos de fechas y granularidad (Diario/Mensual).
+    """
+    medidores = Medidor.objects.all().order_by('nombre')
+    context = {
+        'medidores': medidores,
+        'selected_medidores': [],
+        'start_date': (timezone.now() - timedelta(days=30)).strftime('%Y-%m-%d'),
+        'end_date': timezone.now().strftime('%Y-%m-%d'),
+        'granularity': 'daily',
+        'chart_data': None,
+    }
+
+    if request.method == 'POST':
+        selected_ids = request.POST.getlist('medidores')
+        start_date_str = request.POST.get('start_date')
+        end_date_str = request.POST.get('end_date')
+        granularity = request.POST.get('granularity', 'daily')
+        inverse_calc = request.POST.get('inverse_calc') == 'on'
+        chart_height = request.POST.get('chart_height', '450')
+        force_type = request.POST.get('force_type', 'auto')
+
+        context.update({
+            'selected_medidores': [int(id) for id in selected_ids],
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'granularity': granularity,
+            'inverse_calc': inverse_calc,
+            'chart_height': chart_height,
+            'force_type': force_type,
+        })
+
+        if not selected_ids or not start_date_str or not end_date_str:
+            messages.error(request, "Debe seleccionar medidores y un rango de fechas.")
+            return render(request, 'core/reporte_consumos_interactivo.html', context)
+
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1)
+        except ValueError:
+            messages.error(request, "Formato de fecha inválido.")
+            return render(request, 'core/reporte_consumos_interactivo.html', context)
+
+        # Preparar datos para el gráfico
+        date_format = 'YYYY-MM-DD HH24:MI' if granularity in ['hourly', 'raw'] else ('YYYY-MM-DD' if granularity == 'daily' else 'YYYY-MM')
+        labels = []
+        datasets = []
+        table_data = [] # Para el resumen de operación
+        
+        # Obtener todos los periodos posibles en el rango para el eje X
+        if granularity == 'daily':
+            current = start_date
+            while current < end_date:
+                labels.append(current.strftime('%Y-%m-%d'))
+                current += timedelta(days=1)
+        elif granularity == 'monthly':
+            curr_year = start_date.year
+            curr_month = start_date.month
+            while (curr_year < end_date.year) or (curr_year == end_date.year and curr_month < end_date.month):
+                labels.append(f"{curr_year}-{curr_month:02d}")
+                curr_month += 1
+                if curr_month > 12:
+                    curr_month = 1
+                    curr_year += 1
+            last_label = (end_date - timedelta(days=1)).strftime('%Y-%m')
+            if last_label not in labels:
+                labels.append(last_label)
+        elif granularity == 'hourly':
+            current = start_date
+            while current < end_date:
+                labels.append(current.strftime('%Y-%m-%d %H:%M'))
+                current += timedelta(hours=1)
+        # Para 'raw', generaremos labels dinámicamente según lo que haya en la BD
+
+        # all_raw_readings = [] # This list is no longer needed with the new logic
+        end_date_str = end_date.strftime('%Y-%m-%d') # Define end_date_str once
+
+        for mid in selected_ids:
+            medidor = Medidor.objects.get(pk=mid)
+            tipo_db = (medidor.tipo or "").strip().upper()
+            
+            # Determinar tipo final basado en preferencia del usuario
+            if force_type == 'puntual':
+                tipo = 'PUNTUAL'
+            elif force_type == 'acumulado':
+                tipo = 'ACUMULADO'
+            else:
+                tipo = tipo_db
+            
+            if tipo == 'PUNTUAL':
+                if granularity == 'raw':
+                    query = f"""
+                        SELECT TO_CHAR(fecha, '{date_format}') AS periodo, consumo AS valor
+                        FROM core_consumo 
+                        WHERE medidor_id = {mid} AND fecha >= '{start_date_str}' AND fecha < '{end_date_str}'
+                        ORDER BY fecha;
+                    """
+                else:
+                    p_sql = "DATE_TRUNC('hour', fecha)" if granularity == 'hourly' else ("DATE_TRUNC('day', fecha)" if granularity == 'daily' else "DATE_TRUNC('month', fecha)")
+                    query = f"""
+                        SELECT TO_CHAR({p_sql}, '{date_format}') AS periodo, SUM(consumo) AS valor
+                        FROM core_consumo 
+                        WHERE medidor_id = {mid} AND fecha >= '{start_date_str}' AND fecha < '{end_date_str}'
+                        GROUP BY periodo ORDER BY periodo;
+                    """
+                df = pd.read_sql(query, connection)
+            else:
+                # ACUMULADO
+                calc_expr = "(valor_anterior - valor_actual)" if inverse_calc else "(valor_actual - valor_anterior)"
+                if granularity == 'raw':
+                    query = f"""
+                        SELECT periodo, {calc_expr} AS valor FROM (
+                            SELECT TO_CHAR(fecha, '{date_format}') AS periodo, consumo AS valor_actual,
+                                   LAG(consumo) OVER (ORDER BY fecha) AS valor_anterior
+                            FROM core_consumo 
+                            WHERE medidor_id = {mid} AND fecha >= (
+                                SELECT COALESCE(MAX(fecha), '{start_date_str}'::timestamp) 
+                                FROM core_consumo WHERE medidor_id = {mid} AND fecha < '{start_date_str}'
+                            ) AND fecha < '{end_date_str}'
+                        ) AS sub WHERE valor_anterior IS NOT NULL ORDER BY periodo;
+                    """
+                else:
+                    p_sql = "DATE_TRUNC('hour', fecha)" if granularity == 'hourly' else ("DATE_TRUNC('day', fecha)" if granularity == 'daily' else "DATE_TRUNC('month', fecha)")
+                    query = f"""
+                        SELECT periodo, {calc_expr} AS valor FROM (
+                            SELECT TO_CHAR(p, '{date_format}') AS periodo, valor_p AS valor_actual,
+                                   LAG(valor_p) OVER (ORDER BY p) AS valor_anterior
+                            FROM (
+                                SELECT {p_sql} AS p, MAX(consumo) AS valor_p
+                                FROM core_consumo 
+                                WHERE medidor_id = {mid} AND fecha >= (
+                                    SELECT COALESCE(MAX(fecha), '{start_date_str}'::timestamp)
+                                    FROM core_consumo WHERE medidor_id = {mid} AND fecha < '{start_date_str}'
+                                ) AND fecha < '{end_date_str}'
+                                GROUP BY p
+                            ) AS sub
+                        ) AS calc WHERE valor_anterior IS NOT NULL ORDER BY periodo;
+                    """
+                df = pd.read_sql(query, connection)
+            
+            if not df.empty:
+                data_dict = dict(zip(df['periodo'], df['valor']))
+                
+                # Actualizar labels para raw si es necesario
+                if granularity == 'raw' and len(labels) < 5000:
+                    new_labels = df['periodo'].tolist()
+                    labels = sorted(list(set(labels + new_labels)))
+                
+                # Para granularidades fijas, mapeamos los datos a los labels pre-generados
+                if granularity != 'raw':
+                    dataset_data = [data_dict.get(label, 0) for label in labels]
+                    datasets.append({
+                        'label': medidor.nombre,
+                        'data': dataset_data,
+                        'type': 'bar' if tipo == 'ACUMULADO' else 'line',
+                        'borderWidth': 1.5,
+                        'fill': tipo == 'PUNTUAL',
+                        'spanGaps': True
+                    })
+                
+                # Agregar a los datos de la tabla
+                for _, row in df.iterrows():
+                    table_data.append({
+                        'medidor': medidor.nombre,
+                        'fecha': row['periodo'],
+                        'valor': row['valor']
+                    })
+
+        if granularity == 'raw':
+            # Re-mapear datasets para raw ahora que tenemos todos los labels posibles
+            final_datasets = []
+            for mid in selected_ids:
+                medidor = Medidor.objects.get(pk=mid)
+                # Filtramos table_data para este medidor para no repetir queries
+                m_data = {row['fecha']: row['valor'] for row in table_data if row['medidor'] == medidor.nombre}
+                dataset_data = [m_data.get(label, None) for label in labels]
+                final_datasets.append({
+                    'label': medidor.nombre,
+                    'data': dataset_data,
+                    'type': 'bar' if tipo == 'ACUMULADO' else 'line',
+                    'borderWidth': 1.5,
+                    'fill': tipo == 'PUNTUAL',
+                    'spanGaps': True
+                })
+            datasets = final_datasets
+            table_data = sorted(table_data, key=lambda x: x['fecha'], reverse=True)
+
+        context['chart_data'] = json.dumps({
+            'labels': labels,
+            'datasets': datasets
+        })
+        context['table_data'] = table_data[:1000] # Limitar a 1000 filas para no colapsar el DOM
+
+    return render(request, 'core/reporte_consumos_interactivo.html', context)
+
 @staff_member_required
 def finalizar_tutorial(request):
     if request.method == 'POST':

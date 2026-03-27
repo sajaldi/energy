@@ -110,21 +110,24 @@ def mobile_ot_update_ajax(request, pk):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 @staff_member_required
-def mobile_crear_aviso(request):
-    aid = request.GET.get('activo')
-    # Si viene por POST (desde el buscador), intentamos recuperarlo
-    if request.method == 'POST' and not aid:
-        aid = request.POST.get('activo')
-        
-    try:
-        if aid:
-            # Limpiar comas por si el código viene mal formateado Ej: "144,643"
-            aid_clean = str(aid).replace(',', '').replace('.', '')
-            activo = Activo.objects.filter(id=aid_clean).first()
-        else:
+def mobile_crear_aviso(request, pk=None):
+    if pk:
+        instance = get_object_or_404(Aviso, pk=pk)
+        activo = instance.activo
+    else:
+        instance = None
+        aid = request.GET.get('activo')
+        if request.method == 'POST' and not aid:
+            aid = request.POST.get('activo')
+            
+        try:
+            if aid:
+                aid_clean = str(aid).replace(',', '').replace('.', '')
+                activo = Activo.objects.filter(id=aid_clean).first()
+            else:
+                activo = None
+        except ValueError:
             activo = None
-    except ValueError:
-        activo = None
     
     # Obtener ubicación por defecto del perfil
     perfil = getattr(request.user, 'perfil', None)
@@ -185,70 +188,102 @@ def mobile_crear_aviso(request):
     }
 
     if request.method == 'POST':
-        # Determinamos la ubicación final: 
-        # 1. Seleccionada en el formulario
-        # 2. Activo (si hay uno)
-        # 3. Perfil (ubicación por defecto)
         ubi_id = request.POST.get('ubicacion')
         ubicacion = Ubicacion.objects.filter(id=ubi_id).first() if ubi_id else None
         
         if not ubicacion:
             ubicacion = activo.ubicacion if activo else ubi_defecto
         
-        # Validación final para evitar IntegrityError
         if not ubicacion:
+            # Recargar contexto para el error
             tipos = [(v, l, v == request.POST.get('tipo', 'SOLICITUD')) for v, l in Aviso.TIPO_CHOICES]
             prioridades = [(v, l, v == request.POST.get('prioridad', 'MEDIA')) for v, l in Aviso.PRIORIDAD_CHOICES]
             ubicaciones = Ubicacion.objects.all().order_by('nombre')
             return render(request, 'mantenimiento/mobile_crear_aviso.html', {
+                'aviso': instance,
                 'activo': activo, 
                 'prioridades': prioridades, 
                 'tipos': tipos,
-                'ubicacion_defecto': ubi_defecto,
-                'fallas': fallas,
                 'fallas_json': fallas_json,
                 'ubicaciones': ubicaciones,
                 'error_mensaje': 'Debe seleccionar una ubicación para el reporte.'
             })
 
-        # Guardar el aviso
-        aviso = Aviso.objects.create(
-            activo=activo, 
-            ubicacion=ubicacion,
-            falla_id=request.POST.get('falla'),
-            descripcion=request.POST.get('descripcion'), 
-            prioridad=request.POST.get('prioridad', 'MEDIA'), 
-            tipo=request.POST.get('tipo', 'SOLICITUD'), 
-            solicitante=request.user, 
-        )
+        data = {
+            'activo': activo,
+            'ubicacion': ubicacion,
+            'falla_id': request.POST.get('falla'),
+            'descripcion': request.POST.get('descripcion'),
+            'prioridad': request.POST.get('prioridad', 'MEDIA'),
+            'tipo': request.POST.get('tipo', 'SOLICITUD'),
+        }
         
-        # Guardar múltiples fotos con sus descripciones
+        # Estado solo si estamos editando o si se envía explícitamente
+        estado_post = request.POST.get('estado')
+        if estado_post:
+            data['estado'] = estado_post
+        elif not instance:
+            data['estado'] = 'ABIERTO'
+
+        # Procesar fechas si vienen en el POST
+        fecha_reporte = request.POST.get('creado_en')
+        if fecha_reporte:
+            try:
+                data['creado_en'] = timezone.make_aware(datetime.fromisoformat(fecha_reporte))
+            except Exception: pass
+            
+        fecha_cierre = request.POST.get('fecha_cierre')
+        if fecha_cierre:
+            try:
+                data['fecha_cierre'] = timezone.make_aware(datetime.fromisoformat(fecha_cierre))
+            except Exception: 
+                data['fecha_cierre'] = None
+        elif instance:
+            # Si estamos editando y no viene fecha_cierre, podría significar que se limpió o que no se mostró
+            # Pero en este caso, si no viene en el POST, lo dejamos como estaba o lo limpiamos?
+            # SAP PM: Si el estado cambia a CERRADO, se debería poner la fecha.
+            pass
+
+        if instance:
+            for k, v in data.items(): setattr(instance, k, v)
+            instance.save()
+            aviso = instance
+        else:
+            data['solicitante'] = request.user
+            aviso = Aviso.objects.create(**data)
+        
         fotos = request.FILES.getlist('fotos')
         descripciones = request.POST.getlist('descripciones[]')
         
         if fotos:
-            aviso.foto = fotos[0]
-            aviso.save()
+            if not aviso.foto:
+                aviso.foto = fotos[0]
+                aviso.save()
             for i, f in enumerate(fotos):
                 desc = descripciones[i] if i < len(descripciones) else ''
                 FotoAviso.objects.create(aviso=aviso, foto=f, descripcion=desc)
         
         if activo: return redirect('activos:mobile_activo_detalle', pk=activo.id)
-        return redirect('mantenimiento:mobile_mis_avisos')
+        return redirect('mantenimiento:mobile_aviso_detalle', pk=aviso.id)
     
-    tipos = [(v, l, v == 'SOLICITUD') for v, l in Aviso.TIPO_CHOICES]
-    prioridades = [(v, l, v == 'MEDIA') for v, l in Aviso.PRIORIDAD_CHOICES]
+    tipos = [(v, l, v == (instance.tipo if instance else 'SOLICITUD')) for v, l in Aviso.TIPO_CHOICES]
+    prioridades = [(v, l, v == (instance.prioridad if instance else 'MEDIA')) for v, l in Aviso.PRIORIDAD_CHOICES]
     ubicaciones = Ubicacion.objects.all().order_by('nombre')
     
     return render(request, 'mantenimiento/mobile_crear_aviso.html', {
+        'aviso': instance,
         'activo': activo, 
         'prioridades': prioridades, 
         'tipos': tipos,
-        'ubicacion_defecto': ubi_defecto,
-        'fallas': fallas,
+        'ubi_defecto': ubi_defecto,
         'fallas_json': fallas_json,
-        'ubicaciones': ubicaciones
+        'ubicaciones': ubicaciones,
+        'estados': Aviso.ESTADO_CHOICES
     })
+
+@staff_member_required
+def mobile_aviso_editar(request, pk):
+    return mobile_crear_aviso(request, pk=pk)
 
 @staff_member_required
 def mobile_ot_iniciar(request, pk):
@@ -303,7 +338,22 @@ def mobile_ot_finalizar(request, pk):
             no_aplica = request.POST.get(f'paso_{paso.id}_na') == 'on'
             comentarios = request.POST.get(f'paso_{paso.id}_com')
             
-            if valor_text or valor_num or valor_bool or no_aplica or paso.tipo_respuesta == 'MEDICION':
+            # Guardar fotos si es un paso tipo FOTO
+            if paso.tipo_respuesta == 'FOTO':
+                fotos_paso = request.FILES.getlist(f'paso_{paso.id}_fotos')
+                for foto in fotos_paso:
+                    ArchivoOrdenTrabajo.objects.create(
+                        orden_trabajo=ot,
+                        paso=paso,
+                        archivo=foto,
+                        subido_por=request.user,
+                        tipo='IMAGEN'
+                    )
+                # Para FOTO iteramos para marcar el paso como capturado (crea ValorPasoOrden vacío si hay fotos para saber que no fue omitido)
+                if fotos_paso:
+                    valor_text = f"{len(fotos_paso)} foto(s) adjuntada(s)"
+
+            if valor_text or valor_num or valor_bool or no_aplica or paso.tipo_respuesta == 'MEDICION' or paso.tipo_respuesta == 'FOTO':
                 ValorPasoOrden.objects.update_or_create(
                     orden_trabajo=ot,
                     paso=paso,
@@ -341,8 +391,23 @@ def mobile_ot_finalizar(request, pk):
                     observaciones=f"Capturado durante cierre de OT #{ot.id}"
                 )
         
-        # 3. Actualizar estado según la acción
+        # 3. Guardar fotos de cierre
+        fotos_cierre = request.FILES.getlist('fotos_cierre')
+        for foto in fotos_cierre:
+            archivo = ArchivoOrdenTrabajo(
+                orden_trabajo=ot,
+                archivo=foto,
+                subido_por=request.user
+            )
+            archivo.save()
+        
+        # 4. Actualizar estado según la acción
         accion = request.POST.get('action')
+        comentarios_cierre = request.POST.get('comentarios_cierre', '').strip()
+        if comentarios_cierre:
+            ot.notas = (ot.notas or '') + f"\n[Cierre] {comentarios_cierre}"
+            ot.save(update_fields=['notas'])
+        
         if accion == 'finalize':
             ot.estado = 'REALIZADA'
             ot.fecha_termino = timezone.now()

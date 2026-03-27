@@ -1,0 +1,727 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Consumo Interactivo | SoftCom CCG</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% include "core/fiori_tokens.html" %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
+            margin: 0;
+            padding: 0;
+        }
+
+        .report-header {
+            background-color: var(--sap-shell-bg);
+            color: white;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .report-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .filter-pane {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--sap-border-radius);
+            box-shadow: var(--sap-card-shadow);
+            height: fit-content;
+        }
+
+        .filter-pane h2 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: var(--sap-accent-2);
+            border-bottom: 1px solid var(--sap-border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+            color: var(--sap-text-color);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 4px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--sap-brand-color);
+            box-shadow: 0 0 0 2px rgba(0, 112, 242, 0.1);
+        }
+
+        .chart-pane {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--sap-border-radius);
+            box-shadow: var(--sap-card-shadow);
+            padding: 1.5rem;
+            border: 1px solid var(--sap-border-color);
+        }
+
+        .btn-generate {
+            width: 100%;
+            background-color: var(--sap-brand-color);
+            color: white;
+            border: none;
+            padding: 0.8rem;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 1rem;
+        }
+
+        .btn-generate:hover {
+            background-color: var(--sap-highlight-color);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 450px;
+            width: 100%;
+        }
+
+        .multi-select {
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 4px;
+            padding: 0.5rem;
+        }
+
+        .multi-select label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: normal;
+            padding: 0.3rem 0;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .multi-select label:hover {
+            background-color: var(--sap-bg-color);
+        }
+
+        .granularity-toggle {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--sap-bg-color);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .granularity-toggle label {
+            flex: 1;
+            text-align: center;
+            padding: 0.4rem;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .granularity-toggle input {
+            display: none;
+        }
+
+        .granularity-toggle input:checked + span {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            color: var(--sap-brand-color);
+        }
+
+        .granularity-toggle span {
+            display: block;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: var(--sap-text-muted);
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <header class="report-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <a href="{% url 'core:landing_page' %}" style="color: white; font-size: 1.2rem;"><i class="fa fa-arrow-left"></i></a>
+            <h1><i class="fa fa-chart-line"></i> Reporte de Consumo Interactivo</h1>
+        </div>
+        <div class="header-actions">
+            <button class="fiori-btn fiori-btn-ghost" style="color: white; border-color: white;" onclick="window.print()">
+                <i class="fa fa-print"></i> Imprimir / PDF
+            </button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="filter-pane">
+            <form method="post">
+                {% csrf_token %}
+                <h2>Configuración</h2>
+                
+                <div class="form-group">
+                    <label>Medidores</label>
+                    <div class="multi-select">
+                        {% for medidor in medidores %}
+                        <label>
+                            <input type="checkbox" name="medidores" value="{{ medidor.id }}" 
+                                {% if medidor.id in selected_medidores %}checked{% endif %}>
+                            {{ medidor.nombre }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="start_date">Fecha Inicio</label>
+                    <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="end_date">Fecha Fin</label>
+                    <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+
+                <div class="form-group">
+                    <label>Tratar Datos Como</label>
+                    <div class="granularity-toggle">
+                        <label>
+                            <input type="radio" name="force_type" value="auto" {% if force_type == 'auto' or not force_type %}checked{% endif %}>
+                            <span>Auto</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="force_type" value="puntual" {% if force_type == 'puntual' %}checked{% endif %}>
+                            <span>Lec. [P]</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="force_type" value="acumulado" {% if force_type == 'acumulado' %}checked{% endif %}>
+                            <span>Cons. [A]</span>
+                        </label>
+                    </div>
+                    <small style="font-size: 0.7rem; color: var(--sap-text-muted); display: block; margin-top: 4px;">
+                        <em>Auto usa el tipo de medidor en BD. Cons. [A] calcula la diferencia.</em>
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label>Granularidad</label>
+                    <div class="granularity-toggle">
+                        <label>
+                            <input type="radio" name="granularity" value="raw" {% if granularity == 'raw' %}checked{% endif %}>
+                            <span>Raw</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="granularity" value="hourly" {% if granularity == 'hourly' %}checked{% endif %}>
+                            <span>Hora</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="granularity" value="daily" {% if granularity == 'daily' or not granularity %}checked{% endif %}>
+                            <span>Día</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="granularity" value="monthly" {% if granularity == 'monthly' %}checked{% endif %}>
+                            <span>Mes</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Invertir Cálculo</label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; font-size: 0.85rem; cursor: pointer;">
+                        <input type="checkbox" name="inverse_calc" {% if inverse_calc %}checked{% endif %}>
+                        <span>(Anterior - Actual)</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>Altura de Gráfica</label>
+                    <input type="range" name="chart_height" id="chart_height_slider" min="200" max="1000" step="50" 
+                        class="form-control" value="{{ chart_height|default:450 }}" 
+                        oninput="document.getElementById('consumptionChartContainer').style.height = this.value + 'px'; 
+                                 document.getElementById('height_val').innerText = this.value + 'px';">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--sap-text-muted); margin-top: 5px;">
+                        <span>200px</span>
+                        <span id="height_val">{{ chart_height|default:450 }}px</span>
+                        <span>1000px</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-generate">
+                    <i class="fa fa-sync"></i> Generar Reporte
+                </button>
+            </form>
+        </aside>
+
+        <main class="chart-pane">
+            {% if chart_data %}
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="margin: 0; font-size: 1.2rem; color: var(--sap-accent-3);">Visualización de Consumo</h2>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="badges">
+                            <span class="fiori-btn fiori-btn-accept" style="font-size: 0.7rem; padding: 2px 8px;">
+                                {{ granularity|default:"Daily"|capfirst }}
+                            </span>
+                            {% if inverse_calc %}
+                            <span class="fiori-btn fiori-btn-warning" style="font-size: 0.7rem; padding: 2px 8px;">
+                                Cálculo Inverso
+                            </span>
+                            {% endif %}
+                        </div>
+                        <button type="button" id="btnMaximizeChart" title="Maximizar Gráfica" style="
+                            background: var(--sap-accent-3); color: #fff; border: none; border-radius: 6px;
+                            width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center;
+                            justify-content: center; font-size: 0.9rem; transition: all 0.2s;
+                        " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                            <i class="fa fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container" id="consumptionChartContainer" style="height: {{ chart_height|default:450 }}px;">
+                    <canvas id="consumptionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Modal Fullscreen -->
+            <div id="chartModal" style="
+                display: none; position: fixed; inset: 0; z-index: 9999;
+                background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+                padding: 1.5rem; animation: fadeIn 0.2s ease;
+            ">
+                <div style="
+                    background: #fff; border-radius: 12px; width: 100%; height: 100%;
+                    display: flex; flex-direction: column; overflow: hidden;
+                    box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+                ">
+                    <div style="
+                        display: flex; justify-content: space-between; align-items: center;
+                        padding: 1rem 1.5rem; border-bottom: 1px solid #e5e5e5;
+                    ">
+                        <h2 style="margin: 0; font-size: 1.1rem; color: var(--sap-accent-3);">
+                            <i class="fa fa-chart-column" style="margin-right: 0.5rem;"></i>Visualización de Consumo — Vista Completa
+                        </h2>
+                        <button type="button" id="btnResetZoom" style="
+                            background: #e8f0fe; border: 1px solid #c2d7f5; border-radius: 6px;
+                            padding: 0 12px; height: 32px; cursor: pointer; font-size: 0.78rem;
+                            color: #1a73e8; font-weight: 600; display: none; align-items: center;
+                            gap: 4px; transition: all 0.2s;
+                        " onmouseover="this.style.background='#d2e3fc'" onmouseout="this.style.background='#e8f0fe'">
+                            <i class="fa fa-search-minus"></i> Reset Zoom
+                        </button>
+                        <button type="button" id="btnCloseModal" style="
+                            background: #f0f0f0; border: none; border-radius: 8px;
+                            width: 36px; height: 36px; cursor: pointer; display: flex;
+                            align-items: center; justify-content: center; font-size: 1.1rem;
+                            color: #555; transition: all 0.2s;
+                        " onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='#f0f0f0'">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                    <div style="display: flex; flex: 1; overflow: hidden;">
+                        <div style="flex: 1; padding: 1rem; position: relative; min-width: 0;">
+                            <canvas id="modalChart"></canvas>
+                        </div>
+                        <div id="selectionPanel" style="
+                            width: 320px; border-left: 1px solid #e5e5e5; padding: 1rem;
+                            overflow-y: auto; display: none; font-size: 0.85rem;
+                            background: #fafbfc;
+                        ">
+                            <h3 style="margin: 0 0 0.75rem 0; font-size: 0.95rem; color: var(--sap-accent-3);">
+                                <i class="fa fa-crosshairs" style="margin-right: 0.4rem;"></i>Selección
+                            </h3>
+                            <div id="selectionContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem;">Resumen de Operación</h2>
+                <div style="overflow-y: auto; max-height: 500px; border: 1px solid var(--sap-border-color); border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead style="background: var(--sap-bg-color); position: sticky; top: 0; z-index: 1;">
+                            <tr>
+                                <th style="padding: 12px; border-bottom: 2px solid var(--sap-border-color); text-align: left;">Medidor</th>
+                                <th style="padding: 12px; border-bottom: 2px solid var(--sap-border-color); text-align: left;">Fecha / Periodo</th>
+                                <th style="padding: 12px; border-bottom: 2px solid var(--sap-border-color); text-align: right;">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in table_data %}
+                            <tr style="border-bottom: 1px solid var(--sap-border-color); transition: background 0.2s;">
+                                <td style="padding: 10px;">{{ row.medidor }}</td>
+                                <td style="padding: 10px;">{{ row.fecha }}</td>
+                                <td style="padding: 10px; text-align: right; font-weight: 600;">{{ row.valor|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" style="padding: 20px; text-align: center; color: var(--sap-text-muted);">
+                                    No hay datos detallados para mostrar.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if table_data|length >= 1000 %}
+                <p style="font-size: 0.8rem; color: var(--sap-accent-6); margin-top: 10px;">
+                    <i class="fa fa-info-circle"></i> Mostrando los primeros 1000 registros del periodo.
+                </p>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="card empty-state">
+                <i class="fa fa-chart-column"></i>
+                <h3>No hay datos para mostrar</h3>
+                <p>Seleccione medidores y un rango de fechas para generar el gráfico.</p>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script>
+        {% if chart_data %}
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('consumptionChart').getContext('2d');
+            const data = JSON.parse('{{ chart_data|escapejs }}');
+            
+            // Colores profesionales
+            const colors = [
+                '#0070f2', '#e06c00', '#107e3e', '#8b5cf6', '#ef4444', 
+                '#0ea5e9', '#f43f5e', '#06b6d4', '#ec4899', '#3b82f6'
+            ];
+            
+            // Determinar si hay barras o líneas
+            const hasBar = data.datasets.some(ds => ds.type === 'bar');
+            const hasLine = data.datasets.some(ds => ds.type === 'line' || !ds.type);
+            
+            data.datasets.forEach((ds, i) => {
+                const color = colors[i % colors.length];
+                ds.borderColor = color;
+                
+                if (ds.type === 'bar') {
+                    // Barras: color sólido con algo de transparencia
+                    ds.backgroundColor = color + '99';
+                    ds.borderWidth = 1;
+                    ds.borderRadius = 3;
+                    ds.barPercentage = 0.8;
+                } else {
+                    // Líneas
+                    ds.backgroundColor = color + '20';
+                    ds.tension = 0.3;
+                    ds.pointRadius = data.labels.length > 200 ? 0 : 4;
+                    ds.pointHoverRadius = 6;
+                    ds.borderWidth = 1.5;
+                }
+            });
+
+            new Chart(ctx, {
+                type: hasBar && !hasLine ? 'bar' : 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: {
+                                    family: "'Outfit', sans-serif",
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            titleColor: '#32363a',
+                            bodyColor: '#32363a',
+                            borderColor: '#d9d9d9',
+                            borderWidth: 1,
+                            padding: 12,
+                            boxPadding: 6,
+                            usePointStyle: true,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('es-ES').format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f0f0f0'
+                            },
+                            ticks: {
+                                font: {
+                                    family: "'Outfit', sans-serif"
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                autoSkip: true,
+                                maxTicksLimit: 40,
+                                font: {
+                                    family: "'Outfit', sans-serif"
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+            // Modal fullscreen logic
+            let modalChartInstance = null;
+            const modal = document.getElementById('chartModal');
+            const btnMax = document.getElementById('btnMaximizeChart');
+            const btnClose = document.getElementById('btnCloseModal');
+
+            function openModal() {
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+                
+                if (modalChartInstance) {
+                    modalChartInstance.destroy();
+                }
+                
+                const modalCtx = document.getElementById('modalChart').getContext('2d');
+                const modalData = JSON.parse('{{ chart_data|escapejs }}');
+                const btnReset = document.getElementById('btnResetZoom');
+                const selPanel = document.getElementById('selectionPanel');
+                const selContent = document.getElementById('selectionContent');
+                
+                const colors = [
+                    '#0070f2', '#e06c00', '#107e3e', '#8b5cf6', '#ef4444', 
+                    '#0ea5e9', '#f43f5e', '#06b6d4', '#ec4899', '#3b82f6'
+                ];
+                const hasBarM = modalData.datasets.some(ds => ds.type === 'bar');
+                const hasLineM = modalData.datasets.some(ds => ds.type === 'line' || !ds.type);
+                
+                modalData.datasets.forEach((ds, i) => {
+                    const color = colors[i % colors.length];
+                    ds.borderColor = color;
+                    if (ds.type === 'bar') {
+                        ds.backgroundColor = color + '99';
+                        ds.borderWidth = 1;
+                        ds.borderRadius = 3;
+                        ds.barPercentage = 0.8;
+                    } else {
+                        ds.backgroundColor = color + '20';
+                        ds.tension = 0.3;
+                        ds.pointRadius = modalData.labels.length > 300 ? 0 : 3;
+                        ds.pointHoverRadius = 5;
+                        ds.borderWidth = 1.5;
+                    }
+                });
+
+                function showSelection(chart) {
+                    const xScale = chart.scales.x;
+                    const minIdx = Math.max(0, Math.ceil(xScale.min));
+                    const maxIdx = Math.min(chart.data.labels.length - 1, Math.floor(xScale.max));
+                    
+                    if (minIdx >= maxIdx) return;
+                    
+                    const labels = chart.data.labels.slice(minIdx, maxIdx + 1);
+                    const startLabel = labels[0];
+                    const endLabel = labels[labels.length - 1];
+                    
+                    let html = '<div style="background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:0.75rem;margin-bottom:0.75rem;">';
+                    html += '<div style="font-weight:600;color:#32363a;margin-bottom:4px;"><i class="fa fa-calendar" style="margin-right:4px;"></i>Rango Seleccionado</div>';
+                    html += '<div style="font-size:0.8rem;color:#666;">Desde: <strong>' + startLabel + '</strong></div>';
+                    html += '<div style="font-size:0.8rem;color:#666;">Hasta: <strong>' + endLabel + '</strong></div>';
+                    html += '<div style="font-size:0.8rem;color:#666;">Puntos: <strong>' + labels.length + '</strong></div>';
+                    html += '</div>';
+                    
+                    chart.data.datasets.forEach((ds, i) => {
+                        const color = colors[i % colors.length];
+                        const vals = ds.data.slice(minIdx, maxIdx + 1).filter(v => v !== null && v !== undefined);
+                        const sum = vals.reduce((a, b) => a + b, 0);
+                        const avg = vals.length > 0 ? sum / vals.length : 0;
+                        const maxV = vals.length > 0 ? Math.max(...vals) : 0;
+                        const minV = vals.length > 0 ? Math.min(...vals) : 0;
+                        const fmt = new Intl.NumberFormat('es-ES', {maximumFractionDigits: 2});
+                        
+                        html += '<div style="background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:0.75rem;margin-bottom:0.75rem;">';
+                        html += '<div style="font-weight:600;color:' + color + ';margin-bottom:6px;border-bottom:2px solid ' + color + ';padding-bottom:4px;">' + ds.label + '</div>';
+                        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.78rem;">';
+                        html += '<div>Total: <strong>' + fmt.format(sum) + '</strong></div>';
+                        html += '<div>Prom: <strong>' + fmt.format(avg) + '</strong></div>';
+                        html += '<div>Máx: <strong>' + fmt.format(maxV) + '</strong></div>';
+                        html += '<div>Mín: <strong>' + fmt.format(minV) + '</strong></div>';
+                        html += '</div>';
+                        
+                        // Detail table
+                        html += '<div style="max-height:200px;overflow-y:auto;margin-top:6px;border:1px solid #eee;border-radius:4px;">';
+                        html += '<table style="width:100%;border-collapse:collapse;font-size:0.72rem;">';
+                        html += '<thead><tr style="background:#f5f5f5;position:sticky;top:0;"><th style="padding:3px 6px;text-align:left;">Periodo</th><th style="padding:3px 6px;text-align:right;">Valor</th></tr></thead><tbody>';
+                        labels.forEach((lbl, j) => {
+                            const val = ds.data[minIdx + j];
+                            if (val !== null && val !== undefined) {
+                                html += '<tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:2px 6px;">' + lbl + '</td><td style="padding:2px 6px;text-align:right;">' + fmt.format(val) + '</td></tr>';
+                            }
+                        });
+                        html += '</tbody></table></div>';
+                        html += '</div>';
+                    });
+                    
+                    selContent.innerHTML = html;
+                    selPanel.style.display = 'block';
+                    btnReset.style.display = 'flex';
+                }
+
+                modalChartInstance = new Chart(modalCtx, {
+                    type: hasBarM && !hasLineM ? 'bar' : 'line',
+                    data: modalData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { usePointStyle: true, padding: 20, font: { family: "'Outfit', sans-serif", size: 13 } }
+                            },
+                            tooltip: {
+                                mode: 'index', intersect: false,
+                                backgroundColor: 'rgba(255,255,255,0.95)', titleColor: '#32363a', bodyColor: '#32363a',
+                                borderColor: '#d9d9d9', borderWidth: 1, padding: 14, boxPadding: 6, usePointStyle: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        let l = context.dataset.label || '';
+                                        if (l) l += ': ';
+                                        if (context.parsed.y !== null) l += new Intl.NumberFormat('es-ES').format(context.parsed.y);
+                                        return l;
+                                    }
+                                }
+                            },
+                            zoom: {
+                                zoom: {
+                                    drag: {
+                                        enabled: true,
+                                        backgroundColor: 'rgba(0, 112, 242, 0.15)',
+                                        borderColor: 'rgba(0, 112, 242, 0.4)',
+                                        borderWidth: 1
+                                    },
+                                    mode: 'x',
+                                    onZoomComplete: function({chart}) {
+                                        showSelection(chart);
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { family: "'Outfit', sans-serif" } } },
+                            x: { grid: { display: false }, ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 60, font: { family: "'Outfit', sans-serif", size: 10 } } }
+                        },
+                        interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                    }
+                });
+
+                btnReset.addEventListener('click', function() {
+                    modalChartInstance.resetZoom();
+                    selPanel.style.display = 'none';
+                    btnReset.style.display = 'none';
+                });
+            }
+
+            function closeModal() {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+                if (modalChartInstance) {
+                    modalChartInstance.destroy();
+                    modalChartInstance = null;
+                }
+            }
+
+            btnMax.addEventListener('click', openModal);
+            btnClose.addEventListener('click', closeModal);
+            modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+            document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && modal.style.display === 'block') closeModal(); });
+        });
+        {% endif %}
+    </script>
+    <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</body>
+</html>

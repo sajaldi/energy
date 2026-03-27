@@ -259,7 +259,7 @@
     </header>
 
     <div class="container">
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
 
             {% if pasos %}
@@ -325,6 +325,21 @@
                         </div>
                         {% endif %}
                     </div>
+                    {% elif paso.tipo_respuesta == 'FOTO' %}
+                    <div class="input-group" data-foto-step="{{ paso.id }}">
+                        <label><ion-icon name="camera-outline" style="vertical-align: middle;"></ion-icon> Evidencia Fotográfica</label>
+                        <div class="foto-preview-grid" id="fotoGrid_{{ paso.id }}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; margin-bottom: 8px;"></div>
+                        <div class="foto-drop-zone" onclick="document.getElementById('fotoInput_{{ paso.id }}').click()" style="
+                            border: 2px dashed #cbd5e1; border-radius: 10px; padding: 14px;
+                            text-align: center; cursor: pointer; background: white; transition: all 0.2s;
+                        ">
+                            <ion-icon name="camera" style="font-size: 22px; color: #0ea5e9;"></ion-icon>
+                            <p style="margin: 4px 0 0; font-size: 11px; color: #94a3b8;">Tomar foto o seleccionar</p>
+                        </div>
+                        <input type="file" id="fotoInput_{{ paso.id }}" name="paso_{{ paso.id }}_fotos" 
+                               multiple accept="image/*" capture="environment" style="display: none;"
+                               onchange="handleStepPhotos({{ paso.id }}, this)">
+                    </div>
                     {% endif %}
 
                     {% if paso.tipo_respuesta != 'INSTRUCCION' %}
@@ -376,6 +391,25 @@
                     <label>Comentarios Generales de la Orden</label>
                     <textarea name="comentarios_cierre" placeholder="Breve resumen del trabajo realizado..."></textarea>
                 </div>
+
+                <!-- Evidencia Fotográfica -->
+                <div class="input-group" style="margin-top: 15px;">
+                    <label><ion-icon name="camera-outline" style="vertical-align: middle;"></ion-icon> Evidencia Fotográfica</label>
+                    <div id="photoPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 10px;"></div>
+                    <div id="photoDropZone" style="
+                        border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px;
+                        text-align: center; cursor: pointer; transition: all 0.2s;
+                        background: white;
+                    ">
+                        <ion-icon name="cloud-upload-outline" style="font-size: 28px; color: #94a3b8;"></ion-icon>
+                        <p style="margin: 8px 0 0; font-size: 12px; color: #94a3b8;">
+                            Toca para <b>tomar foto</b> o seleccionar de galería<br>
+                            <span style="font-size: 11px;">También puedes arrastrar imágenes aquí</span>
+                        </p>
+                    </div>
+                    <input type="file" id="photoFileInput" name="fotos_cierre" multiple accept="image/*" capture="environment" style="display: none;">
+                </div>
+
                 <p style="font-size: 11px; color: #64748b; margin: 15px 0;">Al finalizar, la orden se marcará como
                     <b>REALIZADA</b> y se registrarán los datos capturados.
                 </p>
@@ -394,6 +428,128 @@
         </form>
     </div>
 
-</body>
+    <script>
+    function handleStepPhotos(pasoId, input) {
+        const grid = document.getElementById('fotoGrid_' + pasoId);
+        grid.innerHTML = '';
+        const files = Array.from(input.files);
+        
+        files.forEach((file, i) => {
+            if (!file.type.startsWith('image/')) return;
+            const dt = new DataTransfer();
+            files.forEach((f, idx) => { if (idx !== i) dt.items.add(f); });
+            
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#f1f5f9;';
+            
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            img.onload = () => URL.revokeObjectURL(img.src);
+            
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.innerHTML = '&times;';
+            btn.style.cssText = 'position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:20px;text-align:center;';
+            btn.onclick = () => {
+                input.files = dt.files;
+                handleStepPhotos(pasoId, input);
+            };
+            
+            wrapper.appendChild(img);
+            wrapper.appendChild(btn);
+            grid.appendChild(wrapper);
+        });
+    }
+
+    (function() {
+        const dropZone = document.getElementById('photoDropZone');
+        const fileInput = document.getElementById('photoFileInput');
+
+        const previewGrid = document.getElementById('photoPreviewGrid');
+        
+        if (!dropZone || !fileInput) return;
+        
+        let selectedFiles = [];
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#007bff';
+            dropZone.style.background = '#f0f7ff';
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = '#cbd5e1';
+            dropZone.style.background = 'white';
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#cbd5e1';
+            dropZone.style.background = 'white';
+            addFiles(e.dataTransfer.files);
+        });
+
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (let item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) addFiles([file]);
+                }
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            addFiles(fileInput.files);
+        });
+
+        function addFiles(fileList) {
+            for (let f of fileList) {
+                if (f.type.startsWith('image/')) {
+                    selectedFiles.push(f);
+                }
+            }
+            syncFileInput();
+            renderPreviews();
+        }
+
+        function removeFile(idx) {
+            selectedFiles.splice(idx, 1);
+            syncFileInput();
+            renderPreviews();
+        }
+
+        function syncFileInput() {
+            const dt = new DataTransfer();
+            selectedFiles.forEach(f => dt.items.add(f));
+            fileInput.files = dt.files;
+        }
+
+        function renderPreviews() {
+            previewGrid.innerHTML = '';
+            selectedFiles.forEach((file, i) => {
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1;background:#f1f5f9;';
+                
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                img.onload = () => URL.revokeObjectURL(img.src);
+                
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.innerHTML = '&times;';
+                btn.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:22px;text-align:center;';
+                btn.addEventListener('click', () => removeFile(i));
+                
+                wrapper.appendChild(img);
+                wrapper.appendChild(btn);
+                previewGrid.appendChild(wrapper);
+            });
+        }
+    })();
+    </script>
 
 </html>

@@ -36,6 +36,7 @@ urlpatterns = [
     path('api/pedidos-pendientes/', views.api_pedidos_pendientes_almacen, name='api_pedidos_pendientes_almacen'),
     path('api/pedidos/<int:pk>/detalle/', views.api_detalle_solicitud_almacen, name='api_detalle_solicitud_almacen'),
     path('api/pedidos/<int:pk>/despachar/', views.api_despachar_solicitud, name='api_despachar_solicitud'),
+    path('registrar-salida/', views.registrar_salida_view, name='registrar_salida'),
     path('manifest.json', views.pwa_manifest, name='pwa_manifest'),
     path('sw.js', views.pwa_sw, name='pwa_sw'),
 ]
