@@ -24,8 +24,24 @@ def generate_rutina_pdf_view(request, ot_id):
     except OrdenTrabajo.DoesNotExist:
         raise Http404("Orden de Trabajo no encontrada")
 
-    # Fetch checklist results
-    results = ValorPasoOrden.objects.filter(orden_trabajo=ot).select_related('paso').order_by('paso__orden')
+    # Fetch all routine steps and matched results
+    pasos = ot.rutina.pasos.all().order_by('orden')
+    results_qs = ValorPasoOrden.objects.filter(orden_trabajo=ot).select_related('paso')
+    results_dict = {r.paso_id: r for r in results_qs}
+    
+    checklist_items = []
+    for paso in pasos:
+        item = results_dict.get(paso.id)
+        if item:
+            checklist_items.append(item)
+        else:
+            checklist_items.append({
+                'paso': paso,
+                'valor_bool': None,
+                'valor_numerico': None,
+                'no_aplica': False,
+                'comentarios': ''
+            })
     
     # Pre-process data for the template
     empresa_nombre = "Operadora de Infraestructura de Honduras, S.A. de C.V."
@@ -55,7 +71,7 @@ def generate_rutina_pdf_view(request, ot_id):
     # Fetch image attachments for the PDF
     fotos_adjuntas = []
     archivos_img = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, tipo='IMAGEN').select_related('paso').order_by('creado_en')
-    vpo_dict = {item.paso_id: item for item in results}
+    vpo_dict = {item.paso_id: item for item in results_qs}
     
     for archivo in archivos_img:
         try:
