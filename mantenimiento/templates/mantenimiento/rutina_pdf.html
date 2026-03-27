@@ -188,26 +188,47 @@
                             <div class="checkbox-row"><span class="box">{% if item.valor_bool == True %}X{% endif %}</span> Si / Cumple</div>
                             <div class="checkbox-row"><span class="box">{% if item.valor_bool == False and not item.no_aplica %}X{% endif %}</span> No / No Cumple</div>
                             <div class="checkbox-row"><span class="box">{% if item.no_aplica %}X{% endif %}</span> N/A</div>
-                        {% elif item.paso.tipo_respuesta == 'NUMERICO' or item.paso.tipo_respuesta == 'MEDICION' %}
+                        {% elif item.paso.tipo_respuesta == 'NUMERICO' %}
                             <div style="display: inline-block; border: 1px solid #000; padding: 2px 8px; min-width: 30px; text-align: center; font-weight: bold;">
                                 {{ item.valor_numerico|default:"&nbsp;&nbsp;&nbsp;&nbsp;" }}
                             </div>
                             <span style="margin-left: 4px; font-size: 8px;">{{ item.paso.unidad_medida|default:"" }}</span>
-                            {% if item.paso.tipo_respuesta == 'MEDICION' %}
-                                <div style="font-size: 8px; color: #0369a1; margin-top: 4px;">
-                                    {% if item.paso.punto_medicion_exacto %}
-                                        <strong>Punto ID:</strong> {{ item.paso.punto_medicion_exacto.id }} 
-                                        {% if item.paso.punto_medicion_exacto.codigo %}({{ item.paso.punto_medicion_exacto.codigo }}){% endif %}
-                                        | <strong>Activo:</strong> {{ item.paso.punto_medicion_exacto.activo.nombre|default:"N/A" }}
-                                        | <strong>Inventario:</strong> {{ item.paso.punto_medicion_exacto.activo.codigo_inventario|default:"N/A" }}
-                                        {% if item.paso.punto_medicion_exacto.activo.descripcion %}
-                                        | <strong>Desc:</strong> {{ item.paso.punto_medicion_exacto.activo.descripcion|truncatechars:50 }}
-                                        {% endif %}
-                                    {% elif item.paso.punto_medicion_codigo %}
-                                        <strong>Punto (Ref):</strong> {{ item.paso.punto_medicion_codigo }}
-                                    {% endif %}
-                                </div>
+                            {% if item.paso.valor_objetivo %}
+                                <span style="margin-left: 6px; font-size: 8px; color: #666; font-style: italic;">[Obj: {{ item.paso.valor_objetivo }}]</span>
                             {% endif %}
+                        {% elif item.paso.tipo_respuesta == 'MEDICION' %}
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="display: inline-block; border: 1px solid #000; padding: 2px 8px; min-width: 30px; text-align: center; font-weight: bold; font-size: 10px;">
+                                    {{ item.valor_numerico|default:"&nbsp;&nbsp;&nbsp;&nbsp;" }}
+                                </div>
+                                <span style="font-size: 9px; font-weight: bold;">
+                                    {% if item.paso.punto_medicion_exacto %}{{ item.paso.punto_medicion_exacto.unidad }}{% else %}{{ item.paso.unidad_medida|default:"" }}{% endif %}
+                                </span>
+                                {% if item.paso.punto_medicion_exacto and item.paso.punto_medicion_exacto.valor_objetivo %}
+                                    <span style="font-size: 8px; color: #059669; background: #ecfdf5; padding: 2px 4px; border-radius: 4px; border: 1px solid #a7f3d0;">
+                                        Objetivo: {{ item.paso.punto_medicion_exacto.valor_objetivo }}
+                                    </span>
+                                {% elif item.paso.valor_objetivo %}
+                                    <span style="font-size: 8px; color: #059669; background: #ecfdf5; padding: 2px 4px; border-radius: 4px; border: 1px solid #a7f3d0;">
+                                        Objetivo: {{ item.paso.valor_objetivo }}
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <div style="font-size: 8px; color: #0369a1; margin-top: 4px; background: #f0f9ff; padding: 4px 6px; border-radius: 4px; border-left: 2px solid #0ea5e9;">
+                                {% if item.paso.punto_medicion_exacto %}
+                                    <div style="font-weight: bold; margin-bottom: 2px;">
+                                        Punto: {{ item.paso.punto_medicion_exacto.nombre|default:"N/A" }}
+                                        {% if item.paso.punto_medicion_exacto.codigo %}({{ item.paso.punto_medicion_exacto.codigo }}){% endif %}
+                                    </div>
+                                    <div style="color: #475569;">
+                                        <strong>Activo:</strong> {{ item.paso.punto_medicion_exacto.activo.nombre|default:"N/A" }}
+                                        | <strong>Inventario:</strong> {{ item.paso.punto_medicion_exacto.activo.codigo_inventario|default:"N/A" }}
+                                    </div>
+                                {% elif item.paso.punto_medicion_codigo %}
+                                    <strong>Punto (Ref):</strong> {{ item.paso.punto_medicion_codigo }}
+                                {% endif %}
+                            </div>
                         {% elif item.paso.tipo_respuesta == 'TEXTO' %}
                             <div style="font-size: 8px; color: #666; border-bottom: 0.5px solid #ccc; width: 100%; margin-top: 2px;">
                                 {{ item.comentarios|default:"________________________________" }}
