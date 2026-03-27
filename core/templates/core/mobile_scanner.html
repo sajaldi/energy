@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         :root {
@@ -248,6 +249,23 @@
                 .then(data => {
                     if (data.success && data.redirect) {
                         window.location.href = data.redirect;
+                    } else if (data.success && data.is_routine) {
+                        Swal.fire({
+                            title: '¿Desea iniciar esta rutina?',
+                            text: data.routine_name,
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonColor: '#2563eb',
+                            cancelButtonColor: '#64748b',
+                            confirmButtonText: 'Sí, generar OT',
+                            cancelButtonText: 'Cancelar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.location.href = data.start_url;
+                            } else {
+                                qrPaused = false;
+                            }
+                        });
                     } else {
                         showToast(data.error || 'Código no válido');
                         setTimeout(() => { qrPaused = false; }, 2000);

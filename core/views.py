@@ -837,6 +837,18 @@ def qr_resolver(request):
             'message': f'Equipo encontrado: {activo.nombre}'
         })
 
+    # Caso 3: Es un código de Rutina de Mantenimiento
+    from mantenimiento.models import Rutina
+    rutina = Rutina.objects.filter(codigo_rutina__iexact=code).first()
+    if rutina:
+        return JsonResponse({
+            'success': True,
+            'is_routine': True,
+            'routine_id': rutina.id,
+            'routine_name': rutina.nombre,
+            'start_url': reverse('mantenimiento:mobile_crear_ot_rutina', args=[rutina.id])
+        })
+
     return JsonResponse({'success': False, 'error': 'Código no reconocido en el sistema'}, status=404)
 @staff_member_required
 def global_search(request):
