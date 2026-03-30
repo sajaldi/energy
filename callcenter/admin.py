@@ -150,12 +150,12 @@ class EvidenciasInline(admin.TabularInline):
 
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
-    list_display = ('folio', 'id_solicitud', 'solicitante', 'usuario_responsable', 'ubicacion', 'servicio', 'area', 'activo', 'fecha_solicitud')
-    list_filter = ('servicio', 'area', 'tipo_solicitud', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter))
+    list_display = ('folio', 'id_solicitud', 'solicitante', 'usuario_responsable', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
+    list_filter = ('servicio', 'area', 'tipo_solicitud', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
     search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
-    readonly_fields = ('creado_en', 'actualizado_en')
+    readonly_fields = ('creado_en', 'actualizado_en', 'correo_cierre')
     inlines = [EvidenciasInline]
     
     change_form_template = "admin/callcenter/solicitudticket/change_form.html"
@@ -176,7 +176,10 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             'fields': (('fecha_diagnostico', 'diagnostico'), ('fecha_actividades', 'actividades'), ('fecha_observaciones', 'observaciones'), ('fecha_observaciones_usuario', 'observaciones_usuario'))
         }),
         ('Cierre y Clasificación', {
-            'fields': (('fecha_suspension', 'fecha_cierre'), ('clasificacion_falla_final', 'categoria_falla'))
+            'fields': (('fecha_suspension', 'fecha_cierre'), ('clasificacion_falla_final', 'categoria_falla'), 'correo_cierre')
+        }),
+        ('Información Financiera / Deductivas', {
+            'fields': (('deductiva', 'proveedor_deductiva'),)
         }),
         ('Auditoría', {
             'fields': ('creado_en', 'actualizado_en'),

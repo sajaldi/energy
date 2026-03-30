@@ -24,4 +24,5 @@ urlpatterns = [
     path('ticket/<int:ticket_id>/notify-n8n/', views.notify_ticket_n8n_ajax, name='notify_ticket_n8n'),
     path('cluster/<int:cluster_id>/create-ticket/', views.create_ticket_in_cluster_ajax, name='create_ticket_in_cluster'),
     path('api/search-tickets-autocomplete/', views.search_tickets_autocomplete_ajax, name='search_tickets_autocomplete'),
+    path('api/webhook/correo-cierre-callback/', views.webhook_correo_cierre_callback, name='webhook_correo_cierre_callback'),
 ]

@@ -151,6 +151,29 @@ def send_ticket_to_power_automate_view(request, ticket_id):
         local_dt = timezone.localtime(dt)
         return local_dt.strftime('%d/%m/%Y %H:%M:%S')
 
+    # 3.5 Recolectar emails del departamento del usuario que cierra
+    emails_departamento = ""
+    try:
+        perfil = PerfilUsuario.objects.select_related('departamento').filter(usuario=request.user).first()
+        if perfil and perfil.departamento:
+            depto = perfil.departamento
+            # Emails de todos los integrantes del departamento
+            emails_list = list(
+                PerfilUsuario.objects.filter(departamento=depto)
+                .exclude(usuario__email='')
+                .exclude(usuario__email__isnull=True)
+                .values_list('usuario__email', flat=True)
+            )
+            # Agregar email del jefe/responsable del departamento si existe
+            if depto.responsable and depto.responsable.email:
+                if depto.responsable.email not in emails_list:
+                    emails_list.append(depto.responsable.email)
+            emails_departamento = ";".join(emails_list)
+            logger.info(f"Emails del departamento '{depto.nombre}': {emails_departamento}")
+    except Exception as e:
+        logger.warning(f"Error obteniendo emails del departamento: {e}")
+        emails_departamento = str(request.user.email or "")
+
     # 4. Construir Payload (JSON Schema Exacto)
     payload = {
         "folio": str(ticket.folio or ticket.id_solicitud),
@@ -172,7 +195,8 @@ def send_ticket_to_power_automate_view(request, ticket_id):
         "tiempo_total_min": int(tiempo_total),
         "cerrado_por_nombre": str(request.user.get_full_name() or request.user.username),
         "telefono_usuario": "Admin Panel",
-        "email_usuario": str(request.user.email or "")
+        "email_usuario": str(request.user.email or ""),
+        "emails_departamento": emails_departamento
     }
 
     url_power_automate = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/6260ff428abe4f88b4cd96fae4614a57/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IMrCwJsG1SsgYIYDKimFGYRkvxBFlg0MYpJWURimsLk"
@@ -410,14 +434,34 @@ def ticket_cierre_visual_view(request, ticket_id):
         ticket.diagnostico = request.POST.get('diagnostico', '')
         ticket.actividades = request.POST.get('actividades', '')
         ticket.observaciones = request.POST.get('observaciones', '')
+        
+        # Nuevos campos: Deductiva y Proveedor
+        deductiva_val = request.POST.get('deductiva', '0')
+        try:
+            from decimal import Decimal
+            ticket.deductiva = Decimal(deductiva_val.replace(',', ''))
+        except:
+            pass
+            
+        proveedor_id = request.POST.get('proveedor_deductiva')
+        if proveedor_id:
+            from mantenimiento.models import Empresa
+            ticket.proveedor_deductiva = Empresa.objects.filter(id=proveedor_id).first()
+        else:
+            ticket.proveedor_deductiva = None
+            
         ticket.save()
         return JsonResponse({'success': True})
 
     evidences = EvidenciaTicket.objects.filter(ticket=ticket).order_by('-id')
+    from mantenimiento.models import Empresa
+    proveedores = Empresa.objects.filter(activo=True).order_by('nombre')
+    
     return render(request, 'callcenter/ticket_cierre_visual.html', {
         'ticket': ticket,
         'evidences': evidences,
         'evidences_count': evidences.count(),
+        'proveedores': proveedores,
         'opts': SolicitudTicket._meta,
     })
 
@@ -798,3 +842,42 @@ def search_tickets_autocomplete_ajax(request):
         })
         
     return JsonResponse({'results': results})
+
+
+@csrf_exempt
+def webhook_correo_cierre_callback(request):
+    """
+    Power Automate llama a este endpoint para confirmar que envió el correo de cierre.
+    Espera un POST con JSON: {"folio": "SS26-XXXXXX"}
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+    try:
+        data = json.loads(request.body)
+        folio = data.get('folio', '').strip()
+        
+        if not folio:
+            return JsonResponse({'error': 'Folio is required'}, status=400)
+        
+        ticket = SolicitudTicket.objects.filter(folio=folio).first()
+        if not ticket:
+            # Intentar por id_solicitud
+            try:
+                ticket = SolicitudTicket.objects.filter(id_solicitud=int(folio)).first()
+            except (ValueError, TypeError):
+                pass
+        
+        if not ticket:
+            return JsonResponse({'error': 'Ticket not found'}, status=404)
+        
+        ticket.correo_cierre = True
+        ticket.save(update_fields=['correo_cierre'])
+        logger.info(f"Correo de cierre confirmado para ticket {ticket.folio}")
+        
+        return JsonResponse({'success': True, 'folio': ticket.folio})
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"Error en webhook_correo_cierre_callback: {e}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)

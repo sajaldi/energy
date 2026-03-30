@@ -61,6 +61,12 @@ class SolicitudTicket(models.Model):
 
     # Estado de Notificación
     cierre_enviado = models.BooleanField(default=False, verbose_name="Cierre Notificado", db_index=True)
+    correo_cierre = models.BooleanField(
+        default=False, 
+        verbose_name="Correo de Cierre Enviado", 
+        db_index=True,
+        help_text="Se marca automáticamente cuando Power Automate confirma el envío del correo de cierre"
+    )
 
     # Vinculación con Activos (Energía)
     activo = models.ForeignKey('activos.Activo', on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets', verbose_name="Activo Relacionado")
@@ -79,6 +85,25 @@ class SolicitudTicket(models.Model):
     # Auditoría Interna
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    # Información Financiera / Deductivas
+    deductiva = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        default=0.00, 
+        verbose_name="Deductiva (USD)", 
+        blank=True, 
+        null=True,
+        help_text="Monto de la deductiva en USD"
+    )
+    proveedor_deductiva = models.ForeignKey(
+        'mantenimiento.Empresa', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='deductivas_callcenter', 
+        verbose_name="Proveedor de Deductiva"
+    )
 
     def __str__(self):
         return f"{self.folio or self.id_solicitud} - {self.solicitante}"
