@@ -155,7 +155,13 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
-    readonly_fields = ('creado_en', 'actualizado_en', 'correo_cierre')
+    readonly_fields = ('creado_en', 'actualizado_en')
+
+    def get_readonly_fields(self, request, obj=None):
+        ro = list(self.readonly_fields)
+        if not request.user.is_superuser:
+            ro.append('correo_cierre')
+        return ro
     inlines = [EvidenciasInline]
     
     change_form_template = "admin/callcenter/solicitudticket/change_form.html"
