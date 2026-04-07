@@ -37,4 +37,9 @@ urlpatterns = [
     path('api/enlace/<int:enlace_id>/details/', views.get_enlace_details_ajax, name='enlace_details_ajax'),
     path('api/ubicacion/<int:parent_id>/sububicaciones/', views.api_get_sububicaciones_ajax, name='api_get_sububicaciones'),
     path('api/search-enlaces-autocomplete/', views.api_busqueda_enlaces_ajax, name='search_enlaces_autocomplete'),
+    
+    # Cronogramas Predefinidos (Templates)
+    path('cronogramas-predefinidos/', views.cronograma_predefinido_lista_view, name='callcenter_cronogramas_lista'),
+    path('cronogramas-predefinidos/nuevo/', views.cronograma_predefinido_edit_view, name='callcenter_cronograma_nuevo'),
+    path('cronogramas-predefinidos/<int:pk>/editar/', views.cronograma_predefinido_edit_view, name='callcenter_cronograma_editar'),
 ]

@@ -937,12 +937,20 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
         gantt_x = title_w + 20
         
         m_step = gantt_w / max(1, len(day_markers)-1)
+        
+        # --- NUEVO: RELLENO DE CABECERA Y TITULOS ---
+        # Relleno cabecera (Días)
+        draw.rectangle([0, 0, w, head_h], fill="#f2f5f9")
+        # Relleno columna títulos (Actividades)
+        draw.rectangle([0, 0, title_w, h], fill="#fdfdfd")
+        
         for i, m in enumerate(day_markers):
             x = gantt_x + (i * m_step)
             draw.line([(x, head_h), (x, h - foot_h)], fill="#e0e0e0", width=2)
-            draw.text((x - 20, (head_h-20)/2), f"Día {m}", fill="#666666", font=font_small)
+            draw.text((x - 20, (head_h-24)/2), f"Día {m}", fill="#34495e", font=font_small)
             
-        draw.line([(title_w, head_h), (w, head_h)], fill="#e0e0e0", width=2)
+        draw.line([(0, head_h), (w, head_h)], fill="#d5d8dc", width=3)
+        draw.line([(title_w, 0), (title_w, h)], fill="#d5d8dc", width=3)
         
         for i, t in enumerate(tareas):
             y = head_h + (i * row_h)
@@ -956,10 +964,13 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
             wp = (t.fecha_fin - t.fecha_inicio).total_seconds() / visual_max_seconds
             
             bx = gantt_x + (lp * gantt_w)
-            bw = max(wp * gantt_w, 8)
-            by1, by2 = y + 15, y + row_h - 15
+            bw = max(wp * gantt_w, 10)
+            by1, by2 = y + 12, y + row_h - 12
             
-            draw.rectangle([bx, by1, bx + bw, by2], fill="#1a5276")
+            # Sombra de la barra
+            draw.rectangle([bx+3, by1+3, bx+bw+3, by2+3], fill="#d5d8dc")
+            # Barra principal
+            draw.rectangle([bx, by1, bx + bw, by2], fill="#2e86c1")
             
         buf = io.BytesIO()
         img.save(buf, format="PNG")
@@ -972,15 +983,35 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
         doc = DocxTemplate(template_path)
         gantt_stream = generate_gantt_image_stream() if tareas.exists() else None
         
-        def get_base64_image_tag(base64_str):
-            if not base64_str: return ""
-            if "base64," in base64_str:
-                base64_str = base64_str.split("base64,")[1]
+        def get_base64_image_tag(base64_str, label=""):
+            if not base64_str:
+                logger.debug(f"Firma {label} está vacía.")
+                return ""
+            
             try:
+                if "base64," in base64_str:
+                    base64_str = base64_str.split("base64,")[-1]
+                
+                base64_str = base64_str.replace('\n', '').replace('\r', '').replace(' ', '')
                 image_data = base64.b64decode(base64_str)
-                buf = io.BytesIO(image_data)
-                return InlineImage(doc, buf, width=Mm(50))
-            except Exception:
+                
+                # RE-PROCESAMIENTO CON PIL: Asegura que el formato sea compatible
+                from PIL import Image
+                img_input = Image.open(io.BytesIO(image_data))
+                
+                # Convertir a RGBA si no lo es, o asegurar que sea un formato estándar
+                if img_input.mode not in ('RGB', 'RGBA'):
+                    img_input = img_input.convert('RGBA')
+                
+                buf = io.BytesIO()
+                img_input.save(buf, format="PNG")
+                buf.seek(0)
+                
+                img_tag = InlineImage(doc, buf, width=Mm(50))
+                logger.info(f"Firma {label} re-procesada y cargada exitosamente (Size: {img_input.size}).")
+                return img_tag
+            except Exception as e:
+                logger.error(f"Error procesando firma {label} para Word: {e}")
                 return ""
 
         ctx = {
@@ -994,8 +1025,8 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
             'SOLUCION_PROVISIONAL': acuerdo.solucion_provisional or 'Se implementó solución de mitigación provisoria.',
             'OBSERVACIONES': acuerdo.observaciones or '',
             'GANTT': InlineImage(doc, gantt_stream, width=Mm(190)) if gantt_stream else "",
-            'FIRMA_RESPONSABLE': get_base64_image_tag(acuerdo.firma_responsable),
-            'FIRMA_ENLACE': get_base64_image_tag(acuerdo.firma_enlace)
+            'FIRMA_RESPONSABLE': get_base64_image_tag(acuerdo.firma_responsable, "RESPONSABLE"),
+            'FIRMA_ENLACE': get_base64_image_tag(acuerdo.firma_enlace, "ENLACE")
         }
 
         doc.render(ctx)
@@ -1020,9 +1051,11 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
                     data = f.read()
                 os.remove(temp_docx)
                 os.remove(temp_pdf)
+                logger.info(f"PDF de Tiempo Acordado {acuerdo.id} generado exitosamente vía LibreOffice.")
                 return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
-        except Exception:
-            pass # Si falla (no está instalado), seguimos con las otras opciones
+        except Exception as e:
+            logger.warning(f"Fallo conversión LibreOffice para acuerdo {acuerdo.id}: {e}")
+            pass 
 
         # 3. Intentar conversión con docx2pdf (Solo funciona en Windows)
         try:
@@ -1036,26 +1069,51 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
                     data = f.read()
                 os.remove(temp_docx)
                 os.remove(temp_pdf)
+                logger.info(f"PDF de Tiempo Acordado {acuerdo.id} generado exitosamente vía docx2pdf (Windows).")
                 return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Fallo conversión docx2pdf para acuerdo {acuerdo.id}: {e}")
             pass
 
-        # 4. ÚLTIMO RECURSO: PDF vía HTML (Si todo lo de Word falla)
+        # 4. ÚLTIMO RECURSO: PDF vía HTML (Si todo lo de Word falla o no está disponible)
         from django.template.loader import render_to_string
-        from xhtml2pdf import pisa
+        from playwright.sync_api import sync_playwright
         import base64
+        
         gantt_b64 = ""
         if tareas.exists():
             gantt_buf = generate_gantt_image_stream()
             gantt_b64 = base64.b64encode(gantt_buf.getvalue()).decode('utf-8')
-        html_context = {'acuerdo': acuerdo, 'gantt_b64': gantt_b64}
+        
+        # Limpiar firmas para asegurar que el navegador las lea correctamente
+        firma_r = acuerdo.firma_responsable or ""
+        firma_e = acuerdo.firma_enlace or ""
+        
+        html_context = {
+            'acuerdo': acuerdo, 
+            'gantt_b64': gantt_b64,
+            'firma_r': firma_r,
+            'firma_e': firma_e
+        }
         html_string = render_to_string('callcenter/tiempo_acordado_pdf.html', html_context)
-        pdf_buffer = io.BytesIO()
-        pisa_status = pisa.CreatePDF(io.BytesIO(html_string.encode("UTF-8")), dest=pdf_buffer)
-        if not pisa_status.err:
-            pdf_buffer.seek(0)
+        logger.info(f"Generando PDF de Tiempo Acordado {acuerdo.id} vía Playwright (Fallback de alta fidelidad).")
+        
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
+                page = browser.new_page()
+                page.set_content(html_string, wait_until='networkidle')
+                pdf_bytes = page.pdf(format="A4", print_background=True, margin={'top': '1cm', 'bottom': '1cm', 'left': '1cm', 'right': '1cm'})
+                browser.close()
+                os.remove(temp_docx)
+                return pdf_bytes, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
+        except Exception as e:
+            logger.error(f"Fallo crítico en Playwright Fallback para acuerdo {acuerdo.id}: {e}")
+            # Si falla Playwright, intentar mandar al menos el DOCX
+            with open(temp_docx, "rb") as f:
+                data = f.read()
             os.remove(temp_docx)
-            return pdf_buffer.read(), f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
+            return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
         # 5. RETORNO DE EMERGENCIA: Mandar el DOCX si nada pudo hacer el PDF
         with open(temp_docx, "rb") as f:
@@ -1447,3 +1505,47 @@ def api_get_sububicaciones_ajax(request, parent_id):
             'tipo': sub.get_tipo_display() if hasattr(sub, 'get_tipo_display') else sub.tipo,
         })
     return JsonResponse({'results': results})
+
+@staff_member_required
+def cronograma_predefinido_edit_view(request, pk=None):
+    """
+    Vista unificada para crear o editar un Cronograma Predefinido y sus tareas.
+    """
+    from .models import CronogramaPredefinido
+    from .forms import CronogramaPredefinidoForm, CronogramaItemFormSet
+    from django.shortcuts import get_object_or_404, render, redirect
+    from django.contrib import messages
+
+    instance = get_object_or_404(CronogramaPredefinido, pk=pk) if pk else None
+    
+    if request.method == 'POST':
+        form = CronogramaPredefinidoForm(request.POST, instance=instance)
+        formset = CronogramaItemFormSet(request.POST, instance=instance)
+        
+        if form.is_valid() and formset.is_valid():
+            cronograma = form.save()
+            formset.instance = cronograma
+            formset.save()
+            messages.success(request, f"Cronograma '{cronograma.nombre}' guardado exitosamente.")
+            return redirect('callcenter_cronogramas_lista')
+        else:
+            messages.error(request, "Error de validación. Por favor revisa los campos.")
+    else:
+        form = CronogramaPredefinidoForm(instance=instance)
+        formset = CronogramaItemFormSet(instance=instance)
+        
+    context = {
+        'form': form,
+        'formset': formset,
+        'instance': instance,
+        'title': "Editar Cronograma" if instance else "Nuevo Cronograma"
+    }
+    return render(request, 'callcenter/cronograma_predefinido_form.html', context)
+
+@staff_member_required
+def cronograma_predefinido_lista_view(request):
+    """Lista simple de cronogramas predefinidos."""
+    from .models import CronogramaPredefinido
+    from django.shortcuts import render
+    cronogramas = CronogramaPredefinido.objects.all().select_related('departamento')
+    return render(request, 'callcenter/cronograma_predefinido_lista.html', {'cronogramas': cronogramas})
