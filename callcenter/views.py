@@ -791,36 +791,71 @@ def mobile_detalle_tiempo_acordado_view(request, pk):
     from .models import TiempoAcordado, TiempoAcordadoTarea
     from django.shortcuts import get_object_or_404
     
+    from django.utils import timezone
+    
     acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
     tareas = acuerdo.tareas.all().order_by('fecha_inicio')
     
-    # Cálculos para Diagrama de Gantt
+    # Cálculos para Diagrama de Gantt con manejo de zonas horarias
     total_start = acuerdo.creado_en
+    if total_start and timezone.is_naive(total_start):
+        total_start = timezone.make_aware(total_start)
+        
     if tareas.exists():
         first_start = tareas.first().fecha_inicio
-        if first_start < total_start:
-            total_start = first_start
+        if first_start:
+            if timezone.is_naive(first_start):
+                first_start = timezone.make_aware(first_start)
+            if first_start < total_start:
+                total_start = first_start
             
     total_end = acuerdo.fecha_solucion_final
+    if total_end and timezone.is_naive(total_end):
+        total_end = timezone.make_aware(total_end)
+    
+    # Asegurar que total_end sea posterior a total_start
+    if not total_end or total_end <= total_start:
+        total_end = total_start + timezone.timedelta(hours=1)
+        
     total_seconds = (total_end - total_start).total_seconds()
     
-    # Si por algún motivo la duración es 0 (ej: fecha_final igual al inicio), evadir error
+    # Si por algún motivo la duración es 0, evadir error
     if total_seconds <= 0:
         total_seconds = 1
         
     for tarea in tareas:
-        tarea.left_percent = (tarea.fecha_inicio - total_start).total_seconds() / total_seconds * 100
-        tarea.width_percent = (tarea.fecha_fin - tarea.fecha_inicio).total_seconds() / total_seconds * 100
+        t_start = tarea.fecha_inicio
+        t_end = tarea.fecha_fin
+        
+        if t_start and timezone.is_naive(t_start): t_start = timezone.make_aware(t_start)
+        if t_end and timezone.is_naive(t_end): t_end = timezone.make_aware(t_end)
+        
+        if t_start and t_end and total_seconds > 0:
+            tarea.left_percent = (t_start - total_start).total_seconds() / total_seconds * 100
+            tarea.width_percent = (t_end - t_start).total_seconds() / total_seconds * 100
+        else:
+            tarea.left_percent = 0
+            tarea.width_percent = 0
+            
         # Evitar anchos 0 para que siempre se vea un punto al menos
         if tarea.width_percent < 1:
             tarea.width_percent = 2
             
+    # Título seguro
+    try:
+        if acuerdo.ticket:
+            ticket_label = acuerdo.ticket.folio or acuerdo.ticket.id_solicitud
+        else:
+            ticket_label = f"ID:{acuerdo.id}"
+    except:
+        ticket_label = str(acuerdo.id)
+
     context = {
         'acuerdo': acuerdo,
         'tareas': tareas,
         'total_start': total_start,
         'total_end': total_end,
-        'title': f'Acuerdo: {acuerdo.ticket.folio or acuerdo.ticket.id_solicitud}'
+        'title': f'Acuerdo: {ticket_label}'
     }
     return render(request, 'callcenter/mobile_detalle_tiempo_acordado.html', context)
 
@@ -841,12 +876,21 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
     import math
     from PIL import Image, ImageDraw, ImageFont
 
+    from django.utils import timezone
+    
     tareas = acuerdo.tareas.all().order_by('fecha_inicio')
     
     total_start = acuerdo.creado_en
+    if total_start and timezone.is_naive(total_start):
+        total_start = timezone.make_aware(total_start)
+        
     if tareas.exists():
         first_start = tareas.first().fecha_inicio
-        if first_start < total_start: total_start = first_start
+        if first_start:
+            if timezone.is_naive(first_start):
+                first_start = timezone.make_aware(first_start)
+            if first_start < total_start:
+                total_start = first_start
             
     total_end = acuerdo.fecha_solucion_final
     total_seconds = (total_end - total_start).total_seconds()
