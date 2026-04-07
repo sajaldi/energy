@@ -966,34 +966,7 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
         buf.seek(0)
         return buf
 
-    # --- NUEVA LÓGICA: GENERACIÓN PDF VÍA HTML (LINUX FRIENDLY) ---
-    from django.template.loader import render_to_string
-    from xhtml2pdf import pisa
-    import base64
-
-    # 1. Preparar Gantt para HTML
-    gantt_b64 = ""
-    if tareas.exists():
-        gantt_buf = generate_gantt_image_stream()
-        gantt_b64 = base64.b64encode(gantt_buf.getvalue()).decode('utf-8')
-
-    # 2. Renderizar Template HTML
-    html_context = {
-        'acuerdo': acuerdo,
-        'gantt_b64': gantt_b64,
-        # Notas: Las firmas en el modelo ya vienen como data:image/png;base64...
-    }
-    html_string = render_to_string('callcenter/tiempo_acordado_pdf.html', html_context)
-
-    # 3. Convertir a PDF en memoria
-    pdf_buffer = io.BytesIO()
-    pisa_status = pisa.CreatePDF(io.BytesIO(html_string.encode("UTF-8")), dest=pdf_buffer)
-
-    if not pisa_status.err:
-        pdf_buffer.seek(0)
-        return pdf_buffer.read(), f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
-
-    # --- FALLBACK: DOCX (Si falla el PDF por alguna razón) ---
+    # --- LOGICA: GENERACIÓN DOCX USANDO DOCXTPL ---
     template_path = os.path.join(settings.BASE_DIR, 'tiempo_acordado_template.docx')
     if os.path.exists(template_path):
         doc = DocxTemplate(template_path)
@@ -1027,11 +1000,31 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
 
         doc.render(ctx)
         
-        # Intentar convertir DOCX a PDF (solo funcionará en Windows)
-        temp_docx = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}.docx")
+        # 1. Guardar DOCX temporal
+        temp_dir = tempfile.gettempdir()
+        temp_docx = os.path.join(temp_dir, f"{uuid.uuid4()}.docx")
         temp_pdf = temp_docx.replace(".docx", ".pdf")
         doc.save(temp_docx)
-        
+
+        # 2. Intentar conversión con LibreOffice (LibreOffice debe estar en el servidor)
+        import subprocess
+        try:
+            # Comando estándar para Linux: soffice --headless --convert-to pdf --outdir <dir> <archivo>
+            subprocess.run([
+                'soffice', '--headless', '--convert-to', 'pdf',
+                '--outdir', temp_dir, temp_docx
+            ], check=True, capture_output=True, timeout=30)
+            
+            if os.path.exists(temp_pdf):
+                with open(temp_pdf, "rb") as f:
+                    data = f.read()
+                os.remove(temp_docx)
+                os.remove(temp_pdf)
+                return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
+        except Exception:
+            pass # Si falla (no está instalado), seguimos con las otras opciones
+
+        # 3. Intentar conversión con docx2pdf (Solo funciona en Windows)
         try:
             from docx2pdf import convert as docx2pdf_convert
             import pythoncom
@@ -1047,11 +1040,31 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
         except Exception:
             pass
 
-        # Si todo falla, devolver el DOCX generado
+        # 4. ÚLTIMO RECURSO: PDF vía HTML (Si todo lo de Word falla)
+        from django.template.loader import render_to_string
+        from xhtml2pdf import pisa
+        import base64
+        gantt_b64 = ""
+        if tareas.exists():
+            gantt_buf = generate_gantt_image_stream()
+            gantt_b64 = base64.b64encode(gantt_buf.getvalue()).decode('utf-8')
+        html_context = {'acuerdo': acuerdo, 'gantt_b64': gantt_b64}
+        html_string = render_to_string('callcenter/tiempo_acordado_pdf.html', html_context)
+        pdf_buffer = io.BytesIO()
+        pisa_status = pisa.CreatePDF(io.BytesIO(html_string.encode("UTF-8")), dest=pdf_buffer)
+        if not pisa_status.err:
+            pdf_buffer.seek(0)
+            os.remove(temp_docx)
+            return pdf_buffer.read(), f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
+
+        # 5. RETORNO DE EMERGENCIA: Mandar el DOCX si nada pudo hacer el PDF
         with open(temp_docx, "rb") as f:
             data = f.read()
         os.remove(temp_docx)
         return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+    # Si ni siquiera existe el template de Word, retornar error vacío (pero no debería pasar)
+    return b"", "error.txt", "text/plain"
 
     # Si ni siquiera existe el template de Word, retornar error vacío (pero no debería pasar)
     return b"", "error.txt", "text/plain"
