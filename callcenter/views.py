@@ -547,8 +547,15 @@ def cluster_tickets_view(request, cluster_id):
     import pandas as pd
     from xhtml2pdf import pisa
     
+    from django.db.models import Prefetch, Count, Q
     cluster = get_object_or_404(GrupoTicket, id=cluster_id)
-    tickets = cluster.tickets.all().select_related('ubicacion', 'usuario_responsable').order_by('-fecha_solicitud')
+    
+    # Optimizamos agregando el conteo de tiempos acordados asociados
+    tickets = cluster.tickets.all().select_related(
+        'ubicacion', 'usuario_responsable'
+    ).annotate(
+        num_tiempos_acordados=Count('tiempos_acordados')
+    ).order_by('-fecha_solicitud')
     
     # Calcular estadísticas dirigidas (siempre sobre el total del cluster)
     total = tickets.count()
@@ -777,6 +784,218 @@ def notify_ticket_n8n_ajax(request, ticket_id):
     except Exception as e:
         logger.error(f"Error enviando notificación a n8n: {str(e)}")
         return JsonResponse({'success': False, 'error': str(e)})
+
+@staff_member_required
+def mobile_detalle_tiempo_acordado_view(request, pk):
+    """Vista Fiori para ver el detalle de un Tiempo Acordado desde la App."""
+    from .models import TiempoAcordado, TiempoAcordadoTarea
+    from django.shortcuts import get_object_or_404
+    
+    acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
+    tareas = acuerdo.tareas.all().order_by('fecha_inicio')
+    
+    # Cálculos para Diagrama de Gantt
+    total_start = acuerdo.creado_en
+    if tareas.exists():
+        first_start = tareas.first().fecha_inicio
+        if first_start < total_start:
+            total_start = first_start
+            
+    total_end = acuerdo.fecha_solucion_final
+    total_seconds = (total_end - total_start).total_seconds()
+    
+    # Si por algún motivo la duración es 0 (ej: fecha_final igual al inicio), evadir error
+    if total_seconds <= 0:
+        total_seconds = 1
+        
+    for tarea in tareas:
+        tarea.left_percent = (tarea.fecha_inicio - total_start).total_seconds() / total_seconds * 100
+        tarea.width_percent = (tarea.fecha_fin - tarea.fecha_inicio).total_seconds() / total_seconds * 100
+        # Evitar anchos 0 para que siempre se vea un punto al menos
+        if tarea.width_percent < 1:
+            tarea.width_percent = 2
+            
+    context = {
+        'acuerdo': acuerdo,
+        'tareas': tareas,
+        'total_start': total_start,
+        'total_end': total_end,
+        'title': f'Acuerdo: {acuerdo.ticket.folio or acuerdo.ticket.id_solicitud}'
+    }
+    return render(request, 'callcenter/mobile_detalle_tiempo_acordado.html', context)
+
+@staff_member_required
+@staff_member_required
+def exportar_tiempo_acordado_pdf_view(request, pk):
+    """Genera el PDF usando docxtpl (Jinja sobre MS Word) y covierte con docx2pdf."""
+    from .models import TiempoAcordado
+    from django.shortcuts import get_object_or_404
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from django.utils.dateformat import format as django_date_format
+    from django.conf import settings
+    from docxtpl import DocxTemplate, InlineImage
+    from docx.shared import Mm
+    import os
+    import io
+    import tempfile
+    import uuid
+    
+    acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
+    tareas = acuerdo.tareas.all().order_by('fecha_inicio')
+    
+    total_start = acuerdo.creado_en
+    if tareas.exists():
+        first_start = tareas.first().fecha_inicio
+        if first_start < total_start: total_start = first_start
+            
+    total_end = acuerdo.fecha_solucion_final
+    total_seconds = (total_end - total_start).total_seconds()
+    if total_seconds <= 0: total_seconds = 1
+        
+    total_duration_days = total_seconds / 86400.0
+    if total_duration_days < 1: total_duration_days = 1
+
+    if total_duration_days <= 12: step = 1
+    elif total_duration_days <= 25: step = 2
+    elif total_duration_days <= 50: step = 5
+    elif total_duration_days <= 100: step = 10
+    else:
+        import math
+        raw_step = total_duration_days / 8.0
+        step = int(math.ceil(raw_step / 10.0)) * 10
+    
+    day_markers = []
+    curr = 0
+    while curr <= total_duration_days:
+        day_markers.append(int(curr))
+        curr += step
+    if day_markers[-1] < total_duration_days:
+        day_markers.append(day_markers[-1] + step)
+        
+    visual_max_days = day_markers[-1]
+    visual_max_seconds = visual_max_days * 86400.0
+    
+    # Generate Gantt Image with Pillow explicitly to Byte Stream
+    from PIL import Image, ImageDraw, ImageFont
+    
+    def generate_gantt_image_stream():
+        w, row_h, head_h, foot_h = 1600, 60, 60, 40
+        h = head_h + (len(tareas) * row_h) + foot_h
+        img = Image.new('RGB', (w, h), color="#ffffff")
+        draw = ImageDraw.Draw(img)
+        
+        try: font_bold = ImageFont.truetype("arialbd.ttf", 26)
+        except: font_bold = ImageFont.load_default()
+        try: font = ImageFont.truetype("arial.ttf", 24)
+        except: font = ImageFont.load_default()
+        try: font_small = ImageFont.truetype("arial.ttf", 22)
+        except: font_small = ImageFont.load_default()
+        
+        title_w = 500
+        gantt_w = w - title_w - 40
+        gantt_x = title_w + 20
+        
+        m_step = gantt_w / max(1, len(day_markers)-1)
+        for i, m in enumerate(day_markers):
+            x = gantt_x + (i * m_step)
+            draw.line([(x, head_h), (x, h - foot_h)], fill="#e0e0e0", width=2)
+            draw.text((x - 20, (head_h-20)/2), f"Día {m}", fill="#666666", font=font_small)
+            
+        draw.line([(title_w, head_h), (w, head_h)], fill="#e0e0e0", width=2)
+        
+        for i, t in enumerate(tareas):
+            y = head_h + (i * row_h)
+            desc = (t.descripcion[:50] + '..') if len(t.descripcion) > 50 else t.descripcion
+            text_bbox = draw.textbbox((0, 0), desc.upper(), font=font_bold)
+            text_w = text_bbox[2] - text_bbox[0]
+            draw.text((title_w - text_w - 15, y + (row_h-24)/2), desc.upper(), fill="#000000", font=font_bold)
+            draw.line([(title_w, y + row_h), (w, y + row_h)], fill="#e0e0e0", width=2)
+            
+            lp = (t.fecha_inicio - total_start).total_seconds() / visual_max_seconds
+            wp = (t.fecha_fin - t.fecha_inicio).total_seconds() / visual_max_seconds
+            
+            bx = gantt_x + (lp * gantt_w)
+            bw = max(wp * gantt_w, 8)
+            by1, by2 = y + 15, y + row_h - 15
+            
+            draw.rectangle([bx, by1, bx + bw, by2], fill="#1a5276")
+            
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        return buf
+
+    # === Lógica docxtpl ===
+    template_path = os.path.join(settings.BASE_DIR, 'tiempo_acordado_template.docx')
+    doc = DocxTemplate(template_path)
+
+    gantt_stream = generate_gantt_image_stream() if tareas.exists() else None
+    
+    def get_base64_image_tag(base64_str):
+        if not base64_str: return ""
+        import base64
+        import io
+        if "base64," in base64_str:
+            base64_str = base64_str.split("base64,")[1]
+        try:
+            image_data = base64.b64decode(base64_str)
+            buf = io.BytesIO(image_data)
+            return InlineImage(doc, buf, width=Mm(50))
+        except Exception:
+            return ""
+
+    context = {
+        'FOLIO': acuerdo.ticket.folio or acuerdo.ticket.id_solicitud,
+        'ENLACE_MAO': acuerdo.enlace.nombre if acuerdo.enlace else '',
+        'FECHA_SOLICITUD': django_date_format(acuerdo.ticket.fecha_solicitud, "l d/m/Y g:i a") if acuerdo.ticket.fecha_solicitud else '',
+        'INSTITUCION': acuerdo.institucion.nombre if acuerdo.institucion else '',
+        'UBICACION': acuerdo.ticket.area or "Cuerpo bajo A Nivel 4",
+        'FECHA_SOLUCION': django_date_format(acuerdo.fecha_solucion_final, "l d/m/Y g:i a") if acuerdo.fecha_solucion_final else '',
+        'MOTIVO': acuerdo.motivo_extension or '',
+        'SOLUCION_PROVISIONAL': acuerdo.solucion_provisional or 'Se implementó solución de mitigación provisoria.',
+        'OBSERVACIONES': acuerdo.observaciones or '',
+        'GANTT': InlineImage(doc, gantt_stream, width=Mm(190)) if gantt_stream else "",
+        'FIRMA_RESPONSABLE': get_base64_image_tag(acuerdo.firma_responsable),
+        'FIRMA_ENLACE': get_base64_image_tag(acuerdo.firma_enlace)
+    }
+
+    doc.render(context)
+    
+    unique_id = uuid.uuid4().hex
+    temp_docx = os.path.join(tempfile.gettempdir(), f"{unique_id}.docx")
+    temp_pdf = os.path.join(tempfile.gettempdir(), f"{unique_id}.pdf")
+    
+    doc.save(temp_docx)
+
+    # === Lógica docx2pdf ===
+    fallback_to_docx = False
+    try:
+        from docx2pdf import convert as docx2pdf_convert
+        import pythoncom
+        pythoncom.CoInitialize()
+        docx2pdf_convert(temp_docx, temp_pdf)
+    except Exception as e:
+        fallback_to_docx = True
+
+    if fallback_to_docx or not os.path.exists(temp_pdf):
+        # Fallback de Seguridad: Devolver DOCX en lugar de colapsar la petición
+        response = HttpResponse(open(temp_docx, 'rb').read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response['Content-Disposition'] = f'attachment; filename="Acuerdo_{acuerdo.ticket.folio or acuerdo.id}.docx"'
+        os.remove(temp_docx)
+        return response
+
+    # Respuesta Exitosa con PDF
+    response = HttpResponse(open(temp_pdf, 'rb').read(), content_type='application/pdf')
+    filename = f"Acuerdo_{acuerdo.ticket.folio or acuerdo.id}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    # Cleanup memory
+    os.remove(temp_docx)
+    os.remove(temp_pdf)
+    
+    return response
+
 @staff_member_required
 @require_POST
 def create_ticket_in_cluster_ajax(request, cluster_id):
@@ -834,11 +1053,25 @@ def search_tickets_autocomplete_ajax(request):
     
     results = []
     for t in tickets:
+        # Formatear fecha
+        fecha_str = t.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if t.fecha_solicitud else "Sin fecha"
+        
+        # Obtener ubicación
+        ubicacion_str = t.ubicacion.ruta_completa if t.ubicacion else (t.area or "No especificada")
+        
+        # Descripción completa
+        desc_completa = t.solicitud_descripcion or t.falla_descripcion or "Sin descripción"
+        
         results.append({
             'id': t.id,
             'id_solicitud': t.id_solicitud,
             'folio': t.folio,
-            'text': f"{t.folio or t.id_solicitud} - {t.solicitud_descripcion[:50]}..."
+            'text': f"{t.folio or t.id_solicitud} - {desc_completa[:50]}...",
+            # Datos adicionales para el card
+            'full_description': desc_completa,
+            'fecha': fecha_str,
+            'ubicacion': ubicacion_str,
+            'reportado_por': t.solicitante or "No identificado"
         })
         
     return JsonResponse({'results': results})
@@ -881,3 +1114,169 @@ def webhook_correo_cierre_callback(request):
     except Exception as e:
         logger.error(f"Error en webhook_correo_cierre_callback: {e}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
+
+@staff_member_required
+def get_enlace_details_ajax(request, enlace_id):
+    """Retorna los datos de Institución y Ubicación de un enlace."""
+    from .models import Enlace
+    enlace = get_object_or_404(Enlace, id=enlace_id)
+    return JsonResponse({
+        'institucion_id': enlace.institucion_id,
+        'ubicacion_id': enlace.ubicacion_id,
+    })
+
+@staff_member_required
+def api_busqueda_enlaces_ajax(request):
+    """Búsqueda dinámica de Enlaces (Contactos) por nombre o institución."""
+    from .models import Enlace
+    from django.db.models import Q
+    
+    q = request.GET.get('q', '')
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+        
+    enlaces = Enlace.objects.select_related('institucion', 'ubicacion').filter(
+        Q(nombre__icontains=q) | Q(institucion__nombre__icontains=q) | Q(institucion__acronimo__icontains=q)
+    )[:15]
+    
+    results = []
+    for e in enlaces:
+        results.append({
+            'id': e.id,
+            'text': f"{e.nombre} - {e.institucion.nombre}",
+            'institucion_id': e.institucion_id,
+            'inst_nombre': e.institucion.nombre,
+            'ubicacion_id': e.ubicacion_id,
+            'telefono': e.telefono or "No registrado",
+            'email': e.email or "No registrado",
+            'ubicacion_nombre': e.ubicacion.nombre if e.ubicacion else "Misma de institución"
+        })
+        
+    return JsonResponse({'results': results})
+
+@staff_member_required
+def tiempo_acordado_dashboard_view(request):
+    """
+    Dashboard para visualizar los Tiempos Acordados y su Timeline.
+    Filtrado por departamento del usuario.
+    """
+    from .models import TiempoAcordado
+    from core.models import PerfilUsuario
+    
+    # 1. Obtener departamento del usuario para filtrado
+    user_dept = None
+    try:
+        if hasattr(request.user, 'perfil'):
+            user_dept = request.user.perfil.departamento
+    except Exception as e:
+        logger.warning(f"Error detectando departamento del usuario: {e}")
+
+    # 2. Queryset Base con optimización
+    qs = TiempoAcordado.objects.select_related(
+        'ticket', 'enlace', 'institucion', 'ubicacion', 'departamento', 'usuario_creador'
+    ).prefetch_related('tareas').order_by('fecha_solucion_final')
+
+    # 3. Lógica de visibilidad por departamento
+    if not request.user.is_superuser:
+        if user_dept:
+            qs = qs.filter(departamento=user_dept)
+        else:
+            # Respaldo: si no hay departamento, solo ve los creados por él
+            qs = qs.filter(usuario_creador=request.user)
+
+    # 4. Estadísticas rápidas
+    stats = {
+        'total': qs.count(),
+        'pendientes': qs.filter(estatus__in=['BORRADOR', 'PENDIENTE']).count(),
+        'en_proceso': qs.filter(estatus='APROBADO').count(),
+        'vencidos': qs.filter(estatus='VENCIDO').count(),
+    }
+
+    context = {
+        'acuerdos': qs,
+        'stats': stats,
+        'user_dept': user_dept,
+        'title': 'Dashboard Tiempos Acordados'
+    }
+    return render(request, 'callcenter/tiempo_acordado/dashboard.html', context)
+    
+@staff_member_required
+def mobile_crear_tiempo_acordado_view(request):
+    """Vista Fiori para crear un Tiempo Acordado desde la App."""
+    from .models import SolicitudTicket, Enlace, Institucion, TiempoAcordado, TiempoAcordadoTarea
+    from activos.models import Ubicacion
+    from django.utils import timezone
+    from datetime import datetime
+    
+    if request.method == 'POST':
+        try:
+            # 1. Crear el Acuerdo Base
+            ticket_id = request.POST.get('ticket')
+            enlace_id = request.POST.get('enlace')
+            ubicacion_id = request.POST.get('ubicacion')
+            fecha_final_str = request.POST.get('fecha_solucion_final')
+            
+            if not ticket_id or not enlace_id or not fecha_final_str:
+                return JsonResponse({'success': False, 'error': 'Ticket, Enlace y Fecha Final son requeridos.'})
+
+            acuerdo = TiempoAcordado.objects.create(
+                ticket_id=ticket_id,
+                enlace_id=enlace_id,
+                ubicacion_id=ubicacion_id if ubicacion_id else None,
+                motivo_extension=request.POST.get('motivo_extension', ''),
+                solucion_provisional=request.POST.get('solucion_provisional', ''),
+                observaciones=request.POST.get('observaciones', ''),
+                fecha_solucion_final=timezone.make_aware(datetime.fromisoformat(fecha_final_str)),
+                usuario_creador=request.user,
+                estatus='BORRADOR',
+                firma_enlace=request.POST.get('firma_enlace'),
+                firma_responsable=request.POST.get('firma_responsable')
+            )
+            
+            # 2. Procesar Tareas del Cronograma
+            tareas_desc = request.POST.getlist('tarea_descripcion[]')
+            tareas_inicio = request.POST.getlist('tarea_inicio[]')
+            tareas_fin = request.POST.getlist('tarea_fin[]')
+            
+            objs_tareas = []
+            for i in range(len(tareas_desc)):
+                if tareas_desc[i].strip() and tareas_inicio[i] and tareas_fin[i]:
+                    objs_tareas.append(TiempoAcordadoTarea(
+                        tiempo_acordado=acuerdo,
+                        descripcion=tareas_desc[i],
+                        fecha_inicio=timezone.make_aware(datetime.fromisoformat(tareas_inicio[i])),
+                        fecha_fin=timezone.make_aware(datetime.fromisoformat(tareas_fin[i]))
+                    ))
+            
+            if objs_tareas:
+                TiempoAcordadoTarea.objects.bulk_create(objs_tareas)
+                
+            return JsonResponse({'success': True, 'id': acuerdo.id})
+        except Exception as e:
+            logger.error(f"Error creando Tiempo Acordado móvil: {e}", exc_info=True)
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    # Contexto para el GET
+    # Solo mostramos ubicaciones que son de tipo EDIFICIO para el primer selector
+    edificios = Ubicacion.objects.filter(tipo='EDIFICIO').order_by('nombre')
+    enlaces = Enlace.objects.select_related('institucion', 'ubicacion').all().order_by('nombre')
+    
+    return render(request, 'callcenter/mobile_crear_tiempo_acordado.html', {
+        'enlaces': enlaces,
+        'edificios': edificios,
+        'title': 'Nuevo Tiempo Acordado'
+    })
+
+@staff_member_required
+def api_get_sububicaciones_ajax(request, parent_id):
+    """Retorna sub-ubicaciones (ej. Niveles de un Edificio) para el selector jerárquico."""
+    from activos.models import Ubicacion
+    sub_ubicaciones = Ubicacion.objects.filter(padre_id=parent_id).order_by('nombre')
+    results = []
+    for sub in sub_ubicaciones:
+        results.append({
+            'id': sub.id,
+            'nombre': sub.nombre,
+            'tipo': sub.get_tipo_display() if hasattr(sub, 'get_tipo_display') else sub.tipo,
+        })
+    return JsonResponse({'results': results})
