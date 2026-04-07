@@ -13,4 +13,5 @@ urlpatterns = [
     path('kpi/import-background/', views.import_kpis_background, name='kpi_import_background'),
     path('kpi/import-background/process/', views.import_kpis_process, name='kpi_import_process'),
     path('kpi/import-background/progress/', views.import_kpis_progress, name='kpi_import_progress'),
+    path('kpi/dashboard/', views.kpi_dashboard_view, name='kpi_dashboard'),
 ]

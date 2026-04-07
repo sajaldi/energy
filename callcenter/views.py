@@ -1227,6 +1227,8 @@ def enviar_tiempo_acordado_power_automate_ajax(request, pk):
         response = requests.post(url, json=payload, timeout=30)
         
         if response.status_code in [200, 202]:
+            acuerdo.enviado = True
+            acuerdo.save(update_fields=['enviado'])
             return JsonResponse({"status": "success", "message": "Acuerdo enviado correctamente a Power Automate."})
         else:
             return JsonResponse({
@@ -1689,3 +1691,26 @@ def cronograma_predefinido_lista_view(request):
     from django.shortcuts import render
     cronogramas = CronogramaPredefinido.objects.all().select_related('departamento')
     return render(request, 'callcenter/cronograma_predefinido_lista.html', {'cronogramas': cronogramas})
+@login_required
+def mobile_ticket_detalle_view(request, pk):
+    """
+    Vista premium y optimizada para móviles para visualizar el detalle de un ticket.
+    """
+    ticket = get_object_or_404(
+        SolicitudTicket.objects.select_related('activo', 'ubicacion', 'usuario_responsable'), 
+        pk=pk
+    )
+    
+    # Obtener evidencias relacionadas
+    evidencias = ticket.evidencias.all().order_by('-fecha_carga')
+    
+    # Obtener Tiempos Acordados relacionados
+    tiempos_acordados = ticket.tiempos_acordados.all().order_by('-creado_en')
+    
+    context = {
+        'ticket': ticket,
+        'evidencias': evidencias,
+        'tiempos_acordados': tiempos_acordados,
+        'title': f"Ticket {ticket.folio or ticket.id_solicitud}"
+    }
+    return render(request, 'callcenter/mobile_ticket_detalle.html', context)

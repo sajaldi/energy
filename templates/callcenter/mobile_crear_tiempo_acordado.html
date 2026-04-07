@@ -428,6 +428,24 @@
                 <div class="fiori-group-title">
                     <ion-icon name="list-outline"></ion-icon> Cronograma de Tareas
                 </div>
+
+                <!-- NEW: Precarga de Plantillas -->
+                <div style="background: #fdf2f7; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #fce4ec;">
+                    <div class="form-field" style="margin-bottom: 10px;">
+                        <label style="color: #d81b60;">Cargar Plantilla Predefinida</label>
+                        <select id="select-plantilla-crono">
+                            <option value="">-- Seleccionar Plantilla --</option>
+                            {% for p in cronogramas_templates %}
+                            <option value="{{ p.id }}">{{ p.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-field" style="margin-bottom: 0;">
+                        <label>Fecha de Inicio Estimada</label>
+                        <input type="datetime-local" id="fecha-inicio-base" value="{{ now|date:'Y-m-d\TH:i' }}">
+                        <p style="font-size: 10px; color: #888; margin-top: 4px;">* Las fechas se recalcularán automáticamente según la duración y predecesores.</p>
+                    </div>
+                </div>
                 
                 <div id="tasks-container">
                     <!-- Tareas dinámicas -->
@@ -626,30 +644,119 @@
 
             // --- Tareas Dinámicas ---
             let taskCount = 0;
-            $('#btn-add-task').click(function() {
+
+            // --- Nueva Lógica de Cálculo Dinámico de Fecha Final ---
+            function updateFinalDeadline() {
+                let maxFinal = null;
+                $('input[name="tarea_fin[]"]').each(function() {
+                    let val = $(this).val();
+                    if (val) {
+                        let d = new Date(val);
+                        if (!maxFinal || d > maxFinal) maxFinal = d;
+                    }
+                });
+                
+                if (maxFinal) {
+                    $('input[name="fecha_solucion_final"]').val(formatDateTimeLocal(maxFinal));
+                }
+            }
+
+            function addTaskRow(descripcion = '', inicio = '', fin = '') {
                 taskCount++;
                 const html = `
                     <div class="task-row" id="task-${taskCount}">
-                        <button type="button" class="btn-remove-task" onclick="$('#task-${taskCount}').remove()">
+                        <button type="button" class="btn-remove-task" onclick="$('#task-${taskCount}').remove(); updateFinalDeadline();">
                             <ion-icon name="close-circle"></ion-icon>
                         </button>
                         <div class="form-field">
                             <label>Descripción Actividad</label>
-                            <input type="text" name="tarea_descripcion[]" placeholder="Describa la tarea..." required>
+                            <input type="text" name="tarea_descripcion[]" value="${descripcion}" placeholder="Describa la tarea..." required>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                             <div class="form-field">
                                 <label>Inicio</label>
-                                <input type="datetime-local" name="tarea_inicio[]" required>
+                                <input type="datetime-local" class="tarea-inicio" name="tarea_inicio[]" value="${inicio}" required>
                             </div>
                             <div class="form-field">
                                 <label>Fin</label>
-                                <input type="datetime-local" name="tarea_fin[]" required>
+                                <input type="datetime-local" class="tarea-fin" name="tarea_fin[]" value="${fin}" required>
                             </div>
                         </div>
                     </div>
                 `;
-                $('#tasks-container').append(html);
+                const $row = $(html);
+                $row.find('.tarea-fin').on('change', function() {
+                    updateFinalDeadline();
+                });
+                $('#tasks-container').append($row);
+                
+                if (fin) updateFinalDeadline();
+            }
+
+            $('#btn-add-task').click(function() {
+                addTaskRow();
+            });
+
+            // --- Lógica de Precarga de Cronogramas ---
+            function formatDateTimeLocal(date) {
+                const offset = date.getTimezoneOffset() * 60000;
+                const localDate = new Date(date.getTime() - offset);
+                return localDate.toISOString().substring(0, 16);
+            }
+
+            $('#select-plantilla-crono').change(function() {
+                const cronoId = $(this).val();
+                if (!cronoId) return;
+
+                const baseDateStr = $('#fecha-inicio-base').val();
+                const baseDate = baseDateStr ? new Date(baseDateStr) : new Date();
+
+                Swal.fire({
+                    title: 'Cargando Plantilla...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                const urlBase = "{% url 'callcenter:api_get_cronograma_items_ajax' 0 %}";
+                const url = urlBase.replace('0', cronoId);
+
+                $.get(url, function(res) {
+                    Swal.close();
+                    if (res.success && res.items.length > 0) {
+                        $('#tasks-container').empty();
+                        const taskEnds = {};
+                        
+                        res.items.forEach(item => {
+                            let startDate = new Date(baseDate);
+                            
+                            // Lógica de Predecesores
+                            if (item.predecesores_numeros && item.predecesores_numeros.length > 0) {
+                                let maxEnd = 0;
+                                item.predecesores_numeros.forEach(num => {
+                                    if (taskEnds[num]) {
+                                        maxEnd = Math.max(maxEnd, taskEnds[num].getTime());
+                                    }
+                                });
+                                if (maxEnd > 0) startDate = new Date(maxEnd);
+                            }
+                            
+                            // Calcular Fin (Suma de días)
+                            let endDate = new Date(startDate);
+                            endDate.setDate(endDate.getDate() + item.duracion_dias);
+                            
+                            taskEnds[item.numero] = endDate;
+                            
+                            addTaskRow(item.descripcion, formatDateTimeLocal(startDate), formatDateTimeLocal(endDate));
+                        });
+
+                        // Sincronizar fecha final global
+                        updateFinalDeadline();
+                        
+                        Swal.fire({ icon: 'success', title: 'Plantilla Cargada', text: 'Se han generado las tareas y recalculado las fechas.', timer: 2000, showConfirmButton: false });
+                    }
+                }).fail(function() {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar la plantilla.' });
+                });
             });
 
             // Añadir una tarea por defecto
@@ -784,8 +891,42 @@
                             data: $('#tiempo-acordado-form').serialize(),
                             success: function(res) {
                                 if (res.success) {
-                                    Swal.fire({ icon: 'success', title: 'Acuerdo Guardado', text: 'El tiempo acordado con firma se creó correctamente.' })
-                                    .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Acuerdo Guardado',
+                                        text: 'El acuerdo se creó correctamente. ¿Desea enviarlo por correo ahora?',
+                                        showCancelButton: true,
+                                        confirmButtonColor: '#0070f2',
+                                        cancelButtonColor: '#6c757d',
+                                        confirmButtonText: 'Sí, enviar ahora',
+                                        cancelButtonText: 'No, solo guardar'
+                                    }).then((sendResult) => {
+                                        if (sendResult.isConfirmed) {
+                                            Swal.fire({ 
+                                                title: 'Enviando Reporte...', 
+                                                text: 'Esto puede tardar unos segundos.',
+                                                allowOutsideClick: false, 
+                                                didOpen: () => { Swal.showLoading(); } 
+                                            });
+
+                                            let sendUrl = "{% url 'callcenter:enviar_tiempo_acordado_power_automate' 0 %}".replace('0', res.id);
+                                            $.ajax({
+                                                url: sendUrl,
+                                                method: 'POST',
+                                                data: { 'csrfmiddlewaretoken': '{{ csrf_token }}' },
+                                                success: function(sendRes) {
+                                                    Swal.fire({ icon: 'success', title: 'Enviado', text: 'El reporte ha sido enviado exitosamente.' })
+                                                    .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
+                                                },
+                                                error: function() {
+                                                    Swal.fire({ icon: 'error', title: 'Error al enviar', text: 'El acuerdo se guardó, pero no se pudo enviar el correo.' })
+                                                    .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
+                                                }
+                                            });
+                                        } else {
+                                            window.location.href = '{% url "core:mobile_dashboard" %}';
+                                        }
+                                    });
                                 } else {
                                     Swal.fire({ icon: 'error', title: 'Error', text: res.error });
                                 }

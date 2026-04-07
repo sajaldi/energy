@@ -1,0 +1,352 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ title }} - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    {% include 'core/fiori_tokens.html' %}
+
+    <style>
+        :root {
+            --primary: #005fb8;
+            --success: #16a34a;
+            --warning: #b45309;
+            --danger: #dc3545;
+            --card-shadow: var(--sap-card-shadow);
+        }
+
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            color: var(--sap-text-color);
+            padding-bottom: 90px;
+        }
+
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .back-btn {
+            font-size: 28px;
+            color: white;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+        }
+
+        .container {
+            padding: 16px;
+        }
+
+        /* Status Badge */
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+        }
+
+        .status-open { background: #fffbeb; color: #b45309; border-color: #b45309; }
+        .status-closed { background: #f0fdf4; color: #16a34a; border-color: #16a34a; }
+
+        /* Main Info Card */
+        .info-card {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            padding: 20px;
+            box-shadow: var(--sap-card-shadow);
+            border: 1px solid var(--sap-border-color);
+            margin-bottom: 16px;
+        }
+
+        .ticket-folio {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 8px 0;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 15px;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 11px;
+            color: var(--sap-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .info-item p {
+            margin: 0;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* Sections */
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            margin: 25px 0 12px 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .block-text {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: var(--sap-card-shadow);
+            border: 1px solid var(--sap-border-color);
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        /* Evidence Gallery */
+        .evidence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+        }
+
+        .evidence-item {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--sap-border-color);
+            background: #eee;
+        }
+
+        .evidence-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Timeline / Extension Tickets */
+        .timeline-card {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--primary);
+            box-shadow: var(--sap-card-shadow);
+        }
+
+        /* Actions Footer */
+        .actions-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 12px 16px;
+            display: flex;
+            gap: 12px;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+            z-index: 1000;
+            border-top: 1px solid var(--sap-border-color);
+        }
+
+        .btn {
+            flex: 1;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: white; color: var(--sap-text-color); border: 1px solid var(--sap-border-color); }
+    </style>
+</head>
+
+<body>
+
+    <header class="fiori-header">
+        <button onclick="window.location.href='{% url 'activos:mobile_busqueda' %}?q={{ ticket.folio }}'" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+        <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Detalle de Ticket</h1>
+    </header>
+
+    <div class="container">
+
+        <!-- Ticket Header Card -->
+        <div class="info-card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <span class="badge-status {% if ticket.fecha_cierre %}status-closed{% else %}status-open{% endif %}">
+                    {% if ticket.fecha_cierre %}Cerrado{% else %}Abierto{% endif %}
+                </span>
+                <div style="text-align: right; font-size: 11px; color: var(--sap-text-muted);">
+                    ID: {{ ticket.id_solicitud }}
+                </div>
+            </div>
+            
+            <h2 class="ticket-folio">{{ ticket.folio|default:ticket.id_solicitud }}</h2>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>Solicitante</label>
+                    <p>{{ ticket.solicitante }}</p>
+                </div>
+                <div class="info-item">
+                    <label>Fecha Solicitud</label>
+                    <p>{{ ticket.fecha_solicitud|date:"d M Y, H:i" }}</p>
+                </div>
+                <div class="info-item">
+                    <label>Servicio</label>
+                    <p>{{ ticket.servicio|default:"-" }}</p>
+                </div>
+                <div class="info-item">
+                    <label>Responsable</label>
+                    <p>{{ ticket.usuario_responsable.get_full_name|default:ticket.responsable|default:"Sin asignar" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Descripción del Problema -->
+        <div class="section-title">
+            <ion-icon name="chatbox-ellipses-outline"></ion-icon> Descripción del Problema
+        </div>
+        <div class="block-text">
+            <strong>Solicitud:</strong><br>
+            {{ ticket.solicitud_descripcion|default:"Sin descripción"|linebreaks }}
+            
+            {% if ticket.falla_descripcion %}
+            <hr style="margin: 10px 0; border: 0; border-top: 1px solid #eee;">
+            <strong>Falla detectada:</strong> {{ ticket.falla_descripcion }}
+            {% endif %}
+        </div>
+
+        {% if ticket.diagnostico or ticket.actividades %}
+        <!-- Seguimiento Técnico -->
+        <div class="section-title">
+            <ion-icon name="construct-outline"></ion-icon> Seguimiento Técnico
+        </div>
+        <div class="block-text">
+            {% if ticket.diagnostico %}
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 11px; color: var(--sap-text-muted); text-transform: uppercase;">Diagnóstico:</label>
+                <p style="margin: 4px 0;">{{ ticket.diagnostico|linebreaksbr }}</p>
+                <small style="color: var(--sap-text-muted);">{{ ticket.fecha_diagnostico|date:"d/m/Y H:i" }}</small>
+            </div>
+            {% endif %}
+
+            {% if ticket.actividades %}
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9;">
+                <label style="font-size: 11px; color: var(--sap-text-muted); text-transform: uppercase;">Actividades Realizadas:</label>
+                <p style="margin: 4px 0;">{{ ticket.actividades|linebreaksbr }}</p>
+                <small style="color: var(--sap-text-muted);">{{ ticket.fecha_actividades|date:"d/m/Y H:i" }}</small>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if evidencias %}
+        <div class="section-title">
+            <ion-icon name="images-outline"></ion-icon> Evidencias Photográficas ({{ evidencias.count }})
+        </div>
+        <div class="evidence-grid">
+            {% for ev in evidencias %}
+            <div class="evidence-item" onclick="window.open('{{ ev.archivo.url }}', '_blank')">
+                {% if ev.archivo %}
+                    {# Check if it's an image based on common extensions #}
+                    {% if ev.archivo.name|lower|slice:"-4:" == ".jpg" or ev.archivo.name|lower|slice:"-5:" == ".jpeg" or ev.archivo.name|lower|slice:"-4:" == ".png" or ev.archivo.name|lower|slice:"-4:" == ".gif" or ev.archivo.name|lower|slice:"-4:" == ".bmp" or ev.archivo.name|lower|slice:"-5:" == ".webp" %}
+                        <img src="{{ ev.archivo.url }}" alt="{{ ev.descripcion }}">
+                    {% elif ev.archivo.name|lower|slice:"-4:" == ".pdf" %}
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #dc2626; background: #fee2e2;">
+                            <ion-icon name="document-text" style="font-size: 32px;"></ion-icon>
+                            <span style="font-size: 10px; font-weight: 700; margin-top: 4px;">PDF</span>
+                        </div>
+                    {% else %}
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #64748b; background: #f1f5f9;">
+                            <ion-icon name="document-outline" style="font-size: 32px;"></ion-icon>
+                            <span style="font-size: 10px; font-weight: 700; margin-top: 4px;">DOC</span>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #888;">
+                        <ion-icon name="help-circle-outline"></ion-icon>
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Tiempos Acordados -->
+        {% if tiempos_acordados %}
+        <div class="section-title">
+            <ion-icon name="hourglass-outline"></ion-icon> Extensiones de Tiempo ({{ tiempos_acordados.count }})
+        </div>
+        {% for ta in tiempos_acordados %}
+        <div class="timeline-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <span style="font-weight: 700; font-size: 14px;">Folio Acuerdo</span>
+                <span style="font-size: 11px; font-weight: 700; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">{{ ta.get_estatus_display }}</span>
+            </div>
+            <p style="margin: 4px 0; font-size: 13px;">{{ ta.motivo_extension|truncatechars:100 }}</p>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--sap-text-muted); margin-top: 8px;">
+                <span>Vence: <strong>{{ ta.fecha_solucion_final|date:"d/m/Y" }}</strong></span>
+                <span>Enviado: {% if ta.enviado %}✅{% else %}❌{% endif %}</span>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+    </div>
+
+    <!-- Barra de Acciones -->
+    <div class="actions-bar">
+        {% if not ticket.fecha_cierre %}
+        <a href="{% url 'callcenter:ticket_cierre_visual' ticket.id %}" class="btn btn-primary">
+            <ion-icon name="checkmark-done-circle-outline"></ion-icon> Cerrar Ticket
+        </a>
+        {% endif %}
+        <a href="{% url 'admin:callcenter_solicitudticket_change' ticket.id %}" class="btn btn-outline" style="flex: 0.5;">
+            <ion-icon name="settings-outline"></ion-icon> Admin
+        </a>
+    </div>
+
+</body>
+
+</html>

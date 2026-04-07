@@ -312,6 +312,12 @@ class TiempoAcordado(models.Model):
         verbose_name="Estado del Acuerdo"
     )
 
+    enviado = models.BooleanField(
+        default=False, 
+        verbose_name="¿Enviado por Correo?",
+        help_text="Indica si el reporte PDF ya fue enviado a través del flujo de Power Automate."
+    )
+
     # Firma Digital (Almacenada en Base64)
     firma_enlace = models.TextField(blank=True, null=True, verbose_name="Firma del Enlace")
     firma_responsable = models.TextField(blank=True, null=True, verbose_name="Firma del Responsable")

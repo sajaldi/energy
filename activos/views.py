@@ -904,9 +904,12 @@ def mobile_busqueda_activos(request):
     Buscador de activos y órdenes de trabajo optimizado para móviles.
     """
     from mantenimiento.models import OrdenTrabajo
+    from callcenter.models import TiempoAcordado, SolicitudTicket
     query = request.GET.get('q', '').strip()
     activos = []
     ordenes = []
+    tiempos_acordados = []
+    tickets = []
     
     if query:
         # Buscar activos
@@ -926,13 +929,30 @@ def mobile_busqueda_activos(request):
             Q(activos__serie__icontains=query)
         ).select_related('ubicacion').distinct().order_by('-id')[:10]
         
-        # Si solo hay un activo y ninguna orden, redirigir directo
-        if activos.count() == 1 and not ordenes:
+        # Buscar Tiempos Acordados
+        tiempos_acordados = TiempoAcordado.objects.filter(
+            Q(ticket__folio__icontains=query) |
+            Q(motivo_extension__icontains=query) |
+            Q(institucion__nombre__icontains=query)
+        ).select_related('ticket', 'institucion', 'enlace')[:10]
+
+        # Buscar Tickets de Call Center (NUEVO)
+        tickets = SolicitudTicket.objects.filter(
+            Q(folio__icontains=query) |
+            Q(id_solicitud__icontains=query) |
+            Q(solicitante__icontains=query) |
+            Q(solicitud_descripcion__icontains=query)
+        ).order_by('-fecha_solicitud')[:20]
+        
+        # Si solo hay un activo y ninguna orden/acuerdo/ticket, redirigir directo
+        if activos.count() == 1 and not ordenes and not tiempos_acordados and not tickets:
             return redirect('activos:mobile_activo_detalle', pk=activos[0].id)
             
     return render(request, 'activos/mobile_busqueda.html', {
         'activos': activos,
         'ordenes': ordenes,
+        'tiempos_acordados': tiempos_acordados,
+        'tickets': tickets,
         'query': query
     })
 @staff_member_required

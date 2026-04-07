@@ -250,3 +250,61 @@ def import_kpis_progress(request):
         progress['state'] = res.state if res else 'PENDING'
         
     return JsonResponse(progress)
+
+
+@staff_member_required
+def kpi_dashboard_view(request):
+    """Dashboard de KPIs agrupados por servicio."""
+    from .models import Servicio, KPI
+    from django.contrib import admin
+    from django.shortcuts import render
+    
+    # Obtener servicios con sus KPIs pre-cargados
+    servicios = Servicio.objects.filter(activo=True).prefetch_related('kpis').order_by('nombre')
+    
+    # Métricas generales
+    total_servicios = servicios.count()
+    total_kpis = KPI.objects.count()
+    kpis_cumplimiento = KPI.objects.filter(estado='CUMPLIMIENTO').count()
+    kpis_parcial = KPI.objects.filter(estado='PARCIAL').count()
+    kpis_incumplimiento = KPI.objects.filter(estado='INCUMPLIMIENTO').count()
+    
+    # Calcular porcentaje de cumplimiento global
+    cumplimiento_global = 0
+    if total_kpis > 0:
+        cumplimiento_global = int((kpis_cumplimiento / total_kpis) * 100)
+    
+    # Agrupar datos para el template
+    servicios_data = []
+    for s in servicios:
+        kpis = s.kpis.all().order_by('nombre')
+        kpis_count = kpis.count()
+        kpis_ok = kpis.filter(estado='CUMPLIMIENTO').count()
+        
+        status_color = 'success'
+        if kpis_count > 0:
+            percent = (kpis_ok / kpis_count) * 100
+            if percent < 50: status_color = 'danger'
+            elif percent < 90: status_color = 'warning'
+        
+        servicios_data.append({
+            'obj': s,
+            'kpis': kpis,
+            'kpis_count': kpis_count,
+            'kpis_ok': kpis_ok,
+            'status_color': status_color,
+            'percent': int((kpis_ok / kpis_count * 100) if kpis_count > 0 else 0)
+        })
+
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Dashboard de KPI por Servicio',
+        'servicios_data': servicios_data,
+        'total_servicios': total_servicios,
+        'total_kpis': total_kpis,
+        'kpis_cumplimiento': kpis_cumplimiento,
+        'kpis_parcial': kpis_parcial,
+        'kpis_incumplimiento': kpis_incumplimiento,
+        'cumplimiento_global': cumplimiento_global,
+    }
+    return render(request, 'admin/servicios/kpi/dashboard.html', context)

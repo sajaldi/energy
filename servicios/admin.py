@@ -57,6 +57,10 @@ class KPIAdmin(ImportExportModelAdmin):
     ordering = ('nombre', 'servicio')
     inlines = [ChecklistItemInline, DocumentoRelacionadoInline]
 
+    def changelist_view(self, request, extra_context=None):
+        from .views import kpi_dashboard_view
+        return kpi_dashboard_view(request)
+
     def editar_fiori(self, obj):
         url = reverse('servicios:kpi_form_edit', args=[obj.pk])
         return format_html(

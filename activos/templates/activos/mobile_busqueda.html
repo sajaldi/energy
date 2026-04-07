@@ -208,6 +208,39 @@
         </div>
         {% endif %}
 
+        <!-- Tiempos Acordados (NUEVO) -->
+        {% if query %}
+        <div class="section-title" style="font-size: 13px; font-weight: 700; color: #d81b60; margin: 20px 0 10px 5px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+            <ion-icon name="calendar-check-outline"></ion-icon> Tiempos Acordados ({{ tiempos_acordados|length }})
+        </div>
+        <div class="asset-list">
+            {% for acuerdo in tiempos_acordados %}
+            <a href="{% url 'admin:callcenter_tiempoacordado_change' acuerdo.id %}" class="asset-item" style="border-left: 4px solid #d81b60; margin-bottom: 8px;">
+                <div class="asset-icon" style="background: #fdf2f7; color: #d81b60;">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                </div>
+                <div class="asset-info">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="font-size: 15px; margin-bottom: 2px; color: #d81b60; font-weight: 700;">{{ acuerdo.ticket.folio }}</h3>
+                        <span style="font-size: 10px; font-weight: 700; background: {% if acuerdo.estatus == 'VENCIDO' %}#fef2f2; color: #dc3545;{% else %}#f0fdf4; color: #16a34a;{% endif %} padding: 2px 6px; border-radius: 4px; border: 1px solid currentColor;">
+                            {{ acuerdo.get_estatus_display }}
+                        </span>
+                    </div>
+                    <p style="font-size: 12px; color: var(--sap-text-muted); font-weight: 600;">{{ acuerdo.institucion.nombre|truncatechars:30 }}</p>
+                    <p style="font-size: 11px; color: var(--sap-text-muted); margin-top: 4px;">
+                        <ion-icon name="time-outline" style="font-size: 11px; vertical-align: middle;"></ion-icon>
+                        Vence: <strong>{{ acuerdo.fecha_solucion_final|date:"d M, Y" }}</strong>
+                    </p>
+                </div>
+            </a>
+            {% empty %}
+            <div style="text-align: center; padding: 15px; color: var(--sap-text-muted); font-size: 13px; border: 1px dashed var(--sap-border-color); border-radius: 8px; margin-bottom: 10px;">
+                No se encontraron acuerdos
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <div class="section-title" style="font-size: 13px; font-weight: 700; color: var(--sap-text-muted); margin: 20px 0 10px 5px; text-transform: uppercase; letter-spacing: 0.5px;">
             Órdenes de Trabajo ({{ ordenes|length }})
         </div>
@@ -234,6 +267,57 @@
             </a>
             {% endfor %}
         </div>
+
+        <!-- Tickets de Call Center (NUEVO) -->
+        {% if query %}
+        <div class="section-title" style="font-size: 13px; font-weight: 700; color: #005fb8; margin: 25px 0 10px 5px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+            <ion-icon name="ticket-outline"></ion-icon> Tickets Call Center ({{ tickets|length }})
+        </div>
+        <div class="asset-list">
+            {% for ticket in tickets %}
+            <div class="asset-item" style="border-left: 4px solid #005fb8; display: block; padding: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <div>
+                        <h3 style="font-size: 16px; color: #005fb8; font-weight: 700; margin: 0;">{{ ticket.folio|default:ticket.id_solicitud }}</h3>
+                        <p style="font-size: 12px; color: var(--sap-text-muted); margin-top: 2px;">{{ ticket.solicitante }}</p>
+                    </div>
+                    <span style="font-size: 10px; font-weight: 700; background: {% if ticket.fecha_cierre %}#f0fdf4; color: #16a34a;{% else %}#fffbeb; color: #b45309;{% endif %} padding: 4px 8px; border-radius: 6px; border: 1px solid currentColor;">
+                        {% if ticket.fecha_cierre %}CERRADO{% else %}ABIERTO{% endif %}
+                    </span>
+                </div>
+                
+                <p style="font-size: 13px; color: var(--sap-text-color); line-height: 1.4; margin: 8px 0;">
+                    {{ ticket.solicitud_descripcion|truncatechars:100 }}
+                </p>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--sap-border-color);">
+                    <div style="font-size: 11px; color: var(--sap-text-muted);">
+                        <ion-icon name="calendar-outline" style="vertical-align: middle;"></ion-icon>
+                        {{ ticket.fecha_solicitud|date:"d/m/Y H:i" }}
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px;">
+                        {% if not ticket.fecha_cierre %}
+                        <a href="{% url 'callcenter:ticket_cierre_visual' ticket.id %}" 
+                           style="background: #005fb8; color: white; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                            <ion-icon name="checkmark-done-circle-outline"></ion-icon>
+                            Cerrar Ticket
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'callcenter:mobile_ticket_detalle' ticket.id %}" 
+                           style="background: var(--sap-group-bg); color: var(--sap-text-color); padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-decoration: none; border: 1px solid var(--sap-border-color);">
+                            Ver Detalle
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align: center; padding: 15px; color: var(--sap-text-muted); font-size: 13px; border: 1px dashed var(--sap-border-color); border-radius: 8px; margin-bottom: 10px;">
+                No se encontraron tickets
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="section-title" style="font-size: 13px; font-weight: 700; color: var(--sap-text-muted); margin: 25px 0 10px 5px; text-transform: uppercase; letter-spacing: 0.5px;">
             Equipos ({{ activos|length }})

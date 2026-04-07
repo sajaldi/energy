@@ -629,6 +629,14 @@ JAZZMIN_SETTINGS = {
                 "permissions": ["presupuestos.view_solicitudpago"],
             },
         ],
+        "servicios": [
+            {
+                "name": "📊 Dashboard de KPIs",
+                "url": "/admin/servicios/kpi/",
+                "icon": "fas fa-chart-bar",
+                "permissions": ["servicios.view_kpi"],
+            },
+        ],
     },
     "changeform_format": "horizontal_tabs",
 }

@@ -19,7 +19,17 @@
             margin-bottom: 20px;
         }
 
-        .footer-sig td { border: none; text-align: center; padding-top: 10px; }
+        .footer-sig td { border: none; text-align: center; padding-top: 15px; }
+        
+        /* Mejoras de Visibilidad: Rellenar Cuadros */
+        .filled-header { background-color: #f2f5f8; font-weight: bold; }
+        td.bold { background-color: #f4f6f9; }
+        
+        .box-container {
+            border: 1px solid #333;
+            padding: 10px;
+            background-color: #ffffff;
+        }
     </style>
 </head>
 <body>
@@ -31,7 +41,7 @@
             <td class="bold" style="width: 25%;">No. de Solicitud:</td>
             <td style="width: 25%;">{{ acuerdo.ticket.folio|default:acuerdo.ticket.id_solicitud }}</td>
             <td class="bold" style="width: 25%;">Enlace MAO:</td>
-            <td style="width: 25%;">{{ acuerdo.enlace.nombre }}</td>
+            <td style="width: 25%;">{{ acuerdo.enlace.nombre|default:"N/A" }}</td>
         </tr>
         <tr>
             <td class="bold">Fecha/Hora de Solicitud:</td>
@@ -65,7 +75,7 @@
     <!-- GANTT SECTION -->
     <table style="border: none;">
         <tr>
-            <td class="center bold" style="border: 1px solid #000; border-bottom: none; padding: 10px;">CRONOGRAMA DE TIEMPO</td>
+            <td class="center bold filled-header" style="border: 1px solid #000; border-bottom: none; padding: 10px;">CRONOGRAMA DE TIEMPO</td>
         </tr>
         <tr>
             <td class="center" style="border: 1px solid #000; border-top: none; padding: 10px;">
@@ -87,22 +97,22 @@
     <table class="footer-sig">
         <tr>
             <td style="width: 50%;">
-                {% if acuerdo.firma_responsable %}
-                <img src="{{ acuerdo.firma_responsable }}" style="height: 50px;"><br/>
-                {% else %}
-                <div style="height: 50px;"></div>
-                {% endif %}
+                <div style="height: 80px; vertical-align: bottom;">
+                    {% if firma_r %}
+                    <img src="{{ firma_r }}" style="max-height: 75px; max-width: 200px;">
+                    {% endif %}
+                </div>
                 ___________________________________________<br/>
-                <span class="bold">RESPONSABLE DE SERVICIO TÉCNICO</span>
+                <span class="bold" style="background: none;">RESPONSABLE DE SERVICIO TÉCNICO</span>
             </td>
             <td style="width: 50%;">
-                {% if acuerdo.firma_enlace %}
-                <img src="{{ acuerdo.firma_enlace }}" style="height: 50px;"><br/>
-                {% else %}
-                <div style="height: 50px;"></div>
-                {% endif %}
+                <div style="height: 80px; vertical-align: bottom;">
+                    {% if firma_e %}
+                    <img src="{{ firma_e }}" style="max-height: 75px; max-width: 200px;">
+                    {% endif %}
+                </div>
                 ___________________________________________<br/>
-                <span class="bold">NOMBRE Y FIRMA ENLACE MAO</span>
+                <span class="bold" style="background: none;">NOMBRE Y FIRMA ENLACE MAO</span>
             </td>
         </tr>
     </table>
