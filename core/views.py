@@ -792,6 +792,21 @@ def mobile_dashboard(request):
     # Pedidos de material (NUEVO)
     pedidos_pendientes_count = SolicitudMaterial.objects.filter(usuario=request.user, estado='PENDIENTE').count()
 
+    # Tiempos Acordados del departamento (NUEVO)
+    from callcenter.models import TiempoAcordado
+    user_dept = None
+    if hasattr(request.user, 'perfil'):
+        user_dept = request.user.perfil.departamento
+    
+    tiempos_acordados_count = 0
+    mis_tiempos_acordados = []
+    
+    if user_dept:
+        tiempos_acordados_count = TiempoAcordado.objects.filter(departamento=user_dept).exclude(estatus='COMPLETADO').count()
+        mis_tiempos_acordados = TiempoAcordado.objects.filter(
+            departamento=user_dept
+        ).exclude(estatus='COMPLETADO').select_related('ticket', 'institucion', 'enlace').order_by('fecha_solucion_final')[:5]
+
     context = {
         'ots_hoy': ots_hoy,
         'ots_proximas': ots_proximas,
@@ -800,6 +815,8 @@ def mobile_dashboard(request):
         'planos_recientes': planos_recientes,
         'ubicaciones_raiz': ubicaciones_raiz,
         'pedidos_pendientes_count': pedidos_pendientes_count,
+        'tiempos_acordados_count': tiempos_acordados_count,
+        'mis_tiempos_acordados': mis_tiempos_acordados,
         'today': today,
     }
     return render(request, 'core/mobile_dashboard.html', context)
@@ -881,15 +898,24 @@ def global_search(request):
         'rutinas': [],
         'presupuestos': [],
         'ordenes': [],
+        'tiempos_acordados': [],
     }
     
     if query:
         from activos.models.activo import Activo
-        from callcenter.models import SolicitudTicket
+        from callcenter.models import SolicitudTicket, TiempoAcordado
         from documentos.models import Documento
         from inventarios.models import Material
         from mantenimiento.models import Rutina, OrdenTrabajo
         from presupuestos.models import PresupuestoAnual
+        
+        # 0. Tiempos Acordados (NUEVO)
+        results['tiempos_acordados'] = TiempoAcordado.objects.filter(
+            Q(ticket__folio__icontains=query) |
+            Q(motivo_extension__icontains=query) |
+            Q(institucion__nombre__icontains=query) |
+            Q(observaciones__icontains=query)
+        ).select_related('ticket', 'institucion', 'enlace')[:20]
         
         # 1. Activos
         results['activos'] = Activo.objects.filter(

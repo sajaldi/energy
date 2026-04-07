@@ -70,7 +70,8 @@ def import_tickets_from_df(df):
         'tiempo_tipo', 'fecha_diagnostico', 'diagnostico', 'fecha_actividades',
         'actividades', 'fecha_observaciones', 'observaciones',
         'fecha_observaciones_usuario', 'observaciones_usuario',
-        'clasificacion_falla_final', 'categoria_falla', 'ubicacion'
+        'clasificacion_falla_final', 'categoria_falla', 'ubicacion',
+        'correo_cierre', 'cierre_enviado'
     ]
 
     for _, row in df.iterrows():
@@ -106,6 +107,8 @@ def import_tickets_from_df(df):
             'observaciones_usuario': clean(row.get('ObservacionesUsuario')),
             'clasificacion_falla_final': clean(row.get('Clasificacion_Falla')),
             'categoria_falla': clean(row.get('Categoria_Falla')),
+            'correo_cierre': False,
+            'cierre_enviado': False,
         }
 
         # --- Resolución de Ubicación Normalizada ---

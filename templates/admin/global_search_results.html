@@ -94,6 +94,9 @@
                 <li class="nav-item">
                     <a class="nav-link" id="ordenes-tab" data-toggle="tab" href="#ordenes" role="tab"><i class="fas fa-clipboard-list mr-1"></i> Órdenes de Trabajo ({{ results.ordenes|length }})</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="tiempos-acordados-tab" data-toggle="tab" href="#tiempos_acordados" role="tab"><i class="fas fa-calendar-check mr-1"></i> Tiempos Acordados ({{ results.tiempos_acordados|length }})</a>
+                </li>
             </ul>
 
             <div class="tab-content pt-4" id="searchTabsContent">
@@ -305,6 +308,41 @@
                         {% empty %}
                         <div class="col-12 text-center py-4 text-muted">
                             <i class="fas fa-info-circle mr-1"></i> No se encontraron órdenes de trabajo
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <!-- Pestaña Tiempos Acordados (NUEVO) -->
+                <div class="tab-pane fade" id="tiempos_acordados" role="tabpanel">
+                    <div class="row">
+                        {% for acuerdo in results.tiempos_acordados %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 search-result-card" style="border-left-color: #d81b60;">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <h5 class="mb-1" style="color: #d81b60;">
+                                            <a href="{% url 'admin:callcenter_tiempoacordado_change' acuerdo.id %}" class="stretched-link">{{ acuerdo.ticket.folio }}</a>
+                                        </h5>
+                                        <span class="badge badge-pill" style="background-color: #fdf2f7; color: #d81b60; border: 1px solid #d81b60;">T. Acordado</span>
+                                    </div>
+                                    <div class="text-muted small mb-2">
+                                        <strong>Institución:</strong> {{ acuerdo.institucion.nombre }}
+                                    </div>
+                                    <p class="mb-1 small">
+                                        <strong>Motivo:</strong> {{ acuerdo.motivo_extension|truncatechars:100 }}
+                                    </p>
+                                    <div class="mt-2 d-flex justify-content-between align-items-center">
+                                        <span class="badge {% if acuerdo.estatus == 'VENCIDO' %}badge-danger{% elif acuerdo.estatus == 'APROBADO' %}badge-success{% else %}badge-secondary{% endif %}">
+                                            {{ acuerdo.get_estatus_display }}
+                                        </span>
+                                        <small class="text-muted">Vence: {{ acuerdo.fecha_solucion_final|date:"d/m/Y" }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center py-4 text-muted">
+                            <i class="fas fa-info-circle mr-1"></i> No se encontraron acuerdos de tiempo
                         </div>
                         {% endfor %}
                     </div>

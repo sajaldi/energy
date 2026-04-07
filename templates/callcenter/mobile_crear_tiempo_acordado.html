@@ -1,0 +1,803 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ title }} - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    {% include 'core/fiori_tokens.html' %}
+
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            color: var(--sap-text-color);
+            padding-bottom: 80px;
+        }
+
+        header {
+            background-color: var(--sap-shell-bg);
+            color: var(--sap-shell-color);
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .back-btn {
+            font-size: 24px;
+            color: white;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+        }
+
+        .header-title h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .container {
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .fiori-group {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: var(--sap-card-shadow);
+            border: 1px solid var(--sap-border-color);
+        }
+
+        .fiori-group-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #d81b60;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-field {
+            margin-bottom: 20px;
+        }
+
+        .form-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-field label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--sap-text-muted);
+        }
+
+        .form-field input, 
+        .form-field select, 
+        .form-field textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 15px;
+            box-sizing: border-box;
+            background: #fdfdfd;
+            transition: all 0.2s;
+        }
+
+        .form-field input:focus, 
+        .form-field select:focus, 
+        .form-field textarea:focus {
+            outline: none;
+            border-color: #d81b60;
+            box-shadow: 0 0 0 2px rgba(216, 27, 96, 0.1);
+            background: white;
+        }
+
+        .form-field input[readonly] {
+            background: #f4f4f4;
+            color: #666;
+            cursor: not-allowed;
+            border-style: dashed;
+        }
+
+        .task-row {
+            padding: 12px;
+            background: #fffcfd;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            position: relative;
+            border: 1px solid #fce4ec;
+            border-left: 4px solid #d81b60;
+        }
+
+        .btn-remove-task {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: var(--sap-error);
+            font-size: 20px;
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+        }
+
+        .footer-actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 12px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            z-index: 1000;
+        }
+
+        .btn-add-task {
+            background: #fdf2f7;
+            color: #d81b60;
+            border: 1px dashed #d81b60;
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .selected-badge {
+            background: #f0fdf4;
+            color: #16a34a;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #bbf7d0;
+        }
+
+        /* Ticket Detail Card */
+        .ticket-detail-card {
+            background: #fafafa;
+            border: 1px solid var(--sap-border-color);
+            border-left: 4px solid #16a34a;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .td-row {
+            display: flex;
+            margin-bottom: 8px;
+            gap: 10px;
+        }
+
+        .td-icon {
+            color: #16a34a;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .td-content {
+            font-size: 13px;
+        }
+
+        .td-label {
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .td-value {
+            color: var(--sap-text-color);
+            line-height: 1.4;
+        }
+
+        /* Signature Pad */
+        .signature-wrapper {
+            background: white;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 8px;
+            position: relative;
+            margin-bottom: 12px;
+            touch-action: none; /* Prevents scrolling while signing */
+        }
+
+        #signature-canvas-enlace, 
+        #signature-canvas-responsable {
+            width: 100%;
+            height: 180px;
+            display: block;
+            cursor: crosshair;
+        }
+
+        .signature-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn-clear-signature {
+            background: none;
+            border: 1px solid #d81b60;
+            color: #d81b60;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <button onclick="window.location.href='{% url 'core:mobile_dashboard' %}'" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+        <div class="header-title">
+            <h1>Nuevo Tiempo Acordado</h1>
+        </div>
+    </header>
+
+    <div class="container">
+        <form id="tiempo-acordado-form">
+            {% csrf_token %}
+            
+            <!-- Grupo 1: Información Administrativa -->
+            <div class="fiori-group">
+                <div class="fiori-group-title">
+                    <ion-icon name="information-circle-outline"></ion-icon> Información General
+                </div>
+                
+                <div class="form-field search-container">
+                    <label>Vincular Ticket</label>
+                    <input type="text" id="ticket-search" placeholder="Busque por folio o descripción..." autocomplete="off">
+                    <input type="hidden" name="ticket" id="ticket-id" required>
+                    <div id="search-results" class="fiori-dropdown"></div>
+                    
+                    <!-- Card de Detalle de Ticket -->
+                    <div id="ticket-detail-card" class="ticket-detail-card">
+                        <div class="td-row">
+                            <ion-icon name="document-text-outline" class="td-icon"></ion-icon>
+                            <div class="td-content">
+                                <span class="td-label">Descripción Completa</span>
+                                <div class="td-value" id="td-desc"></div>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="td-row">
+                                <ion-icon name="calendar-outline" class="td-icon"></ion-icon>
+                                <div class="td-content">
+                                    <span class="td-label">Fecha Reporte</span>
+                                    <div class="td-value" id="td-fecha"></div>
+                                </div>
+                            </div>
+                            <div class="td-row">
+                                <ion-icon name="person-outline" class="td-icon"></ion-icon>
+                                <div class="td-content">
+                                    <span class="td-label">Reportado Por</span>
+                                    <div class="td-value" id="td-user"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="td-row" style="margin-bottom: 0;">
+                            <ion-icon name="location-outline" class="td-icon"></ion-icon>
+                            <div class="td-content">
+                                <span class="td-label">Ubicación del Reporte</span>
+                                <div class="td-value" id="td-ubic"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-field search-container">
+                    <label>Persona de Enlace (Buscador)</label>
+                    <input type="text" id="enlace-search" placeholder="Escriba nombre o institución..." autocomplete="off">
+                    <input type="hidden" name="enlace" id="enlace-id" required>
+                    <div id="enlace-results" class="fiori-dropdown" style="display: none; position: absolute; width: 100%; z-index: 101; background: white; border: 1px solid var(--sap-border-color); border-radius: 6px; box-shadow: var(--sap-card-shadow);"></div>
+                    
+                    <!-- Card de Detalle de Contacto -->
+                    <div id="contact-detail-card" class="ticket-detail-card" style="border-left-color: #2563eb;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="td-row">
+                                <ion-icon name="call-outline" class="td-icon" style="color: #2563eb;"></ion-icon>
+                                <div class="td-content">
+                                    <span class="td-label">Teléfono</span>
+                                    <div class="td-value" id="cd-tel"></div>
+                                </div>
+                            </div>
+                            <div class="td-row">
+                                <ion-icon name="mail-outline" class="td-icon" style="color: #2563eb;"></ion-icon>
+                                <div class="td-content">
+                                    <span class="td-label">Correo</span>
+                                    <div class="td-value" id="cd-email"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="td-row" style="margin-bottom: 0;">
+                            <ion-icon name="business-outline" class="td-icon" style="color: #2563eb;"></ion-icon>
+                            <div class="td-content">
+                                <span class="td-label">Ubicación del Contacto</span>
+                                <div class="td-value" id="cd-ubic"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label>Institución (Auto)</label>
+                    <input type="text" id="institucion-nombre" readonly placeholder="Se autocompletará">
+                    <input type="hidden" name="institucion" id="institucion-id">
+                </div>
+
+                <!-- Ubicación Jerárquica -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-field">
+                        <label>Edificio</label>
+                        <select id="edificio-select">
+                            <option value="">Seleccione...</option>
+                            {% for edif in edificios %}
+                            <option value="{{ edif.id }}">{{ edif.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Nivel / Piso</label>
+                        <select name="ubicacion" id="ubicacion-select" disabled>
+                            <option value="">-- Elija Edificio --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grupo 2: Justificación -->
+            <div class="fiori-group">
+                <div class="fiori-group-title">
+                    <ion-icon name="chatbubbles-outline"></ion-icon> Detalles y Justificación
+                </div>
+                
+                <div class="form-field">
+                    <label>Motivo de la Extensión</label>
+                    <textarea name="motivo_extension" rows="3" placeholder="Explique por qué se requiere este tiempo..." required></textarea>
+                </div>
+
+                <div class="form-field">
+                    <label>Solución Provisional</label>
+                    <textarea name="solucion_provisional" rows="3" placeholder="Medidas de contingencia aplicadas..."></textarea>
+                </div>
+
+                <div class="form-field">
+                    <label>Fecha Límite Solución Final</label>
+                    <input type="datetime-local" name="fecha_solucion_final" required>
+                </div>
+
+                <div class="form-field">
+                    <label>Notas Internas</label>
+                    <textarea name="observaciones" rows="2" placeholder="Observaciones adicionales..."></textarea>
+                </div>
+            </div>
+
+            <!-- Grupo 3: Cronograma (Gantt) -->
+            <div class="fiori-group">
+                <div class="fiori-group-title">
+                    <ion-icon name="list-outline"></ion-icon> Cronograma de Tareas
+                </div>
+                
+                <div id="tasks-container">
+                    <!-- Tareas dinámicas -->
+                </div>
+
+                <button type="button" class="btn-add-task" id="btn-add-task">
+                    <ion-icon name="add-circle-outline"></ion-icon> Nueva Actividad
+                </button>
+            </div>
+
+            <!-- Grupo 4: Firma de Conformidad -->
+            <div class="fiori-group">
+                <div class="fiori-group-title" style="color: #2563eb;">
+                    <ion-icon name="pencil-outline"></ion-icon> Conformidad y Firmas
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+                    <!-- Firma 1: Enlace -->
+                    <div class="form-field">
+                        <label>Firma del Enlace / Beneficiario</label>
+                        <div class="signature-wrapper">
+                            <canvas id="signature-canvas-enlace"></canvas>
+                        </div>
+                        <div class="signature-actions">
+                            <button type="button" class="btn-clear-signature" id="btn-clear-enlace">
+                                <ion-icon name="refresh-outline"></ion-icon> Limpiar
+                            </button>
+                        </div>
+                        <input type="hidden" name="firma_enlace" id="firma-enlace-b64">
+                    </div>
+
+                    <!-- Firma 2: Responsable (Usuario Activo) -->
+                    <div class="form-field">
+                        <label>Firma del Responsable ({{ user.get_full_name|default:user.username }})</label>
+                        <div class="signature-wrapper" style="border-left: 4px solid #d81b60;">
+                            <canvas id="signature-canvas-responsable"></canvas>
+                        </div>
+                        <div class="signature-actions">
+                            <button type="button" class="btn-clear-signature" id="btn-clear-responsable" style="border-color: #d81b60; color: #d81b60;">
+                                <ion-icon name="refresh-outline"></ion-icon> Limpiar
+                            </button>
+                        </div>
+                        <input type="hidden" name="firma_responsable" id="firma-responsable-b64">
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="footer-actions">
+        <button type="button" class="fiori-btn fiori-btn-ghost" onclick="window.location.href='{% url 'core:mobile_dashboard' %}'">
+            Cancelar
+        </button>
+        <button type="button" class="fiori-btn fiori-btn-primary" id="btn-submit" style="background: #e91e63;">
+            <ion-icon name="save-outline"></ion-icon> Guardar Acuerdo
+        </button>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        $(document).ready(function() {
+            // --- Búsqueda de Tickets ---
+            let searchTimeout;
+            $('#ticket-search').on('input', function() {
+                const q = $(this).val();
+                clearTimeout(searchTimeout);
+                
+                if (q.length < 2) {
+                    $('#search-results').hide();
+                    return;
+                }
+
+                searchTimeout = setTimeout(() => {
+                    $.get('{% url "callcenter:search_tickets_autocomplete" %}', { q: q }, function(data) {
+                        let html = '';
+                        data.results.forEach(t => {
+                            html += `
+                                <div class="search-item" 
+                                     data-id="${t.id}" 
+                                     data-folio="${t.folio || t.id_solicitud}" 
+                                     data-desc="${t.full_description}"
+                                     data-fecha="${t.fecha}"
+                                     data-user="${t.reportado_por}"
+                                     data-ubic="${t.ubicacion}">
+                                    <strong>${t.folio || t.id_solicitud}</strong>
+                                    <span>${t.full_description.substring(0, 60)}...</span>
+                                </div>
+                            `;
+                        });
+                        
+                        if (html === '') html = '<div class="search-item">Sin coincidencias</div>';
+                        $('#search-results').html(html).show();
+                    });
+                }, 400);
+            });
+
+            $(document).on('click', '#search-results .search-item', function() {
+                const id = $(this).data('id');
+                const folio = $(this).data('folio');
+                if (!id) return;
+
+                // Llenar Card de Detalle
+                $('#td-desc').text($(this).data('desc'));
+                $('#td-fecha').text($(this).data('fecha'));
+                $('#td-user').text($(this).data('user'));
+                $('#td-ubic').text($(this).data('ubic'));
+                
+                $('#ticket-id').val(id);
+                $('#ticket-detail-card').fadeIn();
+                $('#search-results').hide();
+                $('#ticket-search').val(folio);
+            });
+
+            // --- Búsqueda de Enlaces (Contactos) ---
+            let enlaceTimeout;
+            $('#enlace-search').on('input', function() {
+                const q = $(this).val();
+                clearTimeout(enlaceTimeout);
+                
+                if (q.length < 2) {
+                    $('#enlace-results').hide();
+                    return;
+                }
+
+                enlaceTimeout = setTimeout(() => {
+                    $.get('{% url "callcenter:search_enlaces_autocomplete" %}', { q: q }, function(data) {
+                        let html = '';
+                        data.results.forEach(e => {
+                            html += `
+                                <div class="search-item enlace-item" 
+                                     data-id="${e.id}" 
+                                     data-nombre="${e.text}"
+                                     data-inst-id="${e.institucion_id}"
+                                     data-inst-nombre="${e.inst_nombre}"
+                                     data-telefono="${e.telefono}"
+                                     data-email="${e.email}"
+                                     data-ubic-nombre="${e.ubicacion_nombre}">
+                                    <strong>${e.text}</strong>
+                                </div>
+                            `;
+                        });
+                        
+                        if (html === '') html = '<div class="search-item">Sin coincidencias</div>';
+                        $('#enlace-results').html(html).show();
+                    });
+                }, 400);
+            });
+
+            $(document).on('click', '.enlace-item', function() {
+                const id = $(this).data('id');
+                const nombre = $(this).data('nombre');
+                const instId = $(this).data('inst-id');
+                const instNombre = $(this).data('inst-nombre');
+                
+                $('#enlace-id').val(id);
+                
+                // Llenar Card de Detalle de Contacto
+                $('#cd-tel').text($(this).data('telefono'));
+                $('#cd-email').text($(this).data('email'));
+                $('#cd-ubic').text($(this).data('ubic-nombre'));
+                $('#contact-detail-card').fadeIn();
+                
+                $('#institucion-id').val(instId);
+                $('#institucion-nombre').val(instNombre);
+                
+                $('#enlace-results').hide();
+                $('#enlace-search').val(nombre);
+            });
+
+            // --- Carga de Niveles Jerárquicos ---
+            $('#edificio-select').change(function() {
+                const edificioId = $(this).val();
+                const $nivelSelect = $('#ubicacion-select');
+                
+                if (!edificioId) {
+                    $nivelSelect.html('<option value="">-- Elija Edificio --</option>').prop('disabled', true);
+                    return;
+                }
+
+                $nivelSelect.html('<option value="">Cargando...</option>').prop('disabled', true);
+                const urlBase = "{% url 'callcenter:api_get_sububicaciones' 0 %}";
+                const url = urlBase.replace('0', edificioId);
+                
+                $.get(url, function(data) {
+                    let html = '<option value="">-- Seleccione Nivel/Piso --</option>';
+                    data.results.forEach(sub => {
+                        html += `<option value="${sub.id}">${sub.nombre}</option>`;
+                    });
+                    $nivelSelect.html(html).prop('disabled', false);
+                }).fail(function() {
+                    $nivelSelect.html('<option value="">Error al cargar</option>');
+                });
+            });
+
+            // --- Tareas Dinámicas ---
+            let taskCount = 0;
+            $('#btn-add-task').click(function() {
+                taskCount++;
+                const html = `
+                    <div class="task-row" id="task-${taskCount}">
+                        <button type="button" class="btn-remove-task" onclick="$('#task-${taskCount}').remove()">
+                            <ion-icon name="close-circle"></ion-icon>
+                        </button>
+                        <div class="form-field">
+                            <label>Descripción Actividad</label>
+                            <input type="text" name="tarea_descripcion[]" placeholder="Describa la tarea..." required>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div class="form-field">
+                                <label>Inicio</label>
+                                <input type="datetime-local" name="tarea_inicio[]" required>
+                            </div>
+                            <div class="form-field">
+                                <label>Fin</label>
+                                <input type="datetime-local" name="tarea_fin[]" required>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                $('#tasks-container').append(html);
+            });
+
+            // Añadir una tarea por defecto
+            $('#btn-add-task').click();
+
+            // --- Envío del Formulario ---
+            $('#btn-submit').click(function() {
+                // Validaciones previas
+                if (!$('#ticket-id').val()) {
+                    Swal.fire({ icon: 'error', title: 'Ticket Requerido', text: 'Debe buscar y seleccionar un ticket de la lista.' });
+                    return;
+                }
+
+                if (!$('#enlace-select').val()) {
+                    Swal.fire({ icon: 'error', title: 'Enlace Requerido', text: 'Debe seleccionar una persona de contacto.' });
+                    return;
+                }
+
+                Swal.fire({
+                    title: '¿Guardar Acuerdo?',
+                    text: "Se guardará en estado BORRADOR y aparecerá en el dashboard.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d81b60',
+                    confirmButtonText: 'Sí, guardar',
+                    cancelButtonText: 'Revisar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+                        $.ajax({
+                            url: '{% url "callcenter:mobile_crear_tiempo_acordado" %}',
+                            method: 'POST',
+                            data: $('#tiempo-acordado-form').serialize(),
+                            success: function(res) {
+                                if (res.success) {
+                                    Swal.fire({ icon: 'success', title: 'Acuerdo Guardado', text: 'El tiempo acordado se creó correctamente.' })
+                                    .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
+                                } else {
+                                    Swal.fire({ icon: 'error', title: 'Error', text: res.error });
+                                }
+                            },
+                            error: function() {
+                                Swal.fire({ icon: 'error', title: 'Error Fatal', text: 'No se pudo conectar con el servidor.' });
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Cerrar menú de búsqueda al tocar fuera
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.search-container').length) {
+                    $('#search-results').hide();
+                    $('#enlace-results').hide();
+                }
+            });
+
+            // --- Lógica de Firma Digital (Dual) ---
+            const canvasEnlace = document.getElementById('signature-canvas-enlace');
+            const canvasResp = document.getElementById('signature-canvas-responsable');
+            
+            const padEnlace = new SignaturePad(canvasEnlace, {
+                backgroundColor: 'rgba(255, 255, 255, 0)',
+                penColor: 'rgb(0, 0, 0)'
+            });
+            
+            const padResp = new SignaturePad(canvasResp, {
+                backgroundColor: 'rgba(255, 255, 255, 0)',
+                penColor: 'rgb(0, 0, 0)'
+            });
+
+            function resizeCanvases() {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                
+                [canvasEnlace, canvasResp].forEach(canvas => {
+                    canvas.width = canvas.offsetWidth * ratio;
+                    canvas.height = canvas.offsetHeight * ratio;
+                    canvas.getContext("2d").scale(ratio, ratio);
+                });
+                
+                padEnlace.clear();
+                padResp.clear();
+            }
+
+            window.addEventListener("resize", resizeCanvases);
+            resizeCanvases();
+
+            $('#btn-clear-enlace').click(function() { padEnlace.clear(); });
+            $('#btn-clear-responsable').click(function() { padResp.clear(); });
+
+            // Actualizar lógica de GUARDAR para incluir ambas firmas
+            $('#btn-submit').off('click').click(function() {
+                // Validaciones
+                if (!$('#ticket-id').val()) {
+                    Swal.fire({ icon: 'error', title: 'Ticket Requerido', text: 'Debe buscar y seleccionar un ticket.' });
+                    return;
+                }
+                if (!$('#enlace-id').val()) {
+                    Swal.fire({ icon: 'error', title: 'Enlace Requerido', text: 'Debe seleccionar una persona de contacto.' });
+                    return;
+                }
+                
+                if (padEnlace.isEmpty() || padResp.isEmpty()) {
+                    Swal.fire({ 
+                        icon: 'warning', 
+                        title: 'Firmas Faltantes', 
+                        text: 'Se requieren ambas firmas (Enlace y Responsable) para formalizar el acuerdo.' 
+                    });
+                    return;
+                }
+
+                // Capturar Firmas
+                $('#firma-enlace-b64').val(padEnlace.toDataURL());
+                $('#firma-responsable-b64').val(padResp.toDataURL());
+
+                Swal.fire({
+                    title: '¿Guardar Acuerdo?',
+                    text: "Se guardará el acuerdo con las firmas de conformidad.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d81b60',
+                    confirmButtonText: 'Sí, guardar',
+                    cancelButtonText: 'Revisar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+                        $.ajax({
+                            url: '{% url "callcenter:mobile_crear_tiempo_acordado" %}',
+                            method: 'POST',
+                            data: $('#tiempo-acordado-form').serialize(),
+                            success: function(res) {
+                                if (res.success) {
+                                    Swal.fire({ icon: 'success', title: 'Acuerdo Guardado', text: 'El tiempo acordado con firma se creó correctamente.' })
+                                    .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
+                                } else {
+                                    Swal.fire({ icon: 'error', title: 'Error', text: res.error });
+                                }
+                            },
+                            error: function() {
+                                Swal.fire({ icon: 'error', title: 'Error Fatal', text: 'No se pudo conectar con el servidor.' });
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

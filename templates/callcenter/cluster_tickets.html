@@ -185,6 +185,11 @@
                             <a href="#" class="ticket-detail-link" data-id="{{ t.id|unlocalize }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
                                 {{ t.folio|default:t.id_solicitud }}
                             </a>
+                            {% if t.num_tiempos_acordados > 0 %}
+                                <a href="{% url 'callcenter:tiempo_acordado_dashboard' %}" title="Tiene {{ t.num_tiempos_acordados }} Acuerdo(s) de Tiempo. Clic para ver Dashboard." style="color: var(--sap-blue); margin-left: 6px; cursor: pointer; text-decoration: none;">
+                                    <i class="ph-fill ph-calendar-check" style="font-size: 1.1rem; vertical-align: middle;"></i>
+                                </a>
+                            {% endif %}
                         </td>
                         <td>{{ t.solicitante|default:"-" }}</td>
                         <td style="color: var(--sap-text-muted); font-size: 0.85rem;">{{ t.responsable|default:"-" }}</td>

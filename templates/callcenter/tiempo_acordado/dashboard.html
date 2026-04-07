@@ -1,0 +1,308 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<style>
+    :root {
+        --sap-blue: #0a6ed1;
+        --sap-blue-hover: #0854a1;
+        --sap-success: #28a745;
+        --sap-warning: #e9730c;
+        --sap-error: #bb0000;
+        --sap-border: #d9d9d9;
+        --sap-bg: #f5f6f7;
+        --sap-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .dashboard-container {
+        padding: 2rem;
+        background: var(--sap-bg);
+        min-height: 100vh;
+        font-family: 'Inter', '72', sans-serif;
+    }
+
+    .header-dashboard {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: var(--sap-shadow);
+        border-bottom: 4px solid var(--sap-blue);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-top: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Timeline Styles */
+    .timeline-container {
+        background: white;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        box-shadow: var(--sap-shadow);
+        margin-bottom: 2rem;
+        overflow-x: auto;
+    }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .timeline-track {
+        position: relative;
+        padding: 2rem 0;
+        min-width: 1000px;
+    }
+
+    .timeline-line {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #eee;
+        transform: translateY(-50%);
+        border-radius: 2px;
+    }
+
+    .timeline-point {
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--sap-blue);
+        border: 4px solid white;
+        box-shadow: 0 0 0 4px rgba(10, 110, 209, 0.2);
+        cursor: pointer;
+        z-index: 2;
+        transition: all 0.2s;
+    }
+
+    .timeline-point:hover {
+        transform: translate(-50%, -50%) scale(1.3);
+    }
+
+    .timeline-card {
+        position: absolute;
+        background: white;
+        border: 1px solid var(--sap-border);
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        width: 200px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        font-size: 0.8rem;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10;
+    }
+
+    .timeline-point:hover + .timeline-card {
+        opacity: 1;
+    }
+
+    /* Table Styles */
+    .agreements-table {
+        width: 100%;
+        background: white;
+        border-radius: 0.75rem;
+        box-shadow: var(--sap-shadow);
+        border-collapse: collapse;
+        overflow: hidden;
+    }
+
+    .agreements-table th {
+        background: #f8f9fa;
+        padding: 1rem;
+        text-align: left;
+        font-size: 0.85rem;
+        color: #444;
+        border-bottom: 1px solid var(--sap-border);
+    }
+
+    .agreements-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.9rem;
+    }
+
+    .badge {
+        padding: 0.3rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .badge-borrador { background: #eee; color: #666; }
+    .badge-pendiente { background: #fff3cd; color: #856404; }
+    .badge-aprobado { background: #d4edda; color: #155724; }
+    .badge-vencido { background: #f8d7da; color: #721c24; }
+    .badge-finalizado { background: #cce5ff; color: #004085; }
+
+    .btn-visual {
+        background: var(--sap-blue);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+
+    .btn-visual:hover {
+        background: var(--sap-blue-hover);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="header-dashboard">
+        <div>
+            <h1 style="margin: 0; font-size: 1.75rem; color: #222;">
+                <i class="ph ph-calendar-check" style="color: var(--sap-blue);"></i> 
+                Mis Tiempos Acordados
+            </h1>
+            <p style="margin: 0.5rem 0 0; color: #666;">
+                {% if user_dept %}
+                    Departamento: <strong>{{ user_dept.nombre }}</strong>
+                {% else %}
+                    Vista Personalizada de Usuario
+                {% endif %}
+            </p>
+        </div>
+        <a href="/admin/callcenter/tiempoacordado/add/" class="btn-visual">
+            <i class="ph ph-plus"></i> Crear Nuevo Acuerdo
+        </a>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-grid">
+        <div class="stat-card" style="border-color: #666;">
+            <span class="stat-label">Total Acuerdos</span>
+            <span class="stat-value">{{ stats.total }}</span>
+        </div>
+        <div class="stat-card" style="border-color: var(--sap-warning);">
+            <span class="stat-label">Pendientes</span>
+            <span class="stat-value">{{ stats.pendientes }}</span>
+        </div>
+        <div class="stat-card" style="border-color: var(--sap-success);">
+            <span class="stat-label">En Proceso</span>
+            <span class="stat-value">{{ stats.en_proceso }}</span>
+        </div>
+        <div class="stat-card" style="border-color: var(--sap-error);">
+            <span class="stat-label">Vencidos</span>
+            <span class="stat-value">{{ stats.vencidos }}</span>
+        </div>
+    </div>
+
+    <!-- Timeline Section -->
+    <div class="timeline-container">
+        <div class="timeline-header">
+            <h2 style="margin: 0; font-size: 1.2rem;"><i class="ph ph-trend-up"></i> Timeline de Vencimientos</h2>
+            <span style="font-size: 0.8rem; color: #888;">Ordenado por fecha de solución final</span>
+        </div>
+        
+        <div class="timeline-track">
+            <div class="timeline-line"></div>
+            {% for acuerdo in acuerdos %}
+                {% with percent=forloop.counter0|add:1 %}
+                    <div class="timeline-point" style="left: {{ percent|add:percent|add:percent|add:percent|add:percent }}%;"></div>
+                    <div class="timeline-card" style="left: {{ percent|add:percent|add:percent|add:percent|add:percent }}%; {% if forloop.counter|divisibleby:2 %}bottom: 60%;{% else %}top: 60%;{% endif %}">
+                        <strong style="color: var(--sap-blue);">{{ acuerdo.ticket.folio|default:acuerdo.ticket.id_solicitud }}</strong><br>
+                        <span>Vence: {{ acuerdo.fecha_solucion_final|date:"d/m/Y" }}</span><br>
+                        <small style="font-style: italic;">{{ acuerdo.institucion.nombre }}</small>
+                    </div>
+                {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- List Section -->
+    <table class="agreements-table">
+        <thead>
+            <tr>
+                <th>Ticket</th>
+                <th>Enlace / Institución</th>
+                <th>Estado</th>
+                <th>Vencimiento</th>
+                <th>Tareas</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for acuerdo in acuerdos %}
+            <tr>
+                <td style="font-weight: 700;">{{ acuerdo.ticket.folio|default:acuerdo.ticket.id_solicitud }}</td>
+                <td>
+                    <div style="font-weight: 600;">{{ acuerdo.enlace.nombre }}</div>
+                    <div style="font-size: 0.8rem; color: #666;">{{ acuerdo.institucion.nombre }}</div>
+                </td>
+                <td>
+                    <span class="badge badge-{{ acuerdo.estatus|lower }}">
+                        {{ acuerdo.get_estatus_display }}
+                    </span>
+                </td>
+                <td>
+                    <div style="font-weight: 600;">{{ acuerdo.fecha_solucion_final|date:"d/m/Y" }}</div>
+                    <small>{{ acuerdo.fecha_solucion_final|time:"H:i" }}</small>
+                </td>
+                <td>
+                    {% with done=0 total=acuerdo.tareas.count %}
+                        <div style="width: 100px; height: 6px; background: #eee; border-radius: 3px; position: relative; margin-bottom: 4px;">
+                            <div style="position: absolute; left: 0; top: 0; bottom: 0; background: var(--sap-success); border-radius: 3px; width: {% if total > 0 %}0%{% else %}0%{% endif %};"></div>
+                        </div>
+                        <span style="font-size: 0.75rem;">{{ total }} tareas asociadas</span>
+                    {% endwith %}
+                </td>
+                <td>
+                    <a href="/admin/callcenter/tiempoacordado/{{ acuerdo.id }}/change/" class="btn-visual" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                        <i class="ph ph-eye"></i> Detalles
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 3rem; color: #999;">
+                    No se encontraron acuerdos de tiempo en este departamento.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
