@@ -60,11 +60,13 @@ class SolicitudTicket(models.Model):
     embedding = VectorField(dimensions=1024, null=True, blank=True)
 
     # Estado de Notificación
-    cierre_enviado = models.BooleanField(default=False, verbose_name="Cierre Notificado", db_index=True)
+    cierre_enviado = models.BooleanField(default=False, verbose_name="Cierre Notificado", db_index=True, null=True, blank=True)
     correo_cierre = models.BooleanField(
         default=False, 
         verbose_name="Correo de Cierre Enviado", 
         db_index=True,
+        null=True, 
+        blank=True,
         help_text="Se marca automáticamente cuando Power Automate confirma el envío del correo de cierre"
     )
 
@@ -194,6 +196,194 @@ class EvidenciaTicket(models.Model):
     class Meta:
         verbose_name = "Evidencia de Ticket"
         verbose_name_plural = "Evidencias de tickets"
+
+
+class Institucion(models.Model):
+    """
+    Representa una institución externa (ej. SAR, BANX, etc.)
+    que solicita extensiones de tiempo o soluciones provisionales.
+    """
+    nombre = models.CharField(max_length=255, verbose_name="Nombre de la Institución")
+    acronimo = models.CharField(max_length=20, verbose_name="Acrónimo", blank=True, null=True, help_text="Ej: SAR, BANX, etc.")
+    ubicaciones = models.ManyToManyField(
+        'activos.Ubicacion', 
+        related_name='instituciones', 
+        verbose_name="Ubicaciones de la Institución",
+        blank=True,
+        help_text="Una institución puede tener una o más ubicaciones físicas."
+    )
+
+    def __str__(self):
+        if self.acronimo:
+            return f"{self.nombre} ({self.acronimo})"
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Institución"
+        verbose_name_plural = "Instituciones"
+        ordering = ['nombre']
+
+
+class Enlace(models.Model):
+    """
+    Persona de contacto en una institución para el seguimiento de tickets.
+    """
+    nombre = models.CharField(max_length=255, verbose_name="Nombre Completo")
+    email = models.EmailField(blank=True, null=True, verbose_name="Correo Electrónico")
+    telefono = models.CharField(max_length=50, blank=True, null=True, verbose_name="Teléfono / WhatsApp")
+    institucion = models.ForeignKey(
+        Institucion, 
+        on_delete=models.CASCADE, 
+        related_name='enlaces', 
+        verbose_name="Institución"
+    )
+    ubicacion = models.ForeignKey(
+        'activos.Ubicacion', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='enlaces', 
+        verbose_name="Ubicación por Defecto"
+    )
+
+    def __str__(self):
+        return f"{self.nombre} ({self.institucion.nombre})"
+
+    class Meta:
+        verbose_name = "Enlace / Contacto"
+        verbose_name_plural = "Enlaces de Instituciones"
+        ordering = ['nombre']
+
+
+class TiempoAcordado(models.Model):
+    """
+    Acuerdo de extensión de tiempo superando la holgura permitida.
+    Incluye cronograma de tareas para vista Gantt/Timeline.
+    """
+    ESTATUS_CHOICES = [
+        ('BORRADOR', 'Borrador'),
+        ('PENDIENTE', 'Pendiente de Aprobación'),
+        ('APROBADO', 'Aprobado / En Proceso'),
+        ('VENCIDO', 'Vencido'),
+        ('FINALIZADO', 'Finalizado'),
+    ]
+
+    ticket = models.ForeignKey(
+        SolicitudTicket, 
+        on_delete=models.CASCADE, 
+        related_name='tiempos_acordados', 
+        verbose_name="Ticket Relacionado"
+    )
+    enlace = models.ForeignKey(
+        Enlace, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='tiempos_acordados', 
+        verbose_name="Enlace Solicitante"
+    )
+    
+    # Campos por defecto desde el enlace (pueden ser modificados)
+    ubicacion = models.ForeignKey(
+        'activos.Ubicacion', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name="Ubicación del Reporte"
+    )
+    institucion = models.ForeignKey(
+        Institucion, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        verbose_name="Institución"
+    )
+
+    motivo_extension = models.TextField(verbose_name="Motivo del Tiempo Acordado")
+    solucion_provisional = models.TextField(verbose_name="Solución Provisional Acordada")
+    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones Adicionales")
+    
+    fecha_solucion_final = models.DateTimeField(verbose_name="Fecha Solución Final Comprometida")
+    
+    estatus = models.CharField(
+        max_length=20, 
+        choices=ESTATUS_CHOICES, 
+        default='BORRADOR',
+        verbose_name="Estado del Acuerdo"
+    )
+
+    # Firma Digital (Almacenada en Base64)
+    firma_enlace = models.TextField(blank=True, null=True, verbose_name="Firma del Enlace")
+    firma_responsable = models.TextField(blank=True, null=True, verbose_name="Firma del Responsable")
+
+    # Auditoría y Filtrado
+    usuario_creador = models.ForeignKey(
+        'auth.User', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='acuerdos_creados'
+    )
+    departamento = models.ForeignKey(
+        'core.Departamento', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='acuerdos_departamento'
+    )
+
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Lógica de defaults si no se especifican
+        if self.enlace:
+            if not self.institucion:
+                self.institucion = self.enlace.institucion
+            if not self.ubicacion:
+                self.ubicacion = self.enlace.ubicacion
+        
+        # Asignar departamento del creador si no está
+        if self.usuario_creador and not self.departamento:
+            try:
+                self.departamento = self.usuario_creador.perfil.departamento
+            except:
+                pass
+                
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Acuerdo: {self.ticket.folio or self.ticket.id_solicitud} - {self.estatus}"
+
+    class Meta:
+        verbose_name = "Tiempo Acordado"
+        verbose_name_plural = "Tiempos Acordados"
+        ordering = ['-fecha_solucion_final']
+
+
+class TiempoAcordadoTarea(models.Model):
+    """
+    Tareas específicas dentro de un tiempo acordado para generar el cronograma.
+    """
+    tiempo_acordado = models.ForeignKey(
+        TiempoAcordado, 
+        on_delete=models.CASCADE, 
+        related_name='tareas', 
+        verbose_name="Acuerdo"
+    )
+    descripcion = models.CharField(max_length=255, verbose_name="Actividad / Tarea")
+    fecha_inicio = models.DateTimeField(verbose_name="Fecha de Inicio")
+    fecha_fin = models.DateTimeField(verbose_name="Fecha Final")
+    
+    completada = models.BooleanField(default=False, verbose_name="¿Completada?")
+
+    def __str__(self):
+        return f"{self.descripcion} ({self.tiempo_acordado.id})"
+
+    class Meta:
+        verbose_name = "Tarea de Cronograma"
+        verbose_name_plural = "Tareas de Cronogramas"
+        ordering = ['fecha_inicio']
 
 
 # --- Señales ---

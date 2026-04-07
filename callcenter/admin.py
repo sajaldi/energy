@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SolicitudTicket, GrupoTicket
+from .models import SolicitudTicket, GrupoTicket, Institucion, Enlace, TiempoAcordado, TiempoAcordadoTarea
 
 from django.urls import path
 from .views import trigger_sync_tickets
@@ -9,6 +9,10 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 import pandas as pd # Usaremos pandas para leer Excel rápido
+from import_export import resources, fields
+from import_export.admin import ImportExportModelAdmin
+from import_export.widgets import ForeignKeyWidget, ManyToManyWidget
+from activos.models import Ubicacion
 
 class TicketsInline(admin.TabularInline):
     model = GrupoTicket.tickets.through
@@ -150,7 +154,7 @@ class EvidenciasInline(admin.TabularInline):
 
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
-    list_display = ('folio', 'id_solicitud', 'solicitante', 'usuario_responsable', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
+    list_display = ('folio', 'id_solicitud', 'solicitante', 'usuario_responsable', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
     list_filter = ('servicio', 'area', 'tipo_solicitud', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
     search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
     autocomplete_fields = ('activo', 'usuario_responsable')
@@ -163,6 +167,13 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             ro.append('correo_cierre')
         return ro
     inlines = [EvidenciasInline]
+    
+    def get_tiempos_acordados(self, obj):
+        count = obj.tiempos_acordados.count()
+        if count > 0:
+            return format_html('<span class="badge badge-info" style="background:#0070f2; color:white;"><i class="fas fa-clock"></i> {} Acordado(s)</span>', count)
+        return "-"
+    get_tiempos_acordados.short_description = "T. Acordado"
     
     change_form_template = "admin/callcenter/solicitudticket/change_form.html"
 
@@ -218,3 +229,106 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             path('<int:ticket_id>/cierre-visual/', self.admin_site.admin_view(views.ticket_cierre_visual_view), name='cierre_visual'),
         ]
         return custom_urls + urls
+# --- Nuevos Modelos de Tiempo Acordado ---
+
+class TiempoAcordadoTareaInline(admin.TabularInline):
+    model = TiempoAcordadoTarea
+    extra = 3
+    fields = ('descripcion', 'fecha_inicio', 'fecha_fin', 'completada')
+
+class EnlaceInline(admin.TabularInline):
+    model = Enlace
+    extra = 1
+    autocomplete_fields = ('ubicacion',)
+
+# --- Import Export Resources ---
+
+class InstitucionResource(resources.ModelResource):
+    ubicaciones = fields.Field(
+        column_name='ubicaciones',
+        attribute='ubicaciones',
+        widget=ManyToManyWidget(Ubicacion, field='nombre', separator='|')
+    )
+    class Meta:
+        model = Institucion
+        fields = ('id', 'nombre', 'acronimo', 'ubicaciones')
+        export_order = ('id', 'nombre', 'acronimo', 'ubicaciones')
+
+class EnlaceResource(resources.ModelResource):
+    institucion = fields.Field(
+        column_name='institucion',
+        attribute='institucion',
+        widget=ForeignKeyWidget(Institucion, 'nombre')
+    )
+    ubicacion = fields.Field(
+        column_name='ubicacion',
+        attribute='ubicacion',
+        widget=ForeignKeyWidget(Ubicacion, 'nombre')
+    )
+
+    class Meta:
+        model = Enlace
+        fields = ('id', 'nombre', 'institucion', 'email', 'telefono', 'ubicacion')
+        export_order = ('id', 'nombre', 'institucion', 'email', 'telefono', 'ubicacion')
+
+@admin.register(Institucion)
+class InstitucionAdmin(ImportExportModelAdmin):
+    resource_class = InstitucionResource
+    list_display = ('nombre', 'acronimo', 'get_ubicaciones_count')
+    filter_horizontal = ('ubicaciones',)
+    search_fields = ('nombre', 'acronimo')
+    inlines = [EnlaceInline]
+
+    def get_ubicaciones_count(self, obj):
+        return obj.ubicaciones.count()
+    get_ubicaciones_count.short_description = "N° Ubicaciones"
+
+@admin.register(Enlace)
+class EnlaceAdmin(ImportExportModelAdmin):
+    resource_class = EnlaceResource
+    list_display = ('nombre', 'institucion', 'email', 'telefono', 'ubicacion')
+    list_filter = ('institucion', 'ubicacion')
+    search_fields = ('nombre', 'email', 'telefono', 'institucion__nombre')
+    autocomplete_fields = ('ubicacion', 'institucion')
+
+@admin.register(TiempoAcordado)
+class TiempoAcordadoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'get_folio', 'enlace', 'institucion', 'estatus', 'fecha_solucion_final', 'departamento')
+    list_filter = ('estatus', 'departamento', 'institucion', 'creado_en')
+    search_fields = ('ticket__folio', 'ticket__id_solicitud', 'enlace__nombre', 'motivo_extension', 'institucion__nombre')
+    autocomplete_fields = ('ticket', 'enlace', 'ubicacion', 'institucion')
+    inlines = [TiempoAcordadoTareaInline]
+    readonly_fields = ('usuario_creador', 'departamento', 'creado_en', 'actualizado_en')
+    
+    fieldsets = (
+        ('Vinculación', {
+            'fields': (('ticket', 'enlace'), ('institucion', 'ubicacion'))
+        }),
+        ('Detalles del Acuerdo', {
+            'fields': ('motivo_extension', 'solucion_provisional', 'fecha_solucion_final', 'estatus', 'observaciones')
+        }),
+        ('Auditoría', {
+            'fields': (('usuario_creador', 'departamento'), ('creado_en', 'actualizado_en')),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def get_folio(self, obj):
+        return obj.ticket.folio or obj.ticket.id_solicitud
+    get_folio.short_description = "Folio Ticket"
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.usuario_creador = request.user
+            if hasattr(request.user, 'perfil') and request.user.perfil.departamento:
+                obj.departamento = request.user.perfil.departamento
+        super().save_model(request, obj, form, change)
+
+    class Media:
+        js = ('callcenter/js/tiempo_acordado_admin.js',)
+
+# --- Registros Manuales Pendientes ---
+@admin.register(TiempoAcordadoTarea)
+class TiempoAcordadoTareaAdmin(admin.ModelAdmin):
+    list_display = ('descripcion', 'tiempo_acordado', 'fecha_inicio', 'fecha_fin', 'completada')
+    list_filter = ('completada', 'fecha_inicio')

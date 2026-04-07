@@ -555,6 +555,15 @@
                 <span class="value">{{ avisos_abiertos }}</span>
                 <span class="label">Avisos</span>
             </div>
+            {% if tiempos_acordados_count > 0 %}
+            <div class="stat-card" onclick="document.getElementById('tiempos-acordados-section').scrollIntoView({behavior: 'smooth'})">
+                <div class="icon-circle" style="background: #fdf2f7; color: #d81b60;">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                </div>
+                <span class="value">{{ tiempos_acordados_count }}</span>
+                <span class="label">T. Acordados</span>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Main Actions -->
@@ -596,6 +605,14 @@
                 </div>
                 <h3>Auditoría</h3>
                 <p>Equipos IA</p>
+            </a>
+
+            <a href="{% url 'callcenter:mobile_crear_tiempo_acordado' %}" class="action-card">
+                <div class="icon-box" style="background: #fdf2f7; color: #d81b60;">
+                    <ion-icon name="calendar-add-outline"></ion-icon>
+                </div>
+                <h3>Nuevo T. Acordado</h3>
+                <p>Extensión de tiempo</p>
             </a>
         </div>
 
@@ -649,6 +666,38 @@
                 </div>
             </a>
         </div>
+
+        <!-- Mis Tiempos Acordados (NUEVO) -->
+        {% if mis_tiempos_acordados %}
+        <div id="tiempos-acordados-section" class="section-header fade-in" style="animation-delay: 0.45s;">
+            <h2>Mis Tiempos Acordados</h2>
+            <a href="{% url 'callcenter:tiempo_acordado_dashboard' %}">Ver todo</a>
+        </div>
+        <div class="scroller fade-in" style="animation-delay: 0.45s; margin-bottom: 25px;">
+            {% for acuerdo in mis_tiempos_acordados %}
+            <a href="{% url 'callcenter:mobile_detalle_tiempo_acordado' acuerdo.id %}" class="finance-card-link" style="text-decoration: none;">
+                <div class="finance-card" style="min-width: 220px; border-left: 4px solid {% if acuerdo.estatus == 'VENCIDO' %}var(--danger){% else %}var(--sap-brand-color){% endif %}; transition: transform 0.2s;">
+                    <div class="header">
+                        <div class="dot" style="background: {% if acuerdo.estatus == 'VENCIDO' %}var(--danger){% else %}var(--success){% endif %};"></div>
+                        <h4 style="font-weight: 700; color: var(--sap-text-color);">{{ acuerdo.ticket.folio }}</h4>
+                    </div>
+                    <p style="margin: 0 0 8px 0; font-size: 12px; color: var(--sap-text-muted); font-weight: 600;">
+                        {{ acuerdo.institucion.nombre|truncatechars:25 }}
+                    </p>
+                    <div style="font-size: 11px; margin-bottom: 10px;">
+                        <span style="color: var(--sap-text-muted);">Vence:</span> 
+                        <span style="font-weight: 700; color: {% if acuerdo.estatus == 'VENCIDO' %}var(--danger){% else %}var(--sap-text-color){% endif %};">
+                            {{ acuerdo.fecha_solucion_final|date:"d M, Y" }}
+                        </span>
+                    </div>
+                    <div class="footer">
+                        {{ acuerdo.get_estatus_display }} <ion-icon name="chevron-forward-outline"></ion-icon>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <!-- Infrastructure -->
         <div class="section-header fade-in" style="animation-delay: 0.4s;">

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4; margin: 1cm; }
+        body { font-family: "Helvetica", Arial, sans-serif; font-size: 10pt; color: #000; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        td { border: 1px solid #000; padding: 8px; vertical-align: middle; }
+        
+        .bold { font-weight: bold; }
+        .center { text-align: center; }
+        
+        .title {
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .footer-sig td { border: none; text-align: center; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="title">ACUERDO DE TIEMPO Y SOLUCION PROVISIONAL</div>
+
+    <table>
+        <tr>
+            <td class="bold" style="width: 25%;">No. de Solicitud:</td>
+            <td style="width: 25%;">{{ acuerdo.ticket.folio|default:acuerdo.ticket.id_solicitud }}</td>
+            <td class="bold" style="width: 25%;">Enlace MAO:</td>
+            <td style="width: 25%;">{{ acuerdo.enlace.nombre }}</td>
+        </tr>
+        <tr>
+            <td class="bold">Fecha/Hora de Solicitud:</td>
+            <td>{{ acuerdo.ticket.fecha_solicitud|date:"l d/m/Y g:i a" }}</td>
+            <td class="bold">Institución:</td>
+            <td>{{ acuerdo.institucion.nombre }}</td>
+        </tr>
+        <tr>
+            <td class="bold">*Fecha Solución Final:</td>
+            <td>{{ acuerdo.fecha_solucion_final|date:"l d/m/Y g:i a" }}</td>
+            <td class="bold">Ubicación del Reporte:</td>
+            <td>{{ acuerdo.ticket.area|default:"Cuerpo bajo A Nivel 4" }}</td>
+        </tr>
+    </table>
+
+    <div style="font-size: 8pt; margin-bottom: 20px;">
+        *Los tiempos estipulados para la solución final pueden variar de acuerdo con la disponibilidad del mercado local e internacional.
+    </div>
+
+    <table>
+        <tr>
+            <td class="bold" style="width: 30%; height: 80px;">Motivo del Tiempo Acordado</td>
+            <td style="width: 70%; text-align: justify;">{{ acuerdo.motivo_extension }}</td>
+        </tr>
+        <tr>
+            <td class="bold" style="height: 80px;">Solución Provisional Acordada</td>
+            <td style="text-align: justify;">{{ acuerdo.solucion_provisional|default:"" }}</td>
+        </tr>
+    </table>
+
+    <!-- GANTT SECTION -->
+    <table style="border: none;">
+        <tr>
+            <td class="center bold" style="border: 1px solid #000; border-bottom: none; padding: 10px;">CRONOGRAMA DE TIEMPO</td>
+        </tr>
+        <tr>
+            <td class="center" style="border: 1px solid #000; border-top: none; padding: 10px;">
+                <img src="data:image/png;base64,{{ gantt_b64 }}" style="zoom: 35%; margin: auto;" />
+            </td>
+        </tr>
+    </table>
+
+    <table>
+        <tr>
+            <td style="height: 60px;">
+                <span class="bold">Observaciones: </span>{{ acuerdo.observaciones|default:"" }}
+            </td>
+        </tr>
+    </table>
+
+    <br/><br/>
+
+    <table class="footer-sig">
+        <tr>
+            <td style="width: 50%;">
+                {% if acuerdo.firma_responsable %}
+                <img src="{{ acuerdo.firma_responsable }}" style="height: 50px;"><br/>
+                {% else %}
+                <div style="height: 50px;"></div>
+                {% endif %}
+                ___________________________________________<br/>
+                <span class="bold">RESPONSABLE DE SERVICIO TÉCNICO</span>
+            </td>
+            <td style="width: 50%;">
+                {% if acuerdo.firma_enlace %}
+                <img src="{{ acuerdo.firma_enlace }}" style="height: 50px;"><br/>
+                {% else %}
+                <div style="height: 50px;"></div>
+                {% endif %}
+                ___________________________________________<br/>
+                <span class="bold">NOMBRE Y FIRMA ENLACE MAO</span>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>
