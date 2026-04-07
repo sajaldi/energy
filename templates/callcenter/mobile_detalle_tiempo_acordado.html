@@ -1,0 +1,481 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Detalle Acuerdo - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    {% include 'core/fiori_tokens.html' %}
+
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            color: var(--sap-text-color);
+            padding-bottom: 40px;
+        }
+
+        header {
+            background-color: var(--sap-shell-bg);
+            color: var(--sap-shell-color);
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .back-btn {
+            font-size: 24px;
+            color: white;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+        }
+
+        .header-title h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-left: auto;
+        }
+
+        .status-borrador { background: #e0e0e0; color: #616161; }
+        .status-activo { background: #e3f2fd; color: #1976d2; }
+        .status-completado { background: #e8f5e9; color: #2e7d32; }
+        .status-vencido { background: #ffebee; color: #c62828; }
+
+        .container {
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .fiori-group {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: var(--sap-card-shadow);
+            border: 1px solid var(--sap-border-color);
+        }
+
+        .fiori-group-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #d81b60;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 8px;
+        }
+
+        .info-row {
+            margin-bottom: 15px;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 15px;
+            color: var(--sap-text-color);
+            line-height: 1.4;
+        }
+
+        .info-value-bold {
+            font-weight: 600;
+        }
+
+        /* Gantt Chart Styles */
+        .gantt-wrapper {
+            margin-top: 10px;
+            overflow-x: auto;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .gantt-container {
+            min-width: 600px; /* Asegura espacio para el scroll horizontal */
+            padding: 16px;
+            position: relative;
+        }
+
+        .gantt-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            border-bottom: 1px dashed #ddd;
+            padding-bottom: 4px;
+        }
+
+        .gantt-row {
+            display: flex;
+            align-items: center;
+            height: 36px;
+            position: relative;
+            margin-bottom: 8px;
+        }
+
+        .gantt-label {
+            width: 140px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--sap-text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .gantt-timeline {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+            background: rgba(0,0,0,0.02);
+            border-radius: 4px;
+        }
+
+        .gantt-bar {
+            position: absolute;
+            height: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(90deg, #d81b60, #ec407a);
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(216, 27, 96, 0.2);
+            transition: all 0.3s;
+        }
+
+        .gantt-bar:hover {
+            filter: brightness(1.1);
+            height: 16px;
+        }
+
+        .gantt-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #ddd;
+            z-index: 1;
+        }
+
+        .gantt-marker-label {
+            position: absolute;
+            top: -12px;
+            transform: translateX(-50%);
+            font-size: 9px;
+            white-space: nowrap;
+        }
+
+        /* Signatures */
+        .signature-display {
+            text-align: center;
+            background: #fdfdfd;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+        }
+
+        .signature-img {
+            max-width: 100%;
+            height: auto;
+            max-height: 120px;
+        }
+
+        .signature-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 480px) {
+            .signature-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <button onclick="window.history.back()" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+        <div class="header-title">
+            <h1>Detalle de Acuerdo</h1>
+        </div>
+        <a href="{% url 'callcenter:exportar_tiempo_acordado_pdf' acuerdo.id %}" 
+           style="color: white; font-size: 20px; display: flex;" title="Descargar PDF">
+            <ion-icon name="download-outline"></ion-icon>
+        </a>
+        <button id="btnSendPA" 
+                data-url="{% url 'callcenter:enviar_tiempo_acordado_power_automate' acuerdo.id %}"
+                style="color: white; font-size: 20px; background: none; border: none; padding: 0; display: flex; cursor: pointer;" 
+                title="Enviar Acuerdo">
+            <ion-icon name="paper-plane-outline"></ion-icon>
+        </button>
+        <div class="status-badge status-{{ acuerdo.estatus|lower }}">
+            {{ acuerdo.get_estatus_display }}
+        </div>
+    </header>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.getElementById('btnSendPA').addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            const btn = this;
+            const originalIcon = btn.innerHTML;
+
+            Swal.fire({
+                title: '¿Enviar Acuerdo?',
+                text: "Se generará el PDF y se enviará a Power Automate.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, enviar ahora',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Start loading
+                    btn.disabled = true;
+                    btn.innerHTML = '<ion-spinner name="crescent" style="width: 20px; height: 20px;"></ion-spinner>';
+                    
+                    Swal.fire({
+                        title: 'Procesando...',
+                        text: 'Generando PDF y enviando a la nube. Por favor espere.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        btn.disabled = false;
+                        btn.innerHTML = originalIcon;
+
+                        if (data.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Enviado!',
+                                text: data.message,
+                                timer: 3000
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        btn.disabled = false;
+                        btn.innerHTML = originalIcon;
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error de Red',
+                            text: 'No se pudo conectar con el servidor.'
+                        });
+                    });
+                }
+            });
+        });
+    </script>
+
+    <div class="container">
+        <!-- Grupo 1: El Ticket -->
+        <div class="fiori-group">
+            <div class="fiori-group-title">
+                <ion-icon name="ticket-outline"></ion-icon> Ticket Referenciado
+            </div>
+            <div class="info-row">
+                <span class="info-label">Folio / ID</span>
+                <div class="info-value info-value-bold">{{ acuerdo.ticket.folio|default:acuerdo.ticket.id_solicitud }}</div>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Descripción de la Falla</span>
+                <div class="info-value">{{ acuerdo.ticket.falla_descripcion }}</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="info-row">
+                    <span class="info-label">Reportado el</span>
+                    <div class="info-value">{{ acuerdo.ticket.creado_en|date:"d/m/Y H:i" }}</div>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Ubicación</span>
+                    <div class="info-value">{{ acuerdo.ticket.area|default:"N/A" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grupo 2: Contacto e Institución -->
+        <div class="fiori-group">
+            <div class="fiori-group-title">
+                <ion-icon name="people-outline"></ion-icon> Partes Interesadas
+            </div>
+            <div class="info-row">
+                <span class="info-label">Institución / Cliente</span>
+                <div class="info-value info-value-bold">{{ acuerdo.institucion.nombre }}</div>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Enlace Solicitante</span>
+                <div class="info-value">{{ acuerdo.enlace.nombre }}</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="info-row">
+                    <span class="info-label">Teléfono</span>
+                    <div class="info-value">{{ acuerdo.enlace.telefono|default:"N/A" }}</div>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Correo</span>
+                    <div class="info-value" style="font-size: 13px; line-break: anywhere;">{{ acuerdo.enlace.email|default:"N/A" }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grupo 3: Justificación y Plazo -->
+        <div class="fiori-group">
+            <div class="fiori-group-title">
+                <ion-icon name="calendar-clear-outline"></ion-icon> Acuerdo de Tiempo
+            </div>
+            <div class="info-row">
+                <span class="info-label">Motivo de Extensión</span>
+                <div class="info-value">{{ acuerdo.motivo_extension }}</div>
+            </div>
+            {% if acuerdo.solucion_provisional %}
+            <div class="info-row">
+                <span class="info-label">Solución Provisional</span>
+                <div class="info-value">{{ acuerdo.solucion_provisional }}</div>
+            </div>
+            {% endif %}
+            <div class="info-row" style="background: #fff9c4; padding: 10px; border-radius: 6px; border: 1px solid #fbc02d;">
+                <span class="info-label" style="color: #f57f17;">Fecha Comprometida de Solución</span>
+                <div class="info-value info-value-bold" style="font-size: 18px; color: #333;">
+                    {{ acuerdo.fecha_solucion_final|date:"d M, Y - H:i" }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Grupo 4: Cronograma de Actividades (Gantt) -->
+        {% if tareas %}
+        <div class="fiori-group">
+            <div class="fiori-group-title">
+                <ion-icon name="stats-chart-outline"></ion-icon> Cronograma (Diagrama de Gantt)
+            </div>
+            
+            <div class="gantt-wrapper">
+                <div class="gantt-container">
+                    <!-- Cabecera con fechas extremas -->
+                    <div class="gantt-header">
+                        <span>INICIO: {{ total_start|date:"d M, H:i" }}</span>
+                        <span>SOLUCIÓN FINAL: {{ total_end|date:"d M, H:i" }}</span>
+                    </div>
+
+                    <!-- Marcadores de límites -->
+                    <div class="gantt-marker" style="left: calc(140px + 0%);"></div>
+                    <div class="gantt-marker" style="left: calc(140px + 100%); background: #d81b60; width: 2px;"></div>
+
+                    {% for tarea in tareas %}
+                    <div class="gantt-row">
+                        <div class="gantt-label" title="{{ tarea.descripcion }}">
+                            {{ tarea.descripcion }}
+                        </div>
+                        <div class="gantt-timeline">
+                            <div class="gantt-bar" 
+                                 style="left: {{ tarea.left_percent|floatformat:2 }}%; width: {{ tarea.width_percent|floatformat:2 }}%;"
+                                 title="{{ tarea.fecha_inicio|date:'H:i' }} - {{ tarea.fecha_fin|date:'H:i' }}">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <p style="font-size: 10px; color: var(--sap-text-muted); margin-top: 8px; text-align: center;">
+                <ion-icon name="swap-horizontal-outline"></ion-icon> Deslice horizontalmente para ver el cronograma completo
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Grupo 5: Firmas Digitales -->
+        <div class="fiori-group">
+            <div class="fiori-group-title">
+                <ion-icon name="pencil-outline"></ion-icon> Firmas de Conformidad
+            </div>
+            <div class="signature-grid">
+                <div>
+                    <span class="info-label">Firma Enlace</span>
+                    <div class="signature-display">
+                        {% if acuerdo.firma_enlace %}
+                            <img src="{{ acuerdo.firma_enlace }}" class="signature-img" alt="Firma Enlace">
+                        {% else %}
+                            <p style="font-size: 12px; color: #999;">Sin firma</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <span class="info-label">Firma Responsable</span>
+                    <div class="signature-display">
+                        {% if acuerdo.firma_responsable %}
+                            <img src="{{ acuerdo.firma_responsable }}" class="signature-img" alt="Firma Responsable">
+                        {% else %}
+                            <p style="font-size: 12px; color: #999;">Sin firma</p>
+                        {% endif %}
+                    </div>
+                    <div style="text-align: center; font-size: 10px; margin-top: 4px; color: var(--sap-text-muted);">
+                        Realizado por: {{ acuerdo.usuario_creador.get_full_name|default:acuerdo.usuario_creador.username }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

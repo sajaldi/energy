@@ -824,14 +824,12 @@ def mobile_detalle_tiempo_acordado_view(request, pk):
     }
     return render(request, 'callcenter/mobile_detalle_tiempo_acordado.html', context)
 
-@staff_member_required
-@staff_member_required
-def exportar_tiempo_acordado_pdf_view(request, pk):
-    """Genera el PDF usando docxtpl (Jinja sobre MS Word) y covierte con docx2pdf."""
-    from .models import TiempoAcordado
-    from django.shortcuts import get_object_or_404
-    from django.http import HttpResponse
-    from django.utils import timezone
+
+def _generate_tiempo_acordado_pdf_binary(acuerdo):
+    """
+    Función interna que centraliza la generación del reporte.
+    Retorna una tupla: (archivo_bytes, nombre_archivo, content_type)
+    """
     from django.utils.dateformat import format as django_date_format
     from django.conf import settings
     from docxtpl import DocxTemplate, InlineImage
@@ -840,8 +838,9 @@ def exportar_tiempo_acordado_pdf_view(request, pk):
     import io
     import tempfile
     import uuid
-    
-    acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
+    import math
+    from PIL import Image, ImageDraw, ImageFont
+
     tareas = acuerdo.tareas.all().order_by('fecha_inicio')
     
     total_start = acuerdo.creado_en
@@ -861,7 +860,6 @@ def exportar_tiempo_acordado_pdf_view(request, pk):
     elif total_duration_days <= 50: step = 5
     elif total_duration_days <= 100: step = 10
     else:
-        import math
         raw_step = total_duration_days / 8.0
         step = int(math.ceil(raw_step / 10.0)) * 10
     
@@ -875,9 +873,6 @@ def exportar_tiempo_acordado_pdf_view(request, pk):
         
     visual_max_days = day_markers[-1]
     visual_max_seconds = visual_max_days * 86400.0
-    
-    # Generate Gantt Image with Pillow explicitly to Byte Stream
-    from PIL import Image, ImageDraw, ImageFont
     
     def generate_gantt_image_stream():
         w, row_h, head_h, foot_h = 1600, 60, 60, 40
@@ -926,16 +921,13 @@ def exportar_tiempo_acordado_pdf_view(request, pk):
         buf.seek(0)
         return buf
 
-    # === Lógica docxtpl ===
     template_path = os.path.join(settings.BASE_DIR, 'tiempo_acordado_template.docx')
     doc = DocxTemplate(template_path)
-
     gantt_stream = generate_gantt_image_stream() if tareas.exists() else None
     
     def get_base64_image_tag(base64_str):
         if not base64_str: return ""
         import base64
-        import io
         if "base64," in base64_str:
             base64_str = base64_str.split("base64,")[1]
         try:
@@ -961,40 +953,91 @@ def exportar_tiempo_acordado_pdf_view(request, pk):
     }
 
     doc.render(context)
-    
     unique_id = uuid.uuid4().hex
     temp_docx = os.path.join(tempfile.gettempdir(), f"{unique_id}.docx")
     temp_pdf = os.path.join(tempfile.gettempdir(), f"{unique_id}.pdf")
-    
     doc.save(temp_docx)
 
-    # === Lógica docx2pdf ===
-    fallback_to_docx = False
+    filename = f"Acuerdo_{acuerdo.ticket.folio or acuerdo.id}"
+    
     try:
         from docx2pdf import convert as docx2pdf_convert
         import pythoncom
         pythoncom.CoInitialize()
         docx2pdf_convert(temp_docx, temp_pdf)
-    except Exception as e:
-        fallback_to_docx = True
+        if os.path.exists(temp_pdf):
+            with open(temp_pdf, 'rb') as f:
+                data = f.read()
+            os.remove(temp_docx)
+            os.remove(temp_pdf)
+            return data, f"{filename}.pdf", "application/pdf"
+    except Exception:
+        pass
 
-    if fallback_to_docx or not os.path.exists(temp_pdf):
-        # Fallback de Seguridad: Devolver DOCX en lugar de colapsar la petición
-        response = HttpResponse(open(temp_docx, 'rb').read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-        response['Content-Disposition'] = f'attachment; filename="Acuerdo_{acuerdo.ticket.folio or acuerdo.id}.docx"'
-        os.remove(temp_docx)
-        return response
-
-    # Respuesta Exitosa con PDF
-    response = HttpResponse(open(temp_pdf, 'rb').read(), content_type='application/pdf')
-    filename = f"Acuerdo_{acuerdo.ticket.folio or acuerdo.id}.pdf"
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
-    # Cleanup memory
+    # Fallback to DOCX
+    with open(temp_docx, 'rb') as f:
+        data = f.read()
     os.remove(temp_docx)
-    os.remove(temp_pdf)
+    return data, f"{filename}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+def exportar_tiempo_acordado_pdf_view(request, pk):
+    """Vista de descarga directa del PDF."""
+    from .models import TiempoAcordado
+    from django.shortcuts import get_object_or_404
+    from django.http import HttpResponse
+
+    acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
+    data, filename, content_type = _generate_tiempo_acordado_pdf_binary(acuerdo)
     
+    response = HttpResponse(data, content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+@staff_member_required
+def enviar_tiempo_acordado_power_automate_ajax(request, pk):
+    """Genera el reporte e invoca el flujo de Power Automate."""
+    from .models import TiempoAcordado
+    from django.shortcuts import get_object_or_404
+    from django.http import JsonResponse
+    import requests
+    import base64
+    import json
+
+    acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
+    
+    try:
+        # 1. Generar el binario
+        data, filename, content_type = _generate_tiempo_acordado_pdf_binary(acuerdo)
+        pdf_base64 = base64.b64encode(data).decode('utf-8')
+
+        # 2. Construir Payload
+        payload = {
+            "folio": acuerdo.ticket.folio or acuerdo.ticket.id_solicitud,
+            "institucion": acuerdo.institucion.nombre if acuerdo.institucion else "N/A",
+            "enlace": acuerdo.enlace.nombre if acuerdo.enlace else "N/A",
+            "correo_enlace": acuerdo.enlace.email if acuerdo.enlace and acuerdo.enlace.email else "",
+            "correo_usuario": request.user.email if request.user.email else request.user.username,
+            "fecha_compromiso": acuerdo.fecha_solucion_final.strftime("%d/%m/%Y %H:%M") if acuerdo.fecha_solucion_final else "N/A",
+            "motivo": acuerdo.motivo_extension or "",
+            "filename": filename,
+            "pdf_base64": pdf_base64
+        }
+
+        # 3. Enviar a Power Automate
+        url = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/96148e822d7b4886aaf42c0177ce0678/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lJ_40qkIBvTGHvo6p4AwB7gOlgCFAl00MYLlAzdV7Z4"
+        
+        response = requests.post(url, json=payload, timeout=30)
+        
+        if response.status_code in [200, 202]:
+            return JsonResponse({"status": "success", "message": "Acuerdo enviado correctamente a Power Automate."})
+        else:
+            return JsonResponse({
+                "status": "error", 
+                "message": f"Power Automate respondió con error {response.status_code}: {response.text}"
+            }, status=400)
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 @staff_member_required
 @require_POST

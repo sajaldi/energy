@@ -25,4 +25,16 @@ urlpatterns = [
     path('cluster/<int:cluster_id>/create-ticket/', views.create_ticket_in_cluster_ajax, name='create_ticket_in_cluster'),
     path('api/search-tickets-autocomplete/', views.search_tickets_autocomplete_ajax, name='search_tickets_autocomplete'),
     path('api/webhook/correo-cierre-callback/', views.webhook_correo_cierre_callback, name='webhook_correo_cierre_callback'),
+    
+    # Tiempo Acordado Module
+    path('tiempo-acordado/dashboard/', views.tiempo_acordado_dashboard_view, name='tiempo_acordado_dashboard'),
+    path('app/tiempo-acordado/nuevo/', views.mobile_crear_tiempo_acordado_view, name='mobile_crear_tiempo_acordado'),
+    path('app/tiempo-acordado/<int:pk>/', views.mobile_detalle_tiempo_acordado_view, name='mobile_detalle_tiempo_acordado'),
+    path('app/tiempo-acordado/<int:pk>/pdf/', views.exportar_tiempo_acordado_pdf_view, name='exportar_tiempo_acordado_pdf'),
+    path('app/tiempo-acordado/<int:pk>/enviar/', views.enviar_tiempo_acordado_power_automate_ajax, name='enviar_tiempo_acordado_power_automate'),
+    
+    # API para Búsqueda
+    path('api/enlace/<int:enlace_id>/details/', views.get_enlace_details_ajax, name='enlace_details_ajax'),
+    path('api/ubicacion/<int:parent_id>/sububicaciones/', views.api_get_sububicaciones_ajax, name='api_get_sububicaciones'),
+    path('api/search-enlaces-autocomplete/', views.api_busqueda_enlaces_ajax, name='search_enlaces_autocomplete'),
 ]
