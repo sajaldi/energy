@@ -7,6 +7,8 @@ from django.views.static import serve
 from core.views_proxy import media_proxy
 from core.views import global_search
 
+from django.views.generic import TemplateView
+
 urlpatterns = [
     # Override global search before Django admin intercepts it
     path('admin/global-search/', global_search, name='global_search'),
@@ -34,9 +36,9 @@ urlpatterns = [
     path('servicios/', include('servicios.urls', namespace='servicios')),
     path('ayuda/', include('ayuda.urls', namespace='ayuda')),
     path('plantillas/', include('plantillas.urls', namespace='plantillas')),
-    # PWA Support
-    path('manifest.json', serve, {'document_root': settings.STATICFILES_DIRS[0], 'path': 'core/manifest.json'}),
-    path('sw.js', serve, {'document_root': settings.STATICFILES_DIRS[0], 'path': 'core/sw.js'}),
+    # PWA Support - Servidos como plantillas para asegurar carga desde la raíz
+    path('manifest.json', TemplateView.as_view(template_name='core/manifest.json', content_type='application/json')),
+    path('sw.js', TemplateView.as_view(template_name='core/sw.js', content_type='application/javascript')),
 ]
 
 if settings.DEBUG:
