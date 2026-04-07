@@ -192,3 +192,55 @@ def resolve_ticket_ubicacion(nombre_edificio, nombre_nivel):
     )
     
     return nivel_obj
+
+def calcular_horas_habiles(desde, hasta):
+    """
+    Calcula las horas hábiles entre dos fechas (desde y hasta).
+    Regla:
+    - Ventana: 07:00 a 23:00 (16 horas).
+    - Excluir Sábados (5) y Domingos (6).
+    - Excluir Feriados de mantenimiento.RestriccionCalendario.
+    """
+    from mantenimiento.models import RestriccionCalendario
+    from datetime import time, timedelta, datetime
+    from django.utils import timezone
+    
+    if not desde or not hasta or hasta <= desde:
+        return 0.0
+
+    # Asegurar que ambos sean aware
+    if timezone.is_naive(desde):
+        desde = timezone.make_aware(desde)
+    if timezone.is_naive(hasta):
+        hasta = timezone.make_aware(hasta)
+
+    # Obtener feriados en el rango
+    feriados = set(RestriccionCalendario.objects.filter(
+        fecha__range=(desde.date(), hasta.date())
+    ).values_list('fecha', flat=True))
+
+    total_segundos = 0
+    
+    # Definir ventana laboral
+    h_inicio = time(7, 0)
+    h_fin = time(23, 0)
+
+    # Iterar por cada día en el rango
+    current_date = desde.date()
+    while current_date <= hasta.date():
+        # Excluir fines de semana (Sábado=5, Domingo=6) y feriados
+        if current_date.weekday() < 5 and current_date not in feriados:
+            # Inicio y fin de la jornada para este día
+            jornada_inicio = timezone.make_aware(datetime.combine(current_date, h_inicio))
+            jornada_fin = timezone.make_aware(datetime.combine(current_date, h_fin))
+            
+            # El tiempo efectivo es el solapamiento entre [desde, hasta] y [jornada_inicio, jornada_fin]
+            overlap_inicio = max(desde, jornada_inicio)
+            overlap_fin = min(hasta, jornada_fin)
+            
+            if overlap_inicio < overlap_fin:
+                total_segundos += (overlap_fin - overlap_inicio).total_seconds()
+        
+        current_date += timedelta(days=1)
+            
+    return round(total_segundos / 3600.0, 2)

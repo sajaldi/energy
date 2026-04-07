@@ -196,7 +196,77 @@
 
         .btn-primary { background: var(--primary); color: white; }
         .btn-outline { background: white; color: var(--sap-text-color); border: 1px solid var(--sap-border-color); }
+        .btn-pink { background: #e7327d; color: white; }
+        .btn-purple { background: #a461d1; color: white; }
+        .btn-outline-pink { background: white; color: #e7327d; border: 1px solid #ffadd2; }
+
+        /* Restricción Section */
+        .restriccion-card {
+            background: #fff0f6;
+            border: 1px solid #ffadd2;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .restriccion-card::after {
+            content: 'RES';
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            font-size: 60px;
+            font-weight: 900;
+            color: rgba(231, 50, 125, 0.05);
+            transform: rotate(-15deg);
+        }
+
+        /* Modal Restricción */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .signature-wrapper {
+            background: #f8fafc;
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            margin: 15px 0;
+            touch-action: none;
+        }
+
+        #signature-pad {
+            width: 100%;
+            height: 200px;
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
@@ -313,24 +383,36 @@
         </div>
         {% endif %}
 
-        <!-- Tiempos Acordados -->
         {% if tiempos_acordados %}
-        <div class="section-title">
-            <ion-icon name="hourglass-outline"></ion-icon> Extensiones de Tiempo ({{ tiempos_acordados.count }})
+        ...
+        {% endif %}
+
+        <!-- Restricción de Acceso -->
+        {% if restriccion %}
+        <div class="section-title" style="color: #e7327d;">
+            <ion-icon name="lock-closed-outline"></ion-icon> Restricción de Acceso
         </div>
-        {% for ta in tiempos_acordados %}
-        <div class="timeline-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                <span style="font-weight: 700; font-size: 14px;">Folio Acuerdo</span>
-                <span style="font-size: 11px; font-weight: 700; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">{{ ta.get_estatus_display }}</span>
+        <div class="restriccion-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-weight: 700; color: #e7327d; font-size: 16px;">{{ restriccion.folio_ra }}</span>
+                <span class="badge-status" style="background: #e7327d; color: white;">Activa</span>
             </div>
-            <p style="margin: 4px 0; font-size: 13px;">{{ ta.motivo_extension|truncatechars:100 }}</p>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--sap-text-muted); margin-top: 8px;">
-                <span>Vence: <strong>{{ ta.fecha_solucion_final|date:"d/m/Y" }}</strong></span>
-                <span>Enviado: {% if ta.enviado %}✅{% else %}❌{% endif %}</span>
+            
+            <div class="info-grid" style="grid-template-columns: 1fr; gap: 8px;">
+                <div class="info-item">
+                    <label>Tiempo Restringido</label>
+                    <p style="font-size: 18px; color: #e7327d;">{{ restriccion.horas_restriccion }} hrs <small>(Horas Hábiles)</small></p>
+                </div>
+                <div class="info-item">
+                    <label>Fecha Registro</label>
+                    <p>{{ restriccion.creado_en|date:"d/m/Y H:i" }}</p>
+                </div>
             </div>
+
+            <a href="{% url 'callcenter:export_restriccion_acceso_pdf' restriccion.id %}" class="btn btn-pink" style="margin-top: 15px; width: 100%; height: 40px; font-size: 12px;">
+                <ion-icon name="download-outline"></ion-icon> Descargar PDF
+            </a>
         </div>
-        {% endfor %}
         {% endif %}
 
     </div>
@@ -341,11 +423,144 @@
         <a href="{% url 'callcenter:ticket_cierre_visual' ticket.id %}" class="btn btn-primary">
             <ion-icon name="checkmark-done-circle-outline"></ion-icon> Cerrar Ticket
         </a>
+        {% elif not restriccion %}
+        <button onclick="openRestriccion()" class="btn btn-pink">
+            <ion-icon name="lock-closed-outline"></ion-icon> Restricción
+        </button>
         {% endif %}
-        <a href="{% url 'admin:callcenter_solicitudticket_change' ticket.id %}" class="btn btn-outline" style="flex: 0.5;">
-            <ion-icon name="settings-outline"></ion-icon> Admin
+        
+        <a href="{% url 'admin:callcenter_solicitudticket_change' ticket.id %}" class="btn btn-outline" style="flex: 0.3;">
+            <ion-icon name="settings-outline"></ion-icon>
         </a>
     </div>
+
+    <!-- Modal de Restricción -->
+    <div id="modalRestriccion" class="modal-overlay">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #e7327d;">Restricción de Acceso</h3>
+                <button onclick="closeRestriccion()" style="background: none; border: none; font-size: 24px; color: #64748b;">
+                    <ion-icon name="close-circle-outline"></ion-icon>
+                </button>
+            </div>
+
+            <div style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px; font-size: 13px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <p style="margin: 0;"><strong>Ticket:</strong><br>{{ ticket.folio|default:ticket.id_solicitud }}</p>
+                    <p style="margin: 0;"><strong>Usuario que reporta:</strong><br>{{ ticket.solicitante }}</p>
+                    <p style="margin: 10px 0 0 0;"><strong>Servicio:</strong><br>{{ ticket.servicio|default:"-" }}</p>
+                    <p style="margin: 10px 0 0 0;"><strong>Ubicación:</strong><br>{{ ticket.ubicacion.nombre|default:ticket.area }}</p>
+                    <p style="margin: 10px 0 0 0; grid-column: span 2;"><strong>Falla:</strong><br>{{ ticket.falla_descripcion|truncatechars:100 }}</p>
+                    <p style="margin: 10px 0 0 0;"><strong>Reporte:</strong><br>{{ ticket.fecha_solicitud|date:"d/m/Y H:i" }}</p>
+                    <p style="margin: 10px 0 0 0;"><strong>Cierre:</strong><br>{{ ticket.fecha_cierre|date:"d/m/Y H:i" }}</p>
+                </div>
+                <hr style="margin: 15px 0; border: 0; border-top: 1px solid #e2e8f0;">
+                <p style="margin: 0; text-align: center; color: #e7327d; font-weight: 700;">
+                    <ion-icon name="information-circle-outline"></ion-icon> Se descontarán fines de semana y horarios no hábiles.
+                </p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 8px;">1. Firma de Conformidad (Usuario)</label>
+                <div class="signature-wrapper">
+                    <canvas id="signature-pad-usuario"></canvas>
+                </div>
+                <button onclick="padUsuario.clear()" class="btn btn-outline-pink" style="height: 30px; font-size: 11px; width: 80px; margin-top: -10px;">Limpiar</button>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <label style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 8px;">2. Firma del Técnico / Responsable</label>
+                <div class="signature-wrapper">
+                    <canvas id="signature-pad-tecnico"></canvas>
+                </div>
+                <button onclick="padTecnico.clear()" class="btn btn-outline-pink" style="height: 30px; font-size: 11px; width: 80px; margin-top: -10px;">Limpiar</button>
+            </div>
+
+            <button onclick="saveRestriccion()" class="btn btn-pink" style="width: 100%;">
+                <ion-icon name="save-outline"></ion-icon> Registrar Restricción
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let padUsuario, padTecnico;
+        const modal = document.getElementById('modalRestriccion');
+        const canvasUsuario = document.getElementById('signature-pad-usuario');
+        const canvasTecnico = document.getElementById('signature-pad-tecnico');
+
+        function resizeCanvas(canvas) {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+        }
+
+        function openRestriccion() {
+            modal.style.display = 'flex';
+            
+            // Redimensionar ambos canvas
+            resizeCanvas(canvasUsuario);
+            resizeCanvas(canvasTecnico);
+            
+            if (!padUsuario) {
+                padUsuario = new SignaturePad(canvasUsuario, { backgroundColor: 'rgba(255, 255, 255, 0)', penColor: 'rgb(0, 0, 0)' });
+                padTecnico = new SignaturePad(canvasTecnico, { backgroundColor: 'rgba(255, 255, 255, 0)', penColor: 'rgb(0, 0, 0)' });
+            } else {
+                padUsuario.clear();
+                padTecnico.clear();
+            }
+        }
+
+        function closeRestriccion() {
+            modal.style.display = 'none';
+        }
+
+        async function saveRestriccion() {
+            if (padUsuario.isEmpty() || padTecnico.isEmpty()) {
+                Swal.fire('Atención', 'Ambas firmas son obligatorias para continuar.', 'warning');
+                return;
+            }
+
+            const dataUsuario = padUsuario.toDataURL();
+            const dataTecnico = padTecnico.toDataURL();
+
+            Swal.fire({
+                title: 'Procesando...',
+                text: 'Guardando firmas y calculando tiempos.',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                const response = await fetch('{% url "callcenter:create_restriccion_acceso_ajax" ticket.id %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ 
+                        firma: dataUsuario,
+                        firma_tecnico: dataTecnico
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: `Se ha generado el folio ${result.folio}.`,
+                        confirmButtonText: 'Cerrar'
+                    }).then(() => { window.location.reload(); });
+                } else {
+                    Swal.fire('Error', result.message || 'No se pudo guardar.', 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Problema de conexión.', 'error');
+            }
+        }
+    </script>
 
 </body>
 

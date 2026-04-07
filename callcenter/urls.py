@@ -24,6 +24,8 @@ urlpatterns = [
     path('ticket/<int:ticket_id>/notify-n8n/', views.notify_ticket_n8n_ajax, name='notify_ticket_n8n'),
     path('cluster/<int:cluster_id>/create-ticket/', views.create_ticket_in_cluster_ajax, name='create_ticket_in_cluster'),
     path('api/search-tickets-autocomplete/', views.search_tickets_autocomplete_ajax, name='search_tickets_autocomplete'),
+    path('ticket/<int:ticket_id>/restriccion-acceso/', views.create_restriccion_acceso_ajax, name='create_restriccion_acceso_ajax'),
+    path('restriccion-acceso/<int:pk>/pdf/', views.export_restriccion_acceso_pdf, name='export_restriccion_acceso_pdf'),
     path('api/webhook/correo-cierre-callback/', views.webhook_correo_cierre_callback, name='webhook_correo_cierre_callback'),
     path('app/ticket/<int:pk>/', views.mobile_ticket_detalle_view, name='mobile_ticket_detalle'),
     

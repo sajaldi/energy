@@ -17,7 +17,7 @@ from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from playwright.sync_api import sync_playwright
-from .models import SolicitudTicket, EvidenciaTicket, CronogramaPredefinido, CronogramaItemPredefinido
+from .models import SolicitudTicket, EvidenciaTicket, CronogramaPredefinido, CronogramaItemPredefinido, RestriccionAcceso
 from .utils import resolve_ticket_ubicacion
 import requests
 from core.models import PerfilUsuario
@@ -553,7 +553,7 @@ def cluster_tickets_view(request, cluster_id):
     
     # Optimizamos agregando el conteo de tiempos acordados asociados
     tickets = cluster.tickets.all().select_related(
-        'ubicacion', 'usuario_responsable'
+        'ubicacion', 'usuario_responsable', 'restriccion_acceso'
     ).annotate(
         num_tiempos_acordados=Count('tiempos_acordados')
     ).order_by('-fecha_solicitud')
@@ -1707,10 +1707,122 @@ def mobile_ticket_detalle_view(request, pk):
     # Obtener Tiempos Acordados relacionados
     tiempos_acordados = ticket.tiempos_acordados.all().order_by('-creado_en')
     
+    # Obtener Restricción de Acceso si existe
+    restriccion = getattr(ticket, 'restriccion_acceso', None)
+    
     context = {
         'ticket': ticket,
         'evidencias': evidencias,
         'tiempos_acordados': tiempos_acordados,
+        'restriccion': restriccion,
         'title': f"Ticket {ticket.folio or ticket.id_solicitud}"
     }
     return render(request, 'callcenter/mobile_ticket_detalle.html', context)
+
+@staff_member_required
+@require_POST
+@csrf_exempt
+def create_restriccion_acceso_ajax(request, ticket_id):
+    """
+    Crea una Restricción de Acceso vinculada a un ticket cerrado.
+    Folio: RA-DEPT-2026-001
+    Horas: Calculadas según horario hábil (7-23h, 16h/día).
+    """
+    from .utils import calcular_horas_habiles
+    
+    ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+    
+    if not ticket.fecha_cierre:
+        return JsonResponse({'success': False, 'message': 'El ticket debe estar cerrado para crear una restricción.'}, status=400)
+    
+    if hasattr(ticket, 'restriccion_acceso'):
+        return JsonResponse({'success': False, 'message': 'Este ticket ya tiene una restricción de acceso asociada.'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        firma = data.get('firma')
+        firma_tecnico = data.get('firma_tecnico')
+    except:
+        firma = request.POST.get('firma')
+        firma_tecnico = request.POST.get('firma_tecnico')
+
+    # 1. Resolver Departamento para el folio
+    dept_nombre = "INST" # Fallback
+    if hasattr(request.user, 'perfil') and request.user.perfil.departamento:
+        # Tomar las primeras 4 letras en mayúsculas, quitando caracteres no alfanuméricos
+        raw_dept = request.user.perfil.departamento.nombre
+        dept_nombre = "".join(filter(str.isalnum, raw_dept))[:4].upper()
+    
+    anio = timezone.now().year
+    prefix = f"RA-{dept_nombre}-{anio}-"
+    
+    # Obtener el correlativo anual/dept
+    ultima_ra = RestriccionAcceso.objects.filter(folio_ra__startswith=prefix).order_by('folio_ra').last()
+    if ultima_ra:
+        try:
+            ultimo_num_str = ultima_ra.folio_ra.split('-')[-1]
+            nuevo_num = int(ultimo_num_str) + 1
+        except:
+            nuevo_num = 1
+    else:
+        nuevo_num = 1
+    
+    folio = f"{prefix}{str(nuevo_num).zfill(3)}"
+    
+    # 2. Calcular Horas (7-23h, excluyendo feriados/findes)
+    desde = ticket.fecha_solicitud
+    hasta = ticket.fecha_cierre
+    
+    horas = calcular_horas_habiles(desde, hasta)
+    
+    # 3. Guardar Registro
+    ra = RestriccionAcceso.objects.create(
+        ticket=ticket,
+        folio_ra=folio,
+        fecha_restriccion=desde,
+        fecha_reprogramacion=hasta,
+        horas_restriccion=horas,
+        firma_usuario=firma,
+        firma_tecnico=firma_tecnico,
+        usuario_creador=request.user
+    )
+    
+    return JsonResponse({
+        'success': True, 
+        'folio': ra.folio_ra,
+        'horas': float(ra.horas_restriccion),
+        'id': ra.id
+    })
+
+@staff_member_required
+def export_restriccion_acceso_pdf(request, pk):
+    """
+    Genera un PDF formal para una Restricción de Acceso.
+    """
+    from .models import RestriccionAcceso
+    ra = get_object_or_404(RestriccionAcceso, pk=pk)
+    ticket = ra.ticket
+    
+    html_content = render_to_string('callcenter/restriccion_acceso_pdf.html', {
+        'ra': ra,
+        'ticket': ticket,
+        'ahora': timezone.now(),
+        'user': request.user,
+    }, request=request)
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
+            page = browser.new_page()
+            page.set_content(html_content, wait_until='networkidle')
+            pdf_bytes = page.pdf(format="A4", print_background=True)
+            browser.close()
+            
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            filename = f"Restriccion_{ra.folio_ra}_{ticket.folio or ticket.id_solicitud}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+    except Exception as e:
+        logger.error(f"Error generando PDF para Restricción {ra.id}: {e}")
+        return HttpResponse(f"Error al generar el PDF: {e}", status=500)

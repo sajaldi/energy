@@ -392,6 +392,45 @@ class TiempoAcordadoTarea(models.Model):
         ordering = ['fecha_inicio']
 
 
+class RestriccionAcceso(models.Model):
+    ticket = models.OneToOneField(
+        SolicitudTicket, 
+        on_delete=models.CASCADE, 
+        related_name='restriccion_acceso',
+        verbose_name="Ticket Relacionado"
+    )
+    folio_ra = models.CharField(
+        max_length=50, 
+        unique=True, 
+        verbose_name="Folio RA"
+    )
+    fecha_restriccion = models.DateTimeField(verbose_name="Fecha y Hora de Restricción")
+    fecha_reprogramacion = models.DateTimeField(verbose_name="Fecha y Hora de Reprogramación")
+    horas_restriccion = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        verbose_name="Horas de Restricción"
+    )
+    firma_usuario = models.TextField(blank=True, null=True, verbose_name="Firma del Usuario")
+    firma_tecnico = models.TextField(blank=True, null=True, verbose_name="Firma del Técnico")
+    
+    usuario_creador = models.ForeignKey(
+        'auth.User', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='restricciones_creadas'
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.folio_ra} - Ticket: {self.ticket.folio or self.ticket.id_solicitud}"
+
+    class Meta:
+        verbose_name = "Restricción de Acceso"
+        verbose_name_plural = "Restricciones de Acceso"
+
+
 # --- Señales ---
 @receiver(post_save, sender=SolicitudTicket)
 def trigger_vectorize_ticket(sender, instance, **kwargs):

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4; margin: 1cm; }
+        body { font-family: "Helvetica", Arial, sans-serif; font-size: 10pt; color: #333; line-height: 1.4; }
+        
+        .header { border-bottom: 2px solid #e91e63; padding-bottom: 15px; margin-bottom: 25px; overflow: hidden; }
+        .logo-section { float: left; }
+        .folio-section { float: right; text-align: right; }
+        .folio-title { font-size: 14pt; font-weight: bold; color: #e91e63; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; clear: both; }
+        td { border: 1px solid #ddd; padding: 10px; vertical-align: top; font-size: 9pt; }
+        
+        .section-header { background-color: #f8f9fa; font-weight: bold; color: #555; text-transform: uppercase; font-size: 8pt; border-bottom: 1px solid #ccc; padding: 5px 10px; margin-top: 10px; }
+        .label { font-weight: bold; color: #2c3e50; background-color: #fafafa; }
+        
+        .title { text-align: center; font-size: 16pt; font-weight: bold; color: #333; margin-bottom: 5px; margin-top: 20px; }
+        .subtitle { text-align: center; font-size: 10pt; color: #666; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        
+        .signature-box { margin-top: 60px; text-align: center; width: 100%; }
+        .signature-container { display: inline-block; width: 45%; text-align: center; margin: 0 2%; vertical-align: top; }
+        .signature-img { max-height: 80px; max-width: 200px; border-bottom: 1px solid #000; display: block; margin: 0 auto 10px; }
+        .signature-label { font-weight: bold; font-size: 8pt; text-transform: uppercase; }
+        
+        .highlight { color: #e91e63; font-weight: bold; font-size: 11pt; }
+        .info-box { background-color: #fff8f8; border: 1px solid #ffebeb; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 9pt; }
+        
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 7pt; color: #999; border-top: 1px solid #eee; padding-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo-section">
+            <div style="font-weight: bold; font-size: 14pt;">SOFTCOM-CCG</div>
+            <div style="font-size: 8pt; color: #666;">Sistema de Gestión de Energía</div>
+        </div>
+        <div class="folio-section">
+            <div class="folio-title">FOLIO: {{ ra.folio_ra }}</div>
+            <div style="font-size: 9pt; color: #333;">Fecha Gen: {{ ahora|date:"d/m/Y" }}</div>
+        </div>
+    </div>
+
+    <div class="title">RESTRICCIÓN DE ACCESO AL SERVICIO</div>
+    <div class="subtitle">Comprobante de retraso de atención por causas externas</div>
+
+    <div class="section-header">Información del Ticket Relacionado</div>
+    <table>
+        <tr>
+            <td class="label" style="width: 20%;">Ticket No:</td>
+            <td style="width: 30%;">{{ ticket.folio|default:ticket.id_solicitud }}</td>
+            <td class="label" style="width: 20%;">Usuario que reporta:</td>
+            <td style="width: 30%;">{{ ticket.solicitante }}</td>
+        </tr>
+        <tr>
+            <td class="label">Servicio:</td>
+            <td>{{ ticket.servicio }}</td>
+            <td class="label">Subservicio:</td>
+            <td>{{ ticket.subservicio|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Ubicación:</td>
+            <td colspan="3">{{ ticket.ubicacion.nombre_completo|default:ticket.area }}</td>
+        </tr>
+        <tr>
+            <td class="label">Descripción de Solicitud:</td>
+            <td colspan="3">{{ ticket.solicitud_descripcion }}</td>
+        </tr>
+    </table>
+
+    <div class="section-header">Tiempos y Cálculos</div>
+    <table>
+        <tr>
+            <td class="label" style="width: 25%;">Reporte Inicial:</td>
+            <td>{{ ticket.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+            <td class="label" style="width: 25%;">Fecha de Cierre:</td>
+            <td>{{ ticket.fecha_cierre|date:"d/m/Y H:i" }}</td>
+        </tr>
+        <tr style="background-color: #fff8f8;">
+            <td class="label">Tiempo Restringido:</td>
+            <td colspan="3"><span class="highlight">{{ ra.horas_restriccion }} horas hábiles</span></td>
+        </tr>
+    </table>
+
+    <div class="info-box">
+        <strong>Nota Técnica sobre el Cálculo:</strong><br/>
+        El tiempo restringido se calculó en base a la ventana operativa acordada de **16 horas diarias (07:00 a 23:00)**, excluyendo días sábado, domingo y feriados oficiales. Este valor representa la duración efectiva en la cual el servicio técnico no pudo intervenir oportunamente debido a restricciones de acceso al área o activos involucrados.
+    </div>
+
+    <div class="signature-box">
+        <!-- Firma Usuario -->
+        <div class="signature-container">
+            {% if ra.firma_usuario %}
+                <img src="{{ ra.firma_usuario }}" class="signature-img">
+            {% else %}
+                <div style="height: 80px; border-bottom: 1px solid #000; margin-bottom: 10px;"></div>
+            {% endif %}
+            <div class="signature-label">Firma de Conformidad Usuario</div>
+            <div style="font-size: 7pt; color: #666;">(Aceptación del tiempo de retraso)</div>
+        </div>
+
+        <!-- Firma Técnico -->
+        <div class="signature-container">
+            {% if ra.firma_tecnico %}
+                <img src="{{ ra.firma_tecnico }}" class="signature-img">
+            {% else %}
+                <div style="height: 80px; border-bottom: 1px solid #000; margin-bottom: 10px;"></div>
+            {% endif %}
+            <div class="signature-label">Firma Técnico / Responsable</div>
+            <div style="font-size: 7pt; color: #666;">({{ user.get_full_name|default:user.username }})</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Generado automáticamente por el Sistema SOFTCOM-CCG el {{ ahora|date:"d/m/Y H:i" }} - Usuario: {{ user.get_full_name|default:user.username }}
+    </div>
+
+</body>
+</html>

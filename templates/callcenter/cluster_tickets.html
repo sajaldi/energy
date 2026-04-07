@@ -12,6 +12,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'callcenter/css/ticket_dashboard.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <style>
         .list-container {
             background: white;
@@ -223,6 +224,26 @@
                             <button class="btn-action notify-n8n-btn" data-id="{{ t.id|unlocalize }}" title="Notificar a Técnico (WhatsApp/n8n)" style="background-color: var(--sap-warning); border: none; cursor: pointer; padding: 0.5rem; min-width: 36px; justify-content: center;">
                                 <i class="ph ph-bell" style="font-size: 1.2rem;"></i>
                             </button>
+                            {% if t.fecha_cierre or t.cierre_enviado %}
+                                {% if t.restriccion_acceso %}
+                                    <button class="btn-action" title="Ver Restricción de Acceso" style="background-color: #6f42c1; border: none; cursor: pointer; padding: 0.5rem; min-width: 36px; justify-content: center;" onclick="viewRestriccion('{{ t.restriccion_acceso.id }}', '{{ t.restriccion_acceso.folio_ra }}', '{{ t.restriccion_acceso.horas_restriccion }}')">
+                                        <i class="ph ph-shield-check" style="font-size: 1.2rem;"></i>
+                                    </button>
+                                {% else %}
+                                    <button class="btn-action open-restriccion-btn" 
+                                        data-id="{{ t.id|unlocalize }}" 
+                                        data-folio="{{ t.folio|default:t.id_solicitud }}" 
+                                        data-solicitante="{{ t.solicitante|default:'-' }}"
+                                        data-servicio="{{ t.servicio|default:'-' }}"
+                                        data-ubicacion="{{ t.ubicacion.nombre_completo|default:t.area|default:'-' }}"
+                                        data-description="{{ t.solicitud_descripcion|truncatechars:150|default:'-' }}"
+                                        data-reporte="{{ t.fecha_solicitud|date:'d/m/Y H:i' }}"
+                                        data-cierre="{{ t.fecha_cierre|date:'d/m/Y H:i' }}"
+                                        title="Crear Restricción de Acceso" style="background-color: #e91e63; border: none; cursor: pointer; padding: 0.5rem; min-width: 36px; justify-content: center;">
+                                        <i class="ph ph-lock-key" style="font-size: 1.2rem;"></i>
+                                    </button>
+                                {% endif %}
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -250,6 +271,58 @@
                     <div style="border: 3px solid #f3f3f3; border-top: 3px solid var(--sap-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
                     <p style="margin-top: 16px; color: var(--sap-label); font-weight: 500;">Cargando detalles...</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restriccion Acceso Modal -->
+    <div id="restriccion-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+        <div style="background: white; width: 90%; max-width: 500px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.2);">
+            <div style="padding: 16px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                <h3 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;"><i class="ph ph-lock-key" style="color: #e91e63;"></i> Restricción de Acceso</h3>
+                <button onclick="closeRestriccionModal()" style="border: none; background: transparent; font-size: 1.5rem; cursor: pointer; color: #999;"><i class="ph ph-x"></i></button>
+            </div>
+            <div style="padding: 24px;">
+                <!-- Ticket Summary Section -->
+                <div id="ra-ticket-summary" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; font-size: 0.85rem; color: #333;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Folio Ticket</strong> <span id="ra-ticket-folio" style="font-weight: 700;"></span></div>
+                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Solicitante</strong> <span id="ra-ticket-solicitante"></span></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Servicio</strong> <span id="ra-ticket-servicio"></span></div>
+                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Ubicación</strong> <span id="ra-ticket-ubicacion"></span></div>
+                    </div>
+                    <div style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                        <strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Descripción Solicitud</strong>
+                        <div id="ra-ticket-description" style="color: #444; margin-top: 4px; line-height: 1.4;"></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Fecha de Reporte</strong> <span id="ra-ticket-reporte" style="color: #005fb8;"></span></div>
+                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Fecha de Cierre</strong> <span id="ra-ticket-cierre" style="color: #28a745;"></span></div>
+                    </div>
+                </div>
+                
+                <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; color: #795548;">
+                    <i class="ph ph-info" style="margin-right: 4px;"></i> 
+                    Los tiempos se calcularán automáticamente desde el reporte hasta el cierre, excluyendo horarios fuera de la ventana 07:00 - 23:00.
+                </div>
+
+                <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 8px;">Firma del Usuario de Conformidad</label>
+                <div style="border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; margin-bottom: 12px;">
+                    <canvas id="restriccion-canvas" style="width: 100%; height: 200px; touch-action: none; cursor: crosshair;"></canvas>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" id="clear-restriccion" style="background: #eee; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+                        <i class="ph ph-eraser"></i> Limpiar Firma
+                    </button>
+                </div>
+            </div>
+            <div style="padding: 16px 24px; background: #f9f9f9; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="closeRestriccionModal()" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-weight: 600;">Cancelar</button>
+                <button id="save-restriccion-btn" style="padding: 8px 24px; border-radius: 6px; border: none; background: #e91e63; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 2px 4px rgba(233, 30, 99, 0.3);">
+                    Generar Restricción
+                </button>
             </div>
         </div>
     </div>
@@ -534,8 +607,129 @@
             const currentSort = urlParams.get('sort');
             const newSort = currentSort === field ? `-${field}` : field;
             urlParams.set('sort', newSort);
+            urlParams.set('sort', newSort);
             window.location.href = "?" + urlParams.toString();
         }
+
+        // Restriccion de Acceso logic
+        let raTicketId = null;
+        let raCanvas = document.getElementById('restriccion-canvas');
+        let raPad = null;
+
+        function initRaPad() {
+            if (!raPad) {
+                raPad = new SignaturePad(raCanvas, {
+                    backgroundColor: 'rgba(255, 255, 255, 0)',
+                    penColor: 'rgb(0, 0, 0)'
+                });
+                
+                function resize() {
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    raCanvas.width = raCanvas.offsetWidth * ratio;
+                    raCanvas.height = raCanvas.offsetHeight * ratio;
+                    raCanvas.getContext("2d").scale(ratio, ratio);
+                    raPad.clear();
+                }
+                window.addEventListener("resize", resize);
+                // Initial resize
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                raCanvas.width = raCanvas.offsetWidth * ratio;
+                raCanvas.height = raCanvas.offsetHeight * ratio;
+                raCanvas.getContext("2d").scale(ratio, ratio);
+                raPad.clear();
+            }
+        }
+
+        function openRestriccionModal(btn) {
+            raTicketId = btn.dataset.id;
+            
+            // Populating summary
+            document.getElementById('ra-ticket-folio').innerText = btn.dataset.folio;
+            document.getElementById('ra-ticket-solicitante').innerText = btn.dataset.solicitante;
+            document.getElementById('ra-ticket-servicio').innerText = btn.dataset.servicio;
+            document.getElementById('ra-ticket-ubicacion').innerText = btn.dataset.ubicacion;
+            document.getElementById('ra-ticket-description').innerText = btn.dataset.description;
+            document.getElementById('ra-ticket-reporte').innerText = btn.dataset.reporte;
+            document.getElementById('ra-ticket-cierre').innerText = btn.dataset.cierre;
+            
+            document.getElementById('restriccion-modal').style.display = 'flex';
+            setTimeout(initRaPad, 100); 
+        }
+
+        function closeRestriccionModal() {
+            document.getElementById('restriccion-modal').style.display = 'none';
+        }
+
+        document.getElementById('clear-restriccion').addEventListener('click', () => {
+            if (raPad) raPad.clear();
+        });
+
+        document.getElementById('save-restriccion-btn').addEventListener('click', async () => {
+            if (!raPad || raPad.isEmpty()) {
+                Swal.fire('Firma Requerida', 'Por favor, el usuario debe firmar para confirmar la restricción.', 'warning');
+                return;
+            }
+
+            const firma = raPad.toDataURL();
+            
+            try {
+                Swal.fire({ title: 'Generando registro...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const url = `{% url 'callcenter:create_restriccion_acceso_ajax' 0 %}`.replace('0', raTicketId);
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ firma: firma })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire({ 
+                        icon: 'success', 
+                        title: 'Restricción Generada', 
+                        html: `<b>Folio:</b> ${data.folio}<br><b>Horas Habiles:</b> ${data.horas}`, 
+                        timer: 3000, 
+                        showConfirmButton: true 
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.message || 'No se pudo generar la restricción.', 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Error de red o servidor.', 'error');
+            }
+        });
+
+        function viewRestriccion(id, folio, horas) {
+            const pdfUrl = `{% url 'callcenter:export_restriccion_acceso_pdf' 0 %}`.replace('0', id);
+            Swal.fire({
+                title: 'Información de Restricción',
+                html: `
+                    <div style="text-align: left; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #eee;">
+                        <p style="margin-bottom: 12px; font-size: 1.1rem;"><strong>Folio RA:</strong> <span style="color: #e91e63; font-weight: 700;">${folio}</span></p>
+                        <p style="margin-bottom: 0;"><strong>Tiempo Restringido:</strong> <span style="font-weight: 600;">${horas} horas hábiles</span></p>
+                    </div>
+                `,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: '<i class="ph ph-file-pdf"></i> Descargar PDF',
+                cancelButtonText: 'Cerrar',
+                confirmButtonColor: '#bb0000',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.open(pdfUrl, '_blank');
+                }
+            });
+        }
+
+        document.addEventListener('click', e => {
+            const btn = e.target.closest('.open-restriccion-btn');
+            if (btn) {
+                e.preventDefault();
+                openRestriccionModal(btn);
+            }
+        });
     </script>
 </body>
 </html>
