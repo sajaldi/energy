@@ -1,190 +1,200 @@
-{% extends "core/base.html" %}
-
-{% block extra_css %}
-<style>
-    :root {
-        --sap-blue: #0070f2;
-        --sap-bg: #f4f6f9;
-        --sap-text: #1d2d3e;
-        --sap-label: #6a6d70;
-        --sap-border: #d9d9d9;
-    }
-    .fiori-shell-bar { background: #354a5f; color: #fff; padding: 0.5rem 1rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-    .fiori-object-page { padding: 2rem; background: var(--sap-bg); min-height: calc(100vh - 44px); font-family: '72', Arial, sans-serif; }
-    .fiori-section { background: #fff; border-radius: 0.25rem; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08); margin-bottom: 2rem; overflow: hidden; }
-    .fiori-section-header { padding: 1.5rem; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center; }
-    .fiori-section-title { font-size: 1.2rem; font-weight: bold; color: var(--sap-text); margin: 0; }
-    .fiori-section-content { padding: 1.5rem; }
-    
-    label { display: block; margin-bottom: 0.5rem; color: var(--sap-label); font-weight: bold; font-size: 0.875rem; }
-    input[type="text"], input[type="number"], select { 
-        width: 100%; border: 1px solid var(--sap-border); border-radius: 0.25rem; padding: 0.5rem; font-size: 0.875rem; outline: none; transition: border-color 0.2s;
-    }
-    input:focus, select:focus { border-color: var(--sap-blue); box-shadow: 0 0 4px rgba(0,112,242,0.2); }
-    
-    .fiori-table { width: 100%; border-collapse: collapse; margin-top: 1rem; min-width: 600px; }
-    .fiori-table th { background: #f8f9fa; border-bottom: 2px solid var(--sap-border); padding: 0.75rem; text-align: left; color: var(--sap-label); font-size: 0.8rem; text-transform: uppercase; }
-    .fiori-table td { padding: 0.75rem; border-bottom: 1px solid #efefef; }
-    
-    .fiori-btn { padding: 0.5rem 1rem; border-radius: 0.25rem; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.5rem; }
-    .fiori-btn-primary { background: var(--sap-blue); color: #fff; }
-    .fiori-btn-primary:hover { background: #005bb7; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .fiori-btn-ghost { background: transparent; color: var(--sap-blue); border: 1px solid var(--sap-blue); }
-    .fiori-btn-ghost:hover { background: rgba(0,112,242,0.05); }
-    .fiori-btn-danger { background: #bb0000; color: #fff; }
-    .fiori-btn-danger:hover { background: #990000; }
-    
-    .fiori-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--sap-border); padding: 0.75rem 2rem; display: flex; justify-content: flex-end; gap: 1rem; box-shadow: 0 -4px 10px rgba(0,0,0,0.05); }
-    
-    [x-cloak] { display: none !important; }
-    
-    .fiori-badge { background: #e1f0ff; color: #0056b3; padding: 0.2rem 0.5rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600; }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="fiori-page" x-data="cronogramaForm()" x-init="init()" x-cloak>
-    <!-- Shell Bar -->
-    <div class="fiori-shell-bar">
-        <div style="display:flex; align-items:center; gap: 1rem;">
-            <a href="{% url 'callcenter:callcenter_cronogramas_lista' %}" style="color:white; text-decoration:none;"><i class="fas fa-arrow-left"></i></a>
-            <span style="font-weight:bold; font-size: 1.1rem;">{{ title }}</span>
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} | SoftCom-CCG</title>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --sap-blue: #0070f2;
+            --sap-bg: #f4f6f9;
+            --sap-text: #1d2d3e;
+            --sap-label: #6a6d70;
+            --sap-border: #d9d9d9;
+        }
+        body { margin: 0; padding: 0; background: var(--sap-bg); font-family: '72', '72full', Arial, Helvetica, sans-serif; color: var(--sap-text); }
+        .fiori-shell-bar { background: #354a5f; color: #fff; padding: 0.5rem 1rem; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; height: 44px; }
+        .fiori-object-page { padding: 2rem; background: var(--sap-bg); min-height: calc(100vh - 44px - 60px); }
+        .fiori-section { background: #fff; border-radius: 0.25rem; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08); margin-bottom: 2rem; overflow: hidden; }
+        .fiori-section-header { padding: 1.5rem; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center; }
+        .fiori-section-title { font-size: 1.2rem; font-weight: bold; color: var(--sap-text); margin: 0; }
+        .fiori-section-content { padding: 1.5rem; }
+        
+        label { display: block; margin-bottom: 0.5rem; color: var(--sap-label); font-weight: bold; font-size: 0.875rem; }
+        input[type="text"], input[type="number"], select { 
+            width: 100%; border: 1px solid var(--sap-border); border-radius: 0.25rem; padding: 0.5rem; font-size: 0.875rem; outline: none; transition: border-color 0.2s; box-sizing: border-box;
+        }
+        input:focus, select:focus { border-color: var(--sap-blue); box-shadow: 0 0 4px rgba(0,112,242,0.2); }
+        
+        .fiori-table { width: 100%; border-collapse: collapse; margin-top: 1rem; min-width: 600px; }
+        .fiori-table th { background: #f8f9fa; border-bottom: 2px solid var(--sap-border); padding: 0.75rem; text-align: left; color: var(--sap-label); font-size: 0.8rem; text-transform: uppercase; }
+        .fiori-table td { padding: 0.75rem; border-bottom: 1px solid #efefef; }
+        
+        .fiori-btn { padding: 0.5rem 1rem; border-radius: 0.25rem; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; }
+        .fiori-btn-primary { background: var(--sap-blue); color: #fff; }
+        .fiori-btn-primary:hover { background: #005bb7; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .fiori-btn-ghost { background: transparent; color: var(--sap-blue); border: 1px solid var(--sap-blue); }
+        .fiori-btn-ghost:hover { background: rgba(0,112,242,0.05); }
+        
+        .fiori-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--sap-border); padding: 0.75rem 2rem; display: flex; justify-content: flex-end; gap: 1rem; box-shadow: 0 -4px 10px rgba(0,0,0,0.05); height: 60px; box-sizing: border-box; align-items: center; }
+        
+        [x-cloak] { display: none !important; }
+        .fiori-badge { background: #e1f0ff; color: #0056b3; padding: 0.2rem 0.5rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600; }
+        
+        @font-face {
+            font-family: '72';
+            src: url('https://ui5.sap.com/resources/sap/ui/core/themes/sap_horizon/fonts/72-Regular.woff2') format('woff2');
+        }
+    </style>
+</head>
+<body>
+    <div class="fiori-page-root" x-data="cronogramaForm()" x-init="init()" x-cloak>
+        <!-- Shell Bar -->
+        <div class="fiori-shell-bar">
+            <div style="display:flex; align-items:center; gap: 1rem;">
+                <a href="{% url 'callcenter:callcenter_cronogramas_lista' %}" style="color:white; text-decoration:none;"><i class="fas fa-arrow-left"></i></a>
+                <span style="font-weight:bold; font-size: 1.1rem;">{{ title }}</span>
+            </div>
+            <div>
+                <span class="fiori-badge">Energía SoftCom</span>
+            </div>
         </div>
-        <div>
-            <span class="fiori-badge">Energía SoftCom</span>
-        </div>
-    </div>
 
-    <form method="POST" id="main-form">
-        {% csrf_token %}
-        {{ formset.management_form }}
+        <form method="POST" id="main-form">
+            {% csrf_token %}
+            {{ formset.management_form }}
 
-        <div class="fiori-object-page">
-            <!-- Sección 1: Datos Generales -->
-            <div class="fiori-section">
-                <div class="fiori-section-header">
-                    <h2 class="fiori-section-title">Información del Cronograma</h2>
-                </div>
-                <div class="fiori-section-content">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
-                        <div>
-                            <label>Nombre de la Plantilla</label>
-                            {{ form.nombre }}
-                            {% if form.nombre.errors %}<div style="color: #bb0000; font-size: 12px;">{{ form.nombre.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div>
-                            <label>Departamento / Área Propietaria</label>
-                            {{ form.departamento }}
-                            {% if form.departamento.errors %}<div style="color: #bb0000; font-size: 12px;">{{ form.departamento.errors.0 }}</div>{% endif %}
+            <div class="fiori-object-page">
+                <!-- Sección 1: Datos Generales -->
+                <div class="fiori-section">
+                    <div class="fiori-section-header">
+                        <h2 class="fiori-section-title">Información del Cronograma</h2>
+                    </div>
+                    <div class="fiori-section-content">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                            <div>
+                                <label>Nombre de la Plantilla</label>
+                                {{ form.nombre }}
+                                {% if form.nombre.errors %}<div style="color: #bb0000; font-size: 12px;">{{ form.nombre.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div>
+                                <label>Departamento / Área Propietaria</label>
+                                {{ form.departamento }}
+                                {% if form.departamento.errors %}<div style="color: #bb0000; font-size: 12px;">{{ form.departamento.errors.0 }}</div>{% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Sección 2: Tareas del Cronograma -->
-            <div class="fiori-section">
-                <div class="fiori-section-header">
-                    <h2 class="fiori-section-title">Estructura de Actividades</h2>
-                    <button type="button" @click="addRow()" class="fiori-btn fiori-btn-ghost">
-                        <i class="fas fa-plus"></i> Añadir Tarea
-                    </button>
-                </div>
-                <div class="fiori-section-content" style="overflow-x: auto;">
-                    <table class="fiori-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 60px;">N°</th>
-                                <th style="width: 40%;">Descripción de la Actividad</th>
-                                <th style="width: 120px;">Días</th>
-                                <th>Predecesores</th>
-                                <th style="width: 50px;"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item_form in formset %}
-                            <tr class="formset-row" x-show="!rowsToDelete.includes({{ forloop.counter0 }})">
-                                {{ item_form.id }}
-                                <td>{{ item_form.numero }}</td>
-                                <td>{{ item_form.descripcion }}</td>
-                                <td>{{ item_form.duracion_dias }}</td>
-                                <td>{{ item_form.predecesores }}</td>
-                                <td>
-                                    <div style="display:none;">{{ item_form.DELETE }}</div>
-                                    <button type="button" @click="deleteRow({{ forloop.counter0 }})" class="fiori-btn" style="color: #bb1919; background: transparent;"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-
-                            <!-- Nuevas Filas (Alpine empty placeholders) -->
-                            <template x-for="(row, index) in newRows" :key="row.id">
-                                <tr class="formset-row new-row">
+                <!-- Sección 2: Tareas del Cronograma -->
+                <div class="fiori-section">
+                    <div class="fiori-section-header">
+                        <h2 class="fiori-section-title">Estructura de Actividades</h2>
+                        <button type="button" @click="addRow()" class="fiori-btn fiori-btn-ghost">
+                            <i class="fas fa-plus"></i> Añadir Tarea
+                        </button>
+                    </div>
+                    <div class="fiori-section-content" style="overflow-x: auto;">
+                        <table class="fiori-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px;">N°</th>
+                                    <th style="width: 40%;">Descripción de la Actividad</th>
+                                    <th style="width: 120px;">Días</th>
+                                    <th>Predecesores (N°)</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item_form in formset %}
+                                <tr class="formset-row" x-show="!rowsToDelete.includes({{ forloop.counter0 }})">
+                                    {{ item_form.id }}
+                                    <td>{{ item_form.numero }}</td>
+                                    <td>{{ item_form.descripcion }}</td>
+                                    <td>{{ item_form.duracion_dias }}</td>
                                     <td>
-                                        <input type="number" :name="'items-' + (totalForms + index) + '-numero'" class="ui-input-num" :value="totalForms + index + 1" min="1">
+                                        {{ item_form.predecesores_texto }}
+                                        <div style="font-size: 10px; color: #888; margin-top: 4px;">Usa los N° de tareas (ej: 1, 2)</div>
                                     </td>
                                     <td>
-                                        <input type="text" :name="'items-' + (totalForms + index) + '-descripcion'" class="ui-input" placeholder="Nueva actividad..." required>
-                                    </td>
-                                    <td>
-                                        <input type="number" :name="'items-' + (totalForms + index) + '-duracion_dias'" class="ui-input-num" value="1" min="1">
-                                    </td>
-                                    <td>
-                                        <select :name="'items-' + (totalForms + index) + '-predecesores'" class="ui-select-multiple" multiple style="height: 38px;">
-                                            <!-- Aquí se podrían cargar dinámicamente si fuera necesario -->
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <button type="button" @click="removeNewRow(index)" class="fiori-btn" style="color: #bb1919; background: transparent;"><i class="fas fa-times"></i></button>
+                                        <div style="display:none;">{{ item_form.DELETE }}</div>
+                                        <button type="button" @click="deleteRow({{ forloop.counter0 }})" class="fiori-btn" style="color: #bb1919; background: transparent;"><i class="fas fa-trash"></i></button>
                                     </td>
                                 </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                                {% endfor %}
+
+                                <!-- Nuevas Filas (Alpine empty placeholders) -->
+                                <template x-for="(row, index) in newRows" :key="row.id">
+                                    <tr class="formset-row new-row">
+                                        <td>
+                                            <input type="number" :name="'items-' + (totalForms + index) + '-numero'" class="ui-input-num" :value="totalForms + index + 1" min="1">
+                                        </td>
+                                        <td>
+                                            <input type="text" :name="'items-' + (totalForms + index) + '-descripcion'" class="ui-input" placeholder="Nueva actividad..." required>
+                                        </td>
+                                        <td>
+                                            <input type="number" :name="'items-' + (totalForms + index) + '-duracion_dias'" class="ui-input-num" value="1" min="1">
+                                        </td>
+                                        <td>
+                                            <input type="text" :name="'items-' + (totalForms + index) + '-predecesores_texto'" class="ui-input" placeholder="Ej: 1, 2">
+                                        </td>
+                                        <td>
+                                            <button type="button" @click="removeNewRow(index)" class="fiori-btn" style="color: #bb1919; background: transparent;"><i class="fas fa-times"></i></button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+                <div style="height: 100px;"></div> <!-- Spacer -->
             </div>
-            <div style="height: 100px;"></div> <!-- Spacer -->
-        </div>
 
-        <!-- Footer -->
-        <div class="fiori-footer">
-            <a href="{% url 'callcenter:callcenter_cronogramas_lista' %}" class="fiori-btn fiori-btn-ghost">Cancelar</a>
-            <button type="submit" class="fiori-btn fiori-btn-primary"><i class="fas fa-save"></i> Guardar Plantilla</button>
-        </div>
-    </form>
-</div>
+            <!-- Footer -->
+            <div class="fiori-footer">
+                <a href="{% url 'callcenter:callcenter_cronogramas_lista' %}" class="fiori-btn fiori-btn-ghost">Cancelar</a>
+                <button type="submit" class="fiori-btn fiori-btn-primary"><i class="fas fa-save"></i> Guardar Plantilla</button>
+            </div>
+        </form>
+    </div>
 
-<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-<script>
-    function cronogramaForm() {
-        return {
-            totalForms: {{ formset.total_form_count }},
-            newRows: [],
-            rowsToDelete: [],
-            init() {
-                console.log("Fiori Form Initialized with " + this.totalForms + " items.");
-            },
-            addRow() {
-                const newId = Date.now();
-                this.newRows.push({ id: newId });
-                this.updateManagementForm();
-            },
-            removeNewRow(index) {
-                this.newRows.splice(index, 1);
-                this.updateManagementForm();
-            },
-            deleteRow(index) {
-                const deleteCheckbox = document.querySelector(`input[name="items-${index}-DELETE"]`);
-                if (deleteCheckbox) {
-                    deleteCheckbox.checked = true;
-                    this.rowsToDelete.push(index);
-                }
-            },
-            updateManagementForm() {
-                const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
-                if (totalFormsInput) {
-                    totalFormsInput.value = this.totalForms + this.newRows.length;
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        function cronogramaForm() {
+            return {
+                totalForms: {{ formset.total_form_count }},
+                newRows: [],
+                rowsToDelete: [],
+                init() {
+                    console.log("Fiori Form Initialized with " + this.totalForms + " items.");
+                },
+                addRow() {
+                    const newId = Date.now();
+                    this.newRows.push({ id: newId });
+                    this.updateManagementForm();
+                },
+                removeNewRow(index) {
+                    this.newRows.splice(index, 1);
+                    this.updateManagementForm();
+                },
+                deleteRow(index) {
+                    const deleteCheckbox = document.querySelector(`input[name="items-${index}-DELETE"]`);
+                    if (deleteCheckbox) {
+                        deleteCheckbox.checked = true;
+                        this.rowsToDelete.push(index);
+                    }
+                },
+                updateManagementForm() {
+                    const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
+                    if (totalFormsInput) {
+                        totalFormsInput.value = this.totalForms + this.newRows.length;
+                    }
                 }
             }
         }
-    }
-</script>
-{% endblock %}
+    </script>
+</body>
+</html>

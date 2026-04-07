@@ -993,22 +993,28 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
                     base64_str = base64_str.split("base64,")[-1]
                 
                 base64_str = base64_str.replace('\n', '').replace('\r', '').replace(' ', '')
-                image_data = base64.b64decode(base64_str)
+                # Usar el import global
+                import base64 as b64_lib
+                image_data = b64_lib.b64decode(base64_str)
                 
-                # RE-PROCESAMIENTO CON PIL: Asegura que el formato sea compatible
+                # RE-PROCESAMIENTO CON PIL
                 from PIL import Image
                 img_input = Image.open(io.BytesIO(image_data))
                 
-                # Convertir a RGBA si no lo es, o asegurar que sea un formato estándar
-                if img_input.mode not in ('RGB', 'RGBA'):
-                    img_input = img_input.convert('RGBA')
+                # CREAR FONDO BLANCO (Flattening)
+                # Esto soluciona problemas de transparencia en Word
+                new_img = Image.new("RGB", img_input.size, (255, 255, 255))
+                if img_input.mode == 'RGBA':
+                    new_img.paste(img_input, (0, 0), img_input)
+                else:
+                    new_img.paste(img_input, (0, 0))
                 
                 buf = io.BytesIO()
-                img_input.save(buf, format="PNG")
+                new_img.save(buf, format="JPEG", quality=95) # JPEG es más seguro para Word flat
                 buf.seek(0)
                 
                 img_tag = InlineImage(doc, buf, width=Mm(50))
-                logger.info(f"Firma {label} re-procesada y cargada exitosamente (Size: {img_input.size}).")
+                logger.info(f"Firma {label} re-procesada (Flattened) exitosamente. Orientación: {img_input.size}")
                 return img_tag
             except Exception as e:
                 logger.error(f"Error procesando firma {label} para Word: {e}")
@@ -1025,8 +1031,13 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
             'SOLUCION_PROVISIONAL': acuerdo.solucion_provisional or 'Se implementó solución de mitigación provisoria.',
             'OBSERVACIONES': acuerdo.observaciones or '',
             'GANTT': InlineImage(doc, gantt_stream, width=Mm(190)) if gantt_stream else "",
+            # Tags principales
             'FIRMA_RESPONSABLE': get_base64_image_tag(acuerdo.firma_responsable, "RESPONSABLE"),
-            'FIRMA_ENLACE': get_base64_image_tag(acuerdo.firma_enlace, "ENLACE")
+            'FIRMA_ENLACE': get_base64_image_tag(acuerdo.firma_enlace, "ENLACE"),
+            # Variaciones por si la plantilla usa nombres cortos
+            'firma_resp': get_base64_image_tag(acuerdo.firma_responsable, "RESPONSABLE_V"),
+            'firma_enl': get_base64_image_tag(acuerdo.firma_enlace, "ENLACE_V"),
+            'FIRMA_R': get_base64_image_tag(acuerdo.firma_responsable, "RESPONSABLE_V2")
         }
 
         doc.render(ctx)
@@ -1078,16 +1089,20 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
         # 4. ÚLTIMO RECURSO: PDF vía HTML (Si todo lo de Word falla o no está disponible)
         from django.template.loader import render_to_string
         from playwright.sync_api import sync_playwright
-        import base64
+        import base64 as b64_lib
         
         gantt_b64 = ""
         if tareas.exists():
             gantt_buf = generate_gantt_image_stream()
-            gantt_b64 = base64.b64encode(gantt_buf.getvalue()).decode('utf-8')
+            gantt_b64 = b64_lib.b64encode(gantt_buf.getvalue()).decode('utf-8')
         
         # Limpiar firmas para asegurar que el navegador las lea correctamente
         firma_r = acuerdo.firma_responsable or ""
         firma_e = acuerdo.firma_enlace or ""
+        
+        # Asegurar prefijo data:image si falta (ya que Playwright lo necesita en el tag img)
+        if firma_r and not firma_r.startswith('data:'): firma_r = f"data:image/png;base64,{firma_r}"
+        if firma_e and not firma_e.startswith('data:'): firma_e = f"data:image/png;base64,{firma_e}"
         
         html_context = {
             'acuerdo': acuerdo, 
@@ -1525,9 +1540,29 @@ def cronograma_predefinido_edit_view(request, pk=None):
         if form.is_valid() and formset.is_valid():
             cronograma = form.save()
             formset.instance = cronograma
-            formset.save()
+            items_guardados = formset.save()
+            
+            # Segunda pasada: Mapear predecesores por número de tarea
+            # Solo si hubo cambios o se crearon items
+            todos_los_items = cronograma.items.all()
+            dict_items = {str(item.numero): item for item in todos_los_items}
+            
+            for f in formset.forms:
+                if f.instance in todos_los_items and not f.cleaned_data.get('DELETE'):
+                    pred_str = f.cleaned_data.get('predecesores_texto', '')
+                    if pred_str:
+                        num_list = [n.strip() for n in pred_str.replace(';', ',').split(',') if n.strip()]
+                        # Limpiar predecesores previos y asignar nuevos
+                        preds_to_add = []
+                        for n in num_list:
+                            if n in dict_items and dict_items[n] != f.instance:
+                                preds_to_add.append(dict_items[n])
+                        f.instance.predecesores.set(preds_to_add)
+                    else:
+                        f.instance.predecesores.clear()
+
             messages.success(request, f"Cronograma '{cronograma.nombre}' guardado exitosamente.")
-            return redirect('callcenter_cronogramas_lista')
+            return redirect('callcenter:callcenter_cronogramas_lista')
         else:
             messages.error(request, "Error de validación. Por favor revisa los campos.")
     else:
