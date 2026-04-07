@@ -1,4 +1,4 @@
-const CACHE_NAME = 'softcom-energy-v1';
+const CACHE_NAME = 'softcom-energy-v6';
 const urlsToCache = [
     '/',
     '/static/core/img/icon-512.png'

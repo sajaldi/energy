@@ -792,6 +792,7 @@ def mobile_detalle_tiempo_acordado_view(request, pk):
     from django.shortcuts import get_object_or_404
     
     from django.utils import timezone
+    from datetime import timedelta
     
     acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
     tareas = acuerdo.tareas.all().order_by('fecha_inicio')
@@ -815,7 +816,7 @@ def mobile_detalle_tiempo_acordado_view(request, pk):
     
     # Asegurar que total_end sea posterior a total_start
     if not total_end or total_end <= total_start:
-        total_end = total_start + timezone.timedelta(hours=1)
+        total_end = total_start + timedelta(hours=1)
         
     total_seconds = (total_end - total_start).total_seconds()
     
