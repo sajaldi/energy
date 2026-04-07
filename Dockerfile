@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libcairo2-dev \
     python3-dev \
+    libreoffice-writer \
+    fonts-liberation \
+    default-jre \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Instalación de dependencias de Python (Capa con caché persistente)
