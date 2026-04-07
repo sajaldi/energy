@@ -7,6 +7,8 @@
     <title>{{ title }} | SoftCom-CCG</title>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Frappe Gantt CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css">
     <style>
         :root {
             --sap-blue: #0070f2;
@@ -44,6 +46,8 @@
         [x-cloak] { display: none !important; }
         .fiori-badge { background: #e1f0ff; color: #0056b3; padding: 0.2rem 0.5rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600; }
         
+        .gantt-container { overflow-x: auto; background: #fff; padding: 1rem; }
+        
         @font-face {
             font-family: '72';
             src: url('https://ui5.sap.com/resources/sap/ui/core/themes/sap_horizon/fonts/72-Regular.woff2') format('woff2');
@@ -52,7 +56,6 @@
 </head>
 <body>
     <div class="fiori-page-root" x-data="cronogramaForm()" x-init="init()" x-cloak>
-        <!-- Shell Bar -->
         <div class="fiori-shell-bar">
             <div style="display:flex; align-items:center; gap: 1rem;">
                 <a href="{% url 'callcenter:callcenter_cronogramas_lista' %}" style="color:white; text-decoration:none;"><i class="fas fa-arrow-left"></i></a>
@@ -68,7 +71,6 @@
             {{ formset.management_form }}
 
             <div class="fiori-object-page">
-                <!-- Sección 1: Datos Generales -->
                 <div class="fiori-section">
                     <div class="fiori-section-header">
                         <h2 class="fiori-section-title">Información del Cronograma</h2>
@@ -78,18 +80,27 @@
                             <div>
                                 <label>Nombre de la Plantilla</label>
                                 {{ form.nombre }}
-                                {% if form.nombre.errors %}<div style="color: #bb0000; font-size: 12px;">{{ form.nombre.errors.0 }}</div>{% endif %}
                             </div>
                             <div>
                                 <label>Departamento / Área Propietaria</label>
                                 {{ form.departamento }}
-                                {% if form.departamento.errors %}<div style="color: #bb0000; font-size: 12px;">{{ form.departamento.errors.0 }}</div>{% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Sección 2: Tareas del Cronograma -->
+                <!-- Sección GANTT -->
+                {% if gantt_data_json and gantt_data_json != "[]" %}
+                <div class="fiori-section">
+                    <div class="fiori-section-header">
+                        <h2 class="fiori-section-title"><i class="fas fa-stream"></i> Vista de Ruta Crítica (GANTT)</h2>
+                    </div>
+                    <div class="fiori-section-content" style="padding: 0;">
+                        <div id="gantt-chart" class="gantt-container"></div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <div class="fiori-section">
                     <div class="fiori-section-header">
                         <h2 class="fiori-section-title">Estructura de Actividades</h2>
@@ -115,10 +126,7 @@
                                     <td>{{ item_form.numero }}</td>
                                     <td>{{ item_form.descripcion }}</td>
                                     <td>{{ item_form.duracion_dias }}</td>
-                                    <td>
-                                        {{ item_form.predecesores_texto }}
-                                        <div style="font-size: 10px; color: #888; margin-top: 4px;">Usa los N° de tareas (ej: 1, 2)</div>
-                                    </td>
+                                    <td>{{ item_form.predecesores_texto }}</td>
                                     <td>
                                         <div style="display:none;">{{ item_form.DELETE }}</div>
                                         <button type="button" @click="deleteRow({{ forloop.counter0 }})" class="fiori-btn" style="color: #bb1919; background: transparent;"><i class="fas fa-trash"></i></button>
@@ -126,7 +134,6 @@
                                 </tr>
                                 {% endfor %}
 
-                                <!-- Nuevas Filas (Alpine empty placeholders) -->
                                 <template x-for="(row, index) in newRows" :key="row.id">
                                     <tr class="formset-row new-row">
                                         <td>
@@ -150,30 +157,43 @@
                         </table>
                     </div>
                 </div>
-                <div style="height: 100px;"></div> <!-- Spacer -->
+                <div style="height: 100px;"></div>
             </div>
 
-            <!-- Footer -->
             <div class="fiori-footer">
                 <a href="{% url 'callcenter:callcenter_cronogramas_lista' %}" class="fiori-btn fiori-btn-ghost">Cancelar</a>
-                <button type="submit" class="fiori-btn fiori-btn-primary"><i class="fas fa-save"></i> Guardar Plantilla</button>
+                <button type="submit" class="fiori-btn fiori-btn-primary"><i class="fas fa-save"></i> Guardar y Visualizar</button>
             </div>
         </form>
     </div>
 
+    <script src="https://unpkg.com/snap.svg@0.5.1/dist/snap.svg-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    
     <script>
         function cronogramaForm() {
             return {
                 totalForms: {{ formset.total_form_count }},
                 newRows: [],
                 rowsToDelete: [],
+                ganttData: JSON.parse('{{ gantt_data_json|safe|default:"[]" }}'),
                 init() {
-                    console.log("Fiori Form Initialized with " + this.totalForms + " items.");
+                    if (this.ganttData && this.ganttData.length > 0) {
+                        try {
+                            new Gantt("#gantt-chart", this.ganttData, {
+                                view_mode: 'Day',
+                                language: 'es',
+                                padding: 18,
+                                bar_height: 25
+                            });
+                        } catch (e) {
+                            console.error("Error al renderizar Gantt:", e);
+                        }
+                    }
                 },
                 addRow() {
-                    const newId = Date.now();
-                    this.newRows.push({ id: newId });
+                    this.newRows.push({ id: Date.now() });
                     this.updateManagementForm();
                 },
                 removeNewRow(index) {
@@ -181,17 +201,15 @@
                     this.updateManagementForm();
                 },
                 deleteRow(index) {
-                    const deleteCheckbox = document.querySelector(`input[name="items-${index}-DELETE"]`);
-                    if (deleteCheckbox) {
-                        deleteCheckbox.checked = true;
+                    const cb = document.querySelector(`input[name="items-${index}-DELETE"]`);
+                    if (cb) {
+                        cb.checked = true;
                         this.rowsToDelete.push(index);
                     }
                 },
                 updateManagementForm() {
-                    const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
-                    if (totalFormsInput) {
-                        totalFormsInput.value = this.totalForms + this.newRows.length;
-                    }
+                    const input = document.getElementById('id_items-TOTAL_FORMS');
+                    if (input) input.value = this.totalForms + this.newRows.length;
                 }
             }
         }

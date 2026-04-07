@@ -1443,7 +1443,7 @@ def tiempo_acordado_dashboard_view(request):
 @staff_member_required
 def mobile_crear_tiempo_acordado_view(request):
     """Vista Fiori para crear un Tiempo Acordado desde la App."""
-    from .models import SolicitudTicket, Enlace, Institucion, TiempoAcordado, TiempoAcordadoTarea
+    from .models import SolicitudTicket, Enlace, Institucion, TiempoAcordado, TiempoAcordadoTarea, CronogramaPredefinido
     from activos.models import Ubicacion
     from django.utils import timezone
     from datetime import datetime
@@ -1501,11 +1501,35 @@ def mobile_crear_tiempo_acordado_view(request):
     edificios = Ubicacion.objects.filter(tipo='EDIFICIO').order_by('nombre')
     enlaces = Enlace.objects.select_related('institucion', 'ubicacion').all().order_by('nombre')
     
+    # Cronogramas Predefinidos
+    cronogramas_templates = CronogramaPredefinido.objects.all().order_by('nombre')
+    
     return render(request, 'callcenter/mobile_crear_tiempo_acordado.html', {
         'enlaces': enlaces,
         'edificios': edificios,
-        'title': 'Nuevo Tiempo Acordado'
+        'cronogramas_templates': cronogramas_templates,
+        'title': 'Nuevo Tiempo Acordado',
+        'now': timezone.localtime(timezone.now())
     })
+
+@staff_member_required
+def api_get_cronograma_items_ajax(request, pk):
+    """Retorna los items de un cronograma predefinido para precargar en el móvil."""
+    from .models import CronogramaPredefinido
+    crono = get_object_or_404(CronogramaPredefinido, pk=pk)
+    
+    items_data = []
+    # Ordenar por número para asegurar secuencia lógica
+    for item in crono.items.all().order_by('numero'):
+        items_data.append({
+            'id': item.id,
+            'numero': item.numero,
+            'descripcion': item.descripcion,
+            'duracion_dias': item.duracion_dias,
+            'predecesores_numeros': list(item.predecesores.values_list('numero', flat=True))
+        })
+    
+    return JsonResponse({'success': True, 'items': items_data})
 
 @staff_member_required
 def api_get_sububicaciones_ajax(request, parent_id):
@@ -1569,11 +1593,46 @@ def cronograma_predefinido_edit_view(request, pk=None):
         form = CronogramaPredefinidoForm(instance=instance)
         formset = CronogramaItemFormSet(instance=instance)
         
+    # Si es edición, calcular fechas relativas para el GANTT
+    gantt_data = []
+    if instance:
+        from django.utils import timezone
+        from datetime import timedelta
+        base_date = timezone.now().replace(hour=8, minute=0, second=0, microsecond=0)
+        items = list(instance.items.all().prefetch_related('predecesores'))
+        
+        # Mapeo de fechas para cálculos rápidos
+        fechas_finales = {} # {id: end_date}
+        
+        # Procesar items en orden (asumimos numero refleja orden lógico)
+        for item in items:
+            start_date = base_date
+            # Si tiene predecesores, su inicio es el máximo de sus finales
+            preds = item.predecesores.all()
+            if preds:
+                fechas_preds = [fechas_finales.get(p.id, base_date) for p in preds]
+                start_date = max(fechas_preds)
+            
+            end_date = start_date + timedelta(days=item.duracion_dias)
+            fechas_finales[item.id] = end_date
+            
+            # Formatear para Frappe Gantt (YYYY-MM-DD)
+            gantt_data.append({
+                'id': str(item.id),
+                'name': f"{item.numero}. {item.descripcion}",
+                'start': start_date.strftime('%Y-%m-%d'),
+                'end': end_date.strftime('%Y-%m-%d'),
+                'progress': 0,
+                'dependencies': ", ".join([str(p.id) for p in preds])
+            })
+
+    import json
     context = {
         'form': form,
         'formset': formset,
         'instance': instance,
-        'title': "Editar Cronograma" if instance else "Nuevo Cronograma"
+        'title': "Editar Cronograma" if instance else "Nuevo Cronograma",
+        'gantt_data_json': json.dumps(gantt_data)
     }
     return render(request, 'callcenter/cronograma_predefinido_form.html', context)
 
