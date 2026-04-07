@@ -966,64 +966,95 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
         buf.seek(0)
         return buf
 
-    template_path = os.path.join(settings.BASE_DIR, 'tiempo_acordado_template.docx')
-    doc = DocxTemplate(template_path)
-    gantt_stream = generate_gantt_image_stream() if tareas.exists() else None
-    
-    def get_base64_image_tag(base64_str):
-        if not base64_str: return ""
-        import base64
-        if "base64," in base64_str:
-            base64_str = base64_str.split("base64,")[1]
-        try:
-            image_data = base64.b64decode(base64_str)
-            buf = io.BytesIO(image_data)
-            return InlineImage(doc, buf, width=Mm(50))
-        except Exception:
-            return ""
+    # --- NUEVA LÓGICA: GENERACIÓN PDF VÍA HTML (LINUX FRIENDLY) ---
+    from django.template.loader import render_to_string
+    from xhtml2pdf import pisa
+    import base64
 
-    context = {
-        'FOLIO': acuerdo.ticket.folio or acuerdo.ticket.id_solicitud,
-        'ENLACE_MAO': acuerdo.enlace.nombre if acuerdo.enlace else '',
-        'FECHA_SOLICITUD': django_date_format(acuerdo.ticket.fecha_solicitud, "l d/m/Y g:i a") if acuerdo.ticket.fecha_solicitud else '',
-        'INSTITUCION': acuerdo.institucion.nombre if acuerdo.institucion else '',
-        'UBICACION': acuerdo.ticket.area or "Cuerpo bajo A Nivel 4",
-        'FECHA_SOLUCION': django_date_format(acuerdo.fecha_solucion_final, "l d/m/Y g:i a") if acuerdo.fecha_solucion_final else '',
-        'MOTIVO': acuerdo.motivo_extension or '',
-        'SOLUCION_PROVISIONAL': acuerdo.solucion_provisional or 'Se implementó solución de mitigación provisoria.',
-        'OBSERVACIONES': acuerdo.observaciones or '',
-        'GANTT': InlineImage(doc, gantt_stream, width=Mm(190)) if gantt_stream else "",
-        'FIRMA_RESPONSABLE': get_base64_image_tag(acuerdo.firma_responsable),
-        'FIRMA_ENLACE': get_base64_image_tag(acuerdo.firma_enlace)
+    # 1. Preparar Gantt para HTML
+    gantt_b64 = ""
+    if tareas.exists():
+        gantt_buf = generate_gantt_image_stream()
+        gantt_b64 = base64.b64encode(gantt_buf.getvalue()).decode('utf-8')
+
+    # 2. Renderizar Template HTML
+    html_context = {
+        'acuerdo': acuerdo,
+        'gantt_b64': gantt_b64,
+        # Notas: Las firmas en el modelo ya vienen como data:image/png;base64...
     }
+    html_string = render_to_string('callcenter/tiempo_acordado_pdf.html', html_context)
 
-    doc.render(context)
-    unique_id = uuid.uuid4().hex
-    temp_docx = os.path.join(tempfile.gettempdir(), f"{unique_id}.docx")
-    temp_pdf = os.path.join(tempfile.gettempdir(), f"{unique_id}.pdf")
-    doc.save(temp_docx)
+    # 3. Convertir a PDF en memoria
+    pdf_buffer = io.BytesIO()
+    pisa_status = pisa.CreatePDF(io.BytesIO(html_string.encode("UTF-8")), dest=pdf_buffer)
 
-    filename = f"Acuerdo_{acuerdo.ticket.folio or acuerdo.id}"
-    
-    try:
-        from docx2pdf import convert as docx2pdf_convert
-        import pythoncom
-        pythoncom.CoInitialize()
-        docx2pdf_convert(temp_docx, temp_pdf)
-        if os.path.exists(temp_pdf):
-            with open(temp_pdf, 'rb') as f:
-                data = f.read()
-            os.remove(temp_docx)
-            os.remove(temp_pdf)
-            return data, f"{filename}.pdf", "application/pdf"
-    except Exception:
-        pass
+    if not pisa_status.err:
+        pdf_buffer.seek(0)
+        return pdf_buffer.read(), f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
 
-    # Fallback to DOCX
-    with open(temp_docx, 'rb') as f:
-        data = f.read()
-    os.remove(temp_docx)
-    return data, f"{filename}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    # --- FALLBACK: DOCX (Si falla el PDF por alguna razón) ---
+    template_path = os.path.join(settings.BASE_DIR, 'tiempo_acordado_template.docx')
+    if os.path.exists(template_path):
+        doc = DocxTemplate(template_path)
+        gantt_stream = generate_gantt_image_stream() if tareas.exists() else None
+        
+        def get_base64_image_tag(base64_str):
+            if not base64_str: return ""
+            if "base64," in base64_str:
+                base64_str = base64_str.split("base64,")[1]
+            try:
+                image_data = base64.b64decode(base64_str)
+                buf = io.BytesIO(image_data)
+                return InlineImage(doc, buf, width=Mm(50))
+            except Exception:
+                return ""
+
+        ctx = {
+            'FOLIO': acuerdo.ticket.folio or acuerdo.ticket.id_solicitud,
+            'ENLACE_MAO': acuerdo.enlace.nombre if acuerdo.enlace else '',
+            'FECHA_SOLICITUD': django_date_format(acuerdo.ticket.fecha_solicitud, "l d/m/Y g:i a") if acuerdo.ticket.fecha_solicitud else '',
+            'INSTITUCION': acuerdo.institucion.nombre if acuerdo.institucion else '',
+            'UBICACION': acuerdo.ticket.area or "Cuerpo bajo A Nivel 4",
+            'FECHA_SOLUCION': django_date_format(acuerdo.fecha_solucion_final, "l d/m/Y g:i a") if acuerdo.fecha_solucion_final else '',
+            'MOTIVO': acuerdo.motivo_extension or '',
+            'SOLUCION_PROVISIONAL': acuerdo.solucion_provisional or 'Se implementó solución de mitigación provisoria.',
+            'OBSERVACIONES': acuerdo.observaciones or '',
+            'GANTT': InlineImage(doc, gantt_stream, width=Mm(190)) if gantt_stream else "",
+            'FIRMA_RESPONSABLE': get_base64_image_tag(acuerdo.firma_responsable),
+            'FIRMA_ENLACE': get_base64_image_tag(acuerdo.firma_enlace)
+        }
+
+        doc.render(ctx)
+        
+        # Intentar convertir DOCX a PDF (solo funcionará en Windows)
+        temp_docx = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}.docx")
+        temp_pdf = temp_docx.replace(".docx", ".pdf")
+        doc.save(temp_docx)
+        
+        try:
+            from docx2pdf import convert as docx2pdf_convert
+            import pythoncom
+            pythoncom.CoInitialize()
+            docx2pdf_convert(temp_docx, temp_pdf)
+            
+            if os.path.exists(temp_pdf):
+                with open(temp_pdf, "rb") as f:
+                    data = f.read()
+                os.remove(temp_docx)
+                os.remove(temp_pdf)
+                return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.pdf", "application/pdf"
+        except Exception:
+            pass
+
+        # Si todo falla, devolver el DOCX generado
+        with open(temp_docx, "rb") as f:
+            data = f.read()
+        os.remove(temp_docx)
+        return data, f"Acuerdo_Tiempo_Acordado_{acuerdo.id}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+    # Si ni siquiera existe el template de Word, retornar error vacío (pero no debería pasar)
+    return b"", "error.txt", "text/plain"
 
 def exportar_tiempo_acordado_pdf_view(request, pk):
     """Vista de descarga directa del PDF."""
