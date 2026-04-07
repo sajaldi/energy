@@ -398,3 +398,61 @@ def trigger_vectorize_ticket(sender, instance, **kwargs):
             vectorize_ticket_n8n.delay(instance.id)
         except Exception as e:
             logger.warning(f"No se pudo encolar vectorización para ticket {instance.id}: {e}")
+
+
+# --- MODELOS DE CRONOGRAMAS PREDEFINIDOS (PLANTILLAS) ---
+
+class CronogramaPredefinido(models.Model):
+    """
+    Plantilla de cronograma para reutilizar en acuerdos de tiempo.
+    """
+    nombre = models.CharField(max_length=255, verbose_name="Nombre del Cronograma")
+    departamento = models.ForeignKey(
+        'core.Departamento', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='cronogramas_predefinidos',
+        verbose_name="Departamento / Área"
+    )
+
+    def __str__(self):
+        if self.departamento:
+            return f"{self.nombre} [{self.departamento.nombre}]"
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Cronograma Predefinido"
+        verbose_name_plural = "Cronogramas Predefinidos"
+        ordering = ['nombre']
+
+
+class CronogramaItemPredefinido(models.Model):
+    """
+    Actividad individual dentro de una plantilla de cronograma.
+    """
+    cronograma = models.ForeignKey(
+        CronogramaPredefinido, 
+        on_delete=models.CASCADE, 
+        related_name='items', 
+        verbose_name="Cronograma"
+    )
+    numero = models.PositiveIntegerField(verbose_name="N°")
+    descripcion = models.CharField(max_length=255, verbose_name="Descripción de la Tarea")
+    duracion_dias = models.PositiveIntegerField(verbose_name="Duración (Días)", default=1)
+    
+    predecesores = models.ManyToManyField(
+        'self', 
+        blank=True, 
+        symmetrical=False, 
+        related_name='sucesores',
+        verbose_name="Predecesores"
+    )
+
+    def __str__(self):
+        return f"{self.numero}. {self.descripcion}"
+
+    class Meta:
+        verbose_name = "Item de Cronograma"
+        verbose_name_plural = "Items de Cronograma"
+        ordering = ['numero']

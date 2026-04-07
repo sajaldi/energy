@@ -332,3 +332,33 @@ class TiempoAcordadoAdmin(admin.ModelAdmin):
 class TiempoAcordadoTareaAdmin(admin.ModelAdmin):
     list_display = ('descripcion', 'tiempo_acordado', 'fecha_inicio', 'fecha_fin', 'completada')
     list_filter = ('completada', 'fecha_inicio')
+
+
+# --- ADMINISTRACIÓN DE CRONOGRAMAS PREDEFINIDOS (PLANTILLAS) ---
+
+from .models import CronogramaPredefinido, CronogramaItemPredefinido
+
+class CronogramaItemPredefinidoInline(admin.TabularInline):
+    model = CronogramaItemPredefinido
+    extra = 5
+    fields = ('numero', 'descripcion', 'duracion_dias', 'predecesores')
+    autocomplete_fields = ('predecesores',)
+    sortable_field_name = "numero"
+
+@admin.register(CronogramaPredefinido)
+class CronogramaPredefinidoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'departamento', 'get_items_count')
+    list_filter = ('departamento',)
+    search_fields = ('nombre',)
+    inlines = [CronogramaItemPredefinidoInline]
+
+    def get_items_count(self, obj):
+        return obj.items.count()
+    get_items_count.short_description = "N° de Items"
+
+@admin.register(CronogramaItemPredefinido)
+class CronogramaItemPredefinidoAdmin(admin.ModelAdmin):
+    list_display = ('numero', 'descripcion', 'cronograma', 'duracion_dias')
+    list_filter = ('cronograma', 'duracion_dias')
+    search_fields = ('descripcion', 'cronograma__nombre')
+    autocomplete_fields = ('cronograma', 'predecesores')
