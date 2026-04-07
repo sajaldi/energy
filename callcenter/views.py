@@ -1099,15 +1099,50 @@ def enviar_tiempo_acordado_power_automate_ajax(request, pk):
         data, filename, content_type = _generate_tiempo_acordado_pdf_binary(acuerdo)
         pdf_base64 = base64.b64encode(data).decode('utf-8')
 
-        # 2. Construir Payload
+        # 2. Preparar el contenido del correo (HTML)
+        acuerdo_folio = acuerdo.ticket.folio or acuerdo.ticket.id_solicitud
+        subject = f"Reporte: Acuerdo de Tiempo - Ticket {acuerdo_folio}"
+        
+        email_html = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f6f9;">
+            <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 8px; border-top: 5px solid #0070f2; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h2 style="color: #0070f2; margin-bottom: 20px;">Acuerdo de Tiempo y Solución Provisional</h2>
+                <p>Se ha generado un nuevo acuerdo para el ticket <b>{acuerdo_folio}</b>.</p>
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 40%;">Institución:</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">{acuerdo.institucion.nombre if acuerdo.institucion else '-'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Enlace MAO:</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">{acuerdo.enlace.nombre if acuerdo.enlace else '-'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Fecha Solución Final:</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; color: #d32f2f;">{acuerdo.fecha_solucion_final.strftime('%d/%m/%Y %I:%M %p') if acuerdo.fecha_solucion_final else '-'}</td>
+                    </tr>
+                </table>
+                <p style="margin-top: 20px;">Por favor, encuentre adjunto el reporte detallado en formato PDF.</p>
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #777;">
+                    Este es un correo automático generado por el sistema <b>SoftCom Energy</b>.
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # 3. Construir Payload
         payload = {
-            "folio": acuerdo.ticket.folio or acuerdo.ticket.id_solicitud,
+            "folio": acuerdo_folio,
             "institucion": acuerdo.institucion.nombre if acuerdo.institucion else "N/A",
             "enlace": acuerdo.enlace.nombre if acuerdo.enlace else "N/A",
             "correo_enlace": acuerdo.enlace.email if acuerdo.enlace and acuerdo.enlace.email else "",
             "correo_usuario": request.user.email if request.user.email else request.user.username,
             "fecha_compromiso": acuerdo.fecha_solucion_final.strftime("%d/%m/%Y %H:%M") if acuerdo.fecha_solucion_final else "N/A",
             "motivo": acuerdo.motivo_extension or "",
+            "subject": subject,
+            "body_html": email_html,
             "filename": filename,
             "pdf_base64": pdf_base64
         }
