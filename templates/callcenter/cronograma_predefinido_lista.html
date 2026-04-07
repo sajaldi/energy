@@ -1,60 +1,88 @@
-{% extends "core/base.html" %}
-{% block content %}
-<div class="fiori-page" style="padding: 2rem; background: #f4f6f9; min-height: 100vh; font-family: '72', '72full', Arial, Helvetica, sans-serif;">
-    <div class="fiori-header" style="background: #fff; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <h1 style="color: #1d2d3e; margin: 0; font-size: 1.5rem; font-weight: bold;">Cronogramas Predefinidos</h1>
-            <p style="color: #6a6d70; margin: 0.2rem 0 0;">Gestión de plantillas para acuerdos de tiempo</p>
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronogramas Predefinidos | SoftCom-CCG</title>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { margin: 0; padding: 0; background: #f4f6f9; font-family: '72', '72full', Arial, Helvetica, sans-serif; color: #1d2d3e; }
+        .fiori-shell-bar { background: #354a5f; color: #fff; padding: 0.5rem 1rem; display: flex; align-items: center; justify-content: space-between; height: 44px; }
+        .fiori-page { padding: 2rem; min-height: calc(100vh - 44px); }
+        .fiori-header { background: #fff; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .fiori-content { background: #fff; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        thead { background: #f8f9fa; border-bottom: 2px solid #e5e5e5; }
+        th { padding: 1rem; color: #6a6d70; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
+        td { padding: 1rem; color: #1d2d3e; border-bottom: 1px solid #f1f1f1; }
+        .fiori-btn-primary { background: #0070f2; color: #fff; padding: 0.7rem 1.2rem; border-radius: 0.3rem; text-decoration: none; font-weight: bold; transition: background 0.2s; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .fiori-btn-primary:hover { background: #005bb7; }
+        .fiori-badge { background: #e1f0ff; color: #0056b3; padding: 0.2rem 0.6rem; border-radius: 1rem; font-size: 0.85rem; font-weight: 600; }
+        @font-face {
+            font-family: '72';
+            src: url('https://ui5.sap.com/resources/sap/ui/core/themes/sap_horizon/fonts/72-Regular.woff2') format('woff2');
+        }
+    </style>
+</head>
+<body>
+    <div class="fiori-shell-bar">
+        <span style="font-weight:bold; font-size: 1.1rem;">Energía SoftCom</span>
+        <span class="fiori-badge" style="background:rgba(255,255,255,0.1); color:white;">CCG Management</span>
+    </div>
+
+    <div class="fiori-page">
+        <div class="fiori-header">
+            <div>
+                <h1 style="margin: 0; font-size: 1.5rem; font-weight: bold;">Cronogramas Predefinidos</h1>
+                <p style="color: #6a6d70; margin: 0.2rem 0 0;">Gestión de plantillas para acuerdos de tiempo</p>
+            </div>
+            <a href="{% url 'callcenter:callcenter_cronograma_nuevo' %}" class="fiori-btn-primary">
+                <i class="fas fa-plus"></i> Nuevo Cronograma
+            </a>
         </div>
-        <a href="{% url 'callcenter:callcenter_cronograma_nuevo' %}" class="fiori-button-primary" style="background: #0070f2; color: #fff; padding: 0.7rem 1.2rem; border-radius: 0.3rem; text-decoration: none; font-weight: bold; transition: background 0.2s;">
-            <i class="fas fa-plus"></i> Nuevo Cronograma
-        </a>
-    </div>
 
-    <div class="fiori-content" style="background: #fff; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-            <thead style="background: #f8f9fa; border-bottom: 2px solid #e5e5e5;">
-                <tr>
-                    <th style="padding: 1rem; color: #6a6d70; font-weight: 600;">Nombre del Cronograma</th>
-                    <th style="padding: 1rem; color: #6a6d70; font-weight: 600;">Departamento / Área</th>
-                    <th style="padding: 1rem; color: #6a6d70; font-weight: 600; text-align: center;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for crono in cronogramas %}
-                <tr style="border-bottom: 1px solid #f1f1f1; transition: background 0.1s; cursor: pointer;" onmouseover="this.style.background='#f9fbff'" onmouseout="this.style.background='white'">
-                    <td style="padding: 1rem; color: #1d2d3e; font-weight: 500;">{{ crono.nombre }}</td>
-                    <td style="padding: 1rem; color: #1d2d3e;">
-                        {% if crono.departamento %}
-                        <span style="background: #e1f0ff; color: #0056b3; padding: 0.2rem 0.6rem; border-radius: 1rem; font-size: 0.85rem;">{{ crono.departamento.nombre }}</span>
-                        {% else %}
-                        <span style="color: #bbb;">Global</span>
-                        {% endif %}
-                    </td>
-                    <td style="padding: 1rem; text-align: center;">
-                        <a href="{% url 'callcenter:callcenter_cronograma_editar' crono.pk %}" style="color: #0070f2; text-decoration: none; font-weight: 600; margin: 0 10px;">
-                            <i class="fas fa-edit"></i> Editar
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="3" style="padding: 3rem; text-align: center; color: #6a6d70;">
-                        No hay cronogramas predefinidos registrados. <br/>
-                        <a href="{% url 'callcenter:callcenter_cronograma_nuevo' %}" style="color: #0070f2;">Crea el primero aquí</a>.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="fiori-content">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre del Cronograma</th>
+                        <th>Departamento / Área</th>
+                        <th style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for crono in cronogramas %}
+                    <tr style="transition: background 0.1s;" onmouseover="this.style.background='#f9fbff'" onmouseout="this.style.background='white'">
+                        <td style="font-weight: 500;">{{ crono.nombre }}</td>
+                        <td>
+                            {% if crono.departamento %}
+                            <span class="fiori-badge">{{ crono.departamento.nombre }}</span>
+                            {% else %}
+                            <span style="color: #bbb;">Global</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center; display: flex; gap: 1rem; justify-content: center;">
+                            <a href="{% url 'callcenter:callcenter_cronograma_detalle' crono.pk %}" style="color: #666; text-decoration: none; font-weight: 600;">
+                                <i class="fas fa-eye"></i> Ver
+                            </a>
+                            <a href="{% url 'callcenter:callcenter_cronograma_editar' crono.pk %}" style="color: #0070f2; text-decoration: none; font-weight: 600;">
+                                <i class="fas fa-edit"></i> Editar
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" style="padding: 3rem; text-align: center; color: #6a6d70;">
+                            No hay cronogramas predefinidos registrados. <br/>
+                            <a href="{% url 'callcenter:callcenter_cronograma_nuevo' %}" style="color: #0070f2;">Crea el primero aquí</a>.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
-
-<style>
-    .fiori-button-primary:hover { background: #005bb7 !important; }
-    @font-face {
-        font-family: '72';
-        src: url('https://ui5.sap.com/resources/sap/ui/core/themes/sap_horizon/fonts/72-Regular.woff2') format('woff2');
-    }
-</style>
-{% endblock %}
+</body>
+</html>

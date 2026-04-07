@@ -1,0 +1,107 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} | SoftCom-CCG</title>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Frappe Gantt CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css">
+    <style>
+        :root {
+            --sap-blue: #0070f2; --sap-bg: #f4f6f9; --sap-text: #1d2d3e; --sap-label: #6a6d70; --sap-border: #d9d9d9;
+        }
+        body { margin: 0; padding: 0; background: var(--sap-bg); font-family: '72', Arial, sans-serif; color: var(--sap-text); }
+        .fiori-shell-bar { background: #354a5f; color: #fff; padding: 0.5rem 1rem; display: flex; align-items: center; justify-content: space-between; height: 44px; }
+        .fiori-object-page { padding: 2rem; }
+        .fiori-section { background: #fff; border-radius: 0.25rem; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.08); margin-bottom: 2rem; overflow: hidden; }
+        .fiori-section-header { padding: 1.5rem; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center; }
+        .fiori-section-title { font-size: 1.2rem; font-weight: bold; margin: 0; }
+        .fiori-section-content { padding: 1.5rem; }
+        .fiori-table { width: 100%; border-collapse: collapse; }
+        .fiori-table th { background: #f8f9fa; border-bottom: 2px solid var(--sap-border); padding: 0.75rem; text-align: left; color: var(--sap-label); font-size: 0.8rem; text-transform: uppercase; }
+        .fiori-table td { padding: 0.75rem; border-bottom: 1px solid #efefef; }
+        .fiori-btn { padding: 0.5rem 1rem; border-radius: 0.25rem; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; border: none; font-size: 0.875rem; }
+        .fiori-btn-primary { background: var(--sap-blue); color: #fff; }
+        .fiori-btn-ghost { background: transparent; color: var(--sap-blue); border: 1px solid var(--sap-blue); }
+        .gantt-container { overflow-x: auto; background: #fff; padding: 1rem; }
+        .fiori-badge { background: #e1f0ff; color: #0056b3; padding: 0.2rem 0.5rem; border-radius: 1rem; font-size: 0.75rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="fiori-shell-bar">
+        <div style="display:flex; align-items:center; gap: 1rem;">
+            <a href="{% url 'callcenter:callcenter_cronogramas_lista' %}" style="color:white;"><i class="fas fa-arrow-left"></i></a>
+            <span style="font-weight:bold;">{{ instance.nombre }}</span>
+        </div>
+        <a href="{% url 'callcenter:callcenter_cronograma_editar' instance.pk %}" class="fiori-badge" style="text-decoration:none; color:white; background:rgba(255,255,255,0.2);">
+            <i class="fas fa-edit"></i> Editar
+        </a>
+    </div>
+
+    <div class="fiori-object-page">
+        <!-- Gantt View -->
+        <div class="fiori-section">
+            <div class="fiori-section-header">
+                <h2 class="fiori-section-title"><i class="fas fa-stream"></i> Cronograma GANTT</h2>
+            </div>
+            <div class="fiori-section-content" style="padding: 0;">
+                <div id="gantt-chart" class="gantt-container"></div>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div class="fiori-section">
+            <div class="fiori-section-header">
+                <h2 class="fiori-section-title">Detalle de Actividades</h2>
+            </div>
+            <div class="fiori-section-content">
+                <table class="fiori-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">N°</th>
+                            <th>Descripción</th>
+                            <th style="width: 80px;">Días</th>
+                            <th>Predecesores</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td><strong>{{ item.numero }}</strong></td>
+                            <td>{{ item.descripcion }}</td>
+                            <td>{{ item.duracion_dias }}</td>
+                            <td>
+                                {% for pred in item.predecesores.all %}
+                                <span class="fiori-badge" style="background:#eee; color:#666;">{{ pred.numero }}</span>
+                                {% empty %}
+                                <span style="color:#ccc;">-</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/snap.svg@0.5.1/dist/snap.svg-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const data = JSON.parse('{{ gantt_data_json|safe }}');
+            if (data.length > 0) {
+                new Gantt("#gantt-chart", data, {
+                    view_mode: 'Day',
+                    language: 'es',
+                    bar_height: 25,
+                    padding: 18
+                });
+            }
+        });
+    </script>
+</body>
+</html>

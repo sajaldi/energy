@@ -1636,6 +1636,51 @@ def cronograma_predefinido_edit_view(request, pk=None):
     }
     return render(request, 'callcenter/cronograma_predefinido_form.html', context)
 
+
+@login_required
+def cronograma_predefinido_detalle_view(request, pk):
+    """
+    Vista de solo lectura para visualizar el cronograma y su GANTT.
+    """
+    instance = get_object_or_404(CronogramaPredefinido, pk=pk)
+    
+    # Cálculo de GANTT (igual que en Edit)
+    from django.utils import timezone
+    from datetime import timedelta
+    import json
+    
+    base_date = timezone.now().replace(hour=8, minute=0, second=0, microsecond=0)
+    items = list(instance.items.all().prefetch_related('predecesores').order_by('numero'))
+    
+    gantt_data = []
+    fechas_finales = {}
+    for item in items:
+        start_date = base_date
+        preds = item.predecesores.all()
+        if preds:
+            fechas_preds = [fechas_finales.get(p.id, base_date) for p in preds]
+            start_date = max(fechas_preds)
+        
+        end_date = start_date + timedelta(days=item.duracion_dias)
+        fechas_finales[item.id] = end_date
+        
+        gantt_data.append({
+            'id': str(item.id),
+            'name': f"{item.numero}. {item.descripcion}",
+            'start': start_date.strftime('%Y-%m-%d'),
+            'end': end_date.strftime('%Y-%m-%d'),
+            'progress': 0,
+            'dependencies': ", ".join([str(p.id) for p in preds])
+        })
+
+    context = {
+        'instance': instance,
+        'items': items,
+        'gantt_data_json': json.dumps(gantt_data),
+        'title': f"Detalle: {instance.nombre}"
+    }
+    return render(request, 'callcenter/cronograma_predefinido_detalle.html', context)
+
 @staff_member_required
 def cronograma_predefinido_lista_view(request):
     """Lista simple de cronogramas predefinidos."""

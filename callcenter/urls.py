@@ -41,5 +41,7 @@ urlpatterns = [
     # Cronogramas Predefinidos (Templates)
     path('cronogramas-predefinidos/', views.cronograma_predefinido_lista_view, name='callcenter_cronogramas_lista'),
     path('cronogramas-predefinidos/nuevo/', views.cronograma_predefinido_edit_view, name='callcenter_cronograma_nuevo'),
+    path('cronogramas-predefinidos/<int:pk>/', views.cronograma_predefinido_detalle_view, name='callcenter_cronograma_detalle'),
     path('cronogramas-predefinidos/<int:pk>/editar/', views.cronograma_predefinido_edit_view, name='callcenter_cronograma_editar'),
+    path('api/cronograma-predefinido/<int:pk>/items/', views.api_get_cronograma_items_ajax, name='api_get_cronograma_items_ajax'),
 ]
