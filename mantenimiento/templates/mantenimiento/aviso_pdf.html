@@ -118,11 +118,19 @@
     <table style="margin-top: -1px;">
         <tr>
             <td class="label-cell" style="width: 15%;">Equipo/Ubicación:</td>
-            <td class="value-cell" style="width: 85%;">{{ aviso.activo.nombre|default:aviso.ubicacion.nombre }}</td>
+            <td class="value-cell" style="width: 85%;">
+                {% if aviso.activo %}
+                    {{ aviso.activo.nombre }}
+                {% elif aviso.ubicacion %}
+                    {{ aviso.ubicacion.nombre }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
         </tr>
         <tr>
             <td class="label-cell">Falla Reportada:</td>
-            <td>{{ aviso.falla.nombre|default:"Sin catalogar" }}</td>
+            <td>{% if aviso.falla %}{{ aviso.falla.nombre }}{% else %}Sin catalogar{% endif %}</td>
         </tr>
     </table>
 

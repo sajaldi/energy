@@ -180,6 +180,75 @@
         background: #7f1d1d;
         color: white;
     }
+    .tabs-nav {
+        display: flex;
+        gap: 2px;
+        margin-bottom: -1px;
+    }
+
+    .tab-btn {
+        padding: 12px 24px;
+        background: #e2e8f0;
+        border: 1px solid var(--border);
+        border-bottom: none;
+        border-radius: var(--radius) var(--radius) 0 0;
+        font-weight: 600;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+    }
+
+    .tab-btn.active {
+        background: white;
+        color: var(--secondary);
+        border-bottom: 2px solid var(--secondary);
+    }
+
+    .dept-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+    }
+
+    .dept-card {
+        background: white;
+        padding: 16px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        transition: transform 0.2s;
+    }
+
+    .dept-card:hover {
+        transform: scale(1.02);
+        border-color: var(--primary);
+    }
+
+    .dept-name {
+        font-weight: 700;
+        font-size: 0.8rem;
+        color: var(--text-main);
+        text-transform: uppercase;
+    }
+
+    .dept-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .dept-meta {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
 </style>
 {% endblock %}
 
@@ -251,79 +320,179 @@
         </div>
     </div>
 
-    <!-- Listado Reciente -->
-    <div class="main-surface">
-        <div class="surface-header">
-            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
-                📄 {% if search_query %}Resultados de búsqueda{% else %}Últimas Requisiciones{% endif %}
-                <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400;">
-                    (ordenadas por fecha de solicitud: más nuevas primero)
-                </span>
-            </h3>
-            <a href="{% url 'admin:presupuestos_requisicion_changelist' %}"
-                style="font-size: 0.85rem; color: var(--secondary); font-weight: 600;">Ver todo</a>
+    <!-- Tabs Navigation -->
+    <div class="tabs-nav" style="margin-top: 30px;">
+        <button class="tab-btn active" onclick="switchTab(event, 'general')">📊 Resumen General</button>
+        <button class="tab-btn" onclick="switchTab(event, 'personales')">👤 Mis Requisiciones</button>
+    </div>
+
+    <!-- Tab Content: General -->
+    <div id="tab-general" class="tab-content-area">
+        <!-- Estadísticas por Departamento -->
+        <div class="main-surface" style="margin-bottom: 24px;">
+            <div class="surface-header">
+                <h3 style="margin: 0; font-size: 1rem; font-weight: 600;">
+                    🏢 Inversión por Departamento (Solicitante)
+                </h3>
+            </div>
+            <div class="dept-stats-grid">
+                {% for dept in stats_departamento %}
+                <div class="dept-card">
+                    <span class="dept-name">{{ dept.usuario_solicitante__perfil__departamento__nombre|default:"Sin Clasificar" }}</span>
+                    <span class="dept-value">L.{{ dept.total|floatformat:2 }}</span>
+                    <span class="dept-meta">{{ dept.count }} requisiciones</span>
+                </div>
+                {% empty %}
+                <p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 20px;">
+                    No hay datos por departamento disponibles.
+                </p>
+                {% endfor %}
+            </div>
         </div>
-        <div style="overflow-x: auto;">
-            <table class="table-modern">
-                <thead>
-                    <tr>
-                        <th>N° Requisición</th>
-                        <th>Fecha</th>
-                        <th>Asunto</th>
-                        <th>Prioridad</th>
-                        <th>Estado</th>
-                        <th>Total</th>
-                        <th style="text-align: right;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for req in ultimas_requisiciones %}
-                    <tr>
-                        <td style="font-weight: 600; color: var(--secondary);">
-                            <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
-                                style="color: inherit;">{{req.cr8ca_requisicion}}</a>
-                        </td>
-                        <td>{{req.fecha|default:req.createdon|date:"d/m/Y"}}</td>
-                        <td>{{req.cr8ca_asunto|truncatechars:40}}</td>
-                        <td>
-                            <span class="priority-badge priority-{{req.cr8ca_prioridad}}">
-                                {{req.get_cr8ca_prioridad_display}}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="priority-badge" style="
-                                {% if req.estado_requisicion == 'AUTORIZADO' %}background:#dcfce7; color:#166534;{% endif %}
-                                {% if req.estado_requisicion == 'PENDIENTE' %}background:#fef9c3; color:#854d0e;{% endif %}
-                                {% if req.estado_requisicion == 'BORRADOR' %}background:#f1f5f9; color:#475569;{% endif %}
-                                {% if req.estado_requisicion == 'RECHAZADO' %}background:#fee2e2; color:#991b1b;{% endif %}
-                            ">
-                                {{req.estado_requisicion|default:'BORRADOR'}}
-                            </span>
-                        </td>
-                        <td style="font-family: monospace; font-weight: 600;">
-                            L.{{req.cr8ca_totalenarticulos|floatformat:2}}</td>
-                        <td style="text-align: right;">
-                            <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
-                                class="btn-custom btn-outline-custom" style="padding: 6px 12px; font-size: 0.75rem;">
-                                Editar
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                            No hay requisiciones registradas.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+        <!-- Listado General -->
+        <div class="main-surface">
+            <div class="surface-header">
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
+                    📄 {% if search_query %}Resultados de búsqueda{% else %}Últimas Requisiciones{% endif %}
+                    <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400;">
+                        (ordenadas por fecha de solicitud: más nuevas primero)
+                    </span>
+                </h3>
+                <a href="{% url 'admin:presupuestos_requisicion_changelist' %}"
+                    style="font-size: 0.85rem; color: var(--secondary); font-weight: 600;">Ver todo</a>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th>N° Requisición</th>
+                            <th>Fecha</th>
+                            <th>Asunto</th>
+                            <th>Prioridad</th>
+                            <th>Estado</th>
+                            <th>Total</th>
+                            <th style="text-align: right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in ultimas_requisiciones %}
+                        <tr>
+                            <td style="font-weight: 600; color: var(--secondary);">
+                                <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
+                                    style="color: inherit;">{{req.cr8ca_requisicion}}</a>
+                            </td>
+                            <td>{{req.fecha|default:req.createdon|date:"d/m/Y"}}</td>
+                            <td>{{req.cr8ca_asunto|truncatechars:40}}</td>
+                            <td>
+                                <span class="priority-badge priority-{{req.cr8ca_prioridad}}">
+                                    {{req.get_cr8ca_prioridad_display}}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="priority-badge" style="
+                                    {% if req.estado_requisicion == 'AUTORIZADO' %}background:#dcfce7; color:#166534;{% endif %}
+                                    {% if req.estado_requisicion == 'PENDIENTE' %}background:#fef9c3; color:#854d0e;{% endif %}
+                                    {% if req.estado_requisicion == 'BORRADOR' %}background:#f1f5f9; color:#475569;{% endif %}
+                                    {% if req.estado_requisicion == 'RECHAZADO' %}background:#fee2e2; color:#991b1b;{% endif %}
+                                ">
+                                    {{req.estado_requisicion|default:'BORRADOR'}}
+                                </span>
+                            </td>
+                            <td style="font-family: monospace; font-weight: 600;">
+                                L.{{req.cr8ca_totalenarticulos|floatformat:2}}</td>
+                            <td style="text-align: right;">
+                                <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
+                                    class="btn-custom btn-outline-custom" style="padding: 6px 12px; font-size: 0.75rem;">
+                                    Editar
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No hay requisiciones registradas.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Content: Mis Requisiciones -->
+    <div id="tab-personales" class="tab-content-area" style="display: none;">
+        <div class="main-surface">
+            <div class="surface-header">
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">
+                    👤 Mis Requisiciones Recientes
+                    <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400;">
+                        (Donde aparezco como solicitante o responsable)
+                    </span>
+                </h3>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th>N° Requisición</th>
+                            <th>Fecha</th>
+                            <th>Asunto</th>
+                            <th>Prioridad</th>
+                            <th>Estado</th>
+                            <th>Total</th>
+                            <th style="text-align: right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in mis_requisiciones %}
+                        <tr>
+                            <td style="font-weight: 600; color: var(--secondary);">
+                                <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
+                                    style="color: inherit;">{{req.cr8ca_requisicion}}</a>
+                            </td>
+                            <td>{{req.fecha|default:req.createdon|date:"d/m/Y"}}</td>
+                            <td>{{req.cr8ca_asunto|truncatechars:40}}</td>
+                            <td>
+                                <span class="priority-badge priority-{{req.cr8ca_prioridad}}">
+                                    {{req.get_cr8ca_prioridad_display}}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="priority-badge" style="
+                                    {% if req.estado_requisicion == 'AUTORIZADO' %}background:#dcfce7; color:#166534;{% endif %}
+                                    {% if req.estado_requisicion == 'PENDIENTE' %}background:#fef9c3; color:#854d0e;{% endif %}
+                                    {% if req.estado_requisicion == 'BORRADOR' %}background:#f1f5f9; color:#475569;{% endif %}
+                                    {% if req.estado_requisicion == 'RECHAZADO' %}background:#fee2e2; color:#991b1b;{% endif %}
+                                ">
+                                    {{req.estado_requisicion|default:'BORRADOR'}}
+                                </span>
+                            </td>
+                            <td style="font-family: monospace; font-weight: 600;">
+                                L.{{req.cr8ca_totalenarticulos|floatformat:2}}</td>
+                            <td style="text-align: right;">
+                                <a href="{% url 'presupuestos:requisicion_editar' req.pk %}"
+                                    class="btn-custom btn-outline-custom" style="padding: 6px 12px; font-size: 0.75rem;">
+                                    Editar
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No has creado o no tienes requisiciones asignadas recientemente.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-{% endblock %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         function checkNotifications() {
@@ -362,4 +531,29 @@
         setTimeout(checkNotifications, 1000);
         setInterval(checkNotifications, 10000);
     });
+
+    // Tab Switching Logic (Global scope)
+    function switchTab(evt, tabName) {
+        console.log("Switching to tab:", tabName);
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content-area");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tab-btn");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        var targetTab = document.getElementById("tab-" + tabName);
+        if (targetTab) {
+            targetTab.style.display = "block";
+        } else {
+            console.error("Tab not found:", "tab-" + tabName);
+        }
+        
+        if (evt && evt.currentTarget) {
+            evt.currentTarget.classList.add("active");
+        }
+    }
 </script>
+{% endblock %}

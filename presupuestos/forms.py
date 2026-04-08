@@ -38,6 +38,7 @@ class RequisicionForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         if 'cr8ca_requisicion' in self.fields:
             self.fields['cr8ca_requisicion'].required = False
@@ -45,6 +46,28 @@ class RequisicionForm(forms.ModelForm):
             self.fields['estado_requisicion'].required = False
         if 'usuario_solicitante' in self.fields:
             self.fields['usuario_solicitante'].required = False
+
+        # Filtrar partidas e ítems por departamento del usuario
+        if self.user and 'partida' in self.fields:
+            from presupuestos.models import PartidaPresupuestaria, ItemPresupuesto
+            user_depto_id = None
+            if hasattr(self.user, 'perfil') and self.user.perfil.departamento_id:
+                user_depto_id = self.user.perfil.departamento_id
+
+            if user_depto_id:
+                # Partidas que pertenecen al departamento del usuario O que no tienen departamentos (globales)
+                from django.db.models import Q
+                partidas_permitidas = PartidaPresupuestaria.objects.filter(
+                    Q(departamentos__id=user_depto_id) | Q(departamentos__isnull=True)
+                ).distinct()
+                self.fields['partida'].queryset = partidas_permitidas
+
+                # Filtrar también los ítems de presupuesto a solo los de partidas permitidas
+                if 'item_presupuesto' in self.fields:
+                    self.fields['item_presupuesto'].queryset = ItemPresupuesto.objects.filter(
+                        partida__in=partidas_permitidas
+                    )
+            # Si el usuario no tiene departamento, ve todas (comportamiento por defecto)
 
 class ArticuloRequisicionForm(forms.ModelForm):
     class Meta:

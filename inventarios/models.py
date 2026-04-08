@@ -90,6 +90,14 @@ class Material(models.Model):
     tipo_material = models.CharField(max_length=20, choices=TIPO_MATERIAL_CHOICES, default='INSUMO', verbose_name="Tipo de Material")
     imagen = models.ImageField(upload_to='materiales/', verbose_name="Imagen del Material", blank=True, null=True)
     
+    departamentos = models.ManyToManyField(
+        'core.Departamento', 
+        blank=True, 
+        related_name='materiales_permitidos', 
+        verbose_name="Departamentos Permitidos",
+        help_text="Si se seleccionan departamentos, solo los usuarios de estos departamentos podrán utilizar este material. Si está vacío, cualquier usuario podrá utilizarlo (Global)."
+    )
+    
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 

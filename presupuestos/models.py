@@ -93,6 +93,14 @@ class PartidaPresupuestaria(models.Model):
     )
     descripcion = models.CharField(max_length=500, blank=True, verbose_name="Referencia/Nota")
 
+    departamentos = models.ManyToManyField(
+        'core.Departamento',
+        blank=True,
+        related_name='partidas_permitidas',
+        verbose_name="Departamentos Permitidos",
+        help_text="Si se seleccionan departamentos, solo los usuarios de estos departamentos verán esta partida. Si está vacío, será visible para todos (Global)."
+    )
+
     def __str__(self):
         nombre_disc = self.disciplina.nombre if self.disciplina else (self.descripcion or "Partida General")
         return f"{nombre_disc} - {self.presupuesto_anual.anio}"

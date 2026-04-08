@@ -191,7 +191,7 @@ def requisicion_upsert(request, pk=None):
              messages.error(request, "No se pueden guardar cambios: La requisición está bloqueada para edición.")
              return redirect('presupuestos:requisicion_dashboard')
 
-        form = RequisicionForm(request.POST, instance=instance)
+        form = RequisicionForm(request.POST, instance=instance, user=request.user)
         articulo_formset = ArticuloFormSet(request.POST, instance=instance, prefix='articulos')
         documento_formset = DocumentoFormSet(request.POST, request.FILES, instance=instance, prefix='documentos')
         
@@ -289,7 +289,7 @@ def requisicion_upsert(request, pk=None):
                 messages.error(request, "Por favor corrige los errores para continuar.")
 
     else:
-        form = RequisicionForm(instance=instance)
+        form = RequisicionForm(instance=instance, user=request.user)
         articulo_formset = ArticuloFormSet(instance=instance, prefix='articulos')
         documento_formset = DocumentoFormSet(instance=instance, prefix='documentos')
 
@@ -391,12 +391,26 @@ def requisicion_dashboard(request):
     # Usar fecha si existe, sino createdon
     ultimas_requisiciones = requisiciones_query.order_by('-fecha', '-createdon')[:20]
 
+    # Estadísticas por Departamento (Solicitante)
+    stats_departamento = Requisicion.objects.values('usuario_solicitante__perfil__departamento__nombre') \
+        .annotate(total=Sum('cr8ca_totalenarticulos'), count=Count('cr8ca_requisicion')) \
+        .order_by('-total')
+
+    # Mis requisiciones (usuario actual)
+    mis_requisiciones = Requisicion.objects.none()
+    if request.user.is_authenticated:
+        mis_requisiciones = Requisicion.objects.filter(
+            Q(usuario_solicitante=request.user) | Q(usuario_en_nombre_de=request.user)
+        ).order_by('-fecha', '-createdon')[:15]
+
     context = {
         'total_reqs': total_reqs,
         'total_monto': total_monto,
         'reqs_recientes': reqs_recientes,
         'prioridad_data': prioridad_data,
         'ultimas_requisiciones': ultimas_requisiciones,
+        'stats_departamento': stats_departamento,
+        'mis_requisiciones': mis_requisiciones,
         'search_query': search_query,
         'title': 'Dashboard de Requisiciones'
     }

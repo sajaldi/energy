@@ -581,6 +581,17 @@
                     $(document).on('click', '.material-card', (e) => {
                         if ($(e.target).is('button, input')) return;
                         const card = $(e.currentTarget);
+                        
+                        if (card.data('allowed') === false) {
+                            Swal.fire({
+                                title: 'No Autorizado',
+                                text: 'No puedes utilizar este material ya que no pertenece a tu departamento.',
+                                icon: 'error',
+                                confirmButtonColor: '#EF4444'
+                            });
+                            return;
+                        }
+                        
                         const wasSelected = card.hasClass('selected');
                         $('.material-card').removeClass('selected');
                         if (!wasSelected) {
@@ -762,12 +773,14 @@
                         }
 
                         data.results.forEach(material => {
+                            const disabledClass = material.is_allowed === false ? 'disabled-material' : '';
                             grid.append(`
-                                <div class="material-card" 
+                                <div class="material-card ${disabledClass}" 
                                      data-id="${material.id}" 
                                      data-nombre="${material.nombre}"
                                      data-sku="${material.sku}"
-                                     data-precio="${material.precio_estimado}">
+                                     data-precio="${material.precio_estimado}"
+                                     data-allowed="${material.is_allowed}">
                                     <img src="${material.image_url}" class="material-image" alt="${material.nombre}">
                                     <div class="material-name">${material.nombre}</div>
                                     <div class="material-sku">SKU: ${material.sku}</div>

@@ -1026,7 +1026,11 @@ def exportar_cronograma_grupal_pdf(request, pk):
 def cronograma_repex(request, pk):
     from .models import REPEX
     repex = get_object_or_404(REPEX, pk=pk)
-    data = _get_repex_cronograma_data(repex)
+    # Filtros de fecha
+    desde = request.GET.get('desde')
+    hasta = request.GET.get('hasta')
+    
+    data = _get_repex_cronograma_data(repex, fecha_desde=desde, fecha_hasta=hasta)
 
     # Vista detalle de activos
     items_detalle = []
@@ -1034,22 +1038,24 @@ def cronograma_repex(request, pk):
         'activo', 'activo__modelo', 'activo__modelo__marca',
         'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia',
         'modelo', 'modelo__marca', 'modelo__categoria'
-    ).all()
+    )
+    
+    if desde:
+        items_qs = items_qs.filter(fecha_proyectada__gte=desde)
+    if hasta:
+        items_qs = items_qs.filter(fecha_proyectada__lte=hasta)
+    
+    items_qs = items_qs.all()
 
     for item in items_qs:
         activo = item.activo
         if activo:
             # Item vinculado a un activo
-            # Lógica para obtener el edificio raíz (Main Building)
             edificio_obj = activo.ubicacion
+            nombre_edificio = '-'
             if edificio_obj:
-                # Subir hasta encontrar el nivel superior que sea de tipo EDIFICIO o Campus (root)
-                # O simplemente el primer ancestro que sea 'EDIFICIO'
                 visited = {edificio_obj.id}
-                curr = edificio_obj
                 found_edificio = edificio_obj if edificio_obj.tipo == 'EDIFICIO' else None
-                
-                # Buscamos el ancestro tipo EDIFICIO
                 temp_curr = edificio_obj.padre
                 while temp_curr:
                     if temp_curr.id in visited: break
@@ -1057,31 +1063,23 @@ def cronograma_repex(request, pk):
                     if temp_curr.tipo == 'EDIFICIO':
                         found_edificio = temp_curr
                     temp_curr = temp_curr.padre
-                
-                if found_edificio:
-                    nombre_edificio = found_edificio.nombre
-                else:
-                    # Si no hay tipo EDIFICIO, usamos la raíz de la jerarquía
-                    nombre_edificio = edificio_obj.get_root().nombre
-            else:
-                nombre_edificio = '-'
+                nombre_edificio = found_edificio.nombre if found_edificio else edificio_obj.get_root().nombre
             
             ruta_ubicacion = nombre_edificio
-            ruta_categoria = ''
+            ruta_categoria = '-'
+            categoria_principal = '-'
             if activo.modelo and activo.modelo.categoria:
                 cat = activo.modelo.categoria
-                path = [cat.nombre]
+                path_objs = [cat]
                 curr = cat.padre
                 visited = {cat.id}
                 while curr:
-                    if curr.id in visited:
-                        break
+                    if curr.id in visited: break
                     visited.add(curr.id)
-                    path.append(curr.nombre)
+                    path_objs.append(curr)
                     curr = curr.padre
-                ruta_categoria = ' → '.join(reversed(path))
-            else:
-                ruta_categoria = '-'
+                ruta_categoria = ' → '.join(reversed([c.nombre for c in path_objs]))
+                categoria_principal = path_objs[-1].nombre
 
             items_detalle.append({
                 'id': item.id,
@@ -1091,6 +1089,7 @@ def cronograma_repex(request, pk):
                 'modelo': activo.modelo.nombre if activo.modelo else '-',
                 'ruta_ubicacion': ruta_ubicacion,
                 'ruta_categoria': ruta_categoria,
+                'categoria_principal': categoria_principal,
                 'familia': activo.familia.nombre if activo.familia else '-',
                 'costo_reposicion': float(item.costo_reposicion or 0),
                 'prioridad': item.prioridad,
@@ -1101,28 +1100,26 @@ def cronograma_repex(request, pk):
             })
         else:
             # Item manual sin activo
-            modelo_str = '-'
-            marca_str = '-'
-            if item.modelo:
-                modelo_str = item.modelo.nombre
-                if hasattr(item.modelo, 'marca') and item.modelo.marca:
-                    marca_str = item.modelo.marca.nombre
-
-            ruta_categoria = item.categoria_manual
-            if not ruta_categoria and item.modelo and item.modelo.categoria:
+            modelo_str = item.modelo.nombre if item.modelo else '-'
+            marca_str = item.modelo.marca.nombre if item.modelo and item.modelo.marca else '-'
+            
+            ruta_categoria = '-'
+            categoria_principal = '-'
+            if item.modelo and item.modelo.categoria:
                 cat = item.modelo.categoria
-                path = [cat.nombre]
+                path_objs = [cat]
                 curr = cat.padre
                 visited = {cat.id}
                 while curr:
                     if curr.id in visited: break
                     visited.add(curr.id)
-                    path.append(curr.nombre)
+                    path_objs.append(curr)
                     curr = curr.padre
-                ruta_categoria = ' → '.join(reversed(path))
-            
-            if not ruta_categoria:
-                ruta_categoria = 'Sin Categoría'
+                ruta_categoria = ' → '.join(reversed([c.nombre for c in path_objs]))
+                categoria_principal = path_objs[-1].nombre
+            elif hasattr(item, 'categoria_manual') and item.categoria_manual:
+                ruta_categoria = item.categoria_manual
+                categoria_principal = item.categoria_manual
 
             items_detalle.append({
                 'id': item.id,
@@ -1132,6 +1129,7 @@ def cronograma_repex(request, pk):
                 'modelo': modelo_str,
                 'ruta_ubicacion': item.ubicacion_manual or '-',
                 'ruta_categoria': ruta_categoria,
+                'categoria_principal': categoria_principal,
                 'familia': ruta_categoria,
                 'costo_reposicion': float(item.costo_reposicion or 0),
                 'prioridad': item.prioridad,
@@ -1157,6 +1155,7 @@ def cronograma_repex(request, pk):
                 'nombre': cat, 
                 'edificios': OrderedDict(), 
                 'total': 0.0, 
+                'total_cantidad': 0.0,
                 'count': 0
             }
         
@@ -1164,12 +1163,15 @@ def cronograma_repex(request, pk):
             hierarchical_dict[cat]['edificios'][building] = {
                 'nombre': building, 
                 'items': [], 
-                'total_edificio': 0.0
+                'total_edificio': 0.0,
+                'total_cantidad': 0.0
             }
         
         hierarchical_dict[cat]['edificios'][building]['items'].append(item)
         hierarchical_dict[cat]['edificios'][building]['total_edificio'] += item['costo_reposicion']
+        hierarchical_dict[cat]['edificios'][building]['total_cantidad'] += item['cantidad']
         hierarchical_dict[cat]['total'] += item['costo_reposicion']
+        hierarchical_dict[cat]['total_cantidad'] += item['cantidad']
         hierarchical_dict[cat]['count'] += 1
 
         # 2. Resumen por Modelo (existente)
@@ -1198,10 +1200,13 @@ def cronograma_repex(request, pk):
         cat_item = {
             'nombre': cat_name,
             'total': c_data['total'],
+            'total_cantidad': c_data['total_cantidad'],
+            'promedio_pu': c_data['total'] / c_data['total_cantidad'] if c_data['total_cantidad'] > 0 else 0,
             'count': c_data['count'],
             'edificios': []
         }
         for b_name, b_data in c_data['edificios'].items():
+            b_data['promedio_pu'] = b_data['total_edificio'] / b_data['total_cantidad'] if b_data['total_cantidad'] > 0 else 0
             cat_item['edificios'].append(b_data)
         presupuesto_jerarquico.append(cat_item)
 
@@ -1219,8 +1224,98 @@ def cronograma_repex(request, pk):
             'promedio_pu': promedio_pu
         })
 
+    # 3. Resumen por Categoría Principal / Ubicación (NUEVO)
+    resumen_cat_ub_dict = OrderedDict()
+    for item in items_detalle:
+        cat = item['categoria_principal']
+        ub = item['ruta_ubicacion']
+        ckey = (cat, ub)
+        if ckey not in resumen_cat_ub_dict:
+            resumen_cat_ub_dict[ckey] = {
+                'categoria': cat,
+                'ubicacion': ub,
+                'total_cantidad': 0.0,
+                'total': 0.0,
+            }
+        r_catub = resumen_cat_ub_dict[ckey]
+        r_catub['total_cantidad'] += item['cantidad']
+        r_catub['total'] += item['costo_reposicion']
+    
+    # Organizar por jerarquía de 3 NIVELES para asignar Códigos (A.1.1) y habilitar colapsable
+    sorted_cat_ubs = sorted(resumen_cat_ub_dict.values(), key=lambda x: (x['categoria'], x['ubicacion']))
+    
+    hierarchical_resumen = OrderedDict()
+    import string
+    def get_excel_letter(n):
+        result = ""
+        while n >= 0:
+            result = string.ascii_uppercase[n % 26] + result
+            n = n // 26 - 1
+        return result
+
+    main_cat_idx = -1
+    for r_val in sorted_cat_ubs:
+        main_cat_name = r_val['categoria']
+        # Usamos ruta_categoria para identificar el nivel intermedio (Hijo)
+        # Buscamos el ítem original para obtener la ruta completa
+        # (Alternativamente, podríamos haber guardado la ruta completa en r_val)
+        # Busquemos en items_detalle la ruta asociada a este ckey
+        matching_item = next((i for i in items_detalle if i['categoria_principal'] == main_cat_name and i['ruta_ubicacion'] == r_val['ubicacion']), None)
+        sub_cat_name = matching_item['ruta_categoria'] if matching_item else main_cat_name
+
+        if main_cat_name not in hierarchical_resumen:
+            main_cat_idx += 1
+            hierarchical_resumen[main_cat_name] = {
+                'nombre': main_cat_name,
+                'codigo': get_excel_letter(main_cat_idx),
+                'total_cantidad': 0.0,
+                'total': 0.0,
+                'hijos': OrderedDict()
+            }
+        
+        main_cat_obj = hierarchical_resumen[main_cat_name]
+        
+        if sub_cat_name not in main_cat_obj['hijos']:
+            sub_cat_idx = len(main_cat_obj['hijos']) + 1
+            main_cat_obj['hijos'][sub_cat_name] = {
+                'nombre': sub_cat_name,
+                'codigo': f"{main_cat_obj['codigo']}.{sub_cat_idx}",
+                'total_cantidad': 0.0,
+                'total': 0.0,
+                'ubicaciones': []
+            }
+        
+        sub_cat_obj = main_cat_obj['hijos'][sub_cat_name]
+        loc_idx = len(sub_cat_obj['ubicaciones']) + 1
+        
+        total_r = r_val['total']
+        cant_r = r_val['total_cantidad']
+        r_val['promedio_pu'] = total_r / cant_r if cant_r > 0 else 0
+        r_val['codigo'] = f"{sub_cat_obj['codigo']}.{loc_idx}"
+        
+        # Sube los totales al sub-hijo
+        sub_cat_obj['total_cantidad'] += cant_r
+        sub_cat_obj['total'] += total_r
+        sub_cat_obj['ubicaciones'].append(r_val)
+        
+        # Sube los totales al padre principal
+        main_cat_obj['total_cantidad'] += cant_r
+        main_cat_obj['total'] += total_r
+
+    # Convertir a lista y calcular promedios finales
+    resumen_cat_ub = []
+    for main_cat in hierarchical_resumen.values():
+        main_cat['promedio_pu'] = main_cat['total'] / main_cat['total_cantidad'] if main_cat['total_cantidad'] > 0 else 0
+        main_cat['hijos_list'] = []
+        for sub_cat in main_cat['hijos'].values():
+            sub_cat['promedio_pu'] = sub_cat['total'] / sub_cat['total_cantidad'] if sub_cat['total_cantidad'] > 0 else 0
+            main_cat['hijos_list'].append(sub_cat)
+        resumen_cat_ub.append(main_cat)
+
     context = {
         'repex': repex,
+        'desde': desde,
+        'hasta': hasta,
         'familias_data': data['familias_data'],
         'anios_nombres': data['anios_nombres'],
         'total_anual': data['total_mensual'], # Renombrando key para template y vista
@@ -1229,6 +1324,7 @@ def cronograma_repex(request, pk):
         'items_detalle': items_detalle,
         'presupuesto_jerarquico': presupuesto_jerarquico, # Nueva estructura 3 niveles
         'resumen_modelos': resumen_modelos,
+        'resumen_cat_ub': resumen_cat_ub, # NUEVO
     }
     return render(request, 'presupuestos/cronograma_repex.html', context)
 
@@ -1266,16 +1362,16 @@ def exportar_repex_excel(request, pk):
         ws.title = f"Cronograma REPEX {repex.anio}"
         data = _get_repex_cronograma_data(repex)
         
-        # Title (Col A to Z, since 1+1+24 = 26)
-        last_col = get_column_letter(26)
-        ws.merge_cells(f'A1:{last_col}')
+        # Title (Col A to G, since 1+1+5 = 7)
+        last_col = get_column_letter(7)
+        ws.merge_cells(f'A1:{last_col}1')
         ws['A1'].value = f"REPEX {repex.anio} — {repex.nombre} (Cronograma Mensual)"
         ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='2C4A6E')
         ws.row_dimensions[1].height = 30
         ws.append([])
 
         # Headers
-        headers = ['FAMILIA / ITEM', 'TOTAL'] + data['meses_nombres']
+        headers = ['FAMILIA / ITEM', 'TOTAL'] + data['anios_nombres']
         ws.append(headers)
         hr = ws.max_row
         for col, _ in enumerate(headers, 1):
@@ -1286,7 +1382,7 @@ def exportar_repex_excel(request, pk):
         ws.row_dimensions[hr].height = 25
         ws.column_dimensions['A'].width = 45
         ws.column_dimensions['B'].width = 15
-        for col in range(3, 27):
+        for col in range(3, 8):
             ws.column_dimensions[get_column_letter(col)].width = 10
 
         for fam in data['familias_data']:
@@ -1294,7 +1390,7 @@ def exportar_repex_excel(request, pk):
             row_data = [fam['familia_nombre'].upper(), fam['total']] + fam['mensual']
             ws.append(row_data)
             r_fam = ws.max_row
-            for col in range(1, 27): # Changed from 15 to 27
+            for col in range(1, 8): 
                 ws.cell(row=r_fam, column=col).fill = total_fill
                 ws.cell(row=r_fam, column=col).font = total_font
                 if col >= 2:
@@ -1307,7 +1403,7 @@ def exportar_repex_excel(request, pk):
                 ws.append(row_cat)
                 r_cat = ws.max_row
                 ws.cell(row=r_cat, column=1).alignment = Alignment(indent=2)
-                for col in range(1, 27): # Changed from 15 to 27
+                for col in range(1, 8): 
                     ws.cell(row=r_cat, column=col).fill = cat_fill
                     ws.cell(row=r_cat, column=col).font = cat_font
                     if col >= 2:
@@ -1320,7 +1416,7 @@ def exportar_repex_excel(request, pk):
                     ws.append(row_ub)
                     r_ub = ws.max_row
                     ws.cell(row=r_ub, column=1).alignment = Alignment(indent=4)
-                    for col in range(1, 27): # Changed from 15 to 27
+                    for col in range(1, 8): 
                         ws.cell(row=r_ub, column=col).font = Font(name='Calibri', bold=True, size=10)
                         if col >= 2:
                             ws.cell(row=r_ub, column=col).number_format = money_fmt
@@ -1331,7 +1427,7 @@ def exportar_repex_excel(request, pk):
                         ws.append(row_item)
                         ir = ws.max_row
                         ws.cell(row=ir, column=1).alignment = Alignment(indent=6)
-                        for col in range(1, 27): # Changed from 15 to 27
+                        for col in range(1, 8): 
                             ws.cell(row=ir, column=col).font = item_font
                             ws.cell(row=ir, column=col).border = thin_border
                             if col >= 2:
@@ -1352,14 +1448,237 @@ def exportar_repex_excel(request, pk):
 
         # Totales mensuales
         ws.append([])
-        total_row = ['TOTAL MENSUAL', data['total_general']] + data['total_mensual']
+        total_row = ['TOTAL ANUAL', data['total_general']] + data['total_mensual']
         ws.append(total_row)
         tr = ws.max_row
-        for col in range(1, 27): # Changed from 15 to 27
+        for col in range(1, 8): 
             ws.cell(row=tr, column=col).fill = total_fill
             ws.cell(row=tr, column=col).font = total_font
             if col >= 2:
                 ws.cell(row=tr, column=col).number_format = money_fmt
+
+    elif vista == 'flujo':
+        # ── FLUJO DETALLADO 24 MESES ──
+        ws.title = f"Flujo 24 Meses {repex.anio}"
+        data = _get_repex_cronograma_data(repex)
+        anio1, anio2 = data['anios_nombres'][0], data['anios_nombres'][1]
+        
+        # Title (Col A to AB, 28 columns)
+        last_col = get_column_letter(28)
+        ws.merge_cells(f'A1:{last_col}1')
+        ws['A1'].value = f"REPEX {repex.anio} — {repex.nombre} (Flujo Detallado 24 Meses)"
+        ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='2C4A6E')
+        ws.row_dimensions[1].height = 30
+        ws.append([])
+
+        # Headers
+        headers = ['FAMILIA / ACTIVO'] + data['meses_year_1'] + [f'TOTAL {anio1}'] + data['meses_year_2'] + [f'TOTAL {anio2}'] + ['TOTAL GENERAL']
+        ws.append(headers)
+        hr = ws.max_row
+        for col, _ in enumerate(headers, 1):
+            cell = ws.cell(row=hr, column=col)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[hr].height = 25
+        ws.column_dimensions['A'].width = 45
+        for col in range(2, 29):
+            ws.column_dimensions[get_column_letter(col)].width = 12
+
+        for fam in data['familias_data']:
+            m24 = fam['mensual_24']
+            row_fam = [fam['familia_nombre'].upper()] + m24[:12] + [fam['total_anio_1']] + m24[12:] + [fam['total_anio_2']] + [fam['total']]
+            ws.append(row_fam)
+            r_fam = ws.max_row
+            for col in range(1, 29):
+                ws.cell(row=r_fam, column=col).fill = total_fill
+                ws.cell(row=r_fam, column=col).font = total_font
+                if col >= 2: ws.cell(row=r_fam, column=col).number_format = money_fmt
+
+            for cat in fam['categorias']:
+                m24c = cat['mensual_24']
+                row_cat = [cat['nombre'].upper()] + m24c[:12] + [cat['total_anio_1']] + m24c[12:] + [cat['total_anio_2']] + [cat['total']]
+                ws.append(row_cat)
+                r_cat = ws.max_row
+                ws.cell(row=r_cat, column=1).alignment = Alignment(indent=2)
+                for col in range(1, 29):
+                    ws.cell(row=r_cat, column=col).fill = cat_fill
+                    ws.cell(row=r_cat, column=col).font = cat_font
+                    if col >= 2: ws.cell(row=r_cat, column=col).number_format = money_fmt
+
+                for ub in cat['ubicaciones']:
+                    m24u = ub['mensual_24']
+                    row_ub = [ub['nombre']] + m24u[:12] + [ub['total_anio_1']] + m24u[12:] + [ub['total_anio_2']] + [ub['total']]
+                    ws.append(row_ub)
+                    r_ub = ws.max_row
+                    ws.cell(row=r_ub, column=1).alignment = Alignment(indent=4)
+                    for col in range(1, 29):
+                        ws.cell(row=r_ub, column=col).font = Font(name='Calibri', bold=True, size=10)
+                        if col >= 2: ws.cell(row=r_ub, column=col).number_format = money_fmt
+
+                    for item in ub['items']:
+                        m24i = item['mensual_24']
+                        row_item = [item['activo_nombre']] + m24i[:12] + [item['total_anio_1']] + m24i[12:] + [item['total_anio_2']] + [item['total']]
+                        ws.append(row_item)
+                        r_item = ws.max_row
+                        ws.cell(row=r_item, column=1).alignment = Alignment(indent=6)
+                        for col in range(1, 29):
+                            if col >= 2: ws.cell(row=r_item, column=col).number_format = money_fmt
+        
+        # Final Row
+        m24g = data['total_mensual_24']
+        t1, t2 = sum(m24g[:12]), sum(m24g[12:])
+        row_final = ['TOTAL GENERAL'] + m24g[:12] + [t1] + m24g[12:] + [t2] + [data['total_general']]
+        ws.append(row_final)
+        r_fin = ws.max_row
+        for col in range(1, 29):
+            cell = ws.cell(row=r_fin, column=col)
+            cell.fill = header_fill
+            cell.font = header_font
+            if col >= 2: cell.number_format = money_fmt
+
+    elif vista == 'modelo':
+        # ── RESUMEN POR MODELO (Agrupado por Categoría y Modelo) ──
+        ws.title = "Resumen por Modelo"
+        items_qs = repex.items.select_related(
+            'activo', 'activo__modelo', 'activo__modelo__marca',
+            'activo__modelo__categoria', 'activo__ubicacion', 'activo__familia',
+            'modelo', 'modelo__marca', 'modelo__categoria'
+        ).all()
+
+        consolidated = OrderedDict()
+        for item in items_qs:
+            # Category name logic
+            activo = item.activo
+            cat_name = '-'
+            if activo:
+                if activo.modelo and activo.modelo.categoria:
+                    cat = activo.modelo.categoria
+                    path = [cat.nombre]
+                    curr = cat.padre
+                    visited = {cat.id}
+                    while curr:
+                        if curr.id in visited: break
+                        visited.add(curr.id)
+                        path.append(curr.nombre)
+                        curr = curr.padre
+                    cat_name = ' → '.join(reversed(path))
+            else:
+                cat_name = item.categoria_manual
+                if not cat_name and item.modelo and item.modelo.categoria:
+                    cat = item.modelo.categoria
+                    path = [cat.nombre]
+                    curr = cat.padre
+                    visited = {cat.id}
+                    while curr:
+                        if curr.id in visited: break
+                        visited.add(curr.id)
+                        path.append(curr.nombre)
+                        curr = curr.padre
+                    cat_name = ' → '.join(reversed(path))
+                
+                if not cat_name:
+                    cat_name = 'Sin Categoría'
+
+            if cat_name not in consolidated:
+                consolidated[cat_name] = OrderedDict()
+            
+            # Model identity
+            modelo_str = '-'
+            marca_str = '-'
+            if activo and activo.modelo:
+                modelo_str = activo.modelo.nombre
+                if activo.modelo.marca:
+                    marca_str = activo.modelo.marca.nombre
+            elif item.modelo:
+                modelo_str = item.modelo.nombre
+                if hasattr(item.modelo, 'marca') and item.modelo.marca:
+                    marca_str = item.modelo.marca.nombre
+            
+            modelo_key = f"{marca_str} | {modelo_str}"
+            if modelo_key not in consolidated[cat_name]:
+                consolidated[cat_name][modelo_key] = {
+                    'marca': marca_str,
+                    'modelo': modelo_str,
+                    'cantidad': 0,
+                    'total': 0.0,
+                    'items': []
+                }
+            
+            m_data = consolidated[cat_name][modelo_key]
+            m_data['cantidad'] += float(item.cantidad or 1)
+            m_data['total'] += float(item.costo_reposicion or 0)
+            m_data['items'].append({
+                'nombre': item.display_nombre,
+                'ubicacion': (activo.ubicacion.nombre if activo and activo.ubicacion else (item.ubicacion_manual or '-')),
+                'cantidad': float(item.cantidad or 1),
+                'costo': float(item.costo_reposicion or 0)
+            })
+
+        headers = ['CATEGORÍA / MODELO', 'MARCA', 'UBICACIÓN ESPECÍFICA', 'CANTIDAD', 'P.U.', 'IMPORTE']
+        ws.append(headers)
+        hr = ws.max_row
+        for col_idx in range(1, 7):
+            cell = ws.cell(row=hr, column=col_idx)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        ws.column_dimensions['A'].width = 45
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 35
+        ws.column_dimensions['D'].width = 12
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 18
+
+        total_general = 0
+        for cat_name, models_dict in consolidated.items():
+            cat_total = sum(m['total'] for m in models_dict.values())
+            cat_cant = sum(m['cantidad'] for m in models_dict.values())
+            total_general += cat_total
+            
+            # Category Row
+            ws.append([cat_name.upper(), '', '', cat_cant, '', cat_total])
+            r = ws.max_row
+            for col in range(1, 7):
+                ws.cell(row=r, column=col).fill = total_fill
+                ws.cell(row=r, column=col).font = total_font
+            ws.cell(row=r, column=6).number_format = money_fmt
+            
+            for m_key, m_info in models_dict.items():
+                # Model Row
+                pu = m_info['total'] / m_info['cantidad'] if m_info['cantidad'] > 0 else 0
+                ws.append([m_info['modelo'], m_info['marca'], '', m_info['cantidad'], pu, m_info['total']])
+                mr = ws.max_row
+                ws.cell(row=mr, column=1).alignment = Alignment(indent=2)
+                for col in range(1, 7):
+                    ws.cell(row=mr, column=col).fill = cat_fill
+                    ws.cell(row=mr, column=col).font = cat_font
+                ws.cell(row=mr, column=5).number_format = money_fmt
+                ws.cell(row=mr, column=6).number_format = money_fmt
+                
+                # Items breakdown
+                group_start = ws.max_row + 1
+                for itm in m_info['items']:
+                    pu_item = itm['costo'] / itm['cantidad'] if itm['cantidad'] > 0 else 0
+                    ws.append(['', '', itm['ubicacion'], itm['cantidad'], pu_item, itm['costo']])
+                    ir = ws.max_row
+                    ws.cell(row=ir, column=3).font = item_font
+                    for col in range(3, 7): ws.cell(row=ir, column=col).border = thin_border
+                    ws.cell(row=ir, column=5).number_format = money_fmt
+                    ws.cell(row=ir, column=6).number_format = money_fmt
+                
+                group_end = ws.max_row
+                if group_end >= group_start:
+                    ws.row_dimensions.group(group_start, group_end, outline_level=1, hidden=True)
+
+        ws.append([])
+        ws.append(['TOTAL GENERAL', '', '', '', '', total_general])
+        tr = ws.max_row
+        for col in range(1, 7):
+            ws.cell(row=tr, column=col).fill = total_fill
+            ws.cell(row=tr, column=col).font = total_font
+        ws.cell(row=tr, column=6).number_format = money_fmt
 
     else:
         # ── DETALLE / APU with 3-level hierarchy ──
@@ -1462,7 +1781,7 @@ def exportar_repex_excel(request, pk):
             
             hierarchical_obj[cat_name][building_name]['items'].append(val)
             hierarchical_obj[cat_name][building_name]['total_edificio'] += val['costo']
-
+        
         ws.merge_cells('A1:H1')
         ws['A1'].value = f"REPEX {repex.anio} — {repex.nombre}"
         ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='2C4A6E')
@@ -1558,25 +1877,52 @@ def exportar_repex_excel(request, pk):
 
     # Response
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    vista_labels = {'cronograma': 'Cronograma', 'apu': 'Presupuesto', 'detalle': 'Detalle'}
+    vista_labels = {
+        'cronograma': 'Cronograma', 
+        'flujo': 'Flujo_24M',
+        'modelo': 'Resumen_Modelo',
+        'apu': 'Presupuesto', 
+        'detalle': 'Detalle'
+    }
     filename = f"REPEX_{repex.anio}_{vista_labels.get(vista, 'Export')}_{repex.nombre.replace(' ', '_')}.xlsx"
     response['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
     wb.save(response)
     return response
+    return response
 
 
-def _get_repex_cronograma_data(repex):
+def _get_repex_cronograma_data(repex, fecha_desde=None, fecha_hasta=None):
     """
     Genera datos matriciales de un plan REPEX agrupados por Familia del Activo.
-    Timespan de 5 años: 2026, 2027, 2028, 2029, 2030.
+    Soporta filtrado opcional por rango de fechas.
     """
     anios_rango = [2026, 2027, 2028, 2029, 2030]
     anios_nombres = [str(a) for a in anios_rango]
     
+    # ── NUEVO: Flujo 24 Meses (Año Inicial + Año Siguiente) ──
+    year_start = repex.anio
+    meses_nombres_24 = []
+    meses_year_1 = []
+    meses_year_2 = []
+    for y in [year_start, year_start + 1]:
+        for m in range(1, 13):
+            # Ene 26, Feb 26...
+            mes_str = f"{datetime(y, m, 1).strftime('%b')} {str(y)[2:]}"
+            meses_nombres_24.append(mes_str)
+            if y == year_start: meses_year_1.append(mes_str)
+            else: meses_year_2.append(mes_str)
+    
     # Ampliamos el filtro para cubrir el rango de años solicitado
     items = repex.items.select_related('activo', 'activo__familia', 'modelo', 'modelo__categoria').filter(
         Q(fecha_proyectada__year__in=anios_rango) | Q(fecha_proyectada__isnull=True)
-    ).all()
+    )
+    
+    if fecha_desde:
+        items = items.filter(fecha_proyectada__gte=fecha_desde)
+    if fecha_hasta:
+        items = items.filter(fecha_proyectada__lte=fecha_hasta)
+    
+    items = items.all()
 
     # Agrupar por Familia > Categoría > Ubicación
     familias = {}
@@ -1599,7 +1945,10 @@ def _get_repex_cronograma_data(repex):
                 'familia_nombre': familia_nombre,
                 'familia_id': familia_id,
                 'categorias': {},
-                'mensual': [0.0] * 5, # Usamos 'mensual' pero ahora representa años
+                'mensual': [0.0] * 5, 
+                'mensual_24': [0.0] * 24, # NUEVO: 24 meses
+                'total_anio_1': 0.0,
+                'total_anio_2': 0.0,
                 'total': 0.0,
             }
 
@@ -1617,6 +1966,9 @@ def _get_repex_cronograma_data(repex):
                 'nombre': cat_nombre,
                 'ubicaciones': {},
                 'mensual': [0.0] * 5,
+                'mensual_24': [0.0] * 24,
+                'total_anio_1': 0.0,
+                'total_anio_2': 0.0,
                 'total': 0.0,
             }
 
@@ -1642,6 +1994,9 @@ def _get_repex_cronograma_data(repex):
                 'nombre': ubicacion_nombre,
                 'items': [],
                 'mensual': [0.0] * 5,
+                'mensual_24': [0.0] * 24,
+                'total_anio_1': 0.0,
+                'total_anio_2': 0.0,
                 'total': 0.0,
             }
 
@@ -1655,7 +2010,15 @@ def _get_repex_cronograma_data(repex):
             if fp.year in anios_rango:
                 anio_idx = anios_rango.index(fp.year)
                 item_anual[anio_idx] = costo
-                anio_proyectado = fp.year
+
+        # Determinar posición en flujo 24 meses
+        item_24m = [0.0] * 24
+        if item.fecha_proyectada:
+            fp = item.fecha_proyectada
+            if fp.year == year_start:
+                item_24m[fp.month - 1] = costo
+            elif fp.year == (year_start + 1):
+                item_24m[11 + fp.month] = costo # 12 + month - 1
 
         # Agregar Item
         familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['items'].append({
@@ -1664,7 +2027,10 @@ def _get_repex_cronograma_data(repex):
             'descripcion': item.descripcion or '',
             'prioridad': item.prioridad,
             'costo_reposicion': costo,
-            'mensual': item_anual, # Seguimos llamando 'mensual' para no romper el template excesivamente
+            'mensual': item_anual, 
+            'mensual_24': item_24m,
+            'total_anio_1': sum(item_24m[:12]),
+            'total_anio_2': sum(item_24m[12:]),
             'total': costo,
             'anio_proyectado': anio_proyectado,
         })
@@ -1676,6 +2042,20 @@ def _get_repex_cronograma_data(repex):
             familias[fam_key]['categorias'][cat_key]['mensual'][i] += val
             familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['mensual'][i] += val
         
+        for i in range(24):
+            val24 = item_24m[i]
+            familias[fam_key]['mensual_24'][i] += val24
+            familias[fam_key]['categorias'][cat_key]['mensual_24'][i] += val24
+            familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['mensual_24'][i] += val24
+
+        t1, t2 = sum(item_24m[:12]), sum(item_24m[12:])
+        familias[fam_key]['total_anio_1'] += t1
+        familias[fam_key]['total_anio_2'] += t2
+        familias[fam_key]['categorias'][cat_key]['total_anio_1'] += t1
+        familias[fam_key]['categorias'][cat_key]['total_anio_2'] += t2
+        familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['total_anio_1'] += t1
+        familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['total_anio_2'] += t2
+
         familias[fam_key]['total'] += costo
         familias[fam_key]['categorias'][cat_key]['total'] += costo
         familias[fam_key]['categorias'][cat_key]['ubicaciones'][ub_key]['total'] += costo
@@ -1697,6 +2077,7 @@ def _get_repex_cronograma_data(repex):
 
     # Totales globales
     total_anual = [0.0] * 5
+    total_24m = [0.0] * 24
     total_general = 0.0
     total_items = 0
 
@@ -1708,13 +2089,18 @@ def _get_repex_cronograma_data(repex):
         
         for i in range(5):
             total_anual[i] += fam['mensual'][i]
+        for i in range(24):
+            total_24m[i] += fam['mensual_24'][i]
         total_general += fam['total']
 
-    from datetime import datetime
     return {
         'familias_data': familias_data,
         'anios_nombres': anios_nombres,
-        'total_mensual': total_anual, # Mantenemos el key total_mensual por retrocompatibilidad con openpyxl views/template u otra ref, pero arriba pasamos 'total_anual'
+        'meses_nombres_24': meses_nombres_24,
+        'meses_year_1': meses_year_1,
+        'meses_year_2': meses_year_2,
+        'total_mensual': total_anual, 
+        'total_mensual_24': total_24m,
         'total_general': total_general,
         'total_items': total_items,
     }
@@ -1737,20 +2123,27 @@ def api_update_repex_item(request):
             monto = Decimal(str(data.get('monto', 0)))
 
             item = get_object_or_404(REPEXItem, pk=item_id)
+            tipo = data.get('tipo', 'anual') # 'anual' o 'mensual'
             
-            # Actualizar precio unitario si hay cantidad para que save() lo asuma correctamente
-            if item.cantidad > 0:
-                item.precio_unitario = monto / item.cantidad
-            else:
-                item.costo_reposicion = monto
-
-            # El cronograma anual usa 5 años: 2026 (1), 2027 (2), 2028 (3), 2029 (4), 2030 (5)
-            if monto > 0 and 1 <= mes <= 5:
-                anios_rango = [2026, 2027, 2028, 2029, 2030]
-                target_year = anios_rango[mes - 1]
-                # Si el ítem ya tenía una fecha, intentamos preservar el mes
-                current_month = item.fecha_proyectada.month if item.fecha_proyectada else 1
-                item.fecha_proyectada = date(target_year, current_month, 1)
+            if monto > 0:
+                if item.cantidad > 0:
+                    item.precio_unitario = monto / item.cantidad
+                else:
+                    item.costo_reposicion = monto
+                
+                if tipo == 'mensual':
+                    # mes es el índice 0 a 23
+                    year_start = item.repex.anio
+                    target_year = year_start + (mes // 12)
+                    target_month = (mes % 12) + 1
+                    item.fecha_proyectada = date(target_year, target_month, 1)
+                else:
+                    # El cronograma anual usa 5 años: 2026 (1), 2027 (2), 2028 (3), 2029 (4), 2030 (5)
+                    if 1 <= mes <= 5:
+                        anios_rango = [2026, 2027, 2028, 2029, 2030]
+                        target_year = anios_rango[mes - 1]
+                        current_month = item.fecha_proyectada.month if item.fecha_proyectada else 1
+                        item.fecha_proyectada = date(target_year, current_month, 1)
             elif monto == 0:
                 item.fecha_proyectada = None
                 item.precio_unitario = 0

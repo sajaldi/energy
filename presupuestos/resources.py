@@ -2,6 +2,7 @@ from import_export import resources, fields, widgets
 from import_export.widgets import ForeignKeyWidget
 from .models import Requisicion, ItemSolicitudPago, SolicitudPago
 from mantenimiento.models import Empresa
+from django.contrib.auth.models import User
 import decimal
 
 class CleanDecimalWidget(widgets.DecimalWidget):
@@ -76,6 +77,12 @@ class RequisicionResource(resources.ModelResource):
         widget=CachedForeignKeyWidget(Empresa, field='nombre')
     )
     
+    usuario_solicitante = fields.Field(
+        column_name='usuario_solicitante',
+        attribute='usuario_solicitante',
+        widget=CachedForeignKeyWidget(User, field='username')
+    )
+    
     def before_import_row(self, row, **kwargs):
         """
         Mapea manualmente columnas alias (ej: costo -> cr8ca_totalenarticulos)
@@ -106,13 +113,13 @@ class RequisicionResource(resources.ModelResource):
         fields = (
             'cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo', 
             'cr8ca_comentarios', 'proveedor', 'cr8ca_totalenarticulos', 'fecha', 'cr8ca_prioridad', 
-            'cr8ca_id_oc',
+            'cr8ca_id_oc', 'usuario_solicitante',
             'createdon', 'modifiedon'
         )
         export_order = fields
         use_bulk = True
         batch_size = 1000
-        skip_diff = True  # Valioso: Si el registro no cambió, no lo actualiza (evita DB hits)
+        skip_diff = True
 
 class ItemSolicitudPagoResource(resources.ModelResource):
     solicitud = fields.Field(

@@ -31,7 +31,7 @@ def api_list_materials(request):
         output_field=DecimalField()
     )
 
-    materials = Material.objects.select_related('categoria', 'unidad_medida').annotate(
+    materials = Material.objects.select_related('categoria', 'unidad_medida').prefetch_related('departamentos').annotate(
         stock_total=Coalesce(stock_total_expr, Decimal('0.00'))
     ).order_by('nombre')
 
@@ -53,12 +53,26 @@ def api_list_materials(request):
     page_obj = paginator.get_page(page_number)
     
     data = []
+    
+    user_depto_id = None
+    if hasattr(request.user, 'perfil') and request.user.perfil.departamento_id:
+        user_depto_id = request.user.perfil.departamento_id
+        
     for m in page_obj:
         if hasattr(m, 'imagen') and m.imagen:
              image_url = m.imagen.url
         else:
              # SVG de una cajita de inventario
              image_url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
+
+        # Lógica de restricción por departamento
+        dept_ids = [d.id for d in m.departamentos.all()]
+        if not dept_ids:
+            is_allowed = True # Global
+        elif user_depto_id and user_depto_id in dept_ids:
+            is_allowed = True
+        else:
+            is_allowed = False
 
         data.append({
             'id': m.id,
@@ -69,7 +83,8 @@ def api_list_materials(request):
             'stock': float(m.stock_total or 0),
             'categoria': m.categoria.nombre if m.categoria else 'General',
             'tipo_material': m.get_tipo_material_display() if hasattr(m, 'get_tipo_material_display') else m.tipo_material,
-            'image_url': image_url 
+            'image_url': image_url,
+            'is_allowed': is_allowed
         })
         
     return JsonResponse({

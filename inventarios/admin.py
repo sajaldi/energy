@@ -201,6 +201,7 @@ class MaterialAdmin(ImportExportModelAdmin):
     search_fields = ('nombre', 'sku', 'descripcion')
     list_filter = ('categoria', 'tipo_material', 'unidad_medida')
     list_select_related = ('categoria', 'marca')
+    filter_horizontal = ('departamentos',)
     inlines = [StockRecordInline, MaterialMovimientoInline]
     readonly_fields = ('imagen_preview',)
 

@@ -440,6 +440,80 @@
         font-size: 0.75rem;
         color: var(--text-muted);
     }
+
+    .editable-cell {
+        display: inline-block;
+        min-width: 40px;
+        width: 100%;
+        padding: 2px 4px;
+        border-radius: 3px;
+        transition: all 0.2s;
+        cursor: text;
+    }
+
+    .editable-cell:hover {
+        background: rgba(59, 130, 246, 0.15);
+        box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.3);
+    }
+
+    .editable-cell:focus {
+        outline: none;
+        background: white;
+        box-shadow: 0 0 0 2px var(--primary), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        color: var(--text-main);
+    }
+
+    .saving {
+        opacity: 0.5;
+        pointer-events: none;
+        background: #f1f5f9;
+    }
+
+    /* Context Menu */
+    .ctx-menu {
+        display: none;
+        position: fixed;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
+        z-index: 2000;
+        min-width: 160px;
+        overflow: hidden;
+        animation: ctxFadeIn 0.15s ease-out;
+    }
+
+    @keyframes ctxFadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    .ctx-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: background 0.2s;
+    }
+
+    .ctx-item:hover {
+        background: #f1f5f9;
+        color: var(--primary);
+    }
+
+    .ctx-item.danger:hover {
+        background: #fee2e2;
+        color: #ef4444;
+    }
+
+    .ctx-divider {
+        height: 1px;
+        background: #e2e8f0;
+        margin: 4px 0;
+    }
 </style>
 {% endblock %}
 
@@ -481,6 +555,24 @@
         </div>
 
         <div class="header-actions">
+            <div style="display: flex; gap: 10px; align-items: center; margin-right: 20px; background: #f1f5f9; padding: 8px 15px; border-radius: 6px; border: 1px solid var(--border);">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <label style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Desde</label>
+                    <input type="date" id="filter-desde" value="{{ desde|default:'' }}" style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 5px; font-size: 0.8rem;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <label style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Hasta</label>
+                    <input type="date" id="filter-hasta" value="{{ hasta|default:'' }}" style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 5px; font-size: 0.8rem;">
+                </div>
+                <button onclick="applyDateFilters()" class="btn" style="padding: 6px 12px; margin-top: 12px;">
+                    <ion-icon name="funnel-outline"></ion-icon>
+                </button>
+                {% if desde or hasta %}
+                <button onclick="clearDateFilters()" class="btn btn-outline" style="padding: 6px 12px; margin-top: 12px; color: var(--negative); border-color: var(--negative);">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+                {% endif %}
+            </div>
             <button onclick="openAddItemModal()" class="btn" style="background: #3b82f6;">
                 <ion-icon name="add-circle-outline"></ion-icon> Agregar Activo
             </button>
@@ -490,7 +582,7 @@
             <button onclick="openImportModal()" class="btn" style="background: #f59e0b;">
                 <ion-icon name="cloud-upload-outline"></ion-icon> Importar Excel
             </button>
-            <a id="btnExportExcel" href="{% url 'presupuestos:exportar_repex_excel' repex.pk %}?vista=cronograma" class="btn" style="background: #059669;">
+            <a id="btnExportExcel" href="#" onclick="exportToExcel(event)" class="btn" style="background: #059669;">
                 <ion-icon name="download-outline"></ion-icon> Exportar Excel
             </a>
             <a href="{% url 'admin:presupuestos_repex_change' repex.pk %}" class="btn btn-outline" style="color: var(--text-main);">
@@ -503,7 +595,11 @@
     <div style="display: flex; gap: 0; margin-bottom: 0;">
         <button class="tab-btn active" id="tab-cronograma" onclick="switchTab('cronograma')"
             style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--card-bg); color: var(--text-main); font-family: inherit;">
-            <ion-icon name="calendar-outline"></ion-icon> Cronograma Anual
+            <ion-icon name="calendar-outline"></ion-icon> Plan 5 Años
+        </button>
+        <button class="tab-btn" id="tab-flujo" onclick="switchTab('flujo')"
+            style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--bg); color: var(--text-muted); font-family: inherit;">
+            <ion-icon name="trending-up-outline"></ion-icon> Flujo 24 Meses
         </button>
         <button class="tab-btn" id="tab-detalle" onclick="switchTab('detalle')"
             style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--bg); color: var(--text-muted); font-family: inherit;">
@@ -517,6 +613,87 @@
             style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--bg); color: var(--text-muted); font-family: inherit;">
             <ion-icon name="list-circle-outline"></ion-icon> Resumen por Modelo
         </button>
+        <button class="tab-btn" id="tab-resumencatub" onclick="switchTab('resumencatub')"
+            style="padding: 12px 24px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--bg); color: var(--text-muted); font-family: inherit;">
+            <ion-icon name="business-outline"></ion-icon> Resumen Categoría/Ubicación
+        </button>
+    </div>
+
+    <!-- Tab: Resumen Categoría/Ubicación -->
+    <div id="panelResumenCatUb" class="matrix-container" style="display: none;">
+        <div class="table-responsive">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding-left: 24px; width: 80px;">CÓDIGO</th>
+                        <th style="text-align: left;">CATEGORÍA</th>
+                        <th style="text-align: left;">UBICACIÓN (EDIFICIO)</th>
+                        <th style="text-align: right;">CANTIDAD</th>
+                        <th style="text-align: right;">P.U. PROMEDIO</th>
+                        <th style="text-align: right; padding-right: 24px;">IMPORTE TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for main_cat in resumen_cat_ub %}
+                    {% with main_idx=forloop.counter %}
+                    <!-- Level 1: Main Category -->
+                    <tr class="row-partition" onclick="toggleRows('rmain-{{ main_idx }}', this)" 
+                        style="background-color: var(--header-bg); color: white; cursor: pointer;">
+                        <td style="text-align: left; padding-left: 24px; font-weight: 700; background-color: inherit !important; color: inherit !important;">
+                            <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s; display: inline-block; margin-right: 4px;">▶</span>
+                            {{ main_cat.codigo }}
+                        </td>
+                        <td style="text-align: left; font-weight: 700; text-transform: uppercase;">{{ main_cat.nombre }}</td>
+                        <td></td> <!-- Sub-cat/Loc placeholder -->
+                        <td style="text-align: right; font-weight: 800;">{{ main_cat.total_cantidad|floatformat:2 }}</td>
+                        <td style="text-align: right; font-weight: 800;">{{ main_cat.promedio_pu|floatformat:2 }}</td>
+                        <td style="text-align: right; padding-right: 24px; font-weight: 800;">{{ main_cat.total|floatformat:2 }}</td>
+                    </tr>
+                    
+                    {% for sub_cat in main_cat.hijos_list %}
+                    {% with sub_idx=forloop.counter %}
+                    <!-- Level 2: Sub-Category -->
+                    <tr class="row-partition group-rmain-{{ main_idx }}" 
+                        data-parent="rmain-{{ main_idx }}"
+                        onclick="toggleRows('rsub-{{ main_idx }}-{{ sub_idx }}', this)" 
+                        style="background-color: var(--partition-bg); cursor: pointer; display: none;">
+                        <td style="text-align: left; padding-left: 44px; font-weight: 600; color: #1e3a5f;">
+                            <span class="toggle-icon l2-icon" style="font-size: 0.6rem; transition: transform 0.2s; display: inline-block; margin-right: 4px;">▶</span>
+                            {{ sub_cat.codigo }}
+                        </td>
+                        <td style="text-align: left; font-weight: 600; color: #1e3a5f; padding-left: 10px;">{{ sub_cat.nombre }}</td>
+                        <td></td>
+                        <td style="text-align: right; font-weight: 700;">{{ sub_cat.total_cantidad|floatformat:2 }}</td>
+                        <td style="text-align: right; font-weight: 700;">{{ sub_cat.promedio_pu|floatformat:2 }}</td>
+                        <td style="text-align: right; padding-right: 24px; font-weight: 700;">{{ sub_cat.total|floatformat:2 }}</td>
+                    </tr>
+                    
+                    <!-- Level 3: Locations -->
+                    {% for ub in sub_cat.ubicaciones %}
+                    <tr class="row-item group-rmain-{{ main_idx }} group-rsub-{{ main_idx }}-{{ sub_idx }}" 
+                        data-parent="rsub-{{ main_idx }}-{{ sub_idx }}" 
+                        style="display: none;">
+                        <td style="text-align: left; padding-left: 64px; color: var(--text-muted); font-size: 0.8rem;">{{ ub.codigo }}</td>
+                        <td></td>
+                        <td style="text-align: left; font-weight: 500; color: var(--text-main);">{{ ub.ubicacion }}</td>
+                        <td style="text-align: right; font-variant-numeric: tabular-nums;">{{ ub.total_cantidad|floatformat:2 }}</td>
+                        <td style="text-align: right; font-variant-numeric: tabular-nums;">{{ ub.promedio_pu|floatformat:2 }}</td>
+                        <td style="text-align: right; padding-right: 24px; font-weight: 600; color: #2c4a6e;">{{ ub.total|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% endwith %}
+                    {% endfor %}
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="padding: 40px; text-align: center; color: var(--text-muted); font-style: italic;">
+                            No hay datos para mostrar en este rango de fechas.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Tab: Cronograma -->
@@ -728,6 +905,167 @@
         </div>
     </div>
 
+    <!-- Tab: Flujo 24 Meses -->
+    <div id="panelFlujo" class="matrix-container" style="display: none;">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr style="height: 30px; font-size: 0.75rem; background: var(--header-dark); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <th rowspan="2" class="sticky-col" style="vertical-align: middle;">FAMILIA / ACTIVO</th>
+                        <th rowspan="2" style="vertical-align: middle; min-width: 50px;">CANT.</th>
+                        <th rowspan="2" style="vertical-align: middle; min-width: 80px;">P.U.</th>
+                        <th rowspan="2" style="vertical-align: middle; min-width: 90px; background: rgba(255,255,255,0.05);">TOTAL INV.</th>
+                        <th colspan="13" style="text-align: center; border-left: 1px solid rgba(255,255,255,0.1);">AÑO {{ anios_nombres.0 }}</th>
+                        <th colspan="13" style="text-align: center; border-left: 1px solid rgba(255,255,255,0.1);">AÑO {{ anios_nombres.1 }}</th>
+                        <th rowspan="2" style="vertical-align: middle; background: #0f172a;">FLUJO TOTAL</th>
+                    </tr>
+                    <tr style="background: var(--header-dark);">
+                        {% for mes in meses_nombres_24 %}
+                            <th style="font-size: 0.7rem; min-width: 65px; border-left: 1px solid rgba(255,255,255,0.05); text-transform: uppercase;">{{ mes|slice:":3" }}</th>
+                            {% if forloop.counter == 12 %}
+                                <th style="background: #1e3a5f; color: #fbbf24; min-width: 80px;">TOTAL</th>
+                            {% endif %}
+                            {% if forloop.counter == 24 %}
+                                <th style="background: #1e3a5f; color: #fbbf24; min-width: 80px;">TOTAL</th>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fam in familias_data %}
+                    {% with fam_idx=forloop.counter %}
+                    <tr class="row-partition" onclick="toggleRows('flujo-fam-{{ fam_idx }}', this)" style="background-color: var(--header-bg); color: white;">
+                        <td class="sticky-col" style="background-color: inherit !important; color: inherit !important;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="toggle-icon" style="font-size: 0.7rem;">▶</span>
+                                <strong>{{ fam.familia_nombre|upper }}</strong>
+                            </div>
+                        </td>
+                        <td style="background-color: inherit !important;"></td>
+                        <td style="background-color: inherit !important;"></td>
+                        <td style="background-color: inherit !important; font-weight: 700;">{{ fam.total|floatformat:2 }}</td>
+                        {% for val in fam.mensual_24 %}
+                            <td>{{ val|floatformat:2 }}</td>
+                            {% if forloop.counter == 12 %}
+                                <td style="font-weight: 800; background: rgba(30, 58, 95, 0.1);">{{ fam.total_anio_1|floatformat:2 }}</td>
+                            {% endif %}
+                            {% if forloop.counter == 24 %}
+                                <td style="font-weight: 800; background: rgba(30, 58, 95, 0.1);">{{ fam.total_anio_2|floatformat:2 }}</td>
+                            {% endif %}
+                        {% endfor %}
+                        <td style="font-weight: 900;">{{ fam.total|floatformat:2 }}</td>
+                    </tr>
+
+                    {% for cat in fam.categorias %}
+                    {% with cat_idx=forloop.counter %}
+                    <tr class="row-partition group-flujo-fam-{{ fam_idx }}" data-parent="flujo-fam-{{ fam_idx }}"
+                        onclick="toggleRows('flujo-cat-{{ fam_idx }}-{{ cat_idx }}', this)" 
+                        style="background-color: var(--partition-bg); display: none;">
+                        <td class="sticky-col" style="padding-left: 40px !important;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="toggle-icon l2-icon" style="font-size: 0.6rem; transition: transform 0.2s;">▶</span>
+                                <ion-icon name="layers-outline" style="font-size: 0.9rem;"></ion-icon>
+                                {{ cat.nombre }}
+                            </div>
+                        </td>
+                        <td></td>
+                        <td></td>
+                        <td style="font-weight: 600;">{{ cat.total|floatformat:2 }}</td>
+                        {% for val in cat.mensual_24 %}
+                            <td>{{ val|floatformat:2 }}</td>
+                            {% if forloop.counter == 12 %}
+                                <td style="font-weight: 700;">{{ cat.total_anio_1|floatformat:2 }}</td>
+                            {% endif %}
+                            {% if forloop.counter == 24 %}
+                                <td style="font-weight: 700;">{{ cat.total_anio_2|floatformat:2 }}</td>
+                            {% endif %}
+                        {% endfor %}
+                        <td style="font-weight: 800;">{{ cat.total|floatformat:2 }}</td>
+                    </tr>
+
+                    {% for ub in cat.ubicaciones %}
+                    {% with ub_idx=forloop.counter %}
+                    <tr class="row-partition group-flujo-fam-{{ fam_idx }} group-flujo-cat-{{ fam_idx }}-{{ cat_idx }}" 
+                        data-parent="flujo-cat-{{ fam_idx }}-{{ cat_idx }}"
+                        onclick="toggleRows('flujo-ub-{{ fam_idx }}-{{ cat_idx }}-{{ ub_idx }}', this)" 
+                        style="background-color: #f1f5f9; display: none; font-size: 0.8rem;">
+                        <td class="sticky-col" style="padding-left: 60px !important;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="toggle-icon l3-icon" style="font-size: 0.55rem; transition: transform 0.2s;">▶</span>
+                                <ion-icon name="business-outline" style="font-size: 0.85rem;"></ion-icon>
+                                {{ ub.nombre }}
+                            </div>
+                        </td>
+                        <td></td>
+                        <td></td>
+                        <td style="font-weight: 600;">{{ ub.total|floatformat:2 }}</td>
+                        {% for val in ub.mensual_24 %}
+                            <td>{{ val|floatformat:2 }}</td>
+                            {% if forloop.counter == 12 %}
+                                <td style="font-weight: 600;">{{ ub.total_anio_1|floatformat:2 }}</td>
+                            {% endif %}
+                            {% if forloop.counter == 24 %}
+                                <td style="font-weight: 600;">{{ ub.total_anio_2|floatformat:2 }}</td>
+                            {% endif %}
+                        {% endfor %}
+                        <td style="font-weight: 700;">{{ ub.total|floatformat:2 }}</td>
+                    </tr>
+
+                    {% for item in ub.items %}
+                    <tr class="row-item group-flujo-fam-{{ fam_idx }} group-flujo-cat-{{ fam_idx }}-{{ cat_idx }} group-flujo-ub-{{ fam_idx }}-{{ cat_idx }}-{{ ub_idx }}" 
+                        data-parent="flujo-ub-{{ fam_idx }}-{{ cat_idx }}-{{ ub_idx }}"
+                        style="display: none; font-size: 0.75rem;">
+                        <td class="sticky-col" style="padding-left: 85px !important;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <button onclick="deleteRepexItem('{{ item.id }}', '{{ item.activo_nombre|escapejs }}')"
+                                    class="delete-repex-btn"
+                                    style="background: transparent; border: none; cursor: pointer; color: #f87171; padding: 0; display: flex; align-items: center; justify-content: center;">
+                                    <ion-icon name="trash-outline" style="font-size: 0.9rem;"></ion-icon>
+                                </button>
+                                {{ item.activo_nombre }}
+                            </div>
+                        </td>
+                        <td style="text-align: right;" class="editable-cell" contenteditable="true" 
+                            data-item-id="{{ item.id }}" data-field="cantidad" onblur="saveRepexAPU(this)" onkeydown="handleEnter(event, this)">
+                            {{ item.cantidad|floatformat:2 }}
+                        </td>
+                        <td style="text-align: right;" class="editable-cell" contenteditable="true" 
+                            data-item-id="{{ item.id }}" data-field="precio_unitario" onblur="saveRepexAPU(this)" onkeydown="handleEnter(event, this)">
+                            {{ item.precio_unitario|floatformat:2 }}
+                        </td>
+                        <td style="text-align: right; font-weight: 600; background: rgba(0,0,0,0.02);">{{ item.costo_reposicion|floatformat:2 }}</td>
+                        {% for val in item.mensual_24 %}
+                            <td>
+                                <span class="editable-cell" 
+                                      contenteditable="true" 
+                                      data-total="{{ item.costo_reposicion|stringformat:'f' }}"
+                                      oncontextmenu="showContextMenu(event, this)"
+                                      onblur="saveRepexMonthly(this, '{{ item.id }}', {{ forloop.counter0 }})"
+                                      onkeydown="if(event.key==='Enter'){event.preventDefault(); this.blur();}">
+                                    {{ val|floatformat:2 }}
+                                </span>
+                            </td>
+                            {% if forloop.counter == 12 %}
+                                <td style="background: #fafafa;">{{ item.total_anio_1|floatformat:2 }}</td>
+                            {% endif %}
+                            {% if forloop.counter == 24 %}
+                                <td style="background: #fafafa;">{{ item.total_anio_2|floatformat:2 }}</td>
+                            {% endif %}
+                        {% endfor %}
+                        <td style="font-weight: 600;">{{ item.total|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% endwith %}
+                    {% endfor %}
+                    {% endwith %}
+                    {% endfor %}
+                    {% endwith %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Tab: Presupuesto -->
     <div id="panelAPU" class="matrix-container" style="display: none;">
         <div class="table-responsive">
@@ -748,28 +1086,32 @@
                     {% for cat in presupuesto_jerarquico %}
                     <!-- Level 1: Category -->
                     <tr class="row-partition" onclick="toggleApuRows('cat-{{ forloop.counter }}', this)" style="cursor: pointer;">
-                        <td style="padding: 8px 12px; font-weight: 700; color: #1e3a5f;">
+                        <td style="padding: 8px 12px; font-weight: 700; color: #1e3a5f; text-align: left !important;">
                             <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s; display: inline-block; margin-right: 4px;">▶</span>
                             {{ forloop.counter|stringformat:'s' }}
                         </td>
-                        <td colspan="6" style="padding: 8px; font-weight: 700; color: #1e3a5f; text-transform: uppercase;">{{ cat.nombre }}</td>
+                        <td colspan="4" style="padding: 8px; font-weight: 700; color: #1e3a5f; text-transform: uppercase; text-align: left !important;">{{ cat.nombre }}</td>
+                        <td style="text-align: right; padding: 8px; font-weight: 700; color: #1e3a5f; font-size: 0.82rem;">{{ cat.total_cantidad|floatformat:2 }}</td>
+                        <td style="text-align: right; padding: 8px; font-weight: 700; color: #1e3a5f; font-size: 0.82rem;">{{ cat.promedio_pu|floatformat:2 }}</td>
                         <td style="text-align: right; padding: 8px 12px; font-weight: 700; color: #1e3a5f;">{{ cat.total|floatformat:2 }}</td>
                     </tr>
                     
                     {% for building in cat.edificios %}
                     <!-- Level 2: Building -->
                     <tr class="row-item apu-group-cat-{{ forloop.parentloop.counter }}" style="background: #f8fafc; border-bottom: 1px solid #e0e6ed;">
-                        <td colspan="2" style="padding: 6px 12px 6px 32px; color: var(--text-muted); font-size: 0.8rem; font-weight: 600;">
+                        <td colspan="2" style="padding: 6px 12px 6px 32px; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-align: left !important;">
                             {{ forloop.parentloop.counter }}.{{ forloop.counter }} {{ building.nombre }}
                         </td>
-                        <td colspan="5"></td>
+                        <td colspan="3"></td>
+                        <td style="text-align: right; padding: 6px 12px; font-weight: 600; font-size: 0.8rem; color: #1e3a5f;">{{ building.total_cantidad|floatformat:2 }}</td>
+                        <td style="text-align: right; padding: 6px 12px; font-weight: 600; font-size: 0.8rem; color: #1e3a5f;">{{ building.promedio_pu|floatformat:2 }}</td>
                         <td style="text-align: right; padding: 6px 12px; font-weight: 600; font-size: 0.82rem; color: #1e3a5f;">{{ building.total_edificio|floatformat:2 }}</td>
                     </tr>
 
                     {% for item in building.items %}
                     <!-- Level 3: Asset -->
                     <tr class="row-item apu-group-cat-{{ forloop.parentloop.parentloop.counter }}" style="border-bottom: 1px solid #e0e6ed; {% if forloop.counter|divisibleby:2 %}background: #f5f7fa;{% endif %}">
-                         <td style="padding: 6px 12px 6px 48px; color: var(--text-muted); font-size: 0.82rem;">
+                         <td style="padding: 6px 12px 6px 48px; color: var(--text-muted); font-size: 0.82rem; text-align: left !important;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <button onclick="deleteRepexItem('{{ item.id }}', '{{ item.activo_nombre|escapejs }}')"
                                     class="delete-repex-btn"
@@ -780,9 +1122,9 @@
                                 {{ forloop.parentloop.parentloop.counter }}.{{ forloop.parentloop.counter }}.{{ forloop.counter }}
                             </div>
                         </td>
-                        <td style="padding: 6px 8px; color: var(--text-muted); font-size: 0.82rem;">{{ item.ruta_ubicacion }}</td>
-                        <td style="padding: 6px 8px; font-size: 0.85rem;">{{ item.activo_nombre }}</td>
-                        <td style="padding: 6px 8px; font-size: 0.82rem; color: var(--text-muted);">{{ item.modelo|default:'-' }}</td>
+                        <td style="padding: 6px 8px; color: var(--text-muted); font-size: 0.82rem; text-align: left !important;">{{ item.ruta_ubicacion }}</td>
+                        <td style="padding: 6px 8px; font-size: 0.85rem; text-align: left !important;">{{ item.activo_nombre }}</td>
+                        <td style="padding: 6px 8px; font-size: 0.82rem; color: var(--text-muted); text-align: left !important;">{{ item.modelo|default:'-' }}</td>
                         <td style="padding: 6px 8px; text-align: center; color: var(--text-muted); font-size: 0.82rem;">{{ item.unidades|default:'Unidad' }}</td>
                         <td style="padding: 6px 8px; text-align: right; font-size: 0.85rem;" class="editable-cell" 
                             contenteditable="true" data-item-id="{{ item.id }}" data-field="cantidad" onblur="saveRepexAPU(this)" onkeydown="handleEnter(event, this)">
@@ -823,10 +1165,10 @@
                 </thead>
                 <tbody>
                     {% for cat in resumen_modelos %}
-                    <tr class="row-partition" onclick="toggleResumenRows('res-{{ forloop.counter }}', this)" style="cursor: pointer;">
-                        <td style="padding: 8px 12px; font-weight: 700; color: #1e3a5f;">
+                    <tr class="row-partition" onclick="toggleResumenRows('cat-{{ forloop.counter }}', this)" style="cursor: pointer;">
+                        <td style="padding: 8px 12px; font-weight: 700; color: #1e3a5f; text-align: left !important;">
                             <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s; display: inline-block; margin-right: 4px;">▶</span>
-                            {{ cat.nombre }}
+                            {{ cat.nombre.upper }}
                         </td>
                         <td></td>
                         <td style="text-align: right; padding: 8px; font-weight: 700;">{{ cat.total_cantidad|floatformat:2 }}</td>
@@ -834,13 +1176,34 @@
                         <td style="text-align: right; padding: 8px 12px; font-weight: 700; color: #1e3a5f;">{{ cat.total|floatformat:2 }}</td>
                     </tr>
                     {% for mod in cat.modelos %}
-                    <tr class="row-item res-group-res-{{ forloop.parentloop.counter }}" style="border-bottom: 1px solid #e0e6ed; {% if forloop.counter|divisibleby:2 %}background: #f5f7fa;{% endif %}">
-                        <td style="padding: 8px 12px; padding-left: 32px; font-size: 0.85rem;">{{ mod.modelo }}</td>
+                    <!-- Level 2: Model -->
+                    <tr class="row-item res-group-cat-{{ forloop.parentloop.counter }}" 
+                        data-parent="cat-{{ forloop.parentloop.counter }}" 
+                        onclick="toggleResumenRows('cat-{{ forloop.parentloop.counter }}-mod-{{ forloop.counter }}', this)"
+                        style="cursor: pointer; background: #f8fafc; border-bottom: 1px solid #e0e6ed; display: none;">
+                        <td style="padding: 8px 12px; padding-left: 32px; font-size: 0.85rem; font-weight: 600; text-align: left !important;">
+                            <span class="toggle-icon" style="font-size: 0.7rem; transition: transform 0.2s; display: inline-block; margin-right: 4px;">▶</span>
+                            {{ mod.modelo }}
+                        </td>
                         <td style="padding: 8px; font-size: 0.85rem; color: var(--text-muted);">{{ mod.marca }}</td>
                         <td style="padding: 8px; text-align: right; font-size: 0.85rem; font-weight: 600;">{{ mod.cantidad|floatformat:2 }}</td>
                         <td style="padding: 8px; text-align: right; font-size: 0.85rem; color: var(--text-muted);">{{ mod.precio_unitario|floatformat:2 }}</td>
                         <td style="padding: 8px 12px; text-align: right; font-weight: 600; font-size: 0.85rem;">{{ mod.total|floatformat:2 }}</td>
                     </tr>
+                    <!-- Level 3: Locations/Items -->
+                    {% for itm in mod.items %}
+                    <tr class="row-item res-group-cat-{{ forloop.parentloop.parentloop.counter }} res-group-cat-{{ forloop.parentloop.parentloop.counter }}-mod-{{ forloop.parentloop.counter }}" 
+                        data-parent="cat-{{ forloop.parentloop.parentloop.counter }}-mod-{{ forloop.parentloop.counter }}"
+                        style="border-bottom: 1px solid #eef2f6; display: none;">
+                        <td style="padding: 6px 12px 6px 48px; font-size: 0.8rem; color: var(--text-muted); text-align: left !important;">
+                           {{ itm.nombre }}
+                        </td>
+                        <td style="padding: 6px 8px; font-size: 0.8rem; color: var(--text-muted);">{{ itm.marca }}</td>
+                        <td style="padding: 6px 8px; text-align: right; font-size: 0.8rem; color: var(--text-muted);">{{ itm.cantidad|floatformat:2 }}</td>
+                        <td style="padding: 6px 8px; text-align: right; font-size: 0.8rem; color: var(--text-muted);">{{ itm.pu|floatformat:2 }}</td>
+                        <td style="padding: 6px 12px; text-align: right; font-size: 0.8rem; color: var(--text-muted);">{{ itm.costo|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
                     {% endfor %}
                     {% endfor %}
                     {% if resumen_modelos %}
@@ -1001,26 +1364,49 @@
     const modalImport = document.getElementById('importModal');
 
     // ── Tab switching ──
+    let currentExportVista = 'cronograma';
+
     function switchTab(tab) {
         document.getElementById('panelCronograma').style.display = 'none';
+        document.getElementById('panelFlujo').style.display = 'none';
         document.getElementById('panelDetalle').style.display = 'none';
         document.getElementById('panelAPU').style.display = 'none';
         document.getElementById('panelResumen').style.display = 'none';
+        document.getElementById('panelResumenCatUb').style.display = 'none';
 
         document.getElementById('tab-cronograma').style.background = 'var(--bg)';
+        document.getElementById('tab-flujo').style.background = 'var(--bg)';
         document.getElementById('tab-detalle').style.background = 'var(--bg)';
         document.getElementById('tab-presupuesto').style.background = 'var(--bg)';
         document.getElementById('tab-resumen').style.background = 'var(--bg)';
+        document.getElementById('tab-resumencatub').style.background = 'var(--bg)';
 
         document.getElementById('tab-cronograma').style.color = 'var(--text-muted)';
+        document.getElementById('tab-flujo').style.color = 'var(--text-muted)';
         document.getElementById('tab-detalle').style.color = 'var(--text-muted)';
         document.getElementById('tab-presupuesto').style.color = 'var(--text-muted)';
         document.getElementById('tab-resumen').style.color = 'var(--text-muted)';
+        document.getElementById('tab-resumencatub').style.color = 'var(--text-muted)';
+
+        const tabMap = {
+            'cronograma': 'cronograma',
+            'flujo': 'flujo',
+            'detalle': 'detalle',
+            'presupuesto': 'apu',
+            'resumen': 'modelo',
+            'resumencatub': 'catub'
+        };
+
+        currentExportVista = tabMap[tab] || 'detalle';
 
         if (tab === 'cronograma') {
             document.getElementById('panelCronograma').style.display = 'block';
             document.getElementById('tab-cronograma').style.background = 'var(--card-bg)';
             document.getElementById('tab-cronograma').style.color = 'var(--text-main)';
+        } else if (tab === 'flujo') {
+            document.getElementById('panelFlujo').style.display = 'block';
+            document.getElementById('tab-flujo').style.background = 'var(--card-bg)';
+            document.getElementById('tab-flujo').style.color = 'var(--text-main)';
         } else if (tab === 'detalle') {
             document.getElementById('panelDetalle').style.display = 'block';
             document.getElementById('tab-detalle').style.background = 'var(--card-bg)';
@@ -1033,15 +1419,38 @@
             document.getElementById('panelResumen').style.display = 'block';
             document.getElementById('tab-resumen').style.background = 'var(--card-bg)';
             document.getElementById('tab-resumen').style.color = 'var(--text-main)';
+        } else if (tab === 'resumencatub') {
+            document.getElementById('panelResumenCatUb').style.display = 'block';
+            document.getElementById('tab-resumencatub').style.background = 'var(--card-bg)';
+            document.getElementById('tab-resumencatub').style.color = 'var(--text-main)';
         }
         localStorage.setItem('repexActiveTab', tab);
+    }
 
-        // Update export link
-        const btnExport = document.getElementById('btnExportExcel');
-        if (btnExport) {
-            const baseUrl = "{% url 'presupuestos:exportar_repex_excel' repex.pk %}";
-            btnExport.href = `${baseUrl}?vista=${tab}`;
-        }
+    function applyDateFilters() {
+        const desde = document.getElementById('filter-desde').value;
+        const hasta = document.getElementById('filter-hasta').value;
+        const url = new URL(window.location.href);
+        if (desde) url.searchParams.set('desde', desde);
+        else url.searchParams.delete('desde');
+        
+        if (hasta) url.searchParams.set('hasta', hasta);
+        else url.searchParams.delete('hasta');
+        
+        window.location.href = url.toString();
+    }
+
+    function clearDateFilters() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('desde');
+        url.searchParams.delete('hasta');
+        window.location.href = url.toString();
+    }
+
+    function exportToExcel(e) {
+        if (e) e.preventDefault();
+        const baseUrl = "{% url 'presupuestos:exportar_repex_excel' repex.pk %}";
+        window.location.href = `${baseUrl}?vista=${currentExportVista}`;
     }
 
     // ── Toggle rows ──
@@ -1639,6 +2048,64 @@
         }
     });
 
+    // ── Helper functions ──
+    function parseLocalFloat(str) {
+        if (!str) return 0;
+        // Quitar comas y manejar espacios
+        let val = str.toString().replace(/,/g, '').trim();
+        let res = parseFloat(val);
+        return isNaN(res) ? 0 : res;
+    }
+
+    function handleEnter(event, cell) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            cell.blur();
+        }
+    }
+
+    // ── Context Menu logic ──
+    let currentCtxCell = null;
+    function showContextMenu(e, cell) {
+        e.preventDefault();
+        currentCtxCell = cell;
+        const menu = document.getElementById('cellContextMenu');
+        menu.style.display = 'block';
+        
+        // Position intelligently
+        let x = e.clientX;
+        let y = e.clientY;
+        
+        // Prevent overflow
+        if (x + 160 > window.innerWidth) x -= 160;
+        if (y + 200 > window.innerHeight) y -= 200;
+        
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        
+        // Close on click anywhere else
+        document.addEventListener('mousedown', closeCtxMenu);
+    }
+
+    function closeCtxMenu() {
+        const menu = document.getElementById('cellContextMenu');
+        menu.style.display = 'none';
+        document.removeEventListener('mousedown', closeCtxMenu);
+    }
+
+    function setPercentage(pct) {
+        if (!currentCtxCell) return;
+        const total = parseFloat(currentCtxCell.dataset.total || 0);
+        const amount = total * pct;
+        
+        // Formatear como moneda para que se vea bien antes del reload/blur
+        currentCtxCell.innerText = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        // Trigger save logic manually
+        currentCtxCell.blur();
+        closeCtxMenu();
+    }
+
     jQuery(document).ready(function() {
         console.log("REPEX Dashboard ready.");
         // Restore active tab
@@ -1649,6 +2116,60 @@
         // Restore expanded categories
         restoreToggles();
     });
+
+    // --- Edición Mensual en Flujo 24 Meses ---
+    async function saveRepexMonthly(element, itemId, monthIndex) {
+        let value = element.innerText.replace(/,/g, '').trim();
+        let monto = parseFloat(value);
+        
+        if (isNaN(monto)) {
+            element.innerText = "0.00";
+            monto = 0;
+        }
+
+        element.classList.add('saving');
+        
+        try {
+            const response = await fetch("{% url 'presupuestos:api_update_repex_item' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    item_id: itemId,
+                    mes: monthIndex,
+                    monto: monto,
+                    tipo: 'mensual'
+                })
+            });
+
+            const data = await response.json();
+            if (data.status === 'ok') {
+                element.style.color = '#10b981'; // Green success
+                setTimeout(() => { element.style.color = ''; }, 2000);
+            } else {
+                alert("Error: " + data.message);
+                location.reload();
+            }
+        } catch (error) {
+            console.error("Error saving monthly value:", error);
+            alert("Error de conexión");
+        } finally {
+            element.classList.remove('saving');
+        }
+    }
 </script>
+
+<!-- Context Menu Element -->
+<div id="cellContextMenu" class="ctx-menu">
+    <div class="ctx-item" onclick="setPercentage(0.10)">10% <span>del total</span></div>
+    <div class="ctx-item" onclick="setPercentage(0.25)">25% <span>del total</span></div>
+    <div class="ctx-item" onclick="setPercentage(0.50)">50% <span>del total</span></div>
+    <div class="ctx-item" onclick="setPercentage(0.75)">75% <span>del total</span></div>
+    <div class="ctx-item" onclick="setPercentage(1.00)">100% <span>del total</span></div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item danger" onclick="setPercentage(0)">Limpiar <span>Activo</span></div>
+</div>
 </div>
 {% endblock %}

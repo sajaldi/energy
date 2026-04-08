@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from import_export.admin import ImportExportModelAdmin
+from import_export.formats.base_formats import XLSX, CSV
 from .models import (
     PresupuestoAnual, PartidaPresupuestaria, GastoEjecutado, 
     ItemPresupuesto, Compromiso, DetalleCompromiso, CambioPresupuesto, DetallePeriodico,
@@ -7,6 +9,7 @@ from .models import (
     SolicitudPago, ItemSolicitudPago,
     REPEX, REPEXItem
 )
+from .resources import RequisicionResource
 
 class GastoEjecutadoInline(admin.TabularInline):
     model = GastoEjecutado
@@ -95,6 +98,7 @@ class PartidaPresupuestariaAdmin(admin.ModelAdmin):
     )
     list_filter = ('presupuesto_anual', 'disciplina')
     search_fields = ('disciplina__nombre', 'descripcion')
+    filter_horizontal = ('departamentos',)
     inlines = [CambioPresupuestoInline, GastoEjecutadoInline, ItemPresupuestoInline]
     autocomplete_fields = ('disciplina', 'presupuesto_anual')
 
@@ -144,10 +148,11 @@ class PartidaInline(admin.TabularInline):
 
 @admin.register(PresupuestoAnual)
 class PresupuestoAnualAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'anio', 'moneda', 'get_total_proyectado', 'get_total_ejecutado', 'get_progreso', 'ver_cronograma_btn', 'estado')
+    list_display = ('nombre', 'anio', 'moneda', 'get_total_proyectado', 'get_total_ejecutado', 'get_progreso', 'ver_cronograma_btn', 'estado', 'elaborado_por')
     list_filter = ('anio', 'estado', 'moneda')
     search_fields = ('nombre',)
     inlines = [PartidaInline]
+    autocomplete_fields = ['elaborado_por']
     
     def ver_cronograma_btn(self, obj):
         from django.urls import reverse
@@ -303,14 +308,17 @@ class DocumentoRequisicionInline(admin.TabularInline):
     previsualizar.short_description = "Vista Previa"
 
 @admin.register(Requisicion)
-class RequisicionAdmin(admin.ModelAdmin):
-    list_display = ('cr8ca_requisicion', 'fecha', 'partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'createdon')
-    list_filter = ('fecha', 'partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_prioridad', 'createdon')
+class RequisicionAdmin(ImportExportModelAdmin):
+    list_display = ('cr8ca_requisicion', 'fecha', 'partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'usuario_solicitante', 'createdon')
+    list_filter = ('fecha', 'cr8ca_prioridad', 'estado_requisicion')
     search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
     autocomplete_fields = ['partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'usuario_solicitante', 'usuario_en_nombre_de']
     ordering = ('-fecha',)
     inlines = [ArticuloRequisicionInline, DocumentoRequisicionInline]
     readonly_fields = ('cr8ca_requisicionid', 'cr8ca_requisicion', 'createdon', 'modifiedon', 'total_estimado', 'monto_pagado', 'import_background_btn')
+    resource_classes = [RequisicionResource]
+    export_formats = [XLSX, CSV]
+    list_per_page = 50
     
     def get_urls(self):
         urls = super().get_urls()

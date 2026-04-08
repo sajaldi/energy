@@ -122,7 +122,11 @@
     </table>
 
     <div class="section-title" style="margin-top: 5px;">
-        {{ ot.rutina.nombre|upper }}
+        {% if ot.rutina %}
+            {{ ot.rutina.nombre|upper }}
+        {% else %}
+            SIN RUTINA
+        {% endif %}
     </div>
 
     <table>
@@ -130,7 +134,15 @@
             <td class="label-cell">Empresa:</td>
             <td class="value-cell">{{ empresa_nombre|default:"Operadora CC" }}</td>
             <td class="label-cell">Edificio:</td>
-            <td class="value-cell">{{ edificio_nombre|default:ot.ubicacion.nombre }}</td>
+            <td class="value-cell">
+                {% if edificio_nombre %}
+                    {{ edificio_nombre }}
+                {% elif ot.ubicacion %}
+                    {{ ot.ubicacion.nombre }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
         </tr>
         <tr>
             <td class="label-cell">Supervisor OCC:</td>
@@ -143,7 +155,13 @@
     <table style="margin-top: -1px;">
         <tr>
             <td class="label-cell" style="width: 15%;">Rutina:</td>
-            <td class="value-cell" style="width: 85%;">{{ ot.rutina.nombre }}</td>
+            <td class="value-cell" style="width: 85%;">
+                {% if ot.rutina %}
+                    {{ ot.rutina.nombre }}
+                {% else %}
+                    SIN RUTINA
+                {% endif %}
+            </td>
         </tr>
         <tr>
             <td class="label-cell">Equipo:</td>
@@ -151,7 +169,7 @@
         </tr>
         <tr>
             <td class="label-cell">Frecuencia:</td>
-            <td>{{ ot.rutina.frecuencia.nombre }}</td>
+            <td>{% if ot.rutina.frecuencia %}{{ ot.rutina.frecuencia.nombre }}{% else %}N/A{% endif %}</td>
         </tr>
     </table>
 
@@ -218,12 +236,12 @@
                             <div style="font-size: 8px; color: #0369a1; margin-top: 4px; background: #f0f9ff; padding: 4px 6px; border-radius: 4px; border-left: 2px solid #0ea5e9;">
                                 {% if item.paso.punto_medicion_exacto %}
                                     <div style="font-weight: bold; margin-bottom: 2px;">
-                                        Punto: {{ item.paso.punto_medicion_exacto.nombre|default:"N/A" }}
+                                        Punto: {% if item.paso.punto_medicion_exacto %}{{ item.paso.punto_medicion_exacto.nombre|default:"N/A" }}{% else %}N/A{% endif %}
                                         {% if item.paso.punto_medicion_exacto.codigo %}({{ item.paso.punto_medicion_exacto.codigo }}){% endif %}
                                     </div>
                                     <div style="color: #475569;">
-                                        <strong>Activo:</strong> {{ item.paso.punto_medicion_exacto.activo.nombre|default:"N/A" }}
-                                        | <strong>Descripción:</strong> {{ item.paso.punto_medicion_exacto.activo.descripcion|truncatechars:50|default:"N/A" }}
+                                        <strong>Activo:</strong> {% if item.paso.punto_medicion_exacto.activo %}{{ item.paso.punto_medicion_exacto.activo.nombre|default:"N/A" }}{% else %}N/A{% endif %}
+                                        | <strong>Descripción:</strong> {% if item.paso.punto_medicion_exacto.activo %}{{ item.paso.punto_medicion_exacto.activo.descripcion|truncatechars:50|default:"N/A" }}{% else %}N/A{% endif %}
                                     </div>
                                 {% elif item.paso.punto_medicion_codigo %}
                                     <strong>Punto (Ref):</strong> {{ item.paso.punto_medicion_codigo }}
