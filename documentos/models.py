@@ -330,6 +330,7 @@ class ComentarioDocumento(models.Model):
     TIPO_COMENTARIO = (
         ('PIN', 'Pin (Punto)'),
         ('AREA', 'Área (Rectángulo)'),
+        ('TAREA', 'Tarea (Checkbox)'),
     )
     tipo = models.CharField(max_length=10, choices=TIPO_COMENTARIO, default='PIN')
     posicion_x = models.FloatField(default=0, help_text="Posición X en porcentaje (0-100)")

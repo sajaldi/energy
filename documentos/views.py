@@ -756,6 +756,27 @@ def documento_editar_comentario(request, comentario_id):
 
 @login_required
 @require_POST
+def documento_toggle_resuelto(request, comentario_id):
+    """
+    Alterna el estado resuelto de un comentario/tarea.
+    """
+    try:
+        comentario = get_object_or_404(ComentarioDocumento, id=comentario_id)
+        
+        # Cualquier usuario con acceso al visor puede marcar como resuelto, o restringir a autor/admin
+        # Por ahora permitimos a cualquier logueado
+        comentario.resuelto = not comentario.resuelto
+        comentario.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'resuelto': comentario.resuelto
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
 def documento_actualizar_estado(request, doc_id):
     """
     Actualiza el estado de un documento.

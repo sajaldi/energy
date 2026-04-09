@@ -115,11 +115,42 @@
         background: #f87171;
     }
 
+    .pin.task-pin {
+        background: #f59e0b;
+    }
+
+    .pin.task-pin:hover {
+        background: #fbbf24;
+    }
+
+    .pin.resolved {
+        background: #10b981 !important;
+        opacity: 0.8;
+    }
+
     .pin span {
         transform: rotate(45deg);
         color: white;
         font-size: 16px;
         font-weight: 800;
+    }
+
+    .task-checkbox-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 5px 0;
+    }
+
+    .task-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .text-resolved {
+        text-decoration: line-through;
+        opacity: 0.6;
     }
 
     .area-annotation {
@@ -700,6 +731,9 @@
                     <button id="btn-type-pin" onclick="setAnnotationType('PIN')"
                         style="flex: 1; border: none; padding: 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: var(--primary); color: white;">📍
                         Pin</button>
+                    <button id="btn-type-tarea" onclick="setAnnotationType('TAREA')"
+                        style="flex: 1; border: none; padding: 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">☑️
+                        Tarea</button>
                     <button id="btn-type-area" onclick="setAnnotationType('AREA')"
                         style="flex: 1; border: none; padding: 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">🟩
                         Área</button>
@@ -804,12 +838,19 @@
         try {
             fetchComments();
             const proxyUrl = "{% url 'documentos:documento_proxy_pdf' doc_id=documento.id %}";
-            const directUrl = "{{ documento.ultima_revision.archivo.url|default:'' }}";
+            const directUrl = "{{ documento.ultima_revision.archivo.url|safe }}";
 
-            console.log("Iniciando carga de PDF directo...");
+            console.log("Iniciando carga de PDF...");
+            
+            // Intento 1: Carga directa (con firma S3/MinIO)
             initPDF(directUrl).catch(err => {
-                console.error("Fallo al cargar PDF directo:", err);
-                showPDFError("No se pudo visualizar el PDF. Detalles: " + err.message);
+                console.warn("Fallo al cargar PDF directo, intentando vía Proxy...", err);
+                
+                // Intento 2: Carga vía Proxy del Servidor (Contingencia para local/CORS)
+                initPDF(proxyUrl).catch(proxyErr => {
+                    console.error("Fallo crítico al cargar PDF:", proxyErr);
+                    showPDFError("No se pudo visualizar el PDF. Detalles: " + proxyErr.message);
+                });
             });
 
             // --- MANEJO DE PARÁMETROS URL ---
@@ -1032,13 +1073,25 @@
                 ? `<div style="margin-top:5px; font-size:0.75rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:2px 5px; border-radius:4px; display:inline-block;">👤 Asignado a: <strong>${c.responsable_nombre}</strong></div>`
                 : '';
 
+            const taskHtml = c.tipo === 'TAREA'
+                ? `<div class="task-checkbox-container" onclick="event.stopPropagation(); togglePinStatus(${c.id})">
+                    <input type="checkbox" class="task-checkbox" ${c.resuelto ? 'checked' : ''}>
+                    <span style="font-size:0.8rem; font-weight:700; color:${c.resuelto ? '#10b981' : '#f59e0b'};">
+                        ${c.resuelto ? 'Resuelta' : 'Pendiente'}
+                    </span>
+                   </div>`
+                : '';
+
             return `
-            <div class="comment-card" onclick="goToComment(${c.pagina}, ${c.x}, ${c.y})">
+            <div class="comment-card ${c.resuelto ? 'resolved-card' : ''}" onclick="goToComment(${c.pagina}, ${c.x}, ${c.y})">
                 <div class="comment-meta">
                     <strong>${c.usuario}</strong>
-                    <span class="badge-page">Pág ${c.pagina}</span>
+                    <span class="badge-page" style="${c.tipo === 'TAREA' ? 'background:#f59e0b;' : ''}">
+                        ${c.tipo === 'TAREA' ? 'Tarea' : 'Pág ' + c.pagina}
+                    </span>
                 </div>
-                <div style="font-size:0.9rem; line-height:1.4;">${c.texto}</div>
+                <div style="font-size:0.9rem; line-height:1.4;" class="${c.resuelto ? 'text-resolved' : ''}">${c.texto}</div>
+                ${taskHtml}
                 ${asignadoHtml}
                 ${linksHtml}
                 <div style="font-size:0.7rem; margin-top:10px; color:#64748b;">${c.fecha}</div>
@@ -1048,10 +1101,22 @@
 
     function setAnnotationType(type) {
         annotationType = type;
-        document.getElementById('btn-type-pin').style.background = type === 'PIN' ? 'var(--primary)' : 'transparent';
-        document.getElementById('btn-type-pin').style.color = type === 'PIN' ? 'white' : '#64748b';
-        document.getElementById('btn-type-area').style.background = type === 'AREA' ? 'var(--primary)' : 'transparent';
-        document.getElementById('btn-type-area').style.color = type === 'AREA' ? 'white' : '#64748b';
+        const btnPin = document.getElementById('btn-type-pin');
+        const btnArea = document.getElementById('btn-type-area');
+        const btnTarea = document.getElementById('btn-type-tarea');
+
+        if (btnPin) {
+            btnPin.style.background = type === 'PIN' ? 'var(--primary)' : 'transparent';
+            btnPin.style.color = type === 'PIN' ? 'white' : '#64748b';
+        }
+        if (btnArea) {
+            btnArea.style.background = type === 'AREA' ? 'var(--primary)' : 'transparent';
+            btnArea.style.color = type === 'AREA' ? 'white' : '#64748b';
+        }
+        if (btnTarea) {
+            btnTarea.style.background = type === 'TAREA' ? 'var(--primary)' : 'transparent';
+            btnTarea.style.color = type === 'TAREA' ? 'white' : '#64748b';
+        }
     }
 
     function renderPins() {
@@ -1067,15 +1132,24 @@
             const el = document.createElement('div');
             if (c.tipo === 'AREA') {
                 el.className = 'area-annotation';
+                if (c.resuelto) el.classList.add('resolved');
                 el.style.left = c.x + '%';
                 el.style.top = c.y + '%';
                 el.style.width = c.ancho + '%';
                 el.style.height = c.alto + '%';
             } else {
                 el.className = 'pin';
+                if (c.tipo === 'TAREA') el.classList.add('task-pin');
+                if (c.resuelto) el.classList.add('resolved');
+                
                 el.style.left = c.x + '%';
                 el.style.top = c.y + '%';
-                el.innerHTML = '<span>💬</span>';
+                
+                let icon = '💬';
+                if (c.tipo === 'TAREA') {
+                    icon = c.resuelto ? '✅' : '🔳';
+                }
+                el.innerHTML = `<span>${icon}</span>`;
             }
 
             el.onmouseenter = (e) => {
@@ -1122,7 +1196,7 @@
         // Eventos de dibujo
         layer.onmousedown = (e) => {
             if (!isAddingComment) return;
-            if (annotationType === 'PIN') {
+            if (annotationType === 'PIN' || annotationType === 'TAREA') {
                 const rect = layer.getBoundingClientRect();
                 const x = ((e.clientX - rect.left) / rect.width) * 100;
                 const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -1337,7 +1411,10 @@
         const responsibleId = document.getElementById('comment-responsible').value;
         const imgInput = document.getElementById('comment-images');
         
-        if (!texto) return;
+        if (!texto) {
+            alert("Por favor, escriba el contenido de la tarea o comentario.");
+            return;
+        }
 
         const formData = new FormData();
         formData.append('texto', texto);
@@ -1534,11 +1611,24 @@
         }
 
         const assignedDiv = document.getElementById('pin-detail-assigned');
-        if (comment.responsable_nombre) {
-            assignedDiv.innerHTML = `<span style="font-size:0.85rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px;">👤 Responsable: <strong>${comment.responsable_nombre}</strong></span>`;
-        } else {
-            assignedDiv.innerHTML = '';
+        let taskInfo = '';
+        if (comment.tipo === 'TAREA') {
+            taskInfo = `
+                <div class="task-checkbox-container" style="background:rgba(245,158,11,0.05); padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid rgba(245,158,11,0.2);">
+                    <input type="checkbox" class="task-checkbox" ${comment.resuelto ? 'checked' : ''} onchange="togglePinStatus(${comment.id})">
+                    <span style="font-weight:700; color:${comment.resuelto ? '#10b981' : '#f59e0b'};">
+                        ${comment.resuelto ? 'Tarea Resuelta' : 'Tarea Pendiente'}
+                    </span>
+                </div>
+            `;
         }
+
+        let assignedHtml = '';
+        if (comment.responsable_nombre) {
+            assignedHtml = `<div style="margin-bottom:15px;"><span style="font-size:0.85rem; color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px;">👤 Responsable: <strong>${comment.responsable_nombre}</strong></span></div>`;
+        }
+
+        assignedDiv.innerHTML = taskInfo + assignedHtml;
 
         // Show/Hide actions based on ownership
         const canEdit = (comment.usuario === currentUsername) || isSuperUser;
@@ -1550,6 +1640,37 @@
         document.getElementById('pin-edit-mode').style.display = 'none';
 
         document.getElementById('pin-details-modal').style.display = 'flex';
+    }
+
+    function togglePinStatus(id) {
+        fetch(`/documentos/api/comentar/toggle-resuelto/${id}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Actualizar estado local
+                const pin = allComments.find(c => c.id == id);
+                if (pin) {
+                    pin.resuelto = data.resuelto;
+                    
+                    // Si estamos en el modal de este pin, actualizarlo
+                    if (currentPinId == id) {
+                        openPinDetails(pin);
+                    }
+                    
+                    updateCommentsSidebar();
+                    renderPins();
+                }
+            } else {
+                alert("Error al actualizar tarea: " + (data.error || "Error desconocido"));
+            }
+        })
+        .catch(err => {
+            console.error("Error en togglePinStatus:", err);
+            alert("Error de red al actualizar la tarea.");
+        });
     }
 
     function closePinDetails() {

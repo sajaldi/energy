@@ -255,7 +255,7 @@
         <a href="javascript:history.back()" class="back-btn">
             <ion-icon name="arrow-back-outline"></ion-icon>
         </a>
-        <h1>Reportar Cierre de OT #{{ ot.id }}</h1>
+        <h1>{% if ot.estado == 'REALIZADA' %}Editar{% else %}Reportar Cierre de{% endif %} OT #{{ ot.id }}</h1>
     </header>
 
     <div class="container">
@@ -289,14 +289,18 @@
                     </div>
                     {% elif paso.tipo_respuesta == 'CHECK' %}
                     <div class="checkbox-group">
-                        <input type="checkbox" name="paso_{{ paso.id }}_bool" id="p_{{ paso.id }}">
+                        <input type="checkbox" name="paso_{{ paso.id }}_bool" id="p_{{ paso.id }}" {% if paso.resultado.valor_bool %}checked{% endif %}>
                         <label for="p_{{ paso.id }}" style="margin: 0; font-size: 14px; color: var(--dark);">Completado
                             / Conforme</label>
                     </div>
                     {% elif paso.tipo_respuesta == 'NUMERICO' %}
                     <div class="input-group">
                         <label>Valor numérico ({{ paso.unidad_medida|default:"---" }})</label>
-                        <input type="number" step="any" name="paso_{{ paso.id }}_num" {% if paso.rango_min is not None %}min="{{ paso.rango_min }}" {% endif %} {% if paso.rango_max is not None %}max="{{ paso.rango_max }}" {% endif %} placeholder="Ingrese medición...">
+                        <input type="number" step="any" name="paso_{{ paso.id }}_num" 
+                               value="{{ paso.resultado.valor_numerico|default:'' }}"
+                               {% if paso.rango_min is not None %}min="{{ paso.rango_min }}" {% endif %} 
+                               {% if paso.rango_max is not None %}max="{{ paso.rango_max }}" {% endif %} 
+                               placeholder="Ingrese medición...">
                         {% if paso.rango_min is not None or paso.rango_max is not None %}
                         <div class="range-info">
                             Rango: [{% if paso.rango_min is not None %}{{ paso.rango_min }}{% else %}min{% endif %} -
@@ -307,13 +311,15 @@
                     {% elif paso.tipo_respuesta == 'TEXTO' %}
                     <div class="input-group">
                         <label>Hallazgo / Resultado</label>
-                        <textarea name="paso_{{ paso.id }}_text" placeholder="Escriba aquí..."></textarea>
+                        <textarea name="paso_{{ paso.id }}_text" placeholder="Escriba aquí...">{{ paso.resultado.valor_texto|default:'' }}</textarea>
                     </div>
                     {% elif paso.tipo_respuesta == 'MEDICION' %}
                     <div class="input-group">
                         {% if paso.punto_vinculado %}
                         <label>Lectura para: <b>{{ paso.punto_vinculado.nombre }}</b> ({{ paso.punto_vinculado.unidad }})</label>
-                        <input type="number" step="any" name="paso_{{ paso.id }}_num" {% if paso.punto_vinculado.valor_objetivo is not None %}placeholder="Objetivo: {{ paso.punto_vinculado.valor_objetivo }}" {% endif %}>
+                        <input type="number" step="any" name="paso_{{ paso.id }}_num" 
+                               value="{{ paso.resultado.valor_numerico|default:'' }}"
+                               {% if paso.punto_vinculado.valor_objetivo is not None %}placeholder="Objetivo: {{ paso.punto_vinculado.valor_objetivo }}" {% endif %}>
                         <div class="range-info" style="color: var(--primary);">
                             <ion-icon name="information-circle"></ion-icon> Se registrará automáticamente en la ficha
                             del equipo.
@@ -346,11 +352,13 @@
                     <div class="input-group"
                         style="margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
                         <div class="checkbox-group">
-                            <input type="checkbox" name="paso_{{ paso.id }}_na" id="na_{{ paso.id }}">
+                            <input type="checkbox" name="paso_{{ paso.id }}_na" id="na_{{ paso.id }}" {% if paso.resultado.no_aplica %}checked{% endif %}>
                             <label for="na_{{ paso.id }}" style="margin: 0;">No aplica</label>
                         </div>
                         <label style="margin-top: 5px;">Comentarios adicionales</label>
-                        <input type="text" name="paso_{{ paso.id }}_com" placeholder="Opcional..."
+                        <input type="text" name="paso_{{ paso.id }}_com" 
+                               value="{{ paso.resultado.comentarios|default:'' }}"
+                               placeholder="Opcional..."
                             style="font-size: 12px; padding: 8px;">
                     </div>
                     {% endif %}
@@ -410,18 +418,22 @@
                     <input type="file" id="photoFileInput" name="fotos_cierre" multiple accept="image/*" capture="environment" style="display: none;">
                 </div>
 
-                <p style="font-size: 11px; color: #64748b; margin: 15px 0;">Al finalizar, la orden se marcará como
-                    <b>REALIZADA</b> y se registrarán los datos capturados.
+                <p style="font-size: 11px; color: #64748b; margin: 15px 0;">
+                    {% if ot.estado == 'REALIZADA' %}
+                        Usted está editando un reporte previo. Los cambios actualizarán los datos y regenerarán el PDF.
+                    {% else %}
+                        Al finalizar, la orden se marcará como <b>REALIZADA</b> y se registrarán los datos capturados.
+                    {% endif %}
                 </p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
                     <button type="submit" name="action" value="save" class="btn-submit"
                         style="background: white; border: 2px solid var(--primary); color: var(--primary);">
                         <ion-icon name="save-outline"></ion-icon>
-                        Guardar
+                        {% if ot.estado == 'REALIZADA' %}Validar{% else %}Guardar{% endif %}
                     </button>
                     <button type="submit" name="action" value="finalize" class="btn-submit">
                         <ion-icon name="cloud-upload-outline"></ion-icon>
-                        Finalizar
+                        {% if ot.estado == 'REALIZADA' %}Actualizar Reporte{% else %}Finalizar{% endif %}
                     </button>
                 </div>
             </div>

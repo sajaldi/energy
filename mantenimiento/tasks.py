@@ -2,6 +2,10 @@ from celery import shared_task
 from django.db import transaction
 import time
 import os
+import logging
+from .services import WorkOrderService
+
+logger = logging.getLogger(__name__)
 
 
 def try_decode(content, encodings=['utf-8-sig', 'utf-8', 'windows-1252', 'iso-8859-1', 'latin-1', 'utf-16']):
@@ -1355,3 +1359,17 @@ def import_tipos_task(self, file_path, file_format, user_id=None, verification_m
     return final_res
 
 
+
+@shared_task(name='mantenimiento.tasks.task_generar_ot_pdf')
+def task_generar_ot_pdf(ot_id):
+    """
+    Tarea asíncrona para generar y guardar el PDF de una OT.
+    """
+    try:
+        logger.info(f"Iniciando generación de PDF para OT #{ot_id}")
+        WorkOrderService.save_ot_pdf_as_attachment(ot_id)
+        logger.info(f"PDF para OT #{ot_id} generado exitosamente.")
+        return {'status': 'success', 'ot_id': ot_id}
+    except Exception as e:
+        logger.error(f"Error generando PDF para OT #{ot_id}: {str(e)}", exc_info=True)
+        return {'status': 'error', 'message': str(e)}

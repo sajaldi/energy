@@ -463,6 +463,47 @@
             </div>
         </div>
 
+        <!-- Results Section (Visible only if OT is realized or in execution) -->
+        {% if resultados %}
+        <div class="fiori-card">
+            <div class="card-header" style="background: rgba(16, 126, 62, 0.05);">
+                <ion-icon name="list-done-outline" style="color: #107e3e;"></ion-icon>
+                <h2 style="color: #107e3e;">Resultados del Checklist</h2>
+            </div>
+            <div class="card-content" style="padding: 0;">
+                {% for res in resultados %}
+                <div style="padding: 12px 16px; border-bottom: 1px solid var(--sap-border-color); display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <span style="font-size: 13px; font-weight: 600; color: var(--sap-text-color);">{{ res.paso.descripcion }}</span>
+                        {% if res.no_aplica %}
+                        <span class="tag" style="background: #f2f2f2; color: #6a6d70;">N/A</span>
+                        {% else %}
+                            {% if res.paso.tipo_respuesta == 'CHECK' %}
+                                {% if res.valor_bool %}
+                                <ion-icon name="checkmark-circle" style="color: #107e3e; font-size: 18px;"></ion-icon>
+                                {% else %}
+                                <ion-icon name="close-circle" style="color: #e52929; font-size: 18px;"></ion-icon>
+                                {% endif %}
+                            {% elif res.paso.tipo_respuesta == 'NUMERICO' or res.paso.tipo_respuesta == 'MEDICION' %}
+                            <span style="font-weight: 700; color: var(--sap-brand-color);">{{ res.valor_numerico|default:"---" }} {{ res.paso.unidad_medida|default:'' }}</span>
+                            {% elif res.paso.tipo_respuesta == 'TEXTO' %}
+                            <span style="font-size: 12px;">{{ res.valor_texto|default:"---" }}</span>
+                            {% elif res.paso.tipo_respuesta == 'FOTO' %}
+                                <ion-icon name="image-outline" style="color: var(--sap-brand-color); font-size: 18px;"></ion-icon>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    {% if res.comentarios %}
+                    <div style="font-size: 12px; color: var(--sap-text-muted); font-style: italic; background: #f9f9f9; padding: 4px 8px; border-radius: 4px; border-left: 2px solid #ccc;">
+                        {{ res.comentarios }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Archivos Adjuntos Section -->
         <div class="fiori-card">
             <div class="card-header">
@@ -520,9 +561,42 @@
             <ion-icon name="checkmark-done-outline"></ion-icon> Finalizar
         </a>
         {% elif ot.estado == 'REALIZADA' %}
-        <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" class="fiori-btn fiori-btn-ghost" style="color: var(--sap-error); border-color: var(--sap-error);">
-            <ion-icon name="document-text-outline"></ion-icon> PDF
-        </a>
+            <!-- Botón Dinámico de PDF -->
+            <div id="pdfActionContainer" style="flex-grow: 1; display: flex; gap: 8px;">
+                {% with ot.archivos.all as archivos %}
+                {% if archivos %}
+                    {% for a in archivos %}
+                        {% if a.nombre == "OT_"|add:ot.id|add:".pdf" or "Reporte" in a.nombre %}
+                        <a href="{{ a.archivo.url }}" target="_blank" class="fiori-btn fiori-btn-primary" style="background: #e52929; flex-grow: 1; padding: 10px 8px;">
+                            <ion-icon name="document-text-outline"></ion-icon> PDF
+                        </a>
+                        <!-- Marcador para JS de que el PDF ya está -->
+                        <script>window.pdfReady = true;</script>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                {% if is_gerente %}
+                <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; border-color: var(--sap-brand-color); color: var(--sap-brand-color); padding: 10px 8px;">
+                    <ion-icon name="create-outline"></ion-icon> Editar Reporte
+                </a>
+                {% endif %}
+                
+                <script>
+                    if (!window.pdfReady) {
+                        document.write(`
+                            <div id="pdfLoadingBtn" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; color: var(--sap-text-muted); border-color: #ddd;">
+                                <ion-icon name="sync-outline" style="animation: spin 2s linear infinite;"></ion-icon> Generando...
+                            </div>
+                        `);
+                    }
+                </script>
+            </div>
+            
+            <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" class="fiori-btn fiori-btn-ghost" style="color: var(--sap-error); border-color: var(--sap-error);" title="Generar Manualmente">
+                <ion-icon name="refresh-outline"></ion-icon>
+            </a>
         {% endif %}
         
         <a href="{% url 'seguridad:mobile_generar_permiso' ot.id %}" class="fiori-btn fiori-btn-ghost" style="background: #f3e8ff; color: #7e22ce; border-color: #d8b4fe;">
@@ -532,7 +606,75 @@
 
     <div id="toast">Actualizando...</div>
 
+    <style>
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+
     <script>
+        // Polling para el PDF si la OT está REALIZADA y no se ha cargado el PDF aún
+        document.addEventListener('DOMContentLoaded', () => {
+            if ("{{ ot.estado }}" === "REALIZADA" && !window.pdfReady) {
+                startPdfPolling();
+            }
+        });
+
+        async function startPdfPolling() {
+            const container = document.getElementById('pdfActionContainer');
+            const toast = document.getElementById('toast');
+            let attempts = 0;
+            const maxAttempts = 20; // ~1 minuto
+
+            const interval = setInterval(async () => {
+                attempts++;
+                if (attempts > maxAttempts) {
+                    clearInterval(interval);
+                    const loader = document.getElementById('pdfLoadingBtn');
+                    if (loader) loader.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon> Reintente manual';
+                    return;
+                }
+
+                try {
+                    const response = await fetch("{% url 'mantenimiento:check_ot_pdf_status' ot.id %}");
+                    const data = await response.json();
+
+                    if (data.ready) {
+                        clearInterval(interval);
+                        
+                        // Actualizar UI
+                        container.innerHTML = `
+                            <a href="${data.url}" target="_blank" class="fiori-btn fiori-btn-primary" style="background: #e52929; flex-grow: 1; animation: bounceIn 0.5s ease;">
+                                <ion-icon name="document-text-outline"></ion-icon> Descargar PDF
+                            </a>
+                        `;
+
+                        // Mostrar Toast Premium
+                        toast.innerHTML = `<ion-icon name="checkmark-circle" style="vertical-align: middle;"></ion-icon> Reporte OT_${data.id}.pdf listo`;
+                        toast.style.background = "#107e3e";
+                        toast.classList.add('show');
+                        setTimeout(() => toast.classList.remove('show'), 5000);
+                        
+                        // Añadir a la lista de archivos si existe la rejilla
+                        const grid = document.getElementById('attachmentsGrid');
+                        if (grid && !document.getElementById('file-' + data.id)) {
+                             const div = document.createElement('div');
+                             div.className = 'attachment-item';
+                             div.id = 'file-' + data.id;
+                             div.innerHTML = `
+                                <a href="${data.url}" target="_blank" style="text-decoration:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
+                                    <ion-icon name="document-outline" class="file-icon" style="color: #e52929;"></ion-icon>
+                                    <span class="file-name">${data.nombre}</span>
+                                </a>
+                             `;
+                             grid.prepend(div);
+                             document.getElementById('fileCount').textContent = grid.children.length;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Polling error:", e);
+                }
+            }, 3000);
+        }
+
         async function updateOT() {
             const form = document.getElementById('assignmentForm');
             const formData = new FormData(form);

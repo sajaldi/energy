@@ -4,7 +4,9 @@ import math
 from datetime import datetime, date, timedelta
 from django.db.models import Q, Count
 from django.utils import timezone
-from .models import OrdenTrabajo, Rutina, Tipo, Programacion, RestriccionCalendario
+from .models import OrdenTrabajo, Rutina, Tipo, Programacion, RestriccionCalendario, ArchivoOrdenTrabajo
+from django.core.files.base import ContentFile
+from .utils.pdf_utils import generate_ot_pdf_bytes
 
 class WorkOrderService:
     @staticmethod
@@ -463,4 +465,29 @@ class WorkOrderService:
                 'subs': subs
             })
             
-        return ft
+
+    @staticmethod
+    def save_ot_pdf_as_attachment(ot_id):
+        """
+        Generates the PDF for an OT and saves it as an attachment.
+        Used by background tasks.
+        """
+        ot = OrdenTrabajo.objects.get(pk=ot_id)
+        
+        # Check if it already exists to avoid duplicates (with the same name)
+        filename = f"OT_{ot.id}.pdf"
+        existing = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, nombre=filename).first()
+        
+        pdf_bytes = generate_ot_pdf_bytes(ot)
+        
+        if existing:
+            existing.archivo.save(filename, ContentFile(pdf_bytes), save=True)
+            return existing
+        else:
+            nuevo_archivo = ArchivoOrdenTrabajo(
+                orden_trabajo=ot,
+                nombre=filename,
+                tipo='DOCUMENTO'
+            )
+            nuevo_archivo.archivo.save(filename, ContentFile(pdf_bytes), save=True)
+            return nuevo_archivo

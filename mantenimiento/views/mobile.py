@@ -1,5 +1,7 @@
 import collections
 from datetime import datetime, timedelta
+import collections
+from datetime import datetime, timedelta
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib.auth.models import User, Group
@@ -8,6 +10,7 @@ from django.utils import timezone
 from django.db.models import Count, Q, Min
 from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso, ArchivoOrdenTrabajo
 from activos.models import Activo, Ubicacion, DocumentoMedicion, PuntoMedicion
+from ..tasks import task_generar_ot_pdf
 
 @staff_member_required
 def mobile_cronograma(request):
@@ -68,11 +71,16 @@ def mobile_ot_detalle(request, pk):
     ).distinct().order_by('first_name')
     tecnicos = User.objects.filter(Q(groups__name='Tecnicos') | Q(perfil_tecnico__isnull=False)).distinct().order_by('first_name')
     
+    is_gerente = request.user.groups.filter(name='Gerentes').exists() or request.user.is_superuser
+    
     context = {
         'ot': ot,
         'supervisores': supervisores,
         'tecnicos': tecnicos,
+        'is_gerente': is_gerente,
+        'resultados': ot.resultados_checklist.select_related('paso').order_by('paso__orden'),
     }
+
     return render(request, 'mantenimiento/mobile_ot_detalle.html', context)
 
 @staff_member_required
@@ -81,9 +89,10 @@ def mobile_ot_update_ajax(request, pk):
         return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
     
     ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    is_gerente = request.user.groups.filter(name='Gerentes').exists() or request.user.is_superuser
     
-    # Solo permitir cambios si la orden no está FINALIZADA (opcional, pero recomendado)
-    if ot.estado == 'REALIZADA':
+    # Solo permitir cambios si la orden no está FINALIZADA (a menos que sea Gerente)
+    if ot.estado == 'REALIZADA' and not is_gerente:
         return JsonResponse({'status': 'error', 'message': 'No se puede modificar una orden finalizada'}, status=400)
 
     tecnico_id = request.POST.get('tecnico')
@@ -404,23 +413,51 @@ def mobile_ot_finalizar(request, pk):
         # 4. Actualizar estado según la acción
         accion = request.POST.get('action')
         comentarios_cierre = request.POST.get('comentarios_cierre', '').strip()
+        
+        is_gerente = request.user.groups.filter(name='Gerentes').exists() or request.user.is_superuser
+        
+        if ot.estado == 'REALIZADA' and not is_gerente:
+             return JsonResponse({'status': 'error', 'message': 'No tienes permiso para editar un reporte finalizado'}, status=403)
+
         if comentarios_cierre:
-            ot.notas = (ot.notas or '') + f"\n[Cierre] {comentarios_cierre}"
+            # Si ya hay notas, concatenamos de forma limpia
+            nueva_nota = f"\n[Edición {timezone.now().strftime('%d/%m %H:%M')}] {comentarios_cierre}"
+            if ot.estado != 'REALIZADA': # Si es el primer cierre
+                nueva_nota = f"\n[Cierre] {comentarios_cierre}"
+            
+            ot.notas = (ot.notas or '') + nueva_nota
             ot.save(update_fields=['notas'])
         
-        if accion == 'finalize':
-            ot.estado = 'REALIZADA'
-            ot.fecha_termino = timezone.now()
+        if accion == 'finalize' or (ot.estado == 'REALIZADA' and is_gerente):
+            if ot.estado != 'REALIZADA':
+                ot.estado = 'REALIZADA'
+                ot.fecha_termino = timezone.now()
+            
             ot.save()
+            
+            # Disparar generación de PDF en segundo plano (para actualizar el PDF con los nuevos datos)
+            try:
+                task_generar_ot_pdf.delay(ot.id)
+            except Exception as e:
+                print(f"Error al encolar tarea de PDF: {e}")
+                
             return redirect('mantenimiento:mobile_ot_detalle', pk=ot.id)
         
         # Por defecto solo guardamos y nos quedamos en la misma pantalla (o volvemos al detalle)
         return redirect('mantenimiento:mobile_ot_detalle', pk=ot.id)
 
+    # Obtener resultados existentes para pre-cargar si estamos re-editando
+    resultados_qs = ot.resultados_checklist.all()
+    resultados_dict = {res.paso_id: res for res in resultados_qs}
+    
+    # Decorar los pasos con su resultado previo
+    for paso in pasos:
+        paso.resultado = resultados_dict.get(paso.id)
+
     return render(request, 'mantenimiento/mobile_ot_finalizar.html', {
         'ot': ot,
         'pasos': pasos,
-        'puntos_medicion': puntos_medicion_extra
+        'puntos_medicion': puntos_medicion_extra,
     })
 
 @staff_member_required
@@ -576,3 +613,24 @@ def mobile_crear_medicion(request, pk):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
             
     return render(request, 'mantenimiento/mobile_crear_medicion.html', {'punto': punto})
+
+@staff_member_required
+def check_ot_pdf_status(request, pk):
+    """
+    Endpoint AJAX para verificar si el reporte PDF de una OT ya está disponible.
+    """
+    ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    filename = f"OT_{ot.id}.pdf"
+    
+    # Buscar en los archivos adjuntos
+    archivo = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, nombre=filename).first()
+    
+    if archivo:
+        return JsonResponse({
+            'ready': True,
+            'url': archivo.archivo.url,
+            'nombre': archivo.nombre,
+            'id': archivo.id
+        })
+    else:
+        return JsonResponse({'ready': False})

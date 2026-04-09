@@ -19,113 +19,32 @@ logger = logging.getLogger(__name__)
 
 @staff_member_required
 def generate_rutina_pdf_view(request, ot_id):
+    from ..utils.pdf_utils import generate_ot_pdf_bytes
+    from django.http import HttpResponse, Http404, JsonResponse
+
     try:
-        ot = OrdenTrabajo.objects.select_related('rutina', 'rutina__frecuencia', 'rutina__tipo', 'ubicacion', 'tecnico', 'cierre').get(pk=ot_id)
+        ot = OrdenTrabajo.objects.get(pk=ot_id)
     except OrdenTrabajo.DoesNotExist:
         raise Http404("Orden de Trabajo no encontrada")
 
-    # Fetch all routine steps and matched results
-    pasos = ot.rutina.pasos.all().order_by('orden')
-    results_qs = ValorPasoOrden.objects.filter(orden_trabajo=ot).select_related('paso')
-    results_dict = {r.paso_id: r for r in results_qs}
+    # 1. Intentar servir el archivo adjunto si ya existe (Cache/Background result)
+    filename = f"OT_{ot.id}.pdf"
+    archivo_adjunto = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, nombre=filename).first()
     
-    checklist_items = []
-    for paso in pasos:
-        item = results_dict.get(paso.id)
-        if item:
-            checklist_items.append(item)
-        else:
-            checklist_items.append({
-                'paso': paso,
-                'valor_bool': None,
-                'valor_numerico': None,
-                'no_aplica': False,
-                'comentarios': ''
-            })
-    
-    # Pre-process data for the template
-    empresa_nombre = "Operadora de Infraestructura de Honduras, S.A. de C.V."
-    
-    # Usuario asignado (Priorizamos el campo supervisor, luego técnico, luego usuario actual)
-    supervisor_nombre = "Allan Castellanos" # Fallback
-    if ot.supervisor:
-        supervisor_nombre = ot.supervisor.get_full_name()
-    elif ot.tecnico:
-        supervisor_nombre = ot.tecnico.get_full_name()
-    elif request.user and request.user.is_authenticated:
-        supervisor_nombre = request.user.get_full_name()
-    
-    # Get edificio root or first building parent
-    edificio = ot.ubicacion.get_root() if ot.ubicacion else None
-    edificio_nombre = edificio.nombre if edificio else "N/A"
-    
-    activo_nombre = ot.activos.first().nombre if ot.activos.exists() else "N/A"
-
-    # Encode logo
-    logo_dcc_b64 = ""
-    logo_path = os.path.join(settings.BASE_DIR, 'activos', 'static', 'activos', 'img', 'logo_operadora_cc.png')
-    if os.path.exists(logo_path):
-        with open(logo_path, "rb") as bf:
-            logo_dcc_b64 = base64.b64encode(bf.read()).decode('utf-8')
-
-    # Fetch image attachments for the PDF
-    fotos_adjuntas = []
-    archivos_img = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, tipo='IMAGEN').select_related('paso').order_by('creado_en')
-    vpo_dict = {item.paso_id: item for item in results_qs}
-    
-    for archivo in archivos_img:
+    if archivo_adjunto:
         try:
-            img_data = archivo.archivo.read()
-            ext = os.path.splitext(archivo.archivo.name)[1].lower().replace('.', '')
-            mime = {'jpg': 'jpeg', 'jpeg': 'jpeg', 'png': 'png', 'gif': 'gif', 'webp': 'webp'}.get(ext, 'jpeg')
-            b64 = base64.b64encode(img_data).decode('utf-8')
-            
-            nombre = archivo.nombre or 'Evidencia Fotográfica'
-            descripcion = ''
-            
-            if archivo.paso:
-                nombre = archivo.paso.descripcion
-                vpo = vpo_dict.get(archivo.paso_id)
-                if vpo and vpo.comentarios:
-                    descripcion = vpo.comentarios
-
-            fotos_adjuntas.append({
-                'nombre': nombre,
-                'descripcion': descripcion,
-                'data_uri': f'data:image/{mime};base64,{b64}',
-                'creado_en': archivo.creado_en,
-            })
+            # Si el archivo está en MinIO/S3, redirigir o servir el contenido
+            # Por simplicidad y consistencia, redirigimos a la URL firmada
+            from django.shortcuts import redirect
+            return redirect(archivo_adjunto.archivo.url)
         except Exception as e:
-            logger.warning(f"Could not read attachment {archivo.id}: {e}")
+            logger.warning(f"Error sirviendo adjunto existente para OT {ot.id}: {e}")
 
-    context = {
-        'ot': ot,
-        'checklist_items': checklist_items,
-        'empresa_nombre': empresa_nombre,
-        'supervisor_nombre': supervisor_nombre,
-        'edificio_nombre': edificio_nombre,
-        'activo_nombre': activo_nombre,
-        'logo_dcc_b64': logo_dcc_b64,
-        'fotos_adjuntas': fotos_adjuntas,
-        'ahora': timezone.now(),
-    }
-
-    html_content = render_to_string('mantenimiento/rutina_pdf.html', context, request=request)
-
+    # 2. Si no existe o falló, generar en caliente (síncrono)
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
-            page = browser.new_page()
-            page.set_content(html_content, wait_until='networkidle')
-            # Adjust scale to fit more content if needed
-            pdf_bytes = page.pdf(format="A4", print_background=True, margin={'top': '0', 'bottom': '0', 'left': '0', 'right': '0'})
-            browser.close()
-
-        file_name = f'rutina_{ot.codigo_de_orden or ot.id}_{uuid.uuid4().hex[:6]}.pdf'
+        pdf_bytes = generate_ot_pdf_bytes(ot, request=request)
+        file_name = f'Reporte_OT_{ot.id}.pdf'
         
-        # We could save this to a new model or just return it. 
-        # For now, let's return it as a direct download or preview.
-        from django.http import HttpResponse
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = f'inline; filename="{file_name}"'
         return response
