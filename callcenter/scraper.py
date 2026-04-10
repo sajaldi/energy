@@ -21,7 +21,7 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
     with sync_playwright() as p:
         # Usar chromium con headless=True para el servidor
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(accept_downloads=True)
+        context = browser.new_context(accept_downloads=True, ignore_https_errors=True)
         page = context.new_page()
 
         print(f"[{datetime.now()}] Navegando a SIG GIA...")
@@ -170,7 +170,7 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
     with sync_playwright() as p:
         # Usamos headless=True por defecto, pero permitimos depuración
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
+        context = browser.new_context(ignore_https_errors=True)
         page = context.new_page()
 
         try:
