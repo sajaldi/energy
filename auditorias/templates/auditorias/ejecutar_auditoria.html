@@ -350,23 +350,30 @@
             html5QrCode = new Html5Qrcode("reader");
         }
 
-        html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
-            (decodedText) => {
-                // Continuous scanning: Don't stop camera here
-                processScan(decodedText, true);
-            },
-            (error) => { /* ignore frame errors */ }
-        ).catch(err => {
-            console.error("Camera start error:", err);
-            alert("Error al iniciar cámara: " + err);
-            document.getElementById('camera-modal').style.display = 'none';
-        });
+        // Delay for Safari
+        setTimeout(() => {
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { 
+                    fps: 10, 
+                    qrbox: { width: 250, height: 250 }, 
+                    aspectRatio: undefined // Optimized for iOS
+                },
+                (decodedText) => {
+                    // Continuous scanning: Don't stop camera here
+                    processScan(decodedText, true);
+                },
+                (error) => { /* ignore frame errors */ }
+            ).catch(err => {
+                console.error("Camera start error:", err);
+                alert("Error al iniciar cámara: REVISA PERMISOS EN SAFARI.");
+                document.getElementById('camera-modal').style.display = 'none';
+            });
+        }, 300);
     }
 
     function stopCamera() {
-        if (html5QrCode) {
+        if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.stop().then(() => {
                 document.getElementById('camera-modal').style.display = 'none';
             }).catch(() => {

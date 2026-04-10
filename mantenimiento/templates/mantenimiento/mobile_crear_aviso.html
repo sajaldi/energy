@@ -758,16 +758,40 @@
 
         document.getElementById('start-scan').onclick = () => {
             scannerModal.style.display = 'flex';
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-                html5QrCode.stop().then(() => {
-                    scannerModal.style.display = 'none';
-                    assetSearch.value = text;
-                    assetSearch.oninput();
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+            
+            // Pausa para asegurar que Safari tenga el DOM listo
+            setTimeout(() => {
+                html5QrCode.start(
+                    { facingMode: "environment" }, 
+                    { 
+                        fps: 10, 
+                        qrbox: 250,
+                        aspectRatio: undefined // Mejor compatibilidad en iOS
+                    }, 
+                    (text) => {
+                        html5QrCode.stop().then(() => {
+                            scannerModal.style.display = 'none';
+                            assetSearch.value = text;
+                            assetSearch.oninput();
+                        });
+                    }
+                ).catch(e => { 
+                    console.error("Scanner error:", e);
+                    alert("Error al abrir cámara. Verifica permisos en Safari."); 
+                    scannerModal.style.display = 'none'; 
                 });
-            }).catch(e => { alert("Error cámara"); scannerModal.style.display = 'none'; });
+            }, 300);
         };
-        closeScanBtn.onclick = () => { if (html5QrCode) html5QrCode.stop().then(() => scannerModal.style.display = 'none'); else scannerModal.style.display = 'none'; };
+        closeScanBtn.onclick = () => { 
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => scannerModal.style.display = 'none');
+            } else {
+                scannerModal.style.display = 'none';
+            }
+        };
 
         // Photos
         const photoInput = document.getElementById('foto-input');
