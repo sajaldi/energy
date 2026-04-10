@@ -1,0 +1,308 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    :root {
+        --sap-font: "72", "Inter", sans-serif;
+        --border-color: #e2e8f0;
+    }
+
+    .lote-container {
+        display: flex;
+        gap: 30px;
+        padding: 20px;
+        font-family: var(--sap-font);
+        background: #f8fafc;
+        min-height: calc(100vh - 100px);
+    }
+
+    .panel-builder {
+        flex: 1;
+        max-width: 450px;
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid var(--border-color);
+        height: fit-content;
+    }
+
+    .panel-queue {
+        flex: 2;
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid var(--border-color);
+    }
+
+    .fiori-form-group { margin-bottom: 15px; }
+    .fiori-form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #334155;
+        font-size: 0.9rem;
+    }
+    .fiori-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .queue-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .queue-table th {
+        background: #f1f5f9;
+        color: #475569;
+        font-weight: 600;
+        padding: 10px;
+        text-align: left;
+        border-bottom: 2px solid var(--border-color);
+    }
+    .queue-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid var(--border-color);
+        color: #1e293b;
+    }
+
+    .btn-add {
+        width: 100%;
+        padding: 12px;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 700;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    .btn-add:hover { background: #1d4ed8; }
+
+    .btn-print {
+        margin-top: 30px;
+        width: 100%;
+        padding: 15px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        cursor: pointer;
+    }
+    .btn-print:hover { background: #059669; }
+
+    .preview-alert {
+        background: #eff6ff;
+        color: #1e40af;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+        font-family: monospace;
+        text-align: center;
+        font-size: 0.95rem;
+    }
+    .del-btn {
+        color: #ef4444;
+        cursor: pointer;
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
+
+{% block content %}
+<div class="lote-container">
+    <div class="panel-builder">
+        <h2 style="margin-top:0; color:#1e293b;">🏭 Constructor de Lotes</h2>
+        <p style="color:#64748b; font-size:0.85rem; margin-bottom: 20px;">
+            Añade múltiples rangos de etiquetas a la cola.
+        </p>
+
+        <div class="fiori-form-group">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+                1. Elija el Molde / Plantilla
+                <a href="/admin/activos/plantillaetiquetaqr/" target="_blank" style="font-size:0.75rem; color:#2563eb; text-decoration:none;">⚙️ Gestor de Moldes</a>
+            </label>
+            <select id="inp-plantilla" class="fiori-input">
+                <option value="">-- Seleccionar --</option>
+                {% for p in plantillas %}
+                <option value="{{ p.id }}" data-prefix="{{ p.prefijo_defecto }}" data-pad="{{ p.padding_digitos }}" data-name="{{ p.nombre }}">
+                    {{ p.nombre }}
+                </option>
+                {% empty %}
+                <option value="" disabled>No hay plantillas activas (Vaya a Admin > Plantillas QR)</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <div class="fiori-form-group" style="flex:1;">
+                <label>Prefijo</label>
+                <input type="text" id="inp-prefix" class="fiori-input" placeholder="Ej: UBC">
+            </div>
+            <div class="fiori-form-group" style="flex:1;">
+                <label>Dígitos (0)</label>
+                <input type="number" id="inp-digits" class="fiori-input" min="1" max="10" placeholder="Ej: 5">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <div class="fiori-form-group" style="flex:1;">
+                <label>Iniciar en No.</label>
+                <input type="number" id="inp-start" class="fiori-input" value="1" min="1">
+            </div>
+            <div class="fiori-form-group" style="flex:1;">
+                <label>Cantidad QRs</label>
+                <input type="number" id="inp-qty" class="fiori-input" value="50" min="1">
+            </div>
+        </div>
+
+        <div class="preview-alert" id="preview-box">
+            ---
+        </div>
+
+        <button type="button" class="btn-add" id="btn-add">➕ Añadir Lote a la Cola</button>
+    </div>
+
+    <div class="panel-queue">
+        <h2 style="margin-top:0; color:#1e293b;">🖨️ Cola de Impresión Combinada</h2>
+        
+        <table class="queue-table" id="q-table">
+            <thead>
+                <tr>
+                    <th>Plantilla</th>
+                    <th>Formato Serie</th>
+                    <th style="text-align: center;">Etiquetas Totales</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr id="empty-row"><td colspan="4" style="text-align:center; color:#94a3b8; font-style:italic;">La cola está vacía.</td></tr>
+            </tbody>
+        </table>
+
+        <!-- Form POST Oculto -->
+        <form method="POST" action="/activos/etiquetas/generador/pdf/" target="_blank" id="pdf-form">
+            {% csrf_token %}
+            <input type="hidden" name="lotes_json" id="lotes_json" value="[]">
+            <button type="submit" class="btn-print" id="btn-print" disabled>
+                🖨️ Imprimir Todo el Papel
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    let lotes = [];
+
+    const pSel = document.getElementById('inp-plantilla');
+    const iPref = document.getElementById('inp-prefix');
+    const iDig = document.getElementById('inp-digits');
+    const iStart = document.getElementById('inp-start');
+    const iQty = document.getElementById('inp-qty');
+    const previewBox = document.getElementById('preview-box');
+
+    // Auto fill defaults
+    pSel.addEventListener('change', function() {
+        const opt = this.options[this.selectedIndex];
+        if(opt.value) {
+            iPref.value = opt.getAttribute('data-prefix') || '';
+            iDig.value = opt.getAttribute('data-pad') || '5';
+            updatePreview();
+        }
+    });
+
+    function updatePreview() {
+        if(!pSel.value) {
+            previewBox.innerText = "Seleccione una plantilla";
+            return;
+        }
+        
+        let p = iPref.value.trim();
+        let d = parseInt(iDig.value) || 5;
+        let s = parseInt(iStart.value) || 1;
+        let q = parseInt(iQty.value) || 1;
+
+        let end = s + q - 1;
+        let sPad = String(s).padStart(d, '0');
+        let ePad = String(end).padStart(d, '0');
+
+        previewBox.innerText = `${p}${sPad}  ...hasta...  ${p}${ePad}`;
+    }
+
+    [iPref, iDig, iStart, iQty].forEach(el => {
+        el.addEventListener('input', updatePreview);
+    });
+
+    document.getElementById('btn-add').addEventListener('click', function() {
+        if(!pSel.value) return Swal.fire('Atención', 'Debe seleccionar una plantilla', 'warning');
+        
+        const opt = pSel.options[pSel.selectedIndex];
+        const lote = {
+            id: Date.now(),
+            plantilla_id: pSel.value,
+            plantilla_name: opt.getAttribute('data-name'),
+            prefix: iPref.value.trim(),
+            digits: parseInt(iDig.value) || 5,
+            start: parseInt(iStart.value) || 1,
+            qty: parseInt(iQty.value) || 1
+        };
+
+        if(lote.qty <= 0) return alert("Cantidad inválida");
+
+        lotes.push(lote);
+        renderTable();
+    });
+
+    window.delLote = function(id) {
+        lotes = lotes.filter(l => l.id !== id);
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.querySelector('#q-table tbody');
+        tbody.innerHTML = '';
+
+        if(lotes.length === 0) {
+            tbody.innerHTML = '<tr id="empty-row"><td colspan="4" style="text-align:center; color:#94a3b8; font-style:italic;">La cola está vacía.</td></tr>';
+            document.getElementById('btn-print').disabled = true;
+            document.getElementById('lotes_json').value = '[]';
+            return;
+        }
+
+        lotes.forEach(l => {
+            let sPad = String(l.start).padStart(l.digits, '0');
+            let ePad = String(l.start + l.qty - 1).padStart(l.digits, '0');
+            let txt = `${l.prefix}${sPad} ... ${l.prefix}${ePad}`;
+
+            tbody.innerHTML += `
+            <tr>
+                <td><strong>${l.plantilla_name}</strong></td>
+                <td><code style="background:#f1f5f9; padding:2px 5px; border-radius:4px;">${txt}</code></td>
+                <td style="text-align:center;">
+                    <span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 12px; font-size:0.8rem; font-weight:bold;">${l.qty} QRs</span>
+                </td>
+                <td style="text-align:center;">
+                    <button type="button" class="del-btn" onclick="delLote(${l.id})">✖</button>
+                </td>
+            </tr>
+            `;
+        });
+
+        document.getElementById('lotes_json').value = JSON.stringify(lotes);
+        document.getElementById('btn-print').disabled = false;
+    }
+</script>
+{% endblock %}

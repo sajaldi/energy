@@ -2185,3 +2185,22 @@ class DocumentoAltaBajaAdmin(admin.ModelAdmin):
             count
         )
     get_total_activos.short_description = "# Activos"
+
+from .models import PlantillaEtiquetaQR
+
+@admin.register(PlantillaEtiquetaQR)
+class PlantillaEtiquetaQRAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'ancho_cm', 'alto_cm', 'prefijo_defecto', 'activo', 'diseñar_etiqueta')
+    list_filter = ('activo',)
+    search_fields = ('nombre', 'prefijo_defecto')
+    readonly_fields = ('compiled_html',)
+
+    def diseñar_etiqueta(self, obj):
+        if obj.id:
+            url = f"/activos/etiquetas/designer/{obj.id}/"
+            return format_html(
+                '<a class="button" style="background:#3b82f6; color:white; padding:4px 10px; border-radius:4px; font-weight:bold; text-decoration:none;" href="{}">🖌️ Diseñador Visual</a>',
+                url
+            )
+        return "Guarde primero para diseñar"
+    diseñar_etiqueta.short_description = "WYSIWYG"

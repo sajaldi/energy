@@ -883,6 +883,29 @@ def qr_resolver(request):
         except (ValueError, IndexError, Exception):
             pass
 
+    # Caso 5: Es un código de Ubicación Física
+    if code.upper().startswith('UBC'):
+        from activos.models import Ubicacion
+        ubi = Ubicacion.objects.filter(codigo_qr__iexact=code).first()
+        if ubi:
+            return JsonResponse({
+                'success': True,
+                'redirect': reverse('activos:mobile_ubicaciones_child', args=[ubi.id]),
+                'message': f'Ubicación encontrada: {ubi.nombre}'
+            })
+        else:
+            if request.user.is_superuser:
+                return JsonResponse({
+                    'success': True,
+                    'redirect': reverse('activos:mobile_admin_ubicacion_asignar') + f'?qr={code.upper()}',
+                    'message': 'Ubicación libre detectada. Redirigiendo a vinculación...'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Este código QR de ubicación aún no ha sido vinculado por operaciones.'
+                })
+
     return JsonResponse({'success': False, 'error': 'Código no reconocido en el sistema'}, status=404)
 @staff_member_required
 def global_search(request):

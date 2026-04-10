@@ -1,0 +1,149 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Dashboard | DCC System</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 90px;
+        }
+        header {
+            background-color: var(--sap-shell-bg);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+        }
+        .shell-title {
+            font-size: 16px;
+            font-weight: 600;
+            flex-grow: 1;
+        }
+        .container {
+            padding: 16px;
+        }
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .admin-tile {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--sap-card-shadow);
+            text-decoration: none;
+            color: inherit;
+            text-align: center;
+        }
+        .admin-tile ion-icon {
+            font-size: 42px;
+            color: var(--sap-brand-color);
+            margin-bottom: 12px;
+        }
+        .admin-tile h3 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--sap-text-color);
+        }
+        .admin-tile p {
+            margin: 4px 0 0 0;
+            font-size: 12px;
+            color: var(--sap-text-muted);
+        }
+
+        /* Bottom Nav (Reused) */
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom, 10px);
+        }
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #6a6d70;
+            text-decoration: none;
+            font-size: 10px;
+            font-weight: 500;
+        }
+        .tab-item.active {
+            color: var(--sap-brand-color);
+        }
+        .tab-item ion-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="shell-title">DCC Admin</div>
+        <ion-icon name="key-outline" style="font-size: 20px;"></ion-icon>
+    </header>
+
+    <div class="container">
+        <h2 style="font-size: 18px; margin-top: 0; margin-bottom: 16px; color: var(--sap-brand-color);">Herramientas de Administrador</h2>
+        
+        <div class="admin-grid">
+            <a href="{% url 'activos:mobile_admin_ubicaciones_scanner' %}" class="admin-tile">
+                <ion-icon name="qr-code-outline"></ion-icon>
+                <h3>Ubicar Código QR</h3>
+                <p>Escanear y vincular ubicaciones</p>
+            </a>
+            
+            <a href="{% url 'admin:index' %}" class="admin-tile">
+                <ion-icon name="settings-outline"></ion-icon>
+                <h3>Panel Web</h3>
+                <p>Ir al panel Django</p>
+            </a>
+        </div>
+    </div>
+
+    <!-- Reused Fiori Tab Bar -->
+    <nav class="tab-bar">
+        <a href="{% url 'core:mobile_dashboard' %}" class="tab-item">
+            <ion-icon name="grid-outline"></ion-icon>
+            <span>Inicio</span>
+        </a>
+        <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item">
+            <ion-icon name="calendar-clear-outline"></ion-icon>
+            <span>Agenda</span>
+        </a>
+        <a href="{% url 'core:mobile_scanner' %}" class="tab-item" style="color: var(--sap-brand-color); transform: translateY(-10px); background: #e8f0f8; border-radius: 50%; padding: 12px;">
+            <ion-icon name="scan-outline"></ion-icon>
+        </a>
+        <a href="{% url 'activos:arbol_activos' %}" class="tab-item">
+            <ion-icon name="cube-outline"></ion-icon>
+            <span>Activos</span>
+        </a>
+        <a href="{% url 'activos:mobile_admin_dashboard' %}" class="tab-item active">
+            <ion-icon name="key"></ion-icon>
+            <span>Admin</span>
+        </a>
+    </nav>
+</body>
+</html>

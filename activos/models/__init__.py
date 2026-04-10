@@ -9,3 +9,4 @@ from .importacion import RegistroImportacion
 from .bien_afecto import BienAfecto, HistorialBienAfecto
 from .control_submittal import ControlSubmittal
 from .documento_altabaja import DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja
+from .plantilla_qr import PlantillaEtiquetaQR

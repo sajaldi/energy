@@ -35,6 +35,19 @@ urlpatterns = [
     path('app/ubicaciones/', views.mobile_ubicaciones, name='mobile_ubicaciones'),
     path('app/ubicaciones/<int:parent_id>/', views.mobile_ubicaciones, name='mobile_ubicaciones_child'),
     
+    # Administrador / Scanner de Ubicaciones Físicas (Móvil)
+    path('app/admin/', views.mobile_admin_dashboard, name='mobile_admin_dashboard'),
+    path('app/admin/scanner/', views.mobile_admin_ubicaciones_scanner, name='mobile_admin_ubicaciones_scanner'),
+    path('api/admin/scanner/handler/', views.mobile_admin_ubicaciones_handler, name='mobile_admin_ubicaciones_handler'),
+    path('app/admin/ubicacion/asignar/', views.mobile_admin_ubicacion_asignar, name='mobile_admin_ubicacion_asignar'),
+
+    # QR Label Generator and WYSIWYG
+    path('etiquetas/designer/<int:plantilla_id>/', views.qr_designer_view, name='qr_designer_view'),
+    path('etiquetas/designer/save/<int:plantilla_id>/', views.qr_designer_save, name='qr_designer_save'),
+    path('etiquetas/generador/', views.qr_generator_dashboard, name='qr_generator_dashboard'),
+    path('etiquetas/generador/pdf/', views.qr_generator_pdf, name='qr_generator_pdf'),
+
+    
     # Celery Industrial Import
     path('celery-import/', views_celery.import_activos_view, name='celery_import_activos'),
     path('celery-import/process/', views_celery.import_activos_process, name='celery_import_process'),

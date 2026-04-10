@@ -10,6 +10,7 @@ class Ubicacion(models.Model):
     ]
     
     nombre = models.CharField(max_length=100)
+    codigo_qr = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="Código físico de la ubicación (ej. UBC000000001)")
     padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='sub_ubicaciones')
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='NIVEL', help_text="Tipo de ubicación")
     descripcion = models.TextField(blank=True, null=True)

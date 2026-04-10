@@ -1176,3 +1176,243 @@ def activo_fiori_view(request, pk):
     }
     
     return render(request, 'activos/activo_fiori.html', context)
+
+
+# ==============================================================================
+# MOBILE ADMIN - UBICACIONES QR
+# ==============================================================================
+
+from django.contrib.auth.decorators import user_passes_test
+
+@user_passes_test(lambda u: u.is_superuser)
+def mobile_admin_dashboard(request):
+    return render(request, 'activos/mobile_admin_dashboard.html')
+
+@user_passes_test(lambda u: u.is_superuser)
+def mobile_admin_ubicaciones_scanner(request):
+    return render(request, 'activos/mobile_admin_ubicaciones_scanner.html')
+
+@user_passes_test(lambda u: u.is_superuser)
+def mobile_admin_ubicaciones_handler(request):
+    qr_code = request.GET.get('qr', '').strip()
+    if not qr_code.startswith('UBC'):
+        return JsonResponse({'status': 'error', 'message': 'Código no válido para ubicación.'})
+        
+    from activos.models import Ubicacion
+    ubi = Ubicacion.objects.filter(codigo_qr=qr_code).first()
+    
+    if ubi:
+        # Redirigir al detalle de ubicaciones abriendo el árbol en el ID? 
+        # Ya que mobile_ubicaciones carga el árbol
+        return JsonResponse({'status': 'success', 'found': True, 'url': f'/activos/app/ubicaciones/{ubi.id}/'})
+    else:
+        return JsonResponse({'status': 'success', 'found': False, 'url': f'/activos/app/admin/ubicacion/asignar/?qr={qr_code}'})
+
+@user_passes_test(lambda u: u.is_superuser)
+def mobile_admin_ubicacion_asignar(request):
+    from activos.models import Ubicacion
+    qr_code = request.GET.get('qr', '')
+    
+    if request.method == 'POST':
+        final_parent_id = request.POST.get('final_parent_id')
+        nueva_area = request.POST.get('nueva_area', '').strip()
+        qr_asignar = request.POST.get('qr', '')
+        
+        target_ubi = None
+        
+        if final_parent_id:
+            padre_final = Ubicacion.objects.get(id=final_parent_id)
+            
+            if nueva_area:
+                target_ubi = Ubicacion.objects.create(
+                    nombre=nueva_area,
+                    padre=padre_final,
+                    tipo='ESPACIO',
+                    codigo_qr=qr_asignar
+                )
+            else:
+                target_ubi = padre_final
+                target_ubi.codigo_qr = qr_asignar
+                target_ubi.save()
+                
+        if target_ubi:
+            return redirect('activos:mobile_ubicaciones_child', parent_id=target_ubi.id)
+            
+    ubicaciones = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
+    return render(request, 'activos/mobile_admin_ubicacion_asignar.html', {
+        'qr': qr_code,
+        'ubicaciones': ubicaciones
+    })
+
+# =========================================================
+# GENERADOR Y WYSIWYG PARA ETIQUETAS QR (LOTES)
+# =========================================================
+@user_passes_test(lambda u: u.is_superuser)
+def qr_designer_view(request, plantilla_id):
+    from django.shortcuts import get_object_or_404
+    from .models import PlantillaEtiquetaQR
+    from django.contrib import admin
+    
+    plantilla = get_object_or_404(PlantillaEtiquetaQR, id=plantilla_id)
+    
+    context = {
+        **admin.site.each_context(request),
+        'title': f'Diseñador Visual: {plantilla.nombre}',
+        'plantilla': plantilla
+    }
+    return render(request, 'activos/qr_designer.html', context)
+
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+@user_passes_test(lambda u: u.is_superuser)
+def qr_designer_save(request, plantilla_id):
+    import json
+    from django.shortcuts import get_object_or_404
+    from django.http import JsonResponse
+    from .models import PlantillaEtiquetaQR
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Solo POST'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        plantilla = get_object_or_404(PlantillaEtiquetaQR, id=plantilla_id)
+        
+        plantilla.ancho_cm = data.get('ancho_cm', plantilla.ancho_cm)
+        plantilla.alto_cm = data.get('alto_cm', plantilla.alto_cm)
+        plantilla.header_text = data.get('header_text', '')
+        plantilla.footer_mode = data.get('footer_mode', 'secuencial')
+        plantilla.font_size = data.get('font_size', 10)
+        plantilla.qr_scale = data.get('qr_scale', 80)
+        plantilla.border_thickness = data.get('border_thickness', 1)
+        plantilla.margin_top = data.get('margin_top', 0)
+        plantilla.compiled_html = data.get('compiled_html', '')
+        
+        plantilla.save()
+        return JsonResponse({'status': 'ok'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
+
+@user_passes_test(lambda u: u.is_superuser)
+def qr_generator_dashboard(request):
+    from django.contrib import admin
+    from .models import PlantillaEtiquetaQR
+    
+    plantillas = PlantillaEtiquetaQR.objects.filter(activo=True)
+    
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Impresión Masiva de Códigos QR',
+        'plantillas': plantillas
+    }
+    return render(request, 'activos/qr_generator_dashboard.html', context)
+
+@user_passes_test(lambda u: u.is_superuser)
+def qr_generator_pdf(request):
+    import base64
+    import io
+    import json
+    import qrcode
+    from django.http import HttpResponse
+    from xhtml2pdf import pisa
+    from .models import PlantillaEtiquetaQR
+    
+    if request.method != 'POST':
+        return HttpResponse('Method not allowed', status=405)
+        
+    try:
+        lotes_str = request.POST.get('lotes_json', '[]')
+        try:
+            lotes = json.loads(lotes_str)
+        except Exception:
+            lotes = []
+        
+        if not lotes:
+            return HttpResponse('No hay lotes en la cola de impresión.', status=400)
+            
+        renderized_blocks = []
+        first_plantilla = None
+        
+        for lote in lotes:
+            plantilla_id = lote.get('plantilla_id')
+            prefix = lote.get('prefix', '')
+            digits = int(lote.get('digits', 5))
+            start_num = int(lote.get('start', 1))
+            qty = int(lote.get('qty', 10))
+            
+            try:
+                plantilla = PlantillaEtiquetaQR.objects.get(id=plantilla_id)
+                if not first_plantilla:
+                    first_plantilla = plantilla
+            except PlantillaEtiquetaQR.DoesNotExist:
+                continue
+                
+            base_html = plantilla.compiled_html or ''
+            
+            for i in range(start_num, start_num + qty):
+                formatted_num = str(i).zfill(digits)
+                codigo = f"{prefix}{formatted_num}"
+                
+                qr = qrcode.QRCode(version=1, box_size=10, border=0)
+                qr.add_data(codigo)
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white")
+                
+                buffer = io.BytesIO()
+                img.save(buffer, format='PNG')
+                qr_b64 = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode('utf-8')
+                
+                block = base_html.replace("{{ l.qr_code }}", qr_b64)
+                block = block.replace("{{ l.secuencial }}", codigo)
+                
+                renderized_blocks.append(block)
+        
+        if not renderized_blocks:
+            return HttpResponse('Ningún bloque generado válido.', status=400)
+        
+        page_w = first_plantilla.ancho_cm if first_plantilla else 5
+        page_h = first_plantilla.alto_cm if first_plantilla else 5
+        final_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                .label-page {{
+                    page-break-after: always;
+                    overflow: hidden;
+                    margin: 0;
+                    padding: 0;
+                    border: none;
+                }}
+                @page {{
+                    size: {page_w}cm {page_h}cm;
+                    margin: 0cm;
+                }}
+                body {{
+                    font-family: Arial, sans-serif;
+                }}
+            </style>
+        </head>
+        <body style="margin: 0; padding: 0;">
+            <div class="label-page">
+                {'</div><div class="label-page">'.join(renderized_blocks)}
+            </div>
+        </body>
+        </html>
+        """
+        
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename="lote_qr.pdf"'
+        
+        pisa_status = pisa.CreatePDF(final_html, dest=response)
+        if pisa_status.err:
+            return HttpResponse('Error generando PDF', status=500)
+            
+        return response
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HttpResponse(f'Error Processing Lotes: {str(e)}', status=500)

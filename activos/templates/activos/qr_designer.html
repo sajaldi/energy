@@ -1,0 +1,341 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    :root {
+        --sap-font: "72", "Inter", sans-serif;
+        --border-color: #e2e8f0;
+    }
+
+    .designer-container {
+        display: flex;
+        gap: 30px;
+        padding: 20px;
+        font-family: var(--sap-font);
+        background: #f8fafc;
+        min-height: calc(100vh - 100px);
+    }
+
+    .panel-controls {
+        flex: 1;
+        max-width: 450px;
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid var(--border-color);
+    }
+
+    .panel-preview {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .fiori-form-group {
+        margin-bottom: 15px;
+    }
+    .fiori-form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #334155;
+        font-size: 0.9rem;
+    }
+    .fiori-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    /* Regla en pantalla: escala para que "cm" se vea realista en el monitor */
+    .ruler-container {
+        background: repeating-linear-gradient(90deg, #ccc 0px, #ccc 1px, transparent 1px, transparent 37.795px);
+    }
+
+    .live-paper {
+        background: white;
+        border: 1px dashed #94a3b8;
+        padding: 40px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* ESTRICTO PARA PDF (Lo que se compilará) */
+    .print-safe-table {
+        border-collapse: collapse;
+        text-align: center;
+        background-color: white;
+    }
+
+    .btn-save {
+        width: 100%;
+        padding: 12px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 700;
+        cursor: pointer;
+        margin-top: 20px;
+    }
+    .btn-save:hover { background: #2563eb; }
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}
+
+{% block content %}
+<div class="designer-container">
+    <div class="panel-controls">
+        <h2 style="margin-top:0; color:#1e293b;">🖌️ Parámetros de Diseño</h2>
+        <p style="color:#64748b; font-size:0.85rem; margin-bottom: 20px;">
+            Ajusta los controles y el código HTML "Print-Safe" se construirá automáticamente para garantizar compatibilidad con el motor PDF.
+        </p>
+
+        <form id="designer-form">
+            <input type="hidden" id="pid" value="{{ plantilla.id }}">
+            <div style="display: flex; gap: 10px;">
+                <div class="fiori-form-group" style="flex:1;">
+                    <label>Ancho (cm)</label>
+                    <input type="number" id="inp-ancho" class="fiori-input" value="{{ plantilla.ancho_cm }}" step="0.1" min="1" max="25">
+                </div>
+                <div class="fiori-form-group" style="flex:1;">
+                    <label>Alto (cm)</label>
+                    <input type="number" id="inp-alto" class="fiori-input" value="{{ plantilla.alto_cm }}" step="0.1" min="1" max="25">
+                </div>
+            </div>
+
+            <div class="fiori-form-group">
+                <label>Texto Superior (Header)</label>
+                <input type="text" id="inp-header" class="fiori-input" value="{{ plantilla.header_text|default:'' }}" placeholder="Ej. ACTIVO FIJO">
+            </div>
+
+            <div class="fiori-form-group">
+                <label>Modo de Pie (Footer)</label>
+                <select id="inp-footer" class="fiori-input">
+                    <option value="secuencial" {% if plantilla.footer_mode == 'secuencial' %}selected{% endif %}>Texto Secuencial Automático</option>
+                    <option value="vacio" {% if plantilla.footer_mode == 'vacio' %}selected{% endif %}>En Blanco (Solo QR)</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <div class="fiori-form-group" style="flex:1;">
+                    <label>Tamaño Fuente (pt)</label>
+                    <input type="number" id="inp-font" class="fiori-input" value="{{ plantilla.font_size }}" min="5" max="36">
+                </div>
+                <div class="fiori-form-group" style="flex:1;">
+                    <label>Zoom Código QR (%)</label>
+                    <input type="number" id="inp-qr" class="fiori-input" value="{{ plantilla.qr_scale }}" min="10" max="100">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <div class="fiori-form-group" style="flex:1;">
+                    <label>Margen Superior (cm)</label>
+                    <input type="number" id="inp-margen" class="fiori-input" value="{{ plantilla.margin_top }}" step="0.1" min="0" max="10">
+                </div>
+                <div class="fiori-form-group" style="flex:1;">
+                    <label>Grosor del Borde Externo (px)</label>
+                    <input type="number" id="inp-border" class="fiori-input" value="{{ plantilla.border_thickness }}" min="0" max="10">
+                </div>
+            </div>
+
+            <button type="button" id="btn-save" class="btn-save">
+                💾 Guardar Molde Definitivo
+            </button>
+        </form>
+    </div>
+
+    <div class="panel-preview">
+        <h3 style="color:#64748b; margin-top:0;">Previsualización Dinámica (Escala en monitor)</h3>
+        
+        <div class="live-paper" id="paper">
+            <!-- El contenido compilado se inyectará aquí -->
+            <div id="render-target"></div>
+        </div>
+
+        <div style="margin-top:40px; background:#1e293b; color:#a5b4fc; padding: 15px; border-radius:8px; width:100%; max-width:600px; font-family:monospace; font-size:0.75rem; overflow-x:auto;">
+            <strong>HTML Print-Safe Autogenerado (Solo Lectura):</strong>
+            <pre id="code-output" style="margin:10px 0 0 0;"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const iAncho = document.getElementById('inp-ancho');
+        const iAlto = document.getElementById('inp-alto');
+        const iHeader = document.getElementById('inp-header');
+        const iFooter = document.getElementById('inp-footer');
+        const iFont = document.getElementById('inp-font');
+        const iQr = document.getElementById('inp-qr');
+        const iBorder = document.getElementById('inp-border');
+        
+        const target = document.getElementById('render-target');
+        const codeOutput = document.getElementById('code-output');
+
+        // Para simular CMs en la pantalla: 1 cm ≈ 37.8px
+        const CM_TO_PX = 37.8;
+
+        function buildHTML() {
+            const w = parseFloat(iAncho.value) || 5;
+            const h = parseFloat(iAlto.value) || 5;
+            const header = iHeader.value.trim();
+            const footerMode = iFooter.value;
+            const font = parseInt(iFont.value) || 10;
+            const qrZoom = parseInt(iQr.value) || 80;
+            const border = parseInt(iBorder.value) || 0;
+            const marginTop = parseFloat(document.getElementById('inp-margen').value) || 0;
+
+            const wPx = w * CM_TO_PX;
+            const hPx = h * CM_TO_PX;
+
+            // HTML Estricto para xhtml2pdf (Table basada)
+            
+            let hasHeader = header !== "";
+            let hasFooter = footerMode === "secuencial";
+            
+            // Construimos llaves esquivando al motor de plantillas de Django
+            const tagQR = "{% templatetag openvariable %} l.qr_code {% templatetag closevariable %}";
+            const tagSec = "{% templatetag openvariable %} l.secuencial {% templatetag closevariable %}";
+            
+            // Calcula alturas precisas para evadir recortes en xhtml2pdf
+            // 1 pt ≈ 0.035 cm. Añadimos algo de holgura.
+            let headerCm = hasHeader ? (font * 0.035) + 0.15 : 0;
+            let footerCm = hasFooter ? (font * 0.035) + 0.15 : 0;
+            
+            // Usar dimensiones menores al @page para la caja principal
+            let boxW = (w - 0.1).toFixed(2);
+            let boxH = (h - 0.1).toFixed(2);
+
+            // Altura central restante real
+            let contentH = boxH - headerCm - footerCm - marginTop - (border * 2 * 0.035);
+            if (contentH < 0.5) contentH = 0.5;
+            
+            // Calcular tamaño CUADRADO exacto del QR para que xhtml2pdf no lo deforme
+            let qrMaxCm = Math.min(boxW, contentH) * (qrZoom / 100);
+            
+            // Generación basada en Divs apilados estriictos
+            let htmlFormato = `
+<div class="print-safe-table" style="width: ${boxW}cm; height: ${boxH}cm; border: ${border}px solid black; margin: 0 auto; text-align: center; overflow: hidden; background: white;">`;
+
+            if (marginTop > 0) {
+                htmlFormato += `
+    <div style="height: ${marginTop.toFixed(2)}cm; margin: 0; padding: 0; overflow: hidden;"></div>`;
+            }
+
+            if (hasHeader) {
+                htmlFormato += `
+    <div style="font-size: ${font}pt; font-family: Arial, sans-serif; font-weight: bold; color: black; height: ${headerCm.toFixed(2)}cm; line-height: ${headerCm.toFixed(2)}cm; margin: 0; padding: 0; overflow: hidden;">
+        ${header}
+    </div>`;
+            }
+
+            // Central QR
+            htmlFormato += `
+    <div style="height: ${contentH.toFixed(2)}cm; margin: 0; padding: 0; text-align: center;">
+        <img src="${tagQR}" style="width: ${qrMaxCm.toFixed(2)}cm; height: ${qrMaxCm.toFixed(2)}cm; margin-top: ${((contentH - qrMaxCm) / 2).toFixed(2)}cm;" />
+    </div>`;
+
+            if (hasFooter) {
+                htmlFormato += `
+    <div style="font-size: ${font}pt; font-family: 'Courier New', Courier, monospace; font-weight: bold; color: black; height: ${footerCm.toFixed(2)}cm; line-height: ${footerCm.toFixed(2)}cm; margin: 0; padding: 0; overflow: hidden;">
+        ${tagSec}
+    </div>`;
+            }
+
+            htmlFormato += `
+</div>`;
+
+            return {
+                html: htmlFormato.trim(),
+                wPx: wPx,
+                hPx: hPx,
+                tagQR: tagQR,
+                tagSec: tagSec
+            };
+        }
+
+        function reRender() {
+            const builder = buildHTML();
+            
+            // 1. Mostrar en vivo
+            let previewHtml = builder.html
+                .replace(builder.tagQR, "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='white'/%3E%3Cpath d='M10,10 h30 v30 h-30 z M60,10 h30 v30 h-30 z M10,60 h30 v30 h-30 z M45,45 h10 v10 h-10 z' fill='black'/%3E%3C/svg%3E")
+                .replace(builder.tagSec, "ABC00123");
+            
+            // Inyectamos como pixels equivalentes para que el navegador dimensione igual
+            previewHtml = previewHtml.replace(/width:\s*([\d\.]+)cm/g, (match, p1) => `width: ${parseFloat(p1)*CM_TO_PX}px`);
+            previewHtml = previewHtml.replace(/height:\s*([\d\.]+)cm/g, (match, p1) => `height: ${parseFloat(p1)*CM_TO_PX}px`);
+            
+            target.innerHTML = previewHtml;
+
+            // 2. Mostrar código
+            codeOutput.innerText = builder.html;
+        }
+
+        const inputs = [iAncho, iAlto, iHeader, iFooter, iFont, iQr, iBorder, document.getElementById('inp-margen')];
+        inputs.forEach(i => i.addEventListener('input', reRender));
+        inputs.forEach(i => i.addEventListener('change', reRender));
+
+        // Primera carga
+        reRender();
+
+        // Enviar a servidor
+        document.getElementById('btn-save').addEventListener('click', function() {
+            const builder = buildHTML();
+            const pid = document.getElementById('pid').value;
+            
+            const payload = {
+                ancho_cm: iAncho.value,
+                alto_cm: iAlto.value,
+                header_text: iHeader.value,
+                footer_mode: iFooter.value,
+                font_size: iFont.value,
+                qr_scale: iQr.value,
+                border_thickness: iBorder.value,
+                margin_top: document.getElementById('inp-margen').value || 0,
+                compiled_html: builder.html
+            };
+
+            const btn = this;
+            btn.disabled = true;
+            btn.innerText = "⏳ Guardando...";
+
+            fetch(`/activos/etiquetas/designer/save/${pid}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    Swal.fire('¡Éxito!', 'Molde compilado y actualizado correctamente en la base de datos.', 'success');
+                } else {
+                    Swal.fire('Error', data.message || 'Error desconocido', 'error');
+                }
+            })
+            .catch(e => {
+                Swal.fire('Error de Conexión', String(e), 'error');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerText = "💾 Guardar Molde Definitivo";
+            });
+        });
+    });
+</script>
+{% endblock %}

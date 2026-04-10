@@ -1,0 +1,229 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Escanear Ubicación | Admin DCC</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--sap-shell-bg);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .back-btn {
+            color: white;
+            font-size: 24px;
+            margin-right: 12px;
+            text-decoration: none;
+            display: flex;
+        }
+
+        .shell-title {
+            font-size: 16px;
+            font-weight: 600;
+            flex-grow: 1;
+        }
+
+        #reader-container {
+            flex-grow: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 5;
+        }
+
+        .scan-overlay h3 {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            color: var(--sap-brand-color);
+        }
+
+        .scan-overlay p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--sap-text-muted);
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        #toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="javascript:history.back()" class="back-btn">
+            <ion-icon name="chevron-back-outline"></ion-icon>
+        </a>
+        <div class="shell-title">Vincular Ubicación Fisicamente</div>
+    </header>
+
+    <div id="reader-container">
+        <div class="scan-overlay">
+            <h3>Buscar etiqueta inteligente</h3>
+            <p>Escanea el código QR de Ubicación (Ej. UBC00001)</p>
+        </div>
+        <div id="reader"></div>
+        <button id="flash-toggle" style="position: absolute; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; z-index: 10;">
+            <ion-icon name="flashlight-outline"></ion-icon>
+        </button>
+    </div>
+
+    <!-- Manual input for testing or when camera fails -->
+    <div style="padding: 16px; background: white; text-align: center;">
+        <p style="margin-top: 0; font-size: 13px; color: var(--sap-text-muted);">¿Problemas con la cámara?</p>
+        <div style="display: flex; gap: 8px;">
+            <input type="text" id="manualCodigo" placeholder="Ej. UBC0001" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; text-transform: uppercase;">
+            <button id="btnManual" style="background: var(--sap-brand-color); color: white; border: none; border-radius: 4px; padding: 0 16px; font-weight: 600;">Buscar</button>
+        </div>
+    </div>
+
+    <div id="toast">Verificando...</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const html5QrCode = new Html5Qrcode("reader");
+            let isProcessing = false;
+            
+            function showToast(msg, bg = "rgba(0,0,0,0.8)") {
+                const toast = document.getElementById('toast');
+                toast.textContent = msg;
+                toast.style.background = bg;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+
+            const qrCodeSuccessCallback = async (decodedText, decodedResult) => {
+                if (isProcessing) return;
+                
+                if (!decodedText.toUpperCase().startsWith('UBC')) {
+                    isProcessing = true;
+                    showToast('Código no válido. Debe comenzar con UBC.', '#e52929');
+                    // Pausa breve antes de permitir otro scaneo
+                    setTimeout(() => { isProcessing = false; }, 2000);
+                    return;
+                }
+
+                isProcessing = true;
+                showToast("Procesando código: " + decodedText, "var(--sap-brand-color)");
+                
+                try {
+                    const response = await fetch(`/activos/api/admin/scanner/handler/?qr=${encodeURIComponent(decodedText)}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        if (data.found) {
+                            showToast("Esta ubicación ya está registrada", "#107e3e");
+                        } else {
+                            showToast("Ubicación nueva detectada. Redirigiendo...", "#e9730c");
+                        }
+                        
+                        setTimeout(() => {
+                            window.location.href = data.url;
+                        }, 1000);
+                    } else {
+                        showToast(data.message || 'Error desconocido.', '#e52929');
+                        setTimeout(() => { isProcessing = false; }, 2000);
+                    }
+                } catch(e) {
+                    showToast('Error de conexión', '#e52929');
+                    setTimeout(() => { isProcessing = false; }, 2000);
+                }
+            };
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+            .catch(err => {
+                console.log("Error iniciando la cámara: " + err);
+            });
+            
+            document.getElementById('btnManual').addEventListener('click', function() {
+                const val = document.getElementById('manualCodigo').value.trim().toUpperCase();
+                if (val) {
+                    qrCodeSuccessCallback(val, null);
+                }
+            });
+            
+            // Lógica para parar el scanner al salir
+            window.addEventListener("beforeunload", function (e) {
+                if (html5QrCode.isScanning) {
+                    html5QrCode.stop();
+                }
+            });
+
+            // Lógica de Linterna
+            let isFlashOn = false;
+            document.getElementById('flash-toggle').addEventListener('click', () => {
+                try {
+                    const track = html5QrCode.getRunningTrack();
+                    if (track && track.getCapabilities().torch) {
+                        isFlashOn = !isFlashOn;
+                        track.applyConstraints({
+                            advanced: [{ torch: isFlashOn }]
+                        });
+                        document.getElementById('flash-toggle').style.color = isFlashOn ? '#ffc107' : 'white';
+                        document.getElementById('flash-toggle').style.background = isFlashOn ? 'rgba(255,193,7,0.2)' : 'rgba(255,255,255,0.2)';
+                    } else {
+                        showToast("Flash no disponible en tu celular", "#e52929");
+                    }
+                } catch (e) {
+                    showToast("No se pudo activar el flash", "#e52929");
+                }
+            });
+        });
+    </script>
+</body>
+</html>

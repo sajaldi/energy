@@ -1,0 +1,350 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Asignar Ubicación | Admin DCC</title>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 90px;
+        }
+
+        header {
+            background-color: var(--sap-shell-bg);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            color: white;
+            font-size: 24px;
+            margin-right: 12px;
+            text-decoration: none;
+            display: flex;
+        }
+
+        .shell-title {
+            font-size: 16px;
+            font-weight: 600;
+            flex-grow: 1;
+        }
+
+        .container {
+            padding: 16px;
+        }
+
+        .fiori-card {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            box-shadow: var(--sap-card-shadow);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--sap-border-color);
+            background: #f8f9fa;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 15px;
+            color: var(--sap-brand-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-content {
+            padding: 16px;
+        }
+
+        .fiori-form-group {
+            margin-bottom: 16px;
+        }
+
+        .fiori-form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--sap-label);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .fiori-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #bcbcbc;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--sap-text);
+            background: #ffffff;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .fiori-input:focus {
+            outline: none;
+            border-color: var(--sap-brand-color);
+            box-shadow: 0 0 0 1px var(--sap-brand-color);
+        }
+
+        /* Select2 Theme adjustments */
+        .select2-container .select2-selection--single {
+            height: 40px;
+            border: 1px solid #bcbcbc;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: var(--sap-text);
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 38px;
+        }
+
+        .alert-info {
+            background-color: #e8f0f8;
+            border-left: 4px solid var(--sap-brand-color);
+            padding: 12px;
+            font-size: 13px;
+            color: #0a6ed1;
+            margin-bottom: 16px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .fiori-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: var(--sap-brand-color);
+            color: white;
+            text-align: center;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .create-btn {
+            background: none;
+            border: 1px dashed var(--sap-brand-color);
+            color: var(--sap-brand-color);
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 4px;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 8px;
+            display: none;
+        }
+
+        #new-area-container {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            background: #fbfbfb;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="javascript:history.back()" class="back-btn">
+            <ion-icon name="chevron-back-outline"></ion-icon>
+        </a>
+        <div class="shell-title">Asignar Código Fisico</div>
+    </header>
+
+    <div class="container">
+        <div class="alert-info">
+            <ion-icon name="information-circle-outline" style="font-size: 18px; vertical-align: middle;"></ion-icon>
+            El código <strong>{{ qr }}</strong> no está vinculado. Asígnalo a una ubicación existente o crea una nueva área.
+        </div>
+
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="qr" value="{{ qr }}">
+            <input type="hidden" name="final_parent_id" id="final_parent_id" value="">
+
+            <div class="fiori-card">
+                <div class="card-header">
+                    <h2><ion-icon name="location-outline"></ion-icon> Selección de Ruta</h2>
+                </div>
+                <div class="card-content">
+                    
+                    <div id="dynamic-selectors-container">
+                        <div class="fiori-form-group loc-selector-group" data-level="0">
+                            <label>Edificio / Instalación Principal</label>
+                            <select class="fiori-loc-select" id="loc_level_0" name="loc_level_0" required>
+                                <option value="">-- Seleccionar --</option>
+                                {% for ubi in ubicaciones %}
+                                <option value="{{ ubi.id }}">{{ ubi.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="create-btn-container" style="display: none;">
+                        <button type="button" class="create-btn" id="btn-create-area">
+                            <ion-icon name="add-circle-outline"></ion-icon> Crear sub-área debajo del último seleccionado
+                        </button>
+                    </div>
+
+                    <div id="new-area-container">
+                        <div class="fiori-form-group" style="margin-bottom: 0;">
+                            <label style="color: var(--sap-brand-color);">Nombre del Nuevo Espacio/Área</label>
+                            <input type="text" name="nueva_area" class="fiori-input" placeholder="Ej. Cuarto de Bombas">
+                            <div style="font-size: 11px; color: #888; margin-top: 4px;">Se creará automáticamente debajo de la ruta seleccionada arriba.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="fiori-btn" id="submit-btn" disabled>
+                Vincular Código {{ qr }}
+            </button>
+        </form>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Inicializar el select0
+            $('#loc_level_0').select2({ width: '100%' });
+
+            // Event Delegation para TODOS los selectores dinámicos y fijos
+            $('#dynamic-selectors-container').on('change', '.fiori-loc-select', async function(e) {
+                const $select = $(this);
+                const selectedId = $select.val();
+                
+                // Obtener el nivel de forma segura
+                const $group = $select.closest('.loc-selector-group');
+                const groupLevel = parseInt($group.attr('data-level'), 10);
+                
+                if (isNaN(groupLevel)) return;
+
+                // 1. Borrar CUALQUIER grupo que tenga un nivel > al grupo actual
+                $('.loc-selector-group').each(function() {
+                    const l = parseInt($(this).attr('data-level'), 10);
+                    if (!isNaN(l) && l > groupLevel) {
+                        // Importante: destrozar select2 antes de remover del DOM para evitar fugas/bugs visuales
+                        const $childSelect = $(this).find('select');
+                        if ($childSelect.hasClass("select2-hidden-accessible")) {
+                            $childSelect.select2('destroy');
+                        }
+                        $(this).remove();
+                    }
+                });
+
+                // 2. Ocultar y limpiar el cajón de nueva área
+                $('input[name="nueva_area"]').val('');
+                $('#new-area-container').hide();
+
+                // 3. Chequear el Submit Status
+                updateFinalParent();
+
+                // 4. Si se deseleccionó (se puso vacío), ocultar botón y abortar
+                if (!selectedId) {
+                    $('#create-btn-container').hide();
+                    return;
+                }
+
+                // 5. Mostrar loading state en el select actual (opcional, visual)
+                $('#create-btn-container').hide();
+
+                // 6. Cargar los hijos del nivel seleccionado
+                try {
+                    const res = await fetch(`/inventarios/api/niveles/?edificio_id=${selectedId}`);
+                    const data = await res.json();
+                    
+                    if (data.results && data.results.length > 0) {
+                        const nextLevel = groupLevel + 1;
+                        let newGroupHtml = `
+                            <div class="fiori-form-group loc-selector-group" data-level="${nextLevel}" style="margin-top: 16px;">
+                                <label>Nivel / Sub-Área (Opcional)</label>
+                                <select class="fiori-loc-select" id="loc_level_${nextLevel}" name="loc_level_${nextLevel}">
+                                    <option value="">-- Seleccionar Sub-Nivel --</option>
+                        `;
+                        data.results.forEach(n => {
+                            newGroupHtml += `<option value="${n.id}">${n.nombre}</option>`;
+                        });
+                        newGroupHtml += `</select></div>`;
+                        
+                        // Añadir al DOM
+                        $('#dynamic-selectors-container').append(newGroupHtml);
+                        
+                        // Inicializar Select2 en el RECIEN añadido
+                        $(`#loc_level_${nextLevel}`).select2({ width: '100%' });
+                        
+                        // Mostrar el botón opcional de cliquear "crear" ya que la ruta puede seguir
+                        $('#create-btn-container').show();
+                        $('#new-area-container').hide();
+                    } else {
+                        // NO tiene hijos. Es el fondo del árbol. 
+                        // Auto-mostramos la caja de crear en lugar del botón
+                        $('#create-btn-container').hide();
+                        $('#new-area-container').slideDown();
+                        $('input[name="nueva_area"]').focus();
+                    }
+                    
+                } catch (e) {
+                    console.error("Error al cargar ubicaciones", e);
+                }
+            });
+
+            function updateFinalParent() {
+                let deepestId = '';
+                // `.get()` obtiene el array del DOM natural (orden DOM)
+                // lo invertimos para buscar desde el último
+                const selects = $('.fiori-loc-select').get().reverse();
+                
+                for (let sel of selects) {
+                    const val = $(sel).val();
+                    if (val) {
+                        deepestId = val;
+                        break;
+                    }
+                }
+                
+                $('#final_parent_id').val(deepestId);
+                
+                const nueva = $('input[name="nueva_area"]').val().trim();
+                if (deepestId || nueva) {
+                    $('#submit-btn').prop('disabled', false).css('opacity', '1');
+                } else {
+                    $('#submit-btn').prop('disabled', true).css('opacity', '0.5');
+                }
+            }
+
+            $('#btn-create-area').off('click').on('click', function() {
+                $('#new-area-container').slideToggle();
+                $('input[name="nueva_area"]').focus();
+            });
+            
+            $('input[name="nueva_area"]').off('input').on('input', updateFinalParent);
+        });
+    </script>
+</body>
+</html>
