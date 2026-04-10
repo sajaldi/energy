@@ -232,8 +232,13 @@
 
         const config = {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+                let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                let qrboxSize = Math.floor(minEdgeSize * 0.7);
+                return { width: qrboxSize, height: qrboxSize };
+            },
+            // Desactivar restricciones de aspect ratio ayudan en Safari
+            aspectRatio: undefined 
         };
 
         const onScanSuccess = (decodedText, decodedResult) => {
@@ -296,14 +301,21 @@
         };
 
         // Iniciar con la cámara trasera por defecto
-        html5QrCode.start(
-            { facingMode: "environment" },
-            config,
-            onScanSuccess
-        ).catch(err => {
-            console.error(err);
-            showToast("No se pudo acceder a la cámara o permisos denegados.");
-        });
+        // Usamos una pequeña pausa para asegurar que el DOM esté listo para Safari
+        setTimeout(() => {
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                onScanSuccess
+            ).catch(err => {
+                console.error("Camera error:", err);
+                if (err.includes("Permission") || err.includes("NotAllowedError")) {
+                    showToast("Error: Permiso denegado. Revisa la configuración de Safari.");
+                } else {
+                    showToast("Error al abrir cámara. Intenta recargar la página.");
+                }
+            });
+        }, 300);
 
         // Toggle Linterna
         document.getElementById('flash-toggle').addEventListener('click', async () => {
