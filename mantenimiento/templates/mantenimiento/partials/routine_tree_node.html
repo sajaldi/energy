@@ -4,26 +4,24 @@
         onclick="toggleNode(this)">
         <span class="tree-icon">
             {% if node.subcategorias or node.rutinas %}
-            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2">
+            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #6a6d70;">
                 <path d="M9 18l6-6-6-6" />
             </svg>
             {% else %}
             <span style="display: inline-block; width: 16px;"></span>
             {% endif %}
-            <svg class="folder-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2">
+            <svg class="folder-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #326391;">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
         </span>
-        <span class="cat-name">{{ node.categoria.nombre }}</span>
+        <span class="cat-name" style="font-size: 0.95rem; font-weight: 500; color: #32363a;">{{ node.categoria.nombre }}</span>
         <span class="cat-count">
             {% with total_r=node.rutinas|length %}
             {% if total_r > 0 %}({{ total_r }}){% endif %}
             {% endwith %}
         </span>
         <div class="action-btns" style="margin-left: auto; opacity: 0; transition: opacity 0.2s;">
-            <button class="btn-action" onclick="event.stopPropagation(); openTipoModal({{ node.categoria.id }}, {% if node.categoria.padre_id %}{{ node.categoria.padre_id }}{% else %}null{% endif %})" title="Editar Categoría">
+            <button class="btn-action" onclick="event.stopPropagation(); openTipoModal({{ node.categoria.id }}, {% if node.categoria.padre_id %}{{ node.categoria.padre_id }}{% else %}null{% endif %})" title="Editar Categoría" style="color: var(--sap-primary);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -61,21 +59,17 @@
                     </svg>
                 </span>
                 <div class="routine-info">
-                    <span class="routine-code">[{{ rutina.codigo_rutina|default:"SC" }}]</span>
-                    <span class="routine-name" style="cursor: pointer;">{{ rutina.nombre }}</span>
+                    <span class="routine-code" style="color: var(--sap-info);">[{{ rutina.codigo_rutina|default:"SC" }}]</span>
+                    <span class="routine-name" style="color: #32363a;">{{ rutina.nombre }}</span>
                     <div class="routine-badges">
                         {% if rutina.frecuencia %}
-                        <span class="badge badge-frec">{{ rutina.frecuencia.nombre }}</span>
+                        <span class="badge" style="background: #e7f0f7; color: #0a6ed1;">{{ rutina.frecuencia.nombre }}</span>
                         {% endif %}
                         {% if rutina.tiempo_estimado %}
-                        <span class="badge badge-time">⏱️ {{ rutina.tiempo_estimado }}</span>
+                        <span class="badge" style="background: #fff8e6; color: #8d6e11;">⏱️ {{ rutina.tiempo_estimado }}</span>
                         {% endif %}
                         {% if rutina.es_invasiva %}
-                        <span class="badge" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca;" title="Rutina Invasiva (Horario no operativo)">⚠️ Invasiva</span>
-                        {% endif %}
-                        {% if rutina.pasos.all %}
-                        <span class="badge" style="background:#f0fdf4; color:#166534; border:1px solid #bbf7d0;">📖 Con
-                            Pasos</span>
+                        <span class="badge" style="background:#fff2f2; color:#bb0000; border:1px solid #ffcccc;" title="Rutina Invasiva (Horario no operativo)">⚠️ Invasiva</span>
                         {% endif %}
                     </div>
                 </div>

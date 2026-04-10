@@ -876,9 +876,22 @@ def api_activo_detalle(request, activo_id):
 def mobile_activo_detalle(request, pk):
     """
     Vista detallada de un Activo optimizada para móviles.
+    Permite a superusuarios subir una foto real directamente.
     """
+    from django.contrib import messages
     activo = get_object_or_404(Activo.objects.select_related('modelo__marca', 'ubicacion', 'responsable'), pk=pk)
     
+    # Procesar subida de foto solo para superusuarios
+    if request.method == 'POST' and request.user.is_superuser and 'foto' in request.FILES:
+        try:
+            foto = request.FILES['foto']
+            activo.foto = foto
+            activo.save(update_fields=['foto'])
+            messages.success(request, "Foto del activo actualizada correctamente.")
+        except Exception as e:
+            messages.error(request, f"Error al subir la foto: {str(e)}")
+        return redirect('activos:mobile_activo_detalle', pk=pk)
+
     # Obtener OTs relacionadas recientes
     ots_recientes = activo.ordenes_trabajo.all().order_by('-inicio_programado')[:5]
     
@@ -886,8 +899,13 @@ def mobile_activo_detalle(request, pk):
     from mantenimiento.models import Aviso
     avisos_recientes = Aviso.objects.filter(activo=activo).order_by('-creado_en')[:5]
     
-    # Obtener puntos de medición
-    puntos = activo.puntos_medicion.all().prefetch_related('lecturas')
+    # Obtener puntos de medición con técnicos pre-cargados
+    from django.db.models import Prefetch
+    from .models.medicion import DocumentoMedicion
+    
+    puntos = activo.puntos_medicion.all().prefetch_related(
+        Prefetch('lecturas', queryset=DocumentoMedicion.objects.select_related('tecnico'))
+    )
     
     context = {
         'activo': activo,
@@ -1086,3 +1104,75 @@ def plano_documento_proxy(request, plano_id):
         return response
     except Exception as e:
         raise Http404(f"Error al acceder al archivo: {str(e)}")
+@staff_member_required
+def activo_fiori_view(request, pk):
+    """Vista de detalle de activo estilo SAP Fiori con gráficas y rutinas"""
+    from mantenimiento.models import OrdenTrabajo, Aviso, Rutina, Programacion
+    from auditorias.models import ResultadoAuditoria
+    import json
+    
+    activo = get_object_or_404(
+        Activo.objects.select_related(
+            'modelo__marca', 'modelo__categoria', 'ubicacion', 'responsable', 'familia', 'plano'
+        ), 
+        pk=pk
+    )
+    
+    # OTs relacionadas
+    ots = OrdenTrabajo.objects.filter(activos=activo).select_related('rutina', 'tecnico').order_by('-inicio_programado')
+    
+    # Avisos/Tickets
+    avisos = Aviso.objects.filter(activo=activo).order_by('-creado_en')
+    
+    # Auditorías
+    auditorias = ResultadoAuditoria.objects.filter(activo=activo).select_related('auditoria').order_by('-fecha_escaneo')
+    
+    # Puntos de medición + Datos para gráficas
+    puntos_raw = activo.puntos_medicion.all()
+    puntos_data = []
+    
+    for p in puntos_raw:
+        # Últimas 50 lecturas para el gráfico detallado (ordenadas cronológicamente)
+        # Optimizamos trayendo técnico para la tabla
+        lecturas_qs = p.lecturas.select_related('tecnico').order_by('fecha_lectura')
+        all_lecturas = list(lecturas_qs)
+        recent_lecturas = all_lecturas[-50:]
+        
+        puntos_data.append({
+            'obj': p,
+            'chart_labels': [l.fecha_lectura.strftime('%d/%m/%Y %H:%M') for l in recent_lecturas],
+            'chart_data': [l.valor for l in recent_lecturas],
+            'is_cumulative': p.es_acumulativo,
+            'history': [{
+                'date': l.fecha_lectura.strftime('%d/%m/%Y %H:%M'),
+                'val': l.valor,
+                'tech': l.tecnico.get_full_name() if l.tecnico else "---",
+                'obs': l.observaciones or ""
+            } for l in reversed(recent_lecturas)]
+        })
+    
+    # Rutinas Aplicables
+    # 1. Rutinas en las que el activo está explícitamente programado
+    programaciones = Programacion.objects.filter(activos=activo).select_related('rutina__frecuencia', 'rutina__tipo')
+    rutinas_ids = [prog.rutina_id for prog in programaciones]
+    
+    # 2. Rutinas sugeridas por el tipo/categoría del activo
+    rutinas_sugeridas = []
+    if activo.modelo and activo.modelo.categoria:
+        # Buscar rutinas cuyo tipo esté vinculado a la categoría de este activo
+        rutinas_sugeridas = Rutina.objects.filter(
+            tipo__categoria_activo=activo.modelo.categoria
+        ).exclude(id__in=rutinas_ids).select_related('frecuencia', 'tipo')
+
+    context = {
+        'activo': activo,
+        'ots': ots,
+        'avisos': avisos,
+        'auditorias': auditorias,
+        'puntos_data': puntos_data,
+        'programaciones': programaciones,
+        'rutinas_sugeridas': rutinas_sugeridas,
+        'title': f"{activo.nombre} - SAP Fiori",
+    }
+    
+    return render(request, 'activos/activo_fiori.html', context)

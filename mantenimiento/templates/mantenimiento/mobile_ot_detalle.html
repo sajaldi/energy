@@ -11,6 +11,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     {% include 'core/fiori_tokens.html' %}
 
     <style>
@@ -149,6 +153,27 @@
 
         .fiori-input:focus, .fiori-select:focus {
             outline: none;
+            border-color: var(--sap-brand-color);
+            box-shadow: 0 0 0 1px var(--sap-brand-color);
+        }
+
+        /* Select2 Fiori Theme adjustments */
+        .select2-container .select2-selection--single {
+            height: 40px;
+            border: 1px solid #bcbcbc;
+            border-radius: 4px;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: var(--sap-text);
+            line-height: normal;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 38px;
+        }
+        .select2-container--open .select2-selection--single {
             border-color: var(--sap-brand-color);
             box-shadow: 0 0 0 1px var(--sap-brand-color);
         }
@@ -424,7 +449,18 @@
                         {% if ot.ubicacion %}
                             {{ ot.ubicacion.get_ruta_completa }}
                         {% else %}
-                            Sin ubicación asignada
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <select id="ubicacion_principal" name="ubicacion" form="assignmentForm" class="fiori-select" style="border: 1px dashed var(--sap-brand-color); color: var(--sap-brand-color); background: rgba(10, 110, 209, 0.04);">
+                                    <option value="">-- Edificio / Principal --</option>
+                                    {% for ubi in ubicaciones %}
+                                    <option value="{{ ubi.id }}">{{ ubi.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+
+                                <select id="ubicacion_hijo" name="ubicacion_hijo" class="fiori-select" style="border: 1px dashed #666; color: #333; background: #fafafa; display: none;">
+                                    <option value="">-- Nivel / Área (Opcional) --</option>
+                                </select>
+                            </div>
                         {% endif %}
                     </div>
                 </div>
@@ -611,6 +647,74 @@
     </style>
 
     <script>
+        $(document).ready(function() {
+            // Inicializar Select2 en los combos de ubicación principal y superior si son parte
+            $('#ubicacion_principal').select2({
+                placeholder: "-- Edificio / Principal --",
+                width: '100%'
+            }).on('change', function(e) {
+                cascadeLocation(this);
+                updateOT();
+            });
+
+            $('#ubicacion_hijo').select2({
+                placeholder: "-- Nivel / Área (Opcional) --",
+                width: '100%'
+            }).on('change', function(e) {
+                submitChildLocation(this);
+            });
+        });
+
+        async function cascadeLocation(selectElem) {
+            const edificioId = selectElem.value;
+            const $hijoDoc = document.getElementById('ubicacion_hijo');
+            const $hijoJQ = $('#ubicacion_hijo');
+            
+            if (!edificioId) {
+                $hijoJQ.next('.select2-container').hide();
+                $hijoJQ.html('<option value="">-- Nivel / Área (Opcional) --</option>');
+                selectElem.name = "ubicacion";
+                $hijoDoc.name = "";
+                return;
+            }
+
+            selectElem.name = "ubicacion";
+            $hijoDoc.name = "";
+
+            try {
+                const response = await fetch(`/inventarios/api/niveles/?edificio_id=${edificioId}`);
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    let opts = '<option value="">-- Nivel / Área (Opcional) --</option>';
+                    data.results.forEach(n => {
+                        opts += `<option value="${n.id}">${n.nombre}</option>`;
+                    });
+                    $hijoJQ.html(opts);
+                    $hijoJQ.next('.select2-container').show();
+                } else {
+                    $hijoJQ.next('.select2-container').hide();
+                    $hijoJQ.html('<option value="">-- Nivel / Área (Opcional) --</option>');
+                }
+            } catch(e) {
+                console.error("Error cargando sub-ubicaciones", e);
+            }
+        }
+
+        async function submitChildLocation(selectElem) {
+            const childId = selectElem.value;
+            const $padre = document.getElementById('ubicacion_principal');
+            
+            if (childId) {
+                selectElem.name = "ubicacion";
+                $padre.name = ""; 
+            } else {
+                selectElem.name = "";
+                $padre.name = "ubicacion"; 
+            }
+            updateOT();
+        }
+
         // Polling para el PDF si la OT está REALIZADA y no se ha cargado el PDF aún
         document.addEventListener('DOMContentLoaded', () => {
             if ("{{ ot.estado }}" === "REALIZADA" && !window.pdfReady) {
@@ -672,7 +776,7 @@
                 } catch (e) {
                     console.error("Polling error:", e);
                 }
-            }, 3000);
+            }, 2000);
         }
 
         async function updateOT() {

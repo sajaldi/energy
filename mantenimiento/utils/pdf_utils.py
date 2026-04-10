@@ -7,8 +7,33 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
 from playwright.sync_api import sync_playwright
+from PIL import Image
+import io
 
 logger = logging.getLogger(__name__)
+
+def _optimize_image(img_data, max_width=800, quality=75):
+    """
+    Resizes and compresses images to speed up PDF generation.
+    """
+    try:
+        img = Image.open(io.BytesIO(img_data))
+        
+        # Convert to RGB if necessary (Alpha channel can be problematic in some PDF engines)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+            
+        # Resize if too large
+        if img.width > max_width:
+            new_height = int(img.height * (max_width / img.width))
+            img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+            
+        output = io.BytesIO()
+        img.save(output, format="JPEG", quality=quality, optimize=True)
+        return output.getvalue()
+    except Exception as e:
+        logger.warning(f"Error optimizing image: {e}")
+        return img_data # Fallback to original
 
 def generate_ot_pdf_bytes(ot, request=None):
     """
@@ -64,7 +89,9 @@ def generate_ot_pdf_bytes(ot, request=None):
             img_data = archivo.archivo.read()
             ext = os.path.splitext(archivo.archivo.name)[1].lower().replace('.', '')
             mime = {'jpg': 'jpeg', 'jpeg': 'jpeg', 'png': 'png', 'gif': 'gif', 'webp': 'webp'}.get(ext, 'jpeg')
-            b64 = base64.b64encode(img_data).decode('utf-8')
+            # Optimize image for PDF (reduce size)
+            optimized_data = _optimize_image(img_data)
+            b64 = base64.b64encode(optimized_data).decode('utf-8')
             
             nombre = archivo.nombre or 'Evidencia Fotográfica'
             descripcion = ''
@@ -98,11 +125,25 @@ def generate_ot_pdf_bytes(ot, request=None):
 
     html_content = render_to_string('mantenimiento/rutina_pdf.html', context, request=request)
 
+    # Use more optimized browser flags
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
+        browser = p.chromium.launch(
+            headless=True, 
+            args=[
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--single-process'
+            ]
+        )
         page = browser.new_page()
-        page.set_content(html_content, wait_until='load') # Changed from networkidle to load for speed
-        pdf_bytes = page.pdf(format="A4", print_background=True, margin={'top': '0', 'bottom': '0', 'left': '0', 'right': '0'})
+        page.set_content(html_content, wait_until='load')
+        pdf_bytes = page.pdf(
+            format="A4", 
+            print_background=True, 
+            margin={'top': '0', 'bottom': '0', 'left': '0', 'right': '0'}
+        )
         browser.close()
     
     return pdf_bytes

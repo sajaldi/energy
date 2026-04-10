@@ -17,6 +17,9 @@ class SolicitudMaterial(models.Model):
     orden_trabajo = models.ForeignKey('mantenimiento.OrdenTrabajo', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_material')
     ubicacion_origen = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='solicitudes_salida')
     
+    edificio_destino = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_edificio', verbose_name="Edificio Destino")
+    nivel_destino = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='solicitudes_nivel', verbose_name="Nivel Destino")
+    
     comentarios_solicitud = models.TextField(blank=True, null=True)
     comentarios_almacen = models.TextField(blank=True, null=True)
     

@@ -246,6 +246,8 @@ def cart_checkout(request):
         ubicacion_id = data.get('ubicacion_origen')
         ot_id = data.get('orden_trabajo')
         comentarios = data.get('comentarios', '')
+        edificio_id = data.get('edificio_destino')
+        nivel_id = data.get('nivel_destino')
         
         items_to_process = []
         
@@ -291,6 +293,8 @@ def cart_checkout(request):
         try:
             ubicacion = get_object_or_404(Ubicacion, id=ubicacion_id)
             ot = OrdenTrabajo.objects.filter(id=ot_id).first() if ot_id else None
+            edificio = Ubicacion.objects.filter(id=edificio_id).first() if edificio_id else None
+            nivel = Ubicacion.objects.filter(id=nivel_id).first() if nivel_id else None
             
             with transaction.atomic():
                 # Crear la cabecera de la orden
@@ -298,6 +302,8 @@ def cart_checkout(request):
                     usuario=request.user,
                     orden_trabajo=ot,
                     ubicacion_origen=ubicacion,
+                    edificio_destino=edificio,
+                    nivel_destino=nivel,
                     comentarios_solicitud=comentarios
                 )
 
@@ -580,6 +586,105 @@ def mobile_detalle_pedido(request, pk):
         'pedido': pedido,
         'items': items
     })
+
+@login_required
+# Vista movil para crear solicitudes
+def mobile_crear_solicitud(request):
+    """Interfaz móvil para crear solicitudes de material."""
+    from activos.models import Ubicacion
+    from .models import CategoriaMaterial
+    from mantenimiento.models import OrdenTrabajo
+    from django.db.models import Q
+    
+    ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
+    categorias = CategoriaMaterial.objects.all().order_by('nombre')
+    edificios = Ubicacion.objects.filter(tipo='EDIFICIO').order_by('nombre')
+    
+    # Contexto para el selector de OTs en móviles (pueden ser las 10 más recientes)
+    ordenes_recientes = OrdenTrabajo.objects.filter(
+        estado__in=['PROGRAMADA', 'EJECUCION']
+    ).order_by('-id')[:10]
+
+    return render(request, 'inventarios/mobile_crear_solicitud.html', {
+        'ubicaciones': ubicaciones,
+        'categorias': categorias,
+        'edificios': edificios,
+        'ordenes_recientes': ordenes_recientes,
+        'title': 'Nueva Solicitud'
+    })
+
+@login_required
+def api_niveles_por_edificio(request):
+    """Devuelve los niveles/pisos hijos de un edificio."""
+    from activos.models import Ubicacion
+    from django.http import JsonResponse
+
+    edificio_id = request.GET.get('edificio_id')
+    if not edificio_id:
+        return JsonResponse({'results': []})
+
+    niveles = Ubicacion.objects.filter(padre_id=edificio_id).order_by('orden', 'nombre')
+    results = [{'id': n.id, 'nombre': n.nombre, 'tipo': n.tipo} for n in niveles]
+    return JsonResponse({'results': results})
+
+@login_required
+def api_search_ordenes_trabajo(request):
+    """API para buscar Órdenes de Trabajo activas."""
+    from mantenimiento.models import OrdenTrabajo
+    from django.http import JsonResponse
+    from django.db.models import Q
+
+    q = request.GET.get('q', '').strip()
+    ots = OrdenTrabajo.objects.filter(
+        estado__in=['ESPERA', 'PROGRAMADA', 'EJECUCION']
+    ).select_related('rutina', 'aviso', 'ubicacion').order_by('-id')
+
+    if q:
+        ots = ots.filter(
+            Q(codigo_de_orden__icontains=q) |
+            Q(descripcion_corta__icontains=q) |
+            Q(rutina__nombre__icontains=q) |
+            Q(aviso__descripcion__icontains=q) |
+            Q(ubicacion__nombre__icontains=q)
+        )
+
+    ots = ots[:20]
+
+    results = []
+    # Usar prefetch o select_related no alcanza fácil para jerarquía profunda, 
+    # pero resolvemos con queries cacheados o subiendo.
+    for ot in ots:
+        nombre = ot.rutina.nombre if ot.rutina else (
+            ot.aviso.descripcion[:50] if ot.aviso else (ot.descripcion_corta or 'OT Correctiva')
+        )
+        ubicacion_nombre = ot.ubicacion.nombre if ot.ubicacion else 'S/U'
+        
+        edificio_id = None
+        nivel_id = None
+        
+        if ot.ubicacion:
+            curr = ot.ubicacion
+            visited = set()
+            while curr and curr.id not in visited:
+                visited.add(curr.id)
+                if curr.tipo == 'NIVEL' and not nivel_id:
+                    nivel_id = curr.id
+                elif curr.tipo == 'EDIFICIO' and not edificio_id:
+                    edificio_id = curr.id
+                curr = curr.padre
+
+        results.append({
+            'id': ot.id,
+            'codigo': ot.codigo_de_orden or f'OT-{ot.id}',
+            'nombre': nombre,
+            'ubicacion': ubicacion_nombre,
+            'edificio_id': edificio_id,
+            'nivel_id': nivel_id,
+            'estado': ot.get_estado_display(),
+            'tipo': ot.get_tipo_display(),
+        })
+
+    return JsonResponse({'results': results})
 
 @staff_member_required
 def import_materiales_background(request):

@@ -1,0 +1,872 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Nueva Solicitud - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        :root {
+            --sap-shell-bg: #354a5f;
+            --sap-accent: #0064d1;
+            --sap-bg: #f5f6f7;
+            --sap-card-bg: #ffffff;
+            --sap-border: #d9d9d9;
+            --sap-text: #32363a;
+            --sap-text-sub: #6a6d70;
+            --sap-success: #107e3e;
+            --sap-error: #bb0000;
+            --sap-border-radius: 2px;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--sap-bg);
+            color: var(--sap-text);
+            margin: 0;
+            padding-bottom: 100px;
+            min-height: 100vh;
+        }
+
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .back-btn {
+            font-size: 24px;
+            color: white;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            flex: 1;
+        }
+
+        .container {
+            padding: 16px;
+        }
+
+        .fiori-card {
+            background: white;
+            border-radius: var(--sap-border-radius);
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--sap-border);
+            box-shadow: var(--card-shadow);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--sap-text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--sap-text-sub);
+            margin-bottom: 4px;
+        }
+
+        .form-control {
+            width: 100%;
+            height: 44px;
+            padding: 0 12px;
+            border: 1px solid var(--sap-border);
+            border-radius: var(--sap-border-radius);
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--sap-text);
+            background: #fff;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--sap-accent);
+            box-shadow: 0 0 0 2px rgba(0, 100, 209, 0.1);
+        }
+
+        textarea.form-control {
+            height: auto;
+            padding: 12px;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 8px;
+        }
+
+        .scan-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--sap-accent);
+            color: white;
+            border: none;
+            border-radius: var(--sap-border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .item-row {
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .item-row:last-child { border-bottom: none; }
+
+        .item-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .qty-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f8f9fa;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .qty-btn {
+            width: 38px;
+            height: 38px;
+            border: 1px solid var(--sap-border);
+            background: white;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--sap-accent);
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .qty-input {
+            width: 60px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--sap-text);
+        }
+
+        .remove-btn {
+            color: var(--sap-error);
+            font-size: 22px;
+            background: none;
+            border: none;
+            padding: 4px;
+        }
+
+        .sticky-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 16px env(safe-area-inset-bottom);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            height: 54px;
+            border-radius: var(--sap-border-radius);
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: none;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--sap-accent);
+            color: white;
+        }
+
+        /* BOTTOM DRAWER */
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            display: none;
+            align-items: flex-end;
+            transition: opacity 0.3s;
+        }
+        .drawer-overlay.active { display: flex; opacity: 1; }
+
+        .bottom-drawer {
+            background: white;
+            width: 100%;
+            max-height: 85vh;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            padding-bottom: 20px;
+        }
+        .drawer-overlay.active .bottom-drawer { transform: translateY(0); }
+
+        .drawer-header {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .drawer-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
+        .close-drawer { font-size: 24px; color: var(--sap-text-sub); border: none; background: none; }
+
+        .drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .category-scroller {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            margin-bottom: 16px;
+            padding: 4px 0;
+        }
+        .category-scroller::-webkit-scrollbar { display: none; }
+        .chip {
+            padding: 8px 16px;
+            background: #f0f2f4;
+            border-radius: 20px;
+            font-size: 13px;
+            white-space: nowrap;
+            color: var(--sap-text-sub);
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+        .chip.active {
+            background: var(--sap-accent);
+            color: white;
+            font-weight: 600;
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--sap-text-sub);
+        }
+
+        .skeleton {
+            background: #f0f2f4;
+            height: 60px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        /* Scanner */
+        #scanner-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 3000;
+            display: none;
+            flex-direction: column;
+            padding: 20px;
+        }
+        #qr-reader { width: 100%; margin-top: 40px; border: 2px solid var(--sap-accent); border-radius: 8px; overflow: hidden; }
+        .close-scanner { position: absolute; top: 20px; right: 20px; color: white; font-size: 32px; background: none; border: none; }
+
+    </style>
+</head>
+
+<body>
+
+    <header class="fiori-header">
+        <button onclick="window.history.back()" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+        <h1>{{ title }}</h1>
+    </header>
+
+    <div class="container">
+        
+        <div class="fiori-card">
+            <div class="card-title">
+                <ion-icon name="business-outline"></ion-icon> Origen y Destino
+            </div>
+            
+            <div class="form-group">
+                <label>Almacén de Retiro</label>
+                <select id="ubicacion_origen" class="form-control">
+                    <option value="">-- Selecciona Bodega --</option>
+                    {% for u in ubicaciones %}
+                    <option value="{{ u.id }}">{{ u.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Orden de Trabajo (Opcional)</label>
+                <input type="hidden" id="orden_trabajo" value="">
+                <div style="position:relative;">
+                    <input type="text" id="ot-search" class="form-control" placeholder="Buscar por código, nombre o ubicación..." autocomplete="off">
+                    <div id="ot-selected" style="display:none; margin-top:6px; padding:10px; background:#e8f4fd; border-radius:4px; border:1px solid #b3d7f2; font-size:13px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <strong id="ot-selected-code"></strong>
+                                <span id="ot-selected-name" style="color:#555; margin-left:6px;"></span>
+                            </div>
+                            <button type="button" onclick="clearOT()" style="border:none; background:none; color:var(--sap-error); font-size:18px; cursor:pointer; padding:0 4px;">
+                                <ion-icon name="close-circle"></ion-icon>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="ot-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #d9d9d9; border-top:none; border-radius:0 0 4px 4px; max-height:200px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+                <label>Descripción / Motivo <span id="desc-required" style="color:var(--sap-error); font-weight:700; display:none;">*</span></label>
+                <textarea id="comentarios" class="form-control" rows="2" placeholder="Describa el motivo de la solicitud..."></textarea>
+            </div>
+        </div>
+
+        <div class="fiori-card">
+            <div class="card-title">
+                <ion-icon name="location-outline"></ion-icon> Destino de Uso
+            </div>
+            
+            <div class="form-group">
+                <label>Edificio <span style="color:var(--sap-error); font-weight:700;">*</span></label>
+                <select id="edificio_destino" class="form-control">
+                    <option value="">-- Seleccione Edificio --</option>
+                    {% for ed in edificios %}
+                    <option value="{{ ed.id }}">{{ ed.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+                <label>Nivel / Piso</label>
+                <select id="nivel_destino" class="form-control" disabled>
+                    <option value="">-- Seleccione Edificio primero --</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="fiori-card" onclick="openSelector()">
+            <div class="card-title">
+                <ion-icon name="search-outline"></ion-icon> Agregar Materiales
+            </div>
+            <div class="search-container">
+                <div class="form-control" style="display: flex; align-items: center; color: var(--sap-text-sub);">
+                    Buscar material...
+                </div>
+                <button type="button" class="scan-btn" id="btn-open-scanner" onclick="event.stopPropagation();">
+                    <ion-icon name="barcode-outline"></ion-icon>
+                </button>
+            </div>
+        </div>
+
+        <div class="fiori-card">
+            <div class="card-title">
+                <ion-icon name="cube-outline"></ion-icon> Materiales en Solicitud 
+                (<span id="item-count">0</span>)
+            </div>
+            
+            <div id="items-container">
+                <div id="empty-state">
+                    <ion-icon name="cart-outline" style="font-size: 40px; opacity: 0.2;"></ion-icon>
+                    <p>No hay materiales seleccionados.</p>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <div class="sticky-footer">
+        <button type="button" class="btn btn-primary" id="btn-submit">
+            <ion-icon name="paper-plane-outline"></ion-icon> Enviar Solicitud
+        </button>
+    </div>
+
+    <div id="selectorOverlay" class="drawer-overlay" onclick="closeSelector()">
+        <div class="bottom-drawer" onclick="event.stopPropagation()">
+            <div class="drawer-header">
+                <h3>Selección de Materiales</h3>
+                <button class="close-drawer" onclick="closeSelector()">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="drawer-body">
+                <div class="search-container" style="margin-bottom: 12px;">
+                    <input type="text" id="material-search" class="form-control" placeholder="Nombre, SKU o Escaneo..." autocomplete="off">
+                </div>
+                <div class="category-scroller" id="categoryChips">
+                    <div class="chip active" data-id="">Todo</div>
+                    {% for cat in categorias %}
+                    <div class="chip" data-id="{{ cat.id }}">{{ cat.nombre }}</div>
+                    {% endfor %}
+                </div>
+                <div id="search-results" class="results-list">
+                    <div id="empty-state" style="padding: 20px;">
+                        <ion-icon name="search-outline" style="font-size: 32px; opacity: 0.2;"></ion-icon>
+                        <p>Escriba para buscar...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="scanner-overlay">
+        <button class="close-scanner" id="btn-close-scanner">
+            <ion-icon name="close-circle-outline"></ion-icon>
+        </button>
+        <div id="qr-reader"></div>
+        <div style="color: white; text-align: center; margin-top: 20px; font-weight:600;">
+            Enfoca el código de barras o QR
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Estado global — IDs son strings (GUIDs)
+            window.selectedItems = new Map();
+            let html5QrScanner = null;
+            let currentCategoryId = "";
+            let lastResults = [];
+
+            window.openSelector = function() {
+                $('#selectorOverlay').addClass('active');
+                setTimeout(() => $('#material-search').focus(), 300);
+            };
+
+            window.closeSelector = function() {
+                $('#selectorOverlay').removeClass('active');
+            };
+
+            // === CASCADING: Edificio → Nivel ===
+            $('#edificio_destino').on('change', function() {
+                const edId = $(this).val();
+                const $nivel = $('#nivel_destino');
+                if (!edId) {
+                    $nivel.html('<option value="">-- Seleccione Edificio primero --</option>').prop('disabled', true);
+                    return;
+                }
+                $nivel.html('<option value="">Cargando...</option>').prop('disabled', true);
+                $.get('{% url "inventarios:api_niveles_edificio" %}', { edificio_id: edId }, function(data) {
+                    let opts = '<option value="">-- Seleccione Nivel --</option>';
+                    data.results.forEach(n => {
+                        opts += `<option value="${n.id}">${n.nombre}</option>`;
+                    });
+                    $nivel.html(opts).prop('disabled', false);
+                });
+            });
+
+            // === BUSCADOR DE ÓRDENES DE TRABAJO ===
+            let otDebounce = null;
+
+            $('#ot-search').on('input', function() {
+                const q = $(this).val().trim();
+                clearTimeout(otDebounce);
+                if (q.length < 2) {
+                    $('#ot-results').hide();
+                    return;
+                }
+                otDebounce = setTimeout(function() {
+                    $.get('{% url "inventarios:api_search_ot" %}', { q: q }, function(data) {
+                        if (data.results.length === 0) {
+                            $('#ot-results').html('<div style="padding:12px; text-align:center; color:#999; font-size:13px;">Sin resultados</div>').show();
+                            return;
+                        }
+                        let html = '';
+                        data.results.forEach(ot => {
+                            html += `
+                                <div class="ot-result-item" data-id="${ot.id}" data-codigo="${ot.codigo}" data-nombre="${ot.nombre}" data-edificio="${ot.edificio_id || ''}" data-nivel="${ot.nivel_id || ''}" style="padding:10px 12px; border-bottom:1px solid #f0f0f0; cursor:pointer; font-size:13px;">
+                                    <div style="font-weight:700; color:#0a6ed1;">${ot.codigo}</div>
+                                    <div style="color:#333; margin-top:2px;">${ot.nombre}</div>
+                                    <div style="color:#888; font-size:11px; margin-top:1px;">${ot.ubicacion} · ${ot.tipo} · ${ot.estado}</div>
+                                </div>
+                            `;
+                        });
+                        $('#ot-results').html(html).show();
+                    });
+                }, 300);
+            });
+
+            $('#ot-search').on('focus', function() {
+                if ($(this).val().trim().length >= 2) {
+                    $(this).trigger('input');
+                }
+            });
+
+            $(document).on('click', '.ot-result-item', function() {
+                const id = $(this).data('id');
+                const codigo = $(this).data('codigo');
+                const nombre = $(this).data('nombre');
+                const edificioId = $(this).data('edificio');
+                const nivelId = $(this).data('nivel');
+                
+                $('#orden_trabajo').val(id);
+                $('#ot-search').hide();
+                $('#ot-selected-code').text(codigo);
+                $('#ot-selected-name').text(nombre);
+                $('#ot-selected').show();
+                $('#ot-results').hide();
+                toggleDescRequired();
+                
+                // Autocompletar Edificio y Nivel si vienen de la OT
+                if (edificioId) {
+                    $('#edificio_destino').val(edificioId).trigger('change');
+                    
+                    // Esperar a que carguen los niveles para preseleccionar el nivel de la OT
+                    if (nivelId) {
+                        const checkNiveles = setInterval(() => {
+                            if (!$('#nivel_destino').prop('disabled')) {
+                                $('#nivel_destino').val(nivelId);
+                                clearInterval(checkNiveles);
+                            }
+                        }, 100);
+                        
+                        // Fallback: limpiar intervalo si tarda demasiado (ej: 3 segs)
+                        setTimeout(() => clearInterval(checkNiveles), 3000);
+                    }
+                }
+            });
+
+            window.clearOT = function() {
+                $('#orden_trabajo').val('');
+                $('#ot-search').val('').show();
+                $('#ot-selected').hide();
+                toggleDescRequired();
+            };
+
+            // Cerrar resultados al hacer clic fuera
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('#ot-search, #ot-results').length) {
+                    $('#ot-results').hide();
+                }
+            });
+
+            // Mostrar/ocultar asterisco de obligatoriedad en la descripción
+            function toggleDescRequired() {
+                const hasOT = !!$('#orden_trabajo').val();
+                $('#desc-required').toggle(!hasOT);
+                $('#comentarios').attr('placeholder', hasOT ? 'Notas adicionales (opcional)...' : 'Obligatorio si no hay OT — Describa el motivo...');
+            }
+            toggleDescRequired(); // estado inicial
+
+            // Referencia directa al drawer-body — NO usar $(document) porque
+            // .bottom-drawer tiene onclick="event.stopPropagation()" que bloquea
+            // la propagación al document.
+            const $drawer = $('.drawer-body');
+
+            // Filtro por categoría — bind directo al contenedor del drawer
+            $drawer.on('click', '.chip', function() {
+                $('.chip').removeClass('active');
+                $(this).addClass('active');
+                currentCategoryId = String($(this).attr('data-id') || "");
+                performSearch();
+            });
+
+            $('#material-search').on('input', function() {
+                performSearch();
+            });
+
+            function performSearch() {
+                const q = $('#material-search').val().trim();
+                const ubicacionId = $('#ubicacion_origen').val();
+                
+                if (q.length < 3 && currentCategoryId === "") {
+                    $('#search-results').html('<div style="padding:30px; text-align:center; color:#999;"><ion-icon name="search-outline" style="font-size:32px; opacity:0.3;"></ion-icon><p>Escriba para buscar...</p></div>');
+                    return;
+                }
+
+                $('#search-results').html('<div class="skeleton"></div><div class="skeleton"></div>');
+
+                const stockWarning = !ubicacionId ? ' <small style="color:var(--sap-error)">(Global)</small>' : '';
+
+                $.get('{% url "inventarios:api_list_materials" %}', { 
+                    q: q, 
+                    category: currentCategoryId,
+                    ubicacion: ubicacionId,
+                    page: 1 
+                }, function(data) {
+                    let html = '';
+                    lastResults = data.results || [];
+                    if (lastResults.length > 0) {
+                        lastResults.forEach((m, index) => {
+                            const mid = String(m.id);
+                            const isAdded = window.selectedItems.has(mid);
+                            const allowedStyle = m.is_allowed ? '' : 'opacity:0.5; filter:grayscale(1);';
+                            const disabledAttr = m.is_allowed ? '' : 'data-disabled="true"';
+                            const addedBadge = isAdded ? '<span style="background:#0a6ed1; color:white; font-size:9px; padding:2px 6px; border-radius:2px; margin-left:6px;">✓ Añadido</span>' : '';
+                            const iconName = isAdded ? 'checkmark-circle' : 'add-circle';
+                            const iconColor = isAdded ? '#2b7d2b' : '#0a6ed1';
+                            
+                            const descSnippet = m.descripcion ? `<p style="font-size:11px; margin:2px 0 0; color:#888; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${m.descripcion.substring(0, 60)}${m.descripcion.length > 60 ? '...' : ''}</p>` : '';
+                            
+                            html += `
+                                <div class="material-item" data-index="${index}" style="border:1px solid #e8eaed; border-radius:4px; margin-bottom:8px; display:flex; padding:12px; align-items:center; cursor:pointer; ${allowedStyle}" ${disabledAttr}>
+                                    <img src="${m.image_url}" alt="" style="width:48px; height:48px; border-radius:6px; object-fit:cover; margin-right:12px; flex-shrink:0; background:#f0f4f8;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                    <div style="width:48px; height:48px; background:#f0f4f8; border-radius:6px; display:none; align-items:center; justify-content:center; margin-right:12px; flex-shrink:0;">
+                                        <ion-icon name="cube-outline" style="font-size:22px; color:#8a9bb5;"></ion-icon>
+                                    </div>
+                                    <div style="flex:1; min-width:0;">
+                                        <p style="font-size:14px; margin:0; font-weight:700;">${m.nombre}${addedBadge}</p>
+                                        <p style="font-size:11px; margin:0; color:#666; margin-top:2px;">${m.sku} | Stock: ${m.stock}${stockWarning}</p>
+                                        ${descSnippet}
+                                        ${!m.is_allowed ? '<p style="font-size:10px; color:#bb0000; margin:2px 0 0;">No autorizado para tu depto.</p>' : ''}
+                                    </div>
+                                    <ion-icon name="${iconName}" style="color:${iconColor}; font-size:30px; pointer-events:none; flex-shrink:0;"></ion-icon>
+                                </div>
+                            `;
+                        });
+                        $('#search-results').html(html);
+                    } else {
+                        $('#search-results').html('<div style="padding:30px; text-align:center; color:#999;"><p>Sin resultados.</p></div>');
+                    }
+                }).fail(function() {
+                    $('#search-results').html('<div style="padding:30px; text-align:center; color:#bb0000;"><p>Error al buscar. Intente de nuevo.</p></div>');
+                });
+            }
+
+            // Click en material — bind al drawer, NO al document
+            $drawer.on('click', '.material-item', function(e) {
+                e.preventDefault();
+                if ($(this).attr('data-disabled') === 'true') {
+                    Swal.fire('Restringido', 'No autorizado para tu departamento.', 'error');
+                    return;
+                }
+                const index = parseInt($(this).attr('data-index'));
+                const mat = lastResults[index];
+                if (!mat) return;
+
+                const mid = String(mat.id);
+                if (window.selectedItems.has(mid)) {
+                    Swal.fire({ toast: true, position: 'top', icon: 'info', title: 'Ya agregado', showConfirmButton: false, timer: 600 });
+                    return;
+                }
+
+                // Agregar al mapa
+                window.selectedItems.set(mid, {
+                    id: mid,
+                    nombre: mat.nombre,
+                    sku: mat.sku,
+                    descripcion: mat.descripcion || '',
+                    image_url: mat.image_url || '',
+                    unidad: mat.unidad,
+                    cantidad: 1
+                });
+                renderItems();
+
+                // Feedback visual en el item
+                $(this).find('ion-icon:last-child').attr('name', 'checkmark-circle').css('color', '#2b7d2b');
+
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Agregado', showConfirmButton: false, timer: 800 });
+            });
+
+            function renderItems() {
+                const container = $('#items-container');
+                const countLabel = $('#item-count');
+                if (window.selectedItems.size === 0) {
+                    container.html('<div style="padding:20px; text-align:center; color:#999;"><p>No hay materiales seleccionados.</p></div>');
+                    countLabel.text(0);
+                    return;
+                }
+                let html = '';
+                window.selectedItems.forEach(item => {
+                    const itemDesc = item.descripcion ? `<div style="font-size:11px; color:#888; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.descripcion.substring(0, 50)}${item.descripcion.length > 50 ? '...' : ''}</div>` : '';
+                    html += `
+                        <div class="item-row" data-id="${item.id}">
+                            <div class="item-main">
+                                <img src="${item.image_url}" alt="" style="width:44px; height:44px; border-radius:4px; object-fit:cover; margin-right:10px; flex-shrink:0; background:#f0f4f8;" onerror="this.style.display='none'">
+                                <div style="flex:1; min-width:0;">
+                                    <div style="font-weight:700; font-size:15px;">${item.nombre}</div>
+                                    <div style="font-size:11px; color:#666;">${item.sku} · ${item.unidad}</div>
+                                    ${itemDesc}
+                                </div>
+                                <button class="remove-btn" onclick="removeItem('${item.id}')"><ion-icon name="trash-outline"></ion-icon></button>
+                            </div>
+                            <div class="qty-controls">
+                                <div class="qty-btn" onclick="updateQty('${item.id}', -1)">-</div>
+                                <input type="number" class="qty-input" value="${item.cantidad}" onchange="setQty('${item.id}', this.value)">
+                                <div class="qty-btn" onclick="updateQty('${item.id}', 1)">+</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.html(html);
+                countLabel.text(window.selectedItems.size);
+            }
+
+            window.updateQty = function(id, delta) {
+                const item = window.selectedItems.get(String(id));
+                if (item) {
+                    item.cantidad = Math.max(0.1, Math.round((item.cantidad + delta) * 10) / 10);
+                    renderItems();
+                }
+            };
+            window.setQty = function(id, val) {
+                const item = window.selectedItems.get(String(id));
+                if (item) {
+                    item.cantidad = Math.max(0.1, parseFloat(val));
+                    renderItems();
+                }
+            };
+            window.removeItem = function(id) {
+                window.selectedItems.delete(String(id));
+                renderItems();
+            };
+
+            $('#btn-open-scanner').click(function() {
+                $('#scanner-overlay').css('display', 'flex');
+                if (!html5QrScanner) html5QrScanner = new Html5Qrcode("qr-reader");
+                html5QrScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
+                    (text) => { $('#btn-close-scanner').click(); openSelector(); $('#material-search').val(text).trigger('input'); },
+                    (err) => {}
+                );
+            });
+
+            $('#btn-close-scanner').click(function() {
+                if (html5QrScanner) html5QrScanner.stop().catch(()=>{});
+                $('#scanner-overlay').hide();
+            });
+
+            $('#btn-submit').click(function() {
+                const ubicacionId = $('#ubicacion_origen').val();
+                const otId = $('#orden_trabajo').val();
+                const comentarios = $('#comentarios').val().trim();
+                const edificioId = $('#edificio_destino').val();
+                const nivelId = $('#nivel_destino').val();
+
+                if (!ubicacionId) {
+                    Swal.fire('Bodega requerida', 'Seleccione la bodega de origen.', 'warning');
+                    $('#ubicacion_origen').focus();
+                    return;
+                }
+                if (!edificioId) {
+                    Swal.fire('Destino requerido', 'Seleccione el edificio de destino.', 'warning');
+                    $('#edificio_destino').focus();
+                    return;
+                }
+                if (window.selectedItems.size === 0) {
+                    Swal.fire('Sin materiales', 'Agregue al menos un material.', 'warning');
+                    return;
+                }
+                if (!otId && !comentarios) {
+                    Swal.fire('Descripción requerida', 'Si no hay Orden de Trabajo asociada, debe escribir una descripción del motivo de la solicitud.', 'warning');
+                    $('#comentarios').focus();
+                    return;
+                }
+                
+                Swal.fire({
+                    title: '¿Enviar solicitud?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, enviar'
+                }).then(r => {
+                    if (r.isConfirmed) {
+                        const itemsArr = Array.from(window.selectedItems.values()).map(it => ({ material_id: it.id, cantidad: it.cantidad }));
+                        $.ajax({
+                            url: '{% url "inventarios:cart_checkout" %}',
+                            method: 'POST',
+                            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                            data: {
+                                ubicacion_origen: ubicacionId,
+                                edificio_destino: edificioId,
+                                nivel_destino: nivelId,
+                                orden_trabajo: otId,
+                                comentarios: comentarios,
+                                ajax_mode: 'true',
+                                items_json: JSON.stringify(itemsArr)
+                            },
+                            success: (res) => {
+                                Swal.fire('¡Éxito!', res.message, 'success').then(() => {
+                                    window.location.href = '{% url "inventarios:mobile_lista_pedidos" %}';
+                                });
+                            },
+                            error: (xhr) => {
+                                Swal.fire('Error', 'No se pudo enviar la solicitud.', 'error');
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

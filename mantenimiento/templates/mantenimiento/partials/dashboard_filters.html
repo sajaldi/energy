@@ -1,31 +1,34 @@
-<form class="filter-bar" method="get">
-    <div class="form-group">
-        <label>BÚSQUEDA</label>
-        <input type="text" name="search" class="form-control" placeholder="Nombre o código..." value="{{ search }}">
+<form class="filter-bar" method="get" style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; background: #fafafa;">
+    <div class="form-group" style="min-width: 250px;">
+        <label style="font-size: 0.8rem; font-weight: 500; color: #6a6d70; margin-bottom: 0.25rem; display: block;">Búsqueda</label>
+        <div style="position: relative;">
+            <input type="text" name="search" class="form-control" placeholder="Nombre de rutina o código..." value="{{ search }}" style="padding-right: 35px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">
+                <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </div>
     </div>
-    <div class="form-group">
-        <label>FRECUENCIA</label>
+    <div class="form-group" style="min-width: 180px;">
+        <label style="font-size: 0.8rem; font-weight: 500; color: #6a6d70; margin-bottom: 0.25rem; display: block;">Frecuencia</label>
         <select name="frecuencia" class="form-control">
-            <option value="">Todas</option>
+            <option value="">Todas las frecuencias</option>
             {% for f in frecuencias %}
-            <option value="{{ f.id }}" {% if f.id == frecuencia_selected %}selected{% endif %}>{{ f.nombre }}
-            </option>
+            <option value="{{ f.id }}" {% if f.id == frecuencia_selected %}selected{% endif %}>{{ f.nombre }}</option>
             {% endfor %}
         </select>
     </div>
-    <div class="form-group">
-        <label>PUESTO</label>
+    <div class="form-group" style="min-width: 180px;">
+        <label style="font-size: 0.8rem; font-weight: 500; color: #6a6d70; margin-bottom: 0.25rem; display: block;">Responsable / Puesto</label>
         <select name="puesto" class="form-control">
-            <option value="">Todos</option>
+            <option value="">Todos los puestos</option>
             {% for p in puestos %}
-            <option value="{{ p.id }}" {% if p.id == puesto_selected %}selected{% endif %}>{{ p.nombre }}
-            </option>
+            <option value="{{ p.id }}" {% if p.id == puesto_selected %}selected{% endif %}>{{ p.nombre }}</option>
             {% endfor %}
         </select>
     </div>
-    <div>
-        <button type="submit" class="btn-search">Filtrar</button>
-        <a href="." style="margin-left: 8px; color: var(--text-muted); font-size: 0.8rem;">Limpiar</a>
+    <div style="margin-top: 1.25rem; display: flex; align-items: center; gap: 10px;">
+        <button type="submit" class="btn btn-primary" style="height: 36px; padding: 0 1.5rem;">Filtrar</button>
+        <a href="." style="color: var(--sap-primary); font-size: 0.85rem; font-weight: 500; text-decoration: none;">Limpiar filtros</a>
     </div>
 </form>
 {# FIX SPACES POWER_SHELL #}

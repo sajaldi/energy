@@ -9,15 +9,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #4f46e5;
-            --primary-light: #818cf8;
-            --secondary: #7c3aed;
-            --bg: #f8fafc;
-            --card-rgba: rgba(255, 255, 255, 0.85);
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --accent: #f59e0b;
+            /* SAP Fiori Horizon / Quartz Colors */
+            --sap-shell-color: #354a5f;
+            --sap-background: #f7f7f7;
+            --sap-text-color: #32363a;
+            --sap-text-muted: #6a6d70;
+            --sap-primary: #0070f2;
+            --sap-primary-hover: #0056b3;
+            --sap-border: #d9d9d9;
+            --sap-card-bg: #ffffff;
+            --sap-tile-bg: #ffffff;
+            --sap-accent: #e9730c;
+            --sap-success: #107e3e;
+            --sap-error: #bb0000;
+            --sap-info: #0a6ed1;
+            
+            --primary: var(--sap-primary);
+            --bg: var(--sap-background);
+            --text-main: var(--sap-text-color);
+            --text-muted: var(--sap-text-muted);
+            --border: var(--sap-border);
         }
 
         * {
@@ -27,40 +38,107 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            font-family: '72', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--sap-background);
             min-height: 100vh;
             color: var(--text-main);
-            padding: 2rem;
+            padding: 0;
+            margin: 0;
         }
 
         .container {
-            max-width: 1200px;
+            width: 100%;
+            max-width: 1400px;
             margin: 0 auto;
+            padding: 1.5rem;
         }
 
+        /* SAP Shell Bar Style */
         .dashboard-header {
-            background: var(--card-rgba);
-            backdrop-filter: blur(12px);
-            padding: 2rem;
-            border-radius: 4px;
-            margin-bottom: 2rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: var(--sap-shell-color);
+            color: white;
+            padding: 0.75rem 2rem;
+            margin-bottom: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-right: 15px;
+            border-right: 1px solid #f1f5f9;
+            margin-right: 15px;
+            width: 40px;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .step-row-edit {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1.5rem;
+            position: relative;
+            display: flex;
+            align-items: stretch;
+            transition: all 0.2s;
+        }
+
+        .remove-step {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 24px;
+            height: 24px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 5;
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #eff6ff;
+            border: 2px dashed #0070f2;
+        }
+
+        /* SPIN & OTHERS */
+        .sub-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            margin-bottom: 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .header-title h1 {
-            font-size: 1.75rem;
-            font-weight: 800;
-            color: #0f172a;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin: 0;
         }
 
         .header-title p {
-            color: var(--text-muted);
-            margin-top: 0.25rem;
+            color: #d9d9d9;
+            font-size: 0.85rem;
+            margin-top: 2px;
         }
 
         .stats-grid {
@@ -71,34 +149,39 @@
         }
 
         .stat-box {
-            background: var(--card-rgba);
-            backdrop-filter: blur(8px);
-            padding: 1.25rem;
-            border-radius: 4px;
-            border-left: 4px solid var(--primary);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background: var(--sap-tile-bg);
+            padding: 1rem;
+            border-radius: 0.25rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: default;
+        }
+
+        .stat-box:hover {
+            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
         }
 
         .stat-box small {
-            font-size: 0.75rem;
+            font-size: 0.875rem;
             color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
+            font-weight: 500;
+            text-transform: none;
         }
 
         .stat-box div {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
+            font-size: 1.75rem;
+            font-weight: 300;
+            color: var(--sap-primary);
+            margin-top: 0.5rem;
         }
 
         .explorer-card {
-            background: var(--card-rgba);
-            backdrop-filter: blur(12px);
-            border-radius: 4px;
+            background: #ffffff;
+            border-radius: 0.25rem;
             overflow: hidden;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08);
+            border: 1px solid var(--border);
         }
 
         .filter-bar {
@@ -121,26 +204,60 @@
 
         .form-control {
             width: 100%;
-            padding: 0.6rem 1rem;
+            padding: 0.5rem 0.75rem;
             border: 1px solid var(--border);
-            border-radius: 10px;
-            font-size: 0.9rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
             outline: none;
-            transition: all 0.2s;
+            transition: border-color 0.2s;
+            color: var(--text-main);
         }
 
         .form-control:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            box-shadow: inset 0 0 0 1px var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 1rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--sap-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--sap-primary-hover);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--sap-primary);
+            color: var(--sap-primary);
+        }
+
+        .btn-outline:hover {
+            background-color: #f0f7ff;
         }
 
         .btn-search {
-            padding: 0.6rem 1.5rem;
+            padding: 0.5rem 1.25rem;
             background: var(--primary);
             color: white;
             border: none;
-            border-radius: 4px;
-            font-weight: 600;
+            border-radius: 0.25rem;
+            font-weight: 500;
             cursor: pointer;
         }
 
@@ -162,11 +279,10 @@
         .tree-row {
             display: flex;
             align-items: center;
-            padding: 0.5rem 0.75rem;
-            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eeeeee;
             cursor: pointer;
-            transition: all 0.15s;
-            margin-bottom: 2px;
+            transition: background-color 0.1s;
         }
 
         .cat-row:hover {
@@ -334,42 +450,68 @@
 
 <body>
     <div class="container">
-        <div class="dashboard-header">
-            <div class="header-title">
-                <h1>🌳 Jerarquía de Rutinas</h1>
-                <p>Explorador estructurado de mantenimiento preventivo</p>
+    <div class="dashboard-header">
+        <div class="header-title">
+            <h1>🌳 Gestión de Rutinas de Mantenimiento</h1>
+            <p>Estructura jerárquica de actividades preventivas</p>
+        </div>
+        <div class="header-user" style="display: flex; align-items: center; gap: 15px;">
+            <div style="text-align: right;">
+                <div style="font-weight: 600; font-size: 0.9rem;">{{ request.user.get_full_name|default:request.user.username }}</div>
+                <div style="font-size: 0.75rem; opacity: 0.8;">Administrador de Sistema</div>
             </div>
-            <div class="header-actions">
-                <button class="btn btn-primary" onclick="openTipoModal()" style="background:var(--accent); border-color:var(--accent);">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                        <line x1="12" y1="11" x2="12" y2="17"></line>
-                        <line x1="9" y1="14" x2="15" y2="14"></line>
-                    </svg> Nueva Categoría
-                </button>
-                <button class="btn btn-primary" onclick="showRoutineDetail(null, true)">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg> Nueva Rutina
-                </button>
-                <a href="{% url 'mantenimiento:dashboard' %}" class="btn btn-outline">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 12H5" />
-                        <path d="M12 19l-7-7 7-7" />
-                    </svg> Volver
-                </a>
+            <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                {{ request.user.username.0|upper }}
             </div>
         </div>
+    </div>
 
+    <div class="sub-header">
+        <div class="breadcrumb" style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 0.9rem;">
+            <span>Mantenimiento</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            <span style="color: var(--text-main); font-weight: 500;">Rutinas</span>
+        </div>
+        <div class="header-actions" style="display: flex; gap: 0.75rem;">
+            <button class="btn btn-outline" onclick="openTipoModal()" style="border-color: var(--sap-accent); color: var(--sap-accent);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    <line x1="12" y1="11" x2="12" y2="17"></line>
+                    <line x1="9" y1="14" x2="15" y2="14"></line>
+                </svg> Nueva Categoría
+            </button>
+            <button class="btn btn-primary" onclick="showRoutineDetail(null, true)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg> Nueva Rutina
+            </button>
+            <a href="{% url 'mantenimiento:dashboard' %}" class="btn btn-outline">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5" />
+                    <path d="M12 19l-7-7 7-7" />
+                </svg> Salir
+            </a>
+        </div>
+    </div>
+
+    <div class="container">
         <div class="stats-grid">
             <div class="stat-box">
-                <small>Total Rutinas</small>
+                <small>Total de Rutinas</small>
                 <div>{{ total_rutinas }}</div>
             </div>
-            <div class="stat-box" style="border-left-color: var(--secondary);">
-                <small>Categorías Raíz</small>
+            <div class="stat-box">
+                <small>Categorías Principales</small>
                 <div>{{ tree|length }}</div>
+            </div>
+            <div class="stat-box">
+                <small>Revisiones Pendientes</small>
+                <div>0</div>
+            </div>
+            <div class="stat-box">
+                <small>Estado Sistema</small>
+                <div style="color: var(--sap-success); font-size: 1.25rem; font-weight: 600;">Operativo</div>
             </div>
         </div>
 
@@ -787,7 +929,7 @@
             container.innerHTML = '';
 
             if (!pasos || pasos.length === 0) {
-                container.innerHTML = '<div style="color: #94a3b8; font-style: italic; padding: 20px; text-align: center;">No hay pasos definidos.</div>';
+                container.innerHTML = '<div style="color: #94a3b8; font-style: italic; padding: 40px; text-align: center; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">Aún no se han definido pasos para este procedimiento.</div>';
                 return;
             }
 
@@ -797,43 +939,67 @@
                     row.className = 'step-row-edit';
                     row.dataset.id = p.id || '';
                     row.innerHTML = `
-                        <div class="remove-step" onclick="this.parentElement.remove()">&times;</div>
-                        <div class="form-group step-full">
-                            <label>Descripción del Paso / Título del Grupo</label>
-                            <textarea class="form-control s-desc" rows="2">${p.descripcion}</textarea>
+                        <div class="drag-handle">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle>
+                                <circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle>
+                            </svg>
                         </div>
-                        <div class="form-group">
-                            <label>Tipo de Respuesta</label>
-                            <select class="form-control s-tipo">
-                                <option value="INSTRUCCION" ${p.tipo_respuesta === 'INSTRUCCION' ? 'selected' : ''}>Instrucción</option>
-                                <option value="CHECK" ${p.tipo_respuesta === 'CHECK' ? 'selected' : ''}>Check</option>
-                                <option value="NUMERICO" ${p.tipo_respuesta === 'NUMERICO' ? 'selected' : ''}>Numérico</option>
-                                <option value="TEXTO" ${p.tipo_respuesta === 'TEXTO' ? 'selected' : ''}>Texto</option>
-                                <option value="HEADER" ${p.tipo_respuesta === 'HEADER' ? 'selected' : ''}>ENCABEZADO</option>
-                            </select>
+                        <div class="remove-step" onclick="this.parentElement.remove()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"></path></svg>
                         </div>
-                        <div class="form-group">
-                            <label>Verificación / Referencia</label>
-                            <input type="text" class="form-control s-verif" value="${p.verificacion || ''}" placeholder="Ej: Medir con multímetro">
+                        <div style="flex: 1;">
+                            <div class="form-group step-full" style="margin-bottom: 1.5rem;">
+                                <label class="step-label" style="color: #0070f2; font-size: 0.8rem;">Paso #${index + 1} - Descripción</label>
+                                <textarea class="form-control s-desc" rows="2" style="font-size: 1rem; padding: 12px; border-radius: 8px;">${p.descripcion}</textarea>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div class="form-group">
+                                    <label>Tipo de Entrada</label>
+                                    <select class="form-control s-tipo" style="height: 42px; border-radius: 8px;">
+                                        <option value="INSTRUCCION" ${p.tipo_respuesta === 'INSTRUCCION' ? 'selected' : ''}>ℹ️ Instrucción / Informativo</option>
+                                        <option value="CHECK" ${p.tipo_respuesta === 'CHECK' ? 'selected' : ''}>✅ Checkbox (Sí/No)</option>
+                                        <option value="NUMERICO" ${p.tipo_respuesta === 'NUMERICO' ? 'selected' : ''}>🔢 Valor Numérico</option>
+                                        <option value="TEXTO" ${p.tipo_respuesta === 'TEXTO' ? 'selected' : ''}>📝 Texto Libre</option>
+                                        <option value="HEADER" ${p.tipo_respuesta === 'HEADER' ? 'selected' : ''}>🚩 ENCABEZADO DE GRUPO</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Referencia / Verificación</label>
+                                    <input type="text" class="form-control s-verif" value="${p.verificacion || ''}" placeholder="Ej: Medir 120V" style="height: 42px; border-radius: 8px;">
+                                </div>
+                            </div>
                         </div>
                     `;
                     container.appendChild(row);
                 } else {
-                    const div = document.createElement('div');
                     if (p.tipo_respuesta === 'HEADER') {
-                        div.className = 'step-item-header';
-                        div.innerHTML = `<span>${p.descripcion}</span>`;
+                        const div = document.createElement('div');
+                        div.className = 'step-header-banner';
+                        div.innerHTML = `
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                            <span>${p.descripcion.toUpperCase()}</span>
+                        `;
+                        container.appendChild(div);
                     } else {
+                        const div = document.createElement('div');
                         div.className = 'step-item-static';
                         div.innerHTML = `
-                            <div class="step-number">${index + 1}.</div>
-                            <div class="step-content-view">
-                                <div style="font-weight: 500; color: #1e293b;">${p.descripcion}</div>
-                                ${p.verificacion ? `<div class="step-verif">Ref: ${p.verificacion}</div>` : ''}
+                            <div class="step-number-circle">${index + 1}</div>
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                                    <div style="font-weight: 600; font-size: 1.05rem; color: #32363a; line-height: 1.4;">${p.descripcion}</div>
+                                    <span class="step-type-badge">${p.tipo_respuesta.toLowerCase().replace('_', ' ')}</span>
+                                </div>
+                                ${p.verificacion ? `
+                                <div class="step-verif-box">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                    <span>${p.verificacion}</span>
+                                </div>` : ''}
                             </div>
                         `;
+                        container.appendChild(div);
                     }
-                    container.appendChild(div);
                 }
             });
         }
@@ -843,32 +1009,48 @@
             if (!container) return;
 
             // Quitar mensaje de "No hay pasos" si existe
-            if (container.innerHTML.includes('No hay pasos')) container.innerHTML = '';
+            if (container.innerHTML.includes('No hay pasos') || container.innerHTML.includes('Aún no se han definido')) {
+                container.innerHTML = '';
+            }
 
+            const index = container.querySelectorAll('.step-row-edit').length;
             const row = document.createElement('div');
             row.className = 'step-row-edit';
             row.innerHTML = `
-                <div class="remove-step" onclick="this.parentElement.remove()">&times;</div>
-                <div class="form-group step-full">
-                    <label>Descripción del Paso / Título del Grupo</label>
-                    <textarea class="form-control s-desc" rows="2"></textarea>
+                <div class="drag-handle">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle>
+                        <circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle>
+                    </svg>
                 </div>
-                <div class="form-group">
-                    <label>Tipo de Respuesta</label>
-                    <select class="form-control s-tipo">
-                        <option value="INSTRUCCION">Instrucción</option>
-                        <option value="CHECK">Check</option>
-                        <option value="NUMERICO">Numérico</option>
-                        <option value="TEXTO">Texto</option>
-                        <option value="HEADER">ENCABEZADO</option>
-                    </select>
+                <div class="remove-step" onclick="this.parentElement.remove(); updateStepNumbers();">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"></path></svg>
                 </div>
-                <div class="form-group">
-                    <label>Verificación / Referencia</label>
-                    <input type="text" class="form-control s-verif" placeholder="Ej: Referencia técnica">
+                <div style="flex: 1;">
+                    <div class="form-group step-full" style="margin-bottom: 1.5rem;">
+                        <label class="step-label" style="color: #0070f2; font-size: 0.8rem;">Paso #${index + 1} - Descripción</label>
+                        <textarea class="form-control s-desc" rows="2" style="font-size: 1rem; padding: 12px; border-radius: 8px;" placeholder="Describa la actividad..."></textarea>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Tipo de Entrada</label>
+                            <select class="form-control s-tipo" style="height: 42px; border-radius: 8px;">
+                                <option value="INSTRUCCION">ℹ️ Instrucción / Informativo</option>
+                                <option value="CHECK">✅ Checkbox (Sí/No)</option>
+                                <option value="NUMERICO" selected>🔢 Valor Numérico</option>
+                                <option value="TEXTO">📝 Texto Libre</option>
+                                <option value="HEADER">🚩 ENCABEZADO DE GRUPO</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Referencia / Verificación</label>
+                            <input type="text" class="form-control s-verif" placeholder="Ej: Valor esperado" style="height: 42px; border-radius: 8px;">
+                        </div>
+                    </div>
                 </div>
             `;
             container.appendChild(row);
+            updateStepNumbers();
         }
 
         function saveRutinaSteps(isSilent = false) {
@@ -1075,10 +1257,52 @@
                 const onc = btn.getAttribute('onclick');
                 if (onc && onc.includes(tab)) btn.classList.add('active');
             });
+
+            // Al cambiar a pestaña de Pasos, SIEMPRE mostrar vista previa primero
+            if (tab === 'steps') {
+                toggleStepsEdit(false);
+            }
+        }
+
+        function toggleStepsEdit(showEdit) {
+            const viewCont = document.getElementById('steps-view-container');
+            const editCont = document.getElementById('steps-edit-container');
+            if (showEdit) {
+                if (viewCont) viewCont.style.display = 'none';
+                if (editCont) editCont.style.display = 'block';
+                initSortableSteps();
+            } else {
+                if (viewCont) viewCont.style.display = 'block';
+                if (editCont) editCont.style.display = 'none';
+            }
+        }
+
+        function initSortableSteps() {
+            const el = document.getElementById('m-steps-list-edit');
+            if (!el || el.dataset.sortableInit === 'true') return;
+
+            new Sortable(el, {
+                handle: '.drag-handle',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: function() {
+                    updateStepNumbers();
+                }
+            });
+            el.dataset.sortableInit = 'true';
+        }
+
+        function updateStepNumbers() {
+            const labels = document.querySelectorAll('#m-steps-list-edit .step-label');
+            labels.forEach((label, index) => {
+                const text = label.innerText.split(' - ')[1];
+                label.innerText = `Paso #${index + 1} - ${text}`;
+            });
         }
 
 
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </body>
 
 </html>

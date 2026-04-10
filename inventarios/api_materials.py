@@ -45,9 +45,9 @@ def api_list_materials(request):
     if category_id:
         materials = materials.filter(categoria_id=category_id)
 
-    # Si estamos en modo solicitud, solo mostramos lo que tiene stock > 0
-    if ubicacion_id:
-        materials = materials.filter(stock_total__gt=0)
+    # Comentamos el filtro restrictivo de stock para permitir ver catálogo
+    # if ubicacion_id:
+    #     materials = materials.filter(stock_total__gt=0)
         
     paginator = Paginator(materials, 30) # Aumentamos a 30 para mejor grid
     page_obj = paginator.get_page(page_number)
@@ -78,6 +78,7 @@ def api_list_materials(request):
             'id': m.id,
             'nombre': m.nombre,
             'sku': m.sku,
+            'descripcion': m.descripcion or '',
             'unidad': m.unidad_medida.nombre if m.unidad_medida else 'Unidad',
             'precio_estimado': float(m.precio_estimado),
             'stock': float(m.stock_total or 0),

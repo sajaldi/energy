@@ -1,0 +1,769 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --sap-background: #f5f6f7;
+            --sap-shell-bg: #354a5f;
+            --sap-card-bg: #ffffff;
+            --sap-text-main: #32363a;
+            --sap-text-sub: #6a6d70;
+            --sap-accent: #0070f2;
+            --sap-border: #d8dadd;
+            --sap-positive: #107e3e;
+            --sap-critical: #e9730c;
+            --sap-negative: #bb0000;
+            --sap-neutral: #555a5f;
+            --sap-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08);
+            --sap-overlay: rgba(0,0,0,0.4);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--sap-background);
+            color: var(--sap-text-main);
+            overflow-x: hidden;
+            line-height: 1.5;
+        }
+
+        /* SHELL BAR */
+        .shell-bar {
+            background-color: var(--sap-shell-bg);
+            height: 48px;
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .back-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 4px;
+            margin-right: 12px;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.1); }
+
+        /* OBJECT HEADER */
+        .object-header {
+            background: #ffffff;
+            padding: 2rem 5% 1rem 5%;
+            border-bottom: 1px solid var(--sap-border);
+        }
+
+        .header-main { display: flex; justify-content: space-between; align-items: flex-start; }
+
+        .asset-title-group { display: flex; gap: 1.5rem; align-items: center; }
+
+        .asset-icon-box {
+            width: 80px; height: 80px;
+            background: #f0f2f5; border-radius: 2px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--sap-accent); border: 1px solid var(--sap-border);
+        }
+
+        .asset-name { font-size: 1.75rem; font-weight: 700; color: var(--sap-text-main); margin-bottom: 4px; }
+        .asset-code { font-family: 'Inter', monospace; color: var(--sap-text-sub); letter-spacing: 1px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+
+        .status-badge { padding: 4px 12px; border-radius: 2px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+
+        /* KPI SECTION */
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+        .kpi-card { background: white; padding: 1.25rem; border-radius: 2px; border: 1px solid var(--sap-border); text-align: center; }
+        .kpi-label { font-size: 0.75rem; color: var(--sap-text-sub); text-transform: uppercase; margin-bottom: 8px; display: block; }
+        .kpi-value { font-size: 1.25rem; font-weight: 700; color: var(--sap-text-main); }
+
+        /* TABS */
+        .fiori-tabs { display: flex; border-bottom: 1px solid var(--sap-border); background: white; padding: 0 5%; position: sticky; top: 48px; z-index: 900; }
+        .fiori-tab-btn { padding: 1rem 1.5rem; border: none; background: transparent; color: var(--sap-text-sub); font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .fiori-tab-btn:hover { color: var(--sap-accent); }
+        .fiori-tab-btn.active { color: var(--sap-accent); border-bottom-color: var(--sap-accent); }
+
+        /* CONTENT */
+        .page-content { padding: 2rem 5%; min-height: 500px; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadeIn 0.3s; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* GENERAL TAB LAYOUT */
+        .general-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            align-items: flex-start;
+        }
+
+        .asset-photo-frame {
+            background: white;
+            padding: 1rem;
+            border-radius: 2px;
+            border: 1px solid var(--sap-border);
+            box-shadow: var(--sap-shadow);
+            position: sticky;
+            top: 110px;
+        }
+
+        .asset-photo-frame img {
+            width: 100%;
+            border-radius: 2px;
+            display: block;
+            object-fit: contain;
+            max-height: 500px;
+        }
+
+        .no-photo-placeholder {
+            height: 300px;
+            background: #f8f9fa;
+            border: 2px dashed var(--sap-border);
+            border-radius: 2px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        /* CARDS & TABLES */
+        .section-card { background: white; border-radius: 2px; border: 1px solid var(--sap-border); box-shadow: var(--sap-shadow); overflow: hidden; margin-bottom: 1.5rem; }
+        .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid #f0f0f0; background: #fafafa; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .card-body { padding: 1.5rem; }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr; /* Una columna dentro de la columna derecha de general */
+            gap: 1.5rem;
+        }
+        
+        @media (min-width: 1200px) {
+            .info-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .data-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f8f9fa; }
+        .data-label { color: var(--sap-text-sub); font-size: 0.85rem; }
+        .data-val { font-weight: 600; color: var(--sap-text-main); }
+
+        .fiori-table { width: 100%; border-collapse: collapse; }
+        .fiori-table th { text-align: left; padding: 12px; background: #f8f9fa; color: var(--sap-text-sub); font-size: 0.75rem; text-transform: uppercase; }
+        .fiori-table td { padding: 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+
+        /* MEASUREMENT CARDS */
+        .measurement-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+        .measurement-card { 
+            background: white; border: 1px solid var(--sap-border); border-radius: 2px; padding: 1.5rem; 
+            display: flex; flex-direction: column; border-left: 5px solid var(--sap-accent); 
+            transition: all 0.2s; cursor: pointer;
+        }
+        .measurement-card:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); border-color: var(--sap-accent); }
+
+        .m-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .m-title { font-weight: 700; color: var(--sap-text-main); font-size: 1.1rem; }
+        .m-value-container { display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.5rem; }
+        .m-value { font-size: 2.2rem; font-weight: 800; color: var(--sap-accent); }
+        .m-unit { font-size: 1rem; color: var(--sap-text-sub); font-weight: 600; }
+
+        .sparkline-container { height: 60px; margin: 1rem 0; pointer-events: none; }
+
+        /* MODAL DETAIL */
+        .fiori-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--sap-overlay); z-index: 2000;
+            display: none; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .fiori-overlay.active { display: flex; opacity: 1; }
+
+        .detail-modal {
+            background: white; width: 90%; max-width: 1000px; height: 90vh;
+            border-radius: 4px; overflow: hidden; display: flex; flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); transform: scale(0.95); transition: transform 0.3s;
+        }
+        .fiori-overlay.active .detail-modal { transform: scale(1); }
+
+        .modal-header {
+            padding: 1.5rem 2rem; border-bottom: 1px solid var(--sap-border);
+            display: flex; justify-content: space-between; align-items: center;
+            background: #fafafa;
+        }
+        .modal-body { flex: 1; overflow-y: auto; padding: 2rem; }
+
+        .detail-chart-section { height: 300px; margin-bottom: 2.5rem; }
+
+        /* TOGGLE SWITCH SAP STYLE */
+        .toggle-group {
+            display: flex; background: #ebedf0; padding: 4px; border-radius: 4px; gap: 4px;
+        }
+        .toggle-btn {
+            border: none; background: transparent; padding: 6px 16px; border-radius: 2px;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--sap-text-sub);
+            transition: all 0.2s;
+        }
+        .toggle-btn.active { background: white; color: var(--sap-accent); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        /* HISTORIAL TABLE MODAL */
+        .history-table-container { margin-top: 1rem; }
+
+        /* RUTINAS CARDS */
+        .routine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .routine-card { background: white; border: 1px solid var(--sap-border); border-radius: 2px; padding: 1rem; display: flex; align-items: flex-start; gap: 12px; }
+        .routine-icon { width: 40px; height: 40px; background: #e7f0ff; color: var(--sap-accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .routine-info h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+        .routine-info p { font-size: 0.8rem; color: var(--sap-text-sub); }
+
+        /* RESPONSIVE */
+        @media (max-width: 992px) {
+            .general-layout {
+                grid-template-columns: 1fr;
+            }
+            .asset-photo-frame {
+                position: static;
+                margin-bottom: 1.5rem;
+            }
+            .object-header { padding: 1rem 5%; }
+            .header-main { flex-direction: column; gap: 1rem; }
+            .kpi-row { grid-template-columns: 1fr 1fr; }
+            .measurement-grid { grid-template-columns: 1fr; }
+            .detail-modal { width: 95%; height: 95vh; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="shell-bar">
+        <button class="back-btn" onclick="window.close()">
+            <ion-icon name="chevron-back-outline" style="font-size: 1.4rem;"></ion-icon>
+        </button>
+        <div style="font-weight: 600; font-size: 1rem;">Detalles del Activo</div>
+    </div>
+
+    <!-- OBJECT HEADER (SAME) -->
+    <div class="object-header">
+        <div class="header-main">
+            <div class="asset-title-group">
+                <div class="asset-icon-box">
+                    {% if activo.foto %}
+                        <img src="{{ activo.foto.url }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">
+                    {% elif activo.modelo and activo.modelo.imagen %}
+                        <img src="{{ activo.modelo.imagen }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">
+                    {% else %}
+                        <ion-icon name="cube-outline" style="font-size: 2.5rem;"></ion-icon>
+                    {% endif %}
+                </div>
+                <div>
+                    <h1 class="asset-name">{{ activo.nombre }}</h1>
+                    <div class="asset-code">
+                        <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">{{ activo.codigo_interno }}</span>
+                        {% if activo.serie %}
+                            <span style="color: #94a3b8;">•</span>
+                            <span>S/N: {{ activo.serie }}</span>
+                        {% endif %}
+                    </div>
+                    {% if activo.descripcion %}
+                    <div style="margin-top: 8px; color: var(--sap-text-sub); font-size: 0.9rem; max-width: 600px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        {{ activo.descripcion }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <span class="status-badge" style="background: 
+                    {% if activo.estado == 'OPERATIVO' %}#e7f4e9; color: #107e3e; border: 1px solid #107e3e;
+                    {% elif activo.estado == 'MANTENIMIENTO' %}#fff8e6; color: #e9730c; border: 1px solid #e9730c;
+                    {% else %}#fcebeb; color: #bb0000; border: 1px solid #bb0000;{% endif %}">
+                    {{ activo.get_estado_display }}
+                </span>
+            </div>
+        </div>
+
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <span class="kpi-label">Última Auditoría</span>
+                <span class="kpi-value">{{ auditorias.first.fecha_escaneo|date:"d/m/Y"|default:"---" }}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Rutinas Activas</span>
+                <span class="kpi-value">{{ programaciones.count }}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Avisos Abiertos</span>
+                <span class="kpi-value" style="color: {% if avisos.count > 0 %}var(--sap-negative){% else %}var(--sap-positive){% endif %};">
+                    {{ avisos.count }}
+                </span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Valor Activo</span>
+                <span class="kpi-value">${{ activo.costo|default:"0.00" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABS (SAME) -->
+    <div class="fiori-tabs">
+        <button class="fiori-tab-btn active" onclick="switchTab(event, 'general')">General</button>
+        <button class="fiori-tab-btn" onclick="switchTab(event, 'maintenance')">Mantenimiento</button>
+        <button class="fiori-tab-btn" onclick="switchTab(event, 'measurements')">Puntos de Medición</button>
+        <button class="fiori-tab-btn" onclick="switchTab(event, 'audits')">Auditorías</button>
+    </div>
+
+    <div class="page-content">
+        <!-- GENERAL TAB -->
+        <div id="general" class="tab-panel active">
+            <div class="general-layout">
+                <!-- Columna Izquierda: Foto Real -->
+                <div class="asset-photo-frame">
+                    {% if activo.foto %}
+                        <img src="{{ activo.foto.url }}" alt="Foto Real Activo">
+                    {% else %}
+                        <div class="no-photo-placeholder">
+                            <ion-icon name="camera-outline" style="font-size: 3rem; margin-bottom: 1rem;"></ion-icon>
+                            <span>Sin foto real del activo</span>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Columna Derecha: Info Grid -->
+                <div class="info-grid">
+                    <div class="section-card">
+                        <div class="card-header"><ion-icon name="information-circle-outline"></ion-icon> Información Técnica</div>
+                        <div class="card-body">
+                            <div class="data-row"><span class="data-label">Marca</span><span class="data-val">{{ activo.modelo.marca.nombre|default:activo.marca_legacy|default:"---" }}</span></div>
+                            <div class="data-row"><span class="data-label">Modelo</span><span class="data-val">{{ activo.modelo.nombre|default:activo.modelo_legacy|default:"---" }}</span></div>
+                            <div class="data-row"><span class="data-label">Categoría</span><span class="data-val">{{ activo.modelo.categoria.nombre|default:"---" }}</span></div>
+                            <div class="data-row"><span class="data-label">Familia</span><span class="data-val">{{ activo.familia.nombre|default:"---" }}</span></div>
+                        </div>
+                    </div>
+                    <div class="section-card">
+                        <div class="card-header"><ion-icon name="location-outline"></ion-icon> Ubicación</div>
+                        <div class="card-body">
+                            <div class="data-row"><span class="data-label">Ubicación</span><span class="data-val">{{ activo.ubicacion.ruta_completa|default:"---" }}</span></div>
+                            <div class="data-row"><span class="data-label">Responsable</span><span class="data-val">{% if activo.responsable %}{{ activo.responsable.get_full_name }}{% else %}Sin asignar{% endif %}</span></div>
+                            {% if activo.plano %}
+                            <div class="data-row"><span class="data-label">Plano Ref.</span><span class="data-val">{{ activo.plano.nombre }}</span></div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if activo.descripcion %}
+                    <div class="section-card" style="grid-column: 1 / -1;">
+                        <div class="card-header"><ion-icon name="document-text-outline"></ion-icon> Descripción</div>
+                        <div class="card-body" style="color: var(--sap-text-sub); font-size: 0.9rem;">
+                            {{ activo.descripcion|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- MAINTENANCE TAB (UPDATED SECTION) -->
+        <div id="maintenance" class="tab-panel">
+            <div class="section-card">
+                <div class="card-header"><ion-icon name="calendar-outline"></ion-icon> Rutinas Aplicables</div>
+                <div class="card-body">
+                    <div class="routine-grid">
+                        {% for prog in programaciones %}
+                        <div class="routine-card">
+                            <div class="routine-icon"><ion-icon name="shield-checkmark-outline"></ion-icon></div>
+                            <div class="routine-info">
+                                <h4>{{ prog.rutina.nombre }}</h4>
+                                <span class="tag-frequency">{{ prog.rutina.frecuencia.nombre }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <!-- HISTORIAL OT -->
+            <div class="section-card">
+                <div class="card-header">Historial OT</div>
+                <div class="card-body" style="padding:0;">
+                    <table class="fiori-table">
+                        <thead>
+                            <tr><th>N° OT</th><th>Tipo</th><th>Fecha</th><th>Técnico</th><th>Estado</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for ot in ots %}
+                            <tr>
+                                <td>#{{ ot.id }}</td>
+                                <td>{{ ot.rutina.nombre|default:"Correctiva" }}</td>
+                                <td>{{ ot.inicio_programado|date:"d/m/y" }}</td>
+                                <td>{% if ot.tecnico %}{{ ot.tecnico.username }}{% else %}---{% endif %}</td>
+                                <td>{{ ot.get_estado_display }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MEASUREMENTS TAB (MAIN) -->
+        <div id="measurements" class="tab-panel">
+            <div class="measurement-grid">
+                {% for p in puntos_data %}
+                <div class="measurement-card" onclick="openMeasurementDetail('{{ p.obj.id }}')">
+                    <div class="m-header">
+                        <span class="m-title">{{ p.obj.nombre }}</span>
+                        {% if p.is_cumulative %}<ion-icon name="infinite-outline" style="color: #94a3b8;"></ion-icon>{% endif %}
+                    </div>
+                    <div class="m-value-container">
+                        <span class="m-value">{{ p.obj.valor_actual|default:"0" }}</span>
+                        <span class="m-unit">{{ p.obj.unidad }}</span>
+                    </div>
+                    <div class="sparkline-container">
+                        <canvas id="spark-{{ p.obj.id }}"></canvas>
+                    </div>
+                    <div class="m-footer">
+                        <ion-icon name="analytics-outline"></ion-icon> Ver análisis detallado
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- AUDITS TAB (SAME) -->
+        <div id="audits" class="tab-panel">
+            <div class="section-card">
+                <div class="card-header">Auditorías</div>
+                <div class="card-body" style="padding:0;">
+                    <table class="fiori-table">
+                        <thead><tr><th>Fecha</th><th>Resultado</th></tr></thead>
+                        <tbody>
+                            {% for a in auditorias %}
+                            <tr><td>{{ a.fecha_escaneo|date:"d/m/y H:i" }}</td><td>{{ a.observaciones|default:"OK" }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETAIL OVERLAY -->
+    <div id="detailOverlay" class="fiori-overlay" onclick="closeDetail(event)">
+        <div class="detail-modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalPointName" style="font-size: 1.25rem;">Nombre del Punto</h2>
+                    <span id="modalPointInfo" style="font-size: 0.85rem; color: var(--sap-text-sub);">Unidad: Hrs</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1.5rem;">
+                    <!-- Grouping Controls -->
+                    <div class="toggle-group">
+                        <button id="groupRaw" class="toggle-btn active" onclick="setGrouping('raw')">Detalle</button>
+                        <button id="groupWeek" class="toggle-btn" onclick="setGrouping('week')">Semanal</button>
+                        <button id="groupMonth" class="toggle-btn" onclick="setGrouping('month')">Mensual</button>
+                        <button id="groupYear" class="toggle-btn" onclick="setGrouping('year')">Anual</button>
+                    </div>
+
+                    <!-- Consumption Toggle -->
+                    <div id="toggleConsumptionSection" class="toggle-group" style="display: none;">
+                        <button id="btnAbsolute" class="toggle-btn active" onclick="toggleAnalysis('absolute')">Total</button>
+                        <button id="btnDelta" class="toggle-btn" onclick="toggleAnalysis('delta')">Consumo</button>
+                    </div>
+                    <button class="back-btn" onclick="closeDetailForce()" style="color: var(--sap-text-main);">
+                        <ion-icon name="close-outline" style="font-size: 1.8rem;"></ion-icon>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="detail-chart-section">
+                    <canvas id="detailMainChart"></canvas>
+                </div>
+
+                <div class="section-card">
+                    <div class="card-header" id="tableHeaderName">Documentos de Medición Históricos</div>
+                    <div class="card-body" style="padding:0;">
+                        <table class="fiori-table">
+                            <thead>
+                                <tr id="tableHeadRow">
+                                    <th>Fecha / Periodo</th>
+                                    <th>Valor</th>
+                                    <th class="col-delta" style="display: none;">Consumo (Δ)</th>
+                                    <th>Detalles / Técnico</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Registry
+        const POINTS_DATA = {
+            {% for p in puntos_data %}
+            "{{ p.obj.id }}": {
+                name: "{{ p.obj.nombre }}",
+                unit: "{{ p.obj.unidad }}",
+                isCumulative: {{ p.is_cumulative|lower }},
+                labels: {{ p.chart_labels|safe }},
+                values: {{ p.chart_data|safe }},
+                history: {{ p.history|safe }}
+            },
+            {% endfor %}
+        };
+
+        let activeChart = null;
+        let currentPointId = null;
+        let currentMode = 'absolute'; // 'absolute' o 'delta'
+        let currentGroup = 'raw';    // 'raw', 'week', 'month', 'year'
+
+        function switchTab(evt, tabName) {
+            const panels = document.getElementsByClassName("tab-panel");
+            for (let i = 0; i < panels.length; i++) panels[i].classList.remove("active");
+            const tabs = document.getElementsByClassName("fiori-tab-btn");
+            for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove("active");
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+            if(tabName === 'measurements') window.dispatchEvent(new Event('resize'));
+        }
+
+        function openMeasurementDetail(id) {
+            const data = POINTS_DATA[id];
+            if(!data) return;
+            currentPointId = id;
+            currentMode = 'absolute';
+            currentGroup = 'raw';
+
+            document.getElementById('modalPointName').innerText = data.name;
+            document.getElementById('modalPointInfo').innerText = `Unidad: ${data.unit} | Historial de 50 registros`;
+            
+            // UI Resists
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('groupRaw').classList.add('active');
+            document.getElementById('btnAbsolute').classList.add('active');
+
+            const toggleSec = document.getElementById('toggleConsumptionSection');
+            toggleSec.style.display = data.isCumulative ? 'flex' : 'none';
+            
+            updateDetailView();
+            document.getElementById('detailOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function setGrouping(group) {
+            currentGroup = group;
+            document.getElementById('groupRaw').classList.toggle('active', group === 'raw');
+            document.getElementById('groupWeek').classList.toggle('active', group === 'week');
+            document.getElementById('groupMonth').classList.toggle('active', group === 'month');
+            document.getElementById('groupYear').classList.toggle('active', group === 'year');
+            updateDetailView();
+        }
+
+        function toggleAnalysis(mode) {
+            currentMode = mode;
+            document.getElementById('btnAbsolute').classList.toggle('active', mode === 'absolute');
+            document.getElementById('btnDelta').classList.toggle('active', mode === 'delta');
+            updateDetailView();
+        }
+
+        function getPeriodKey(dateStr, group) {
+            // dateStr: "DD/MM/YYYY HH:mm"
+            const parts = dateStr.split(' ');
+            const dateParts = parts[0].split('/');
+            const d = new Date(dateParts[2], dateParts[1] - 1, dateParts[0]);
+            
+            if (group === 'year') return d.getFullYear().toString();
+            if (group === 'month') return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+            if (group === 'week') {
+                const oneJan = new Date(d.getFullYear(), 0, 1);
+                const numberOfDays = Math.floor((d - oneJan) / (24 * 60 * 60 * 1000));
+                const weekNum = Math.ceil((d.getDay() + 1 + numberOfDays) / 7);
+                return `${d.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
+            }
+            return dateStr;
+        }
+
+        function updateDetailView() {
+            const data = POINTS_DATA[currentPointId];
+            const ctx = document.getElementById('detailMainChart').getContext('2d');
+            
+            let finalLabels = [];
+            let finalValues = [];
+            let tableData = [];
+
+            if (currentGroup === 'raw') {
+                finalLabels = [...data.labels];
+                finalValues = [...data.values];
+                // Table original data
+                const chronValues = data.values;
+                data.history.forEach((row, i) => {
+                    const idx = data.labels.indexOf(row.date);
+                    const prevVal = idx > 0 ? chronValues[idx-1] : row.val;
+                    tableData.push({
+                        label: row.date,
+                        val: row.val.toFixed(2),
+                        delta: (row.val - prevVal).toFixed(2),
+                        tech: row.tech,
+                        obs: row.obs
+                    });
+                });
+            } else {
+                // AGGREGATION LOGIC
+                const groups = {};
+                data.history.forEach(row => {
+                    const key = getPeriodKey(row.date, currentGroup);
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(row);
+                });
+
+                // Convert groups to sorted array (chrono order for chart)
+                const sortedKeys = Object.keys(groups).sort();
+                
+                sortedKeys.forEach((key, idx) => {
+                    const items = groups[key];
+                    // Cumulative: Max value at end of period
+                    // Normal: Average
+                    let val = 0;
+                    if (data.isCumulative) {
+                        val = Math.max(...items.map(it => it.val));
+                    } else {
+                        val = items.reduce((acc, it) => acc + it.val, 0) / items.length;
+                    }
+
+                    // For Delta calc in aggregated view
+                    let delta = 0;
+                    if (idx > 0) {
+                        const prevKey = sortedKeys[idx - 1];
+                        const prevItems = groups[prevKey];
+                        const prevVal = data.isCumulative ? Math.max(...prevItems.map(it => it.val)) : (prevItems.reduce((acc, it) => acc + it.val, 0) / prevItems.length);
+                        delta = val - prevVal;
+                    }
+
+                    finalLabels.push(key);
+                    finalValues.push(val);
+                    tableData.push({
+                        label: key,
+                        val: val.toFixed(2),
+                        delta: delta.toFixed(2),
+                        tech: `${items.length} regs`,
+                        obs: `Resumen de periodo ${key}`
+                    });
+                });
+                
+                // For table view, most recent first
+                tableData.reverse();
+            }
+
+            // Apply Mode (Absolute vs Delta) to Charts
+            let chartLabels = [...finalLabels];
+            let chartDataSeries = [...finalValues];
+            let chartType = 'line';
+            let chartLabelText = `Valor (${data.unit})`;
+
+            if (currentMode === 'delta') {
+                chartType = 'bar';
+                chartLabelText = `Consumo (${data.unit})`;
+                // Delta is current - previous from finalValues
+                chartDataSeries = finalValues.map((v, i) => i === 0 ? 0 : v - finalValues[i-1]);
+            }
+
+            if(activeChart) activeChart.destroy();
+            activeChart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: chartLabelText,
+                        data: chartDataSeries,
+                        borderColor: '#0070f2',
+                        backgroundColor: currentMode === 'delta' ? 'rgba(0, 112, 242, 0.4)' : 'rgba(0, 112, 242, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        y: { beginAtZero: false, grid: { color: '#f0f0f0' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // Populate Table
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+            tableData.forEach(row => {
+                const tr = document.createElement('tr');
+                let deltaCell = '';
+                if(data.isCumulative) {
+                    deltaCell = `<td style="font-weight:700; color:var(--sap-positive);">${parseFloat(row.delta) >=0 ? '+' : ''}${row.delta}</td>`;
+                }
+                tr.innerHTML = `
+                    <td><strong>${row.label}</strong></td>
+                    <td>${row.val} <small>${data.unit}</small></td>
+                    ${deltaCell}
+                    <td>${row.tech}</td>
+                    <td style="font-size:0.75rem; color:var(--sap-text-sub);">${row.obs}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // UI Headers
+            document.getElementById('tableHeaderName').innerText = currentGroup === 'raw' ? 'Documentos de Medición Históricos' : `Resumen ${document.getElementById('group' + currentGroup.charAt(0).toUpperCase() + currentGroup.slice(1)).innerText}`;
+        }
+
+        function closeDetail(e) { if(e.target.id === 'detailOverlay') closeDetailForce(); }
+        function closeDetailForce() {
+            document.getElementById('detailOverlay').classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Initialize Sparklines
+        document.addEventListener('DOMContentLoaded', function() {
+            Object.keys(POINTS_DATA).forEach(id => {
+                const p = POINTS_DATA[id];
+                const ctx = document.getElementById(`spark-${id}`).getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: p.labels.slice(-15),
+                        datasets: [{
+                            data: p.values.slice(-15),
+                            borderColor: '#0070f2',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                        scales: { x: { display: false }, y: { display: false } }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

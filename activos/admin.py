@@ -844,7 +844,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
 
 
     
-    list_display = ('nombre', 'codigo_interno', 'epc', 'descripcion', 'ultima_auditoria_display', 'get_marca_modelo', 'serie', 'get_plano_codigo', 'referencia', 'get_ubicacion_ruta')
+    list_display = ('nombre', 'ver_en_fiori', 'codigo_interno', 'epc', 'descripcion', 'ultima_auditoria_display', 'get_marca_modelo', 'serie', 'get_plano_codigo', 'referencia', 'get_ubicacion_ruta')
     list_filter = (
         NombreStartsWithFilter,
         ActivoFaltantesFilter, 
@@ -1594,6 +1594,11 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
     )
 
     # change_form_template = 'admin/activos/activo/change_form.html'
+
+    def ver_en_fiori(self, obj):
+        url = reverse('activos:activo_fiori', args=[obj.pk])
+        return format_html('<a href="{0}" target="_blank" style="background: #0070f2; color: white; padding: 4px 10px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px;"><ion-icon name="eye-outline"></ion-icon> Ver</a>', url)
+    ver_en_fiori.short_description = 'Fiori'
 
     def sync_audit_location(self, request, activo_id, resultado_id):
         from django.shortcuts import get_object_or_404, redirect

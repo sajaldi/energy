@@ -73,11 +73,16 @@ def mobile_ot_detalle(request, pk):
     
     is_gerente = request.user.groups.filter(name='Gerentes').exists() or request.user.is_superuser
     
+    ubicaciones = None
+    if not ot.ubicacion:
+        ubicaciones = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
+    
     context = {
         'ot': ot,
         'supervisores': supervisores,
         'tecnicos': tecnicos,
         'is_gerente': is_gerente,
+        'ubicaciones': ubicaciones,
         'resultados': ot.resultados_checklist.select_related('paso').order_by('paso__orden'),
     }
 
@@ -98,6 +103,7 @@ def mobile_ot_update_ajax(request, pk):
     tecnico_id = request.POST.get('tecnico')
     supervisor_id = request.POST.get('supervisor')
     fecha_str = request.POST.get('inicio_programado')
+    ubicacion_id = request.POST.get('ubicacion')
     
     try:
         if tecnico_id:
@@ -105,6 +111,9 @@ def mobile_ot_update_ajax(request, pk):
         
         if supervisor_id:
             ot.supervisor = User.objects.get(pk=supervisor_id) if supervisor_id != 'none' else None
+            
+        if ubicacion_id:
+            ot.ubicacion = Ubicacion.objects.get(pk=ubicacion_id) if ubicacion_id != 'none' else None
             
         if fecha_str:
             # Formato esperado: YYYY-MM-DDTHH:MM (datetime-local)

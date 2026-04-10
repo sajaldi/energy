@@ -1,137 +1,140 @@
 <!-- routine_detail_modal.html - ANTIGRAVITY MARKER -->
 <div id="routineModal" class="modal-backdrop" style="display: none;">
-    <div class="modal-glass">
-        <button class="modal-close-btn" onclick="closeRoutineModal()">&times;</button>
-
-        <div class="modal-header">
-            <div class="header-icon" id="m-header-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <path d="M14 2v6h6" />
-                </svg>
-            </div>
-            <div class="header-text" style="flex: 1;">
-                <h2 id="m-title">Detalles de Rutina</h2>
-                <div id="m-view-header">
-                    <span id="m-routine-name" style="font-weight: 700; font-size: 1.2rem;">Nombre</span>
-                    <span id="m-routine-code" class="code-badge">CODIGO</span>
+    <div class="modal-glass" style="background: #ffffff; border-radius: 0.35rem; box-shadow: 0 1rem 3rem rgba(0,0,0,0.15); border: none;">
+        <div class="modal-header" style="background: #ffffff; border-bottom: 1px solid #d9d9d9; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 40px; height: 40px; background: #eff6ff; color: #0070f2; border-radius: 0.25rem; display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <path d="M14 2v6h6" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 id="m-title" style="margin: 0; font-size: 1.15rem; font-weight: 600; color: #32363a;">Detalles de Rutina</h2>
+                    <div id="m-view-header" style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                        <span id="m-routine-name" style="font-size: 0.9rem; color: #6a6d70;">Nombre de Rutina</span>
+                        <span id="m-routine-code" style="background: #f0f0f0; color: #6a6d70; padding: 1px 6px; border-radius: 2px; font-size: 0.75rem; font-family: monospace;">COD</span>
+                    </div>
                 </div>
             </div>
+            <button class="modal-close-btn" onclick="closeRoutineModal()" style="position: static; background: transparent; color: #6a6d70; font-size: 1.5rem;">&times;</button>
         </div>
 
-        <div class="modal-tabs" id="m-tabs">
-            <button class="tab-btn active" id="tab-btn-general" onclick="switchTab('general')">Información
-                General</button>
-            <button class="tab-btn" id="tab-btn-history" onclick="switchTab('history')">Historial de Ejecución</button>
-            <button class="tab-btn" id="tab-btn-steps" onclick="switchTab('steps')">Pasos del Procedimiento</button>
+        <div class="modal-tabs" id="m-tabs" style="padding: 0 1.5rem; background: #ffffff; border-bottom: 1px solid #d9d9d9;">
+            <button class="tab-btn active" id="tab-btn-general" onclick="switchTab('general')">Información General</button>
+            <button class="tab-btn" id="tab-btn-history" onclick="switchTab('history')">Historial</button>
+            <button class="tab-btn" id="tab-btn-steps" onclick="switchTab('steps')">Pasos</button>
         </div>
 
         <div class="modal-body">
-            <!-- PESTAÑA GENERAL (VISTA) -->
-            <div id="tab-general" class="tab-content active view-mode">
-                <div class="info-grid">
-                    <div class="info-item">
-                        <label>Categoría</label>
-                        <p id="m-category">-</p>
-                    </div>
-                    <div class="info-item">
-                        <label>Frecuencia</label>
-                        <p id="m-frequency">-</p>
-                    </div>
-                    <div class="info-item">
-                        <label>Tiempo Estimado</label>
-                        <p id="m-time">-</p>
-                    </div>
-                    <div class="info-item">
-                        <label>Técnicos Requeridos</label>
-                        <p id="m-techs">-</p>
-                    </div>
-                    <div class="info-item">
-                        <label>Tipo de Intervención</label>
-                        <div id="m-invasiva-badge" style="margin-top: 4px;">-</div>
-                    </div>
-                </div>
-
-                <div class="info-block">
-                    <label>Descripción</label>
-                    <div id="m-description" class="text-content">Sin descripción.</div>
-                </div>
-
-                <div class="info-block" style="margin-bottom:0;">
-                    <label>Herramientas y Materiales</label>
-                    <div id="m-tools" class="text-content">Ninguna.</div>
-                </div>
-            </div>
-
-            <!-- FORMULARIO DE EDICIÓN / CREACIÓN -->
-            <form id="routineForm" class="edit-mode" style="display: none;">
-                <input type="hidden" id="f-id" name="id">
-                <div class="form-grid">
-                    <div class="form-group full">
-                        <label>Nombre de la Rutina</label>
-                        <input type="text" id="f-nombre" name="nombre" class="form-control" required
-                            placeholder="Ej: Mantenimiento Preventivo Mensual">
-                    </div>
-                    <div class="form-group">
-                        <label>Código Interno</label>
-                        <input type="text" id="f-codigo" name="codigo_rutina" class="form-control"
-                            placeholder="Ej: RUT-001">
-                    </div>
-                    <div class="form-group">
-                        <label>Categoría</label>
-                        <select id="f-categoria" name="categoria_id" class="form-control" required>
-                            <option value="">Seleccione...</option>
-                            {% for cat in todas_categorias %}
-                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Frecuencia</label>
-                        <select id="f-frecuencia" name="frecuencia_id" class="form-control" required>
-                            <option value="">Seleccione...</option>
-                            {% for frec in frecuencias %}
-                            <option value="{{ frec.id }}">{{ frec.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Puesto de Trabajo</label>
-                        <select id="f-puesto" name="puesto_trabajo_id" class="form-control">
-                            <option value="">Seleccione...</option>
-                            {% for p_item in puestos %}
-                            <option value="{{ p_item.id }}">{{ p_item.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Tiempo Estimado (HH:MM:SS)</label>
-                        <input type="text" id="f-tiempo" name="tiempo_estimado" class="form-control"
-                            placeholder="02:00:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}">
-                    </div>
-                    <div class="form-group">
-                        <label>Cant. Técnicos</label>
-                        <input type="number" id="f-tecnicos" name="cantidad_tecnicos" class="form-control" min="1"
-                            value="1">
-                    </div>
-                    <div class="form-group" style="display: flex; flex-direction: column; justify-content: center;">
-                        <label>Rutina Invasiva</label>
-                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                            <input type="checkbox" id="f-invasiva" name="es_invasiva" style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;">
-                            <span style="font-size: 0.85rem; color: #64748b;">(Requiere horario no operativo)</span>
+            <!-- PESTAÑA GENERAL (VISTA Y EDICIÓN JUNTAS) -->
+            <div id="tab-general" class="tab-content active">
+                <!-- VISTA -->
+                <div class="view-mode">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Categoría</label>
+                            <p id="m-category">-</p>
+                        </div>
+                        <div class="info-item">
+                            <label>Frecuencia</label>
+                            <p id="m-frequency">-</p>
+                        </div>
+                        <div class="info-item">
+                            <label>Tiempo Estimado</label>
+                            <p id="m-time">-</p>
+                        </div>
+                        <div class="info-item">
+                            <label>Técnicos Requeridos</label>
+                            <p id="m-techs">-</p>
+                        </div>
+                        <div class="info-item">
+                            <label>Tipo de Intervención</label>
+                            <div id="m-invasiva-badge" style="margin-top: 4px;">-</div>
                         </div>
                     </div>
 
-                    <div class="form-group full">
+                    <div class="info-block">
                         <label>Descripción</label>
-                        <textarea id="f-descripcion" name="descripcion" class="form-control" rows="3"></textarea>
+                        <div id="m-description" class="text-content">Sin descripción.</div>
                     </div>
-                    <div class="form-group full">
+
+                    <div class="info-block" style="margin-bottom:0;">
                         <label>Herramientas y Materiales</label>
-                        <textarea id="f-herramientas" name="herramientas" class="form-control" rows="2"></textarea>
+                        <div id="m-tools" class="text-content">Ninguna.</div>
                     </div>
                 </div>
-            </form>
+
+                <!-- EDICIÓN -->
+                <form id="routineForm" class="edit-mode" style="display: none;">
+                    <input type="hidden" id="f-id" name="id">
+                    <div class="form-grid">
+                        <div class="form-group full">
+                            <label>Nombre de la Rutina</label>
+                            <input type="text" id="f-nombre" name="nombre" class="form-control" required
+                                placeholder="Ej: Mantenimiento Preventivo Mensual">
+                        </div>
+                        <div class="form-group">
+                            <label>Código Interno</label>
+                            <input type="text" id="f-codigo" name="codigo_rutina" class="form-control"
+                                placeholder="Ej: RUT-001">
+                        </div>
+                        <div class="form-group">
+                            <label>Categoría</label>
+                            <select id="f-categoria" name="categoria_id" class="form-control" required>
+                                <option value="">Seleccione...</option>
+                                {% for cat in todas_categorias %}
+                                <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Frecuencia</label>
+                            <select id="f-frecuencia" name="frecuencia_id" class="form-control" required>
+                                <option value="">Seleccione...</option>
+                                {% for frec in frecuencias %}
+                                <option value="{{ frec.id }}">{{ frec.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Puesto de Trabajo</label>
+                            <select id="f-puesto" name="puesto_trabajo_id" class="form-control">
+                                <option value="">Seleccione...</option>
+                                {% for p_item in puestos %}
+                                <option value="{{ p_item.id }}">{{ p_item.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tiempo Estimado (HH:MM:SS)</label>
+                            <input type="text" id="f-tiempo" name="tiempo_estimado" class="form-control"
+                                placeholder="02:00:00" pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}">
+                        </div>
+                        <div class="form-group">
+                            <label>Cant. Técnicos</label>
+                            <input type="number" id="f-tecnicos" name="cantidad_tecnicos" class="form-control" min="1"
+                                value="1">
+                        </div>
+                        <div class="form-group" style="display: flex; flex-direction: column; justify-content: center;">
+                            <label>Rutina Invasiva</label>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                <input type="checkbox" id="f-invasiva" name="es_invasiva" style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;">
+                                <span style="font-size: 0.85rem; color: #64748b;">(Requiere horario no operativo)</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group full">
+                            <label>Descripción</label>
+                            <textarea id="f-descripcion" name="descripcion" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="form-group full">
+                            <label>Herramientas y Materiales</label>
+                            <textarea id="f-herramientas" name="herramientas" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
 
             <!-- PESTAÑA HISTORIAL -->
             <div id="tab-history" class="tab-content">
@@ -155,22 +158,38 @@
 
             <!-- PESTAÑA PASOS DEL PROCEDIMIENTO -->
             <div id="tab-steps" class="tab-content">
-                <div id="steps-view-container" class="view-mode">
-                    <div id="m-steps-list-view" class="steps-list-static">
-                        <!-- Se llena vía JS -->
+                <div id="steps-view-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h4 style="margin: 0; color: #32363a; font-size: 1rem;">Gúia de Procedimiento</h4>
+                        <button type="button" class="btn btn-outline edit-mode" onclick="toggleStepsEdit(true)" style="display: none;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg> Modificar Pasos
+                        </button>
+                    </div>
+                    <div id="m-steps-list-view">
+                        <!-- Se llena vía JS (Diseño "Bonito") -->
                     </div>
                 </div>
 
-                <div id="steps-edit-container" class="edit-mode" style="display: none;">
-                    <div class="alert-info" style="margin-bottom: 1rem; font-size: 0.85rem;">
-                        <strong>Nota:</strong> Los cambios realizados aquí se guardarán directamente en la rutina actual.
+                <div id="steps-edit-container" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <div class="alert-info" style="margin: 0; font-size: 0.85rem; padding: 0.5rem 1rem; border-radius: 4px; background: #eff6ff; color: #0070f2; border: 1px solid #bfdbfe;">
+                            <strong>Modo Edición:</strong> Ajuste el orden y contenido del procedimiento.
+                        </div>
+                        <button type="button" class="btn btn-secondary-soft" onclick="toggleStepsEdit(false)">
+                            Volver a Vista Previa
+                        </button>
                     </div>
+                    
                     <div id="m-steps-list-edit" class="steps-list-editable">
                         <!-- Se llena vía JS -->
                     </div>
+                    
                     <button type="button" class="btn btn-secondary-soft" onclick="addStepRow()"
-                        style="width: 100%; margin-top: 1rem;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        style="width: 100%; margin-top: 1.5rem; border: 2px dashed #cbd5e1; justify-content: center; height: 50px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" style="margin-right:8px;">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -253,154 +272,39 @@
 
 
 <style>
-    /* MODAL STYLES (EXTRACTED) */
     .modal-backdrop {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(15, 23, 42, 0.4);
-        backdrop-filter: blur(8px);
+        background: rgba(0, 0, 0, 0.4);
         z-index: 9999;
         display: flex;
         align-items: center;
         justify-content: center;
-        animation: fadeIn 0.3s ease;
+        animation: fadeIn 0.2s ease;
     }
 
     .modal-glass {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        width: 90%;
-        max-width: 800px;
-        max-height: 90vh;
-        border-radius: 4px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        background: #ffffff;
+        width: 95%;
+        max-width: 1200px;
+        height: 80vh;
+        max-height: 900px;
+        border-radius: 0.35rem;
+        box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175);
         display: flex;
         flex-direction: column;
         position: relative;
         overflow: hidden;
-        animation: slideUp 0.4s ease;
-    }
-
-    @keyframes slideUp {
-        from {
-            transform: translateY(20px);
-            opacity: 0;
-        }
-
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    .glass-invasive {
-        border: 2px solid #ef4444 !important;
-        box-shadow: 0 0 20px rgba(239, 68, 68, 0.25) !important;
-    }
-
-    .modal-close-btn {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: #f1f5f9;
-        border: none;
-        font-size: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: #64748b;
-        transition: all 0.2s;
-        z-index: 10;
-    }
-
-    .modal-close-btn:hover {
-        background: #e2e8f0;
-        color: #0f172a;
-        transform: rotate(90deg);
-    }
-
-    .modal-header {
-        padding: 32px 32px 24px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-
-    .header-icon {
-        width: 48px;
-        height: 48px;
-        background: #dbeafe;
-        color: #2563eb;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .header-text h2 {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #1e293b;
-    }
-
-    .code-badge {
-        display: inline-block;
-        padding: 4px 10px;
-        background: #f1f5f9;
-        color: #64748b;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        margin-top: 4px;
-    }
-
-    .modal-tabs {
-        padding: 0 32px;
-        display: flex;
-        gap: 24px;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .tab-btn {
-        padding: 12px 4px;
-        background: none;
-        border: none;
-        font-weight: 600;
-        color: #64748b;
-        cursor: pointer;
-        position: relative;
-        transition: all 0.2s;
-    }
-
-    .tab-btn.active {
-        color: #2563eb;
-    }
-
-    .tab-btn.active::after {
-        content: '';
-        position: absolute;
-        bottom: -1px;
-        left: 0;
-        width: 100%;
-        height: 2px;
-        background: #2563eb;
     }
 
     .modal-body {
-        padding: 32px;
+        padding: 1.5rem 2rem;
         flex: 1;
         overflow-y: auto;
-        position: relative;
+        min-height: 0; /* Permite que el flex-grow funcione correctamente con el scroll interno */
     }
 
     .tab-content {
@@ -411,48 +315,69 @@
         display: block;
     }
 
+    .tab-btn {
+        padding: 1rem 0.5rem;
+        background: none;
+        border: none;
+        font-weight: 500;
+        color: #6a6d70;
+        cursor: pointer;
+        position: relative;
+        font-size: 0.875rem;
+    }
+
+    .tab-btn.active {
+        color: #0070f2;
+    }
+
+    .tab-btn.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: #0070f2;
+    }
+
     .info-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 24px;
-        margin-bottom: 32px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
     }
 
     .info-item label {
         display: block;
         font-size: 0.75rem;
-        font-weight: 600;
-        color: #94a3b8;
-        text-transform: uppercase;
-        margin-bottom: 4px;
+        font-weight: 500;
+        color: #6a6d70;
+        margin-bottom: 0.25rem;
     }
 
     .info-item p {
         margin: 0;
-        font-weight: 600;
-        color: #1e293b;
-    }
-
-    .info-block {
-        margin-bottom: 24px;
+        font-weight: 400;
+        color: #32363a;
+        font-size: 0.95rem;
     }
 
     .info-block label {
         display: block;
         font-size: 0.75rem;
-        font-weight: 600;
-        color: #94a3b8;
-        text-transform: uppercase;
-        margin-bottom: 8px;
+        font-weight: 500;
+        color: #6a6d70;
+        margin-bottom: 0.5rem;
     }
 
     .text-content {
-        background: #f8fafc;
-        padding: 16px;
-        border-radius: 4px;
-        color: #475569;
-        font-size: 0.95rem;
-        line-height: 1.6;
+        background: #f7f7f7;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        color: #32363a;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        border: 1px solid #d9d9d9;
     }
 
     .history-table {
@@ -532,12 +457,12 @@
 
     .form-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
     }
 
     .form-group.full {
-        grid-column: span 2;
+        grid-column: span 3;
     }
 
     .form-group label {
@@ -619,17 +544,104 @@
         }
     }
 
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
+    /* STEPS "BIEN BONITO" DESIGN */
+    .step-item-static {
+        display: flex;
+        gap: 1.5rem;
+        background: #ffffff;
+        padding: 1.25rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
 
-    /* SEARCHABLE DROPDOWN STYLES */
+    .step-item-static:hover {
+        border-color: #0070f2;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transform: translateX(4px);
+    }
+
+    .step-number-circle {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        background: #eff6ff;
+        color: #0070f2;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+        border: 2px solid #0070f2;
+    }
+
+    .step-header-banner {
+        background: #354a5f;
+        color: white;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.25rem;
+        margin: 2rem 0 1.25rem 0;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+
+    .step-type-badge {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        background: #f1f5f9;
+        color: #64748b;
+        margin-left: auto;
+    }
+
+    .step-verif-box {
+        margin-top: 0.75rem;
+        padding: 0.6rem 0.8rem;
+        background: #f8fafc;
+        border-left: 3px solid #cbd5e1;
+        font-size: 0.85rem;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .step-row-edit {
+        background: #f8fafc;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        border: 1px dashed #cbd5e1;
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .remove-step {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        width: 24px;
+        height: 24px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* SPIN & OTHERS */
     .searchable-dropdown {
         position: relative;
         width: 100%;

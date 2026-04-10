@@ -65,4 +65,7 @@ urlpatterns = [
     
     # PDF de QR Punto Medicion
     path('punto-medicion/<int:pk>/qr/', views_rutinas.punto_medicion_qr_pdf, name='punto_medicion_qr_pdf'),
+
+    # Fiori Dashboard
+    path('activo/<int:pk>/fiori/', views.activo_fiori_view, name='activo_fiori'),
 ]

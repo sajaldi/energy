@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     {% include 'core/fiori_tokens.html' %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         :root {
@@ -117,7 +118,7 @@
             display: inline-flex;
             align-items: center;
             padding: 4px 12px;
-            border-radius: 12px;
+            border-radius: 2px;
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
@@ -158,7 +159,7 @@
 
         .info-card {
             background: white;
-            border-radius: 18px;
+            border-radius: 2px;
             padding: 20px;
             box-shadow: var(--card-shadow);
         }
@@ -192,7 +193,7 @@
 
         .history-item {
             background: white;
-            border-radius: 15px;
+            border-radius: 2px;
             padding: 15px;
             box-shadow: var(--card-shadow);
             display: flex;
@@ -205,7 +206,7 @@
         .history-icon {
             width: 45px;
             height: 45px;
-            border-radius: 12px;
+            border-radius: 2px;
             background: var(--gray-100);
             display: flex;
             align-items: center;
@@ -253,7 +254,7 @@
 
         .btn {
             height: 48px;
-            border-radius: 12px;
+            border-radius: 2px;
             border: none;
             font-family: 'Outfit', sans-serif;
             font-weight: 600;
@@ -284,7 +285,7 @@
         /* Measuring Points Styles */
         .medicion-card {
             background: white;
-            border-radius: 18px;
+            border-radius: 2px;
             padding: 20px;
             box-shadow: var(--card-shadow);
         }
@@ -317,6 +318,114 @@
             color: var(--gray-600);
             display: block;
         }
+
+        /* Bottom Drawer / Overlay */
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            display: none;
+            align-items: flex-end;
+            transition: opacity 0.3s;
+        }
+        .drawer-overlay.active { display: flex; opacity: 1; }
+
+        .bottom-drawer {
+            background: white;
+            width: 100%;
+            max-height: 80vh;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            padding-bottom: 20px;
+        }
+        .drawer-overlay.active .bottom-drawer { transform: translateY(0); }
+
+        .drawer-header {
+            padding: 20px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .drawer-title { font-size: 18px; font-weight: 700; color: var(--dark); margin: 0; }
+        .close-drawer { font-size: 24px; color: var(--gray-600); cursor: pointer; border: none; background: none; }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .history-table th {
+            text-align: left;
+            padding: 10px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--gray-600);
+            border-bottom: 2px solid #f1f5f9;
+        }
+        .history-table td {
+            padding: 12px 10px;
+            font-size: 14px;
+            border-bottom: 1px solid #f8fafc;
+        }
+
+        /* Floating camera button for superusers */
+        .photo-upload-container {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            z-index: 10;
+        }
+
+        .cam-btn {
+            width: 50px;
+            height: 50px;
+            background: var(--sap-accent);
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 2px solid white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .cam-btn:active {
+            transform: scale(0.9);
+        }
+
+        .messages-container {
+            margin-bottom: 16px;
+        }
+
+        .fiori-message {
+            padding: 12px 16px;
+            border-radius: 2px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            border: 1px solid transparent;
+        }
+        .message-success { background: #e7f4e9; color: #107e3e; border-color: #107e3e; }
+        .message-error { background: #fcebeb; color: #bb0000; border-color: #bb0000; }
     </style>
 </head>
 
@@ -331,20 +440,48 @@
 
     <div class="container">
 
+        {% if messages %}
+        <div class="messages-container">
+            {% for message in messages %}
+            <div class="fiori-message message-{{ message.tags }}">
+                <ion-icon name="{% if message.tags == 'success' %}checkmark-circle-outline{% else %}alert-circle-outline{% endif %}"></ion-icon>
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- Header del Activo -->
         <div class="asset-header-card">
             <div class="asset-image">
                 {% if activo.foto %}
-                <img src="{{ activo.foto.url }}" alt="{{ activo.nombre }}">
+                <img src="{{ activo.foto.url }}" alt="{{ activo.nombre }}" style="width: 100%; height: 100%; object-fit: cover;">
                 {% else %}
-                <ion-icon name="cube-outline" class="no-image"></ion-icon>
+                <ion-icon name="cube-outline" class="no-image" style="font-size: 80px; color: #cbd5e1;"></ion-icon>
+                {% endif %}
+
+                {% if user.is_superuser %}
+                <div class="photo-upload-container">
+                    <button type="button" class="cam-btn" onclick="document.getElementById('id_foto_input').click()">
+                        <ion-icon name="camera-outline"></ion-icon>
+                    </button>
+                    <form id="upload-photo-form" method="POST" enctype="multipart/form-data" style="display: none;">
+                        {% csrf_token %}
+                        <input type="file" name="foto" id="id_foto_input" accept="image/*" capture="camera" onchange="submitPhotoForm()">
+                    </form>
+                </div>
                 {% endif %}
             </div>
             <div class="asset-main-info">
                 <span class="badge-status status-{{ activo.estado }}">
                     {{ activo.get_estado_display }}
                 </span>
-                <h2 class="asset-title">{{ activo.nombre }}</h2>
+                <h2 class="asset-title" style="margin-bottom: 4px;">{{ activo.nombre }}</h2>
+                {% if activo.descripcion %}
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: var(--gray-600); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">
+                    {{ activo.descripcion }}
+                </p>
+                {% endif %}
                 <div class="asset-codes">
                     <span><ion-icon name="barcode-outline"></ion-icon> {{ activo.codigo_interno }}</span>
                     {% if activo.serie %}
@@ -397,8 +534,8 @@
         <div class="medicion-card"
             style="background: white; border-radius: 18px; padding: 20px; box-shadow: var(--card-shadow); margin-bottom: 20px;">
             {% for punto in puntos_medicion %}
-            <div class="medicion-row"
-                style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9;">
+            <div class="medicion-row" onclick="showPointDetail('{{ punto.id }}')"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
                 <div>
                     <span class="medicion-label" style="font-weight: 600; font-size: 14px;">{{ punto.nombre }}</span>
                     {% with ultima=punto.lecturas.first %}
@@ -412,13 +549,14 @@
                     {% endif %}
                     {% endwith %}
                 </div>
-                <div style="text-align: right;">
+                <div style="text-align: right; display: flex; align-items: center; gap: 8px;">
                     <span class="medicion-value" style="font-weight: 700; font-size: 15px; color: var(--primary);">
                         {% with ultima=punto.lecturas.first %}
                         {% if ultima %}{{ ultima.valor }}{% else %}---{% endif %}
                         {% endwith %}
                         <small style="font-size: 10px; color: #64748b;">{{ punto.unidad }}</small>
                     </span>
+                    <ion-icon name="chevron-forward-outline" style="color: #cbd5e1;"></ion-icon>
                 </div>
             </div>
             {% endfor %}
@@ -428,6 +566,37 @@
             </a>
         </div>
         {% endif %}
+
+        <!-- Drawer de Detalle (Overlay) -->
+        <div id="drawerOverlay" class="drawer-overlay" onclick="closePointDetail(event)">
+            <div class="bottom-drawer" onclick="event.stopPropagation()">
+                <div class="drawer-header">
+                    <h3 class="drawer-title" id="drawerTitle">Historial de Lecturas</h3>
+                    <button class="close-drawer" onclick="closePointDetail(event)">
+                        <ion-icon name="close-outline"></ion-icon>
+                    </button>
+                </div>
+                <div class="drawer-body">
+                    <!-- Chart Section -->
+                    <div style="height: 180px; width: 100%; margin-bottom: 20px;">
+                        <canvas id="mobilePointChart"></canvas>
+                    </div>
+
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Valor</th>
+                                <th>Técnico</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <!-- JS Populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
         <!-- Últimos Avisos -->
         <div class="section-title">
@@ -501,6 +670,117 @@
         </a>
     </div>
 
+    <script>
+        // Data Registry para los puntos
+        const POINTS_HISTORY = {
+            {% for p in puntos_medicion %}
+            "{{ p.id }}": {
+                name: "{{ p.nombre }}",
+                unit: "{{ p.unidad }}",
+                labels: [{% for l in p.lecturas.all|slice:":15" %}"{{ l.fecha_lectura|date:'d/m' }}"{% if not forloop.last %},{% endif %}{% endfor %}].reverse(),
+                values: [{% for l in p.lecturas.all|slice:":15" %}{{ l.valor }}{% if not forloop.last %},{% endif %}{% endfor %}].reverse(),
+                data: [
+                    {% for l in p.lecturas.all|slice:":15" %}
+                    {
+                        date: "{{ l.fecha_lectura|date:'d/m/y H:i' }}",
+                        val: "{{ l.valor }}",
+                        tech: "{% if l.tecnico %}{{ l.tecnico.get_full_name|default:l.tecnico.username }}{% else %}Sistema{% endif %}"
+                    },
+                    {% endfor %}
+                ]
+            },
+            {% endfor %}
+        };
+
+        let mobileChart = null;
+
+        function showPointDetail(id) {
+            const punto = POINTS_HISTORY[id];
+            if (!punto) return;
+
+            document.getElementById('drawerTitle').innerText = punto.name;
+            const body = document.getElementById('historyBody');
+            body.innerHTML = '';
+
+            // Update Chart
+            updateMobileChart(punto);
+
+            if (punto.data.length === 0) {
+                body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px; color: #94a3b8;">Sin documentos de medición</td></tr>';
+            } else {
+                punto.data.forEach(l => {
+                    const row = `<tr>
+                        <td>${l.date}</td>
+                        <td style="font-weight: 700; color: var(--primary);">${l.val} <small>${punto.unit}</small></td>
+                        <td style="font-size: 12px; color: #64748b;">${l.tech}</td>
+                    </tr>`;
+                    body.innerHTML += row;
+                });
+            }
+
+            document.getElementById('drawerOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Re-render chart after drawer animation starts
+            setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
+        }
+
+        function updateMobileChart(punto) {
+            const ctx = document.getElementById('mobilePointChart').getContext('2d');
+            
+            if (mobileChart) {
+                mobileChart.destroy();
+            }
+
+            mobileChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: punto.labels,
+                    datasets: [{
+                        label: punto.name,
+                        data: punto.values,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#fff',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10 } }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            grid: { color: '#f1f5f9' },
+                            ticks: { font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function closePointDetail(e) {
+            document.getElementById('drawerOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function submitPhotoForm() {
+            const input = document.getElementById('id_foto_input');
+            if (input.files && input.files[0]) {
+                document.getElementById('upload-photo-form').submit();
+            }
+        }
+    </script>
 </body>
 
 </html>
