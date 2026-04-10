@@ -466,9 +466,9 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Descripción de Avería</label>
+                        <label id="desc-label">Descripción de Avería</label>
                         <div class="sap-input-container">
-                            <textarea name="descripcion" placeholder="Ej: Fuga de aceite en el motor principal..."
+                            <textarea name="descripcion" id="desc-textarea" placeholder="Ej: Fuga de aceite en el motor principal..."
                                 required></textarea>
                         </div>
                     </div>
@@ -725,11 +725,24 @@
             });
 
             // Always show catalog, adapt label
-            const typeText = tipoSelect.options[tipoSelect.selectedIndex].text.split('(')[0].trim();
+            const typeOption = tipoSelect.options[tipoSelect.selectedIndex];
+            const typeText = typeOption.text.split('(')[0].trim();
+            const descLabel = document.getElementById('desc-label');
+            const descTextarea = document.getElementById('desc-textarea');
+
             if (selectedTipo === 'AVERIA') {
                 fallaLabel.innerText = 'Categoría de Falla';
+                descLabel.innerText = 'Descripción de Avería';
+                descTextarea.placeholder = 'Ej: Fuga de aceite en el motor principal...';
             } else {
                 fallaLabel.innerText = 'Categoría de ' + typeText;
+                descLabel.innerText = 'Descripción de ' + typeText;
+                
+                if (selectedTipo === 'MAL_USO') {
+                    descTextarea.placeholder = 'Detalle aquí el mal uso observado (ej: grafiti, equipo dañado intencionalmente)...';
+                } else {
+                    descTextarea.placeholder = 'Detalle aquí la información técnica o requerimientos...';
+                }
             }
         }
 
@@ -810,11 +823,6 @@
         window.addEventListener('load', () => {
             const initialAssetId = assetIdInput.value;
             if (initialAssetId) {
-                // If we have an initial asset, we should fetch its details to populate the card
-                // Since api_buscar_activos is a search, we can use it with the exact code or just wait for the user to see it.
-                // However, the cleanest way is to have the data available in the context if possible, 
-                // but for now, let's trigger a search or just show the card if we have the data.
-                
                 {% if activo %}
                 const initialItem = {
                     id: "{{ activo.id }}",
@@ -826,6 +834,11 @@
                     serie: "{{ activo.serie|default:'S/S' }}"
                 };
                 selectAsset(initialItem);
+                {% endif %}
+            } else {
+                // Si no hay activo pero hay una ubicación por defecto (ej. desde el scanner de ubicaciones)
+                {% if ubi_defecto %}
+                autoSelectHierarchy("{{ ubi_defecto.id }}");
                 {% endif %}
             }
         });

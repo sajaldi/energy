@@ -249,7 +249,6 @@
                 $('.loc-selector-group').each(function() {
                     const l = parseInt($(this).attr('data-level'), 10);
                     if (!isNaN(l) && l > groupLevel) {
-                        // Importante: destrozar select2 antes de remover del DOM para evitar fugas/bugs visuales
                         const $childSelect = $(this).find('select');
                         if ($childSelect.hasClass("select2-hidden-accessible")) {
                             $childSelect.select2('destroy');
@@ -258,23 +257,24 @@
                     }
                 });
 
-                // 2. Ocultar y limpiar el cajón de nueva área
+                // 2. Limpieza de UI
                 $('input[name="nueva_area"]').val('');
                 $('#new-area-container').hide();
+                $('#create-btn-container').hide();
 
-                // 3. Chequear el Submit Status
+                // 3. Actualizar estado del submit y validación de parent
                 updateFinalParent();
 
-                // 4. Si se deseleccionó (se puso vacío), ocultar botón y abortar
+                // 4. Si no hay nada seleccionado en este nivel, chequear si el padre anterior aún habilita el botón
                 if (!selectedId) {
-                    $('#create-btn-container').hide();
+                    // Si hay un nivel anterior, mostrar el botón para ese nivel
+                    if (groupLevel > 0) {
+                        $('#create-btn-container').show();
+                    }
                     return;
                 }
 
-                // 5. Mostrar loading state en el select actual (opcional, visual)
-                $('#create-btn-container').hide();
-
-                // 6. Cargar los hijos del nivel seleccionado
+                // 5. Cargar los hijos del nivel seleccionado
                 try {
                     const res = await fetch(`/inventarios/api/niveles/?edificio_id=${selectedId}`);
                     const data = await res.json();
@@ -292,21 +292,16 @@
                         });
                         newGroupHtml += `</select></div>`;
                         
-                        // Añadir al DOM
                         $('#dynamic-selectors-container').append(newGroupHtml);
-                        
-                        // Inicializar Select2 en el RECIEN añadido
                         $(`#loc_level_${nextLevel}`).select2({ width: '100%' });
                         
-                        // Mostrar el botón opcional de cliquear "crear" ya que la ruta puede seguir
+                        // Siempre mostrar posibilidad de crear sub-área adicional aunque existan hijos
                         $('#create-btn-container').show();
-                        $('#new-area-container').hide();
                     } else {
-                        // NO tiene hijos. Es el fondo del árbol. 
-                        // Auto-mostramos la caja de crear en lugar del botón
-                        $('#create-btn-container').hide();
+                        // NO tiene hijos. Es el fondo del árbol. Forzamos input manual.
                         $('#new-area-container').slideDown();
                         $('input[name="nueva_area"]').focus();
+                        $('#create-btn-container').hide();
                     }
                     
                 } catch (e) {
@@ -316,20 +311,26 @@
 
             function updateFinalParent() {
                 let deepestId = '';
-                // `.get()` obtiene el array del DOM natural (orden DOM)
-                // lo invertimos para buscar desde el último
-                const selects = $('.fiori-loc-select').get().reverse();
+                let deepestName = '';
                 
+                const selects = $('.fiori-loc-select').get().reverse();
                 for (let sel of selects) {
-                    const val = $(sel).val();
+                    const $s = $(sel);
+                    const val = $s.val();
                     if (val) {
                         deepestId = val;
+                        // Obtener el texto del option seleccionado para el label del botón
+                        deepestName = $s.find('option:selected').text();
                         break;
                     }
                 }
                 
                 $('#final_parent_id').val(deepestId);
                 
+                if (deepestName) {
+                    $('#btn-create-area').html(`<ion-icon name="add-circle-outline"></ion-icon> Agregar nueva sub-área dentro de "${deepestName}"`);
+                }
+
                 const nueva = $('input[name="nueva_area"]').val().trim();
                 if (deepestId || nueva) {
                     $('#submit-btn').prop('disabled', false).css('opacity', '1');

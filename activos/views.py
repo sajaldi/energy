@@ -257,8 +257,49 @@ def guardar_pin(request):
                 'alto': pin.alto
             })
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+            return HttpResponse(f"Error fatal: {str(e)}", status=500)
+
+@csrf_exempt
+@staff_member_required
+def api_upload_foto_ubicacion(request):
+    """
+    API para subir una o varias fotos a una ubicación.
+    Optimización activa en el modelo.
+    """
+    if request.method == 'POST':
+        from .models.foto_ubicacion import FotoUbicacion
+        from .models.ubicacion import Ubicacion
+        
+        ubicacion_id = request.POST.get('ubicacion_id')
+        if not ubicacion_id:
+            return JsonResponse({'success': False, 'error': 'Falta ID de ubicación'}, status=400)
+            
+        ubicacion = get_object_or_404(Ubicacion, pk=ubicacion_id)
+        files = request.FILES.getlist('fotos')
+        
+        if not files:
+            return JsonResponse({'success': False, 'error': 'No hay archivos seleccionados'}, status=400)
+            
+        saved_count = 0
+        for f in files:
+            try:
+                # El modelo FotoUbicacion ya tiene la lógica de optimización en su save()
+                foto_obj = FotoUbicacion.objects.create(
+                    ubicacion=ubicacion,
+                    foto=f,
+                    subido_por=request.user
+                )
+                saved_count += 1
+            except Exception as e:
+                print(f"Error subiendo foto: {e}")
+                
+        return JsonResponse({
+            'success': True, 
+            'message': f'Se subieron {saved_count} fotos con éxito.',
+            'count': saved_count
+        })
+        
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
 @csrf_exempt
 def eliminar_pin(request, pin_id):
@@ -980,13 +1021,118 @@ def mobile_ubicaciones(request, parent_id=None):
     """
     from .models.ubicacion import Ubicacion
     from .models.plano import VisorPlano
-    from mantenimiento.models import Rutina, Tipo as M_Tipo
+    from mantenimiento.models import Rutina, Tipo as M_Tipo, Aviso
     from django.db.models import Count
     
+    # Fotos y activos de la ubicación
     parent = None
+    unique_categories = []
+    categorias_agrupadas = []
+    avisos_historial = []
+    ubicacion_fotos = []
+    activos_ubicacion = []
+    breadcrumb_path = []
+    
     if parent_id:
         parent = get_object_or_404(Ubicacion, pk=parent_id)
         ubicaciones_qs = Ubicacion.objects.filter(padre=parent)
+        # Historial de avisos de esta ubicación específica
+        from mantenimiento.models import Aviso
+        from .models.foto_ubicacion import FotoUbicacion
+        from .models.activo import Activo
+        avisos_historial = Aviso.objects.filter(ubicacion=parent).select_related('solicitante', 'falla').order_by('-creado_en')[:10]
+        descendants = parent.get_descendants(include_self=True)
+        activos_qs = Activo.objects.filter(ubicacion__in=descendants).select_related(
+            'modelo', 'modelo__marca', 'modelo__categoria', 'modelo__categoria__padre', 'ubicacion'
+        )
+        
+        # New Hierarchical Grouping: Location -> Category -> Assets
+        children = parent.sub_ubicaciones.all()
+        branch_map = {child.id: child for child in children}
+        
+        ubicaciones_agrupadas = {}
+        # Entry for direct assets
+        ubicaciones_agrupadas['direct'] = {
+            'id': 'direct',
+            'nombre': 'Asignados Directamente', 
+            'icono': 'pin',
+            'is_direct': True, 
+            'categorias': {}
+        }
+        
+        # Initialize branches
+        for child_id, child in branch_map.items():
+            ubicaciones_agrupadas[child_id] = {
+                'id': child_id,
+                'nombre': child.nombre,
+                'icono': child.categoria.icono if (child.categoria and child.categoria.icono) else 'location',
+                'categorias': {}
+            }
+
+        def group_asset_in_category(cat_dict, asset):
+            cat = None
+            if asset.modelo and asset.modelo.categoria:
+                cat = asset.modelo.categoria.padre or asset.modelo.categoria
+            
+            cat_key = str(cat.id) if cat else 'None'
+            if cat_key not in cat_dict:
+                cat_dict[cat_key] = {
+                    'nombre': cat.nombre if cat else 'Otros',
+                    'icono': cat.icono if cat else 'cube',
+                    'activos': []
+                }
+            cat_dict[cat_key]['activos'].append(asset)
+
+        # Optimization: Map every descendant ID to its immediate branch root ID under parent
+        descendant_to_branch = {}
+        for child_id, child in branch_map.items():
+            child_descendants = child.get_descendants(include_self=True).values_list('id', flat=True)
+            for d_id in child_descendants:
+                descendant_to_branch[d_id] = child_id
+
+        # Distribute assets
+        for a in activos_qs:
+            group_id = descendant_to_branch.get(a.ubicacion_id, 'direct')
+            group_asset_in_category(ubicaciones_agrupadas[group_id]['categorias'], a)
+
+        # Final list filtering out empty branches
+        final_ubicaciones_agrupadas = []
+        if ubicaciones_agrupadas['direct']['categorias']:
+            # Sort categories for direct assets as well
+            cats_list = sorted(ubicaciones_agrupadas['direct']['categorias'].values(), key=lambda x: x['nombre'])
+            ubicaciones_agrupadas['direct']['categorias_sorted'] = cats_list
+            final_ubicaciones_agrupadas.append(ubicaciones_agrupadas['direct'])
+        
+        for cid, group in ubicaciones_agrupadas.items():
+            if cid != 'direct' and group['categorias']:
+                # Sort categories within each location
+                cats_list = sorted(group['categorias'].values(), key=lambda x: x['nombre'])
+                group['categorias_sorted'] = cats_list
+                final_ubicaciones_agrupadas.append(group)
+        
+        # Collect unique global categories for the grid to avoid repeats
+        global_categories = {}
+        for group in final_ubicaciones_agrupadas:
+            for cat_key, cat_data in group['categorias'].items():
+                if cat_key not in global_categories:
+                    global_categories[cat_key] = {
+                        'nombre': cat_data['nombre'],
+                        'icono': cat_data['icono']
+                    }
+        unique_categories = sorted(global_categories.values(), key=lambda x: x['nombre'])
+        
+        # Replace the old context variable with the new one
+        categorias_agrupadas = final_ubicaciones_agrupadas 
+        
+        ubicacion_fotos = FotoUbicacion.objects.filter(ubicacion=parent).order_by('-creado_en')
+        activos_ubicacion = activos_qs # Flat list for the (11,424) count
+        
+        # Build breadcrumb path (ancestors)
+        breadcrumb_path = []
+        curr = parent.padre
+        while curr:
+            breadcrumb_path.insert(0, {'id': curr.id, 'nombre': curr.nombre})
+            curr = curr.padre
     else:
         ubicaciones_qs = Ubicacion.objects.filter(padre__isnull=True)
     
@@ -1024,6 +1170,12 @@ def mobile_ubicaciones(request, parent_id=None):
     return render(request, 'activos/mobile_ubicaciones.html', {
         'ubicaciones': ubicaciones,
         'parent': parent,
+        'avisos_historial': avisos_historial,
+        'ubicacion_fotos': ubicacion_fotos,
+        'activos_ubicacion': activos_ubicacion,
+        'categorias_agrupadas': categorias_agrupadas,
+        'breadcrumb_path': breadcrumb_path,
+        'unique_categories': unique_categories,
     })
 
 @staff_member_required

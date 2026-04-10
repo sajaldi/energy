@@ -81,4 +81,7 @@ urlpatterns = [
 
     # Fiori Dashboard
     path('activo/<int:pk>/fiori/', views.activo_fiori_view, name='activo_fiori'),
+    
+    # Fotos de Ubicación
+    path('api/ubicacion/upload-fotos/', views.api_upload_foto_ubicacion, name='api_upload_foto_ubicacion'),
 ]

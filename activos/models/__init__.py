@@ -10,3 +10,4 @@ from .bien_afecto import BienAfecto, HistorialBienAfecto
 from .control_submittal import ControlSubmittal
 from .documento_altabaja import DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja
 from .plantilla_qr import PlantillaEtiquetaQR
+from .foto_ubicacion import FotoUbicacion

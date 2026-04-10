@@ -17,6 +17,7 @@
             --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             --text-main: #1e293b;
             --text-secondary: #64748b;
+            --sap-border-radius: 4px;
         }
 
         body {
@@ -94,7 +95,7 @@
             width: 44px;
             height: 44px;
             background: var(--sap-bg-color);
-            border-radius: 8px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -128,7 +129,7 @@
         .badge {
             font-size: 10px;
             padding: 2px 8px;
-            border-radius: 10px;
+            border-radius: 4px;
             background: #f1f5f9;
             color: var(--text-secondary);
             font-weight: 600;
@@ -143,6 +144,286 @@
         .badge.has-rutinas {
             background: #fff7ed;
             color: #9a3412;
+        }
+
+        /* Status Badges for History */
+        .status-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .status-abierto { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .status-proceso { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .status-cerrado { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .status-cancelado { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+        .history-item {
+            border-bottom: 1px solid #edf2f7;
+            padding: 12px 0;
+        }
+        .history-item:last-child { border-bottom: none; }
+        .history-item .date { font-size: 11px; color: var(--text-secondary); }
+        .history-item .desc { font-size: 13px; margin: 4px 0; font-weight: 500; }
+        .history-item .meta { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+
+        /* Gallery Styles */
+        .gallery-container {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 4px 0 15px 0;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .gallery-container::-webkit-scrollbar { display: none; }
+        
+        .gallery-item {
+            flex: 0 0 120px;
+            height: 120px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--sap-border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .upload-placeholder {
+            flex: 0 0 120px;
+            height: 120px;
+            border-radius: 6px;
+            border: 2px dashed #cbd5e1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            background: #f8fafc;
+            cursor: pointer;
+        }
+        .upload-placeholder ion-icon { font-size: 24px; margin-bottom: 4px; }
+        .upload-placeholder span { font-size: 10px; font-weight: 600; text-transform: uppercase; }
+
+        /* Tabs Styles */
+        .fiori-tabs {
+            display: flex;
+            background: white;
+            border-bottom: 1px solid var(--sap-border-color);
+            position: sticky;
+            top: 56px; /* Below header */
+            z-index: 100;
+            padding: 0 10px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 5px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            transition: all 0.2s;
+        }
+        .tab-btn ion-icon { font-size: 20px; }
+        .tab-btn.active {
+            color: var(--sap-brand-color);
+            border-bottom-color: var(--sap-brand-color);
+        }
+        .tab-panel { display: none; padding-top: 15px; }
+        .tab-panel.active { display: block; }
+
+        .asset-card {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            padding: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            gap: 12px;
+            text-decoration: none;
+            color: inherit;
+        }
+        .asset-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .asset-img img { width: 100%; height: 100%; object-fit: cover; }
+        .asset-body { flex: 1; min-width: 0; }
+        .asset-body h4 { margin: 0; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .asset-body p { margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary); }
+
+        /* Categorías Grid */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 25px;
+            padding: 0 5px;
+        }
+        .category-item {
+            background: white;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 6px;
+            padding: 15px 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .category-item:active { background: #f8fafc; transform: scale(0.95); }
+        .category-item ion-icon { font-size: 26px; color: var(--sap-brand-color); margin-bottom: 8px; }
+        .category-item span { font-size: 11px; font-weight: 700; color: var(--sap-shell-bg); }
+        
+        .subcat-header {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--sap-shell-bg);
+            margin: 25px 0 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 4px solid var(--sap-brand-color);
+            padding: 4px 12px;
+            background: linear-gradient(90deg, #f8fafc 0%, transparent 100%);
+        }
+
+        /* Search Bar */
+        .search-wrapper {
+            position: sticky;
+            top: 110px; /* Below tabs */
+            background: var(--sap-bg-color);
+            padding: 10px 0;
+            z-index: 90;
+            margin-bottom: 15px;
+        }
+        .fiori-search-field {
+            background: white;
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .fiori-search-field input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--sap-text-color);
+        }
+        .fiori-search-field ion-icon { color: var(--text-secondary); font-size: 20px; }
+
+        /* Accordion */
+        .cat-container { 
+            background: white; 
+            border-radius: var(--sap-border-radius); 
+            border: 1px solid var(--sap-border-color);
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .cat-header {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            background: #fff;
+            transition: background 0.2s;
+        }
+        .cat-header:active { background: #f8fafc; }
+        .header-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+        .header-main h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--sap-shell-bg); }
+        .header-main ion-icon { font-size: 22px; color: var(--sap-brand-color); }
+        
+        .cat-badge {
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+
+        .chevron-icon { 
+            transition: transform 0.3s ease; 
+            color: #94a3b8; 
+            font-size: 20px;
+        }
+        .cat-container.expanded .chevron-icon { transform: rotate(180deg); }
+        .cat-content { display: none; padding: 0 12px 12px 12px; }
+        .cat-container.expanded .cat-content { display: block; }
+        
+        .subcat-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 15px 0 8px 4px;
+            display: block;
+        }
+
+        /* Sub-accordion inside level folders */
+        .subcat-container {
+            border-top: 1px solid #f1f5f9;
+        }
+        .subcat-header {
+            padding: 10px 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        .subcat-header:active { opacity: 0.7; }
+        .subcat-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--sap-brand-color);
+        }
+        .subcat-content {
+            display: none;
+            padding-bottom: 10px;
+        }
+        .subcat-container.expanded-sub .subcat-content {
+            display: block;
+        }
+        .subcat-container.expanded-sub .subcat-chevron {
+            transform: rotate(180deg);
+        }
+        .subcat-chevron {
+            transition: transform 0.2s;
+            font-size: 16px;
+            color: #cbd5e1;
         }
 
         .action-arrow {
@@ -298,7 +579,13 @@
         <div>
             <h1 style="margin: 0; font-size: 18px; font-weight: 700;">{{ parent.nombre|default:"Ubicaciones" }}</h1>
             {% if parent %}
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">{{ parent.get_ruta_completa }}</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">
+                {% for node in breadcrumb_path %}
+                <a href="{% url 'activos:mobile_ubicaciones_child' node.id %}" style="color: inherit; text-decoration: underline; text-underline-offset: 2px;">{{ node.nombre }}</a>
+                <span style="margin: 0 2px; opacity: 0.5;">&rarr;</span>
+                {% endfor %}
+                <span style="font-weight: 600;">{{ parent.nombre }}</span>
+            </div>
             {% else %}
             <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Explora la infraestructura</div>
             {% endif %}
@@ -306,6 +593,71 @@
     </header>
 
     <div class="container">
+        {% if parent %}
+        <!-- Galería de Fotos de la Ubicación -->
+        <div class="fiori-card" style="margin-bottom: 20px;">
+            <div style="padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h4 style="margin: 0; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--sap-shell-bg);">
+                        <ion-icon name="images-outline"></ion-icon> Galería de la Zona
+                    </h4>
+                    <span id="upload-status" style="font-size: 11px; font-weight: 600; color: var(--sap-brand-color); display: none;">Subiendo...</span>
+                </div>
+
+                <div class="gallery-container">
+                    <!-- Botón de subida primero -->
+                    <div class="upload-placeholder" onclick="document.getElementById('location-photo-input').click()">
+                        <ion-icon name="camera-outline"></ion-icon>
+                        <span>Añadir</span>
+                    </div>
+                    
+                    {% for f in ubicacion_fotos %}
+                    <div class="gallery-item" onclick="showPhotoFullScreen('{{ f.foto.url }}')">
+                        <img src="{{ f.foto.url }}" loading="lazy">
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <input type="file" id="location-photo-input" multiple accept="image/*" style="display: none;" onchange="handleLocationPhotoUpload(this)">
+            </div>
+        </div>
+
+        <div class="fiori-card report-card" style="margin-bottom: 20px; border-left: 4px solid var(--sap-negative-color);">
+            <div style="padding: 16px;">
+                <h4 style="margin: 0; font-size: 14px; color: var(--sap-negative-color); display: flex; align-items: center; gap: 8px;">
+                    <ion-icon name="warning-outline"></ion-icon> Reportar Incidencia / Mal Uso
+                </h4>
+                <p style="font-size: 12px; color: var(--sap-text-muted); margin: 8px 0 12px 0;">
+                    ¿Has detectado algún problema o mal uso en esta zona? Reportalo ahora.
+                </p>
+                <a href="{% url 'mantenimiento:mobile_crear_aviso' %}?ubicacion={{ parent.id }}&tipo=MAL_USO" class="fiori-btn fiori-btn-negative" style="width: 100%; justify-content: center; font-size: 13px;">
+                    <ion-icon name="megaphone-outline"></ion-icon>
+                    Crear Reporte de Ubicación
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Pestañas de Navegación -->
+        <div class="fiori-tabs">
+            <div class="tab-btn active" onclick="switchTab('tab-estructura', this)">
+                <ion-icon name="layers-outline"></ion-icon>
+                <span>Estructura</span>
+            </div>
+            <div class="tab-btn" onclick="switchTab('tab-equipos', this)">
+                <ion-icon name="desktop-outline"></ion-icon>
+                <span>Equipos ({{ activos_ubicacion|length }})</span>
+            </div>
+            <div class="tab-btn" onclick="switchTab('tab-historial', this)">
+                <ion-icon name="time-outline"></ion-icon>
+                <span>Historial</span>
+            </div>
+        </div>
+
+        <div id="tab-estructura" class="tab-panel active">
+
+
+
         <div class="location-list">
             {% for u in ubicaciones %}
             <div class="fiori-card" style="padding: 0; overflow: hidden; margin-bottom: 12px;">
@@ -369,10 +721,192 @@
                 <p>No se encontraron sub-ubicaciones aquí.</p>
             </div>
             {% endfor %}
+            </div>
+        </div>
+
+        <!-- Tab Equipos: Jerarquía Ubicación -> Categoría -->
+        <div id="tab-equipos" class="tab-panel">
+            {% if categorias_agrupadas %}
+            <!-- Buscador Pegajoso -->
+            <div class="search-wrapper">
+                <div class="fiori-search-field">
+                    <ion-icon name="search-outline"></ion-icon>
+                    <input type="text" id="asset-search" placeholder="Buscar en {{ parent.nombre }}..." oninput="filterEquipos(this.value)">
+                </div>
+            </div>
+
+            <!-- Grid de Categorías Únicas -->
+            <div class="category-grid">
+                {% for cat in unique_categories %}
+                <a href="javascript:void(0)" onclick="filterEquipos('{{ cat.nombre|escapejs }}')" class="category-item">
+                    <ion-icon name="{{ cat.icono|default:'cube' }}-outline"></ion-icon>
+                    <span>{{ cat.nombre }}</span>
+                </a>
+                {% endfor %}
+            </div>
+
+            <div class="asset-list">
+                {% for loc in categorias_agrupadas %}
+                <div id="loc-{{ loc.id }}" class="cat-container" style="scroll-margin-top: 170px;">
+                    <div class="cat-header" onclick="toggleCategory('loc-{{ loc.id }}')">
+                        <div class="header-main">
+                            <ion-icon name="{{ loc.icono|default:'location' }}-outline"></ion-icon>
+                            <div style="display: flex; flex-direction: column;">
+                                <h3>{{ loc.nombre }}</h3>
+                                <span style="font-size: 10px; color: #64748b; font-weight: 500;">Jerarquía de activos</span>
+                            </div>
+                        </div>
+                        <ion-icon name="chevron-down-outline" class="chevron-icon"></ion-icon>
+                    </div>
+
+                    <div class="cat-content">
+                        {% for cat in loc.categorias_sorted %}
+                        <div id="subcat-{{ loc.id }}-{{ forloop.counter }}" class="subcat-container">
+                            <div class="subcat-header" onclick="toggleSubCategory('subcat-{{ loc.id }}-{{ forloop.counter }}')">
+                                <div class="subcat-title">
+                                    <ion-icon name="{{ cat.icono|default:'cube' }}-outline"></ion-icon>
+                                    {{ cat.nombre }}
+                                    <span style="font-size: 10px; opacity: 0.5;">({{ cat.activos|length }})</span>
+                                </div>
+                                <ion-icon name="chevron-down-outline" class="subcat-chevron"></ion-icon>
+                            </div>
+                            
+                            <div class="subcat-content">
+                                {% for a in cat.activos %}
+                                <a href="{% url 'activos:mobile_activo_detalle' a.id %}" class="asset-card" 
+                                   data-search-text="{{ a.nombre|lower }} {{ a.codigo_interno|lower }} {{ cat.nombre|lower }} {{ loc.nombre|lower }}">
+                                    <div class="asset-img">
+                                        {% if a.foto_principal %}
+                                        <img src="{{ a.foto_principal.url }}">
+                                        {% else %}
+                                        <ion-icon name="cube-outline" style="font-size: 32px; color: #cbd5e1;"></ion-icon>
+                                        {% endif %}
+                                    </div>
+                                    <div class="asset-body">
+                                        <h4>{{ a.nombre }}</h4>
+                                        <p style="font-weight: 700; color: var(--sap-shell-bg);">{{ a.codigo_interno }}</p>
+                                        <p>{{ a.modelo.marca.nombre }} {{ a.modelo.nombre }}</p>
+                                        {% if a.ubicacion_id != parent.id %}
+                                        <p style="font-size: 10px; color: var(--sap-brand-color); margin-top: 4px; display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                                            <ion-icon name="location-outline" style="font-size: 12px;"></ion-icon>
+                                            {{ a.ubicacion.nombre }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="action-arrow" style="align-self: center;">
+                                        <ion-icon name="chevron-forward-outline"></ion-icon>
+                                    </div>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <ion-icon name="cube-outline"></ion-icon>
+                <p>No se encontraron equipos en esta jerarquía.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tab Historial: Avisos -->
+        <div id="tab-historial" class="tab-panel">
+            {% if avisos_historial %}
+            <div class="fiori-card">
+                <div style="padding: 16px;">
+                    <div class="history-list">
+                        {% for aviso in avisos_historial %}
+                        <div class="history-item" onclick="showNoticePreview({
+                            id: '{{ aviso.id }}',
+                            tipo: '{{ aviso.get_tipo_display|escapejs }}',
+                            estado: '{{ aviso.get_estado_display|escapejs }}',
+                            estado_slug: '{{ aviso.estado|lower }}',
+                            desc: '{{ aviso.descripcion|escapejs }}',
+                            user: '{{ aviso.solicitante.get_full_name|default:aviso.solicitante.username|escapejs }}',
+                            fecha: '{{ aviso.creado_en|date:"d M, Y H:i" }}',
+                            cat: '{{ aviso.falla.nombre|default:"Sin Categoría"|escapejs }}',
+                            foto: '{% if aviso.foto %}{{ aviso.foto.url }}{% endif %}'
+                        })">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <span class="date">{{ aviso.creado_en|date:"d M, Y H:i" }}</span>
+                                <span class="status-badge status-{{ aviso.estado|lower }}">{{ aviso.get_estado_display }}</span>
+                            </div>
+                            <p class="desc">{{ aviso.descripcion }}</p>
+                            <div class="meta">
+                                <ion-icon name="person-circle-outline"></ion-icon>
+                                {{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <ion-icon name="time-outline"></ion-icon>
+                <p>No hay historial de reportes recientes.</p>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- Modal Vista Previa de Aviso -->
+    <div id="notice-preview-modal" class="modal-mobile-wrapper" onclick="if(event.target==this) closeNoticeModal()">
+        <div class="modal-content-mobile">
+            <div class="m-header">
+                <div>
+                    <h2 id="p-tipo">Detalle de Aviso</h2>
+                    <div id="p-fecha" style="font-size: 12px; color: var(--text-secondary);"></div>
+                </div>
+                <button onclick="closeNoticeModal()" style="background:none; border:none; font-size: 28px; color: #94a3b8; display:flex;">
+                    <ion-icon name="close-circle-outline"></ion-icon>
+                </button>
+            </div>
+            
+            <div style="overflow-y: auto; flex:1; padding: 0 20px 20px 20px;">
+                <div id="p-foto-container" style="margin: 0 -20px 20px -20px; display: none;">
+                    <img id="p-foto" src="" style="width: 100%; height: 200px; object-fit: cover;">
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                    <span id="p-id" style="font-family: monospace; font-weight: 700; color: var(--sap-shell-bg);"></span>
+                    <span id="p-estado" class="status-badge"></span>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="font-size: 10px; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">Categoría</label>
+                    <div id="p-cat" style="font-size: 14px; font-weight: 600; color: var(--sap-brand-color); display: flex; align-items: center; gap: 6px;">
+                        <ion-icon name="pricetag-outline"></ion-icon>
+                        <span>-</span>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="font-size: 10px; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">Reportado por</label>
+                    <div id="p-user" style="font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <ion-icon name="person-outline"></ion-icon>
+                        <span>-</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 10px; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">Descripción Detallada</label>
+                    <p id="p-desc" style="font-size: 14px; line-height: 1.5; color: var(--sap-text-color); margin: 0; white-space: pre-wrap; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #edf2f7;"></p>
+                </div>
+            </div>
+            
+            <div style="padding: 16px; border-top: 1px solid #edf2f7; display: flex; gap: 10px;">
+                <button onclick="closeNoticeModal()" class="fiori-btn fiori-btn-ghost" style="flex: 1; justify-content: center;">Cerrar</button>
+            </div>
         </div>
     </div>
 
-    <div id="routine-list-modal" onclick="if(event.target==this) closeRoutineModal()">
+    <div id="routine-list-modal" class="modal-mobile-wrapper" onclick="if(event.target==this) closeRoutineModal()">
         <div class="modal-content-mobile">
             <div class="m-header">
                 <div>
@@ -441,8 +975,229 @@
             modal.classList.remove('active');
             setTimeout(() => modal.style.display = 'none', 300);
         }
+
+        // Preview Notice Logic
+        function showNoticePreview(data) {
+            const modal = document.getElementById('notice-preview-modal');
+            
+            // Populate data
+            document.getElementById('p-id').innerText = 'AV-' + data.id;
+            document.getElementById('p-tipo').innerText = data.tipo;
+            document.getElementById('p-fecha').innerText = data.fecha;
+            document.getElementById('p-desc').innerText = data.desc;
+            document.getElementById('p-user').querySelector('span').innerText = data.user;
+            document.getElementById('p-cat').querySelector('span').innerText = data.cat;
+            
+            const estadoSpan = document.getElementById('p-estado');
+            estadoSpan.innerText = data.estado;
+            estadoSpan.className = 'status-badge status-' + data.estado_slug;
+
+            const fotoContainer = document.getElementById('p-foto-container');
+            const fotoImg = document.getElementById('p-foto');
+            if (data.foto) {
+                fotoImg.src = data.foto;
+                fotoContainer.style.display = 'block';
+            } else {
+                fotoContainer.style.display = 'none';
+            }
+
+            // Show modal
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10);
+        }
+
+        function closeNoticeModal() {
+            const modal = document.getElementById('notice-preview-modal');
+            modal.classList.remove('active');
+            setTimeout(() => modal.style.display = 'none', 300);
+        }
+
+        // Location Photo Gallery Logic h-upload
+        async function handleLocationPhotoUpload(input) {
+            if (!input.files || input.files.length === 0) return;
+            
+            const status = document.getElementById('upload-status');
+            status.style.display = 'inline';
+            status.innerText = 'Procesando...';
+            
+            const formData = new FormData();
+            formData.append('ubicacion_id', '{{ parent.id }}');
+            
+            for (let i = 0; i < input.files.length; i++) {
+                formData.append('fotos', input.files[i]);
+            }
+            
+            try {
+                const response = await fetch('{% url "activos:api_upload_foto_ubicacion" %}', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    status.innerText = '¡Éxito!';
+                    status.style.color = 'var(--sap-positive-color)';
+                    // Recargar para ver las nuevas fotos (simplificado por ahora, se podría inyectar al DOM)
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    alert('Error: ' + result.error);
+                    status.style.display = 'none';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error al conectar con el servidor');
+                status.style.display = 'none';
+            }
+        }
+
+        function showPhotoFullScreen(url) {
+            // Reutilizamos el modal de preview para la foto o creamos un visor rápido
+            const modal = document.getElementById('notice-preview-modal');
+            
+            // Clear content
+            document.getElementById('p-id').innerText = 'FOTO DE UBICACIÓN';
+            document.getElementById('p-tipo').innerText = 'Galería';
+            document.getElementById('p-fecha').innerText = '';
+            document.getElementById('p-desc').innerText = 'Visualización de entorno de la ubicación.';
+            document.getElementById('p-user').style.display = 'none';
+            document.getElementById('p-cat').style.display = 'none';
+            document.getElementById('p-estado').style.display = 'none';
+
+            const fotoContainer = document.getElementById('p-foto-container');
+            const fotoImg = document.getElementById('p-foto');
+            fotoImg.src = url;
+            fotoImg.style.height = 'auto';
+            fotoContainer.style.display = 'block';
+
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('active'), 10);
+        }
+
+        function switchTab(tabId, btn) {
+            // Remove active classes
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            
+            // Add active classes
+            btn.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function toggleCategory(id, forceOpen = false) {
+            const container = document.getElementById(id);
+            if (!container) return;
+            if (forceOpen) {
+                container.classList.add('expanded');
+                setTimeout(() => {
+                    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            } else {
+                container.classList.toggle('expanded');
+            }
+        }
+
+        function toggleSubCategory(id, forceOpen = false) {
+            const container = document.getElementById(id);
+            if (!container) return;
+            if (forceOpen) {
+                container.classList.add('expanded-sub');
+            } else {
+                container.classList.toggle('expanded-sub');
+            }
+        }
+
+        function filterEquipos(query) {
+            query = query.toLowerCase().trim();
+            const sections = document.querySelectorAll('.cat-container');
+            
+            if (query === "") {
+                sections.forEach(s => {
+                    s.style.display = 'block';
+                    s.classList.remove('expanded');
+                    s.querySelectorAll('.subcat-container').forEach(sub => {
+                        sub.classList.remove('expanded-sub');
+                        sub.style.display = 'block';
+                    });
+                    s.querySelectorAll('.asset-card').forEach(c => c.style.display = 'flex');
+                });
+                return;
+            }
+
+            sections.forEach(s => {
+                let hasMatchInSection = false;
+                const subSections = s.querySelectorAll('.subcat-container');
+                
+                subSections.forEach(sub => {
+                    let hasMatchInSub = false;
+                    const cards = sub.querySelectorAll('.asset-card');
+                    
+                    cards.forEach(c => {
+                        const text = c.getAttribute('data-search-text') || "";
+                        if (text.includes(query)) {
+                            c.style.display = 'flex';
+                            hasMatchInSub = true;
+                            hasMatchInSection = true;
+                        } else {
+                            c.style.display = 'none';
+                        }
+                    });
+
+                    if (hasMatchInSub) {
+                        sub.style.display = 'block';
+                        sub.classList.add('expanded-sub');
+                    } else {
+                        sub.style.display = 'none';
+                    }
+                });
+
+                if (hasMatchInSection) {
+                    s.style.display = 'block';
+                    s.classList.add('expanded');
+                } else {
+                    s.style.display = 'none';
+                }
+            });
+        }
     </script>
     <style>
+        /* Refactor modal classes to be shared */
+        .modal-mobile-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0);
+            z-index: 2000;
+            display: none;
+            align-items: flex-end;
+            transition: background 0.3s ease;
+        }
+        .modal-mobile-wrapper.active { background: rgba(0, 0, 0, 0.4); }
+
+        .modal-content-mobile {
+            width: 100%;
+            background: white;
+            border-radius: 8px 8px 0 0;
+            min-height: 40vh;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 -10px 25px rgba(0,0,0,0.1);
+        }
+        .modal-mobile-wrapper.active .modal-content-mobile { transform: translateY(0); }
+
+        .m-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #edf2f7;
+        }
+        .m-header h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--sap-shell-bg); }
+
         @keyframes spin {
             from {
                 transform: rotate(0deg);

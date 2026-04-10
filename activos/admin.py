@@ -9,7 +9,14 @@ from import_export.admin import ImportExportModelAdmin, ImportExportMixin, Impor
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal, DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal, DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja, FotoUbicacion
+
+@admin.register(FotoUbicacion)
+class FotoUbicacionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'ubicacion', 'subido_por', 'creado_en')
+    list_filter = ('creado_en', 'subido_por')
+    search_fields = ('ubicacion__nombre', 'descripcion')
+    readonly_fields = ('creado_en',)
 
 # ... (resto de registros)
 from auditorias.models import ResultadoAuditoria
@@ -1025,7 +1032,8 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
         """
         import csv
         from django.http import StreamingHttpResponse
-        from .models import Ubicacion
+        from .models.ubicacion import Ubicacion
+        from .models.foto_ubicacion import FotoUbicacion
 
         # Clase auxiliar para escribir en el buffer de respuesta
         class Echo:

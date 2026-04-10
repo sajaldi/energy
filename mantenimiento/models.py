@@ -10,6 +10,7 @@ TIPO_AVISO_CHOICES = [
     ('SOLICITUD', 'Solicitud de Servicio (M1)'),
     ('MEJORA', 'Mejora / Modificación'),
     ('LEGAL', 'Requerimiento Legal / Seguridad'),
+    ('MAL_USO', 'Mal Uso de las Instalaciones'),
 ]
 
 class Tipo(models.Model):

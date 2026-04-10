@@ -147,9 +147,18 @@ def mobile_crear_aviso(request, pk=None):
         except ValueError:
             activo = None
     
-    # Obtener ubicación por defecto del perfil
-    perfil = getattr(request.user, 'perfil', None)
-    ubi_defecto = perfil.ubicacion_defecto if perfil else None
+    # Obtener ubicación por defecto (del GET o del perfil)
+    uid = request.GET.get('ubicacion')
+    ubi_defecto = None
+    if uid:
+        try:
+            uid_clean = str(uid).replace(',', '').replace('.', '')
+            ubi_defecto = Ubicacion.objects.filter(id=uid_clean).first()
+        except Exception: pass
+    
+    if not ubi_defecto:
+        perfil = getattr(request.user, 'perfil', None)
+        ubi_defecto = perfil.ubicacion_defecto if perfil else None
     
     # Obtener catálogo de fallas relevante al puesto del usuario
     # Incluye fallas del puesto + fallas universales (sin puesto asignado)
