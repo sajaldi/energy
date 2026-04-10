@@ -12,6 +12,7 @@ import json
 import time
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.cache import cache
+from core.decorators import mobile_permission_required
 from django.core.files.storage import default_storage
 from celery.result import AsyncResult
 from .tasks import import_materiales_task
@@ -118,6 +119,7 @@ def registrar_salida_view(request):
                 material=material,
                 tipo='SALIDA',
                 cantidad=dc_cantidad,
+                cantidad_solicitada=dc_cantidad, # Capturar pedido original
                 ubicacion_origen=ubicacion,
                 orden_trabajo=ot,
                 usuario=request.user,
@@ -309,11 +311,13 @@ def cart_checkout(request):
 
                 # Crear los movimientos asociados
                 for item in items_to_process:
+                    qty = Decimal(str(item['quantity']))
                     MovimientoInventario.objects.create(
                         solicitud=solicitud,
                         material=item['material'],
                         tipo='SALIDA',
-                        cantidad=Decimal(str(item['quantity'])),
+                        cantidad=qty,
+                        cantidad_solicitada=qty, # Capturar pedido original
                         ubicacion_origen=ubicacion,
                         orden_trabajo=ot,
                         fecha_aprobacion=None,
@@ -431,6 +435,7 @@ def scanner_view(request):
     })
 
 @login_required
+@mobile_permission_required('logistica')
 def mobile_lista_pedidos(request):
     """Listado móvil de solicitudes de material para el usuario actual."""
     pedidos = SolicitudMaterial.objects.filter(usuario=request.user).order_by('-fecha_solicitud')
@@ -578,16 +583,22 @@ def api_despachar_solicitud(request, pk):
     return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} despachada exitosamente. {procesados} ítems entregados.'})
 
 @login_required
+@mobile_permission_required('logistica')
 def mobile_detalle_pedido(request, pk):
     """Detalle móvil de una solicitud de material."""
     pedido = get_object_or_404(SolicitudMaterial, pk=pk, usuario=request.user)
-    items = pedido.items.select_related('material').all()
+    items = pedido.items.select_related('material', 'material__unidad_medida').all()
+    
+    # Asegurar que para ítems antiguos cantidad_solicitada != 0 en el contexto si es necesario,
+    # aunque lo manejaremos mejor en el template con el filtro |default
+    
     return render(request, 'inventarios/mobile_detalle_pedido.html', {
         'pedido': pedido,
         'items': items
     })
 
 @login_required
+@mobile_permission_required('logistica')
 # Vista movil para crear solicitudes
 def mobile_crear_solicitud(request):
     """Interfaz móvil para crear solicitudes de material."""
@@ -614,6 +625,27 @@ def mobile_crear_solicitud(request):
     })
 
 @login_required
+@mobile_permission_required('gestion_almacen')
+def mobile_gestion_salidas_view(request):
+    """
+    Vista móvil para que el almacenista gestione las salidas de material (solicitudes pendientes).
+    """
+    # Verificar si el usuario es del grupo Almacenes o Superusuario
+    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+    
+    if not es_almacen:
+        return redirect('inventarios:dashboard')
+
+    # Obtener el número de pedidos pendientes para el contador inicial
+    pedidos_pendientes = SolicitudMaterial.objects.filter(estado='PENDIENTE').count()
+    
+    context = {
+        'pedidos_pendientes': pedidos_pendientes,
+        'title': 'Gestión de Salidas'
+    }
+    return render(request, 'inventarios/mobile_gestion_salidas.html', context)
+
+@login_required
 def api_niveles_por_edificio(request):
     """Devuelve los niveles/pisos hijos de un edificio."""
     from activos.models import Ubicacion
@@ -625,7 +657,12 @@ def api_niveles_por_edificio(request):
 
     niveles = Ubicacion.objects.filter(padre_id=edificio_id).order_by('orden', 'nombre')
     results = [{'id': n.id, 'nombre': n.nombre, 'tipo': n.tipo} for n in niveles]
-    return JsonResponse({'results': results})
+    
+    # También chequear si el padre mismo ya tiene QR
+    parent = Ubicacion.objects.get(id=edificio_id)
+    has_qr = bool(parent.codigo_qr)
+    
+    return JsonResponse({'results': results, 'parent_has_qr': has_qr})
 
 @login_required
 def api_search_ordenes_trabajo(request):

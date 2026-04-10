@@ -7,6 +7,7 @@ import json
 from django.views.decorators.csrf import csrf_exempt
 from celery.result import AsyncResult
 from django.contrib.admin.views.decorators import staff_member_required
+from core.decorators import mobile_permission_required
 from django.contrib import messages
 
 def visor_plano(request, visor_id):
@@ -914,6 +915,7 @@ def api_activo_detalle(request, activo_id):
 
 
 @staff_member_required
+@mobile_permission_required('mi_planta')
 def mobile_activo_detalle(request, pk):
     """
     Vista detallada de un Activo optimizada para móviles.
@@ -970,38 +972,46 @@ def mobile_busqueda_activos(request):
     tiempos_acordados = []
     tickets = []
     
+    from core.models import ElementoApp
+    secciones = ElementoApp.get_secciones_usuario(request.user)
+
     if query:
-        # Buscar activos
-        activos = Activo.objects.filter(
-            Q(nombre__icontains=query) | 
-            Q(codigo_interno__icontains=query) |
-            Q(serie__icontains=query)
-        ).select_related('ubicacion')[:20]
+        # Buscar activos - Solo si tiene acceso a Mi Planta
+        if 'mi_planta' in secciones:
+            activos = Activo.objects.filter(
+                Q(nombre__icontains=query) | 
+                Q(codigo_interno__icontains=query) |
+                Q(serie__icontains=query)
+            ).select_related('ubicacion')[:20]
         
-        # Buscar órdenes de trabajo (Cualquier estado)
-        ordenes = OrdenTrabajo.objects.filter(
-            Q(id__icontains=query) |
-            Q(codigo_de_orden__icontains=query) |
-            Q(descripcion_corta__icontains=query) |
-            Q(activos__nombre__icontains=query) |
-            Q(activos__codigo_interno__icontains=query) |
-            Q(activos__serie__icontains=query)
-        ).select_related('ubicacion').distinct().order_by('-id')[:10]
+        # Buscar órdenes de trabajo (Cualquier estado) - Solo si tiene acceso a Tareas de Hoy
+        if 'tareas_hoy' in secciones:
+            ordenes = OrdenTrabajo.objects.filter(
+                Q(id__icontains=query) |
+                Q(codigo_de_orden__icontains=query) |
+                Q(descripcion_corta__icontains=query) |
+                Q(activos__nombre__icontains=query) |
+                Q(activos__codigo_interno__icontains=query) |
+                Q(activos__serie__icontains=query)
+            ).select_related('ubicacion').distinct().order_by('-id')[:10]
         
         # Buscar Tiempos Acordados
-        tiempos_acordados = TiempoAcordado.objects.filter(
-            Q(ticket__folio__icontains=query) |
-            Q(motivo_extension__icontains=query) |
-            Q(institucion__nombre__icontains=query)
-        ).select_related('ticket', 'institucion', 'enlace')[:10]
+        if 'tiempo_acordado' in secciones:
+            tiempos_acordados = TiempoAcordado.objects.filter(
+                Q(ticket__folio__icontains=query) |
+                Q(motivo_extension__icontains=query) |
+                Q(institucion__nombre__icontains=query)
+            ).select_related('ticket', 'institucion', 'enlace')[:10]
 
-        # Buscar Tickets de Call Center (NUEVO)
-        tickets = SolicitudTicket.objects.filter(
-            Q(folio__icontains=query) |
-            Q(id_solicitud__icontains=query) |
-            Q(solicitante__icontains=query) |
-            Q(solicitud_descripcion__icontains=query)
-        ).order_by('-fecha_solicitud')[:20]
+        # Buscar Tickets de Call Center (NUEVO) - Solo si tiene acceso a Mis Avisos
+        if 'mis_avisos' in secciones:
+            tickets = SolicitudTicket.objects.filter(
+                Q(folio__icontains=query) |
+                Q(id_solicitud__icontains=query) |
+                Q(solicitante__icontains=query) |
+                Q(solicitud_descripcion__icontains=query)
+            ).order_by('-fecha_solicitud')[:20]
+
         
         # Si solo hay un activo y ninguna orden/acuerdo/ticket, redirigir directo
         if activos.count() == 1 and not ordenes and not tiempos_acordados and not tickets:
@@ -1015,6 +1025,7 @@ def mobile_busqueda_activos(request):
         'query': query
     })
 @staff_member_required
+@mobile_permission_required('mi_planta')
 def mobile_ubicaciones(request, parent_id=None):
     """
     Explorador jerárquico de ubicaciones para la App (OPTIMIZADO).

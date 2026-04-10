@@ -1,4 +1,4 @@
-{% load static %}
+{% load static core_tags %}
 <!DOCTYPE html>
 <html lang="es">
 
@@ -571,6 +571,7 @@
             <h2>Acceso Rápido</h2>
         </div>
         <div class="actions-grid fade-in" style="animation-delay: 0.2s;">
+            {% if 'scanner' in secciones %}
             <a href="{% url 'core:mobile_scanner' %}" class="action-card featured">
                 <div class="icon-box">
                     <ion-icon name="qr-code-outline"></ion-icon>
@@ -582,7 +583,9 @@
                 <ion-icon name="chevron-forward-outline"
                     style="margin-left: auto; font-size: 20px; opacity: 0.7;"></ion-icon>
             </a>
+            {% endif %}
 
+            {% if 'mis_avisos' in secciones %}
             <a href="{% url 'mantenimiento:mobile_mis_avisos' %}" class="action-card">
                 <div class="icon-box" style="background: #eef2ff; color: var(--primary);">
                     <ion-icon name="list-outline"></ion-icon>
@@ -590,7 +593,9 @@
                 <h3>Mis Avisos</h3>
                 <p>Ver mis reportes</p>
             </a>
+            {% endif %}
 
+            {% if 'crear_aviso' in secciones %}
             <a href="{% url 'mantenimiento:mobile_crear_aviso' %}" class="action-card">
                 <div class="icon-box" style="background: #fff7ed; color: var(--warning);">
                     <ion-icon name="megaphone-outline"></ion-icon>
@@ -598,7 +603,9 @@
                 <h3>Crear Aviso</h3>
                 <p>Reportar falla</p>
             </a>
+            {% endif %}
 
+            {% if 'auditoria' in secciones %}
             <a href="{% url 'auditorias:lista_auditorias' %}" class="action-card">
                 <div class="icon-box" style="background: #ecfdf5; color: var(--success);">
                     <ion-icon name="checkbox-outline"></ion-icon>
@@ -606,7 +613,9 @@
                 <h3>Auditoría</h3>
                 <p>Equipos IA</p>
             </a>
+            {% endif %}
 
+            {% if 'tiempo_acordado' in secciones %}
             <a href="{% url 'callcenter:mobile_crear_tiempo_acordado' %}" class="action-card">
                 <div class="icon-box" style="background: #fdf2f7; color: #d81b60;">
                     <ion-icon name="calendar-add-outline"></ion-icon>
@@ -614,9 +623,11 @@
                 <h3>Nuevo T. Acordado</h3>
                 <p>Extensión de tiempo</p>
             </a>
+            {% endif %}
         </div>
 
         <!-- Logística & Inventario -->
+        {% if 'logistica' in secciones %}
         <div class="section-header fade-in" style="animation-delay: 0.25s;">
             <h2>Logística e Inventario</h2>
         </div>
@@ -634,38 +645,38 @@
                     <ion-icon name="receipt-outline"></ion-icon>
                 </div>
                 <h3>Mis Pedidos</h3>
-                <p>Ver mis solicitudes {% if pedidos_pendientes_count %}<b style="color:var(--danger)">({{
-                        pedidos_pendientes_count }})</b>{% endif %}</p>
+                <p>Ver mis solicitudes {% if pedidos_pendientes_count %}<b style="color:var(--danger)">({{ pedidos_pendientes_count }})</b>{% endif %}</p>
             </a>
+            {% if 'gestion_almacen' in secciones %}
+            <a href="{% url 'inventarios:mobile_gestion_salidas' %}" class="action-card">
+                <div class="icon-box" style="background: #fff1f2; color: #e11d48;">
+                    <ion-icon name="clipboard-outline"></ion-icon>
+                </div>
+                <h3>Gestión de Almacén</h3>
+                <p>Despachar materiales</p>
+            </a>
+            {% endif %}
         </div>
+        {% endif %}
 
-        <!-- Financial Section (NEW) -->
+        <!-- Financial Section -->
+        {% if 'finanzas' in secciones %}
         <div class="section-header fade-in" style="animation-delay: 0.3s;">
             <h2>Gestión Financiera</h2>
-            <a href="{% url 'admin:presupuestos_requisicion_changelist' %}">Admin</a>
         </div>
         <div class="scroller fade-in" style="animation-delay: 0.3s;">
             <a href="{% url 'presupuestos:requisicion_dashboard' %}" class="finance-card">
                 <div class="header">
-                    <div class="dot"></div>
-                    <h4>Presupuesto Anual</h4>
-                </div>
-                <span class="amount">L. {{ total_presupuesto|default:"2.4M" }}</span>
-                <div class="footer">
-                    Ver ejecución <ion-icon name="arrow-forward-outline"></ion-icon>
-                </div>
-            </a>
-            <a href="{% url 'admin:presupuestos_requisicion_changelist' %}" class="finance-card">
-                <div class="header">
                     <div class="dot" style="background: var(--warning);"></div>
                     <h4>Requisiciones</h4>
                 </div>
-                <span class="amount">{{ total_requisiciones|default:"12" }}</span>
+                <span class="amount">{{ total_requisiciones|default:"0" }}</span>
                 <div class="footer">
-                    Pendientes <ion-icon name="arrow-forward-outline"></ion-icon>
+                    Ver requisiciones <ion-icon name="arrow-forward-outline"></ion-icon>
                 </div>
             </a>
         </div>
+        {% endif %}
 
         <!-- Mis Tiempos Acordados (NUEVO) -->
         {% if mis_tiempos_acordados %}
@@ -700,6 +711,7 @@
         {% endif %}
 
         <!-- Infrastructure -->
+        {% if 'mi_planta' in secciones %}
         <div class="section-header fade-in" style="animation-delay: 0.4s;">
             <h2>Mi Planta</h2>
             <a href="{% url 'activos:mobile_ubicaciones' %}">Ver todo</a>
@@ -721,8 +733,10 @@
                 <span>Mapa Visual</span>
             </a>
         </div>
+        {% endif %}
 
         <!-- Today's Tasks -->
+        {% if 'tareas_hoy' in secciones %}
         <div class="section-header fade-in" style="animation-delay: 0.5s;">
             <h2>Tareas de Hoy</h2>
             <a href="{% url 'mantenimiento:mobile_cronograma' %}">Calendario</a>
@@ -752,6 +766,7 @@
             </div>
             {% endfor %}
         </div>
+        {% endif %}
 
     </div>
 

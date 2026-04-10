@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from django.db import models
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from core.decorators import mobile_permission_required
 from django.utils import timezone
 from .models import Auditoria, ResultadoAuditoria
 from activos.models import Activo, Ubicacion, Categoria
@@ -126,11 +127,13 @@ def api_procesar_escaneo(request, auditoria_id):
         }
     })
 
+@mobile_permission_required('auditoria')
 def lista_auditorias(request):
     """Lists audits for the user."""
     auditorias = Auditoria.objects.all().order_by('-fecha_inicio')
     return render(request, 'auditorias/lista_auditorias.html', {'auditorias': auditorias})
 
+@mobile_permission_required('auditoria')
 def ejecutar_auditoria(request, auditoria_id):
     """Renders the scanning interface."""
     auditoria = get_object_or_404(Auditoria, id=auditoria_id)

@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .tasks import sync_tickets_task
 from django.contrib.admin.views.decorators import staff_member_required
+from core.decorators import mobile_permission_required
 import logging
 import json
 import re
@@ -787,6 +788,7 @@ def notify_ticket_n8n_ajax(request, ticket_id):
         return JsonResponse({'success': False, 'error': str(e)})
 
 @staff_member_required
+@mobile_permission_required('tiempo_acordado')
 def mobile_detalle_tiempo_acordado_view(request, pk):
     """Vista Fiori para ver el detalle de un Tiempo Acordado desde la App."""
     from .models import TiempoAcordado, TiempoAcordadoTarea
@@ -1444,6 +1446,7 @@ def tiempo_acordado_dashboard_view(request):
     return render(request, 'callcenter/tiempo_acordado/dashboard.html', context)
     
 @staff_member_required
+@mobile_permission_required('tiempo_acordado')
 def mobile_crear_tiempo_acordado_view(request):
     """Vista Fiori para crear un Tiempo Acordado desde la App."""
     from .models import SolicitudTicket, Enlace, Institucion, TiempoAcordado, TiempoAcordadoTarea, CronogramaPredefinido
@@ -1692,6 +1695,7 @@ def cronograma_predefinido_lista_view(request):
     cronogramas = CronogramaPredefinido.objects.all().select_related('departamento')
     return render(request, 'callcenter/cronograma_predefinido_lista.html', {'cronogramas': cronogramas})
 @login_required
+@mobile_permission_required('mis_avisos')
 def mobile_ticket_detalle_view(request, pk):
     """
     Vista premium y optimizada para móviles para visualizar el detalle de un ticket.

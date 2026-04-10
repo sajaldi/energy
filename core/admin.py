@@ -18,7 +18,7 @@ from django.db import transaction
 from .models import (
     Consumo, InterfaceConsumo, Medidor, PuntoMedicion, Equipo,
     CaracteristicaMedicion, CategoriaPuntoMedicion, DocumentoMedicion, RangoMedicion, TipoMedidor, UnidadMedida, VistaConsumoDiferencia,
-    Servicio, KPI, PerfilUsuario, ConfiguracionUI, Departamento
+    Servicio, KPI, PerfilUsuario, ConfiguracionUI, Departamento, ElementoApp
 )
 
 @admin.register(ConfiguracionUI)
@@ -311,3 +311,20 @@ class VistaConsumoDiferenciaAdmin(admin.ModelAdmin):
     def has_add_permission(self, request): return False
     def has_change_permission(self, request, obj=None): return False
     def has_delete_permission(self, request, obj=None): return False
+
+
+@admin.register(ElementoApp)
+class ElementoAppAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'clave', 'activo', 'orden', 'get_grupos')
+    list_filter = ('activo', 'grupos')
+    search_fields = ('nombre', 'clave')
+    filter_horizontal = ('grupos',)
+    list_editable = ('activo', 'orden')
+    ordering = ('orden', 'nombre')
+
+    def get_grupos(self, obj):
+        grupos = obj.grupos.all()
+        if not grupos:
+            return format_html('<span style="color:#10b981; font-weight:600;">✅ Todos</span>')
+        return ', '.join(g.name for g in grupos)
+    get_grupos.short_description = 'Visible para'

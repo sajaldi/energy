@@ -157,7 +157,6 @@
             width: 100%;
             cursor: pointer;
             margin-top: 8px;
-            display: none;
         }
 
         #new-area-container {
@@ -207,7 +206,7 @@
                         </div>
                     </div>
 
-                    <div id="create-btn-container" style="display: none;">
+                    <div id="create-btn-container" style="display: none; margin-top: 10px;">
                         <button type="button" class="create-btn" id="btn-create-area">
                             <ion-icon name="add-circle-outline"></ion-icon> Crear sub-área debajo del último seleccionado
                         </button>
@@ -262,23 +261,23 @@
                 $('#new-area-container').hide();
                 $('#create-btn-container').hide();
 
-                // 3. Actualizar estado del submit y validación de parent
-                updateFinalParent();
-
-                // 4. Si no hay nada seleccionado en este nivel, chequear si el padre anterior aún habilita el botón
+                // 3. Si no hay nada seleccionado en este nivel, chequear si el padre anterior aún habilita el botón
                 if (!selectedId) {
-                    // Si hay un nivel anterior, mostrar el botón para ese nivel
-                    if (groupLevel > 0) {
-                        $('#create-btn-container').show();
-                    }
+                    updateFinalParent();
                     return;
                 }
 
-                // 5. Cargar los hijos del nivel seleccionado
+                // 4. Cargar los hijos del nivel seleccionado
                 try {
                     const res = await fetch(`/inventarios/api/niveles/?edificio_id=${selectedId}`);
                     const data = await res.json();
                     
+                    // Guardar si este padre tiene QR para la validación final
+                    $select.attr('data-has-qr', data.parent_has_qr ? "1" : "0");
+
+                    // Mostrar posibilidad de crear sub-área adicional SIEMPRE que haya algo seleccionado
+                    $('#create-btn-container').show();
+
                     if (data.results && data.results.length > 0) {
                         const nextLevel = groupLevel + 1;
                         let newGroupHtml = `
@@ -294,15 +293,17 @@
                         
                         $('#dynamic-selectors-container').append(newGroupHtml);
                         $(`#loc_level_${nextLevel}`).select2({ width: '100%' });
-                        
-                        // Siempre mostrar posibilidad de crear sub-área adicional aunque existan hijos
-                        $('#create-btn-container').show();
                     } else {
-                        // NO tiene hijos. Es el fondo del árbol. Forzamos input manual.
-                        $('#new-area-container').slideDown();
-                        $('input[name="nueva_area"]').focus();
-                        $('#create-btn-container').hide();
+                        // NO tiene hijos. Es el fondo del árbol.
+                        if (data.parent_has_qr) {
+                            // Si ya tiene QR, obligamos a crear una sub-área para este nuevo QR
+                            $('#new-area-container').slideDown();
+                            $('input[name="nueva_area"]').focus();
+                            $('#create-btn-container').hide();
+                        }
                     }
+                    
+                    updateFinalParent();
                     
                 } catch (e) {
                     console.error("Error al cargar ubicaciones", e);
@@ -312,6 +313,7 @@
             function updateFinalParent() {
                 let deepestId = '';
                 let deepestName = '';
+                let deepestHasQr = false;
                 
                 const selects = $('.fiori-loc-select').get().reverse();
                 for (let sel of selects) {
@@ -319,8 +321,8 @@
                     const val = $s.val();
                     if (val) {
                         deepestId = val;
-                        // Obtener el texto del option seleccionado para el label del botón
                         deepestName = $s.find('option:selected').text();
+                        deepestHasQr = $s.attr('data-has-qr') === "1";
                         break;
                     }
                 }
@@ -332,7 +334,11 @@
                 }
 
                 const nueva = $('input[name="nueva_area"]').val().trim();
-                if (deepestId || nueva) {
+                
+                // VALIDACIÓN: 
+                // Permitir si hay una nueva área escrita.
+                // O permitir si hay un ID seleccionado Y ese ID no tiene QR asignado aún.
+                if (nueva || (deepestId && !deepestHasQr)) {
                     $('#submit-btn').prop('disabled', false).css('opacity', '1');
                 } else {
                     $('#submit-btn').prop('disabled', true).css('opacity', '0.5');

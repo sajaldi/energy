@@ -294,3 +294,62 @@ class KnowledgeChunk(models.Model):
 
     def __str__(self):
         return f"Chunk {self.id} from {self.source}"
+
+
+class ElementoApp(models.Model):
+    """
+    Configura la visibilidad de cada sección/botón del dashboard móvil
+    según los Grupos de Django. Si no tiene grupos asignados, es visible para todos.
+    """
+    clave = models.CharField(
+        max_length=50, unique=True,
+        help_text="Identificador interno (ej: auditoria, finanzas, logistica)"
+    )
+    nombre = models.CharField(
+        max_length=100,
+        help_text="Nombre visible en el admin (ej: Auditoría, Gestión Financiera)"
+    )
+    descripcion = models.CharField(max_length=255, blank=True, default='')
+    grupos = models.ManyToManyField(
+        'auth.Group', blank=True,
+        help_text="Grupos que pueden ver este elemento. Si está vacío, es visible para TODOS."
+    )
+    activo = models.BooleanField(default=True, help_text="Desactivar para ocultar globalmente")
+    orden = models.PositiveIntegerField(default=0, help_text="Orden de aparición")
+
+    class Meta:
+        verbose_name = "Elemento de App"
+        verbose_name_plural = "Elementos de App"
+        ordering = ['orden', 'nombre']
+
+    def __str__(self):
+        return f"{self.nombre} ({self.clave})"
+
+    @staticmethod
+    def get_secciones_usuario(user):
+        """
+        Retorna un set con las claves de los elementos activos
+        visibles para el usuario, según sus grupos.
+        Superusuarios ven todo.
+        Elementos sin grupos asignados son visibles para todos.
+        """
+        from django.db.models import Count
+        qs = ElementoApp.objects.filter(activo=True)
+        if user.is_superuser:
+            return set(qs.values_list('clave', flat=True))
+
+        user_groups = user.groups.all()
+        # Elementos con al menos un grupo del usuario
+        con_grupo = set(
+            qs.filter(grupos__in=user_groups)
+            .values_list('clave', flat=True).distinct()
+        )
+        # Elementos sin ningún grupo (visibles para todos)
+        sin_grupo = set(
+            qs.annotate(num_g=Count('grupos'))
+            .filter(num_g=0)
+            .values_list('clave', flat=True)
+        )
+        return con_grupo | sin_grupo
+
+

@@ -11,17 +11,15 @@
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --bg-body: #f8fafc;
-            --glass-bg: rgba(255, 255, 255, 0.82);
-            --glass-border: rgba(255, 255, 255, 0.3);
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            /* Fiori Quartz Palette */
+            --sapShellColor: #354a5f;
+            --sapBackgroundColor: #f7f7f7;
+            --sapTextColor: #32363a;
+            --sapContent_LabelColor: #6a6d70;
+            --sapPrimaryColor: #0064d1;
+            --sapSuccessColor: #107e3e;
+            --sapWarningColor: #e9730c;
+            --sapErrorColor: #bb0000;
         }
 
         * {
@@ -30,178 +28,163 @@
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at top right, #e2e8f0 0%, #f8fafc 40%);
-            color: var(--text-main);
+            font-family: '72', 'Outfit', sans-serif;
+            background-color: var(--sapBackgroundColor);
+            color: var(--sapTextColor);
             margin: 0;
             padding-bottom: 30px;
         }
 
+        /* Fiori Shellbar */
         header {
-            padding: 20px;
+            background-color: var(--sapShellColor);
+            color: white;
+            padding: 10px 16px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             position: sticky;
             top: 0;
             z-index: 1000;
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--glass-border);
+            height: 48px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.12);
         }
 
         .back-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            background: white;
-            border: 1px solid #e2e8f0;
+            color: white;
+            font-size: 24px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: var(--text-main);
-            font-size: 22px;
             text-decoration: none;
         }
 
         header h1 {
             margin: 0;
-            font-size: 20px;
-            font-weight: 700;
+            font-size: 16px;
+            font-weight: 400;
         }
 
         .container {
-            padding: 20px;
+            padding: 12px;
         }
 
-        .pedido-card {
+        /* Fiori Card style for List Items */
+        .fiori-card {
             background: white;
-            border-radius: 22px;
-            padding: 18px;
-            margin-bottom: 15px;
-            border: 1px solid #f1f5f9;
-            box-shadow: var(--card-shadow);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+            border-radius: 0.25rem;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #d9d9d9;
+            box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08);
             text-decoration: none;
             color: inherit;
-            position: relative;
+            display: block;
+            transition: background 0.2s;
         }
 
-        .pedido-header {
+        .fiori-card:active {
+            background-color: #f2f2f2;
+        }
+
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 12px;
         }
 
-        .pedido-id {
-            font-size: 11px;
-            font-weight: 800;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .status-badge {
-            font-size: 10px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-
-        .status-PENDIENTE {
-            background: #fff7ed;
-            color: #9a3412;
-        }
-
-        .status-ENTREGADO {
-            background: #dcfce7;
-            color: #15803d;
-        }
-
-        .status-RECHAZADO {
-            background: #fee2e2;
-            color: #b91c1c;
-        }
-
-        .pedido-info h2 {
-            margin: 0;
-            font-size: 15px;
+        .card-id {
+            font-size: 0.75rem;
             font-weight: 700;
-            line-height: 1.4;
-            color: #334155;
+            color: var(--sapPrimaryColor);
         }
 
-        .pedido-meta {
+        .status-tag {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.125rem 0.625rem;
+            border-radius: 1rem;
+            text-transform: uppercase;
+        }
+
+        .status-PENDIENTE { background: #fff4e5; color: var(--sapWarningColor); }
+        .status-ENTREGADO { background: #e7f4e9; color: var(--sapSuccessColor); }
+        .status-RECHAZADO { background: #ffebeb; color: var(--sapErrorColor); }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--sapTextColor);
+        }
+
+        .card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 0.875rem;
+            color: var(--sapContent_LabelColor);
+        }
+
+        .meta-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-top: 5px;
+            gap: 6px;
         }
 
-        .pedido-meta span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
+        .meta-item ion-icon {
+            font-size: 1rem;
+            color: var(--sapPrimaryColor);
         }
 
-        .pedido-footer {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #f8fafc;
+        .card-footer {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-size: 0.75rem;
+            color: var(--sapContent_LabelColor);
         }
 
-        .date {
-            font-size: 11px;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .items-count {
-            font-size: 11px;
+        .items-badge {
             font-weight: 700;
-            color: var(--primary);
-            background: #eff6ff;
-            padding: 3px 8px;
-            border-radius: 8px;
+            color: var(--sapPrimaryColor);
         }
     </style>
 </head>
 
 <body>
     <header>
-        <a href="{% url 'core:mobile_dashboard' %}" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
-        <h1>Materiales Solicitados</h1>
+        <a href="{% url 'core:mobile_dashboard' %}" class="back-btn"><ion-icon name="nav-back"></ion-icon></a>
+        <h1>Pedidos de Material</h1>
     </header>
     <div class="container">
         {% for pedido in pedidos %}
-        <a href="{% url 'inventarios:mobile_detalle_pedido' pedido.id %}" class="pedido-card">
-            <div class="pedido-header">
-                <span class="pedido-id">Orden #{{ pedido.id }}</span>
-                <span class="status-badge status-{{ pedido.estado }}">{{ pedido.get_estado_display }}</span>
+        <a href="{% url 'inventarios:mobile_detalle_pedido' pedido.id %}" class="fiori-card">
+            <div class="card-header">
+                <span class="card-id">ORDEN #{{ pedido.id }}</span>
+                <span class="status-tag status-{{ pedido.estado }}">{{ pedido.get_estado_display }}</span>
             </div>
-            <div class="pedido-info">
-                <h2>{{ pedido.comentarios_solicitud|default:"Sin descripción"|truncatechars:50 }}</h2>
-                <div class="pedido-meta">
-                    <span><ion-icon name="calendar-outline"></ion-icon> {{ pedido.fecha_solicitud|date:"d M, Y"
-                        }}</span>
-                    <span><ion-icon name="location-outline"></ion-icon> {{ pedido.ubicacion_origen.nombre }}</span>
+            <div class="card-title">{{ pedido.comentarios_solicitud|default:"Solicitud de Materiales"|truncatechars:50 }}</div>
+            <div class="card-meta">
+                <div class="meta-item">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                    {{ pedido.fecha_solicitud|date:"d M, Y" }}
+                </div>
+                <div class="meta-item">
+                    <ion-icon name="location-outline"></ion-icon>
+                    {{ pedido.ubicacion_origen.nombre }}
                 </div>
             </div>
-            <div class="pedido-footer">
-                <span class="date">{{ pedido.fecha_solicitud|time:"H:i" }}</span>
-                <span class="items-count">{{ pedido.movimientos.count }} materiales</span>
+            <div class="card-footer">
+                <span>{{ pedido.fecha_solicitud|time:"H:i" }}</span>
+                <span class="items-badge">{{ pedido.movimientos.count }} materiales</span>
             </div>
         </a>
         {% empty %}
-        <div style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+        <div style="text-align: center; padding: 60px 20px; color: var(--sapContent_LabelColor);">
             <ion-icon name="cube-outline" style="font-size: 60px; opacity: 0.2; margin-bottom: 20px;"></ion-icon>
             <p style="font-weight: 600;">No has realizado solicitudes de material aún.</p>
         </div>

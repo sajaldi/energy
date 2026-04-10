@@ -26,6 +26,7 @@ urlpatterns = [
     path('mobile/pedidos/', views.mobile_lista_pedidos, name='mobile_lista_pedidos'),
     path('mobile/pedidos/<int:pk>/', views.mobile_detalle_pedido, name='mobile_detalle_pedido'),
     path('mobile/crear-solicitud/', mobile_crear_solicitud, name='mobile_crear_solicitud'),
+    path('mobile/gestion-salidas/', views.mobile_gestion_salidas_view, name='mobile_gestion_salidas'),
     path('api/ordenes-trabajo/search/', views.api_search_ordenes_trabajo, name='api_search_ot'),
     path('api/niveles/', views.api_niveles_por_edificio, name='api_niveles_edificio'),
 

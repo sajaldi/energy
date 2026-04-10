@@ -3,8 +3,8 @@ import io
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.db import connection, transaction, IntegrityError
-from django.db.models import Q
+from django.db import connection, transaction, IntegrityError, models
+from django.db.models import Q, Count
 from django.urls import reverse
 from mantenimiento.models import OrdenTrabajo, Aviso
 from inventarios.models import Material, StockRecord, MovimientoInventario, SolicitudMaterial
@@ -14,6 +14,7 @@ import pandas as pd
 import logging
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
+from .decorators import mobile_permission_required
 from django.utils import timezone # Para fechas conscientes de zona horaria si es necesario
 from datetime import datetime, timedelta
 import io
@@ -807,6 +808,18 @@ def mobile_dashboard(request):
             departamento=user_dept
         ).exclude(estatus='COMPLETADO').select_related('ticket', 'institucion', 'enlace').order_by('fecha_solucion_final')[:5]
 
+    # Requisiciones (solo se consulta si el usuario tiene acceso financiero)
+    total_requisiciones = 0
+    from core.models import ElementoApp
+    from presupuestos.models import Requisicion
+
+    # --- Visibilidad dinámica por grupo ---
+    secciones_permitidas = ElementoApp.get_secciones_usuario(request.user)
+
+
+    if 'finanzas' in secciones_permitidas:
+        total_requisiciones = Requisicion.objects.count()
+
     context = {
         'ots_hoy': ots_hoy,
         'ots_proximas': ots_proximas,
@@ -817,12 +830,15 @@ def mobile_dashboard(request):
         'pedidos_pendientes_count': pedidos_pendientes_count,
         'tiempos_acordados_count': tiempos_acordados_count,
         'mis_tiempos_acordados': mis_tiempos_acordados,
+        'total_requisiciones': total_requisiciones,
+        'secciones': secciones_permitidas,
         'today': today,
     }
     return render(request, 'core/mobile_dashboard.html', context)
 
 
 @login_required
+@mobile_permission_required('scanner')
 def mobile_scanner(request):
     """
     Vista del escáner QR.

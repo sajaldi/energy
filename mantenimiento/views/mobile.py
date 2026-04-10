@@ -8,11 +8,13 @@ from django.contrib.auth.models import User, Group
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from django.db.models import Count, Q, Min
+from core.decorators import mobile_permission_required
 from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso, ArchivoOrdenTrabajo
 from activos.models import Activo, Ubicacion, DocumentoMedicion, PuntoMedicion
 from ..tasks import task_generar_ot_pdf
 
 @staff_member_required
+@mobile_permission_required('tareas_hoy')
 def mobile_cronograma(request):
     query = request.GET.get('q', '').strip()
     user_filter = Q()
@@ -46,6 +48,7 @@ def mobile_cronograma(request):
     })
 
 @staff_member_required
+@mobile_permission_required('tareas_hoy')
 def mobile_programacion_detalle(request, pk):
     prog = get_object_or_404(Programacion, pk=pk)
     ots_q = prog.ordenes.all()
@@ -60,6 +63,7 @@ def mobile_programacion_detalle(request, pk):
     return render(request, 'mantenimiento/mobile_cronograma_detalle.html', {'programacion': prog, 'meses_data': m_data})
 
 @staff_member_required
+@mobile_permission_required('tareas_hoy')
 def mobile_ot_detalle(request, pk):
     ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'supervisor', 'aviso', 'programacion').prefetch_related('activos', 'archivos'), pk=pk)
     
@@ -128,6 +132,7 @@ def mobile_ot_update_ajax(request, pk):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 @staff_member_required
+@mobile_permission_required('crear_aviso')
 def mobile_crear_aviso(request, pk=None):
     if pk:
         instance = get_object_or_404(Aviso, pk=pk)
@@ -309,10 +314,12 @@ def mobile_crear_aviso(request, pk=None):
     })
 
 @staff_member_required
+@mobile_permission_required('crear_aviso')
 def mobile_aviso_editar(request, pk):
     return mobile_crear_aviso(request, pk=pk)
 
 @staff_member_required
+@mobile_permission_required('tareas_hoy')
 def mobile_ot_iniciar(request, pk):
     ot = get_object_or_404(OrdenTrabajo, pk=pk)
     if ot.estado in ['PROGRAMADA', 'ESPERA']:
@@ -322,6 +329,7 @@ def mobile_ot_iniciar(request, pk):
     return redirect('mantenimiento:mobile_ot_finalizar', pk=ot.id)
 
 @staff_member_required
+@mobile_permission_required('tareas_hoy')
 def mobile_ot_finalizar(request, pk):
     ot = get_object_or_404(OrdenTrabajo, pk=pk)
     
@@ -514,6 +522,7 @@ def mobile_crear_ot_rutina(request, rutina_id):
     return redirect('mantenimiento:mobile_ot_detalle', pk=ot.id)
 
 @staff_member_required
+@mobile_permission_required('mis_avisos')
 def mobile_mis_avisos(request):
     """
     Muestra los avisos del usuario y de sus compañeros de puesto.
@@ -535,6 +544,7 @@ def mobile_mis_avisos(request):
     })
 
 @staff_member_required
+@mobile_permission_required('mis_avisos')
 def mobile_aviso_detalle(request, pk):
     """
     Muestra el detalle expandido de un aviso con sus fotos.

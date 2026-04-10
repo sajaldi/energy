@@ -1,6 +1,7 @@
 import time
 import os
 from django.contrib.admin.views.decorators import staff_member_required
+from core.decorators import mobile_permission_required
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.files.storage import default_storage
@@ -355,6 +356,7 @@ def requisicion_pdf(request, pk):
 
 @staff_member_required
 @login_required
+@mobile_permission_required('finanzas')
 def requisicion_dashboard(request):
     """Vista de dashboard  para Requisiciones"""
     from .models import Requisicion

@@ -5,20 +5,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Detalle de Pedido - SoftCoM</title>
+    <title>Ficha de Entrega - SoftCoM</title>
     {% include 'core/pwa_tags.html' %}
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --bg-body: #f8fafc;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
+            /* Fiori Quartz Palette */
+            --sapShellColor: #354a5f;
+            --sapBackgroundColor: #f7f7f7;
+            --sapTextColor: #32363a;
+            --sapContent_LabelColor: #6a6d70;
+            --sapPrimaryColor: #0064d1;
+            --sapSuccessColor: #107e3e;
+            --sapWarningColor: #e9730c;
+            --sapErrorColor: #bb0000;
+            --sapButton_TextColor: #0064d1;
+            --sapTile_TitleColor: #32363a;
         }
 
         * {
@@ -27,209 +30,277 @@
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-body);
-            color: var(--text-main);
+            font-family: '72', 'Outfit', sans-serif;
+            background-color: var(--sapBackgroundColor);
+            color: var(--sapTextColor);
             margin: 0;
-            padding-bottom: 30px;
+            padding-bottom: 40px;
         }
 
+        /* Fiori Shellbar */
         header {
-            padding: 20px;
+            background-color: var(--sapShellColor);
+            color: white;
+            padding: 10px 16px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             position: sticky;
             top: 0;
             z-index: 1000;
-            background: rgba(255, 255, 255, 0.82);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid #f1f5f9;
+            height: 48px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.12);
         }
 
         .back-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            background: white;
-            border: 1px solid #e2e8f0;
+            color: white;
+            font-size: 24px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: var(--text-main);
-            font-size: 22px;
             text-decoration: none;
         }
 
         header h1 {
             margin: 0;
-            font-size: 20px;
-            font-weight: 700;
+            font-size: 16px;
+            font-weight: 400;
         }
 
         .container {
-            padding: 20px;
+            padding: 0;
         }
 
-        .status-banner {
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 25px;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        /* Fiori Object Page Header */
+        .object-header {
+            background: white;
+            padding: 24px 16px;
+            border-bottom: 1px solid #d9d9d9;
+            margin-bottom: 1rem;
         }
 
-        .status-PENDIENTE {
-            background: linear-gradient(135deg, var(--warning), #d97706);
+        .object-header-title {
+            font-size: 1.3rem;
+            font-weight: 400;
+            margin: 0 0 8px 0;
+            color: var(--sapTextColor);
         }
 
-        .status-ENTREGADO {
-            background: linear-gradient(135deg, var(--success), #059669);
+        .status-tag {
+            font-size: 0.875rem;
+            font-weight: 700;
+            padding: 0.25rem 0.75rem;
+            border-radius: 2rem;
+            display: inline-block;
         }
 
-        .status-RECHAZADO {
-            background: linear-gradient(135deg, var(--danger), #dc2626);
-        }
+        .tag-ENTREGADO { background: #e7f4e9; color: var(--sapSuccessColor); }
+        .tag-PENDIENTE { background: #fff4e5; color: var(--sapWarningColor); }
+        .tag-RECHAZADO { background: #ffebeb; color: var(--sapErrorColor); }
 
-        .status-banner h2 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 800;
-        }
-
-        .status-banner p {
-            margin: 0;
-            font-size: 14px;
-            opacity: 0.9;
-        }
-
+        /* Fiori Sections */
         .section-title {
-            font-size: 14px;
-            font-weight: 800;
-            text-transform: uppercase;
-            color: var(--text-muted);
-            margin: 25px 0 15px 5px;
-            letter-spacing: 1px;
-        }
-
-        .item-card {
-            background: white;
-            border-radius: 20px;
-            padding: 15px;
-            margin-bottom: 12px;
-            border: 1px solid #f1f5f9;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
-        }
-
-        .item-info h3 {
-            margin: 0;
-            font-size: 14px;
+            font-size: 1rem;
             font-weight: 700;
+            color: var(--sapTextColor);
+            padding: 1rem 1rem 0.5rem 1rem;
+            background: transparent;
         }
 
-        .item-info p {
-            margin: 0;
-            font-size: 11px;
-            color: var(--text-muted);
+        /* Fiori List Item / Card */
+        .fiori-card {
+            background: white;
+            margin: 0 0.5rem 0.5rem 0.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid #d9d9d9;
+            box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08);
+            overflow: hidden;
         }
 
-        .item-qty {
-            font-weight: 900;
-            font-size: 18px;
-            color: var(--primary);
-            text-align: right;
+        .fiori-card-content {
+            padding: 1rem;
         }
 
-        .item-qty span {
-            font-size: 10px;
+        .material-name {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .material-sku {
+            font-size: 0.875rem;
+            color: var(--sapContent_LabelColor);
+        }
+
+        /* Qty Comparison Grid */
+        .qty-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            margin-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .qty-item {
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .qty-item:first-child {
+            border-right: 1px solid #eee;
+        }
+
+        .qty-label {
+            font-size: 0.75rem;
+            color: var(--sapContent_LabelColor);
             display: block;
-            color: var(--text-muted);
-            text-transform: uppercase;
+            margin-bottom: 0.25rem;
         }
 
-        .meta-card {
+        .qty-val {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--sapTextColor);
+        }
+
+        .qty-val.delivered {
+            color: var(--sapSuccessColor);
+        }
+
+        .unit {
+            font-size: 0.75rem;
+            font-weight: normal;
+            color: var(--sapContent_LabelColor);
+        }
+
+        /* Metadata List */
+        .info-list {
             background: white;
-            border-radius: 20px;
-            padding: 20px;
-            border: 1px solid #f1f5f9;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+            border-top: 1px solid #d9d9d9;
+            border-bottom: 1px solid #d9d9d9;
         }
 
-        .meta-row {
+        .info-item {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 15px;
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid #eee;
         }
 
-        .meta-row:last-child {
-            margin-bottom: 0;
+        .info-item:last-child {
+            border-bottom: none;
         }
 
-        .meta-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text-muted);
+        .info-label {
+            color: var(--sapContent_LabelColor);
+            font-size: 0.875rem;
         }
 
-        .meta-value {
-            font-size: 13px;
+        .info-value {
             font-weight: 700;
+            font-size: 0.875rem;
             text-align: right;
+        }
+
+        .comment-box {
+            background: #fff;
+            padding: 1rem;
+            margin: 0.5rem;
+            border-radius: 0.25rem;
+            border-left: 4px solid var(--sapPrimaryColor);
+            font-size: 0.875rem;
+            box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08);
+        }
+
+        .comment-header {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--sapContent_LabelColor);
+            font-size: 0.75rem;
+            text-transform: uppercase;
         }
     </style>
 </head>
 
 <body>
     <header>
-        <a href="{% url 'inventarios:mobile_lista_pedidos' %}" class="back-btn"><ion-icon
-                name="arrow-back-outline"></ion-icon></a>
+        <a href="{% url 'inventarios:mobile_lista_pedidos' %}" class="back-btn">
+            <ion-icon name="nav-back"></ion-icon>
+        </a>
         <h1>Detalle de Pedido</h1>
     </header>
+
     <div class="container">
-        <div class="status-banner status-{{ pedido.estado }}">
-            <p>Estado del Pedido #{{ pedido.id }}</p>
-            <h2>{{ pedido.get_estado_display }}</h2>
-            <p><ion-icon name="calendar-outline"></ion-icon> Solicitado el {{ pedido.fecha_solicitud|date:"d M, Y" }} a
-                las
-                {{ pedido.fecha_solicitud|time:"H:i" }}</p>
+        <!-- Object Header -->
+        <div class="object-header">
+            <p style="color: var(--sapContent_LabelColor); margin: 0; font-size: 0.875rem;">Pedido #{{ pedido.id }}</p>
+            <h2 class="object-header-title">Solicitud de Materiales</h2>
+            <div class="status-tag tag-{{ pedido.estado }}">
+                {{ pedido.get_estado_display }}
+            </div>
+            <p style="margin-top: 1rem;"><ion-icon name="calendar-outline"></ion-icon> {{ pedido.fecha_solicitud|date:"d M, Y" }}</p>
         </div>
 
-        <div class="section-title">Materiales Solicitados</div>
+        <div class="section-title">Materiales</div>
+
         {% for item in items %}
-        <div class="item-card">
-            <div class="item-info">
-                <h3>{{ item.material.nombre }}</h3>
-                <p>SKU: {{ item.material.sku }}</p>
-            </div>
-            <div class="item-qty">
-                {{ item.cantidad }}
-                <span>{{ item.material.unidad_medida.abreviatura|default:"UND" }}</span>
+        <div class="fiori-card">
+            <div class="fiori-card-content">
+                <div class="material-name">{{ item.material.nombre }}</div>
+                <div class="material-sku">SKU: {{ item.material.sku }}</div>
+                
+                <div class="qty-grid">
+                    <div class="qty-item">
+                        <span class="qty-label">Solicitado</span>
+                        <span class="qty-val">{{ item.cantidad_solicitada|default:item.cantidad|floatformat:2 }} <span class="unit">{{ item.material.unidad_medida.abreviatura|default:"UND" }}</span></span>
+                    </div>
+                    <div class="qty-item">
+                        <span class="qty-label">Entregado</span>
+                        <span class="qty-val delivered">{{ item.cantidad|floatformat:2 }} <span class="unit">{{ item.material.unidad_medida.abreviatura|default:"UND" }}</span></span>
+                    </div>
+                </div>
             </div>
         </div>
         {% endfor %}
 
-        <div class="section-title">Información Adicional</div>
-        <div class="meta-card">
-            <div class="meta-row"><span class="meta-label">Ubicación Origen:</span><span class="meta-value">{{
-                    pedido.ubicacion_origen.nombre }}</span></div>
-            {% if pedido.orden_trabajo %}
-            <div class="meta-row"><span class="meta-label">Orden de Trabajo:</span><span class="meta-value">OT-{{
-                    pedido.orden_trabajo.id }}</span></div>
-            {% endif %}
-            <div class="meta-row"><span class="meta-label">Solicitante:</span><span class="meta-value">{{
-                    pedido.usuario.get_full_name|default:pedido.usuario.username }}</span></div>
-            <div style="margin-top:15px; padding-top:15px; border-top:1px solid #f8fafc;">
-                <span class="meta-label">Comentarios:</span>
-                <p style="font-size:13px; margin:5px 0 0 0; color:#334155;">{{ pedido.comentarios_solicitud|default:"Sin
-                    comentarios" }}</p>
+        <div class="section-title">Información General</div>
+        <div class="info-list">
+            <div class="info-item">
+                <span class="info-label">Ubicación Origen</span>
+                <span class="info-value">{{ pedido.ubicacion_origen.nombre }}</span>
             </div>
+            {% if pedido.orden_trabajo %}
+            <div class="info-item">
+                <span class="info-label">Orden de Trabajo</span>
+                <span class="info-value">OT-{{ pedido.orden_trabajo.id }}</span>
+            </div>
+            {% endif %}
+            <div class="info-item">
+                <span class="info-label">Solicitante</span>
+                <span class="info-value">{{ pedido.solicitante_nombre }}</span>
+            </div>
+            {% if pedido.entregado_por %}
+            <div class="info-item">
+                <span class="info-label">Despachado por</span>
+                <span class="info-value">{{ pedido.entregado_por.get_full_name|default:pedido.entregado_por.username }}</span>
+            </div>
+            {% endif %}
         </div>
+
+        {% if pedido.comentarios_solicitud %}
+        <div class="section-title">Comentarios Solicitud</div>
+        <div class="comment-box">
+            <div class="comment-header">Técnico</div>
+            {{ pedido.comentarios_solicitud }}
+        </div>
+        {% endif %}
+
+        {% if pedido.comentarios_almacen %}
+        <div class="section-title">Notas del Almacén</div>
+        <div class="comment-box" style="border-left-color: var(--sapSuccessColor);">
+            <div class="comment-header">Almacén</div>
+            {{ pedido.comentarios_almacen }}
+        </div>
+        {% endif %}
+    </div>
     </div>
 </body>
 

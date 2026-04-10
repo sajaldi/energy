@@ -306,21 +306,23 @@
         });
 
         // Toggle Linterna
-        document.getElementById('flash-toggle').addEventListener('click', () => {
+        document.getElementById('flash-toggle').addEventListener('click', async () => {
             try {
                 const track = html5QrCode.getRunningTrack();
                 if (track && track.getCapabilities().torch) {
-                    isFlashOn = !isFlashOn;
-                    track.applyConstraints({
-                        advanced: [{ torch: isFlashOn }]
+                    const targetState = !isFlashOn;
+                    await track.applyConstraints({
+                        advanced: [{ torch: targetState }]
                     });
+                    isFlashOn = targetState;
                     document.getElementById('flash-toggle').style.color = isFlashOn ? '#ffc107' : 'white';
                     document.getElementById('flash-toggle').style.background = isFlashOn ? 'rgba(255,193,7,0.2)' : 'rgba(255,255,255,0.2)';
                 } else {
-                    showToast("Flash no disponible en este navegador/dispositivo");
+                    showToast("Flash no disponible en este dispositivo");
                 }
             } catch (e) {
-                showToast("Error al intentar activar el flash");
+                console.error("Error flash:", e);
+                showToast("Error al activar flash: Cámara no lista o no compatible");
             }
         });
 
