@@ -215,6 +215,10 @@
         </div>
     </header>
 
+    <div id="offline-indicator" style="display:none; background: #fffbeb; color: #92400e; padding: 8px; font-size: 11px; font-weight: 700; text-align: center; border-bottom: 1px solid #fde68a;">
+        <ion-icon name="cloud-offline-outline"></ion-icon> MODO OFFLINE (SÓTANO) ACTIVADO
+    </div>
+
     <div class="container">
 
         <!-- Search -->
@@ -302,6 +306,19 @@
                 }
             });
         }
+
+        // Network Status Listeners
+        function updateNetworkStatus() {
+            if (!navigator.onLine) {
+                document.getElementById('offline-indicator').style.display = 'block';
+            } else {
+                document.getElementById('offline-indicator').style.display = 'none';
+            }
+        }
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        updateNetworkStatus();
+
     </script>
 
 </body>

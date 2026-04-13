@@ -177,6 +177,10 @@
         <div class="header-title"><h1>Catálogo</h1></div>
     </header>
 
+    <div id="offline-indicator" style="display:none; background: #fffbeb; color: #92400e; padding: 8px; font-size: 11px; font-weight: 700; text-align: center; border-bottom: 1px solid #fde68a;">
+        <ion-icon name="cloud-offline-outline"></ion-icon> MODO OFFLINE (SÓTANO) ACTIVADO
+    </div>
+
     <div class="filter-panel">
         <div class="sap-select-wrapper">
             <ion-icon name="business-outline" style="position:absolute; left:15px; top:14px; z-index:1; color:var(--sap-text-muted);"></ion-icon>
@@ -325,6 +329,10 @@
         let currentPage = 1;
         let currentCategory = '';
         let isLoading = false; let hasMore = true;
+        let db;
+
+        const dbReq = indexedDB.open('InventarioPWA', 3);
+        dbReq.onsuccess = e => { db = e.target.result; };
 
         function getCookie(name) {
             let cookieValue = null;
@@ -346,14 +354,50 @@
             isLoading = true;
             if (page === 1) document.getElementById('material-list').innerHTML = '';
             
-            const q = encodeURIComponent(document.getElementById('catalog-search').value);
+            const qEncoded = encodeURIComponent(document.getElementById('catalog-search').value);
+            const qRaw = document.getElementById('catalog-search').value;
             const wh = document.getElementById('warehouse-filter').value;
-            const res = await fetch(`/inventarios/api/materials/?q=${q}&category=${currentCategory}&ubicacion=${wh}&page=${page}`);
-            const data = await res.json();
             
-            renderMaterials(data.results);
-            hasMore = data.has_next;
+            if (navigator.onLine) {
+                try {
+                    const res = await fetch(`/inventarios/api/materials/?q=${qEncoded}&category=${currentCategory}&ubicacion=${wh}&page=${page}`);
+                    const data = await res.json();
+                    
+                    renderMaterials(data.results);
+                    hasMore = data.has_next;
+                    document.getElementById('offline-indicator').style.display = 'none';
+                } catch (e) {
+                    handleOfflineMode(qRaw, currentCategory);
+                }
+            } else {
+                handleOfflineMode(qRaw, currentCategory);
+            }
             isLoading = false;
+        }
+
+        function handleOfflineMode(query, cat) {
+            document.getElementById('offline-indicator').style.display = 'block';
+            if (!db) return;
+            const tx = db.transaction('catalog_cache', 'readonly');
+            const store = tx.objectStore('catalog_cache');
+            const req = store.getAll();
+            req.onsuccess = () => {
+                let mats = req.result.filter(m => {
+                    const matchQ = !query || (m.nombre.toLowerCase().includes(query.toLowerCase()) || m.sku.toLowerCase().includes(query.toLowerCase()));
+                    const matchC = !cat || m.cat_id == cat;
+                    return matchQ && matchC;
+                });
+                renderMaterials(mats.map(m => ({ 
+                    id: m.id, 
+                    nombre: m.nombre, 
+                    sku: m.sku, 
+                    stock: m.stock, 
+                    unidad: m.uni, 
+                    categoria: 'CACHÉ', 
+                    image_url: '' 
+                })));
+                hasMore = false;
+            };
         }
 
         function renderMaterials(mats) {
@@ -502,6 +546,30 @@
                 }
             }
         });
+
+        // Network Status Listeners
+        function updateNetworkStatus() {
+            if (!navigator.onLine) {
+                document.getElementById('offline-indicator').style.display = 'block';
+                // Trigger offline load if the list is empty
+                if (document.getElementById('material-list').children.length === 0) {
+                    loadCatalog(1);
+                }
+            } else {
+                document.getElementById('offline-indicator').style.display = 'none';
+                // Optionally reload online data
+                if (document.getElementById('material-list').innerHTML.includes('CACHÉ')) {
+                    loadCatalog(1);
+                }
+            }
+        }
+
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        
+        // Initial check
+        updateNetworkStatus();
+
     </script>
 </body>
 </html>
