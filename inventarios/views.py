@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from decimal import Decimal
 from django.contrib.auth.decorators import login_required
-from .models import Material, StockRecord, MovimientoInventario, SolicitudMaterial, Lote
+from .models import Material, StockRecord, MovimientoInventario, SolicitudMaterial, Lote, UnidadMedida, FotoMaterial
 from django.db import transaction
 from mantenimiento.models import OrdenTrabajo
 from activos.models import Ubicacion, Categoria
@@ -176,23 +176,78 @@ def api_get_material_stock(request, material_id):
         'tipo_material': material.get_tipo_material_display() if hasattr(material, 'get_tipo_material_display') else "N/A",
         'image_url': image_url,
         'stock_total': float(material.get_stock_total()),
+        'categoria_id': material.categoria_id,
+        'unidad_id': material.unidad_medida_id,
+        'tipo_raw': material.tipo_material,
+        'tipos_choices': [{'id': c[0], 'label': c[1]} for c in Material.TIPO_MATERIAL_CHOICES],
         'existencias': [
             {
                 'ubicacion': e['ubicacion__nombre'],
                 'cantidad': float(e['cantidad']),
-                'detalle': e['ubicacion_especifica']
+                'detalle': e['ubicacion_especifica'] or ""
             } for e in existencias
         ],
         'movimientos': [
             {
                 'fecha': m.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
-                'tipo': m.tipo,
+                'tipo': m.get_tipo_display(),
+                'tipo_raw': m.tipo,
                 'cantidad': float(m.cantidad),
-                'usuario': m.usuario.username if m.usuario else 'Sistema',
-                'comentarios': m.comentarios or ''
+                'usuario': m.usuario.get_full_name() or m.usuario.username,
+                'ubicacion': m.ubicacion_destino.nombre if m.tipo == 'ENTRADA' else (m.ubicacion_origen.nombre if m.ubicacion_origen else "N/A")
             } for m in movimientos
         ]
     })
+
+@csrf_exempt
+@login_required
+def api_update_material_mobile(request, material_id):
+    """
+    API para actualizar los datos técnicos de un material desde la App.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    try:
+        # Soportar tanto JSON como FormData (para fotos)
+        if request.content_type == 'application/json':
+            import json
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+
+        material = get_object_or_404(Material, id=material_id)
+        
+        material.nombre = data.get('nombre', material.nombre)
+        material.sku = data.get('sku', material.sku)
+        material.descripcion = data.get('descripcion', material.descripcion)
+        
+        raw_min = data.get('stock_minimo')
+        if raw_min is not None:
+            material.stock_minimo = Decimal(str(raw_min))
+            
+        material.tipo_material = data.get('tipo_material', material.tipo_material)
+        
+        cat_id = data.get('categoria_id')
+        if cat_id:
+            material.categoria_id = int(cat_id)
+            
+        uni_id = data.get('unidad_id')
+        if uni_id:
+            material.unidad_medida_id = int(uni_id)
+            
+        # Manejo de Foto Nueva
+        if request.FILES.get('imagen'):
+            material.imagen = request.FILES['imagen']
+            
+        material.save()
+        return JsonResponse({
+            'status': 'success', 
+            'message': 'Material actualizado correctamente',
+            'new_image_url': material.imagen.url if material.imagen else None
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 @login_required
 def cart_add(request):
@@ -552,10 +607,9 @@ def api_despachar_solicitud(request, pk):
                     mov.save()
                     continue
                 
-                # Si se entrega menos de lo solicitado, ajustar la cantidad del movimiento
-                if cantidad_entregada < mov.cantidad:
-                    mov.cantidad = cantidad_entregada
-                    mov.save()
+                # Actualizar cantidad del movimiento a lo que el almacenista realmente entrega
+                mov.cantidad = cantidad_entregada
+                mov.save()
                 
                 mov.liquidar(request.user)
                 procesados += 1
@@ -623,6 +677,69 @@ def mobile_crear_solicitud(request):
         'ordenes_recientes': ordenes_recientes,
         'title': 'Nueva Solicitud'
     })
+
+@login_required
+@mobile_permission_required('logistica')
+def mobile_inventario_dashboard(request):
+    """
+    Dashboard móvil optimizado para la gestión de materiales e inventarios.
+    Funciona como Hub central para el Almacenista.
+    """
+    from activos.models import Ubicacion
+    from .models import CategoriaMaterial, Material, SolicitudMaterial, MovimientoInventario
+    from django.db.models import Q
+    
+    # Estadísticas rápidas
+    total_materiales = Material.objects.count()
+    pedidos_pendientes = SolicitudMaterial.objects.filter(estado='PENDIENTE').count()
+    
+    # Discrepancias (movimientos inconsistentes aprobados)
+    discrepancias = MovimientoInventario.objects.filter(es_inconsistente=True, estado='APROBADO').select_related('material', 'ubicacion_origen').order_by('-fecha_movimiento')
+    discrepancias_count = discrepancias.count()
+    
+    # Verificar si el usuario es del grupo Almacenes o Superusuario
+    es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
+    
+    # Datos para el alta de material
+    categorias = CategoriaMaterial.objects.all().order_by('nombre')
+    unidades = UnidadMedida.objects.all().order_by('nombre')
+    # Se amplía el filtro para incluir Bodegas y Almacenes
+    ubicaciones = Ubicacion.objects.filter(
+        Q(tipo='ALMACEN') | Q(tipo='BODEGA') | Q(es_almacen=True)
+    ).order_by('nombre')
+    
+    context = {
+        'total_materiales': total_materiales,
+        'pedidos_pendientes': pedidos_pendientes,
+        'discrepancias_count': discrepancias_count,
+        'discrepancias_list': discrepancias[:10], # Mostrar últimas 10 en el dashboard
+        'es_almacen': es_almacen,
+        'title': 'Gestión de Materiales',
+        'is_almacen': es_almacen, # Alias para el template
+        'categorias': categorias,
+        'unidades': unidades,
+        'ubicaciones': ubicaciones,
+    }
+    return render(request, 'inventarios/mobile_dashboard.html', context)
+
+@login_required
+@mobile_permission_required('logistica')
+def mobile_historial_movimientos(request):
+    """
+    Vista móvil para ver el historial de entradas, salidas y traslados de material.
+    """
+    from .models import MovimientoInventario
+    
+    # Obtener los últimos 100 movimientos de inventario
+    movimientos = MovimientoInventario.objects.select_related(
+        'material', 'usuario', 'ubicacion_origen', 'ubicacion_destino'
+    ).order_by('-fecha_movimiento')[:100]
+    
+    context = {
+        'movimientos': movimientos,
+        'title': 'Historial de Movimientos'
+    }
+    return render(request, 'inventarios/mobile_movimientos.html', context)
 
 @login_required
 @mobile_permission_required('gestion_almacen')
@@ -935,6 +1052,25 @@ def master_catalog(request):
         'title': 'Catálogo Maestro'
     }
     return render(request, 'inventarios/master_catalog.html', context)
+
+@login_required
+def mobile_catalog(request):
+    """
+    Vista optimizada para celular del catálogo maestro.
+    Agrupa por categorías y permite filtrar por almacén.
+    """
+    from activos.models import Ubicacion
+    from django.db.models import Q
+    
+    categorias = CategoriaMaterial.objects.all().order_by('nombre')
+    ubicaciones = Ubicacion.objects.filter(Q(tipo='BODEGA') | Q(es_almacen=True)).order_by('nombre')
+    
+    context = {
+        'categorias': categorias,
+        'ubicaciones': ubicaciones,
+        'title': 'Catálogo de Repuestos'
+    }
+    return render(request, 'inventarios/mobile_catalog.html', context)
 @login_required
 def api_print_label(request, material_id):
     import io
@@ -1148,10 +1284,14 @@ def api_create_material(request):
             nombre = request.POST.get('nombre')
             sku = request.POST.get('sku')
             descripcion = request.POST.get('descripcion', '')
+            categoria_id = request.POST.get('categoria_id')
+            unidad_id = request.POST.get('unidad_id')
             
             stock_inicial = request.POST.get('stock_inicial')
             ubicacion_id = request.POST.get('ubicacion_id')
-            imagen = request.FILES.get('imagen')
+            # Las fotos pueden venir como 'imagen' (compatible con antes) o 'fotos' (múltiples)
+            fotografias = request.FILES.getlist('fotos')
+            imagen_principal = request.FILES.get('imagen')
             
             if not nombre or not sku:
                 return JsonResponse({'status': 'error', 'message': 'El Nombre y SKU son obligatorios.'}, status=400)
@@ -1167,9 +1307,23 @@ def api_create_material(request):
                     descripcion=descripcion.strip()
                 )
                 
-                if imagen:
-                    material.imagen = imagen
-                    material.save()
+                if categoria_id:
+                    material.categoria_id = categoria_id
+                if unidad_id:
+                    material.unidad_medida_id = unidad_id
+                
+                # Imagen principal
+                if imagen_principal:
+                    material.imagen = imagen_principal
+                elif fotografias:
+                    material.imagen = fotografias[0] # Usar la primera como principal
+                
+                material.save()
+
+                # Guardar fotos adicionales
+                from .models import FotoMaterial
+                for f in fotografias:
+                    FotoMaterial.objects.create(material=material, imagen=f)
                     
                 # Crear stock inicial si aplica
                 if stock_inicial and ubicacion_id:
@@ -1184,7 +1338,7 @@ def api_create_material(request):
                             ubicacion_destino=ubicacion,
                             estado='APROBADO',
                             usuario=request.user,
-                            comentarios="Inventario/Stock Inicial (Carga Rápida)"
+                            comentarios="Inventario/Stock Inicial (Carga Rápida/Offline)"
                         )
 
             return JsonResponse({
@@ -1201,6 +1355,115 @@ def api_create_material(request):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+@login_required
+def api_get_material_by_sku(request):
+    """Retorna información detallada de un material por su SKU."""
+    sku = request.GET.get('sku', '').strip()
+    if not sku:
+        return JsonResponse({'status': 'error', 'message': 'SKU no proporcionado'}, status=400)
+    
+    material = Material.objects.filter(sku=sku).select_related('unidad_medida').first()
+    if not material:
+        return JsonResponse({'status': 'error', 'message': 'Material no encontrado'}, status=404)
+    
+    # Obtener existencias actuales
+    existencias = []
+    for sr in material.existencias.all():
+        existencias.append({
+            'ubicacion': sr.ubicacion.nombre,
+            'cantidad': float(sr.cantidad)
+        })
+    
+    # Obtener últimos 10 movimientos (Ficha de movimientos)
+    from .models import MovimientoInventario
+    movimientos_objs = MovimientoInventario.objects.filter(material=material).order_by('-fecha_movimiento')[:10]
+    movimientos_list = []
+    for m in movimientos_objs:
+        # Resolver ubicación para mostrar
+        ubi = "N/A"
+        if m.tipo == 'ENTRADA':
+            ubi = m.ubicacion_destino.nombre if m.ubicacion_destino else "N/A"
+        elif m.tipo == 'SALIDA':
+            ubi = m.ubicacion_origen.nombre if m.ubicacion_origen else "N/A"
+        elif m.tipo == 'AJUSTE':
+            ubi = m.ubicacion_origen.nombre if m.ubicacion_origen else "Ajuste"
+        
+        movimientos_list.append({
+            'id': m.id,
+            'tipo': m.get_tipo_display(),
+            'tipo_raw': m.tipo,
+            'cantidad': float(m.cantidad),
+            'fecha': m.fecha_movimiento.strftime('%d/%m/%y %H:%M'),
+            'ubicacion': ubi,
+            'usuario': m.usuario.get_full_name() or m.usuario.username if m.usuario else "Sistema",
+            'comentarios': m.comentarios or ""
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'id': material.id,
+        'nombre': material.nombre,
+        'sku': material.sku,
+        'unidad': material.unidad_medida.nombre if material.unidad_medida else 'Unidad',
+        'existencias': existencias,
+        'movimientos': movimientos_list,
+        'imagen': material.imagen.url if material.imagen else None
+    })
+
+@csrf_exempt
+@login_required
+def api_registrar_movimiento_rapido(request):
+    """
+    API para registrar movimientos de entrada, salida o ajuste desde el escáner.
+    Implementa el workflow: 1. Sacar, 2. Ingresar, 3. Ajustar.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        material_id = data.get('material_id')
+        tipo = data.get('tipo') # ENTRADA, SALIDA, AJUSTE
+        cantidad = Decimal(str(data.get('cantidad', 0)))
+        ubicacion_id = data.get('ubicacion_id')
+        comentarios = data.get('comentarios', 'Movimiento rápido desde escáner')
+        
+        material = get_object_or_404(Material, id=material_id)
+        ubicacion = get_object_or_404(Ubicacion, id=ubicacion_id)
+        
+        with transaction.atomic():
+            if tipo == 'AJUSTE':
+                # El ajuste corrige el stock al valor indicado (cantidad)
+                # Obtenemos stock actual en esa ubicación
+                stock_record = StockRecord.objects.filter(material=material, ubicacion=ubicacion).first()
+                stock_actual = stock_record.cantidad if stock_record else Decimal('0')
+                delta = cantidad - stock_actual
+                
+                if delta == 0:
+                    return JsonResponse({'status': 'success', 'message': 'No se requiere ajuste, el stock ya es correcto.'})
+                
+                final_tipo = 'ENTRADA' if delta > 0 else 'SALIDA'
+                final_qty = abs(delta)
+            else:
+                final_tipo = tipo
+                final_qty = cantidad
+
+            mov = MovimientoInventario.objects.create(
+                material=material,
+                tipo=final_tipo,
+                cantidad=final_qty,
+                ubicacion_destino=ubicacion if final_tipo == 'ENTRADA' else None,
+                ubicacion_origen=ubicacion if final_tipo == 'SALIDA' else None,
+                usuario=request.user,
+                comentarios=comentarios + (' (Ajuste automático)' if tipo == 'AJUSTE' else ''),
+                estado='APROBADO' # Auto-aprobado para carga rápida
+            )
+            mov.liquidar(request.user)
+            
+        return JsonResponse({'status': 'success', 'message': f'Movimiento de {tipo} registrado correctamente.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 def pwa_manifest(request):
     """
@@ -1225,27 +1488,157 @@ def pwa_manifest(request):
     }
     return JsonResponse(manifest)
 
+@csrf_exempt
+@login_required
+def api_create_material(request):
+    """
+    API robusta para el alta de material desde dispositivos móviles.
+    Soporta múltiples fotos y el ingreso del stock inicial con auto-liquidación.
+    """
+    if request.method == 'POST':
+        try:
+            nombre = request.POST.get('nombre')
+            sku = request.POST.get('sku')
+            categoria_id = request.POST.get('categoria_id')
+            unidad_id = request.POST.get('unidad_id')
+            ubicacion_id = request.POST.get('ubicacion_id')
+            
+            # Robustecer parseo de stock_inicial
+            raw_stock = request.POST.get('stock_inicial', '0')
+            try:
+                stock_inicial = Decimal(raw_stock) if raw_stock and raw_stock.strip() else Decimal('0')
+            except (ValueError, InvalidOperation, NameError):
+                stock_inicial = Decimal('0')
+
+            if not nombre or not sku:
+                return JsonResponse({'status': 'error', 'message': 'Nombre y SKU son obligatorios'}, status=400)
+
+            # Limpiar IDs de FKs (evitar strings vacíos)
+            categoria_id = int(categoria_id) if categoria_id and str(categoria_id).isdigit() else None
+            unidad_id = int(unidad_id) if unidad_id and str(unidad_id).isdigit() else None
+            ubicacion_id = int(ubicacion_id) if ubicacion_id and str(ubicacion_id).isdigit() else None
+
+            force_update = request.POST.get('force_update') == 'true'
+            
+            # 1. Comprobar existencia previa para detectar conflictos
+            existing_material = Material.objects.filter(sku=sku).first()
+            
+            if existing_material and not force_update:
+                return JsonResponse({
+                    'status': 'conflict',
+                    'message': f'El SKU "{sku}" ya está registrado con el nombre "{existing_material.nombre}".',
+                    'existing_nombre': existing_material.nombre
+                })
+
+            with transaction.atomic():
+                if existing_material and force_update:
+                    # Actualizar campos
+                    existing_material.nombre = nombre
+                    if categoria_id: existing_material.categoria_id = categoria_id
+                    if unidad_id: existing_material.unidad_medida_id = unidad_id
+                    existing_material.save()
+                    material = existing_material
+                    created = False
+                else:
+                    # Crear nuevo
+                    material = Material.objects.create(
+                        sku=sku,
+                        nombre=nombre,
+                        categoria_id=categoria_id if categoria_id else None,
+                        unidad_medida_id=unidad_id if unidad_id else None
+                    )
+                    created = True
+
+                # 2. Procesar Fotos
+                fotos = request.FILES.getlist('fotos')
+                for f in fotos:
+                    FotoMaterial.objects.create(material=material, imagen=f)
+
+                # 3. Stock Inicial
+                if stock_inicial > 0 and ubicacion_id:
+                    try:
+                        ubicacion = Ubicacion.objects.get(id=ubicacion_id)
+                        mov = MovimientoInventario.objects.create(
+                            material=material,
+                            tipo='ENTRADA',
+                            cantidad=stock_inicial,
+                            ubicacion_destino=ubicacion,
+                            usuario=request.user,
+                            comentarios=f'Carga inicial ({"Actualización" if force_update else "Sincronización"})'
+                        )
+                        mov.liquidar(request.user)
+                    except Ubicacion.DoesNotExist:
+                        if created: # Si lo acabamos de crear, devolver error 400
+                             return JsonResponse({'status': 'error', 'message': f'La ubicación ID {ubicacion_id} no existe.'}, status=400)
+                        # Si es actualización, solo ignoramos el stock si la ubicación falla
+
+            return JsonResponse({
+                'status': 'success', 
+                'message': 'Actualizado correctamente' if force_update else 'Sincronizado correctamente',
+                'material_id': material.id,
+                'created': created
+            })
+
+        except Exception as e:
+            # Imprimir el error exacto para que el usuario pueda verlo en el log de Django
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'status': 'error', 'message': f'Error en servidor: {str(e)}'}, status=500)
+
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
 def pwa_sw(request):
     """
     Retorna el Service Worker (sw.js) servido desde el scope de Django.
-    Esto permite que su scope abarque /inventarios/.
+    Este SW es la clave para la operatividad en el "Sótano" (Sin señal).
     """
     js = """
-const CACHE_NAME = 'inventarios-pwa-v1';
+const CACHE_NAME = 'inventarios-pwa-v2';
 const urlsToCache = [
-  '/inventarios/',
+  '/inventarios/mobile/dashboard/',
+  '/inventarios/catalogo/',
   '/inventarios/escanear/',
-  '/static/core/img/icon-512.png'
+  '/static/core/img/icon-512.png',
+  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap',
+  'https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js',
+  'https://cdn.jsdelivr.net/npm/sweetalert2@11'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+      .then(cache => {
+          console.log('SW: Pre-caching App Shell');
+          return cache.addAll(urlsToCache);
+      })
   );
+  self.skipWaiting();
 });
 
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.filter(name => name !== CACHE_NAME)
+          .map(name => caches.delete(name))
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+// Estrategia: Network-First para navegación, con fallback a caché.
+// Esto permite ver el catálogo o dashboard offline si ya se visitaron.
 self.addEventListener('fetch', event => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Para otros recursos (fotos, scripts), Cache-First
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -1257,17 +1650,22 @@ self.addEventListener('fetch', event => {
 // Background Sync Event
 self.addEventListener('sync', event => {
   if (event.tag === 'sync-nuevo-material') {
-    event.waitUntil(syncMateriales());
+    event.waitUntil(syncTodo());
   }
 });
 
-async function syncMateriales() {
+async function syncTodo() {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open('InventarioPWA', 1);
-    request.onerror = () => reject(request.error);
+    const request = indexedDB.open('InventarioPWA', 3);
+    request.onerror = () => reject(request.error); 
     request.onsuccess = () => resolve(request.result);
   });
 
+  await syncMateriales(db);
+  await syncMovimientos(db);
+}
+
+async function syncMateriales(db) {
   const tx = db.transaction('materiales_sync', 'readonly');
   const store = tx.objectStore('materiales_sync');
   const allRecords = await new Promise((resolve, reject) => {
@@ -1280,37 +1678,118 @@ async function syncMateriales() {
     try {
       const finalFd = new FormData();
       for (const key in record) {
-        if (key !== 'imagen_base64' && key !== 'imagen_name' && key !== 'id' && record[key]) {
+        if (!['fotos', 'id', 'timestamp'].includes(key) && record[key]) {
           finalFd.append(key, record[key]);
         }
       }
-
-      if (record.imagen_base64) {
-        const res = await fetch(record.imagen_base64);
-        const blob = await res.blob();
-        finalFd.append('imagen', blob, record.imagen_name);
-      }
-
-      // Envia usando un fetch a django con un token dummy o usando views exentas temporalmente.
-      // Se requiere validación CSRF pero asumiendo que el navegador asocia las cookies.
-      
-      const response = await fetch('/inventarios/api/material/quick-create/', {
-        method: 'POST',
-        body: finalFd,
-      });
-
-      if (response.ok) {
-        // Borrar una vez subido con éxito
-        await new Promise((resolve) => {
-           const dTx = db.transaction('materiales_sync', 'readwrite');
-           dTx.objectStore('materiales_sync').delete(record.id);
-           dTx.oncomplete = resolve;
+      if (record.fotos && record.fotos.length > 0) {
+        record.fotos.forEach(f => {
+          finalFd.append('fotos', f.blob, f.name);
         });
       }
-    } catch (err) {
-      console.log('Fallo subida en background', err);
-    }
+
+      const response = await fetch('/inventarios/api/material/quick-create/', { method: 'POST', body: finalFd });
+      if (response.ok) {
+          const dTx = db.transaction('materiales_sync', 'readwrite');
+          dTx.objectStore('materiales_sync').delete(record.id);
+      }
+    } catch (err) { console.log('Sync Material Error', err); }
+  }
+}
+
+async function syncMovimientos(db) {
+  const tx = db.transaction('movimientos_sync', 'readonly');
+  const store = tx.objectStore('movimientos_sync');
+  const allRecords = await new Promise(r => { 
+      const req = store.getAll(); req.onsuccess = () => r(req.result);
+  });
+
+  for (const record of allRecords) {
+    try {
+      const response = await fetch('/inventarios/api/movimiento-rapido/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record.data)
+      });
+      if (response.ok) {
+        const dTx = db.transaction('movimientos_sync', 'readwrite');
+        dTx.objectStore('movimientos_sync').delete(record.id);
+      }
+    } catch (err) { console.log('Sync Movement Error', err); }
   }
 }
 """
     return HttpResponse(js, content_type='application/javascript')
+
+@login_required
+def api_resolver_discrepancia(request):
+    """
+    Resuelve una discrepancia de inventario creando un movimiento de AJUSTE.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    import json
+    from decimal import Decimal
+    try:
+        data = json.loads(request.body)
+        mov_id = data.get('mov_id')
+        conteo_real = Decimal(str(data.get('conteo_real', 0)))
+        
+        from .models import MovimientoInventario, StockRecord
+        mov_original = MovimientoInventario.objects.get(id=mov_id)
+        
+        # 1. Obtener stock teórico actual en la ubicación de la discrepancia
+        stock_actual = Decimal('0')
+        sq = StockRecord.objects.get(
+            material=mov_original.material,
+            ubicacion=mov_original.ubicacion_origen,
+            lote=mov_original.lote,
+            ubicacion_especifica=mov_original.ubicacion_especifica
+        )
+        stock_actual = sq.cantidad
+    except (MovimientoInventario.DoesNotExist, StockRecord.DoesNotExist):
+        # Si no existe StockRecord, asumimos 0
+        stock_actual = Decimal('0')
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    # 2. Calcular diferencia
+    diferencia = conteo_real - stock_actual
+    
+    if diferencia == 0:
+        # Solo limpiar el flag si ya coinciden
+        mov_original.es_inconsistente = False
+        mov_original.save()
+        return JsonResponse({'status': 'success', 'message': 'El stock ya coincide. Discrepancia corregida.'})
+
+    # 3. Crear movimiento de ajuste
+    nuevo_ajuste = MovimientoInventario(
+        material=mov_original.material,
+        tipo='AJUSTE',
+        cantidad=abs(diferencia),
+        usuario=request.user,
+        comentarios=f"Ajuste automático para resolver discrepancia de movimiento #{mov_id}. Conteo real: {conteo_real}",
+        lote=mov_original.lote,
+        ubicacion_especifica=mov_original.ubicacion_especifica
+    )
+
+    if diferencia > 0:
+        # Sumar stock: Usar ubicacion_destino
+        nuevo_ajuste.ubicacion_destino = mov_original.ubicacion_origen
+    else:
+        # Restar stock: Usar ubicacion_origen
+        nuevo_ajuste.ubicacion_origen = mov_original.ubicacion_origen
+
+    nuevo_ajuste.save()
+    nuevo_ajuste.liquidar(request.user)
+
+    # 4. Limpiar flag del original
+    mov_original.es_inconsistente = False
+    mov_original.save()
+
+    return JsonResponse({
+        'status': 'success', 
+        'message': f'Ajuste de {diferencia} aplicado correctamente.',
+        'nuevo_stock': float(conteo_real)
+    })

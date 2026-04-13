@@ -244,8 +244,8 @@ class MaterialAdmin(ImportExportModelAdmin):
 
 @admin.register(MovimientoInventario)
 class MovimientoInventarioAdmin(admin.ModelAdmin):
-    list_display = ('fecha_movimiento', 'material', 'lote', 'tipo', 'cantidad', 'ubicacion_origen', 'ubicacion_destino', 'estado', 'usuario')
-    list_filter = ('estado', 'tipo', 'fecha_movimiento')
+    list_display = ('fecha_movimiento', 'material', 'lote', 'tipo', 'cantidad', 'ubicacion_origen', 'ubicacion_destino', 'estado', 'usuario', 'es_inconsistente')
+    list_filter = ('estado', 'tipo', 'fecha_movimiento', 'es_inconsistente')
     search_fields = ('material__nombre', 'material__sku', 'usuario__username', 'orden_trabajo__id')
     autocomplete_fields = ('material', 'lote', 'ubicacion_origen', 'ubicacion_destino')
     readonly_fields = ('fecha_movimiento', 'fecha_aprobacion', 'aprobado_por')

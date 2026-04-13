@@ -6,11 +6,11 @@
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Surtido de Inventario - SoftCoM</title>
+    <title>Surtido de Inventario | SoftCoM SAP Fiori</title>
 
     <!-- PWA Config -->
     <link rel="manifest" href="/inventarios/manifest.json">
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" content="#0854a0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="/static/core/img/icon-512.png">
@@ -18,507 +18,627 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/inventarios/sw.js')
-                    .then(reg => console.log('SW registrado', reg.scope))
-                    .catch(err => console.error('SW Error:', err));
-            });
-        }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <style>
         :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --gray-100: #f3f4f6;
-            --gray-200: #e5e7eb;
-            --gray-800: #1f2937;
-            --dark: #0f172a;
+            /* Fiori Horizon Colors */
+            --sap-shell-color: #0854a0;
+            --sap-bg-color: #f7f9fa;
+            --sap-card-bg: #ffffff;
+            --sap-text-color: #32363a;
+            --sap-text-muted: #6a6d70;
+            --sap-brand-color: #0a6ed1;
+            --sap-success: #2b7d2b;
+            --sap-error: #bb0000;
+            --sap-warning: #e9730c;
+            --sap-border-color: #d8d8d8;
+            --sap-shadow: 0 0 12px 0 rgba(0,0,0,0.1);
+            --sap-border-radius: 2px;
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
-            background-color: var(--gray-100);
-            color: var(--gray-800);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
         }
 
-        header {
-            background-color: white;
-            padding: 16px 20px;
+        /* SAP Fiori Shell Bar */
+        .shell-bar {
+            height: 48px;
+            background-color: var(--sap-shell-color);
+            color: white;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 0 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 1000;
         }
 
-        .back-btn {
+        .shell-bar-back {
+            color: white;
             font-size: 24px;
-            color: var(--gray-800);
             background: none;
             border: none;
             padding: 8px;
+            margin-right: 8px;
             cursor: pointer;
-            border-radius: 50%;
             display: flex;
+            align-items: center;
         }
 
-        .back-btn:hover {
-            background-color: var(--gray-100);
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 700;
+        .shell-bar-title {
+            font-size: 16px;
+            font-weight: 600;
+            flex: 1;
         }
 
         #main-container {
-            padding: 20px;
+            padding: 16px;
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: calc(100% - 32px);
         }
 
-        /* Seccion Escaner */
-        #scanner-section {
-            background-color: white;
-            border-radius: 16px;
+        /* Scanner Section (Professional View) */
+        #scanner-card {
+            background-color: #000;
+            border-radius: var(--sap-border-radius);
             overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--sap-shadow);
             position: relative;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--sap-border-color);
         }
 
         #reader {
             width: 100%;
-            border: none !important;
+            height: 100% !important;
         }
 
-        .scanner-placeholder {
-            height: 250px;
+        #reader video {
+            object-fit: cover !important;
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 50px solid rgba(0,0,0,0.4);
+            pointer-events: none;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            background-color: var(--gray-800);
-            color: white;
-            cursor: pointer;
+            z-index: 5;
         }
 
-        .scanner-placeholder ion-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
+        .scanner-laser {
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 0, 0, 0.5);
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+            position: absolute;
+            top: 50%;
+            animation: laserScan 2s linear infinite;
         }
 
-        /* Manual Input */
-        .search-box {
-            display: flex;
-            gap: 10px;
-            background: white;
+        @keyframes laserScan {
+            0% { top: 20%; }
+            50% { top: 80%; }
+            100% { top: 20%; }
+        }
+
+        /* Search & Manual Entry */
+        .fiori-search-container {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
             padding: 4px;
-            border-radius: 12px;
-            border: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            box-shadow: var(--sap-shadow);
         }
 
-        .search-box input {
+        .fiori-search-input {
             flex: 1;
             border: none;
             padding: 12px;
-            font-family: inherit;
             font-size: 16px;
             outline: none;
+            background: transparent;
         }
 
-        .search-box button {
-            background: var(--primary);
+        .fiori-search-btn {
+            background: var(--sap-brand-color);
             color: white;
             border: none;
-            border-radius: 8px;
-            padding: 0 16px;
+            border-radius: 4px;
+            padding: 10px 16px;
             font-weight: 600;
+            cursor: pointer;
         }
 
-        /* Material Card */
+        /* Material Result Card (Fiori Object View) */
         #result-card {
             display: none;
-            background: white;
-            border-radius: 16px;
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
             padding: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            animation: slideUp 0.3s ease-out;
+            box-shadow: var(--sap-shadow);
+            border: 1px solid var(--sapField_BorderColor);
+            box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08);
         }
 
-        @keyframes slideUp {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 700;
+        .fiori-badge {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 2px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
             text-transform: uppercase;
-            background: var(--gray-100);
+        }
+        .fiori-badge.warning {
+            background: #fffbeb;
+            color: #92400e;
+            border: 1px solid #fde68a;
         }
 
-        .material-title {
-            font-size: 20px;
-            font-weight: 700;
-            margin: 10px 0 5px 0;
+        .stock-row {
+        @keyframes fioriFadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .material-sku {
-            color: #666;
-            font-size: 14px;
+        .mat-header {
+            border-bottom: 1px solid var(--sap-border-color);
+            padding-bottom: 15px;
             margin-bottom: 15px;
         }
 
-        .stock-list {
-            margin: 15px 0;
-            border-top: 1px solid var(--gray-100);
-            padding-top: 15px;
+        .mat-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--sap-brand-color);
+            margin: 0 0 4px 0;
         }
 
-        .stock-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
+        .mat-subtitle {
+            font-size: 13px;
+            color: var(--sap-text-muted);
+            font-weight: 600;
+        }
+
+        /* Hierarchical Select Styling */
+        .fiori-form-group {
+            margin-bottom: 16px;
+        }
+
+        .fiori-form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            margin-bottom: 6px;
+        }
+
+        .fiori-hierarchical-container {
+            position: relative;
+        }
+
+        .fiori-input {
+            width: calc(100% - 24px);
+            padding: 12px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 4px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+
+        .fiori-input:focus {
+            border-color: var(--sap-brand-color);
+            outline: none;
+        }
+
+        .dropdown-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 0 0 8px 8px;
+            z-index: 100;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sap-bg-color);
+            cursor: pointer;
             font-size: 14px;
         }
 
-        .stock-qty {
-            font-weight: 700;
-            color: var(--primary);
+        .dropdown-item:hover {
+            background-color: #ebf5fe;
         }
 
-        /* Controls */
-        .controls {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 20px;
+        .dropdown-item small {
+            display: block;
+            color: var(--sap-text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
         }
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .form-group label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #666;
-        }
-
-        select,
-        input[type="number"] {
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid var(--gray-200);
-            font-family: inherit;
-            font-size: 15px;
-        }
-
-        .btn-grid {
+        /* Action Buttons */
+        .fiori-action-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
             margin-top: 10px;
         }
 
-        .btn {
-            padding: 14px;
+        .fiori-btn {
             border: none;
-            border-radius: 12px;
+            padding: 16px 8px;
+            border-radius: 8px;
             font-weight: 700;
-            font-size: 15px;
+            font-size: 14px;
             cursor: pointer;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
+            gap: 6px;
             color: white;
+            transition: opacity 0.2s;
         }
 
-        .btn-primary {
-            background: var(--primary);
+        .fiori-btn:active { opacity: 0.8; }
+        .fiori-btn ion-icon { font-size: 24px; }
+
+        #fallback-btn {
+            background: white;
+            color: var(--sap-text-color);
+            border: 1px solid var(--sap-border-color);
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            align-self: center;
         }
 
-        .btn-success {
-            background: var(--success);
-        }
-
-        .btn-danger {
-            background: var(--danger);
-        }
-
-        #toast {
-            position: fixed;
-            bottom: 30px;
-            left: 20px;
-            right: 20px;
-            background: var(--dark);
+        #placeholder-view {
             color: white;
-            padding: 15px;
-            border-radius: 12px;
             text-align: center;
-            transform: translateY(100px);
-            transition: transform 0.3s ease;
-            z-index: 1000;
         }
 
-        #toast.show {
-            transform: translateY(0);
+        /* Movements History List */
+        .fiori-section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            margin: 20px 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .fiori-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            background: var(--sap-border-color);
+            border: 1px solid var(--sap-border-color);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 25px;
+        }
+
+        .fiori-list-item {
+            background: white;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .item-title {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .item-subtitle {
+            font-size: 11px;
+            color: var(--sap-text-muted);
+        }
+
+        .item-side {
+            text-align: right;
+        }
+
+        .item-value {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .type-entrada { color: var(--sap-success); }
+        .type-salida { color: var(--sap-error); }
+        .type-ajuste { color: var(--sap-brand-color); }
+
+        /* Fiori Icon Tab Bar */
+        .fiori-tabs {
+            display: flex;
+            background: white;
+            border-bottom: 2px solid var(--sap-bg-color);
+            margin: -20px -20px 20px -20px;
+        }
+
+        .fiori-tab-item {
+            flex: 1;
+            padding: 12px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--sap-text-muted);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .fiori-tab-item.active {
+            color: var(--sap-brand-color);
+            border-bottom-color: var(--sap-brand-color);
+        }
+
+        .fiori-tab-item ion-icon {
+            font-size: 20px;
+        }
+
+        .fiori-tab-item span {
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .tab-pane {
+            display: none;
+            animation: fioriFade 0.2s ease-in-out;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        @keyframes fioriFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Stock Legend */
+        .stock-row {
+            padding: 12px 15px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 2px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stock-loc {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .stock-qty {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--sap-brand-color);
         }
     </style>
 </head>
 
 <body>
-
-    <header>
-        <button onclick="history.back()" class="back-btn">
-            <ion-icon name="arrow-back-outline"></ion-icon>
+    <div class="shell-bar">
+        <button onclick="history.back()" class="shell-bar-back">
+            <ion-icon name="chevron-back-outline"></ion-icon>
         </button>
-        <h1>Escáner de Inventario</h1>
-        <div style="width: 40px;"></div>
-    </header>
+        <span class="shell-bar-title">Surtido de Inventario</span>
+        <ion-icon name="qr-code-outline" style="font-size: 24px;"></ion-icon>
+    </div>
 
     <div id="main-container">
-        <div id="scanner-section">
-            <div id="reader" style="display:none"></div>
-            <div id="placeholder" class="scanner-placeholder" onclick="startScanner()">
-                <ion-icon name="camera-outline"></ion-icon>
-                <span>Activar Cámara</span>
+        
+        <div id="scanner-card">
+            <div id="reader"></div>
+            <div class="scanner-overlay">
+                <div class="scanner-laser"></div>
+            </div>
+            <!-- Vista si no hay cámara -->
+            <div id="placeholder-view" style="display:none; position: absolute; z-index: 10;">
+                <ion-icon name="videocam-off-outline" style="font-size: 48px;"></ion-icon>
+                <p>Cámara inactiva</p>
+                <button onclick="startScanner()" class="fiori-search-btn">Reintentar</button>
             </div>
         </div>
 
-        <div class="search-box">
-            <input type="text" id="manual-sku" placeholder="Código SKU manual...">
-            <button onclick="lookupSKU(document.getElementById('manual-sku').value)">
-                <ion-icon name="search-outline"></ion-icon>
+        <button id="fallback-btn" onclick="document.getElementById('scan-file').click()">
+            <ion-icon name="image-outline"></ion-icon> Escanear desde Foto
+        </button>
+        <input type="file" id="scan-file" accept="image/*" capture="environment" style="display:none" onchange="scanFromFile(this)">
+
+        <div class="fiori-search-container" id="manual-search-container">
+            <input type="text" id="manual-sku" class="fiori-search-input" placeholder="Ingresar SKU manualmente...">
+            <button class="fiori-search-btn" onclick="lookupSKU(document.getElementById('manual-sku').value)">
+                Buscar
             </button>
         </div>
 
-        <div id="result-card">
-            <div class="badge" id="mat-unit">OLLA</div>
-            <h2 class="material-title" id="mat-name">Nombre del Material</h2>
-            <div class="material-sku" id="mat-sku">SKU: 12345</div>
+        <button id="new-scan-btn" class="fiori-search-btn" style="display:none; width:100%; border-radius:2px; height:50px; display:none; align-items:center; justify-content:center; gap:10px;" onclick="resetScanner()">
+            <ion-icon name="scan-outline"></ion-icon> ESCANEAR NUEVO MATERIAL
+        </button>
 
-            <div class="stock-list" id="stock-list">
-                <!-- Stock by location will be injected here -->
+        <div id="result-card">
+            <!-- Fiori Icon Tab Bar -->
+            <div class="fiori-tabs">
+                <div id="tab-btn-info" class="fiori-tab-item active" onclick="switchTab('info')">
+                    <ion-icon name="information-circle-outline"></ion-icon>
+                    <span>INFORMACIÓN</span>
+                </div>
+                <div id="tab-btn-operar" class="fiori-tab-item" onclick="switchTab('operar')">
+                    <ion-icon name="construct-outline"></ion-icon>
+                    <span>OPERAR</span>
+                </div>
             </div>
 
-            <div class="controls">
-                <div class="form-group">
-                    <label>Ubicación para el movimiento</label>
-                    <select id="ubicacion-sel">
-                        <option value="">Seleccionar Ubicación...</option>
-                        {% for u in ubicaciones %}
-                        <option value="{{ u.id }}">{{ u.nombre }}</option>
-                        {% endfor %}
-                    </select>
+            <div class="mat-header">
+                <div class="mat-subtitle" id="mat-sku">SKU: 12345</div>
+                <h2 class="mat-title" id="mat-name">Nombre del Material</h2>
+                <div class="mat-subtitle" id="mat-unit">UNIDAD</div>
+            </div>
+
+            <!-- Tab 1: Información & Stock -->
+            <div id="tab-pane-info" class="tab-pane active">
+                <div class="fiori-section-title">
+                    <ion-icon name="cube-outline"></ion-icon> Stock Actual por Ubicación
+                </div>
+                <div id="stock-list" style="margin-bottom: 20px;">
+                    <!-- Dinámico -->
                 </div>
 
-                <div class="form-group">
-                    <label>Cantidad</label>
-                    <input type="number" id="cantidad-input" value="1" min="1" step="0.01">
+                <div id="movements-history">
+                    <div class="fiori-section-title">
+                        <ion-icon name="time-outline"></ion-icon> Ficha de Movimientos (Últimos 10)
+                    </div>
+                    <div id="movements-list" class="fiori-list">
+                        <!-- Dinámico -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Operaciones -->
+            <div id="tab-pane-operar" class="tab-pane">
+                <div class="fiori-form-group">
+                    <label>📍 Ubicación del Movimiento</label>
+                    <div class="fiori-hierarchical-container">
+                        <input type="text" id="ubicacion-search" class="fiori-input" placeholder="Buscar ubicación (Edificio, Nivel, Bodega)..." oninput="filterLocations(this.value)">
+                        <input type="hidden" id="ubicacion-id">
+                        <div id="location-dropdown" class="dropdown-results"></div>
+                    </div>
                 </div>
 
-                <div class="btn-grid">
-                    <button class="btn btn-success" onclick="registrarMovimiento('ENTRADA')">
-                        <ion-icon name="add-circle-outline"></ion-icon> Entrada
+                <div class="fiori-form-group">
+                    <label>🔢 Cantidad</label>
+                    <input type="number" id="cantidad-input" class="fiori-input" value="1" min="0.01" step="0.01">
+                </div>
+
+                <div class="fiori-action-grid">
+                    <button class="fiori-btn" onclick="registrarMovimiento('SALIDA')" style="background-color: var(--sap-error);">
+                        <ion-icon name="remove-circle-outline"></ion-icon>
+                        <span>SACAR</span>
                     </button>
-                    <button class="btn btn-danger" onclick="registrarMovimiento('SALIDA')">
-                        <ion-icon name="remove-circle-outline"></ion-icon> Salida
+                    <button class="fiori-btn" onclick="registrarMovimiento('ENTRADA')" style="background-color: var(--sap-success);">
+                        <ion-icon name="add-circle-outline"></ion-icon>
+                        <span>METER</span>
+                    </button>
+                    <button class="fiori-btn" onclick="registrarMovimiento('AJUSTE')" style="background-color: var(--sap-brand-color);">
+                        <ion-icon name="git-compare-outline"></ion-icon>
+                        <span>AJUSTAR</span>
                     </button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div id="toast"></div>
+    </div>
 
     <script>
         let scanner = null;
         let currentMaterial = null;
+        let db;
+        
+        // Datos de ubicaciones para búsqueda jerárquica
+        const rawLocations = [
+            {% for u in ubicaciones %}
+            { id: "{{ u.id }}", name: "{{ u.nombre }}", path: "{{ u.ruta_completa }}" },
+            {% endfor %}
+        ];
 
-        function showToast(msg, color = null) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            if (color) toast.style.backgroundColor = color;
-            else toast.style.backgroundColor = 'var(--dark)';
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+        window.onload = () => {
+            initDB();
+            startScanner(); // Auto-inicio SAP Fiori
+        };
+
+        function initDB() {
+            const request = indexedDB.open('InventarioPWA', 3);
+            request.onsuccess = event => { db = event.target.result; };
         }
 
+        let isScanningFlag = false;
+
         async function startScanner() {
-            if (!window.isSecureContext && location.hostname !== "localhost") {
-                showToast("El escáner requiere una conexión segura (HTTPS)", "var(--danger)");
-                return;
-            }
-
-            document.getElementById('placeholder').style.display = 'none';
-            document.getElementById('reader').style.display = 'block';
-
+            document.getElementById('placeholder-view').style.display = 'none';
             if (!scanner) {
                 scanner = new Html5Qrcode("reader");
             }
-
+            isScanningFlag = true;
             try {
                 await scanner.start(
                     { facingMode: "environment" },
-                    {
-                        fps: 10,
-                        qrbox: { width: 250, height: 250 },
-                        aspectRatio: 1.0
-                    },
-                    (decodedText) => {
+                    { fps: 15, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+                    (sku) => {
+                        if (!isScanningFlag) return;
+                        isScanningFlag = false; // Bloquear escaneos adicionales
                         if (navigator.vibrate) navigator.vibrate(100);
-                        lookupSKU(decodedText);
+                        lookupSKU(sku);
                     },
-                    (error) => { /* Ignorar errores de frame */ }
+                    (error) => {}
                 );
             } catch (err) {
-                console.error("Error al iniciar cámara:", err);
-                showToast("Error al iniciar cámara: " + err, "var(--danger)");
-                document.getElementById('placeholder').style.display = 'flex';
-                document.getElementById('reader').style.display = 'none';
+                console.error(err);
+                document.getElementById('placeholder-view').style.display = 'block';
             }
         }
 
-        async function lookupSKU(sku) {
-            if (!sku) return;
-
-            let originalSku = sku.trim();
-            let processedSku = originalSku;
-
-            // 1. Intentar limpiar si viene con prefijos comunes de etiquetas
-            // Ejemplo: "CODIGO: 12345" o "SKU: 12345"
-            processedSku = processedSku.replace(/^(CODIGO|SKU|CODE):\s*/i, '');
-
-            // 2. Intentar parsear como JSON por si el QR es un objeto
+        async function scanFromFile(input) {
+            if (!input.files || input.files.length === 0) return;
+            if (!scanner) scanner = new Html5Qrcode("reader");
             try {
-                if (processedSku.startsWith('{')) {
-                    const obj = JSON.parse(processedSku);
-                    processedSku = obj.sku || obj.codigo || obj.code || obj.id || processedSku;
-                }
-            } catch (e) { }
-
-            console.log("Buscando SKU procesado:", processedSku);
-
-            try {
-                const resp = await fetch('{% url "inventarios:api_get_material_by_sku" %}?sku=' + encodeURIComponent(processedSku));
-                const data = await resp.json();
-
-                if (data.status === 'error') {
-                    // Si falló por SKU, intentar buscar por ID si el código es numérico
-                    if (!isNaN(processedSku)) {
-                        // Tal vez el usuario se refiere al ID real del material
-                        // Podríamos intentar otra búsqueda o simplemente mostrar el error
-                        console.log("No encontrado por SKU, intentando por ID...");
-                    }
-                    showToast(data.message, 'var(--danger)');
-                    return;
-                }
-
-                currentMaterial = data;
-                displayMaterial(data);
-
-                // Detener escáner
-                if (scanner) {
-                    try {
-                        await scanner.stop();
-                    } catch (e) { /* Ya estaba detenido */ }
-                }
-
-                document.getElementById('reader').style.display = 'none';
-                document.getElementById('placeholder').style.display = 'flex';
-
-            } catch (e) {
-                console.error("Error en lookup:", e);
-                showToast('Error al buscar material', 'var(--danger)');
-            }
-        }
-
-        function displayMaterial(mat) {
-            document.getElementById('mat-name').innerText = mat.nombre;
-            document.getElementById('mat-sku').innerText = `Código: ${mat.sku}`;
-            document.getElementById('mat-unit').innerText = mat.unidad || mat.unit;
-
-            const list = document.getElementById('stock-list');
-            list.innerHTML = '<strong>Existencias:</strong>';
-
-            if (!mat.existencias || mat.existencias.length === 0) {
-                list.innerHTML += '<div class="stock-item">Sin stock registrado</div>';
-            } else {
-                mat.existencias.forEach(ex => {
-                    list.innerHTML += `
-                    <div class="stock-item">
-                        <span>${ex.ubicacion__nombre}</span>
-                        <span class="stock-qty">${ex.cantidad} ${mat.unidad}</span>
-                    </div>
-                `;
-                });
-            }
-
-            document.getElementById('result-card').style.display = 'block';
-        }
-
-        async function registrarMovimiento(tipo) {
-            const ubiId = document.getElementById('ubicacion-sel').value;
-            const qty = document.getElementById('cantidad-input').value;
-
-            if (!ubiId) {
-                showToast('Debes seleccionar una ubicación', 'var(--warning)');
-                return;
-            }
-
-            try {
-                const resp = await fetch('{% url "inventarios:api_registrar_movimiento_rapido" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: JSON.stringify({
-                        material_id: currentMaterial.id,
-                        tipo: tipo,
-                        cantidad: qty,
-                        ubicacion_id: ubiId
-                    })
-                });
-
-                const data = await resp.json();
-                if (data.status === 'success') {
-                    showToast(data.message, 'var(--success)');
-                    // Refresh stock display
-                    lookupSKU(currentMaterial.sku);
-                } else {
-                    showToast(data.message, 'var(--danger)');
-                }
-            } catch (e) {
-                showToast('Error en la transacción', 'var(--danger)');
+                Swal.fire({ title: 'Escaneando...', didOpen: () => Swal.showLoading() });
+                const decodedText = await scanner.scanFile(input.files[0], true);
+                Swal.close();
+                lookupSKU(decodedText);
+            } catch (err) {
+                Swal.fire('Error', 'No se detectó ningún código en la imagen', 'error');
             }
         }
 
@@ -536,8 +656,257 @@
             }
             return cookieValue;
         }
+
+        async function lookupSKU(sku) {
+            if (!sku) return;
+            let finalSku = sku.replace(/^(CODIGO|SKU|CODE):\s*/i, '').trim();
+            
+            Swal.fire({ title: 'Buscando material...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                const resp = await fetch('{% url "inventarios:api_get_material_by_sku" %}?sku=' + encodeURIComponent(finalSku));
+                const data = await resp.json();
+                Swal.close();
+
+                if (data.status !== 'error') {
+                    currentMaterial = data;
+                    displayMaterial(data);
+                    // Detener cámara para centrar en el formulario
+                    if (scanner) scanner.stop();
+                } else {
+                    Swal.fire('No encontrado', 'El código informado no existe en el catálogo.', 'warning');
+                }
+            } catch (e) {
+                Swal.fire('Offline', 'Buscando en caché local...', 'info');
+                lookupOffline(finalSku);
+            }
+        }
+
+        function switchTab(tabId) {
+            // Actualizar Botones
+            document.querySelectorAll('.fiori-tab-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-btn-${tabId}`).classList.add('active');
+            
+            // Actualizar Panales
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-pane-${tabId}`).classList.add('active');
+        }
+
+        function resetScanner() {
+            // Mostrar controles de búsqueda
+            document.getElementById('scanner-card').style.display = 'flex';
+            document.getElementById('manual-search-container').style.display = 'flex';
+            document.getElementById('fallback-btn').style.display = 'flex';
+            document.getElementById('new-scan-btn').style.display = 'none';
+            
+            // Ocultar resultados
+            document.getElementById('result-card').style.display = 'none';
+            
+            // Reiniciar cámara
+            startScanner();
+        }
+
+        async function lookupOffline(sku) {
+            if (!db) return;
+            const tx = db.transaction('catalog_cache', 'readonly');
+            const store = tx.objectStore('catalog_cache');
+            const req = store.openCursor();
+            req.onsuccess = event => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    if (cursor.value.sku === sku) {
+                        currentMaterial = cursor.value;
+                        displayMaterial({ ...cursor.value, existencias: [] });
+                        if (scanner) scanner.stop();
+                    } else cursor.continue();
+                }
+            };
+        }
+
+        function displayMaterial(mat) {
+            document.getElementById('mat-name').innerText = mat.nombre;
+            document.getElementById('mat-sku').innerText = `Código SKU: ${mat.sku}`;
+            document.getElementById('mat-unit').innerText = mat.unidad || 'UND';
+            document.getElementById('result-card').style.display = 'block';
+            
+            // Ocultar buscador y scanner para foco total en la ficha
+            document.getElementById('scanner-card').style.display = 'none';
+            document.getElementById('manual-search-container').style.display = 'none';
+            document.getElementById('fallback-btn').style.display = 'none';
+            document.getElementById('new-scan-btn').style.display = 'flex';
+            
+            switchTab('info'); // Resetear a pestaña de información al escanear
+
+            // 1. Renderizar Stock Actual
+            const stockList = document.getElementById('stock-list');
+            if (mat.existencias && mat.existencias.length > 0) {
+                stockList.innerHTML = mat.existencias.map(ex => {
+                    const isNeg = parseFloat(ex.cantidad) < 0;
+                    const disclessAttr = isNeg ? 'style="color: var(--sap-error); font-weight:800;"' : '';
+                    const discBadge = isNeg ? `
+                        <div class="fiori-badge warning" onclick="handleDiscrepancy('${ex.ubicacion_id}', '${ex.ubicacion}')" style="margin-left:8px; cursor:pointer;">
+                            <ion-icon name="warning-outline"></ion-icon> DISCREPANCIA (AJUSTAR)
+                        </div>` : '';
+                    
+                    return `
+                        <div class="stock-row" style="flex-wrap: wrap;">
+                            <div style="flex:1; display:flex; align-items:center;">
+                                <span class="stock-loc">${ex.ubicacion}</span>
+                                ${discBadge}
+                            </div>
+                            <span class="stock-qty" ${disclessAttr}>${ex.cantidad} <small style="color:#64748b">${mat.unidad || ''}</small></span>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                stockList.innerHTML = '<div style="text-align:center; padding:15px; color:#64748b; font-size:13px; border:1px dashed #cbd5e1; border-radius:2px;">Sin existencias registradas.</div>';
+            }
+
+            // 2. Renderizar Movimientos
+            const historyEl = document.getElementById('movements-history');
+            const listEl = document.getElementById('movements-list');
+            
+            if (mat.movimientos && mat.movimientos.length > 0) {
+                historyEl.style.display = 'block';
+                listEl.innerHTML = mat.movimientos.map(m => `
+                    <div class="fiori-list-item">
+                        <div class="item-main">
+                            <div class="item-title">${m.tipo}</div>
+                            <div class="item-subtitle">${m.fecha} • ${m.usuario}</div>
+                            <div class="item-subtitle" style="color:#475569;">📍 ${m.ubicacion}</div>
+                        </div>
+                        <div class="item-side">
+                            <div class="item-value type-${m.tipo_raw.toLowerCase()}">
+                                ${m.tipo_raw === 'SALIDA' ? '-' : '+'}${m.cantidad}
+                            </div>
+                            <div class="item-subtitle">${mat.unidad || ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                historyEl.style.display = 'none';
+            }
+        }
+
+        async function handleDiscrepancy(locId, locName) {
+            const { value: realQty } = await Swal.fire({
+                title: 'Ajuste de Inventario',
+                html: `Se ha detectado una discrepancia en <b>${locName}</b>.<br><br>Por favor, ingrese la <b>cantidad real actual</b> en estantería:`,
+                input: 'number',
+                inputAttributes: { min: 0, step: 'any' },
+                showCancelButton: true,
+                confirmButtonText: 'Actualizar Inventario',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0a6ed1',
+                inputValidator: (value) => {
+                    if (!value || value < 0) return 'Debe ingresar una cantidad válida (0 o más)';
+                }
+            });
+
+            if (realQty !== undefined) {
+                try {
+                    const resp = await fetch('/inventarios/api/ajustar-discrepancia/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            material_id: currentMaterial.id,
+                            ubicacion_id: locId,
+                            cantidad_real: realQty,
+                            motivo: 'Corrección de stock negativo (Escaneado)'
+                        })
+                    });
+                    const res = await resp.json();
+                    if (res.status === 'success') {
+                        Swal.fire('¡Listo!', 'El inventario ha sido ajustado correctamente.', 'success');
+                        lookupSKU(currentMaterial.sku); // Refrescar ficha
+                    } else {
+                        throw new Error(res.message);
+                    }
+                } catch (err) {
+                    Swal.fire('Error', 'No se pudo procesar el ajuste: ' + err.message, 'error');
+                }
+            }
+        }
+
+        // --- Logica Jerárquica SAP Fiori ---
+        function filterLocations(val) {
+            const dropdown = document.getElementById('location-dropdown');
+            if (val.length < 2) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            const search = val.toLowerCase();
+            const filtered = rawLocations.filter(loc => loc.path.toLowerCase().includes(search));
+
+            if (filtered.length > 0) {
+                dropdown.innerHTML = filtered.slice(0, 10).map(loc => {
+                    const parts = loc.path.split(' → ');
+                    const name = parts.pop();
+                    const path = parts.join(' > ');
+                    return `
+                        <div class="dropdown-item" onclick="selectLocation('${loc.id}', '${loc.path}')">
+                            <small>${path}</small>
+                            <strong>${name}</strong>
+                        </div>
+                    `;
+                }).join('');
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        }
+
+        function selectLocation(id, path) {
+            document.getElementById('ubicacion-id').value = id;
+            document.getElementById('ubicacion-search').value = path;
+            document.getElementById('location-dropdown').style.display = 'none';
+        }
+
+        async function registrarMovimiento(tipo) {
+            const ubiId = document.getElementById('ubicacion-id').value;
+            const qty = document.getElementById('cantidad-input').value;
+
+            if (!ubiId) {
+                Swal.fire('Ubicación requerida', 'Por favor selecciona una ubicación de la lista jerárquica.', 'warning');
+                return;
+            }
+
+            const payload = { material_id: currentMaterial.id, tipo: tipo, cantidad: qty, ubicacion_id: ubiId };
+
+            Swal.fire({ title: 'Registrando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                const resp = await fetch('{% url "inventarios:api_registrar_movimiento_rapido" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    Swal.fire('¡Éxito!', data.message, 'success').then(() => {
+                         location.reload(); 
+                    });
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            } catch (e) {
+                queueMovimientoOffline(payload);
+                Swal.fire('Guardado Offline', 'Se sincronizará al recuperar señal.', 'warning').then(() => {
+                    location.reload();
+                });
+            }
+        }
+
+        async function queueMovimientoOffline(payload) {
+            if (!db) return;
+            const tx = db.transaction('movimientos_sync', 'readwrite');
+            tx.objectStore('movimientos_sync').add({ data: payload, timestamp: new Date().toISOString() });
+        }
     </script>
-
 </body>
-
 </html>

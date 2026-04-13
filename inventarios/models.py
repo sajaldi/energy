@@ -119,10 +119,17 @@ class Material(models.Model):
             if m.tipo in ['ENTRADA', 'AJUSTE'] and m.ubicacion_destino_id:
                 k = (m.ubicacion_destino_id, m.lote_id, m.ubicacion_especifica)
                 stock_map[k] = stock_map.get(k, Decimal('0')) + m.cantidad
-            elif m.tipo == 'SALIDA' and m.ubicacion_origen_id:
+            
+            # Ajuste también puede restar si especifica origen
+            if m.tipo == 'AJUSTE' and m.ubicacion_origen_id:
                 k = (m.ubicacion_origen_id, m.lote_id, m.ubicacion_especifica)
                 stock_map[k] = stock_map.get(k, Decimal('0')) - m.cantidad
-            elif m.tipo == 'TRASLADO':
+
+            if m.tipo == 'SALIDA' and m.ubicacion_origen_id:
+                k = (m.ubicacion_origen_id, m.lote_id, m.ubicacion_especifica)
+                stock_map[k] = stock_map.get(k, Decimal('0')) - m.cantidad
+            
+            if m.tipo == 'TRASLADO':
                 if m.ubicacion_origen_id:
                     k = (m.ubicacion_origen_id, m.lote_id, m.ubicacion_especifica)
                     stock_map[k] = stock_map.get(k, Decimal('0')) - m.cantidad
@@ -151,6 +158,18 @@ class Material(models.Model):
         verbose_name = "Material / Repuesto"
         verbose_name_plural = "Materiales y Repuestos"
         ordering = ['nombre']
+
+class FotoMaterial(models.Model):
+    """
+    Permite asociar múltiples fotos a un solo material (ej. placa, estado, empaque).
+    """
+    material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='fotos_adicionales', verbose_name="Material")
+    imagen = models.ImageField(upload_to='materiales/fotos/', verbose_name="Imagen")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Foto de Material"
+        verbose_name_plural = "Fotos de Materiales"
 
 class CompatibilidadMaterial(models.Model):
     material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='modelos_compatibles')
@@ -249,6 +268,7 @@ class MovimientoInventario(models.Model):
     
     comentarios = models.TextField(blank=True, null=True)
     fecha_movimiento = models.DateTimeField(auto_now_add=True, db_index=True)
+    es_inconsistente = models.BooleanField(default=False, verbose_name="Inconsistente (Sin Stock)")
 
     estado = models.CharField(
         max_length=20, 
@@ -262,28 +282,34 @@ class MovimientoInventario(models.Model):
     def liquidar(self, usuario_aprobador):
         """
         Aprueba el movimiento y actualiza el stock real.
+        Si no hay stock suficiente, marca como inconsistente pero permite el proceso.
         """
         if self.estado == 'APROBADO':
             return # Ya fue procesado
             
         from django.utils import timezone
         
-        # Validaciones Previas (Asegurar que hay stock para salidas/traslados)
+        # Validaciones Previas (Verificar stock pero no bloquear)
         if self.tipo in ['SALIDA', 'TRASLADO'] and self.ubicacion_origen:
+            stock_record = None
             if self.lote:
-                stock = StockRecord.objects.filter(
+                stock_record = StockRecord.objects.filter(
                     material=self.material, lote=self.lote,
                     ubicacion=self.ubicacion_origen, ubicacion_especifica=self.ubicacion_especifica
                 ).first()
-                if not stock or stock.cantidad < self.cantidad:
-                    raise ValueError(f"Stock insuficiente en lote {self.lote.codigo}. Disponible: {stock.cantidad if stock else 0}")
             else:
-                stock = StockRecord.objects.filter(
+                stock_record = StockRecord.objects.filter(
                     material=self.material, lote=None,
                     ubicacion=self.ubicacion_origen, ubicacion_especifica=self.ubicacion_especifica
                 ).first()
-                if not stock or stock.cantidad < self.cantidad:
-                    raise ValueError(f"Debe especificar un Lote o no hay stock genérico suficiente.")
+            
+            if not stock_record or stock_record.cantidad < self.cantidad:
+                # Marcar como inconsistente para auditoría posterior
+                self.es_inconsistente = True
+                if self.comentarios:
+                    self.comentarios += f" | INCONSISTENCIA: Stock teórico insuficiente ({stock_record.cantidad if stock_record else 0})."
+                else:
+                    self.comentarios = f"INCONSISTENCIA: Stock teórico insuficiente ({stock_record.cantidad if stock_record else 0})."
 
         # Establecer estado como aprobado para que la señal reconstruya el stock
         self.estado = 'APROBADO'

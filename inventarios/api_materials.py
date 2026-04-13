@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
+from django.utils import timezone
 from inventarios.models import Material, CategoriaMaterial, StockRecord
 
 @login_required
@@ -113,3 +114,66 @@ def api_list_categories(request):
 
     tree = build_tree(None)
     return JsonResponse({'results': tree})
+
+@login_required
+def api_master_sync(request):
+    """
+    Consolidates ALL necessary data for offline mode (Basement Mode).
+    Returns materials, categories, units, and warehouse locations.
+    """
+    from activos.models import Ubicacion
+    from .models import UnidadMedida, StockRecord
+    from django.db.models import Sum, OuterRef, Subquery, DecimalField
+    from django.db.models.functions import Coalesce
+    from decimal import Decimal
+
+    # 1. Materials with stock
+    stock_subquery = StockRecord.objects.filter(material=OuterRef('pk'))
+    stock_total_expr = Subquery(
+        stock_subquery.values('material').annotate(total=Sum('cantidad')).values('total'),
+        output_field=DecimalField()
+    )
+
+    materials_qs = Material.objects.select_related('categoria', 'unidad_medida').annotate(
+        stock_total=Coalesce(stock_total_expr, Decimal('0.00'))
+    ).order_by('nombre')
+
+    # Filtrado por departamento si aplica
+    user_depto_id = None
+    if hasattr(request.user, 'perfil') and request.user.perfil.departamento_id:
+        user_depto_id = request.user.perfil.departamento_id
+
+    materials_data = []
+    for m in materials_qs:
+        # Lógica de restricción básica
+        dept_ids = [d.id for d in m.departamentos.all()]
+        if dept_ids and user_depto_id and user_depto_id not in dept_ids:
+            continue
+
+        materials_data.append({
+            'id': m.id,
+            'nombre': m.nombre,
+            'sku': m.sku,
+            'desc': m.descripcion or '',
+            'cat_id': m.categoria_id,
+            'uni': m.unidad_medida.abreviatura if m.unidad_medida else 'UND',
+            'stock': float(m.stock_total or 0)
+        })
+
+    # 2. Categories
+    categories = list(CategoriaMaterial.objects.values('id', 'nombre', 'padre_id'))
+
+    # 3. Units
+    units = list(UnidadMedida.objects.values('id', 'nombre', 'abreviatura'))
+
+    # 4. Locations (Warehouse only)
+    locations = list(Ubicacion.objects.filter(tipo='ALMACEN').values('id', 'nombre'))
+
+    return JsonResponse({
+        'status': 'success',
+        'materials': materials_data,
+        'categories': categories,
+        'units': units,
+        'locations': locations,
+        'timestamp': timezone.now().isoformat() if 'timezone' in globals() else None
+    })

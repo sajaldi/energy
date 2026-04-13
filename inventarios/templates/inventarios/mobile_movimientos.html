@@ -1,0 +1,309 @@
+{% load static core_tags %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Movimientos | SoftCoM Almacén</title>
+    {% include 'core/pwa_tags.html' %}
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
+            margin: 0;
+            padding-bottom: 30px;
+        }
+
+        /* Header SAP Style */
+        header {
+            background: var(--sap-shell-bg);
+            color: var(--sap-shell-color);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        header a {
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-title h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .container {
+            padding: 15px;
+        }
+
+        /* Search Box */
+        .search-box {
+            background: white;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 4px;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            position: sticky;
+            top: 65px;
+            z-index: 900;
+            box-shadow: var(--sap-card-shadow);
+        }
+
+        .search-box input {
+            border: none;
+            width: 100%;
+            outline: none;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        /* Movement Card */
+        .movement-card {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: var(--sap-card-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .movement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .type-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .type-entrada { background: #dcfce7; color: #166534; }
+        .type-salida { background: #eff6ff; color: #1e40af; }
+        .type-traslado { background: #f5f3ff; color: #5b21b6; }
+        .type-ajuste { background: #fff7ed; color: #9a3412; }
+
+        .movement-date {
+            font-size: 11px;
+            color: var(--sap-text-muted);
+            font-weight: 600;
+        }
+
+        .movement-body {
+            display: flex;
+            align-items: start;
+            gap: 12px;
+        }
+
+        .icon-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--sap-brand-color);
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .material-info h4 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .material-info p {
+            margin: 4px 0 0 0;
+            font-size: 12px;
+            color: var(--sap-text-muted);
+        }
+
+        .movement-footer {
+            border-top: 1px dashed var(--sap-border-color);
+            padding-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-tag {
+            font-size: 11px;
+            color: var(--sap-text-muted);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .qty-val {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--sap-text-color);
+        }
+
+        .qty-unit {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            text-transform: uppercase;
+        }
+
+        .location-info {
+            font-size: 11px;
+            color: var(--sap-brand-color);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 40px;
+            color: var(--sap-text-muted);
+        }
+
+        .empty-state ion-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a href="{% url 'inventarios:mobile_dashboard' %}">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </a>
+        <div class="header-title">
+            <h1>Historial de Movimientos</h1>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- Search -->
+        <div class="search-box fade-in">
+            <ion-icon name="search-outline"></ion-icon>
+            <input type="text" id="search-input" placeholder="Buscar material, usuario o tipo..." onkeyup="filterMovements()">
+        </div>
+
+        <!-- Movements List -->
+        <div id="movements-list">
+            {% for mov in movimientos %}
+            <div class="movement-card fade-in" style="animation-delay: {{ forloop.counter0|mul:0.05 }}s"
+                 data-search="{{ mov.material.nombre|lower }} {{ mov.get_tipo_display|lower }} {{ mov.usuario.get_full_name|lower }} {{ mov.comentarios|lower }}">
+                
+                <div class="movement-header">
+                    <span class="type-badge type-{{ mov.tipo|lower }}">{{ mov.get_tipo_display }}</span>
+                    <span class="movement-date">{{ mov.fecha_movimiento|date:"d/m/Y H:i" }}</span>
+                </div>
+
+                <div class="movement-body">
+                    <div class="icon-circle">
+                        {% if mov.tipo == 'ENTRADA' %}
+                        <ion-icon name="arrow-down-circle-outline" style="color: var(--sap-success);"></ion-icon>
+                        {% elif mov.tipo == 'SALIDA' %}
+                        <ion-icon name="arrow-up-circle-outline" style="color: var(--sap-brand-color);"></ion-icon>
+                        {% elif mov.tipo == 'TRASLADO' %}
+                        <ion-icon name="swap-horizontal-outline" style="color: #6366f1;"></ion-icon>
+                        {% else %}
+                        <ion-icon name="options-outline" style="color: var(--sap-warning);"></ion-icon>
+                        {% endif %}
+                    </div>
+                    <div class="material-info">
+                        <h4>{{ mov.material.nombre }}</h4>
+                        <p>SKU: {{ mov.material.sku }}</p>
+                        
+                        <div class="location-info">
+                            <ion-icon name="location-outline"></ion-icon>
+                            <span>
+                                {% if mov.tipo == 'ENTRADA' %}
+                                    {{ mov.ubicacion_destino.nombre|default:"N/A" }}
+                                {% elif mov.tipo == 'SALIDA' %}
+                                    {{ mov.ubicacion_origen.nombre|default:"N/A" }}
+                                {% elif mov.tipo == 'TRASLADO' %}
+                                    {{ mov.ubicacion_origen.nombre }} → {{ mov.ubicacion_destino.nombre }}
+                                {% else %}
+                                    {{ mov.ubicacion_origen.nombre|default:mov.ubicacion_destino.nombre }}
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="movement-footer">
+                    <div class="user-tag">
+                        <ion-icon name="person-circle-outline"></ion-icon>
+                        <span>{{ mov.usuario.get_full_name|default:mov.usuario.username }}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="qty-val">{{ mov.cantidad|floatformat:2 }}</span>
+                        <span class="qty-unit">{{ mov.material.unidad_medida.abreviatura|default:"UND" }}</span>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state">
+                <ion-icon name="document-text-outline"></ion-icon>
+                <p>No se encontraron movimientos registrados.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    <script>
+        function filterMovements() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const cards = document.querySelectorAll('.movement-card');
+            
+            cards.forEach(card => {
+                const searchData = card.dataset.search;
+                if (searchData.includes(query)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+    </script>
+
+</body>
+
+</html>

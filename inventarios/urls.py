@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from .views import mobile_crear_solicitud
-from .api_materials import api_list_materials, api_list_categories
+from .api_materials import api_list_materials, api_list_categories, api_master_sync
 
 app_name = 'inventarios'
 
@@ -9,6 +9,7 @@ urlpatterns = [
     path('', views.inventario_dashboard, name='dashboard'),
     path('crear-solicitud/', views.crear_solicitud_dashboard, name='crear_solicitud'),
     path('api/stock/<int:material_id>/', views.api_get_material_stock, name='api_get_material_stock'),
+    path('api/material/<int:material_id>/update/', views.api_update_material_mobile, name='api_update_material_mobile'),
     path('cart/add/', views.cart_add, name='cart_add'),
     path('cart/remove/<int:material_id>/', views.cart_remove, name='cart_remove'),
     path('cart/detail/', views.cart_detail_view, name='cart_detail'),
@@ -23,10 +24,13 @@ urlpatterns = [
     path('catalogo/', views.master_catalog, name='master_catalog'),
 
     # Mobile Views
+    path('mobile/dashboard/', views.mobile_inventario_dashboard, name='mobile_dashboard'),
+    path('mobile/movimientos/', views.mobile_historial_movimientos, name='mobile_movimientos'),
     path('mobile/pedidos/', views.mobile_lista_pedidos, name='mobile_lista_pedidos'),
     path('mobile/pedidos/<int:pk>/', views.mobile_detalle_pedido, name='mobile_detalle_pedido'),
     path('mobile/crear-solicitud/', mobile_crear_solicitud, name='mobile_crear_solicitud'),
-    path('mobile/gestion-salidas/', views.mobile_gestion_salidas_view, name='mobile_gestion_salidas'),
+    path('mobile/catalog/', views.mobile_catalog, name='mobile_catalog'),
+    path('mobile/gestion-salidas/', views.mobile_inventario_dashboard, name='mobile_gestion_salidas'),
     path('api/ordenes-trabajo/search/', views.api_search_ordenes_trabajo, name='api_search_ot'),
     path('api/niveles/', views.api_niveles_por_edificio, name='api_niveles_edificio'),
 
@@ -41,6 +45,8 @@ urlpatterns = [
     path('api/pedidos-pendientes/', views.api_pedidos_pendientes_almacen, name='api_pedidos_pendientes_almacen'),
     path('api/pedidos/<int:pk>/detalle/', views.api_detalle_solicitud_almacen, name='api_detalle_solicitud_almacen'),
     path('api/pedidos/<int:pk>/despachar/', views.api_despachar_solicitud, name='api_despachar_solicitud'),
+    path('api/discrepancy/resolve/', views.api_resolver_discrepancia, name='api_resolver_discrepancia'),
+    path('api/sync-master/', api_master_sync, name='api_master_sync'),
     path('registrar-salida/', views.registrar_salida_view, name='registrar_salida'),
     path('manifest.json', views.pwa_manifest, name='pwa_manifest'),
     path('sw.js', views.pwa_sw, name='pwa_sw'),
