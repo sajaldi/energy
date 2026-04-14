@@ -42,6 +42,7 @@ urlpatterns = [
     path('app/aviso/<int:pk>/editar/', views.mobile_aviso_editar, name='mobile_aviso_editar'),
     path('app/aviso/<int:pk>/', views.mobile_aviso_detalle, name='mobile_aviso_detalle'),
     path('app/avisos/', views.mobile_mis_avisos, name='mobile_mis_avisos'),
+    path('app/ordenes/', views.mobile_mis_ordenes, name='mobile_mis_ordenes'),
     path('app/crear-ot-rutina/<int:rutina_id>/', views.mobile_crear_ot_rutina, name='mobile_crear_ot_rutina'),
     path('app/medicion/<int:pk>/crear/', views.mobile_crear_medicion, name='mobile_crear_medicion'),
     path('app/ot/<int:pk>/check-pdf-status/', views.check_ot_pdf_status, name='check_ot_pdf_status'),

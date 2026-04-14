@@ -754,9 +754,9 @@ def mobile_dashboard(request):
     """
     today = timezone.now().date()
     
-    # OTs del día
+    # OTs del día o en ejecución
     ots_hoy = OrdenTrabajo.objects.filter(
-        inicio_programado__date=today
+        Q(inicio_programado__date=today) | Q(estado='EJECUCION')
     ).exclude(estado='REALIZADA').select_related('rutina', 'ubicacion').order_by('inicio_programado')
     
     # OTs próximas (Siguientes 7 días)

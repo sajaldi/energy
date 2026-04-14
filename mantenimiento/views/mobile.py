@@ -472,13 +472,20 @@ def mobile_ot_finalizar(request, pk):
         # Por defecto solo guardamos y nos quedamos en la misma pantalla (o volvemos al detalle)
         return redirect('mantenimiento:mobile_ot_detalle', pk=ot.id)
 
-    # Obtener resultados existentes para pre-cargar si estamos re-editando
+    # Obtener resultados y fotos existentes para pre-cargar si estamos re-editando
     resultados_qs = ot.resultados_checklist.all()
     resultados_dict = {res.paso_id: res for res in resultados_qs}
     
-    # Decorar los pasos con su resultado previo
+    archivos_pasos = ot.archivos.filter(paso__isnull=False)
+    import collections
+    archivos_dict = collections.defaultdict(list)
+    for a in archivos_pasos:
+        archivos_dict[a.paso_id].append(a)
+    
+    # Decorar los pasos con su resultado y fotos previas
     for paso in pasos:
         paso.resultado = resultados_dict.get(paso.id)
+        paso.fotos_guardadas = archivos_dict.get(paso.id, [])
 
     return render(request, 'mantenimiento/mobile_ot_finalizar.html', {
         'ot': ot,
@@ -520,6 +527,24 @@ def mobile_crear_ot_rutina(request, rutina_id):
                 ot.activos.add(a)
     
     return redirect('mantenimiento:mobile_ot_detalle', pk=ot.id)
+
+@staff_member_required
+@mobile_permission_required('tareas_hoy')
+def mobile_mis_ordenes(request):
+    """
+    Muestra las órdenes de trabajo abiertas del usuario (por técnico o equipo).
+    """
+    user_q = Q(tecnico=request.user) | Q(equipo__in=request.user.groups.all())
+    
+    ordenes = OrdenTrabajo.objects.filter(user_q).exclude(
+        estado__in=['REALIZADA', 'CANCELADA']
+    ).select_related(
+        'rutina', 'ubicacion', 'tecnico', 'aviso'
+    ).prefetch_related('activos').distinct().order_by('-estado', 'inicio_programado')
+    
+    return render(request, 'mantenimiento/mobile_mis_ordenes.html', {
+        'ordenes': ordenes,
+    })
 
 @staff_member_required
 @mobile_permission_required('mis_avisos')

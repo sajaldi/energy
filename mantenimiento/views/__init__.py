@@ -37,6 +37,7 @@ from .mobile import (
     mobile_ot_finalizar,
     mobile_crear_ot_rutina,
     mobile_mis_avisos,
+    mobile_mis_ordenes,
     mobile_aviso_detalle,
     mobile_ot_upload_file,
     mobile_ot_delete_file,
