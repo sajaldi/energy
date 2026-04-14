@@ -608,20 +608,26 @@
         async function startScanner() {
             document.getElementById('placeholder-view').style.display = 'none';
             if (!scanner) {
-                scanner = new Html5Qrcode("reader");
+                // Initialize with specific formats to reduce CPU and focus hunting on iOS
+                scanner = new Html5Qrcode("reader", { formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128 ] });
             }
             isScanningFlag = true;
             try {
                 await scanner.start(
                     { facingMode: "environment" },
-                    { fps: 15, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+                    { 
+                        fps: 30, // Default 10 is too slow for quick iOS scans
+                        qrbox: { width: 250, height: 250 }, 
+                        aspectRatio: 1.0, 
+                        disableFlip: false // Ensures mirror isn't artificially disabled
+                    },
                     (sku) => {
                         if (!isScanningFlag) return;
                         isScanningFlag = false; // Bloquear escaneos adicionales
                         if (navigator.vibrate) navigator.vibrate(100);
                         lookupSKU(sku);
                     },
-                    (error) => {}
+                    (error) => {} // Suppress constant focus errors
                 );
             } catch (err) {
                 console.error(err);

@@ -15,4 +15,34 @@
                 .catch(err => console.error('Error al registrar Service Worker', err));
         });
     }
+
+    // iOS Install Prompt Helper
+    window.addEventListener('load', () => {
+        const isIos = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return /iphone|ipad|ipod/.test(userAgent);
+        };
+        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+        if (isIos() && !isInStandaloneMode()) {
+            // Check if we already dismissed it
+            if (!localStorage.getItem('ios_install_dismissed')) {
+                const iosPrompt = document.createElement('div');
+                iosPrompt.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:90%; background:#fff; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.2); padding:16px; z-index:99999; text-align:center; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; border:2px solid #007bff;';
+                iosPrompt.innerHTML = `
+                    <div style="font-weight:bold; color:#333; margin-bottom:8px;">📱 Instalar SoftCoM App</div>
+                    <div style="font-size:13px; color:#555; line-height:1.4;">
+                        Para instalar, pulsa el botón <b>Compartir</b> <svg width="14" height="18" viewBox="0 0 14 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle"><path d="M7 0V11M7 0L3 4M7 0L11 4M1 17H13" stroke="#007bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> en la barra inferior y selecciona <b>Añadir a la pantalla de inicio</b>.
+                    </div>
+                    <button id="close-ios-prompt" style="margin-top:12px; border:none; background:#f0f0f0; padding:6px 20px; border-radius:20px; color:#333; font-weight:bold; cursor:pointer;">Entendido</button>
+                `;
+                document.body.appendChild(iosPrompt);
+
+                document.getElementById('close-ios-prompt').addEventListener('click', () => {
+                    localStorage.setItem('ios_install_dismissed', 'true');
+                    iosPrompt.style.display = 'none';
+                });
+            }
+        }
+    });
 </script>

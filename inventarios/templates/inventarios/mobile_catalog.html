@@ -4,8 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>{{ title }} - SoftCoM</title>
-    {% include 'core/pwa_tags.html' %}
+    <title>Catálogo | SoftCoM Almacén</title>
+    
+    <!-- PWA Meta Tags Específicas de Inventarios -->
+    <link rel="manifest" href="{% url 'inventarios:pwa_manifest' %}">
+    <meta name="theme-color" content="#354a5f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Almacén">
+    <link rel="apple-touch-icon" href="/static/core/img/icon-512.png">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{% url 'inventarios:pwa_sw' %}")
+                    .catch(err => console.error('Error al registrar SW de Inventarios', err));
+            });
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -211,7 +227,7 @@
     </div>
 
     <div id="material-list" class="catalog-container"></div>
-    <div id="pagination-sentinel" style="height: 50px; text-align: center; padding-top: 10px; color: #94a3b8; font-size: 11px; font-weight:700;">CARGANDO...</div>
+    <div id="pagination-sentinel" style="height: 50px; text-align: center; padding-top: 10px; color: #94a3b8; font-size: 11px; font-weight:700; display:none;">CARGANDO...</div>
 
     <!-- COMPREHENSIVE DETAIL OVERLAY -->
     <div id="detail-overlay" class="fiori-overlay">
@@ -365,6 +381,18 @@
                     
                     renderMaterials(data.results);
                     hasMore = data.has_next;
+                    
+                    const sentinel = document.getElementById('pagination-sentinel');
+                    if (hasMore) {
+                        sentinel.style.display = 'block';
+                        sentinel.innerText = 'CARGANDO...';
+                    } else if (document.getElementById('material-list').children.length === 0) {
+                        sentinel.style.display = 'block';
+                        sentinel.innerText = 'No se encontraron resultados';
+                    } else {
+                        sentinel.style.display = 'none';
+                    }
+
                     document.getElementById('offline-indicator').style.display = 'none';
                 } catch (e) {
                     handleOfflineMode(qRaw, currentCategory);
@@ -526,6 +554,7 @@
             document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
             el.classList.add('active');
             currentCategory = id;
+            currentPage = 1; // RESET PAGE
             loadCatalog(1);
         }
 
