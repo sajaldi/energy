@@ -938,6 +938,7 @@ def global_search(request):
         'presupuestos': [],
         'ordenes': [],
         'tiempos_acordados': [],
+        'usuarios': [],
     }
     
     if query:
@@ -1003,6 +1004,15 @@ def global_search(request):
             Q(descripcion_corta__icontains=query) |
             Q(descripcion_detallada__icontains=query)
         ).select_related('rutina', 'ubicacion')[:20]
+
+        # 8. Usuarios
+        from django.contrib.auth.models import User
+        results['usuarios'] = User.objects.filter(
+            Q(username__icontains=query) |
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(email__icontains=query)
+        )[:20]
 
     from django.contrib import admin
     total_results = sum(len(v) for v in results.values())
