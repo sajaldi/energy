@@ -488,7 +488,7 @@ JAZZMIN_SETTINGS = {
     "site_brand": "SoftCom-CCG",
     "welcome_sign": "Bienvenido al panel de administración",
     "copyright": "SoftCom-CCG Ltd",
-    "search_model": ["auth.User", "activos.Activo", "callcenter.SolicitudTicket", "presupuestos.Requisicion", "mantenimiento.OrdenTrabajo", "inventarios.Material", "presupuestos.SolicitudPago"],
+    "search_model": "auth.User",
     "user_avatar": None,
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},

@@ -45,4 +45,28 @@
             }
         }
     });
+
+    // Global Home Button Injector
+    window.addEventListener('load', () => {
+        const path = window.location.pathname;
+        if (path === '/app/' || path === '/portal/' || path.includes('/admin/')) return;
+
+        const header = document.querySelector('header');
+        if (header && !document.getElementById('global-home-btn')) {
+            const homeBtn = document.createElement('a');
+            homeBtn.id = 'global-home-btn';
+            homeBtn.href = '/app/';
+            // Estilo consistente con SAP Fiori / Outfit
+            homeBtn.style.cssText = 'color: #2563eb; font-size: 24px; display: flex; align-items: center; text-decoration: none; padding: 5px; margin-left: 5px; order: -1;';
+            homeBtn.innerHTML = '<ion-icon name="home-outline"></ion-icon>';
+            
+            // Si hay un contenedor de título o botones, lo insertamos ahí
+            const titleContainer = header.querySelector('.header-title') || header.querySelector('.back-btn')?.parentElement;
+            if (titleContainer) {
+                titleContainer.prepend(homeBtn);
+            } else {
+                header.prepend(homeBtn);
+            }
+        }
+    });
 </script>

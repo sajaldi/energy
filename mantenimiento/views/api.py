@@ -144,7 +144,7 @@ def api_delete_ots(request):
     if request.method != 'POST': return JsonResponse({'status': 'error', 'message': 'POST req.'}, status=405)
     try:
         data = json.loads(request.body); ids = data.get('ot_ids', [])
-        ots = OrdenTrabajo.objects.filter(id__in=ids, estado__in=['ESPERA', 'PROGRAMADA'])
+        ots = OrdenTrabajo.objects.filter(id__in=ids, estado__in=['ESPERA', 'PROGRAMADA', 'EJECUCION'])
         c = ots.count(); ots.delete()
         return JsonResponse({'status': 'success', 'message': f'{c} eliminadas.'})
     except Exception as e: return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
