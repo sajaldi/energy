@@ -612,12 +612,12 @@
             }
             isScanningFlag = true;
             try {
+                // Simplest possible constraint to avoid OverconstrainedError
                 await scanner.start(
                     { facingMode: "environment" },
                     { 
                         fps: 10, 
-                        qrbox: { width: 200, height: 200 },
-                        aspectRatio: 1.0
+                        qrbox: 250 
                     },
                     (sku) => {
                         if (!isScanningFlag) return;
@@ -625,13 +625,12 @@
                         if (navigator.vibrate) navigator.vibrate(100);
                         lookupSKU(sku);
                     },
-                    (error) => {} // Ocultar mensajes de log de foco
+                    (error) => {} // Ocultar mensajes de log de foco constantes
                 );
             } catch (err) {
                 console.error("Scanner Error:", err);
-                document.getElementById('placeholder-view').style.display = 'block';
-                // Mostramos un alert silencioso en consola para no molestar,
-                // pero si el iPhone denegó la cámara esto fallará y volverá a manual.
+                document.getElementById('placeholder-view').style.display = 'flex';
+                document.querySelector('#placeholder-view p').innerText = "Cámara inactiva: " + (err.message || err);
             }
         }
 
