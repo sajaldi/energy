@@ -608,30 +608,36 @@
         async function startScanner() {
             document.getElementById('placeholder-view').style.display = 'none';
             if (!scanner) {
-                // Initialize with specific formats to reduce CPU and focus hunting on iOS
-                scanner = new Html5Qrcode("reader", { formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128 ] });
+                scanner = new Html5Qrcode("reader");
             }
             isScanningFlag = true;
             try {
                 await scanner.start(
                     { facingMode: "environment" },
                     { 
-                        fps: 30, // Default 10 is too slow for quick iOS scans
-                        qrbox: { width: 250, height: 250 }, 
-                        aspectRatio: 1.0, 
-                        disableFlip: false // Ensures mirror isn't artificially disabled
+                        fps: 10, 
+                        qrbox: function(viewfinderWidth, viewfinderHeight) {
+                            // Dynamic sizing for iOS Safari to avoid clipped canvases
+                            let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                            return { 
+                                width: Math.floor(minEdge * 0.7), 
+                                height: Math.floor(minEdge * 0.7) 
+                            };
+                        }
                     },
                     (sku) => {
                         if (!isScanningFlag) return;
-                        isScanningFlag = false; // Bloquear escaneos adicionales
+                        isScanningFlag = false; 
                         if (navigator.vibrate) navigator.vibrate(100);
                         lookupSKU(sku);
                     },
-                    (error) => {} // Suppress constant focus errors
+                    (error) => {} // Ocultar mensajes de log de foco
                 );
             } catch (err) {
-                console.error(err);
+                console.error("Scanner Error:", err);
                 document.getElementById('placeholder-view').style.display = 'block';
+                // Mostramos un alert silencioso en consola para no molestar,
+                // pero si el iPhone denegó la cámara esto fallará y volverá a manual.
             }
         }
 
