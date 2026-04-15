@@ -1,120 +1,271 @@
-/* Fix import-export buttons contrast in Jazzmin */
-.import_link.btn-secondary,
-.export_link.btn-secondary {
-    background-color: #6c757d !important;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --sap-blue: #0854a0;
+    --sap-bg: #f5f6f7;
+    --sap-shell: #ffffff;
+    --sap-text: #32363a;
+    --sap-border: #d9d9d9;
+    --sap-radius: 0.5rem;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    background-color: var(--sap-bg) !important;
+    color: var(--sap-text);
+}
+
+/* --- ShellBar (Header) --- */
+.main-header {
+    background-color: var(--sap-shell) !important;
+    border-bottom: 2px solid var(--sap-blue) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+}
+
+.main-header .nav-link {
+    color: var(--sap-text) !important;
+    font-weight: 500;
+}
+
+.main-header .nav-link:hover {
+    color: var(--sap-blue) !important;
+}
+
+/* --- Sidebar (Launcher) --- */
+.main-sidebar {
+    background-color: #202d3d !important; /* SAP Fiori Horizon Deep Blue */
+    box-shadow: 4px 0 10px rgba(0,0,0,0.1) !important;
+}
+
+.brand-link {
+    background-color: #202d3d !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
     color: #ffffff !important;
-    border-color: #6c757d !important;
-    margin-right: 5px;
+    padding: 0.8125rem 0.5rem !important;
 }
 
-.import_link.btn-secondary:hover,
-.export_link.btn-secondary:hover {
-    background-color: #5a6268 !important;
-    border-color: #545b62 !important;
+.nav-sidebar .nav-link {
+    border-radius: 0 !important;
+    margin-bottom: 2px !important;
+    color: #cad1d9 !important; /* Inactive grey */
+    transition: all 0.2s ease;
 }
 
-/* Ensure object tools are visible and spaced */
-.object-tools {
+.nav-sidebar .nav-link:hover {
+    background-color: rgba(255,255,255,0.05) !important;
+    color: #ffffff !important;
+}
+
+.nav-sidebar .nav-link.active {
+    background-color: rgba(255,255,255,0.1) !important;
+    border-left: 4px solid #0a6ed1 !important; /* Bright SAP Blue */
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+/* --- Content & Cards --- */
+.content-wrapper {
+    background-color: var(--sap-bg) !important;
+    padding: 1rem;
+}
+
+.card {
+    border: none !important;
+    border-radius: var(--sap-radius) !important;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+    margin-bottom: 1.5rem !important;
+    overflow: hidden;
+}
+
+.card-header {
+    background-color: #ffffff !important;
+    border-bottom: 1px solid var(--sap-border) !important;
+    padding: 0.75rem 1.25rem !important;
+}
+
+.card-title {
+    font-weight: 600 !important;
+    color: var(--sap-blue) !important;
+}
+
+/* --- Buttons --- */
+.btn-primary {
+    background-color: var(--sap-blue) !important;
+    border-color: var(--sap-blue) !important;
+    border-radius: 4px !important;
+    font-weight: 500 !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 2px 4px rgba(8, 84, 160, 0.3) !important;
+}
+
+/* --- Tables --- */
+.table {
+    background-color: #ffffff !important;
+}
+
+.table thead th {
+    background-color: #f2f5f9 !important;
+    color: #5e6977 !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--sap-border) !important;
+}
+
+.table tbody tr:hover {
+    background-color: #ebf5fe !important;
+}
+
+/* --- Forms --- */
+.form-control {
+    border-radius: 4px !important;
+    border: 1px solid var(--sap-border) !important;
+}
+
+.form-control:focus {
+    border-color: var(--sap-blue) !important;
+    box-shadow: 0 0 0 0.2rem rgba(8, 84, 160, 0.15) !important;
+}
+
+/* Custom styles for import/export and object tools */
+.object-tools, .model-activos .object-tools, .model-bienafecto .object-tools {
     display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
     justify-content: flex-end !important;
-    gap: 10px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 1rem !important;
+    padding-left: 0 !important;
 }
 
-/* Hide Add/Change/Delete icons specifically for Material in Requisition Article Inline */
-td.field-material .related-widget-wrapper-link.add-related,
-td.field-material .related-widget-wrapper-link.change-related,
-td.field-material .related-widget-wrapper-link.delete-related {
-    display: none !important;
+.object-tools li {
+    list-style: none !important;
+    display: inline-block !important;
 }
 
-/* --- Colores dinámicos para íconos del sidebar (Prioridad Alta) --- */
-.nav-sidebar .nav-item>.nav-link i.fa-bolt {
-    color: #f1c40f !important;
-    opacity: 1 !important;
+/* Global button reset for SAP Fiori look */
+.object-tools a, 
+.object-tools button, 
+.btn-primary, 
+.btn-info, 
+.btn-success,
+.import_link,
+.export_link {
+    height: 32px !important; /* Slightly smaller for Fiori standard */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 12px !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    border-radius: 4px !important;
+    text-transform: none !important;
+    transition: all 0.2s ease !important;
+    border: 1px solid transparent !important;
+    white-space: nowrap !important;
 }
 
-/* Core - Provisión y Gestión */
-.nav-sidebar .nav-item>.nav-link i.fa-building {
-    color: #3498db !important;
-    opacity: 1 !important;
+/* Add Link / Primary Action */
+.object-tools a.addlink, .btn-primary:not(.btn-outline-primary) {
+    background-color: #0854a0 !important;
+    color: #ffffff !important;
+    border: 1px solid #0854a0 !important;
 }
 
-/* Activos */
-.nav-sidebar .nav-item>.nav-link i.fa-file-alt {
-    color: #ff5722 !important;
-    opacity: 1 !important;
+/* Custom tools (Import/Export/etc) */
+.object-tools a:not(.addlink), 
+.object-tools button,
+.btn-outline-primary,
+.import_link,
+.export_link {
+    background-color: #ffffff !important;
+    color: #0854a0 !important;
+    border: 1px solid #d9d9d9 !important; /* Lighter border for secondary */
 }
 
-/* Documentos */
-.nav-sidebar .nav-item>.nav-link i.fa-project-diagram {
-    color: #9b59b6 !important;
-    opacity: 1 !important;
+/* Async Import specific status dots */
+.object-tools a span[style*="background-color"] {
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    margin-right: 6px !important;
 }
 
-/* Proyectos */
-.nav-sidebar .nav-item>.nav-link i.fa-tools {
-    color: #e67e22 !important;
-    opacity: 1 !important;
+.object-tools a:hover {
+    background-color: #f5f6f7 !important;
+    border-color: #0854a0 !important;
+    text-decoration: none !important;
 }
 
-/* Mantenimiento */
-.nav-sidebar .nav-item>.nav-link i.fa-boxes {
-    color: #d35400 !important;
-    opacity: 1 !important;
+.object-tools a.addlink:hover {
+    background-color: #074a8c !important;
+    border-color: #074a8c !important;
 }
 
-/* Inventarios */
-.nav-sidebar .nav-item>.nav-link i.fa-headset {
-    color: #17a2b8 !important;
-    opacity: 1 !important;
+/* --- Sidebar Icons Colors (Fiori Palette) --- */
+.nav-sidebar i.fas, .nav-sidebar i.far, .nav-sidebar i.fa {
+    width: 1.5rem;
+    text-align: center;
+    margin-right: 0.5rem;
 }
 
-/* Call Center */
-.nav-sidebar .nav-item>.nav-link i.fa-file-invoice-dollar {
-    color: #2ecc71 !important;
-    opacity: 1 !important;
+/* Identación de hijos (Treeview) */
+.nav-treeview {
+    background-color: #1a2430 !important; /* Darker subgroup */
 }
 
-/* Presupuestos */
-.nav-sidebar .nav-item>.nav-link i.fa-hard-hat {
-    color: #f39c12 !important;
-    opacity: 1 !important;
+.nav-treeview .nav-item {
+    padding-left: 0.5rem !important;
 }
 
-/* Seguridad */
-.nav-sidebar .nav-item>.nav-link i.fa-concierge-bell {
-    color: #e91e63 !important;
-    opacity: 1 !important;
+.nav-treeview .nav-link {
+    font-size: 0.85rem !important;
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+    color: #bcc3ca !important;
 }
 
-/* Servicios */
-.nav-sidebar .nav-item>.nav-link i.fa-file-word {
-    color: #2b5797 !important;
-    opacity: 1 !important;
-}
-
-/* Plantillas */
-.nav-sidebar .nav-item>.nav-link i.fa-clock {
-    color: #7f8c8d !important;
-    opacity: 1 !important;
-}
-
-/* Celery Records */
-.nav-sidebar .nav-item>.nav-link i.fa-users-cog {
-    color: #00bcd4 !important;
-    opacity: 1 !important;
-}
-
-/* Autenticación */
-
-/* Ajuste de brillo para cuando el ícono está seleccionado (hover/active) */
-.nav-sidebar .nav-link:hover i,
-.nav-sidebar .nav-link.active i {
-    filter: brightness(1.3) contrast(1.2) !important;
-}
-
-/* Hacer que los círculos de los submenús sean un poco más visibles */
 .nav-treeview .nav-link i.fa-circle {
-    font-size: 0.7rem !important;
-    opacity: 0.6;
+    font-size: 0.5rem !important; /* Círculos más pequeños y discretos */
+    margin-right: 12px !important;
+    opacity: 0.5;
+}
+
+.nav-sidebar .nav-item>.nav-link i.fa-bolt { color: #f1c40f !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-building { color: #0070f2 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-file-alt { color: #ff5722 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-project-diagram { color: #9b59b6 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-tools { color: #e67e22 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-boxes { color: #d35400 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-headset { color: #17a2b8 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-ticket-alt { color: #17a2b8 !important; } /* Fix icon */
+.nav-sidebar .nav-item>.nav-link i.fa-hard-hat { color: #f39c12 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-concierge-bell { color: #e91e63 !important; }
+.nav-sidebar .nav-item>.nav-link i.fa-file-word { color: #2b5797 !important; }
+
+/* Filter brightness on active */
+.nav-sidebar .nav-link.active i {
+    filter: brightness(1.5) !important;
+}
+
+/* Ajuste de scrollbar para el sidebar */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.2);
 }

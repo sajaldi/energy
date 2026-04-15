@@ -576,6 +576,9 @@ JAZZMIN_SETTINGS = {
         "seguridad.PermisoTrabajo": "fas fa-file-signature",
         "seguridad.VerificacionRequisito": "fas fa-check-square",
         "servicios": "fas fa-concierge-bell",
+        "ayuda": "fas fa-question-circle",
+        "ayuda.CategoriaAyuda": "fas fa-folder",
+        "ayuda.ArticuloAyuda": "fas fa-file-alt",
         "core": "fas fa-bolt",
         "plantillas": "fas fa-file-word",
         "django_celery_results": "fas fa-clock",
@@ -583,7 +586,7 @@ JAZZMIN_SETTINGS = {
     "order_with_respect_to": [
         "core", "activos", "documentos", "proyectos", "mantenimiento", 
         "inventarios", "callcenter", "presupuestos", "seguridad",
-        "auth", "servicios", "plantillas", "django_celery_results"
+        "auth", "servicios", "ayuda", "plantillas", "django_celery_results"
     ],
     "show_sidebar": True,
     "navigation_expanded": False,
@@ -646,11 +649,11 @@ JAZZMIN_UI_TWEAKS = {
     "footer_small_text": False,
     "body_small_text": False,
     "brand_small_text": False,
-    "brand_colour": "navbar-navy",
+    "brand_colour": "navbar-white",
     "accent": "accent-primary",
-    "navbar": "navbar-navy navbar-dark",
-    "no_navbar_border": False,
-    "navbar_fixed": False,
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": True,
+    "navbar_fixed": True,
     "layout_boxed": False,
     "footer_fixed": False,
     "sidebar_fixed": True,
@@ -662,7 +665,7 @@ JAZZMIN_UI_TWEAKS = {
     "dark_mode_theme": None,
     "button_classes": {
         "primary": "btn-primary",
-        "secondary": "btn-secondary",
+        "secondary": "btn-outline-secondary",
         "info": "btn-info",
         "warning": "btn-warning",
         "danger": "btn-danger",
@@ -783,7 +786,12 @@ LOGIN_REDIRECT_URL = '/app/'
 N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://localhost:5678/webhook/process-document')
 N8N_PROCESS_DOCUMENT_WEBHOOK_URL = N8N_EXTRACT_TEXTO_WEBHOOK_URL
 N8N_METADATA_SYNC_WEBHOOK = os.environ.get('N8N_METADATA_SYNC_WEBHOOK', 'http://localhost:5678/webhook/sync-metadatos-doc')
+N8N_TICKET_VECTORIZER_URL = os.environ.get('N8N_TICKET_VECTORIZER_URL', 'http://localhost:5678/webhook/vectorize-ticket')
+N8N_TICKET_NOTIFY_URL = os.environ.get('N8N_TICKET_NOTIFY_URL', 'http://localhost:5678/webhook/notify-ticket')
 INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'https://b52aeb243e6033.lhr.life')
+
+# AI / NLP Settings
+OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')
 
 # Programación de tareas periódicas (Celery Beat)
 CELERY_BEAT_SCHEDULE = {

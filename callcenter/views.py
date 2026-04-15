@@ -120,6 +120,20 @@ def trigger_sync_tickets(request):
         messages.error(request, f"Error al iniciar la sincronización: {e}")
     return redirect('admin:callcenter_solicitudticket_changelist')
 
+@staff_member_required
+def trigger_bulk_analysis_n8n(request):
+    """
+    Inicia la vectorización masiva de todos los tickets pendientes en n8n.
+    """
+    from .tasks import bulk_vectorize_n8n
+    try:
+        bulk_vectorize_n8n.delay(only_missing=True)
+        messages.success(request, "Se ha iniciado el análisis masivo (n8n) de los tickets pendientes en segundo plano.")
+    except Exception as e:
+        logger.error(f"Error al iniciar el análisis masivo: {e}")
+        messages.error(request, f"Error al iniciar el análisis masivo: {e}")
+    return redirect('admin:callcenter_solicitudticket_changelist')
+
 def send_ticket_to_power_automate_view(request, ticket_id):
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
@@ -1830,3 +1844,57 @@ def export_restriccion_acceso_pdf(request, pk):
     except Exception as e:
         logger.error(f"Error generando PDF para Restricción {ra.id}: {e}")
         return HttpResponse(f"Error al generar el PDF: {e}", status=500)
+
+@csrf_exempt
+def webhook_ticket_vector_callback(request):
+    """
+    Callback para n8n: Recibe el vector de embedding y el cluster asignado.
+    Payload esperado:
+    {
+        "ticket_id": 123,
+        "embedding": [0.12, 0.45, ...],
+        "cluster_name": "Falla de Transformador" (opcional)
+    }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        ticket_id = data.get('ticket_id')
+        embedding = data.get('embedding')
+        cluster_name = data.get('cluster_name')
+
+        if not ticket_id or embedding is None:
+            return JsonResponse({'error': 'ticket_id and embedding are required'}, status=400)
+
+        from .models import SolicitudTicket, GrupoTicket
+        ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
+        
+        # 1. Actualizar el vector
+        ticket.embedding = embedding
+        ticket.save(update_fields=['embedding'])
+        
+        # 2. Gestionar Clustering (GrupoTicket)
+        if cluster_name:
+            # Buscar o crear el grupo
+            grupo, created = GrupoTicket.objects.get_or_create(
+                descripcion__iexact=cluster_name.strip(),
+                defaults={'descripcion': cluster_name.strip()}
+            )
+            # Vincular el ticket al grupo
+            if not ticket.grupos.filter(id=grupo.id).exists():
+                ticket.grupos.add(grupo)
+
+        logger.info(f"Vector y cluster actualizados para ticket {ticket.folio or ticket.id_solicitud}")
+        return JsonResponse({
+            'success': True, 
+            'ticket': ticket.folio or ticket.id_solicitud,
+            'cluster_assigned': cluster_name if cluster_name else "N/A"
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f"Error en webhook_ticket_vector_callback: {e}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)

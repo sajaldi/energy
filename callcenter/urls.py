@@ -47,4 +47,5 @@ urlpatterns = [
     path('cronogramas-predefinidos/<int:pk>/', views.cronograma_predefinido_detalle_view, name='callcenter_cronograma_detalle'),
     path('cronogramas-predefinidos/<int:pk>/editar/', views.cronograma_predefinido_edit_view, name='callcenter_cronograma_editar'),
     path('api/cronograma-predefinido/<int:pk>/items/', views.api_get_cronograma_items_ajax, name='api_get_cronograma_items_ajax'),
+    path('api/webhook/vector-update/', views.webhook_ticket_vector_callback, name='webhook_ticket_vector_callback'),
 ]

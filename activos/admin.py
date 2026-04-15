@@ -382,9 +382,72 @@ class FamiliaAdmin(ImportExportModelAdmin):
 @admin.register(Marca)
 class MarcaAdmin(ImportExportModelAdmin):
     list_per_page = 50
-    list_display = ('nombre',)
+    list_display = ('nombre_expandible', 'total_modelos')
     search_fields = ('nombre',)
     inlines = [ModeloInline]
+
+    def total_modelos(self, obj):
+        return obj.modelos.count()
+    total_modelos.short_description = "N° Modelos"
+
+    def nombre_expandible(self, obj):
+        edit_url = reverse('admin:activos_marca_change', args=[obj.pk])
+        return format_html(
+            '<div class="brand-tree-node" data-brand-id="{0}" style="cursor: pointer; display: flex; align-items: center; width: 100%;">'
+            '<span class="tree-toggle mr-2"><i class="fas fa-chevron-right text-muted-fiori"></i></span>'
+            '<span class="brand-name font-weight-bold" style="color: #0854a0; flex-grow: 1;">{1}</span>'
+            '<a href="{2}" class="ml-2 text-muted edit-brand-link" title="Editar Marca" onclick="event.stopPropagation();">'
+            '<i class="fas fa-edit" style="font-size: 0.8rem; opacity: 0.5;"></i>'
+            '</a>'
+            '</div>',
+            obj.pk, obj.nombre, edit_url
+        )
+    nombre_expandible.short_description = "Marca"
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('<path:object_id>/get_models_ajax/', self.admin_site.admin_view(self.get_models_ajax), name='activos_marca_get_models'),
+        ]
+        return custom_urls + urls
+
+    def get_models_ajax(self, request, object_id):
+        marca = self.get_object(request, object_id)
+        modelos = marca.modelos.select_related('categoria').all()
+        
+        if not modelos:
+            return HttpResponse('<div class="p-3 text-muted"><i class="fas fa-info-circle mr-1"></i> Esta marca no tiene modelos registrados.</div>')
+        
+        html = '<div class="models-tree-child shadow-sm" style="background: #f8fafc; margin: 10px 0 10px 30px; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden;">'
+        html += '<table class="table table-sm mb-0" style="font-size: 0.85rem;">'
+        html += '<thead style="background: #eff6ff;"><tr>'
+        html += '<th class="pl-3 py-2">Modelo</th><th class="py-2">Categoría</th><th class="py-2 text-center">Equipos</th><th class="py-2 text-center">Acción</th>'
+        html += '</tr></thead><tbody>'
+        
+        for m in modelos:
+            cat_name = m.categoria.nombre if m.categoria else "Sin categoría"
+            count = m.activos.count()
+            edit_url = reverse('admin:activos_modelo_change', args=[m.id])
+            
+            html += f'<tr style="border-bottom: 1px solid #f1f5f9;">'
+            html += f'<td class="pl-3 py-2"><strong>{m.nombre}</strong></td>'
+            html += f'<td class="py-2 text-muted">{cat_name}</td>'
+            html += f'<td class="py-2 text-center"><span class="badge badge-info" style="background: #e0f2fe; color: #0369a1; font-weight: 600;">{count}</span></td>'
+            html += f'<td class="py-2 text-center"><a href="{edit_url}" target="_blank" class="text-muted"><i class="fas fa-edit"></i></a></td>'
+            html += '</tr>'
+            
+        html += '</tbody></table></div>'
+        return HttpResponse(html)
+
+    class Media:
+        js = (
+            'https://code.jquery.com/jquery-3.6.0.min.js',
+            'core/js/brand_tree.js',
+        )
+        css = {
+            'all': ('core/css/brand_tree.css',)
+        }
 
 @admin.register(Modelo)
 class ModeloAdmin(ImportExportModelAdmin):

@@ -765,7 +765,10 @@
         <div class="fade-in" style="animation-delay: 0.5s;">
             {% for ot in ots_hoy %}
             <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" style="text-decoration: none; color: inherit;">
-                <div class="task-card priority-{{ ot.prioridad }}">
+                <div class="task-card priority-{{ ot.prioridad }}"
+                     data-ot-id="{{ ot.id }}"
+                     data-ot-codigo="{{ ot.codigo_de_orden|default:"OT-"|add:ot.id|stringformat:"s" }}"
+                     data-ot-estado="{{ ot.estado }}">
                     <div class="task-date-box">
                         <span class="day">{{ ot.inicio_programado|date:"d" }}</span>
                         <span class="month">{{ ot.inicio_programado|date:"M" }}</span>

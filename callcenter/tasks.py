@@ -113,21 +113,33 @@ def vectorize_ticket_n8n(ticket_id):
             logger.warning("N8N_TICKET_VECTORIZER_URL no está configurada.")
             return False
             
+        # Construir el contexto total (todas las etiquetas relevantes)
+        context_parts = []
+        if ticket.folio: context_parts.append(f"FOLIO: {ticket.folio}")
+        if ticket.solicitante: context_parts.append(f"SOLICITANTE: {ticket.solicitante}")
+        if ticket.servicio: context_parts.append(f"SERVICIO: {ticket.servicio} > {ticket.subservicio or ''}")
+        if ticket.ubicacion: context_parts.append(f"UBICACION: {ticket.ubicacion.ruta_completa}")
+        elif ticket.nivel: context_parts.append(f"UBICACION: {ticket.nivel} > {ticket.grupo or ''}")
+        
+        if ticket.solicitud_descripcion: context_parts.append(f"SOLICITUD: {ticket.solicitud_descripcion}")
+        if ticket.falla_descripcion: context_parts.append(f"FALLA: {ticket.falla_descripcion} ({ticket.falla_clasificacion or ''})")
+        if ticket.diagnostico: context_parts.append(f"DIAGNOSTICO: {ticket.diagnostico}")
+        if ticket.actividades: context_parts.append(f"ACTIVIDADES: {ticket.actividades}")
+        if ticket.observaciones: context_parts.append(f"OBSERVACIONES: {ticket.observaciones}")
+        if ticket.observaciones_usuario: context_parts.append(f"OBS. USUARIO: {ticket.observaciones_usuario}")
+        if ticket.clasificacion_falla_final: context_parts.append(f"FALLA FINAL: {ticket.clasificacion_falla_final}")
+        if ticket.categoria_falla: context_parts.append(f"CATEGORIA: {ticket.categoria_falla}")
+
+        rich_context = " | ".join(context_parts)
+
         payload = {
             'ticket_id': ticket.id,
             'folio': ticket.folio,
-            'solicitud_descripcion': ticket.solicitud_descripcion or '',
-            'falla_descripcion': ticket.falla_descripcion or '',
-            'servicio': ticket.servicio or '',
-            'subservicio': ticket.subservicio or '',
-            'nivel': ticket.nivel or '',
-            'grupo': ticket.grupo or '',
-            'ubicacion_nombre': ticket.ubicacion.nombre if ticket.ubicacion else '',
-            'diagnostico': ticket.diagnostico or 'No diagnosticado',
-            'actividades': ticket.actividades or 'Sin acciones',
-            'observaciones': ticket.observaciones or 'Ninguna',
+            'rich_context': rich_context,
             'fecha_solicitud': ticket.fecha_solicitud.isoformat() if ticket.fecha_solicitud else None,
-            'prioridad': ticket.prioridad if hasattr(ticket, 'prioridad') else '',
+            # Mantener campos individuales por si n8n los usa para lógica condicional
+            'servicio': ticket.servicio or '',
+            'ubicacion': ticket.ubicacion.nombre if ticket.ubicacion else '',
             'categoria_falla': ticket.categoria_falla or ''
         }
         
@@ -147,6 +159,28 @@ def vectorize_ticket_n8n(ticket_id):
     except Exception as e:
         logger.error(f"Error en vectorize_ticket_n8n para ticket {ticket_id}: {e}")
         return False
+
+@shared_task(name='callcenter.tasks.bulk_vectorize_n8n')
+def bulk_vectorize_n8n(only_missing=True):
+    """
+    Envía tickets en lote a n8n para análisis.
+    """
+    from .models import SolicitudTicket
+    
+    if only_missing:
+        tickets = SolicitudTicket.objects.filter(embedding__isnull=True)
+    else:
+        tickets = SolicitudTicket.objects.all()
+        
+    count = 0
+    total = tickets.count()
+    logger.info(f"Iniciando envío masivo a n8n: {total} tickets.")
+    
+    for ticket in tickets:
+        vectorize_ticket_n8n.delay(ticket.id)
+        count += 1
+        
+    return {"status": "success", "sent": count, "total": total}
 
 @shared_task(name='callcenter.tasks.bulk_vectorize_tickets')
 def bulk_vectorize_tickets():

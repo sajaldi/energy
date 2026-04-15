@@ -160,6 +160,16 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
     readonly_fields = ('creado_en', 'actualizado_en')
+    actions = ['analizar_con_ia']
+
+    @admin.action(description="Analizar tickets con IA (n8n)")
+    def analizar_con_ia(self, request, queryset):
+        from .tasks import vectorize_ticket_n8n
+        count = 0
+        for ticket in queryset:
+            vectorize_ticket_n8n.delay(ticket.id)
+            count += 1
+        self.message_user(request, f"Se han enviado {count} tickets a n8n para análisis semántico.")
 
     def get_readonly_fields(self, request, obj=None):
         ro = list(self.readonly_fields)

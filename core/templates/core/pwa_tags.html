@@ -69,4 +69,133 @@
             }
         }
     });
+    // Global OT Deletion Controller
+    (function() {
+        // Load SweetAlert2 if not already present
+        if (!window.Swal) {
+            const script = document.createElement('script');
+            script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
+            document.head.appendChild(script);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        let pressTimer;
+        
+        function initLongPress() {
+            // Buscamos cualquier elemento con data-ot-id que no haya sido inicializado
+            const otElements = document.querySelectorAll('[data-ot-id]:not([data-lp-ready])');
+            
+            otElements.forEach(el => {
+                el.setAttribute('data-lp-ready', 'true');
+                
+                const startPress = (e) => {
+                    if (e.type === 'mousedown' && e.button !== 0) return;
+                    pressTimer = window.setTimeout(() => {
+                        triggerDelete(el);
+                    }, 800);
+                };
+
+                const cancelPress = () => {
+                    clearTimeout(pressTimer);
+                };
+
+                el.addEventListener('mousedown', startPress);
+                el.addEventListener('touchstart', startPress, {passive: true});
+                el.addEventListener('mouseup', cancelPress);
+                el.addEventListener('mouseleave', cancelPress);
+                el.addEventListener('touchend', cancelPress);
+                el.addEventListener('touchcancel', cancelPress);
+                
+                // Prevenir navegación accidental si se activó el borrado
+                el.addEventListener('click', (e) => {
+                    if (el.dataset.longPressed === 'true') {
+                        e.preventDefault();
+                        el.dataset.longPressed = 'false';
+                    }
+                });
+            });
+        }
+
+        async function triggerDelete(el) {
+            el.dataset.longPressed = 'true';
+            const otId = el.getAttribute('data-ot-id');
+            const otCode = el.getAttribute('data-ot-codigo') || 'esta orden';
+            const estado = el.getAttribute('data-ot-estado');
+
+            // Validar estados permitidos (ESPERA, PROGRAMADA, EJECUCION)
+            const allowedStates = ['ESPERA', 'PROGRAMADA', 'EJECUCION'];
+            if (!allowedStates.includes(estado)) {
+                // Opcional: Feedback de que este estado no se puede borrar
+                return;
+            }
+
+            if (!window.Swal) return;
+
+            const result = await Swal.fire({
+                title: '¿Eliminar Orden?',
+                text: `¿Eliminar la orden ${otCode}? Esta acción no se puede deshacer.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#bb0000',
+                cancelButtonColor: '#6a6d70',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            });
+
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'Eliminando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                try {
+                    const response = await fetch('/mantenimiento/api/delete-ots/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ ot_ids: [otId] })
+                    });
+
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        el.style.transition = 'all 0.3s ease';
+                        el.style.opacity = '0';
+                        el.style.transform = 'scale(0.8)';
+                        setTimeout(() => {
+                            el.remove();
+                            // Intentar actualizar cualquier contador de insignias (.count-badge)
+                            const badge = document.querySelector('.count-badge');
+                            if (badge) badge.innerText = Math.max(0, parseInt(badge.innerText) - 1);
+                        }, 300);
+                        Swal.fire({ icon: 'success', title: 'Eliminada', timer: 1500, showConfirmButton: false });
+                    } else {
+                        Swal.fire('Error', data.message || 'No se pudo eliminar.', 'error');
+                    }
+                } catch (error) {
+                    Swal.fire('Error', 'Error de conexión.', 'error');
+                }
+            }
+        }
+
+        // Inicializar y observar cambios en el DOM
+        window.addEventListener('load', () => {
+            initLongPress();
+            const observer = new MutationObserver(initLongPress);
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    })();
 </script>

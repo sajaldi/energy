@@ -631,7 +631,11 @@
         </div>
         <div class="history-list">
             {% for ot in ots_recientes %}
-            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="history-item">
+            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" 
+               class="history-item"
+               data-ot-id="{{ ot.id }}"
+               data-ot-codigo="{{ ot.codigo_de_orden|default:"OT-"|add:ot.id|stringformat:"s" }}"
+               data-ot-estado="{{ ot.estado }}">
                 <div class="history-icon"
                     style="color: {% if ot.tipo == 'CORRECTIVA' %}var(--danger){% else %}var(--primary){% endif %};">
                     <ion-icon name="construct-outline"></ion-icon>

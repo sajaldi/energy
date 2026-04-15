@@ -27,6 +27,27 @@
         color: white !important;
     }
 
+    .btn-ai-analysis {
+        background-color: #0070f2 !important;
+        color: white !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        padding: 8px 16px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        transition: all 0.3s ease !important;
+        cursor: pointer;
+        text-decoration: none !important;
+    }
+
+    .btn-ai-analysis:hover {
+        background-color: #0056b3 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        color: white !important;
+    }
+
     /* Forzar visibilidad total de SweetAlert2 sobre Jazzmin */
     .swal2-container.swal2-shown {
         z-index: 999999 !important;
@@ -40,6 +61,11 @@
 {% endblock %}
 
 {% block object-tools-items %}
+<li>
+    <a href="#" id="ai-analysis-btn" class="btn-ai-analysis">
+        <i class="fas fa-robot"></i> {% trans "Análisis IA (n8n)" %}
+    </a>
+</li>
 <li>
     <a href="#" id="sync-tickets-btn" class="btn-sync-tickets">
         <i class="fas fa-sync-alt"></i> {% trans "Sincronizar SIG GIA" %}
@@ -104,6 +130,37 @@
                         // Redirección con un pequeño delay para que se vea el mensaje
                         setTimeout(() => {
                             window.location.href = `sync-tickets/?days=${days}`;
+                        }, 1000);
+                    }
+                });
+            });
+        }
+
+        const aiBtn = document.getElementById('ai-analysis-btn');
+        if (aiBtn) {
+            aiBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                
+                Swal.fire({
+                    title: 'Análisis Semántico IA',
+                    text: "¿Deseas iniciar el análisis de todos los tickets pendientes en n8n? Esto generará vectores y buscará clusters automáticamente.",
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonColor: '#0070f2',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="fas fa-robot"></i> Iniciar Análisis',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({
+                            title: 'Procesando en n8n',
+                            text: 'Se ha enviado la solicitud de análisis masivo a n8n.',
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        setTimeout(() => {
+                            window.location.href = `bulk-analysis-n8n/`;
                         }, 1000);
                     }
                 });

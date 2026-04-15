@@ -225,7 +225,10 @@
 
         {% for ot in ordenes %}
         <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}"
-           class="ot-card estado-{{ ot.estado }}">
+           class="ot-card estado-{{ ot.estado }}"
+           data-ot-id="{{ ot.id }}"
+           data-ot-codigo="{{ ot.codigo_de_orden|default:"OT-"|add:ot.id|stringformat:"s" }}"
+           data-ot-estado="{{ ot.estado }}">
             
             <div class="ot-header">
                 <div class="ot-title-group">
@@ -269,126 +272,5 @@
 
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let pressTimer;
-            const cards = document.querySelectorAll('.ot-card');
-
-            cards.forEach(card => {
-                // Habilitado para ESPERA, PROGRAMADA y EJECUCION
-                const isBorrable = card.classList.contains('estado-ESPERA') || 
-                                   card.classList.contains('estado-PROGRAMADA') || 
-                                   card.classList.contains('estado-EJECUCION');
-                
-                if (!isBorrable) return;
-
-                const startPress = (e) => {
-                    if (e.type === 'mousedown' && e.button !== 0) return;
-                    pressTimer = window.setTimeout(() => {
-                        triggerDelete(card);
-                    }, 800);
-                };
-
-                const cancelPress = () => {
-                    clearTimeout(pressTimer);
-                };
-
-                card.addEventListener('mousedown', startPress);
-                card.addEventListener('touchstart', startPress, {passive: true});
-                card.addEventListener('mouseup', cancelPress);
-                card.addEventListener('mouseleave', cancelPress);
-                card.addEventListener('touchend', cancelPress);
-                card.addEventListener('touchcancel', cancelPress);
-                
-                card.addEventListener('click', (e) => {
-                    if (card.dataset.longPressed === 'true') {
-                        e.preventDefault();
-                        card.dataset.longPressed = 'false';
-                    }
-                });
-            });
-
-            async function triggerDelete(card) {
-                card.dataset.longPressed = 'true';
-                // El ID está en la URL: /app/ot/123/ -> [app, ot, 123]
-                const parts = card.getAttribute('href').split('/').filter(Boolean);
-                const otId = parts[parts.length - 1];
-                const otCode = card.querySelector('.ot-code').innerText;
-
-                const result = await Swal.fire({
-                    title: '¿Eliminar Orden?',
-                    text: `¿Estás seguro de que deseas eliminar la orden ${otCode}? Esta acción no se puede deshacer.`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#bb0000',
-                    cancelButtonColor: '#6a6d70',
-                    confirmButtonText: 'Sí, eliminar',
-                    cancelButtonText: 'Cancelar',
-                    reverseButtons: true
-                });
-
-                if (result.isConfirmed) {
-                    Swal.fire({
-                        title: 'Eliminando...',
-                        allowOutsideClick: false,
-                        didOpen: () => { Swal.showLoading(); }
-                    });
-
-                    try {
-                        const response = await fetch('/mantenimiento/api/delete-ots/', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': getCookie('csrftoken')
-                            },
-                            body: JSON.stringify({ ot_ids: [otId] })
-                        });
-
-                        const data = await response.json();
-                        if (data.status === 'success') {
-                            card.style.transition = 'all 0.3s ease';
-                            card.style.opacity = '0';
-                            card.style.transform = 'translateX(50px)';
-                            setTimeout(() => {
-                                card.remove();
-                                const badge = document.querySelector('.count-badge');
-                                if (badge) badge.innerText = Math.max(0, parseInt(badge.innerText) - 1);
-                                if (document.querySelectorAll('.ot-card').length === 0) {
-                                    location.reload(); // Mostrar empty state
-                                }
-                            }, 300);
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Eliminada',
-                                text: 'La orden ha sido eliminada correctamente.',
-                                timer: 1500,
-                                showConfirmButton: false
-                            });
-                        } else {
-                            Swal.fire('Error', data.message || 'No se pudo eliminar la orden.', 'error');
-                        }
-                    } catch (error) {
-                        Swal.fire('Error', 'Error de conexión con el servidor.', 'error');
-                    }
-                }
-            }
-
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
-            }
-        });
-    </script>
 </body>
 </html>
