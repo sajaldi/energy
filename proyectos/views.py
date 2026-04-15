@@ -3,8 +3,9 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.admin.views.decorators import staff_member_required
 from .models import Actividad, Proyecto, DocumentoProyecto
-from documentos.models import Documento
+from documentos.models import Carpeta, Documento, Revision, TipoDocumento, Disciplina
 import json
+import os
 from datetime import datetime, timedelta
 from core.ai_utils import ask_gemini
 
@@ -220,3 +221,238 @@ def repositorio_documentos(request, proyecto_id):
         'estados': Documento.ESTADOS,
     }
     return render(request, 'proyectos/repositorio_documentos.html', context)
+@staff_member_required
+def dashboard_proyectos_fiori(request):
+    """
+    Panel principal de Proyectos con estética SAP Fiori.
+    """
+    proyectos = Proyecto.objects.all().select_related('responsable', 'ubicacion').prefetch_related('actividades')
+    
+    # KPIs
+    total_proyectos = proyectos.count()
+    proyectos_ejecucion = proyectos.filter(estado='EJECUCION').count()
+    
+    avances = [p.porcentaje_avance for p in proyectos]
+    avance_promedio = sum(avances) / len(avances) if avances else 0
+    
+    # Alertas de proyectos que exceden su fecha fin
+    hoy = datetime.now().date()
+    proyectos_atrasados = proyectos.filter(
+        estado__in=['PLANIFICACION', 'EJECUCION'],
+        fecha_fin_estimada__lt=hoy
+    ).count()
+
+    context = {
+        'proyectos': proyectos,
+        'stats': {
+            'total': total_proyectos,
+            'ejecucion': proyectos_ejecucion,
+            'avance_promedio': int(avance_promedio),
+            'atrasados': proyectos_atrasados,
+        }
+    }
+    return render(request, 'proyectos/dashboard_fiori.html', context)
+@staff_member_required
+def proyecto_detalle_fiori(request, pk):
+    """
+    Vista detallada (Object Page) de un proyecto.
+    """
+    proyecto = get_object_or_404(Proyecto, pk=pk)
+    actividades = proyecto.actividades.all().order_by('orden')
+    documentos = proyecto.documentos_proyecto.all().select_related('documento__tipo_documento')
+    
+    # Datos para los select de edición
+    from activos.models import Ubicacion
+    from django.contrib.auth.models import User
+    
+    # Formatear tareas para Gantt
+    tasks = []
+    for act in actividades:
+        tasks.append({
+            'id': str(act.id),
+            'name': act.nombre,
+            'start': act.fecha_inicio.isoformat() if act.fecha_inicio else (act.creado_en.date().isoformat()),
+            'end': act.fecha_fin.isoformat() if act.fecha_fin else ((act.fecha_inicio or act.creado_en.date()) + timedelta(days=1)).isoformat(),
+            'progress': act.porcentaje_avance,
+            'dependencies': [str(act.predecesora.id)] if act.predecesora else [],
+            'custom_class': f'gantt-item-{act.prioridad.lower()}'
+        })
+
+    context = {
+        'proyecto': proyecto,
+        'actividades': actividades,
+        'documentos': documentos,
+        'ubicaciones': Ubicacion.objects.all(),
+        'usuarios': User.objects.filter(is_active=True),
+        'estados_proyecto': Proyecto.ESTADOS,
+        'prioridades': Actividad.PRIORIDADES,
+        'estados_actividad': Actividad.ESTADOS,
+        'tasks_json': json.dumps(tasks),
+    }
+    return render(request, 'proyectos/proyecto_detalle_fiori.html', context)
+
+@csrf_exempt
+@staff_member_required
+def update_actividades_bulk_api(request, pk):
+    """
+    Endpoint AJAX para actualizar múltiples actividades de un proyecto de una sola vez.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            actividades_data = data.get('actividades', [])
+            
+            for item in actividades_data:
+                act_id = item.get('id')
+                
+                if act_id:
+                    actividad = Actividad.objects.filter(pk=act_id, proyecto_id=pk).first()
+                else:
+                    # Crear nueva actividad si no hay ID
+                    if not item.get('nombre'): continue
+                    actividad = Actividad.objects.create(proyecto_id=pk, nombre=item.get('nombre'))
+                
+                if actividad:
+                    # Campos permitidos
+                    if 'nombre' in item: actividad.nombre = item['nombre']
+                    if 'estado' in item: actividad.estado = item['estado']
+                    if 'prioridad' in item: actividad.prioridad = item['prioridad']
+                    if 'fecha_inicio' in item: actividad.fecha_inicio = item['fecha_inicio'] or None
+                    if 'fecha_fin' in item: actividad.fecha_fin = item['fecha_fin'] or None
+                    if 'porcentaje_avance' in item: actividad.porcentaje_avance = int(item['porcentaje_avance'] or 0)
+                    if 'predecesora_id' in item:
+                        pid = item['predecesora_id']
+                        if pid and pid != str(actividad.id):
+                            actividad.predecesora = Actividad.objects.filter(pk=pid).first()
+                        else:
+                            actividad.predecesora = None
+                    if 'asignado_id' in item:
+                        from django.contrib.auth.models import User
+                        aid = item['asignado_id']
+                        actividad.asignado_a = User.objects.filter(pk=aid).first() if aid else None
+                    actividad.save()
+            
+            return JsonResponse({'status': 'success', 'message': 'Actividades actualizadas correctamente'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+@csrf_exempt
+@staff_member_required
+def update_proyecto_api(request, pk):
+    """
+    Endpoint AJAX para actualizar metadata del proyecto.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            proyecto = get_object_or_404(Proyecto, pk=pk)
+            
+            # Mapeo de campos permitidos
+            if 'nombre' in data: proyecto.nombre = data['nombre']
+            if 'descripcion' in data: proyecto.descripcion = data['descripcion'] or ""
+            if 'nota' in data: proyecto.nota = data['nota'] or ""
+            if 'estado' in data: proyecto.estado = data['estado']
+            if 'fecha_inicio' in data: proyecto.fecha_inicio = data['fecha_inicio'] or None
+            if 'fecha_fin_estimada' in data: proyecto.fecha_fin_estimada = data['fecha_fin_estimada'] or None
+            
+            if 'responsable_id' in data:
+                from django.contrib.auth.models import User
+                rid = data.get('responsable_id')
+                proyecto.responsable = User.objects.filter(pk=rid).first() if rid else None
+            
+            if 'ubicacion_id' in data:
+                from activos.models import Ubicacion
+                uid = data.get('ubicacion_id')
+                proyecto.ubicacion = Ubicacion.objects.filter(pk=uid).first() if uid else None
+                
+            proyecto.save()
+            return JsonResponse({'status': 'success', 'message': 'Proyecto actualizado correctamente'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+@csrf_exempt
+@staff_member_required
+def delete_actividad_api(request, pk, act_id):
+    """
+    Endpoint AJAX para eliminar una actividad.
+    """
+    if request.method == 'DELETE' or request.method == 'POST':
+        try:
+            actividad = get_object_or_404(Actividad, pk=act_id, proyecto_id=pk)
+            actividad.delete()
+            return JsonResponse({'status': 'success', 'message': 'Actividad eliminada'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+@csrf_exempt
+@staff_member_required
+def upload_documento_proyecto_api(request, pk):
+    """
+    Endpoint para subir un documento y vincularlo al proyecto.
+    Soporta carpeta opcional.
+    """
+    if request.method == 'POST':
+        try:
+            proyecto = get_object_or_404(Proyecto, pk=pk)
+            archivo = request.FILES.get('file')
+            carpeta_id = request.POST.get('carpeta_id')
+            
+            if not archivo:
+                return JsonResponse({'status': 'error', 'message': 'No se recibió ningún archivo'}, status=400)
+            
+            carpeta = None
+            if carpeta_id and carpeta_id != 'null':
+                carpeta = Carpeta.objects.get(pk=carpeta_id, proyecto_id=proyecto.id)
+            
+            # 1. Crear Documento Maestro
+            tipo_doc = TipoDocumento.objects.filter(nombre__icontains='Documento').first() or TipoDocumento.objects.first()
+            disciplina = Disciplina.objects.first()
+            
+            from django.utils import timezone
+            timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
+            codigo_auto = f"AUTO-{pk}-{timestamp}"
+            
+            documento = Documento.objects.create(
+                codigo=codigo_auto,
+                titulo=os.path.splitext(archivo.name)[0],
+                tipo_documento=tipo_doc,
+                disciplina=disciplina,
+                responsable=request.user,
+                carpeta=carpeta  # Sincronización con el modelo maestro
+            )
+            
+            # 2. Crear Revisión
+            Revision.objects.create(
+                documento=documento,
+                revision='0',
+                archivo=archivo,
+                creado_por=request.user,
+                comentarios='Carga automática desde proyecto'
+            )
+            
+            # 3. Vincular al Proyecto (con Carpeta)
+            DocumentoProyecto.objects.get_or_create(
+                proyecto_id=proyecto.id,
+                documento=documento,
+                carpeta=carpeta,
+                defaults={'nota': 'Cargado vía Drag & Drop'}
+            )
+            
+            return JsonResponse({
+                'status': 'success', 
+                'message': 'Documento cargado y vinculado',
+                'doc': {
+                    'id': documento.id,
+                    'codigo': documento.codigo,
+                    'titulo': documento.titulo,
+                    'url': documento.ultima_revision.archivo.url if documento.ultima_revision else ""
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)

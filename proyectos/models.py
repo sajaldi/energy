@@ -120,6 +120,12 @@ class DocumentoProyecto(models.Model):
         on_delete=models.CASCADE,
         related_name='proyectos_vinculados'
     )
+    carpeta = models.ForeignKey(
+        'documentos.Carpeta',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='vinculos_proyectos'
+    )
     nota = models.CharField(max_length=200, blank=True, help_text="Nota o descripción del documento en este proyecto")
     agregado_en = models.DateTimeField(auto_now_add=True)
 
@@ -164,6 +170,7 @@ class Actividad(models.Model):
     
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_fin = models.DateField(null=True, blank=True)
+    porcentaje_avance = models.PositiveIntegerField(default=0, help_text="Porcentaje de avance (0-100)")
     
     asignado_a = models.ForeignKey(
         User, 

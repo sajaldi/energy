@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ proyecto.nombre }} | Detalles</title>
+    <!-- Modern Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Frappe Gantt -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
+    <!-- SweetAlert2 for Toasts -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --fiori-primary: #0070f2;
+            --fiori-bg: #eff2f5;
+            --fiori-card-bg: #ffffff;
+            --fiori-text: #32363a;
+            --fiori-text-secondary: #6a6d70;
+            --fiori-border: #d9d9d9;
+            --fiori-success: #107e3e;
+            --fiori-warning: #e9730c;
+            --fiori-error: #bb0000;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--fiori-bg);
+            color: var(--fiori-text);
+            padding-bottom: 5rem;
+        }
+
+        /* Object Page Header */
+        .sap-header {
+            background-color: white;
+            padding: 2rem 3rem 0 3rem;
+            border-bottom: 1px solid var(--fiori-border);
+            position: relative;
+        }
+
+        .sap-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+
+        .sap-back-btn {
+            color: var(--fiori-primary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .sap-header-title h1 { font-size: 1.75rem; font-weight: 500; }
+        .sap-header-subtitle { color: var(--fiori-text-secondary); font-size: 0.875rem; }
+
+        .sap-header-kpis {
+            display: flex;
+            gap: 3rem;
+            padding-bottom: 1.5rem;
+        }
+
+        .sap-kpi { display: flex; flex-direction: column; }
+        .sap-kpi-value { font-size: 1.5rem; font-weight: 300; color: var(--fiori-primary); }
+        .sap-kpi-label { font-size: 0.75rem; color: var(--fiori-text-secondary); text-transform: uppercase; }
+
+        /* Icon Tab Bar */
+        .sap-tab-bar {
+            display: flex;
+            gap: 2rem;
+            border-bottom: 1px solid var(--fiori-border);
+            padding: 0 3rem;
+            background: white;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .sap-tab {
+            padding: 1rem 0;
+            cursor: pointer;
+            color: var(--fiori-text-secondary);
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .sap-tab.active {
+            color: var(--fiori-primary);
+            border-bottom-color: var(--fiori-primary);
+        }
+
+        /* Content Sections */
+        .sap-section {
+            display: none;
+            padding: 2rem 3rem;
+        }
+
+        .sap-section.active { display: block; }
+
+        .sap-card {
+            background: white;
+            border: 1px solid var(--fiori-border);
+            border-radius: 0.25rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.05);
+        }
+
+        .sap-card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        /* Forms & Editing */
+        .sap-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .sap-field { display: flex; flex-direction: column; gap: 0.5rem; }
+        .sap-field label { font-size: 0.8125rem; color: var(--fiori-text-secondary); }
+        
+        .edit-mode { display: none; }
+        .is-editing .edit-mode { display: block; }
+        .is-editing .view-mode { display: none; }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--fiori-border);
+            border-radius: 0.25rem;
+            font-family: inherit;
+        }
+
+        /* Table */
+        .sap-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .sap-table th {
+            text-align: left;
+            padding: 0.75rem;
+            font-size: 0.8125rem;
+            color: var(--fiori-text-secondary);
+            border-bottom: 1px solid var(--fiori-border);
+            font-weight: 500;
+        }
+
+        .sap-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.875rem;
+        }
+
+        /* Footer Bar */
+        .sap-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3.5rem;
+            background: white;
+            border-top: 1px solid var(--fiori-border);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 2rem;
+            gap: 1rem;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .sap-btn {
+            padding: 0.5rem 1.25rem;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--fiori-border);
+            font-family: inherit;
+        }
+
+        .sap-btn-primary { background: var(--fiori-primary); color: white; border: none; }
+        .sap-btn-secondary { background: white; color: var(--fiori-primary); border-color: var(--fiori-primary); }
+
+        /* Status Colors */
+        .status-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* Selection & Drag Styles */
+        .selection-toolbar {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #323130;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            display: none;
+            align-items: center;
+            gap: 1.5rem;
+            z-index: 1000;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 2rem; opacity: 1; } }
+        .row-selected { background: #e1f0ff !important; }
+        .drag-target { background: #0a6ed1 !important; color: white !important; }
+        .drag-target * { color: white !important; }
+        
+        .explorer-breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+        .breadcrumb-item { color: var(--fiori-primary); cursor: pointer; text-decoration: none; }
+        .breadcrumb-item:hover { text-decoration: underline; }
+        .breadcrumb-separator { color: #999; }
+        
+        .row-folder { color: #f59e0b; margin-right: 0.5rem; }
+        .row-file { color: #6b7280; margin-right: 0.5rem; }
+        
+        .clickable-row { cursor: pointer; transition: background 0.2s; }
+        .clickable-row:hover { background: #f0f7ff !important; }
+    </style>
+</head>
+<body id="pageBody">
+
+    <div class="sap-header">
+        <a href="{% url 'proyectos:dashboard' %}" class="sap-back-btn">
+            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+        </a>
+        <div class="sap-header-top">
+            <div class="sap-header-title">
+                <h1>{{ proyecto.nombre }}</h1>
+                <span class="sap-header-subtitle">{{ proyecto.codigo }} | {% if proyecto.ubicacion %}{{ proyecto.ubicacion.nombre }}{% else %}Sin Ubicación{% endif %}</span>
+            </div>
+            <div class="sap-header-actions">
+                <button class="sap-btn sap-btn-secondary" id="editBtn" onclick="toggleEdit()">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+            </div>
+        </div>
+
+        <div class="sap-header-kpis">
+            <div class="sap-kpi">
+                <span class="sap-kpi-value">{{ proyecto.porcentaje_avance }}%</span>
+                <span class="sap-kpi-label">Progreso</span>
+            </div>
+            <div class="sap-kpi">
+                <span class="sap-kpi-value">{{ proyecto.get_estado_display }}</span>
+                <span class="sap-kpi-label">Estado</span>
+            </div>
+            <div class="sap-kpi">
+                <span class="sap-kpi-value">{{ proyecto.total_actividades }}</span>
+                <span class="sap-kpi-label">Actividades</span>
+            </div>
+        </div>
+    </div>
+
+    <nav class="sap-tab-bar">
+        <div class="sap-tab active" data-target="general">Detalles Generales</div>
+        <div class="sap-tab" data-target="actividades">Cronograma / Actividades</div>
+        <div class="sap-tab" data-target="gantt-section">Diagrama de Gantt</div>
+        <div class="sap-tab" data-target="documentos">Documentos vinculados</div>
+    </nav>
+
+    <!-- SECTION: GENERAL -->
+    <section id="general" class="sap-section active">
+        <div class="sap-card">
+            <div class="sap-card-title">Información del Proyecto</div>
+            <div class="sap-form-grid">
+                <div class="sap-field">
+                    <label>Nombre del Proyecto</label>
+                    <span class="view-mode">{{ proyecto.nombre }}</span>
+                    <input type="text" class="edit-mode" name="nombre" value="{{ proyecto.nombre }}">
+                </div>
+                <div class="sap-field">
+                    <label>Estado</label>
+                    <span class="view-mode">{{ proyecto.get_estado_display }}</span>
+                    <select class="edit-mode" name="estado">
+                        {% for code, label in estados_proyecto %}
+                        <option value="{{ code }}" {% if proyecto.estado == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="sap-field">
+                    <label>Responsable</label>
+                    <span class="view-mode">{{ proyecto.responsable.get_full_name|default:proyecto.responsable.username }}</span>
+                    <select class="edit-mode" name="responsable_id">
+                        <option value="">Sin Asignar</option>
+                        {% for user in usuarios %}
+                        <option value="{{ user.id }}" {% if proyecto.responsable.id == user.id %}selected{% endif %}>{{ user.get_full_name|default:user.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="sap-field">
+                    <label>Ubicación</label>
+                    <span class="view-mode">{{ proyecto.ubicacion.nombre|default:"-" }}</span>
+                    <select class="edit-mode" name="ubicacion_id">
+                        <option value="">Sin Ubicación</option>
+                        {% for ubi in ubicaciones %}
+                        <option value="{{ ubi.id }}" {% if proyecto.ubicacion.id == ubi.id %}selected{% endif %}>{{ ubi.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="sap-field">
+                    <label>Fecha Inicio</label>
+                    <span class="view-mode">{{ proyecto.fecha_inicio|default:"-" }}</span>
+                    <input type="date" class="edit-mode" name="fecha_inicio" value="{{ proyecto.fecha_inicio|date:'Y-m-d' }}">
+                </div>
+                <div class="sap-field">
+                    <label>Fin Estimado</label>
+                    <span class="view-mode">{{ proyecto.fecha_fin_estimada|default:"-" }}</span>
+                    <input type="date" class="edit-mode" name="fecha_fin_estimada" value="{{ proyecto.fecha_fin_estimada|date:'Y-m-d' }}">
+                </div>
+            </div>
+            <div class="sap-field" style="margin-top: 2rem;">
+                <label>Descripción / Alcance</label>
+                <span class="view-mode">{{ proyecto.descripcion|linebreaks }}</span>
+                <textarea class="edit-mode" name="descripcion" rows="5">{{ proyecto.descripcion }}</textarea>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION: ACTIVIDADES -->
+    <section id="actividades" class="sap-section">
+        <div class="sap-card">
+            <div class="sap-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Lista de Actividades</span>
+                <button class="sap-btn edit-mode" style="font-size: 0.75rem; background: var(--fiori-success); color: white; border: none;" onclick="addNewActivityRow()">+ Nueva Actividad</button>
+            </div>
+            <table class="sap-table" id="actividadesTable">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Estado</th>
+                        <th>Avance %</th>
+                        <th>Predecesor</th>
+                        <th>Prioridad</th>
+                        <th>Responsable</th>
+                        <th>Fecha Fin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in actividades %}
+                    <tr class="actividad-row" data-id="{{ act.id }}">
+                        <td>
+                            <span class="view-mode"><strong>{{ act.nombre }}</strong></span>
+                            <div class="edit-mode" style="display: flex; gap: 0.5rem; align-items: center;">
+                                <button class="sap-btn" style="padding: 0.25rem 0.5rem; color: var(--fiori-error); border-color: var(--fiori-error);" onclick="removeActivityRow(this)" title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <input type="text" name="act_nombre" value="{{ act.nombre }}">
+                            </div>
+                        </td>
+                        <td>
+                            <span class="view-mode">{{ act.get_estado_display }}</span>
+                            <select class="edit-mode" name="act_estado">
+                                {% for code, label in estados_actividad %}
+                                <option value="{{ code }}" {% if act.estado == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <span class="view-mode">{{ act.porcentaje_avance }}%</span>
+                            <div class="edit-mode" style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="number" name="act_porcentaje_avance" value="{{ act.porcentaje_avance }}" min="0" max="100" style="width: 60px;">
+                                <progress value="{{ act.porcentaje_avance }}" max="100" style="width: 40px;"></progress>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="view-mode">{{ act.predecesora.nombre|default:"-" }}</span>
+                            <select class="edit-mode" name="act_predecesora_id">
+                                <option value="">(Ninguna)</option>
+                                {% for p_act in actividades %}
+                                    {% if p_act.id != act.id %}
+                                    <option value="{{ p_act.id }}" {% if act.predecesora.id == p_act.id %}selected{% endif %}>{{ p_act.nombre }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <span class="view-mode">{{ act.get_prioridad_display }}</span>
+                            <select class="edit-mode" name="act_prioridad">
+                                {% for code, label in prioridades %}
+                                <option value="{{ code }}" {% if act.prioridad == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <span class="view-mode">{{ act.asignado_a.username|default:"-" }}</span>
+                            <select class="edit-mode" name="act_asignado">
+                                <option value="">Sin Asignar</option>
+                                {% for user in usuarios %}
+                                <option value="{{ user.id }}" {% if act.asignado_a.id == user.id %}selected{% endif %}>{{ user.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <span class="view-mode">{{ act.fecha_fin|default:"-" }}</span>
+                            <input type="date" class="edit-mode" name="act_fecha_fin" value="{{ act.fecha_fin|date:'Y-m-d' }}">
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="empty-row"><td colspan="5" style="text-align: center; color: var(--fiori-text-secondary);">No hay actividades registradas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- SECTION: DOCUMENTOS (Explorador) -->
+    <section id="documentos" class="sap-section">
+        <div class="sap-card">
+            <div class="sap-header-toolbar">
+                <h2 class="sap-section-title">Documentación del Proyecto</h2>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="sap-btn" onclick="openNewFolderModal()">
+                        <i class="fas fa-folder-plus"></i> Nueva Carpeta
+                    </button>
+                    <button class="sap-btn sap-btn-secondary" onclick="openLinkModal()">
+                        <i class="fas fa-search-plus"></i> Vincular de Biblioteca
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Breadcrumbs -->
+            <div id="breadcrumbs" class="explorer-breadcrumbs">
+                <a class="breadcrumb-item" onclick="loadFolder(null)">Raíz</a>
+            </div>
+
+            <div id="dropzone" class="dropzone-area">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Suelta archivos aquí para subir a la carpeta actual</p>
+                <div id="upload-progress" style="display: none; margin-top: 1rem;">
+                    <progress id="progress-bar" value="0" max="100" style="width: 100%; height: 8px;"></progress>
+                    <p id="progress-text" style="font-size: 0.8rem; margin-top: 0.5rem;">Subiendo...</p>
+                </div>
+            </div>
+
+            <div class="sap-table-container">
+                <table class="sap-table" id="docs-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;"><input type="checkbox" id="select-all-docs" onclick="toggleSelectAllDocs(this)"></th>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>Info / Nota</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="explorer-body">
+                        <!-- Se llena dinámicamente con JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Selection Toolbar -->
+    <div id="selection-toolbar" class="selection-toolbar">
+        <span id="selection-count">0 seleccionados</span>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="sap-btn sap-btn-secondary" style="background: #444; color: white; border: none;" onclick="clearSelection()">
+                Cancelar
+            </button>
+            <button class="sap-btn" onclick="bulkDelete()" style="background: #d93025; color: white; border: none;">
+                <i class="fas fa-trash"></i> Eliminar
+            </button>
+        </div>
+    </div>
+
+    <!-- Template for New Activity Row -->
+    <template id="newActivityTemplate">
+        <tr class="actividad-row" data-id="">
+            <td>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button class="sap-btn" style="padding: 0.25rem 0.5rem; color: var(--fiori-error); border-color: var(--fiori-error);" onclick="removeActivityRow(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <input type="text" name="act_nombre" placeholder="Nueva actividad..." required>
+                </div>
+            </td>
+            <td>
+                <select name="act_estado">
+                    {% for code, label in estados_actividad %}
+                    <option value="{{ code }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input type="number" name="act_porcentaje_avance" value="0" min="0" max="100" style="width: 60px;">
+            </td>
+            <td>
+                <select name="act_predecesora_id">
+                    <option value="">(Ninguna)</option>
+                    {% for p_act in actividades %}
+                    <option value="{{ p_act.id }}">{{ p_act.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select name="act_prioridad">
+                    {% for code, label in prioridades %}
+                    <option value="{{ code }}" {% if code == 'MEDIA' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select name="act_asignado">
+                    <option value="">Sin Asignar</option>
+                    {% for user in usuarios %}
+                    <option value="{{ user.id }}" {% if user == request.user %}selected{% endif %}>{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input type="date" name="act_fecha_fin">
+            </td>
+        </tr>
+    </template>
+
+    <!-- SECTION: GANTT -->
+    <section id="gantt-section" class="sap-section">
+        <div class="sap-card" style="padding: 0; min-height: 500px;">
+            <div style="padding: 1rem; border-bottom: 1px solid var(--fiori-border); display: flex; justify-content: space-between; align-items: center; background: #fafafa;">
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="sap-btn sap-btn-secondary" id="btnLinkMode" onclick="toggleLinkMode()">
+                        <i class="fas fa-link"></i> Modo Vinculación: <span id="linkModeText">OFF</span>
+                    </button>
+                    <span id="linkHelp" style="display: none; font-size: 0.8rem; color: var(--fiori-warning); align-self: center;">
+                        <i class="fas fa-info-circle"></i> Seleccione la tarea <strong>Predecesora</strong>, luego la <strong>Sucesora</strong>.
+                    </span>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="sap-btn" onclick="changeGanttView('Day')">Día</button>
+                    <button class="sap-btn sap-btn-secondary" onclick="changeGanttView('Week')" id="btnGanttWeek">Semana</button>
+                    <button class="sap-btn" onclick="changeGanttView('Month')">Mes</button>
+                </div>
+            </div>
+            <div id="gantt_chart" style="width: 100%; overflow: auto;"></div>
+        </div>
+    </section>
+
+    <!-- FOOTER BAR (Only visible in edit mode) -->
+    <footer class="sap-footer edit-mode" id="footerBar">
+        <button class="sap-btn" onclick="toggleEdit()">Cancelar</button>
+        <button class="sap-btn sap-btn-primary" onclick="saveProject()">Guardar Cambios</button>
+    </footer>
+
+    <script id="tasks-data" type="application/json">{{ tasks_json|safe }}</script>
+    <script>
+        // Gantt Initialization
+        let gantt;
+        let isLinkMode = false;
+        let selectedPredecessor = null;
+
+        const tasks = JSON.parse(document.getElementById('tasks-data').textContent);
+
+        function initGantt() {
+            if (!tasks.length) return;
+            gantt = new Gantt("#gantt_chart", tasks, {
+                on_date_change: function (task, start, end) {
+                    saveActivityDates(task.id, start, end);
+                },
+                on_click: function (task) {
+                    if (isLinkMode) {
+                        handleGanttLinking(task);
+                    }
+                },
+                view_mode: 'Week',
+                language: 'es'
+            });
+        }
+
+        function toggleLinkMode() {
+            isLinkMode = !isLinkMode;
+            selectedPredecessor = null;
+            const btn = document.getElementById('btnLinkMode');
+            const text = document.getElementById('linkModeText');
+            const help = document.getElementById('linkHelp');
+            
+            if (isLinkMode) {
+                btn.classList.replace('sap-btn-secondary', 'sap-btn-primary');
+                text.innerText = 'ON';
+                help.style.display = 'inline';
+            } else {
+                btn.classList.replace('sap-btn-primary', 'sap-btn-secondary');
+                text.innerText = 'OFF';
+                help.style.display = 'none';
+                help.innerHTML = '<i class="fas fa-info-circle"></i> Seleccione la tarea <strong>Predecesora</strong>, luego la <strong>Sucesora</strong>.';
+            }
+        }
+
+        async function handleGanttLinking(task) {
+            if (!selectedPredecessor) {
+                selectedPredecessor = task;
+                document.getElementById('linkHelp').innerHTML = `<i class="fas fa-link"></i> Predecesora cargada: <strong>${task.name}</strong>. Ahora seleccione la Sucesora...`;
+            } else {
+                if (selectedPredecessor.id === task.id) {
+                    Swal.fire('Error', 'No puede vincular una tarea consigo misma', 'error');
+                    return;
+                }
+                
+                const confirmed = await Swal.fire({
+                    title: 'Crear Dependencia',
+                    text: `¿Vincular "${selectedPredecessor.name}" como predecesora de "${task.name}"?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, vincular',
+                    cancelButtonText: 'Cancelar'
+                });
+
+                if (confirmed.isConfirmed) {
+                    await saveActivityDependency(task.id, selectedPredecessor.id);
+                    toggleLinkMode(); // Turn off mode
+                    location.reload(); // Reload to show arrows and table update
+                } else {
+                    selectedPredecessor = null;
+                }
+            }
+        }
+
+        async function saveActivityDependency(id, predId) {
+            const data = {
+                actividades: [{
+                    id: id,
+                    predecesora_id: predId
+                }]
+            };
+            await fetch('{% url "proyectos:actividades_bulk_update" proyecto.id %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        // --- EXPLORER LOGIC ---
+        let currentFolderId = null;
+
+        async function loadFolder(padreId = null) {
+            currentFolderId = padreId;
+            const url = `{% url "documentos:api_explorer_listar" %}?padre_id=${padreId || 'null'}&proyecto_id={{ proyecto.id }}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                renderExplorer(data);
+            } catch (error) {
+                console.error("Error cargando carpeta:", error);
+            }
+        }
+
+        async function renderExplorer(data) {
+            const body = document.getElementById('explorer-body');
+            const breadcrumbs = document.getElementById('breadcrumbs');
+            body.innerHTML = '';
+            
+            // Render breadcrumbs
+            breadcrumbs.innerHTML = `
+                <a class="breadcrumb-item" onclick="loadFolder(null)" 
+                   ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDropToFolder(event, 'root')">Raíz</a>`;
+            data.breadcrumbs.forEach(bc => {
+                breadcrumbs.innerHTML += `
+                    <span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span>
+                    <a class="breadcrumb-item" onclick="loadFolder(${bc.id})"
+                       ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDropToFolder(event, ${bc.id})">${bc.nombre}</a>
+                `;
+            });
+
+            // If not at root, add "Back" row
+            if (data.padre_id) {
+                const upperId = data.breadcrumbs.length > 1 ? data.breadcrumbs[data.breadcrumbs.length - 2].id : null;
+                const row = body.insertRow();
+                row.className = 'clickable-row';
+                row.setAttribute('ondragover', 'handleDragOver(event)');
+                row.setAttribute('ondragleave', 'handleDragLeave(event)');
+                row.setAttribute('ondrop', `handleDropToFolder(event, ${upperId || "'root'"})`);
+                row.onclick = (e) => { if(e.target.type !== 'checkbox') loadFolder(upperId); };
+                row.innerHTML = `<td colspan="5"><i class="fas fa-level-up-alt"></i> .. (Subir nivel)</td>`;
+            }
+
+            // Render folders
+            data.carpetas.forEach(folder => {
+                const row = body.insertRow();
+                row.className = 'clickable-row item-row';
+                row.dataset.id = folder.id;
+                row.dataset.type = 'folder';
+                row.draggable = true;
+                row.onclick = (e) => { if(e.target.type !== 'checkbox') loadFolder(folder.id); };
+                
+                // Drag Events
+                row.ondragstart = (e) => handleDragStart(e, folder.id, 'folder');
+                row.ondragover = (e) => handleDragOver(e);
+                row.ondragleave = (e) => handleDragLeave(e);
+                row.ondrop = (e) => handleDropToFolder(e, folder.id);
+
+                row.innerHTML = `
+                    <td><input type="checkbox" class="doc-checkbox" data-id="${folder.id}" data-type="folder" onclick="updateSelection()"></td>
+                    <td><i class="fas fa-folder row-folder"></i> <strong>${folder.nombre}</strong></td>
+                    <td style="color: #666; font-size: 0.8rem;">Carpeta</td>
+                    <td>-</td>
+                    <td><button class="sap-btn sap-btn-secondary" onclick="deleteItem(${folder.id}, 'folder')"><i class="fas fa-trash"></i></button></td>
+                `;
+            });
+
+            // Render documents
+            data.documentos.forEach(doc => {
+                const row = body.insertRow();
+                row.className = 'item-row';
+                row.dataset.id = doc.id;
+                row.dataset.type = 'file';
+                row.draggable = true;
+                row.ondragstart = (e) => handleDragStart(e, doc.id, 'file');
+
+                // Lógica de visualización (Plano o Descarga)
+                let viewUrl = doc.url;
+                let target = "_blank";
+                let icon = "fas fa-eye";
+                
+                if (doc.visor_id) {
+                    viewUrl = `{% url 'activos:visor_plano' 0 %}`.replace('0', doc.visor_id);
+                    icon = "fas fa-drafting-compass"; // Icono de plano
+                }
+
+                row.innerHTML = `
+                    <td><input type="checkbox" class="doc-checkbox" data-id="${doc.id}" data-type="file" onclick="updateSelection()"></td>
+                    <td><i class="fas fa-file-pdf row-file"></i> ${doc.titulo}</td>
+                    <td><span class="badge bg-secondary" style="font-weight: 500;">${doc.tipo_nombre}</span></td>
+                    <td><span style="font-size: 0.8rem; color: #666;">${doc.codigo}</span></td>
+                    <td>${doc.fecha}</td>
+                    <td>
+                        <a href="${viewUrl}" class="sap-btn sap-btn-secondary" target="${target}" title="${doc.visor_id ? 'Abrir en Visor de Planos' : 'Ver Archivo'}">
+                            <i class="${icon}"></i>
+                        </a>
+                    </td>
+                `;
+            });
+
+            if (data.carpetas.length === 0 && data.documentos.length === 0 && !data.padre_id) {
+                body.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">Carpeta vacía</td></tr>';
+            }
+            updateSelection();
+        }
+
+        // --- NEW MOVE & SELECTION LOGIC ---
+        function updateSelection() {
+            const selected = document.querySelectorAll('.doc-checkbox:checked');
+            const toolbar = document.getElementById('selection-toolbar');
+            const countText = document.getElementById('selection-count');
+            
+            if (selected.length > 0) {
+                toolbar.style.display = 'flex';
+                countText.innerText = `${selected.length} seleccionados`;
+                selected.forEach(cb => cb.closest('tr').classList.add('row-selected'));
+            } else {
+                toolbar.style.display = 'none';
+            }
+            
+            // Remove highlighting from unselected
+            document.querySelectorAll('.doc-checkbox:not(:checked)').forEach(cb => {
+                const tr = cb.closest('tr');
+                if (tr) tr.classList.remove('row-selected');
+            });
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.doc-checkbox').forEach(cb => cb.checked = false);
+            updateSelection();
+        }
+
+        function toggleSelectAllDocs(masterCb) {
+            document.querySelectorAll('.doc-checkbox').forEach(cb => cb.checked = masterCb.checked);
+            updateSelection();
+        }
+
+        // Internal Drag & Drop
+        function handleDragStart(e, id, type) {
+            const selected = document.querySelectorAll('.doc-checkbox:checked');
+            let items = [];
+            
+            // If dragging one that is NOT selected, just move that one
+            const checkbox = document.querySelector(`.doc-checkbox[data-id="${id}"][data-type="${type}"]`);
+            const isTargetSelected = checkbox ? checkbox.checked : false;
+            
+            if (isTargetSelected) {
+                selected.forEach(cb => {
+                    items.push({ id: cb.dataset.id, type: cb.dataset.type });
+                });
+            } else {
+                items.push({ id, type });
+            }
+            
+            e.dataTransfer.setData('application/json', JSON.stringify(items));
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const target = e.currentTarget;
+            target.classList.add('drag-target');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-target');
+        }
+
+        async function handleDropToFolder(e, destinoId) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-target');
+            
+            const rawData = e.dataTransfer.getData('application/json');
+            if (!rawData) return;
+            
+            const itemIds = JSON.parse(rawData);
+            
+            try {
+                const response = await fetch('{% url "documentos:api_explorer_mover_items" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        item_ids: itemIds, 
+                        destino_id: destinoId,
+                        proyecto_id: {{ proyecto.id }}
+                    })
+                });
+                const res = await response.json();
+                if (res.status === 'success') {
+                    loadFolder(currentFolderId);
+                    Swal.fire({
+                        icon: 'success', title: 'Movido', text: 'Elementos organizados.',
+                        timer: 1000, showConfirmButton: false, toast: true, position: 'top-end'
+                    });
+                }
+            } catch (error) {
+                console.error("Error moviendo:", error);
+            }
+        }
+
+        // Helper for deletion
+        function deleteItem(id, type) {
+            Swal.fire('Eliminar', 'Funcionalidad de borrado individual proximamente', 'info');
+        }
+        
+        function bulkDelete() {
+            Swal.fire('Eliminar Todo', 'Funcionalidad de borrado masivo proximamente', 'info');
+        }
+
+        async function openNewFolderModal() {
+            const { value: nombre } = await Swal.fire({
+                title: 'Nueva Carpeta',
+                input: 'text',
+                inputLabel: 'Nombre de la carpeta',
+                inputPlaceholder: 'Ej: Planos Eléctricos',
+                showCancelButton: true,
+                confirmButtonColor: '#0a6ed1'
+            });
+
+            if (nombre) {
+                try {
+                    const response = await fetch('{% url "documentos:api_explorer_crear_carpeta" %}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            nombre: nombre, 
+                            padre_id: currentFolderId,
+                            proyecto_id: {{ proyecto.id }}
+                        })
+                    });
+                    const res = await response.json();
+                    if (res.status === 'success') {
+                        loadFolder(currentFolderId);
+                    }
+                } catch (error) {
+                    Swal.fire('Error', 'No se pudo crear la carpeta', 'error');
+                }
+            }
+        }
+
+        // --- DRAG & DROP LOGIC (Updated for currentFolderId) ---
+        const dropzone = document.getElementById('dropzone');
+        const progressBar = document.getElementById('progress-bar');
+        const progressArea = document.getElementById('upload-progress');
+        const progressText = document.getElementById('progress-text');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => dropzone.classList.add('drag-over'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => dropzone.classList.remove('drag-over'), false);
+        });
+
+        dropzone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            ([...files]).forEach(uploadFile);
+        }
+
+        function uploadFile(file) {
+            const url = '{% url "proyectos:upload_documento" proyecto.id %}';
+            const xhr = new XMLHttpRequest();
+            const formData = new FormData();
+            
+            progressArea.style.display = 'block';
+            xhr.open('POST', url, true);
+
+            xhr.upload.addEventListener("progress", (e) => {
+                const pc = (e.loaded / e.total) * 100;
+                progressBar.value = pc;
+                progressText.innerText = `Subiendo ${file.name}: ${Math.round(pc)}%`;
+            });
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState == 4 && xhr.status == 200) {
+                    loadFolder(currentFolderId); // Refresh explorer
+                    Swal.fire({
+                        icon: 'success', title: 'Cargado', text: `${file.name} listo.`,
+                        timer: 1500, showConfirmButton: false, toast: true, position: 'top-end'
+                    });
+                    progressArea.style.display = 'none';
+                } else if (xhr.readyState == 4) {
+                    Swal.fire('Error', 'No se pudo subir el archivo', 'error');
+                }
+            };
+
+            formData.append('file', file);
+            if (currentFolderId) {
+                formData.append('carpeta_id', currentFolderId);
+            }
+            xhr.send(formData);
+        }
+
+        // Initialize Explorer
+        loadFolder(null);
+
+        // --- BUSCADOR GLOBAL Y VINCULACIÓN ---
+        async function openLinkModal() {
+            const modalHtml = `
+            <div class="modal fade" id="linkModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Vincular Documentos de la Biblioteca</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="input-group mb-3">
+                                <input type="text" id="globalSearchInput" class="form-control" placeholder="Buscar por código o título...">
+                                <button class="btn btn-primary" onclick="searchGlobalDocs()">Buscar</button>
+                            </div>
+                            <div id="globalSearchResults" style="max-height: 400px; overflow-y: auto;">
+                                <p class="text-muted text-center">Escribe algo para buscar...</p>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" onclick="vincularSeleccionados()">Vincular Seleccionados</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            
+            // Eliminar modal anterior si existe
+            const old = document.getElementById('linkModal');
+            if (old) old.remove();
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = new bootstrap.Modal(document.getElementById('linkModal'));
+            modal.show();
+            
+            // Escuchar Enter
+            document.getElementById('globalSearchInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchGlobalDocs();
+            });
+
+            // Carga inicial
+            searchGlobalDocs();
+        }
+
+        async function searchGlobalDocs() {
+            const query = document.getElementById('globalSearchInput').value;
+            const container = document.getElementById('globalSearchResults');
+            container.innerHTML = '<div class="text-center p-3"><div class="spinner-border text-primary"></div></div>';
+            
+            try {
+                const response = await fetch(`{% url "documentos:api_explorer_buscar_global" %}?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.results.length === 0) {
+                    container.innerHTML = '<p class="text-center p-3">No se encontraron resultados.</p>';
+                    return;
+                }
+                
+                let html = `
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="40"><input type="checkbox" id="selectAllGlobal" onclick="toggleSelectAllGlobal(this)"></th>
+                            <th>Código / Título</th>
+                            <th>Tipo</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                
+                data.results.forEach(doc => {
+                    html += `
+                    <tr>
+                        <td><input type="checkbox" class="global-doc-check" value="${doc.id}"></td>
+                        <td>
+                            <div class="fw-bold">${doc.codigo}</div>
+                            <div class="small text-muted">${doc.titulo}</div>
+                        </td>
+                        <td><span class="badge bg-info text-dark">${doc.tipo}</span></td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = '<div class="alert alert-danger">Error al buscar documentos.</div>';
+            }
+        }
+
+        function toggleSelectAllGlobal(source) {
+            document.querySelectorAll('.global-doc-check').forEach(cb => cb.checked = source.checked);
+        }
+
+        async function vincularSeleccionados() {
+            const checks = document.querySelectorAll('.global-doc-check:checked');
+            const docIds = Array.from(checks).map(cb => cb.value);
+            
+            if (docIds.length === 0) {
+                Swal.fire('Atención', 'Selecciona al menos un documento', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('{% url "documentos:api_explorer_vincular_biblioteca" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        doc_ids: docIds,
+                        proyecto_id: {{ proyecto.id }},
+                        destino_id: currentFolderId
+                    })
+                });
+                
+                const res = await response.json();
+                if (res.status === 'success') {
+                    bootstrap.Modal.getInstance(document.getElementById('linkModal')).hide();
+                    Swal.fire('Éxito', res.message, 'success');
+                    loadFolder(currentFolderId);
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'No se pudo vincular los documentos', 'error');
+            }
+        }
+
+        async function saveActivityDates(id, start, end) {
+            // Reutilizamos el endpoint de bulk o el unitario
+            const data = {
+                actividades: [{
+                    id: id,
+                    fecha_inicio: start.toISOString().split('T')[0],
+                    fecha_fin: end.toISOString().split('T')[0]
+                }]
+            };
+            await fetch('{% url "proyectos:actividades_bulk_update" proyecto.id %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        // Tab switching
+        document.querySelectorAll('.sap-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.sap-tab, .sap-section').forEach(el => el.classList.remove('active'));
+                tab.classList.add('active');
+                const target = document.getElementById(tab.dataset.target);
+                target.classList.add('active');
+                if (tab.dataset.target === 'gantt-section') {
+                    // Redraw gantt because it needs visibility for calculation
+                    if (!gantt) initGantt();
+                }
+            });
+        });
+
+        function toggleEdit() {
+            document.getElementById('pageBody').classList.toggle('is-editing');
+            const editBtn = document.getElementById('editBtn');
+            const footer = document.getElementById('footerBar');
+            
+            if (document.getElementById('pageBody').classList.contains('is-editing')) {
+                editBtn.style.display = 'none';
+                footer.style.display = 'flex';
+            } else {
+                editBtn.style.display = 'block';
+                footer.style.display = 'none';
+            }
+        }
+
+        async function saveProject() {
+            // Guardar datos del proyecto
+            const projectData = {};
+            document.querySelectorAll('#general .edit-mode[name]').forEach(input => {
+                projectData[input.name] = input.value;
+            });
+
+            // Guardar datos de actividades
+            const actividades = [];
+            document.querySelectorAll('.actividad-row:not(.to-delete)').forEach(row => {
+                actividades.push({
+                    id: row.dataset.id || "",
+                    nombre: row.querySelector('[name="act_nombre"]').value,
+                    estado: row.querySelector('[name="act_estado"]').value,
+                    porcentaje_avance: row.querySelector('[name="act_porcentaje_avance"]').value,
+                    predecesora_id: row.querySelector('[name="act_predecesora_id"]').value,
+                    prioridad: row.querySelector('[name="act_prioridad"]').value,
+                    asignado_id: row.querySelector('[name="act_asignado"]').value,
+                    fecha_fin: row.querySelector('[name="act_fecha_fin"]').value
+                });
+            });
+
+            try {
+                // Update Project
+                const pResp = await fetch('{% url "proyectos:update_api" proyecto.id %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(projectData)
+                });
+                
+                // Update Activities
+                const aResp = await fetch('{% url "proyectos:actividades_bulk_update" proyecto.id %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ actividades })
+                });
+
+                const result = await pResp.json();
+                if (result.status === 'success') {
+                    Swal.fire({
+                        icon: 'success', title: '¡Guardado!',
+                        text: 'El proyecto y sus actividades han sido actualizados.',
+                        timer: 2000, showConfirmButton: false, toast: true, position: 'top-end'
+                    });
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    Swal.fire('Error', result.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Fallo en la comunicación', 'error');
+            }
+        }
+
+        function addNewActivityRow() {
+            const tbody = document.querySelector('#actividadesTable tbody');
+            const template = document.getElementById('newActivityTemplate');
+            const clone = template.content.cloneNode(true);
+            
+            // Remove empty message if exists
+            const empty = document.getElementById('empty-row');
+            if (empty) empty.remove();
+            
+            tbody.appendChild(clone);
+            
+            // Scrolled to the bottom to see the new row
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        function removeActivityRow(btn) {
+            const row = btn.closest('tr');
+            const id = row.dataset.id;
+            
+            if (!id) {
+                // Just remove from DOM if not saved yet
+                row.remove();
+            } else {
+                // Ask for confirmation to delete from DB
+                Swal.fire({
+                    title: '¿Eliminar actividad?',
+                    text: "Esta acción no se puede deshacer.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: 'var(--fiori-error)',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // We could add a delete API, but for now we'll mark it to be removed or handle it separately.
+                        // For a quick fix, let's just implement a simple delete call here.
+                        deleteActivity(id, row);
+                    }
+                });
+            }
+        }
+
+        async function deleteActivity(id, row) {
+            try {
+                const url = '{% url "proyectos:delete_actividad" proyecto.id 0 %}'.replace('0', id);
+                const resp = await fetch(url, { method: 'POST' });
+                const result = await resp.json();
+                
+                if (result.status === 'success') {
+                    row.remove();
+                    Swal.fire({
+                        icon: 'success', title: 'Eliminado', text: 'Actividad borrada.',
+                        timer: 1500, showConfirmButton: false, toast: true, position: 'top-end'
+                    });
+                } else {
+                    Swal.fire('Error', result.message, 'error');
+                }
+            } catch (err) {
+                Swal.fire('Error', 'No se pudo eliminar', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

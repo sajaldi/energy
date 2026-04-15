@@ -10,4 +10,11 @@ urlpatterns = [
     path('gantt/<int:proyecto_id>/', views.gantt_proyecto, name='gantt_proyecto'),
     path('chatbot-asistente/', views.chatbot_asistente, name='chatbot_asistente'),
     path('repositorio-documentos/<int:proyecto_id>/', views.repositorio_documentos, name='repositorio_documentos'),
+    path('dashboard/', views.dashboard_proyectos_fiori, name='dashboard'),
+    path('proyecto/<int:pk>/', views.proyecto_detalle_fiori, name='detalle_fiori'),
+    path('proyecto/<int:pk>/update/', views.update_proyecto_api, name='update_api'),
+    path('proyecto/<int:pk>/actividades/bulk-update/', views.update_actividades_bulk_api, name='actividades_bulk_update'),
+    path('proyecto/<int:pk>/actividades/<int:act_id>/delete/', views.delete_actividad_api, name='delete_actividad'),
+    path('proyecto/<int:pk>/documentos/upload/', views.upload_documento_proyecto_api, name='upload_documento'),
+    path('proyecto/<int:pk>/documentos/upload/', views.upload_documento_proyecto_api, name='upload_documento'),
 ]

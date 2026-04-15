@@ -29,6 +29,30 @@ class TipoDocumento(models.Model):
         verbose_name = "Tipo de Documento"
         verbose_name_plural = "Tipos de Documento"
 
+class Carpeta(models.Model):
+    """
+    Sistema de carpetas jerárquicas para organizar documentos en todo el sistema.
+    """
+    nombre = models.CharField(max_length=100)
+    padre = models.ForeignKey(
+        'self', 
+        on_delete=models.CASCADE, 
+        null=True, blank=True, 
+        related_name='subcarpetas'
+    )
+    # Vínculo opcional con proyecto para filtrar en el explorador de proyectos
+    proyecto_id = models.IntegerField(null=True, blank=True, db_index=True, help_text="ID del proyecto vinculado (si aplica)")
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Carpeta"
+        verbose_name_plural = "Carpetas"
+        ordering = ['nombre']
+
 class MetadatoConfig(models.Model):
     """
     Configuración de campos dinámicos asociados a un Tipo de Documento.
@@ -199,7 +223,13 @@ class Documento(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
-    # Campo para búsqueda por contenido
+    # Búsqueda y Organización
+    carpeta = models.ForeignKey(
+        'Carpeta', 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True, 
+        related_name='documentos'
+    )
     contenido_texto = models.TextField(
         _("Contenido Texto"), 
         blank=True, 

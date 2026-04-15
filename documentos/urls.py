@@ -44,4 +44,11 @@ urlpatterns = [
     path('api/model-fields/', views.api_get_model_fields, name='api_get_model_fields'),
     path('api/metadato/u/<int:mv_id>/', views.api_actualizar_metadato, name='api_actualizar_metadato'),
     path('api/biblioteca/comentar/<int:bib_id>/', views.api_biblioteca_crear_comentario, name='api_biblioteca_crear_comentario'),
+    
+    # --- UNIFIED EXPLORER ---
+    path('api/explorer/listar/', views.api_explorer_listar, name='api_explorer_listar'),
+    path('api/explorer/crear-carpeta/', views.api_explorer_crear_carpeta, name='api_explorer_crear_carpeta'),
+    path('api/explorer/mover/', views.api_explorer_mover_items, name='api_explorer_mover_items'),
+    path('api/explorer/buscar-global/', views.api_explorer_buscar_global, name='api_explorer_buscar_global'),
+    path('api/explorer/vincular-biblioteca/', views.api_explorer_vincular_biblioteca, name='api_explorer_vincular_biblioteca'),
 ]

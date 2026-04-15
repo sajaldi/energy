@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyectos | SAP Fiori</title>
+    <!-- Modern Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for SAP Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --fiori-primary: #0070f2;
+            --fiori-bg: #eff2f5;
+            --fiori-shell-bg: #354a5f;
+            --fiori-text: #32363a;
+            --fiori-text-secondary: #6a6d70;
+            --fiori-card-bg: #ffffff;
+            --fiori-success: #107e3e;
+            --fiori-warning: #e9730c;
+            --fiori-error: #bb0000;
+            --fiori-border: #d9d9d9;
+            --fiori-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08);
+            --fiori-hover: #f5f6f7;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--fiori-bg);
+            color: var(--fiori-text);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* SAP Fiori Shell */
+        .sap-shell {
+            height: 2.75rem;
+            background-color: var(--fiori-shell-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .sap-shell-brand {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .sap-shell-brand i { font-size: 1.25rem; }
+
+        /* Page Header */
+        .sap-header {
+            background-color: white;
+            padding: 2rem 3rem 1.5rem 3rem;
+            border-bottom: 1px solid var(--fiori-border);
+        }
+
+        .sap-header-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+        }
+
+        .sap-header-title h1 {
+            font-size: 1.75rem;
+            font-weight: 500;
+            color: var(--fiori-text);
+        }
+
+        /* KPI Tiles */
+        .sap-kpi-container {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .sap-kpi-tile {
+            min-width: 140px;
+        }
+
+        .sap-kpi-value {
+            font-size: 1.85rem;
+            font-weight: 300;
+            color: var(--fiori-primary);
+            display: block;
+        }
+
+        .sap-kpi-label {
+            font-size: 0.875rem;
+            color: var(--fiori-text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .kpi-error .sap-kpi-value { color: var(--fiori-error); }
+        .kpi-success .sap-kpi-value { color: var(--fiori-success); }
+
+        /* Content Area */
+        .sap-content {
+            padding: 2rem 3rem;
+        }
+
+        /* Project Card Grid */
+        .sap-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .sap-card {
+            background: var(--fiori-card-bg);
+            border: 1px solid var(--fiori-border);
+            border-radius: 0.5rem;
+            box-shadow: var(--fiori-shadow);
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sap-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.12);
+            border-color: var(--fiori-primary);
+        }
+
+        .sap-card-header {
+            padding: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .sap-card-title h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--fiori-text);
+            margin-bottom: 0.25rem;
+        }
+
+        .sap-card-subtitle {
+            font-size: 0.8125rem;
+            color: var(--fiori-text-secondary);
+        }
+
+        .sap-card-content {
+            padding: 1.25rem;
+            flex-grow: 1;
+        }
+
+        .sap-card-metric {
+            margin-bottom: 1rem;
+        }
+
+        /* Material UI Progress Bar style but SAP Fiori colors */
+        .sap-progress-wrapper {
+            margin-top: 0.5rem;
+        }
+
+        .sap-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+        }
+
+        .sap-progress-bg {
+            height: 0.5rem;
+            background-color: #e5e5e5;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+
+        .sap-progress-bar {
+            height: 100%;
+            background-color: var(--fiori-primary);
+            border-radius: 1rem;
+            transition: width 0.6s ease;
+        }
+
+        /* Status Badges */
+        .sap-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-PLANIFICACION { background-color: #e5eef9; color: #1d2d3e; }
+        .status-EJECUCION { background-color: #e7f4e9; color: var(--fiori-success); }
+        .status-PAUSADO { background-color: #fff4e5; color: var(--fiori-warning); }
+        .status-COMPLETADO { background-color: #f2f2f2; color: #6a6d70; }
+
+        /* Card Footer Actions */
+        .sap-card-footer {
+            padding: 0.75rem 1.25rem;
+            background-color: #fafafa;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .sap-btn-icon {
+            color: var(--fiori-text-secondary);
+            font-size: 1rem;
+            transition: color 0.2s;
+            text-decoration: none;
+        }
+
+        .sap-btn-icon:hover {
+            color: var(--fiori-primary);
+        }
+
+        /* Search Bar Fiori Style */
+        .sap-filter-bar {
+            background-color: #f7f9fa;
+            padding: 1rem 3rem;
+            border-bottom: 1px solid var(--fiori-border);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .sap-search-input {
+            width: 300px;
+            padding: 0.5rem 1rem 0.5rem 2.5rem;
+            border: 1px solid var(--fiori-border);
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            background: white url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%236a6d70" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>') no-repeat 0.75rem center;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .sap-header, .sap-content, .sap-filter-bar { padding: 1rem; }
+            .sap-kpi-container { gap: 1rem; }
+            .sap-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="sap-shell">
+        <div class="sap-shell-brand">
+            <i class="fas fa-layer-group"></i>
+            <span>Project Central</span>
+        </div>
+    </header>
+
+    <div class="sap-header">
+        <div class="sap-header-title">
+            <div>
+                <h1>Gestión de Proyectos</h1>
+                <p style="color: var(--fiori-text-secondary); font-size: 0.875rem;">Visión general de ejecución y planificación</p>
+            </div>
+            <div class="sap-header-actions">
+                <button style="padding: 0.5rem 1rem; background: var(--fiori-primary); color: white; border: none; border-radius: 0.25rem; font-weight: 600; cursor: pointer;">
+                    Nuevo Proyecto
+                </button>
+            </div>
+        </div>
+
+        <div class="sap-kpi-container">
+            <div class="sap-kpi-tile">
+                <span class="sap-kpi-value">{{ stats.total }}</span>
+                <span class="sap-kpi-label">Proyectos Totales</span>
+            </div>
+            <div class="sap-kpi-tile kpi-success">
+                <span class="sap-kpi-value">{{ stats.ejecucion }}</span>
+                <span class="sap-kpi-label">En Ejecución</span>
+            </div>
+            <div class="sap-kpi-tile">
+                <span class="sap-kpi-value">{{ stats.avance_promedio }}%</span>
+                <span class="sap-kpi-label">Avance Promedio</span>
+            </div>
+            <div class="sap-kpi-tile {% if stats.atrasados > 0 %}kpi-error{% endif %}">
+                <span class="sap-kpi-value">{{ stats.atrasados }}</span>
+                <span class="sap-kpi-label">Con Retraso</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="sap-filter-bar">
+        <input type="text" class="sap-search-input" placeholder="Buscar proyecto..." id="projectSearch">
+        <span style="font-size: 0.8125rem; color: var(--fiori-text-secondary);">Filtrado por: todos los estatus</span>
+    </div>
+
+    <main class="sap-content">
+        <div class="sap-grid" id="projectGrid">
+            {% for proyecto in proyectos %}
+            <div class="sap-card" onclick="window.location.href='{% url 'proyectos:detalle_fiori' proyecto.id %}'" data-nombre="{{ proyecto.nombre|lower }}">
+                <div class="sap-card-header">
+                    <div class="sap-card-title">
+                        <h3>{{ proyecto.nombre }}</h3>
+                        <span class="sap-card-subtitle">{{ proyecto.codigo }} | {{ proyecto.ubicacion.nombre|default:"Sin Ubicación" }}</span>
+                    </div>
+                    <span class="sap-badge status-{{ proyecto.estado }}">{{ proyecto.get_estado_display }}</span>
+                </div>
+                
+                <div class="sap-card-content">
+                    <div class="sap-card-metric">
+                        <div class="sap-progress-label">
+                            <span>Progreso General</span>
+                            <span>{{ proyecto.porcentaje_avance }}%</span>
+                        </div>
+                        <div class="sap-progress-bg">
+                            <div class="sap-progress-bar" style="width: {{ proyecto.porcentaje_avance }}%;"></div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 0.8125rem; color: var(--fiori-text-secondary); display: flex; flex-direction: column; gap: 0.25rem;">
+                        <div><i class="far fa-calendar-alt" style="width: 1.25rem;"></i> Inicio: {{ proyecto.fecha_inicio|default:"-" }}</div>
+                        <div><i class="far fa-calendar-check" style="width: 1.25rem;"></i> Fin Est.: {{ proyecto.fecha_fin_estimada|default:"-" }}</div>
+                        <div><i class="far fa-user" style="width: 1.25rem;"></i> Responsable: {{ proyecto.responsable.get_full_name|default:proyecto.responsable.username }}</div>
+                    </div>
+                </div>
+
+                <div class="sap-card-footer">
+                    <a href="{% url 'proyectos:repositorio_documentos' proyecto.id %}" class="sap-btn-icon" title="Documentos">
+                        <i class="fas fa-folder-open"></i>
+                    </a>
+                    <a href="{% url 'proyectos:cronograma' proyecto.id %}" class="sap-btn-icon" title="Cronograma">
+                        <i class="fas fa-stream"></i>
+                    </a>
+                    <a href="{% url 'proyectos:gantt_proyecto' proyecto.id %}" class="sap-btn-icon" title="Gráfico de Gantt">
+                        <i class="fas fa-chart-gantt"></i>
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <div style="grid-column: 1 / -1; text-align: center; padding: 4rem; color: var(--fiori-text-secondary);">
+                <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                <p>No se encontraron proyectos activos.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <script>
+        // Simple client-side search
+        document.getElementById('projectSearch').addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.sap-card');
+            
+            cards.forEach(card => {
+                const name = card.getAttribute('data-nombre');
+                if (name.includes(term)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

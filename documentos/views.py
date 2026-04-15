@@ -12,7 +12,7 @@ import logging
 import json
 import requests
 import datetime
-from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina, Revision, MetadatoConfig, ComentarioImagen
+from .models import Documento, ComentarioDocumento, TipoDocumento, Disciplina, Revision, MetadatoConfig, ComentarioImagen, Carpeta
 from django.contrib.contenttypes.models import ContentType
 
 @login_required
@@ -1460,3 +1460,227 @@ def api_biblioteca_crear_comentario(request, bib_id):
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+# --- UNIFIED EXPLORER APIs ---
+
+@login_required
+def api_explorer_listar(request):
+    """
+    Lista carpetas y documentos de forma jerárquica.
+    Soporta filtro por proyecto_id.
+    """
+    padre_id = request.GET.get('padre_id')
+    proyecto_id = request.GET.get('proyecto_id')
+    
+    if padre_id == 'null' or not padre_id:
+        padre_id = None
+
+    # Filtrar carpetas
+    carpetas_qs = Carpeta.objects.filter(padre_id=padre_id)
+    if proyecto_id:
+        carpetas_qs = carpetas_qs.filter(proyecto_id=proyecto_id)
+    elif not request.GET.get('all_access'):
+        # Si no hay proyecto y no piden todo, solo carpetas sin proyecto (globales)
+        carpetas_qs = carpetas_qs.filter(proyecto_id__isnull=True)
+
+    # Filtrar documentos
+    documentos_data = []
+    
+    if proyecto_id:
+        from proyectos.models import DocumentoProyecto
+        from activos.models.plano import VisorPlano
+        vinc = DocumentoProyecto.objects.filter(proyecto_id=proyecto_id, carpeta_id=padre_id).select_related('documento', 'documento__ultima_revision', 'documento__tipo_documento')
+        
+        doc_ids = [d.documento_id for d in vinc]
+        visores_dict = {
+            v.plano.documento_id: v.id 
+            for v in VisorPlano.objects.filter(plano__documento_id__in=doc_ids).select_related('plano')
+        }
+
+        for d in vinc:
+            documentos_data.append({
+                'id': d.documento.id,
+                'codigo': d.documento.codigo,
+                'titulo': d.documento.titulo,
+                'nota': d.nota,
+                'fecha': d.agregado_en.strftime('%d/%m/%Y'),
+                'url': d.documento.ultima_revision.archivo.url if d.documento.ultima_revision else "",
+                'tipo': 'file',
+                'tipo_nombre': d.documento.tipo_documento.nombre if d.documento.tipo_documento else "S/A",
+                'visor_id': visores_dict.get(d.documento.id)
+            })
+    else:
+        from activos.models.plano import VisorPlano
+        docs_qs = Documento.objects.filter(carpeta_id=padre_id).select_related('ultima_revision', 'tipo_documento')
+        
+        doc_ids = [d.id for d in docs_qs]
+        visores_dict = {
+            v.plano.documento_id: v.id 
+            for v in VisorPlano.objects.filter(plano__documento_id__in=doc_ids).select_related('plano')
+        }
+
+        for d in docs_qs:
+            documentos_data.append({
+                'id': d.id,
+                'codigo': d.codigo,
+                'titulo': d.titulo,
+                'fecha': d.creado_en.strftime('%d/%m/%Y'),
+                'url': d.ultima_revision.archivo.url if d.ultima_revision else "",
+                'tipo': 'file',
+                'tipo_nombre': d.tipo_documento.nombre if d.tipo_documento else "S/A",
+                'visor_id': visores_dict.get(d.id)
+            })
+
+    # Breadcrumbs
+    breadcrumbs = []
+    if padre_id:
+        try:
+            curr = Carpeta.objects.get(pk=padre_id)
+            while curr:
+                breadcrumbs.append({'id': curr.id, 'nombre': curr.nombre})
+                curr = curr.padre
+            breadcrumbs.reverse()
+        except Carpeta.DoesNotExist:
+            pass
+
+    return JsonResponse({
+        'status': 'success',
+        'padre_id': padre_id,
+        'breadcrumbs': breadcrumbs,
+        'carpetas': [
+            {'id': c.id, 'nombre': c.nombre, 'tipo': 'folder'}
+            for c in carpetas_qs
+        ],
+        'documentos': documentos_data
+    })
+
+
+@csrf_exempt
+@login_required
+def api_explorer_crear_carpeta(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            nombre = data.get('nombre')
+            padre_id = data.get('padre_id')
+            proyecto_id = data.get('proyecto_id')
+            
+            if not nombre:
+                return JsonResponse({'status': 'error', 'message': 'El nombre es obligatorio'}, status=400)
+                
+            padre = None
+            if padre_id and padre_id != 'null':
+                padre = Carpeta.objects.get(pk=padre_id)
+                
+            carpeta = Carpeta.objects.create(
+                nombre=nombre,
+                padre=padre,
+                proyecto_id=proyecto_id
+            )
+            return JsonResponse({'status': 'success', 'carpeta': {'id': carpeta.id, 'nombre': carpeta.nombre}})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+@csrf_exempt
+@login_required
+def api_explorer_mover_items(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            item_ids = data.get('item_ids', [])
+            destino_id = data.get('destino_id')
+            proyecto_id = data.get('proyecto_id')
+            
+            destino = None
+            if destino_id and destino_id not in ['null', 'root']:
+                destino = Carpeta.objects.get(pk=destino_id)
+            
+            for item in item_ids:
+                if item['type'] == 'file':
+                    if proyecto_id:
+                        from proyectos.models import DocumentoProyecto
+                        vinc = DocumentoProyecto.objects.get(documento_id=item['id'], proyecto_id=proyecto_id)
+                        vinc.carpeta = destino
+                        vinc.save()
+                    else:
+                        doc = Documento.objects.get(pk=item['id'])
+                        doc.carpeta = destino
+                        doc.save()
+                elif item['type'] == 'folder':
+                    folder = Carpeta.objects.get(pk=item['id'])
+                    folder.padre = destino
+                    folder.save()
+                    
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+@login_required
+def api_explorer_buscar_global(request):
+    """
+    Busca documentos en toda la biblioteca para el selector.
+    """
+    query = request.GET.get('q', '').strip()
+    if not query:
+        # Si no hay query, retornar los últimos 10
+        docs = Documento.objects.all().select_related('ultima_revision', 'tipo_documento').order_by('-creado_en')[:10]
+    else:
+        docs = Documento.objects.filter(
+            models.Q(codigo__icontains=query) | models.Q(titulo__icontains=query)
+        ).select_related('ultima_revision', 'tipo_documento')[:20]
+    
+    results = []
+    for d in docs:
+        results.append({
+            'id': d.id,
+            'codigo': d.codigo,
+            'titulo': d.titulo,
+            'tipo': d.tipo_documento.nombre if d.tipo_documento else 'N/A',
+            'url': d.ultima_revision.archivo.url if d.ultima_revision else ""
+        })
+        
+    return JsonResponse({'status': 'success', 'results': results})
+
+
+@csrf_exempt
+@login_required
+def api_explorer_vincular_biblioteca(request):
+    """
+    Víncula documentos existentes a un proyecto y carpeta específica.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            doc_ids = data.get('doc_ids', [])
+            proyecto_id = data.get('proyecto_id')
+            destino_id = data.get('destino_id')
+            
+            if not proyecto_id:
+                return JsonResponse({'status': 'error', 'message': 'Proyecto es obligatorio'}, status=400)
+            
+            from proyectos.models import DocumentoProyecto, Proyecto
+            proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+            destino = None
+            if destino_id and destino_id not in ['null', 'root']:
+                destino = Carpeta.objects.get(pk=destino_id)
+            
+            count = 0
+            for d_id in doc_ids:
+                # Evitar duplicados en el mismo proyecto
+                # Si ya está vinculado, actualizamos su carpeta
+                vinc, created = DocumentoProyecto.objects.update_or_create(
+                    proyecto=proyecto,
+                    documento_id=d_id,
+                    defaults={'carpeta': destino}
+                )
+                count += 1
+                
+            return JsonResponse({'status': 'success', 'message': f'{count} documentos vinculados'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
