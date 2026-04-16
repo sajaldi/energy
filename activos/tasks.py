@@ -748,7 +748,9 @@ def generar_reporte_activos_task(self, reporte_id, filtros=None, query_ids=None)
     reporte.save()
     
     try:
-        qs = Activo.objects.select_related('modelo__marca', 'ubicacion', 'familia').all()
+        qs = Activo.objects.select_related(
+            'modelo__marca', 'modelo__categoria', 'ubicacion', 'familia', 'plano', 'responsable', 'padre'
+        ).all()
         
         if query_ids:
             qs = qs.filter(id__in=query_ids)
@@ -791,7 +793,13 @@ def generar_reporte_activos_task(self, reporte_id, filtros=None, query_ids=None)
             top=Side(style='thin'), bottom=Side(style='thin')
         )
         
-        headers = ['Código', 'Nombre', 'Estado', 'Ubicación', 'Familia', 'Marca', 'Modelo', 'Serie']
+        headers = [
+            'ID', 'Nombre', 'Código Interno', 'EPC', 'Serie', 'Referencia', 
+            'Marca', 'Modelo', 'Categoría', 'Familia', 'Plano', 
+            'Estado', 'Ubicación', 'Responsable', 'Padre (Código)', 
+            'Descripción', 'Fecha Compra', 'Costo', 'Ubicación Legacy', 
+            'Creado En', 'Actualizado En'
+        ]
         for col, h in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=h)
             cell.font = header_font
@@ -800,17 +808,32 @@ def generar_reporte_activos_task(self, reporte_id, filtros=None, query_ids=None)
             cell.border = thin_border
         
         for row_idx, a in enumerate(qs.iterator(), 2):
-            ws.cell(row=row_idx, column=1, value=a.codigo_interno).border = thin_border
-            ws.cell(row=row_idx, column=2, value=a.nombre).border = thin_border
-            ws.cell(row=row_idx, column=3, value=a.get_estado_display()).border = thin_border
-            # En Celery a veces "get_ruta_completa" hace llamadas a DB extra, cuidado con N+1.
-            # a.ubicacion y a.familia van con _str_ local.
-            ws.cell(row=row_idx, column=4, value=a.ubicacion.ruta_completa if getattr(a.ubicacion, 'ruta_completa', None) else (a.ubicacion.nombre if a.ubicacion else '')).border = thin_border
-            ws.cell(row=row_idx, column=5, value=str(a.familia) if a.familia else '').border = thin_border
-            ws.cell(row=row_idx, column=6, value=a.modelo.marca.nombre if a.modelo and a.modelo.marca else '').border = thin_border
-            ws.cell(row=row_idx, column=7, value=a.modelo.nombre if a.modelo else '').border = thin_border
-            ws.cell(row=row_idx, column=8, value=a.serie or '').border = thin_border
-            
+            data = [
+                str(a.id),
+                a.nombre,
+                a.codigo_interno,
+                a.epc or '',
+                a.serie or '',
+                a.referencia or '',
+                (a.modelo.marca.nombre if a.modelo and a.modelo.marca else a.marca_legacy) or '',
+                (a.modelo.nombre if a.modelo else a.modelo_legacy) or '',
+                (a.modelo.categoria.nombre if a.modelo and a.modelo.categoria else '') or '',
+                (a.familia.nombre if a.familia else '') or '',
+                (a.plano.nombre if a.plano else '') or '',
+                a.get_estado_display(),
+                (a.ubicacion.ruta_completa if a.ubicacion and hasattr(a.ubicacion, 'ruta_completa') else (str(a.ubicacion) if a.ubicacion else '')),
+                (a.responsable.username if a.responsable else ''),
+                (a.padre.codigo_interno if a.padre else ''),
+                a.descripcion or '',
+                a.fecha_compra.strftime('%Y-%m-%d') if a.fecha_compra else '',
+                float(a.costo) if a.costo else 0.0,
+                a.ubicacion_legacy or '',
+                a.creado_en.strftime('%Y-%m-%d %H:%M') if a.creado_en else '',
+                a.actualizado_en.strftime('%Y-%m-%d %H:%M') if a.actualizado_en else '',
+            ]
+            for col_idx, value in enumerate(data, 1):
+                ws.cell(row=row_idx, column=col_idx, value=value).border = thin_border
+        
         # Auto-width
         for col in ws.columns:
             max_len = max((min(len(str(cell.value or '')), 50) for cell in col), default=10) + 2
