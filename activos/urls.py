@@ -9,6 +9,7 @@ from . import views_celery
 
 urlpatterns = [
     path('visor/<int:visor_id>/', views.visor_plano, name='visor_plano'),
+    path('visor/plano/<int:plano_id>/', views.visor_plano, name='visor_plano_por_plano'),
     path('api/guardar-pin/', views.guardar_pin, name='guardar_pin'),
     path('api/eliminar-pin/<int:pin_id>/', views.eliminar_pin, name='eliminar_pin'),
     path('api/import-progress/<str:task_id>/', views.import_progress, name='import_progress'),
@@ -88,8 +89,10 @@ urlpatterns = [
     # PDF de QR Punto Medicion
     path('punto-medicion/<int:pk>/qr/', views_rutinas.punto_medicion_qr_pdf, name='punto_medicion_qr_pdf'),
 
-    # Fiori Dashboard
+    # Fiori Dashboard y Explorador
     path('activo/<int:pk>/fiori/', views.activo_fiori_view, name='activo_fiori'),
+    path('fiori-explorer/', views.fiori_explorer_view, name='fiori_explorer'),
+    path('fiori-explorer/<int:ubicacion_id>/', views.fiori_explorer_view, name='fiori_explorer_at'),
     
     # Fotos de Ubicación
     path('api/ubicacion/upload-fotos/', views.api_upload_foto_ubicacion, name='api_upload_foto_ubicacion'),

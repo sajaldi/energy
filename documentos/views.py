@@ -1490,15 +1490,68 @@ def api_explorer_listar(request):
     if proyecto_id:
         from proyectos.models import DocumentoProyecto
         from activos.models.plano import VisorPlano
+        from django.db.models import Q
         vinc = DocumentoProyecto.objects.filter(proyecto_id=proyecto_id, carpeta_id=padre_id).select_related('documento', 'documento__ultima_revision', 'documento__tipo_documento')
         
         doc_ids = [d.documento_id for d in vinc]
+        doc_codes = [d.documento.codigo for d in vinc]
+        doc_notes = [d.nota for d in vinc if d.nota]
+
+        # 1. Búsqueda por vínculo directo FK
         visores_dict = {
             v.plano.documento_id: v.id 
             for v in VisorPlano.objects.filter(plano__documento_id__in=doc_ids).select_related('plano')
         }
 
+        # 2. Búsqueda por correspondencia de nombre/código
+        relevant_strings = list(set(doc_codes + doc_notes))
+        visores_fallback = {}
+        if relevant_strings:
+            for v in VisorPlano.objects.filter(
+                Q(plano__nombre__in=relevant_strings) | Q(plano__numero_documento__in=relevant_strings)
+            ).select_related('plano'):
+                if v.plano.nombre: visores_fallback[v.plano.nombre] = v.id
+                if v.plano.numero_documento: visores_fallback[v.plano.numero_documento] = v.id
+
+        # 3. Búsqueda de Plano ID (independiente de Visor)
+        from activos.models.plano import Plano
+        planos_dict = {
+            p.documento_id: p.id 
+            for p in Plano.objects.filter(documento_id__in=doc_ids)
+        }
+        planos_fallback = {}
+        if relevant_strings:
+            for p in Plano.objects.filter(nombre__in=relevant_strings):
+                planos_fallback[p.nombre] = p.id
+
         for d in vinc:
+            # Prioridad: FK directa > Coincidencia por Nota > Coincidencia por Código
+            v_id = visores_dict.get(d.documento.id)
+            if not v_id:
+                v_id = visores_fallback.get(d.nota) or visores_fallback.get(d.documento.codigo)
+            
+            # Buscar plano_id (para visor bajo demanda)
+            p_id = planos_dict.get(d.documento.id)
+            if not p_id:
+                # Prioridad: Exact Match (Código o Nota)
+                p_id = planos_fallback.get(d.nota) or planos_fallback.get(d.documento.codigo)
+                
+                # Fallback: Coincidencia parcial si es un Plano
+                if not p_id and d.documento.tipo_documento and d.documento.tipo_documento.nombre == 'Plano':
+                    p_obj = Plano.objects.filter(
+                        Q(nombre__icontains=d.documento.codigo) | 
+                        Q(nombre__icontains=d.nota)
+                    ).first()
+                    if p_obj:
+                        p_id = p_obj.id
+                        # Auto-vincular si no tiene documento para que el visor funcione
+                        if not p_obj.documento_id and not p_obj.archivo:
+                            p_obj.documento = d.documento
+                            p_obj.save(update_fields=['documento'])
+            else:
+                # Si ya teníamos p_id por FK directa, asegurar que el objeto esté cargado si necesitamos ver sus campos
+                pass
+
             documentos_data.append({
                 'id': d.documento.id,
                 'codigo': d.documento.codigo,
@@ -1508,19 +1561,35 @@ def api_explorer_listar(request):
                 'url': d.documento.ultima_revision.archivo.url if d.documento.ultima_revision else "",
                 'tipo': 'file',
                 'tipo_nombre': d.documento.tipo_documento.nombre if d.documento.tipo_documento else "S/A",
-                'visor_id': visores_dict.get(d.documento.id)
+                'visor_id': v_id,
+                'plano_id': p_id
             })
     else:
         from activos.models.plano import VisorPlano
+        from django.db.models import Q
         docs_qs = Documento.objects.filter(carpeta_id=padre_id).select_related('ultima_revision', 'tipo_documento')
         
         doc_ids = [d.id for d in docs_qs]
+        doc_codes = [d.codigo for d in docs_qs]
+
+        # 1. Búsqueda por vínculo directo FK
         visores_dict = {
             v.plano.documento_id: v.id 
             for v in VisorPlano.objects.filter(plano__documento_id__in=doc_ids).select_related('plano')
         }
 
+        # 2. Búsqueda por correspondencia de nombre/código
+        visores_fallback = {}
+        if doc_codes:
+            for v in VisorPlano.objects.filter(
+                Q(plano__nombre__in=doc_codes) | Q(plano__numero_documento__in=doc_codes)
+            ).select_related('plano'):
+                if v.plano.nombre: visores_fallback[v.plano.nombre] = v.id
+                if v.plano.numero_documento: visores_fallback[v.plano.numero_documento] = v.id
+
         for d in docs_qs:
+            v_id = visores_dict.get(d.id) or visores_fallback.get(d.codigo)
+
             documentos_data.append({
                 'id': d.id,
                 'codigo': d.codigo,
@@ -1529,7 +1598,7 @@ def api_explorer_listar(request):
                 'url': d.ultima_revision.archivo.url if d.ultima_revision else "",
                 'tipo': 'file',
                 'tipo_nombre': d.tipo_documento.nombre if d.tipo_documento else "S/A",
-                'visor_id': visores_dict.get(d.id)
+                'visor_id': v_id
             })
 
     # Breadcrumbs

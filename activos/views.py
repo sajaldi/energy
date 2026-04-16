@@ -10,17 +10,71 @@ from django.contrib.admin.views.decorators import staff_member_required
 from core.decorators import mobile_permission_required
 from django.contrib import messages
 
-def visor_plano(request, visor_id):
-    visor = get_object_or_404(
-        VisorPlano.objects.select_related('plano__ubicacion').prefetch_related(
+def visor_plano(request, visor_id=None, plano_id=None):
+    from .models.plano import VisorPlano, Plano
+    
+    visor = None
+    if visor_id:
+        visor = get_object_or_404(
+            VisorPlano.objects.select_related('plano__ubicacion').prefetch_related(
+                'pines__activo__modelo__categoria',
+                'pines__aviso',
+                'pines__actividad',
+                'pines__fotos',
+                'proyectos'
+            ), 
+            pk=visor_id
+        )
+    elif plano_id:
+        plano = get_object_or_404(Plano, pk=plano_id)
+        # Buscar si este plano ya tiene un visor asignado
+        visor = VisorPlano.objects.filter(plano=plano).select_related('plano__ubicacion').prefetch_related(
             'pines__activo__modelo__categoria',
             'pines__aviso',
             'pines__actividad',
             'pines__fotos',
             'proyectos'
-        ), 
-        pk=visor_id
-    )
+        ).first()
+        
+        if not visor:
+            # 1. Prioridad: Documento ID pasado por el explorador
+            doc_id = request.GET.get('documento_id')
+            if doc_id:
+                from documentos.models import Documento
+                doc = Documento.objects.filter(id=doc_id).select_related('ultima_revision').first()
+                if doc:
+                    plano.documento = doc
+                    # Guardar permanentemente si no tenía vínculo
+                    if not plano.documento_id:
+                        plano.save(update_fields=['documento'])
+
+            # 2. Fallback: Buscar coincidencia por nombre (Si no se pasó doc_id o no se cargó archivo)
+            if not plano.archivo_actual:
+                from documentos.models import Documento
+                # Búsqueda más permisiva: el código o título contiene el nombre del plano
+                clean_name = plano.nombre.strip('-').strip()
+                doc = Documento.objects.filter(
+                    Q(codigo__icontains=clean_name) | 
+                    Q(titulo__icontains=clean_name)
+                ).select_related('ultima_revision').order_by('-id').first()
+                if doc:
+                    plano.documento = doc
+                    if not plano.documento_id:
+                        plano.save(update_fields=['documento'])
+
+            # Crear un objeto temporal en memoria (NO GUARDADO) para que el template funcione
+            visor = VisorPlano(
+                nombre=f"Visor: {plano.nombre}",
+                plano=plano
+            )
+            # Marcar como temporal para que el frontend sepa que no se pueden guardar pines inicialmente
+            visor.is_ephemeral = True
+            visor.pines_data = [] # Mock para prefetch_related
+        else:
+            visor.is_ephemeral = False
+    
+    if not visor:
+        raise Http404("No se especificó visor ni plano")
     
     from .models import Categoria, Ubicacion
     from mantenimiento.models import Aviso
@@ -35,10 +89,12 @@ def visor_plano(request, visor_id):
     actividades = Actividad.objects.filter(
         estado__in=['PENDIENTE', 'EN_PROGRESO']
     ).select_related('proyecto').order_by('proyecto__codigo', 'orden')[:100]
-    proyectos_visor = visor.proyectos.all()
+    visor_pins = visor.pines.all() if not getattr(visor, 'is_ephemeral', False) else []
+    proyectos_visor = visor.proyectos.all() if not getattr(visor, 'is_ephemeral', False) else []
     
     context = {
         'visor': visor,
+        'visor_pins': visor_pins,
         'ubicaciones': ubicaciones,
         'categorias': categorias,
         'avisos': avisos,
@@ -761,7 +817,9 @@ def api_ubicaciones_root(request):
 
 @staff_member_required
 def api_ubicaciones_children(request, parent_id):
-    from .models import Ubicacion
+    from .models import Ubicacion, Activo, Categoria
+    
+    # 1. Obtener sub-ubicaciones físicas
     children = Ubicacion.objects.filter(padre_id=parent_id).order_by('orden', 'nombre')
     data = []
     for u in children:
@@ -769,8 +827,25 @@ def api_ubicaciones_children(request, parent_id):
             'id': u.id,
             'nombre': u.nombre,
             'tipo': u.tipo,
-            'has_children': u.sub_ubicaciones.exists()
+            'has_children': u.sub_ubicaciones.exists() or Activo.objects.filter(ubicacion=u).exists()
         })
+    
+    # 2. Obtener categorías de activos en esta ubicación (Categorías virtuales)
+    # Solo buscamos si NO hay más sub-ubicaciones o si queremos dar el nivel de sistema
+    descendants = Ubicacion.objects.get(id=parent_id).get_descendants(include_self=True)
+    cat_ids = Activo.objects.filter(ubicacion__in=descendants).values_list('modelo__categoria_id', flat=True).distinct()
+    
+    if cat_ids:
+        categorias = Categoria.objects.filter(id__in=cat_ids).order_by('nombre')
+        for c in categorias:
+            data.append({
+                'id': f"cat_{c.id}_{parent_id}", # Formato especial para identificarlo
+                'nombre': c.nombre,
+                'tipo': 'CATEGORIA',
+                'has_children': False,
+                'icono': c.icono or 'cube'
+            })
+            
     return JsonResponse(data, safe=False)
 
 @staff_member_required
@@ -785,7 +860,14 @@ def api_ubicacion_detalle(request, ubicacion_id):
         
     # Obtener activos de esta ubicación y todas sus descendientes
     descendants = ubicacion.get_descendants(include_self=True)
-    activos = Activo.objects.filter(ubicacion__in=descendants).select_related('modelo__categoria__padre', 'modelo__categoria', 'modelo', 'ubicacion')
+    activos_qs = Activo.objects.filter(ubicacion__in=descendants).select_related('modelo__categoria__padre', 'modelo__categoria', 'modelo', 'ubicacion')
+    
+    # Filtro opcional por categoría
+    cat_id = request.GET.get('cat_id')
+    if cat_id:
+        activos_qs = activos_qs.filter(modelo__categoria_id=cat_id)
+        
+    activos = activos_qs
     
     # Estructura de árbol: Root Name -> { data, subcats: { Sub Name -> [assets] } }
     groups = {}
@@ -1281,6 +1363,36 @@ def activo_fiori_view(request, pk):
         pk=pk
     )
     
+    # --- Navegación y Jerarquía de Ubicación ---
+    breadcrumb_path = []
+    if activo.ubicacion:
+        curr = activo.ubicacion
+        while curr:
+            breadcrumb_path.insert(0, {'id': curr.id, 'nombre': curr.nombre})
+            curr = curr.padre
+            
+    # --- Activos Cercanos / Similares ---
+    activos_cercanos = []
+    if activo.ubicacion:
+        # 1. Buscar activos en la misma ubicación exacta (hermanos)
+        # Priorizamos los que tienen la misma categoría para que sean "similares"
+        cat_id = activo.modelo.categoria_id if activo.modelo else None
+        
+        siblings_qs = Activo.objects.filter(ubicacion=activo.ubicacion).exclude(id=activo.id).select_related('modelo__marca', 'modelo__categoria')
+        
+        # Primero los de la misma categoría
+        similares = []
+        if cat_id:
+            similares = list(siblings_qs.filter(modelo__categoria_id=cat_id)[:6])
+            
+        # Si faltan para completar 6, tomamos cualquiera de la misma ubicación
+        otros = []
+        if len(similares) < 6:
+            exclude_ids = [s.id for s in similares]
+            otros = list(siblings_qs.exclude(id__in=exclude_ids)[:6-len(similares)])
+            
+        activos_cercanos = similares + otros
+    
     # OTs relacionadas
     ots = OrdenTrabajo.objects.filter(activos=activo).select_related('rutina', 'tecnico').order_by('-inicio_programado')
     
@@ -1335,10 +1447,33 @@ def activo_fiori_view(request, pk):
         'puntos_data': puntos_data,
         'programaciones': programaciones,
         'rutinas_sugeridas': rutinas_sugeridas,
+        'breadcrumb_path': breadcrumb_path,
+        'activos_cercanos': activos_cercanos,
         'title': f"{activo.nombre} - SAP Fiori",
     }
     
     return render(request, 'activos/activo_fiori.html', context)
+
+
+@staff_member_required
+def fiori_explorer_view(request, ubicacion_id=None):
+    """
+    Nuevo explorador de activos con estética SAP Fiori.
+    Permite navegar por ubicaciones y ver activos en un diseño master-detail.
+    """
+    from .models import Ubicacion
+    
+    # Si viene con un ID, intentamos cargar esa ubicación como punto focal
+    initial_ubicacion = None
+    if ubicacion_id:
+        initial_ubicacion = get_object_or_404(Ubicacion, id=ubicacion_id)
+    
+    context = {
+        'initial_id': ubicacion_id,
+        'initial_name': initial_ubicacion.nombre if initial_ubicacion else None,
+        'title': 'Explorador de Activos - SAP Fiori',
+    }
+    return render(request, 'activos/explorador_fiori.html', context)
 
 
 # ==============================================================================

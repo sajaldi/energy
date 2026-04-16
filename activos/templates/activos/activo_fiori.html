@@ -233,6 +233,63 @@
         .routine-info h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
         .routine-info p { font-size: 0.8rem; color: var(--sap-text-sub); }
 
+        /* BREADCRUMBS */
+        .breadcrumb-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--sap-text-sub);
+        }
+        .breadcrumb-nav a {
+            color: var(--sap-accent);
+            text-decoration: none;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .breadcrumb-nav a:hover {
+            background: rgba(0, 112, 242, 0.08);
+            text-decoration: underline;
+        }
+        .breadcrumb-sep {
+            color: #cbd5e1;
+            font-size: 0.75rem;
+        }
+
+        /* NEARBY ASSETS */
+        .nearby-list { display: flex; flex-direction: column; }
+        .nearby-asset-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px;
+            border-radius: 4px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        .nearby-asset-item:last-child { border-bottom: none; }
+        .nearby-asset-item:hover { background: #f0f7ff; transform: translateX(5px); }
+        
+        .nearby-asset-img {
+            width: 45px; height: 45px;
+            border-radius: 6px; object-fit: cover;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .nearby-info { flex: 1; min-width: 0; }
+        .nearby-info h5 { font-size: 0.85rem; font-weight: 600; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nearby-info p { font-size: 0.7rem; color: var(--sap-text-sub); }
+        
+        .nearby-status {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        }
+
         /* RESPONSIVE */
         @media (max-width: 992px) {
             .general-layout {
@@ -358,10 +415,61 @@
                     <div class="section-card">
                         <div class="card-header"><ion-icon name="location-outline"></ion-icon> Ubicación</div>
                         <div class="card-body">
-                            <div class="data-row"><span class="data-label">Ubicación</span><span class="data-val">{{ activo.ubicacion.ruta_completa|default:"---" }}</span></div>
+                            <div class="data-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                                <span class="data-label">Ruta de Ubicación</span>
+                                <div class="breadcrumb-nav">
+                                    {% for step in breadcrumb_path %}
+                                        <a href="{% url 'activos:fiori_explorer_at' step.id %}" title="Ver todos en {{ step.nombre }}">{{ step.nombre }}</a>
+                                        {% if not forloop.last %}<span class="breadcrumb-sep"><ion-icon name="chevron-forward"></ion-icon></span>{% endif %}
+                                    {% empty %}
+                                        <span class="data-val">Sin ubicación asignada</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
                             <div class="data-row"><span class="data-label">Responsable</span><span class="data-val">{% if activo.responsable %}{{ activo.responsable.get_full_name }}{% else %}Sin asignar{% endif %}</span></div>
                             {% if activo.plano %}
                             <div class="data-row"><span class="data-label">Plano Ref.</span><span class="data-val">{{ activo.plano.nombre }}</span></div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="card-header"><ion-icon name="apps-outline"></ion-icon> Activos en esta Ubicación</div>
+                        <div class="card-body" style="padding: 0.5rem;">
+                            <div class="nearby-list">
+                                {% for cercano in activos_cercanos %}
+                                <a href="{% url 'activos:activo_fiori' cercano.id %}" class="nearby-asset-item">
+                                    <div class="nearby-asset-img">
+                                        {% if cercano.foto %}
+                                            <img src="{{ cercano.foto.url }}" style="width:100%; height:100%; object-fit:cover; border-radius:4px;">
+                                        {% elif cercano.modelo and cercano.modelo.imagen %}
+                                            <img src="{{ cercano.modelo.imagen }}" style="width:100%; height:100%; object-fit:cover; border-radius:4px;">
+                                        {% else %}
+                                            <ion-icon name="cube-outline" style="font-size: 1.2rem;"></ion-icon>
+                                        {% endif %}
+                                    </div>
+                                    <div class="nearby-info">
+                                        <h5>{{ cercano.nombre }}</h5>
+                                        <p>{{ cercano.codigo_interno }} • {{ cercano.modelo.categoria.nombre|default:"Sin Cat." }}</p>
+                                    </div>
+                                    <div class="nearby-status" style="background: 
+                                        {% if cercano.estado == 'OPERATIVO' %}#107e3e
+                                        {% elif cercano.estado == 'MANTENIMIENTO' %}#e9730c
+                                        {% else %}#bb0000{% endif %};"></div>
+                                </a>
+                                {% empty %}
+                                <div style="padding: 2rem; text-align: center; color: #94a3b8;">
+                                    <p style="font-size: 0.85rem;">No hay otros activos en esta ubicación exacta.</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            {% if activo.ubicacion %}
+                            <div style="padding: 1rem; text-align: center;">
+                                <a href="{% url 'activos:fiori_explorer_at' activo.ubicacion.id %}" class="fiori-tab-btn" style="padding: 8px 16px; font-size: 0.8rem; text-decoration: none; display: inline-block;">
+                                    Ver explorador completo
+                                </a>
+                            </div>
                             {% endif %}
                         </div>
                     </div>

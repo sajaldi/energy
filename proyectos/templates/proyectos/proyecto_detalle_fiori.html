@@ -743,8 +743,12 @@
                 let icon = "fas fa-eye";
                 
                 if (doc.visor_id) {
-                    viewUrl = `{% url 'activos:visor_plano' 0 %}`.replace('0', doc.visor_id);
+                    viewUrl = `{% url 'activos:visor_plano' 0 %}`.replace('0', doc.visor_id) + `?documento_id=${doc.documento_id}`;
                     icon = "fas fa-drafting-compass"; // Icono de plano
+                } else if (doc.plano_id) {
+                    // Visor bajo demanda (por ID de Plano)
+                    viewUrl = `{% url 'activos:visor_plano_por_plano' 0 %}`.replace('0', doc.plano_id) + `?documento_id=${doc.documento_id}`;
+                    icon = "fas fa-drafting-compass";
                 }
 
                 row.innerHTML = `
@@ -754,7 +758,7 @@
                     <td><span style="font-size: 0.8rem; color: #666;">${doc.codigo}</span></td>
                     <td>${doc.fecha}</td>
                     <td>
-                        <a href="${viewUrl}" class="sap-btn sap-btn-secondary" target="${target}" title="${doc.visor_id ? 'Abrir en Visor de Planos' : 'Ver Archivo'}">
+                        <a href="${viewUrl}" class="sap-btn sap-btn-secondary" target="${target}" title="${(doc.visor_id || doc.plano_id) ? 'Abrir en Visor de Planos' : 'Ver Archivo'}">
                             <i class="${icon}"></i>
                         </a>
                     </td>
