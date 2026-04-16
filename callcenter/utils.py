@@ -1,6 +1,6 @@
 import pandas as pd
 from django.db import transaction
-from .models import SolicitudTicket
+from .models import SolicitudTicket, FallaTicket
 from activos.models.ubicacion import Ubicacion
 from django.utils import timezone
 import math
@@ -64,7 +64,7 @@ def import_tickets_from_df(df):
     # Columnas que vamos a actualizar en bulk_update
     update_fields = [
         'folio', 'solicitante', 'responsable', 'solicitud_descripcion',
-        'falla_descripcion', 'falla_clasificacion', 'servicio', 'subservicio',
+        'falla_descripcion', 'falla_reportada', 'falla_clasificacion', 'servicio', 'subservicio',
         'unidad', 'area', 'grupo', 'nivel', 'fecha_solicitud', 'tipo_recepcion',
         'fecha_tipo_recepcion', 'fecha_suspension', 'fecha_cierre', 'tipo_solicitud',
         'tiempo_tipo', 'fecha_diagnostico', 'diagnostico', 'fecha_actividades',
@@ -83,6 +83,7 @@ def import_tickets_from_df(df):
             'responsable': clean(row.get('Responsable_atencion')),
             'solicitud_descripcion': clean(row.get('solicitud_descripcion')),
             'falla_descripcion': clean(row.get('falla_descripcion')),
+            'falla_reportada': None,
             'falla_clasificacion': clean(row.get('falla_clasificacion')),
             'servicio': clean(row.get('servicio')),
             'subservicio': clean(row.get('subservicio')),
@@ -110,6 +111,13 @@ def import_tickets_from_df(df):
             'correo_cierre': False,
             'cierre_enviado': False,
         }
+
+        # --- Resolución de Falla en Catálogo ---
+        if data['falla_descripcion']:
+            falla_nombre = data['falla_descripcion'].strip().upper()
+            if falla_nombre:
+                falla_obj, _ = FallaTicket.objects.get_or_create(nombre=falla_nombre)
+                data['falla_reportada'] = falla_obj
 
         # --- Resolución de Ubicación Normalizada ---
         data['ubicacion'] = resolve_ticket_ubicacion(data['nivel'], data['grupo'])

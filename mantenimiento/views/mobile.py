@@ -11,6 +11,7 @@ from django.db.models import Count, Q, Min
 from core.decorators import mobile_permission_required
 from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso, ArchivoOrdenTrabajo
 from activos.models import Activo, Ubicacion, DocumentoMedicion, PuntoMedicion
+from core.models import Departamento
 from ..tasks import task_generar_ot_pdf
 
 @staff_member_required
@@ -210,6 +211,15 @@ def mobile_crear_aviso(request, pk=None):
     prioridades = [(v, l, v == 'MEDIA') for v, l in Aviso.PRIORIDAD_CHOICES]
     ubicaciones = Ubicacion.objects.all().order_by('nombre')
 
+    # Listas para asignación
+    departamentos = Departamento.objects.all().order_by('nombre')
+    # Técnicos y personal staff para responsables
+    responsables = User.objects.filter(
+        Q(is_staff=True) | 
+        Q(groups__name='Tecnicos') | 
+        Q(perfil_tecnico__isnull=False)
+    ).select_related('perfil').distinct().order_by('first_name')
+
     context = {
         'activo': activo,
         'ubi_defecto': ubi_defecto,
@@ -217,6 +227,8 @@ def mobile_crear_aviso(request, pk=None):
         'fallas_json': fallas_json,
         'prioridades': prioridades,
         'tipos': tipos,
+        'departamentos': departamentos,
+        'responsables': responsables,
     }
 
     if request.method == 'POST':
@@ -248,6 +260,8 @@ def mobile_crear_aviso(request, pk=None):
             'descripcion': request.POST.get('descripcion'),
             'prioridad': request.POST.get('prioridad', 'MEDIA'),
             'tipo': request.POST.get('tipo', 'SOLICITUD'),
+            'responsable_id': request.POST.get('responsable') if request.POST.get('responsable') and request.POST.get('responsable') != 'none' else None,
+            'departamento_id': request.POST.get('departamento') if request.POST.get('departamento') and request.POST.get('departamento') != 'none' else None,
         }
         
         # Estado solo si estamos editando o si se envía explícitamente
@@ -301,6 +315,12 @@ def mobile_crear_aviso(request, pk=None):
     tipos = [(v, l, v == (instance.tipo if instance else 'SOLICITUD')) for v, l in Aviso.TIPO_CHOICES]
     prioridades = [(v, l, v == (instance.prioridad if instance else 'MEDIA')) for v, l in Aviso.PRIORIDAD_CHOICES]
     ubicaciones = Ubicacion.objects.all().order_by('nombre')
+    departamentos = Departamento.objects.all().order_by('nombre')
+    responsables = User.objects.filter(
+        Q(is_staff=True) | 
+        Q(groups__name='Tecnicos') | 
+        Q(perfil_tecnico__isnull=False)
+    ).select_related('perfil').distinct().order_by('first_name')
     
     return render(request, 'mantenimiento/mobile_crear_aviso.html', {
         'aviso': instance,
@@ -310,7 +330,9 @@ def mobile_crear_aviso(request, pk=None):
         'ubi_defecto': ubi_defecto,
         'fallas_json': fallas_json,
         'ubicaciones': ubicaciones,
-        'estados': Aviso.ESTADO_CHOICES
+        'estados': Aviso.ESTADO_CHOICES,
+        'departamentos': departamentos,
+        'responsables': responsables,
     })
 
 @staff_member_required

@@ -1,0 +1,415 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} | SoftCom-CCG</title>
+    <!-- FontAwesome & Phosphor Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'callcenter/css/ticket_dashboard.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --sap-primary: #0070f2;
+            --sap-bg: #f5f6f7;
+            --sap-card-bg: #ffffff;
+            --sap-border: #d9d9d9;
+            --sap-text: #32363a;
+            --sap-text-muted: #6a6d70;
+            --sap-success: #28a745;
+            --sap-warn: #e9730c;
+        }
+
+        .wizard-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .card-wizard {
+            background: var(--sap-card-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2.5rem;
+            border: 1px solid var(--sap-border);
+            margin-top: 1.5rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-weight: 600;
+            color: var(--sap-text);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        select, input {
+            padding: 0.85rem;
+            border: 1px solid var(--sap-border);
+            border-radius: 0.5rem;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: all 0.2s;
+            background: #fafafa;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--sap-primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0,112,242,0.1);
+        }
+
+        .actions-bar {
+            display: flex;
+            gap: 1rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--sap-border);
+        }
+
+        .btn-execute {
+            background: var(--sap-primary);
+            color: white;
+            padding: 0.85rem 2rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            transition: all 0.2s;
+            font-size: 1rem;
+            flex: 2;
+        }
+
+        .btn-execute:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .btn-preview {
+            background: #f0f7ff;
+            color: var(--sap-primary);
+            border: 1px solid var(--sap-primary);
+            padding: 0.85rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-preview:hover {
+            background: #e1f0ff;
+        }
+
+        .preview-box {
+            margin-top: 2.5rem;
+            background: #f8f9fa;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            border: 1px solid var(--sap-border);
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+        }
+
+        .ticket-list-mini {
+            max-height: 350px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid var(--sap-border);
+            border-radius: 0.5rem;
+        }
+
+        .ticket-item {
+            padding: 1rem;
+            border-bottom: 1px solid #edf0f2;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .ticket-item:hover {
+            background: #fdfdfd;
+        }
+
+        .ticket-item:last-child {
+            border-bottom: none;
+        }
+
+        .badge-status {
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-open { background: #fff3e0; color: #e9730c; border: 1px solid #ffeccf; }
+        .status-closed { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+
+        .ticket-info-main {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            flex: 1;
+        }
+
+        .ticket-metadata {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: var(--sap-text-muted);
+            align-items: center;
+        }
+
+        .info-assignment {
+            font-size: 0.8rem;
+            color: var(--sap-text-muted);
+            background: #fff;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.3rem;
+            border: 1px solid #eee;
+        }
+
+        .rule-card {
+            background: #fff9f0;
+            border-left: 4px solid var(--sap-warn);
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+            font-size: 0.85rem;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-wrapper wizard-container">
+        <!-- Header -->
+        <header class="header-section">
+            <div class="header-title">
+                {% if existing_cluster %}
+                    <h1><i class="ph ph-arrows-counter-clockwise" style="color: var(--sap-primary)"></i> Sincronización de Cluster</h1>
+                    <p>Actualizando: <strong>{{ existing_cluster.correlativo }}</strong></p>
+                {% else %}
+                    <h1><i class="ph ph-magic-wand" style="color: var(--sap-primary)"></i> Wizard de Clusterización</h1>
+                    <p>Automatización de grupos y asignación de personal técnico</p>
+                {% endif %}
+            </div>
+            <div class="header-actions">
+                {% if existing_cluster %}
+                    <a href="{% url 'callcenter:cluster_tickets' existing_cluster.id %}" class="btn-back">
+                        <i class="ph ph-arrow-left"></i> Volver al Cluster
+                    </a>
+                {% else %}
+                    <a href="{% url 'callcenter:ticket_dashboard' %}" class="btn-back">
+                        <i class="ph ph-arrow-left"></i> Volver al Dashboard
+                    </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <div class="card-wizard">
+            {% if existing_cluster %}
+                <div class="rule-card" style="background: #f0f7ff; border-left-color: var(--sap-primary); color: #0056b3;">
+                    <i class="ph ph-info"></i> <strong>Modo Sincronización:</strong> Se buscarán tickets nuevos para este departamento y fechas, y se añadirán al cluster existente.
+                </div>
+            {% else %}
+                <div class="rule-card">
+                    <i class="ph ph-info"></i> <strong>Regla del Negocio:</strong> Tickets con técnico ya asignado se mantendrán intactos. Solo se asignarán automáticamente los que aparezcan como "Sin asignar".
+                </div>
+            {% endif %}
+
+            <form method="POST" id="wizardForm">
+                {% csrf_token %}
+                {% if existing_cluster %}
+                    <input type="hidden" name="cluster_id" value="{{ existing_cluster.id }}">
+                {% endif %}
+
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label for="departamento"><i class="ph ph-buildings"></i> Departamento Responsable</label>
+                        <select name="departamento" id="departamento" required {% if existing_cluster and selected_depto %}style="background: #ececec; cursor: not-allowed;" onchange="this.value='{{ selected_depto.id }}'"{% endif %}>
+                            <option value="">Seleccione el área de atención...</option>
+                            {% for d in departamentos %}
+                                <option value="{{ d.id }}" {% if selected_depto and selected_depto.id == d.id %}selected{% endif %}>{{ d.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if existing_cluster and selected_depto %}
+                            <input type="hidden" name="departamento" value="{{ selected_depto.id }}">
+                            <p style="font-size: 0.75rem; color: var(--sap-text-muted); margin-top: 0.2rem;">* El departamento está fijo para este cluster.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fecha_inicio"><i class="ph ph-calendar-plus"></i> Fecha Inicio</label>
+                        <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ fecha_inicio|default:now }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fecha_fin"><i class="ph ph-calendar-check"></i> Fecha Fin</label>
+                        <input type="date" name="fecha_fin" id="fecha_fin" value="{{ fecha_fin|default:now }}" required>
+                    </div>
+                </div>
+
+                <div class="actions-bar">
+                    <button type="submit" name="action" value="preview" class="btn-preview" title="Analizar tickets sin crear el grupo">
+                        <i class="ph ph-magnifying-glass"></i> Previsualizar
+                    </button>
+                    
+                    {% if preview_mode %}
+                    <button type="button" onclick="confirmExecution()" class="btn-execute">
+                        <i class="ph ph-paper-plane-tilt"></i> Generar Cluster y Asignar {{ tickets_count }} Tickets
+                    </button>
+                    <input type="hidden" name="action" id="finalAction" value="preview">
+                    {% endif %}
+                </div>
+            </form>
+
+            {% if preview_mode %}
+            <div class="preview-box animated fadeIn">
+                <div class="preview-header">
+                    <h3 style="margin: 0; font-size: 1.1rem; color: var(--sap-text)">Tickets por Procesar</h3>
+                    <span class="badge-count">{{ tickets_count }} tickets</span>
+                </div>
+                
+                <p style="font-size: 0.9rem; color: var(--sap-text-muted); margin-bottom: 1.2rem;">
+                    Se ha detectado la siguiente información para <strong>{{ selected_depto.nombre }}</strong>. El nombre del grupo será: <code style="color: var(--sap-primary)">{{ selected_depto.nombre }} - {{ fecha_inicio }} al {{ fecha_fin }}</code>
+                </p>
+
+                <div class="ticket-list-mini">
+                    {% for t in tickets_preview %}
+                    <div class="ticket-item">
+                        <div class="ticket-info-main">
+                            <div style="display: flex; align-items: center; gap: 0.8rem;">
+                                <strong>#{{ t.folio|default:t.id_solicitud }}</strong>
+                                {% if t.fecha_cierre or t.cierre_enviado %}
+                                    <span class="badge-status status-closed">Cerrado</span>
+                                {% else %}
+                                    <span class="badge-status status-open">Abierto</span>
+                                {% endif %}
+                                <span style="font-size: 0.8rem; font-weight: 600; color: var(--sap-text)">{{ t.solicitante }}</span>
+                            </div>
+                            
+                            <div style="font-size: 0.8rem; color: #555; background: #fff; padding: 0.4rem; border-radius: 0.3rem; border: 1px solid #f0f0f0;">
+                                <i class="ph ph-chat-centered-text" style="color: var(--sap-primary)"></i> {{ t.falla_descripcion|truncatechars:150 }}
+                            </div>
+
+                            <div class="ticket-metadata">
+                                <span><i class="ph ph-map-pin"></i> {{ t.ubicacion.ruta_completa|default:"Sin ubicación" }}</span>
+                                <span><i class="ph ph-clock"></i> {{ t.fecha_solicitud|date:"d/m/Y H:i" }}</span>
+                            </div>
+                        </div>
+
+                        <div style="text-align: right; min-width: 200px;">
+                            {% if t.usuario_responsable %}
+                                <span class="info-assignment" style="color: var(--sap-success); border-color: var(--sap-success)">
+                                    <i class="ph ph-user-check"></i> Ya asignado: {{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}
+                                </span>
+                            {% elif t.falla_reportada and t.falla_reportada.usuario_responsable %}
+                                <span class="info-assignment" style="color: var(--sap-primary); border-color: var(--sap-primary)">
+                                    <i class="ph ph-magic-wand"></i> Auto-asignar: {{ t.falla_reportada.usuario_responsable.get_full_name }}
+                                </span>
+                            {% else %}
+                                <span class="info-assignment">
+                                    <i class="ph ph-warning-circle"></i> Sin responsable en catálogo
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div style="padding: 3rem; text-align: center; color: var(--sap-text-muted);">
+                        <i class="ph ph-warning" style="font-size: 2rem; opacity: 0.5;"></i>
+                        <p style="margin-top: 1rem;">No se encontraron tickets con fallas vinculadas a este departamento para este rango.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if tickets_count > 50 %}
+                <p style="font-size: 0.75rem; color: var(--sap-text-muted); text-align: center; margin-top: 0.8rem;">
+                    * Mostrando solo una muestra de 50 tickets.
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function confirmExecution() {
+            const isUpdate = {% if existing_cluster %}true{% else %}false{% endif %};
+            const title = isUpdate ? '¿Sincronizar Cluster?' : '¿Confirmar Ejecución?';
+            const text = isUpdate ? 
+                `Se buscarán tickets nuevos y se añadirán al cluster <strong>{{ existing_cluster.correlativo }}</strong>.<br><br>Se procesarán <strong>{{ tickets_count }} tickets</strong>.` :
+                `Se creará el cluster y se procesarán <strong>{{ tickets_count }} tickets</strong>.<br><br>Esta acción vinculará los tickets y asignará los técnicos disponibles.`;
+
+            Swal.fire({
+                title: title,
+                html: text,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#0070f2',
+                cancelButtonColor: '#6a6d70',
+                confirmButtonText: isUpdate ? 'Sí, sincronizar ahora' : 'Sí, generar ahora',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Procesando...',
+                        text: isUpdate ? 'Actualizando cluster, por favor espera.' : 'Estamos agrupando los tickets, por favor espera.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading()
+                        }
+                    });
+                    document.getElementById('finalAction').value = 'execute';
+                    document.getElementById('wizardForm').submit();
+                }
+            })
+        }
+        
+        {% if messages %}
+            {% for message in messages %}
+                Swal.fire({
+                    title: "{% if message.tags == 'success' %}¡Éxito!{% else %}Aviso{% endif %}",
+                    text: "{{ message }}",
+                    icon: "{{ message.tags }}",
+                    confirmButtonColor: '#0070f2'
+                });
+            {% endfor %}
+        {% endif %}
+    </script>
+</body>
+</html>

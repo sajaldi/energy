@@ -89,77 +89,46 @@ USE_X_FORWARDED_PORT = True
 
 # n8n Automation Configuration
 if IS_LOCAL:
+     # En local usamos la IP pública directa para mayor estabilidad
      N8N_BASE_URL = 'http://181.115.47.107:5678'
+     N8N_WEBHOOK_ENV = '/webhook-test/' # Para desarrollo/pruebas
 else:
-     # URL interna para comunicación entre contenedores
+     # URL interna para comunicación entre contenedores en Coolify
      N8N_BASE_URL = os.environ.get('N8N_INTERNAL_URL', 'http://n8n-z8wscww488scgs84oo4os008:5678')
+     N8N_WEBHOOK_ENV = '/webhook/' # Producción (requiere workflow Activo)
 
-# Webhook para notificar nuevo documento
-if IS_LOCAL:
-    _default_new_doc_webhook = f'{N8N_BASE_URL}/webhook-test/nuevo-documento'
-else:
-    _default_new_doc_webhook = f'{N8N_BASE_URL}/webhook/nuevo-documento'
-N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', _default_new_doc_webhook)
+# --- Webhooks Específicos ---
 
-# Webhook para el Chat con IA (Documentos)
-N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', f'{N8N_BASE_URL}/webhook/chat-documento')
+# Extracción y Procesamiento de Documentos
+N8N_PROCESS_DOCUMENT_WEBHOOK_URL = os.environ.get(
+    'N8N_PROCESS_DOCUMENT_WEBHOOK_URL', 
+    f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}process-document'
+)
+N8N_EXTRACT_TEXTO_WEBHOOK_URL = N8N_PROCESS_DOCUMENT_WEBHOOK_URL
 
-# Webhook para procesamiento de documentos (PDF Conversion + Metadata)
-if IS_LOCAL:
-    _default_process_webhook = f'{N8N_BASE_URL}/webhook/process-document'
-else:
-    _default_process_webhook = f'{N8N_BASE_URL}/webhook/process-document'
-N8N_PROCESS_DOCUMENT_WEBHOOK_URL = os.environ.get('N8N_PROCESS_DOCUMENT_WEBHOOK_URL', _default_process_webhook)
+# Metadatos y Chat
+N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}chat-documento')
+N8N_METADATA_SYNC_WEBHOOK = os.environ.get('N8N_METADATA_SYNC_WEBHOOK', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}sync-metadatos-doc')
 
-# Webhook para extracción de texto de PDFs
-if IS_LOCAL:
-    _default_extract_webhook = f'{N8N_BASE_URL}/webhook-test/extract-text'
-else:
-    _default_extract_webhook = f'{N8N_BASE_URL}/webhook/extract-text'
-N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_EXTRACT_TEXTO_WEBHOOK_URL', _default_extract_webhook)
+# Tickets (Callcenter)
+N8N_TICKET_VECTORIZER_URL = os.environ.get('N8N_TICKET_VECTORIZER_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}vectorize-ticket')
+N8N_TICKET_NOTIFY_URL = os.environ.get('N8N_TICKET_NOTIFY_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}ticket-notification')
 
-# Webhook para Vectorización de Tickets (Callcenter)
-if IS_LOCAL:
-    _default_vectorizer_webhook = f'{N8N_BASE_URL}/webhook-test/vectorize-ticket'
-else:
-    _default_vectorizer_webhook = f'{N8N_BASE_URL}/webhook/vectorize-ticket'
-N8N_TICKET_VECTORIZER_URL = os.environ.get('N8N_TICKET_VECTORIZER_URL', _default_vectorizer_webhook)
+# Materiales e Inventarios
+N8N_SOLICITUD_WEBHOOK_URL = os.environ.get('N8N_SOLICITUD_WEBHOOK_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}solicitud-material')
 
-# Ollama API URL (Embeddings)
-if IS_LOCAL:
-    # En local, Ollama no es accesible directamente. Usar túnel o n8n como proxy.
-    OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')
-else:
-    # En producción (Coolify), usar el nombre del servicio interno de Docker
-    OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://ollama-api-fs4sok4sogg44k0gs0k0co40:11434')
-
-# Webhook para solicitudes de materiales
-if IS_LOCAL:
-    _default_solicitud_webhook = f'{N8N_BASE_URL}/webhook/solicitud-material'
-else:
-    _default_solicitud_webhook = f'{N8N_BASE_URL}/webhook/solicitud-material'
-N8N_SOLICITUD_WEBHOOK_URL = os.environ.get('N8N_SOLICITUD_WEBHOOK_URL', _default_solicitud_webhook)
- 
-# Webhook para notificaciones de tickets (WhatsApp/n8n)
-if IS_LOCAL:
-    _default_notify_webhook = f'{N8N_BASE_URL}/webhook-test/ticket-notification'
-else:
-    _default_notify_webhook = f'{N8N_BASE_URL}/webhook/ticket-notification'
-N8N_TICKET_NOTIFY_URL = os.environ.get('N8N_TICKET_NOTIFY_URL', _default_notify_webhook)
-
-# URL base del sitio para callbacks de n8n y comunicación interna
+# --- URL del Sitio para Callbacks ---
 if os.environ.get('COOLIFY_FQDN'):
-    # URL pública (forzar https para producción)
     SITE_URL = f"https://{os.environ.get('COOLIFY_FQDN')}"
-    # URL interna para que n8n llame a Django
     INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://kgogwsw00cwcw8g0wk0gsogg:8000')
 else:
     SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
     if IS_LOCAL:
-        # En local, n8n es remoto (181.115.47.107), necesita la IP pública para el callback
+        # Callback para n8n remoto (vía túnel reverso si aplica)
         INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://181.115.47.107:8000')
     else:
         INTERNAL_SITE_URL = SITE_URL
+
 
 # --- AI & Embeddings Configuration ---
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
@@ -782,16 +751,9 @@ DEFAULT_FROM_EMAIL = 'notificaciones@energia.com'
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/app/'
 
-# N8N Integration
-N8N_EXTRACT_TEXTO_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', 'http://localhost:5678/webhook/process-document')
-N8N_PROCESS_DOCUMENT_WEBHOOK_URL = N8N_EXTRACT_TEXTO_WEBHOOK_URL
-N8N_METADATA_SYNC_WEBHOOK = os.environ.get('N8N_METADATA_SYNC_WEBHOOK', 'http://localhost:5678/webhook/sync-metadatos-doc')
-N8N_TICKET_VECTORIZER_URL = os.environ.get('N8N_TICKET_VECTORIZER_URL', 'http://localhost:5678/webhook/vectorize-ticket')
-N8N_TICKET_NOTIFY_URL = os.environ.get('N8N_TICKET_NOTIFY_URL', 'http://localhost:5678/webhook/notify-ticket')
-INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'https://b52aeb243e6033.lhr.life')
-
 # AI / NLP Settings
 OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://localhost:11434')
+
 
 # Programación de tareas periódicas (Celery Beat)
 CELERY_BEAT_SCHEDULE = {

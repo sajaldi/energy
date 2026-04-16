@@ -18,7 +18,7 @@ from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from playwright.sync_api import sync_playwright
-from .models import SolicitudTicket, EvidenciaTicket, CronogramaPredefinido, CronogramaItemPredefinido, RestriccionAcceso
+from .models import SolicitudTicket, EvidenciaTicket, CronogramaPredefinido, CronogramaItemPredefinido, RestriccionAcceso, GrupoTicket, FallaTicket
 from .utils import resolve_ticket_ubicacion
 import requests
 from core.models import PerfilUsuario
@@ -800,6 +800,123 @@ def notify_ticket_n8n_ajax(request, ticket_id):
     except Exception as e:
         logger.error(f"Error enviando notificación a n8n: {str(e)}")
         return JsonResponse({'success': False, 'error': str(e)})
+
+@staff_member_required
+def wizard_cluster_view(request):
+    """
+    Wizard para agrupar tickets masivamente (Clusterización).
+    1. Filtra por Departamento y Rango de Fechas.
+    2. Asigna responsables del catálogo a tickets vacíos.
+    3. Crea o Actualiza un GrupoTicket (Cluster).
+    """
+    from core.models import Departamento
+    from django.utils import timezone
+    from datetime import datetime
+    from django.db.models import Q
+
+    departamentos = Departamento.objects.all().order_by('nombre')
+    now_str = timezone.now().strftime('%Y-%m-%d')
+    
+    # Soporte para actualización de clusters existentes
+    cluster_id = request.GET.get('cluster_id') or request.POST.get('cluster_id')
+    existing_cluster = None
+    if cluster_id:
+        existing_cluster = get_object_or_404(GrupoTicket, id=cluster_id)
+
+    if request.method == 'POST':
+        action = request.POST.get('action') # 'preview' o 'execute'
+        depto_id = request.POST.get('departamento')
+        fecha_inicio_str = request.POST.get('fecha_inicio')
+        fecha_fin_str = request.POST.get('fecha_fin')
+        
+        if not depto_id or not fecha_inicio_str or not fecha_fin_str:
+            messages.error(request, "Todos los campos son obligatorios.")
+            return render(request, 'callcenter/wizard_cluster.html', {
+                'departamentos': departamentos,
+                'now': now_str,
+                'existing_cluster': existing_cluster
+            })
+
+        # Parsear fechas
+        fecha_inicio = timezone.make_aware(datetime.strptime(fecha_inicio_str, '%Y-%m-%d'))
+        fecha_fin = timezone.make_aware(datetime.combine(datetime.strptime(fecha_fin_str, '%Y-%m-%d'), datetime.max.time()))
+        
+        depto = get_object_or_404(Departamento, id=depto_id)
+        
+        # 1. Buscar Fallas del Catálogo vinculadas al departamento
+        fallas_ids = FallaTicket.objects.filter(departamento_responsable=depto).values_list('id', flat=True)
+        
+        # 2. Buscar Tickets
+        tickets_qs = SolicitudTicket.objects.filter(
+            falla_reportada_id__in=fallas_ids,
+            fecha_solicitud__range=(fecha_inicio, fecha_fin)
+        ).select_related('falla_reportada', 'falla_reportada__usuario_responsable', 'ubicacion', 'usuario_responsable')
+        
+        if action == 'preview':
+            return render(request, 'callcenter/wizard_cluster.html', {
+                'departamentos': departamentos,
+                'selected_depto': depto,
+                'fecha_inicio': fecha_inicio_str,
+                'fecha_fin': fecha_fin_str,
+                'tickets_count': tickets_qs.count(),
+                'tickets_preview': tickets_qs[:50], 
+                'preview_mode': True,
+                'title': 'Previsualización del Cluster',
+                'now': now_str,
+                'existing_cluster': existing_cluster
+            })
+            
+        elif action == 'execute':
+            if existing_cluster:
+                cluster = existing_cluster
+                # Actualizar departamento si no lo tenía
+                if not cluster.departamento:
+                    cluster.departamento = depto
+                    cluster.save(update_fields=['departamento'])
+                msg_prefix = f"¡Éxito! Se ha actualizado el cluster '{cluster.correlativo}'."
+            else:
+                # Nomenclatura Automática: [Departamento] - [Fecha Inicio] a [Fecha Fin]
+                correlativo = f"{depto.nombre} - {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_fin.strftime('%d/%m/%Y')}"
+                
+                # Asegurar unicidad del correlativo
+                base_correlativo = correlativo
+                counter = 1
+                while GrupoTicket.objects.filter(correlativo=correlativo).exists():
+                    correlativo = f"{base_correlativo} ({counter})"
+                    counter += 1
+                    
+                cluster = GrupoTicket.objects.create(
+                    correlativo=correlativo,
+                    departamento=depto,
+                    descripcion=f"Cluster generado automáticamente por Wizard para {depto.nombre}"
+                )
+                msg_prefix = f"¡Éxito! Se ha creado el cluster '{correlativo}'."
+            
+            count_assigned = 0
+            tickets_to_add = []
+            
+            # Regla de Asignación: NO sobrescribir si ya tiene responsable
+            for ticket in tickets_qs:
+                if not ticket.usuario_responsable and ticket.falla_reportada and ticket.falla_reportada.usuario_responsable:
+                    ticket.usuario_responsable = ticket.falla_reportada.usuario_responsable
+                    ticket.save(update_fields=['usuario_responsable'])
+                    count_assigned += 1
+                
+                tickets_to_add.append(ticket)
+            
+            if tickets_to_add:
+                cluster.tickets.add(*tickets_to_add)
+            
+            messages.success(request, f"{msg_prefix} Se procesaron {len(tickets_to_add)} tickets y se asignaron {count_assigned} responsables.")
+            return redirect('callcenter:cluster_tickets', cluster_id=cluster.id)
+
+    return render(request, 'callcenter/wizard_cluster.html', {
+        'departamentos': departamentos,
+        'title': 'Wizard de Clusterización de Tickets',
+        'now': now_str,
+        'existing_cluster': existing_cluster,
+        'selected_depto': existing_cluster.departamento if existing_cluster else None
+    })
 
 @staff_member_required
 @mobile_permission_required('tiempo_acordado')

@@ -658,11 +658,44 @@ class Aviso(models.Model):
     estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='ABIERTO', db_index=True)
     
     solicitante = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='avisos_reportados')
+    responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos_asignados', verbose_name="Responsable Asignado")
+    departamento = models.ForeignKey('core.Departamento', on_delete=models.SET_NULL, null=True, blank=True, related_name='avisos', verbose_name="Departamento Asignado")
     foto = models.ImageField(upload_to='avisos/', null=True, blank=True)
     
     creado_en = models.DateTimeField(default=timezone.now, verbose_name="Fecha de Reporte")
     fecha_cierre = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Cierre")
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if self.foto:
+            self.foto = self.optimize_image(self.foto)
+        super().save(*args, **kwargs)
+
+    def optimize_image(self, image_field, max_width=1024, quality=70):
+        from PIL import Image
+        from io import BytesIO
+        from django.core.files.uploadedfile import InMemoryUploadedFile
+        import sys
+
+        try:
+            img = Image.open(image_field)
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            if img.width > max_width:
+                new_height = int((max_width / img.width) * img.height)
+                img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+            
+            output = BytesIO()
+            img.save(output, format='JPEG', quality=quality, optimize=True)
+            output.seek(0)
+            
+            return InMemoryUploadedFile(
+                output, 'ImageField', f"{image_field.name.split('.')[0]}.jpg",
+                'image/jpeg', sys.getsizeof(output), None
+            )
+        except Exception:
+            return image_field
 
     def __str__(self):
         return f"AV-{self.id}: {self.descripcion[:30]} ({self.estado})"
@@ -677,6 +710,34 @@ class FotoAviso(models.Model):
     foto = models.ImageField(upload_to='avisos/fotos/')
     descripcion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Descripción")
     creado_en = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.foto:
+            # Reutilizar lógica de Aviso si es posible o definirla de nuevo
+            self.foto = self.optimize_image(self.foto)
+        super().save(*args, **kwargs)
+
+    def optimize_image(self, image_field, max_width=1024, quality=70):
+        from PIL import Image
+        from io import BytesIO
+        from django.core.files.uploadedfile import InMemoryUploadedFile
+        import sys
+        try:
+            img = Image.open(image_field)
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            if img.width > max_width:
+                new_height = int((max_width / img.width) * img.height)
+                img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+            output = BytesIO()
+            img.save(output, format='JPEG', quality=quality, optimize=True)
+            output.seek(0)
+            return InMemoryUploadedFile(
+                output, 'ImageField', f"{image_field.name.split('.')[0]}.jpg",
+                'image/jpeg', sys.getsizeof(output), None
+            )
+        except Exception:
+            return image_field
 
     class Meta:
         verbose_name = "Foto de Aviso"

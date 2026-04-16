@@ -1,0 +1,507 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+<style>
+    :root {
+        /* SAP Fiori Horizon Colors */
+        --fiori-shell-bg: #354a5f;
+        --fiori-primary: #0070f2;
+        --fiori-bg: #eff2f5;
+        --fiori-card-bg: #ffffff;
+        --fiori-border: #d9d9d9;
+        --fiori-text: #32363a;
+        --fiori-text-secondary: #6a6d70;
+        --fiori-success: #107e3e;
+        --fiori-warning: #e9730c;
+        --fiori-error: #bb0000;
+        --fiori-selected: #f0f7ff;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--fiori-bg);
+        color: var(--fiori-text);
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* SAP Shell Bar */
+    .fiori-shell {
+        height: 48px;
+        background: var(--fiori-shell-bg);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        color: white;
+        z-index: 100;
+    }
+
+    .fiori-shell-title {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    /* Layout Containers */
+    .fiori-root {
+        display: flex;
+        height: calc(100vh - 48px);
+        width: 100vw;
+    }
+
+    /* Master-Detail (Split View) */
+    .fiori-master {
+        width: 320px;
+        background: var(--fiori-card-bg);
+        border-right: 1px solid var(--fiori-border);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+    }
+
+    .fiori-master-header {
+        padding: 16px;
+        border-bottom: 1px solid var(--fiori-border);
+    }
+
+    .search-container {
+        position: relative;
+    }
+
+    .search-container input {
+        width: 100%;
+        padding: 10px 36px 10px 12px;
+        border: 1px solid var(--fiori-border);
+        border-radius: 4px;
+        font-size: 0.85rem;
+        box-sizing: border-box;
+    }
+
+    .search-container ion-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--fiori-primary);
+        font-size: 1.1rem;
+    }
+
+    .fiori-master-content {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    /* Tree Styling */
+    .tree-node-item {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f8f9fa;
+        transition: all 0.2s;
+        font-size: 0.875rem;
+    }
+
+    .tree-node-item:hover { background: #f0f4f8; }
+    .tree-node-item.active {
+        background: var(--fiori-selected);
+        border-left: 4px solid var(--fiori-primary);
+        font-weight: 600;
+        color: var(--fiori-primary);
+    }
+
+    .toggle-icon {
+        width: 20px; height: 20px;
+        display: flex; align-items: center; justify-content: center;
+        color: var(--fiori-text-secondary);
+        transition: transform 0.2s;
+    }
+    .toggle-icon.expanded { transform: rotate(90deg); }
+
+    .node-content-nested {
+        display: none;
+        padding-left: 12px;
+        background: #fafafa;
+    }
+    .node-content-nested.show { display: block; }
+
+    /* Detail View */
+    .fiori-detail {
+        flex: 1;
+        background: var(--fiori-bg);
+        overflow-y: auto;
+        padding: 1.5rem 2rem;
+        position: relative;
+    }
+
+    .object-page-header {
+        background: white;
+        border-radius: 4px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--fiori-border);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .object-page-subtitle { color: var(--fiori-text-secondary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05rem; }
+    .object-page-title { font-size: 1.5rem; font-weight: 500; margin: 4px 0 12px 0; }
+
+    /* Tiles Grid */
+    .stats-tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .fiori-tile {
+        background: white;
+        padding: 1rem;
+        border: 1px solid var(--fiori-border);
+        border-radius: 4px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .tile-label { font-size: 0.75rem; color: var(--fiori-text-secondary); margin-bottom: 0.5rem; }
+    .tile-value { font-size: 1.25rem; font-weight: 600; color: var(--fiori-primary); }
+
+    /* Content Cards */
+    .fiori-card {
+        background: white;
+        border: 1px solid var(--fiori-border);
+        border-radius: 4px;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .card-title {
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #fdfdfd;
+    }
+
+    /* Custom Table */
+    .fiori-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .fiori-table th {
+        background: #f8f9fa;
+        text-align: left;
+        padding: 12px 1.5rem;
+        font-size: 0.75rem;
+        color: var(--fiori-text-secondary);
+        border-bottom: 1px solid var(--fiori-border);
+        font-weight: 600;
+    }
+    .fiori-table td {
+        padding: 12px 1.5rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.875rem;
+    }
+    .clickable-row:hover { background: #f0f7ff; cursor: pointer; }
+
+    /* Badges */
+    .fiori-badge {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .status-OPERATIVO { background: #e7f4e9; color: #107e3e; }
+    .status-MANTENIMIENTO { background: #fff4e5; color: #e9730c; }
+    .status-REPARACION { background: #ffebee; color: #bb0000; }
+
+    /* Loaders */
+    .loader {
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid var(--fiori-primary);
+        border-radius: 50%;
+        width: 24px; height: 24px;
+        animation: spin 1s linear infinite;
+        margin: 40px auto;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fiori-shell">
+    <div class="fiori-shell-title"><ion-icon name="business-outline" style="vertical-align: middle; margin-right: 8px;"></ion-icon> Explorador de Activos</div>
+    <div style="margin-left: auto; display: flex; gap: 16px; align-items: center;">
+        <span style="font-size: 0.85rem; opacity: 0.8;">{{ user.get_full_name|default:user.username }}</span>
+        <div style="width: 28px; height: 28px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem;">
+            {{ user.username|slice:":1"|upper }}
+        </div>
+    </div>
+</div>
+
+<div class="fiori-root">
+    <!-- MASTER: Sidebar Hierárquico -->
+    <div class="fiori-master">
+        <div class="fiori-master-header">
+            <div class="search-container">
+                <input type="text" id="masterSearch" placeholder="Buscar ubicación..." onkeyup="filterTree()">
+                <ion-icon name="search-outline"></ion-icon>
+            </div>
+        </div>
+        <div class="fiori-master-content" id="master-tree">
+            <div class="loader"></div>
+        </div>
+    </div>
+
+    <!-- DETAIL: Información de la Ubicación -->
+    <div class="fiori-detail" id="detail-pane">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+            <ion-icon name="navigate-circle-outline" style="font-size: 4rem; opacity: 0.2;"></ion-icon>
+            <h3 style="margin-top: 1rem; font-weight: 300;">Selecciona una ubicación del panel izquierdo</h3>
+            <p style="font-size: 0.9rem;">Podrás ver el inventario completo y estado de los equipos.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Template for Tree Item -->
+<template id="tree-item-template">
+    <div class="tree-node-wrapper">
+        <div class="tree-node-item" onclick="selectNode(this)">
+            <div class="toggle-icon" onclick="toggleNode(event, this)">
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+            </div>
+            <ion-icon name="location-outline" class="node-icon"></ion-icon>
+            <span class="node-label"></span>
+        </div>
+        <div class="node-content-nested"></div>
+    </div>
+</template>
+
+<script>
+    const INITIAL_ID = "{{ initial_id|default:'' }}";
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        loadRootNodes();
+        if (INITIAL_ID) {
+            // Lógica para auto-expandir hasta el ID inicial si es necesario
+            // Por ahora solo cargamos el detalle si el árbol es plano
+            loadDetail(INITIAL_ID);
+        }
+    });
+
+    async function loadRootNodes() {
+        const container = document.getElementById('master-tree');
+        try {
+            const res = await fetch('/activos/api/ubicaciones-root/');
+            const nodes = await res.json();
+            renderLevel(nodes, container);
+        } catch (e) {
+            container.innerHTML = '<p style="padding:20px; color:red; font-size:0.8rem;">Error de conexión</p>';
+        }
+    }
+
+    function renderLevel(nodes, container) {
+        container.innerHTML = '';
+        nodes.forEach(node => {
+            const template = document.getElementById('tree-item-template').content.cloneNode(true);
+            const wrapper = template.querySelector('.tree-node-wrapper');
+            const item = template.querySelector('.tree-node-item');
+            const label = template.querySelector('.node-label');
+            const toggle = template.querySelector('.toggle-icon');
+            const icon = template.querySelector('.node-icon');
+
+            wrapper.dataset.id = node.id;
+            label.textContent = node.nombre;
+            
+            // Iconografía según tipo
+            if (node.tipo === 'EDIFICIO') icon.setAttribute('name', 'business');
+            else if (node.tipo === 'NIVEL') icon.setAttribute('name', 'layers');
+            else if (node.tipo === 'CATEGORIA') {
+                icon.setAttribute('name', node.icono || 'cube-outline');
+                item.style.color = 'var(--fiori-text-secondary)';
+                item.style.fontSize = '0.8rem';
+            }
+            else icon.setAttribute('name', 'pin');
+
+            if (!node.has_children) {
+                toggle.style.visibility = 'hidden';
+            } else {
+                toggle.dataset.loaded = 'false';
+            }
+
+            if (INITIAL_ID && node.id == INITIAL_ID) {
+                item.classList.add('active');
+            }
+
+            container.appendChild(template);
+        });
+    }
+
+    async function toggleNode(e, el) {
+        e.stopPropagation();
+        const wrapper = el.closest('.tree-node-wrapper');
+        const nested = wrapper.querySelector('.node-content-nested');
+        const icon = el.querySelector('ion-icon');
+        const id = wrapper.dataset.id;
+
+        if (nested.classList.contains('show')) {
+            nested.classList.remove('show');
+            el.classList.remove('expanded');
+            icon.setAttribute('name', 'chevron-forward-outline');
+        } else {
+            nested.classList.add('show');
+            el.classList.add('expanded');
+            icon.setAttribute('name', 'chevron-down-outline');
+
+            if (el.dataset.loaded === 'false') {
+                nested.innerHTML = '<div class="loader" style="width:16px; height:16px; margin:10px auto;"></div>';
+                const res = await fetch(`/activos/api/ubicaciones-children/${id}/`);
+                const nodes = await res.json();
+                renderLevel(nodes, nested);
+                el.dataset.loaded = 'true';
+            }
+        }
+    }
+
+    let activeItem = null;
+    function selectNode(el) {
+        if (activeItem) activeItem.classList.remove('active');
+        el.classList.add('active');
+        activeItem = el;
+        
+        const rawId = el.closest('.tree-node-wrapper').dataset.id;
+        
+        if (rawId.startsWith('cat_')) {
+            const parts = rawId.split('_');
+            const catId = parts[1];
+            const ubiId = parts[2];
+            loadDetail(ubiId, catId);
+        } else {
+            loadDetail(rawId);
+        }
+    }
+
+    async function loadDetail(id, catId = null) {
+        const pane = document.getElementById('detail-pane');
+        pane.innerHTML = '<div class="loader"></div>';
+
+        try {
+            let url = `/activos/api/ubicacion-detalle/${id}/`;
+            if (catId) url += `?cat_id=${catId}`;
+            
+            const res = await fetch(url);
+            const data = await res.json();
+            renderDetail(data, pane, catId);
+        } catch (e) {
+            pane.innerHTML = '<p style="padding:40px; text-align:center;">Error al cargar detalles de la ubicación.</p>';
+        }
+    }
+
+    function renderDetail(data, container, filteredCatId = null) {
+        const u = data.ubicacion;
+        let catBadge = '';
+        if (filteredCatId) {
+            // Buscamos el nombre de la categoría en los resultados
+            const catName = data.categorias.length > 0 ? data.categorias[0].nombre : 'Categoría';
+            catBadge = `<span class="fiori-badge" style="background: var(--fiori-primary); color: white;">${catName}</span>`;
+        }
+
+        let html = `
+            <div class="object-page-header">
+                <div class="object-page-subtitle">${u.ruta || 'Raíz'}</div>
+                <h1 class="object-page-title">${u.nombre}</h1>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span class="fiori-badge" style="background: #e2e8f0; color: #475569;">${u.tipo}</span>
+                    ${catBadge}
+                    <span class="fiori-badge status-OPERATIVO">${data.activos_operativos} Equipos OK</span>
+                </div>
+            </div>
+
+            <div class="stats-tiles">
+                <div class="fiori-tile">
+                    <span class="tile-label">Total Activos</span>
+                    <span class="tile-value">${data.total_activos}</span>
+                </div>
+                <div class="fiori-tile">
+                    <span class="tile-label">Categorías</span>
+                    <span class="tile-value">${data.categorias.length}</span>
+                </div>
+                <div class="fiori-tile">
+                    <span class="tile-label">Disponibilidad</span>
+                    <span class="tile-value">${Math.round((data.activos_operativos/data.total_activos)*100) || 0}%</span>
+                </div>
+            </div>
+
+            <div class="fiori-card">
+                <div class="card-title"><ion-icon name="list-outline"></ion-icon> Listado de Equipos</div>
+                <div style="overflow-x: auto;">
+                    <table class="fiori-table">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Categoría</th>
+                                <th>Modelo / Marca</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+
+        if (data.categorias.length === 0) {
+            html += '<tr><td colspan="5" style="text-align:center; padding:3rem; color:#94a3b8;">No se encontraron activos en esta ubicación.</td></tr>';
+        } else {
+            data.categorias.forEach(cat => {
+                cat.subcategorias.forEach(sub => {
+                    sub.activos.forEach(a => {
+                        html += `
+                            <tr class="clickable-row" onclick="window.open('/activos/activo/${a.id}/fiori/', '_blank')">
+                                <td style="color: var(--fiori-primary); font-weight:700;">${a.codigo}</td>
+                                <td>${a.nombre}</td>
+                                <td><span style="font-size:0.8rem; color:#6a6d70;">${cat.nombre}</span></td>
+                                <td>${a.modelo || '---'}</td>
+                                <td><span class="fiori-badge status-${a.estado}">${a.estado_display}</span></td>
+                            </tr>
+                        `;
+                    });
+                });
+            });
+        }
+
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        container.innerHTML = html;
+    }
+
+    function filterTree() {
+        const q = document.getElementById('masterSearch').value.toLowerCase();
+        const items = document.querySelectorAll('.tree-node-item');
+        items.forEach(item => {
+            const label = item.querySelector('.node-label').textContent.toLowerCase();
+            const wrapper = item.closest('.tree-node-wrapper');
+            if (label.includes(q)) {
+                wrapper.style.display = 'block';
+            } else {
+                wrapper.style.display = 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}

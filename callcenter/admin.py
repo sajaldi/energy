@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SolicitudTicket, GrupoTicket, Institucion, Enlace, TiempoAcordado, TiempoAcordadoTarea
+from .models import SolicitudTicket, GrupoTicket, Institucion, Enlace, TiempoAcordado, TiempoAcordadoTarea, FallaTicket
 
 from django.urls import path
 from .views import trigger_sync_tickets
@@ -154,9 +154,9 @@ class EvidenciasInline(admin.TabularInline):
 
 @admin.register(SolicitudTicket)
 class SolicitudTicketAdmin(admin.ModelAdmin):
-    list_display = ('folio', 'id_solicitud', 'solicitante', 'usuario_responsable', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
-    list_filter = ('servicio', 'area', 'tipo_solicitud', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
-    search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
+    list_display = ('folio', 'id_solicitud', 'solicitante', 'falla_reportada', 'usuario_responsable', 'get_tiempos_acordados', 'ubicacion', 'servicio', 'area', 'activo', 'deductiva', 'fecha_solicitud')
+    list_filter = ('servicio', 'area', 'tipo_solicitud', 'falla_reportada', 'falla_clasificacion', 'categoria_falla', 'fecha_solicitud', 'ubicacion', ('activo', admin.RelatedOnlyFieldListFilter), ('usuario_responsable', admin.RelatedOnlyFieldListFilter), ('proveedor_deductiva', admin.RelatedOnlyFieldListFilter))
+    search_fields = ('folio', 'id_solicitud', 'solicitante', 'solicitud_descripcion', 'falla_descripcion', 'falla_reportada__nombre', 'diagnostico', 'activo__nombre', 'activo__codigo_interno', 'usuario_responsable__first_name', 'usuario_responsable__last_name', 'usuario_responsable__username')
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
     readonly_fields = ('creado_en', 'actualizado_en')
@@ -184,6 +184,12 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             return format_html('<span class="badge badge-info" style="background:#0070f2; color:white;"><i class="fas fa-clock"></i> {} Acordado(s)</span>', count)
         return "-"
     get_tiempos_acordados.short_description = "T. Acordado"
+    
+    def falla_descripcion_corta(self, obj):
+        if not obj.falla_descripcion:
+            return "-"
+        return obj.falla_descripcion[:50] + "..." if len(obj.falla_descripcion) > 50 else obj.falla_descripcion
+    falla_descripcion_corta.short_description = "Desc. Falla"
     
     change_form_template = "admin/callcenter/solicitudticket/change_form.html"
 
@@ -216,15 +222,16 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
 
 
     # Optimización de Performance
-    list_select_related = ('activo', 'ubicacion')
+    list_select_related = ('activo', 'ubicacion', 'falla_reportada')
     list_per_page = 25
 
     show_full_result_count = False # Evita el COUNT(*) lento en tablas grandes
     
     def get_queryset(self, request):
         # Seleccionar solo los campos necesarios para la lista unificada
-        return super().get_queryset(request).select_related('activo', 'ubicacion').only(
+        return super().get_queryset(request).select_related('activo', 'ubicacion', 'falla_reportada').only(
             'id', 'folio', 'id_solicitud', 'solicitante', 'servicio', 'area', 
+            'falla_descripcion', 'falla_reportada',
             'activo__nombre', 'activo__codigo_interno', 'fecha_solicitud', 'tipo_solicitud',
             'ubicacion__nombre'
         )
@@ -372,3 +379,13 @@ class CronogramaItemPredefinidoAdmin(admin.ModelAdmin):
     list_filter = ('cronograma', 'duracion_dias')
     search_fields = ('descripcion', 'cronograma__nombre')
     autocomplete_fields = ('cronograma', 'predecesores')
+
+@admin.register(FallaTicket)
+class FallaTicketAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'departamento_responsable', 'usuario_responsable', 'get_tickets_count')
+    list_filter = ('departamento_responsable', 'usuario_responsable')
+    search_fields = ('nombre', 'descripcion')
+    
+    def get_tickets_count(self, obj):
+        return obj.tickets.count()
+    get_tickets_count.short_description = "Tickets vinculados"

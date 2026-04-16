@@ -299,6 +299,20 @@
                     <span class="sap-attribute-label">Reportado por</span>
                     <span class="sap-attribute-value">{{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}</span>
                 </div>
+
+                {% if aviso.departamento %}
+                <div class="sap-attribute">
+                    <span class="sap-attribute-label">Departamento Asignado</span>
+                    <span class="sap-attribute-value"><ion-icon name="people-outline"></ion-icon> {{ aviso.departamento.nombre }}</span>
+                </div>
+                {% endif %}
+
+                {% if aviso.responsable %}
+                <div class="sap-attribute">
+                    <span class="sap-attribute-label">Responsable Asignado</span>
+                    <span class="sap-attribute-value"><ion-icon name="person-outline"></ion-icon> {{ aviso.responsable.get_full_name|default:aviso.responsable.username }}</span>
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -389,6 +403,13 @@
 
         <!-- Acciones -->
         <div class="actions-footer">
+            {% if aviso.estado == 'ABIERTO' or user.is_staff %}
+            <a href="{% url 'mantenimiento:mobile_aviso_editar' aviso.id %}" class="sap-btn sap-btn-primary">
+                <ion-icon name="create-outline"></ion-icon>
+                Editar Aviso
+            </a>
+            {% endif %}
+            
             <a href="{% url 'mantenimiento:aviso_pdf' aviso.id %}" target="_blank" class="sap-btn" style="background: white; border: 1px solid var(--sap-border); color: var(--sap-text);">
                 <ion-icon name="document-text-outline"></ion-icon>
                 Exportar Reporte PDF

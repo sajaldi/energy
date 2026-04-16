@@ -59,6 +59,16 @@ class SolicitudTicket(models.Model):
     # Búsqueda Vectorial Semántica
     embedding = VectorField(dimensions=1024, null=True, blank=True)
 
+    # Catálogo de Falla (NUEVO)
+    falla_reportada = models.ForeignKey(
+        'FallaTicket', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='tickets',
+        verbose_name="Falla del Catálogo"
+    )
+
     # Estado de Notificación
     cierre_enviado = models.BooleanField(default=False, verbose_name="Cierre Notificado", db_index=True, null=True, blank=True)
     correo_cierre = models.BooleanField(
@@ -134,12 +144,19 @@ class GrupoTicket(models.Model):
     Relación muchos a muchos.
     """
     correlativo = models.CharField(
-        max_length=20, 
+        max_length=255, 
         unique=True, 
-        editable=False, 
-        verbose_name="Correlativo"
+        verbose_name="Número de Grupo / Cluster"
     )
     fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    departamento = models.ForeignKey(
+        'core.Departamento', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        verbose_name="Departamento Responsable",
+        related_name="clusters"
+    )
     descripcion = models.TextField(verbose_name="Descripción del Grupo")
     
     tickets = models.ManyToManyField(
@@ -501,3 +518,35 @@ class CronogramaItemPredefinido(models.Model):
         verbose_name = "Item de Cronograma"
         verbose_name_plural = "Items de Cronograma"
         ordering = ['numero']
+
+
+class FallaTicket(models.Model):
+    """
+    Catálogo de fallas estandarizadas para el Call Center.
+    """
+    nombre = models.CharField(max_length=255, unique=True, verbose_name="Nombre de la Falla")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción Adicional")
+    departamento_responsable = models.ForeignKey(
+        'core.Departamento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fallas_vinculadas',
+        verbose_name="Departamento Responsable"
+    )
+    usuario_responsable = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fallas_asignadas_defecto',
+        verbose_name="Responsable por Defecto"
+    )
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = "Catálogo de Falla"
+        verbose_name_plural = "Catálogo de Fallas"
+        ordering = ['nombre']

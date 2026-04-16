@@ -12,6 +12,7 @@ urlpatterns = [
     
     # Visual Closure Interface
     path('dashboard/', views.ticket_dashboard_view, name='ticket_dashboard'),
+    path('wizard-cluster/', views.wizard_cluster_view, name='wizard_cluster'),
     path('dashboard/cluster/<int:cluster_id>/', views.cluster_tickets_view, name='cluster_tickets'),
     path('ticket/<int:ticket_id>/cierre-visual/', views.ticket_cierre_visual_view, name='ticket_cierre_visual'),
     path('ticket/<int:ticket_id>/upload-evidencia/', views.upload_evidencia_ajax, name='upload_evidencia_visual'),

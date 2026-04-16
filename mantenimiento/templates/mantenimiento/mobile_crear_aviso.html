@@ -456,6 +456,33 @@
                         </div>
                     </div>
 
+                    <!-- NUEVOS CAMPOS DE ASIGNACIÓN -->
+                    <div class="form-group">
+                        <label>Departamento Responsable</label>
+                        <div class="sap-input-container">
+                            <select name="departamento">
+                                <option value="none">-- Sin asignar --</option>
+                                {% for dep in departamentos %}
+                                <option value="{{ dep.id }}" {% if aviso.departamento_id == dep.id %}selected{% endif %}>{{ dep.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Responsable Directo</label>
+                        <div class="sap-input-container">
+                            <select name="responsable">
+                                <option value="none">-- Sin asignar --</option>
+                                {% for res in responsables %}
+                                <option value="{{ res.id }}" data-departamento="{{ res.perfil.departamento_id|default:'' }}" {% if aviso.responsable_id == res.id %}selected{% endif %}>
+                                    {{ res.get_full_name|default:res.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="form-group" id="falla-group">
                         <label id="falla-label">Categoría</label>
                         <div class="sap-input-container">
@@ -469,7 +496,7 @@
                         <label id="desc-label">Descripción de Avería</label>
                         <div class="sap-input-container">
                             <textarea name="descripcion" id="desc-textarea" placeholder="Ej: Fuga de aceite en el motor principal..."
-                                required></textarea>
+                                required>{{ aviso.descripcion|default:'' }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -704,8 +731,9 @@
             finalUbiInput.value = leafId;
         }
 
-        // --- Dynamic Catalog Logic ---
         const rawFallas = {{ fallas_json|default:"[]"|safe }};
+        const currentFallaId = "{{ aviso.falla_id|default:'' }}";
+        const currentUbiId = "{{ aviso.ubicacion_id|default:'' }}";
         const tipoSelect = document.querySelector('select[name="tipo"]');
         const fallaSelect = document.querySelector('select[name="falla"]');
         const fallaGroup = document.getElementById('falla-group');
@@ -721,6 +749,9 @@
                 const opt = document.createElement('option');
                 opt.value = f.id;
                 opt.innerText = f.nombre;
+                if (currentFallaId && f.id == currentFallaId) {
+                    opt.selected = true;
+                }
                 fallaSelect.appendChild(opt);
             });
 
@@ -873,6 +904,55 @@
             btn.disabled = true;
             btn.innerText = 'Procesando...';
         };
+
+        // Initialize state if editing
+        window.addEventListener('load', () => {
+            if (currentUbiId) {
+                autoSelectHierarchy(currentUbiId);
+            }
+            if (tipoSelect) {
+                updateFallaCatalog();
+            }
+
+            // Lógica de filtrado de responsables por departamento
+            const depSelect = document.querySelector('select[name="departamento"]');
+            const resSelect = document.querySelector('select[name="responsable"]');
+            
+            if (depSelect && resSelect) {
+                const resOptions = Array.from(resSelect.options);
+                
+                function filterResponsables() {
+                    const selectedDepId = depSelect.value;
+                    const currentValue = resSelect.value;
+                    let firstValidOption = null;
+
+                    resOptions.forEach(opt => {
+                        if (opt.value === 'none') {
+                            opt.style.display = 'block';
+                            return;
+                        }
+                        
+                        const optDepId = opt.getAttribute('data-departamento');
+                        if (selectedDepId === 'none' || optDepId === selectedDepId) {
+                            opt.style.display = 'block';
+                            if (!firstValidOption) firstValidOption = opt.value;
+                        } else {
+                            opt.style.display = 'none';
+                        }
+                    });
+
+                    // Si el valor actual ya no es visible, resetear a ninguno
+                    const currentOpt = resSelect.options[resSelect.selectedIndex];
+                    if (currentOpt && currentOpt.style.display === 'none') {
+                        resSelect.value = 'none';
+                    }
+                }
+
+                depSelect.addEventListener('change', filterResponsables);
+                // Inicializar filtro
+                filterResponsables();
+            }
+        });
     </script>
 </body>
 
