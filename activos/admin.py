@@ -9,7 +9,14 @@ from import_export.admin import ImportExportModelAdmin, ImportExportMixin, Impor
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal, DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja, FotoUbicacion
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal, DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja, FotoUbicacion, ReporteGenerado
+
+@admin.register(ReporteGenerado)
+class ReporteGeneradoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'usuario', 'estado', 'creado_en', 'completado_en')
+    list_filter = ('estado', 'creado_en')
+    search_fields = ('nombre', 'usuario__username')
+    readonly_fields = ('creado_en', 'completado_en')
 
 @admin.register(FotoUbicacion)
 class FotoUbicacionAdmin(admin.ModelAdmin):
@@ -795,9 +802,40 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
     form = ActivoAdminForm
     list_per_page = 13  # MARCADOR VISUAL: Si ves 13 items por pagina, es este admin.
     resource_class = ActivoResource
-    change_list_template = 'admin/activos/activo/change_list.html'
+    change_list_template = 'admin/activos/activo/change_list_custom.html'
 
-    # get_urls removed to disable Redis import
+    def export_admin_background(self, request):
+        from django.http import JsonResponse
+        from .models import ReporteGenerado
+        from .tasks import generar_reporte_activos_task
+        
+        # Guardamos el query del admin tal como está
+        cl = self.get_changelist_instance(request)
+        queryset = cl.get_queryset(request)
+        
+        ids_list = list(queryset.values_list('id', flat=True))
+        
+        if not ids_list:
+            return JsonResponse({'status': 'error', 'message': 'No hay activos para exportar con estos filtros.'}, status=400)
+            
+        reporte = ReporteGenerado.objects.create(
+            usuario=request.user,
+            nombre=f"Exportación ({len(ids_list)} activos)",
+            estado='PENDIENTE'
+        )
+        
+        # Despachar tarea enviando solo los IDs a exportar
+        task = generar_reporte_activos_task.delay(reporte.id, query_ids=ids_list)
+        reporte.task_id = task.id
+        reporte.save(update_fields=['task_id'])
+        
+        return JsonResponse({
+            'status': 'ok',
+            'reporte_id': reporte.id,
+            'message': 'El reporte se está generando en segundo plano.'
+        })
+
+
 
 
     def get_import_resource_kwargs(self, request, *args, **kwargs):
@@ -1550,7 +1588,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             
         else:
             # Restaurar la plantilla de importación/exportación si no es popup
-            self.change_list_template = 'admin/activos/activo/change_list.html'
+            self.change_list_template = 'admin/activos/activo/change_list_custom.html'
             
         return super().changelist_view(request, extra_context=extra_context)
     
@@ -1705,6 +1743,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             path('import-background/', self.admin_site.admin_view(self.import_background), name='activos_activo_import_background'),
             path('import-process/', self.admin_site.admin_view(self.import_process), name='activos_activo_import_process'),
             path('import-progress/', self.admin_site.admin_view(self.import_progress), name='activos_activo_import_progress'),
+            path('export-admin-background/', self.admin_site.admin_view(self.export_admin_background), name='activos_activo_export_admin_background'),
         ]
         return custom_urls + urls
 

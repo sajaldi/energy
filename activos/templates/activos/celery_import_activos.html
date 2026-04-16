@@ -123,10 +123,114 @@
         <div style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: #94a3b8;">
             ID de Tarea: <span id="taskIdDisplay" style="font-family: monospace;">...</span>
         </div>
+</div>
+
+<!-- ==================== SUPER FILTRO ==================== -->
+<div class="import-container" style="margin-top: 30px; max-width: 100% !important; margin-left: 20px; margin-right: 20px; box-sizing: border-box;">
+    <h2 style="margin-bottom: 20px; color: #1e293b;">
+        <span style="color: #6366f1">🔎</span> Super Filtro de Activos
+    </h2>
+
+    <div style="background: #f5f3ff; border-left: 4px solid #6366f1; padding: 12px 15px; margin-bottom: 20px; font-size: 0.9rem; color: #4c1d95; border-radius: 4px;">
+        Filtra, consulta y exporta activos con criterios avanzados. Puedes seleccionar múltiples opciones usando <b>Ctrl</b> (Windows) o <b>Cmd</b> (Mac).
+    </div>
+
+    <!-- Vistas Guardadas -->
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <label style="font-weight: 600; color: #1e293b; margin: 0;">📂 Mis Vistas:</label>
+        <select id="sfVistas" style="flex: 1; min-width: 250px; max-width: 400px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
+            <option value="">— Seleccionar vista guardada —</option>
+        </select>
+        <button onclick="loadVista()" style="background: #6366f1; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s;">
+            📥 Cargar
+        </button>
+        <button onclick="deleteVista()" style="background: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: background 0.2s; margin-right: 20px" title="Eliminar vista seleccionada">
+            🗑️
+        </button>
+        
+        <button type="button" onclick="openReportesModal()" style="background: #475569; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s;">
+            🗂️ Mis Reportes (<span id="sf-reportes-count">0</span>)
+        </button>
+    </div>
+
+        <button onclick="deleteVista()" style="background: #ef4444; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: background 0.2s;" title="Eliminar vista seleccionada">
+            🗑️
+        </button>
+    </div>
+
+    <!-- Filter Fields Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px;">
+        <div>
+            <label style="font-weight: 600; font-size: 0.9rem; color: #334155; display: block; margin-bottom: 6px;">Estado</label>
+            <select id="sfEstado" multiple style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; height: 160px; font-size: 0.9rem; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);"></select>
+        </div>
+        <div>
+            <label style="font-weight: 600; font-size: 0.9rem; color: #334155; display: block; margin-bottom: 6px;">Ubicación</label>
+            <select id="sfUbicacion" multiple style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; height: 160px; font-size: 0.85rem; font-family: monospace; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);"></select>
+        </div>
+        <div>
+            <label style="font-weight: 600; font-size: 0.9rem; color: #334155; display: block; margin-bottom: 6px;">Familia</label>
+            <select id="sfFamilia" multiple style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; height: 160px; font-size: 0.85rem; font-family: monospace; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);"></select>
+        </div>
+        <div>
+            <label style="font-weight: 600; font-size: 0.9rem; color: #334155; display: block; margin-bottom: 6px;">Marca</label>
+            <select id="sfMarca" multiple style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; height: 160px; font-size: 0.9rem; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);"></select>
+        </div>
+        <div>
+            <label style="font-weight: 600; font-size: 0.9rem; color: #334155; display: block; margin-bottom: 6px;">Modelo</label>
+            <select id="sfModelo" multiple style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; height: 160px; font-size: 0.9rem; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);"></select>
+        </div>
+        <div style="display: flex; flex-direction: column;">
+            <label style="font-weight: 600; font-size: 0.9rem; color: #334155; display: block; margin-bottom: 6px;">Búsqueda Rápida</label>
+            <input type="text" id="sfBusqueda" placeholder="Nombre, código o serie..." style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 0.95rem; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
+            <div style="margin-top: auto; padding-top: 15px; color: #64748b; font-size: 0.8rem; line-height: 1.4;">
+                <b>Tip:</b> Usa Shift + Click o arrastra el ratón para seleccionar varias opciones seguidas en las listas.
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+        <button onclick="applyFilter(1)" style="background: #6366f1; color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.95rem;">
+            🔍 Aplicar Filtro
+        </button>
+        <button onclick="clearFilters()" style="background: #cbd5e1; color: #1e293b; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+            🧹 Limpiar
+        </button>
+        <button onclick="saveVista()" style="background: #059669; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+            💾 Guardar Vista
+        </button>
+        <button onclick="exportExcel()" id="btnExport" style="background: #f59e0b; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; display: none;">
+            📊 Exportar a Excel
+        </button>
+        <span id="sfTotal" style="margin-left: auto; font-weight: 700; color: #6366f1; font-size: 1.1rem;"></span>
+    </div>
+
+    <!-- Results Table -->
+    <div id="sfResults" style="display: none;">
+        <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
+                <thead>
+                    <tr style="background: #4f46e5; color: white;">
+                        <th style="padding: 10px 12px; text-align: left;">Código</th>
+                        <th style="padding: 10px 12px; text-align: left;">Nombre</th>
+                        <th style="padding: 10px 12px; text-align: center;">Estado</th>
+                        <th style="padding: 10px 12px; text-align: left;">Ubicación</th>
+                        <th style="padding: 10px 12px; text-align: left;">Familia</th>
+                        <th style="padding: 10px 12px; text-align: left;">Marca</th>
+                        <th style="padding: 10px 12px; text-align: left;">Modelo</th>
+                    </tr>
+                </thead>
+                <tbody id="sfTableBody"></tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div id="sfPagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 15px; flex-wrap: wrap;"></div>
     </div>
 </div>
 
 <script>
+    // ================== IMPORT LOGIC (original) ==================
     const fileInput = document.getElementById('fileInput');
     const fileName = document.getElementById('fileName');
     const importForm = document.getElementById('importForm');
@@ -214,7 +318,6 @@
                             });
                             resetUI();
                         } else if (data.dry_run) {
-                            // MODO PREVIEW
                             Swal.fire({
                                 title: '🔍 Análisis del Archivo',
                                 html: `
@@ -239,7 +342,6 @@
                                 }
                             });
                         } else {
-                            // IMPORTACIÓN FINALIZADA
                             Swal.fire({
                                 title: '¡Importación Finalizada!',
                                 html: `
@@ -298,6 +400,375 @@
         importForm.style.pointerEvents = 'auto';
         progressWrapper.style.display = 'none';
         progressFill.style.width = '0%';
+    }
+
+    // ================== SUPER FILTRO LOGIC ==================
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    let filterOptions = {};
+    let currentFilters = {};
+
+    // Estado badge colors
+    const estadoColors = {
+        'OPERATIVO': '#059669',
+        'MANTENIMIENTO': '#f59e0b',
+        'REPARACION': '#6366f1',
+        'FUERA_SERVICIO': '#ef4444',
+        'OBSOLETO': '#94a3b8',
+    };
+
+    // Load filter options on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        fetch('filter-options/')
+            .then(r => r.json())
+            .then(data => {
+                filterOptions = data;
+                populateSelect('sfEstado', data.estados);
+                populateSelect('sfUbicacion', data.ubicaciones);
+                populateSelect('sfFamilia', data.familias);
+                populateSelect('sfMarca', data.marcas);
+                populateSelect('sfModelo', data.modelos);
+            });
+        loadVistas();
+    });
+
+    function populateSelect(id, options) {
+        const sel = document.getElementById(id);
+        sel.innerHTML = '';
+        options.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.value;
+            // Add indentation for hierarchical data if depth exists
+            if (o.depth !== undefined && o.depth > 0) {
+                // Use non-breaking spaces + unicode branch for hierarchy
+                const indent = '&nbsp;'.repeat(o.depth * 4);
+                // Also store the full path as tooltip
+                opt.title = o.ruta; 
+                opt.innerHTML = `${indent}└─ ${o.label}`;
+            } else {
+                opt.textContent = o.label;
+            }
+            sel.appendChild(opt);
+        });
+    }
+
+    function getSelectedValues(id) {
+        const sel = document.getElementById(id);
+        return Array.from(sel.selectedOptions).map(o => isNaN(o.value) ? o.value : Number(o.value));
+    }
+
+    function buildFilters() {
+        return {
+            estado: getSelectedValues('sfEstado'),
+            ubicacion: getSelectedValues('sfUbicacion'),
+            familia: getSelectedValues('sfFamilia'),
+            marca: getSelectedValues('sfMarca'),
+            modelo: getSelectedValues('sfModelo'),
+            busqueda: document.getElementById('sfBusqueda').value.trim(),
+        };
+    }
+
+    function setFilters(filters) {
+        // Set multi-select values
+        ['sfEstado', 'sfUbicacion', 'sfFamilia', 'sfMarca', 'sfModelo'].forEach(id => {
+            const key = id.replace('sf', '').toLowerCase();
+            const sel = document.getElementById(id);
+            const vals = (filters[key] || []).map(String);
+            Array.from(sel.options).forEach(o => {
+                o.selected = vals.includes(o.value);
+            });
+        });
+        document.getElementById('sfBusqueda').value = filters.busqueda || '';
+    }
+
+    function applyFilter(page = 1) {
+        currentFilters = buildFilters();
+        currentFilters.page = page;
+        currentFilters.per_page = 50;
+
+        fetch('filter/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify(currentFilters),
+        })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('sfResults').style.display = 'block';
+                document.getElementById('btnExport').style.display = 'inline-block';
+                document.getElementById('sfTotal').textContent = `${data.total} activos encontrados`;
+
+                const body = document.getElementById('sfTableBody');
+                body.innerHTML = '';
+
+                if (data.rows.length === 0) {
+                    body.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px; color: #94a3b8;">Sin resultados para estos filtros</td></tr>';
+                }
+
+                data.rows.forEach((r, i) => {
+                    const color = estadoColors[r.estado_raw] || '#94a3b8';
+                    body.innerHTML += `
+                        <tr style="background: ${i % 2 === 0 ? '#fff' : '#f8fafc'}; border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 8px 12px; font-family: monospace; font-weight: 600;">${r.codigo}</td>
+                            <td style="padding: 8px 12px;">${r.nombre}</td>
+                            <td style="padding: 8px 12px; text-align: center;">
+                                <span style="background: ${color}; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 600;">${r.estado}</span>
+                            </td>
+                            <td style="padding: 8px 12px; font-size: 0.82rem; color: #475569;">${r.ubicacion}</td>
+                            <td style="padding: 8px 12px; font-size: 0.82rem;">${r.familia}</td>
+                            <td style="padding: 8px 12px;">${r.marca}</td>
+                            <td style="padding: 8px 12px;">${r.modelo}</td>
+                        </tr>`;
+                });
+
+                // Pagination
+                const pag = document.getElementById('sfPagination');
+                pag.innerHTML = '';
+                for (let p = 1; p <= data.pages; p++) {
+                    const btn = document.createElement('button');
+                    btn.textContent = p;
+                    btn.onclick = () => applyFilter(p);
+                    btn.style.cssText = `padding: 6px 12px; border: 1px solid ${p === data.page ? '#6366f1' : '#cbd5e1'}; background: ${p === data.page ? '#6366f1' : 'white'}; color: ${p === data.page ? 'white' : '#1e293b'}; border-radius: 4px; cursor: pointer; font-weight: 600;`;
+                    pag.appendChild(btn);
+                }
+            });
+    }
+
+    function clearFilters() {
+        ['sfEstado', 'sfUbicacion', 'sfFamilia', 'sfMarca', 'sfModelo'].forEach(id => {
+            const sel = document.getElementById(id);
+            Array.from(sel.options).forEach(o => o.selected = false);
+        });
+        document.getElementById('sfBusqueda').value = '';
+        document.getElementById('sfResults').style.display = 'none';
+        document.getElementById('btnExport').style.display = 'none';
+        document.getElementById('sfTotal').textContent = '';
+    }
+
+    function exportExcel() {
+        const filters = buildFilters();
+        
+        Swal.fire({
+            title: 'Exportación Asíncrona',
+            text: 'Se iniciará la exportación de los activos filtrados actualmente. El navegador no se colgará y podrás descargar el archivo desde "Mis Reportes" cuando termine.',
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, generar reporte',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Iniciando...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+                
+                fetch('filter/export/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify(filters),
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        Swal.fire('¡Éxito!', data.message, 'success');
+                        fetchReportesCount();
+                        openReportesModal();
+                    } else {
+                        Swal.fire('Error', data.error || 'Error desconocido', 'error');
+                    }
+                })
+                .catch(err => {
+                    Swal.fire('Error', 'Hubo un error de conexión', 'error');
+                    console.error(err);
+                });
+            }
+        });
+    }
+
+    // Reportes (Async MInIO)
+    function fetchReportesCount() {
+        fetch('/activos/filter/reportes/')
+            .then(res => res.json())
+            .then(data => {
+                if (data.reportes) {
+                    const count = data.reportes.filter(r => r.estado === 'PENDIENTE' || r.estado === 'PROCESANDO').length;
+                    const countEl = document.getElementById('sf-reportes-count');
+                    if (countEl) countEl.textContent = count > 0 ? count : data.reportes.length;
+                }
+            });
+    }
+
+    function openReportesModal() {
+        Swal.fire({
+            title: 'Mis Reportes Generados',
+            html: '<div id="swal-reportes-container">Cargando reportes...</div>',
+            width: '800px',
+            showCloseButton: true,
+            showConfirmButton: false,
+            didOpen: () => {
+                loadReportesTable();
+            }
+        });
+    }
+
+    function loadReportesTable() {
+        fetch('/activos/filter/reportes/')
+            .then(res => res.json())
+            .then(data => {
+                let container = document.getElementById('swal-reportes-container');
+                if (!container) return; // Modal está cerrado
+                
+                if (data.reportes.length === 0) {
+                    container.innerHTML = '<p class="text-muted" style="text-align: center; margin-top: 20px;">No tienes reportes recientes.</p>';
+                    return;
+                }
+                
+                let html = '<table style="width:100%; text-align:left; border-collapse: collapse; font-size: 14px; margin-top: 10px;">';
+                html += '<tr style="border-bottom: 2px solid #e2e8f0; color: #475569;">';
+                html += '<th style="padding: 10px;">Nombre</th>';
+                html += '<th style="padding: 10px;">Estado</th>';
+                html += '<th style="padding: 10px;">Fecha</th>';
+                html += '<th style="padding: 10px; text-align:right;">Acción</th>';
+                html += '</tr>';
+                
+                let hasPending = false;
+                
+                data.reportes.forEach(r => {
+                    let badgeColor = r.estado === 'COMPLETADO' ? '#10b981' : (r.estado === 'ERROR' ? '#ef4444' : '#f59e0b');
+                    if (r.estado === 'PENDIENTE' || r.estado === 'PROCESANDO') hasPending = true;
+                    
+                    let actionLink = '';
+                    if (r.estado === 'COMPLETADO' && r.archivo_url) {
+                        actionLink = `<a href="${r.archivo_url}" target="_blank" style="background:#4f46e5; color:white; padding:6px 12px; border-radius:4px; text-decoration:none; font-weight: 600;">⬇️ Descargar</a>`;
+                    } else if (r.estado === 'ERROR') {
+                        actionLink = `<span style="color:#ef4444; font-size:12px;" title="${r.detalles_error}">❌ Error</span>`;
+                    } else if (r.estado === 'CANCELADO') {
+                        actionLink = `<span style="color:#64748b; font-size:12px;">🚫 Cancelado</span>`;
+                    } else {
+                        actionLink = `<span style="color:#f59e0b; font-size:13px; font-weight:600;">⏳ Procesando...</span> <br><button onclick="cancelarReporte('${r.id}')" style="background:#ef4444; color:white; border:none; padding:3px 8px; border-radius:4px; font-size:11px; cursor:pointer; margin-top:5px;">Cancelar</button>`;
+                    }
+                        
+                    html += `<tr style="border-bottom: 1px solid #f1f5f9; background: #fff;">`;
+                    html += `<td style="padding: 12px 10px; font-weight: 500; color: #1e293b;">${r.nombre}</td>`;
+                    html += `<td style="padding: 12px 10px;"><span style="color:${badgeColor}; font-weight:700; background: ${badgeColor}15; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem;">${r.estado}</span></td>`;
+                    html += `<td style="padding: 12px 10px; color: #64748b;">${r.fecha}</td>`;
+                    html += `<td style="padding: 12px 10px; text-align:right;">${actionLink}</td>`;
+                    html += `</tr>`;
+                });
+                html += '</table>';
+                container.innerHTML = html;
+                
+                if (hasPending) {
+                    setTimeout(() => {
+                        const el = document.getElementById('swal-reportes-container');
+                        if (el) loadReportesTable();
+                    }, 3000);
+                } else {
+                    fetchReportesCount();
+                }
+            });
+    }
+
+    function cancelarReporte(id) {
+        Swal.fire({
+            title: '¿Cancelar exportación?',
+            text: "Se detendrá el proceso de recolección de datos.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sí, cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch('/activos/filter/reportes/cancelar/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({id: id})
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.status === 'ok') {
+                        loadReportesTable();
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                });
+            }
+        });
+    }
+
+    // Inicializar cuenta
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchReportesCount();
+    });
+
+    // Vistas Guardadas
+    function loadVistas() {
+
+        fetch('vistas/')
+            .then(r => r.json())
+            .then(data => {
+                const sel = document.getElementById('sfVistas');
+                sel.innerHTML = '<option value="">— Seleccionar vista guardada —</option>';
+                (data.vistas || []).forEach(v => {
+                    sel.innerHTML += `<option value="${v.id}" data-filtros='${JSON.stringify(v.filtros)}'>${v.nombre} (${v.creada_en})</option>`;
+                });
+            });
+    }
+
+    function loadVista() {
+        const sel = document.getElementById('sfVistas');
+        const opt = sel.selectedOptions[0];
+        if (!opt || !opt.value) return;
+        const filtros = JSON.parse(opt.dataset.filtros);
+        setFilters(filtros);
+        applyFilter(1);
+    }
+
+    function deleteVista() {
+        const sel = document.getElementById('sfVistas');
+        const id = sel.value;
+        if (!id) return;
+        Swal.fire({
+            title: '¿Eliminar vista?',
+            text: 'Esta acción no se puede deshacer',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then(result => {
+            if (result.isConfirmed) {
+                fetch('vistas/', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({ id: Number(id) }),
+                }).then(() => { loadVistas(); Swal.fire('Eliminada', '', 'success'); });
+            }
+        });
+    }
+
+    function saveVista() {
+        Swal.fire({
+            title: 'Guardar Vista',
+            input: 'text',
+            inputLabel: 'Nombre de la vista',
+            inputPlaceholder: 'Ej: Activos Operativos Nivel 1',
+            showCancelButton: true,
+            confirmButtonText: 'Guardar',
+        }).then(result => {
+            if (result.isConfirmed && result.value) {
+                const filters = buildFilters();
+                fetch('vistas/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({ nombre: result.value, filtros: filters }),
+                })
+                    .then(r => r.json())
+                    .then(() => {
+                        loadVistas();
+                        Swal.fire('¡Guardada!', 'Vista guardada exitosamente', 'success');
+                    });
+            }
+        });
     }
 </script>
 {% endblock %}

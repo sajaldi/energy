@@ -1,0 +1,205 @@
+{% extends "admin/import_export/change_list.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block object-tools-items %}
+<li>
+    <button type="button" id="btn-export-admin-background" class="addlink" style="background: #eab308 !important; border-color: #eab308 !important; cursor: pointer;">
+        <ion-icon name="cloud-download-outline" style="vertical-align: middle; margin-right: 5px;"></ion-icon>
+        📥 Generar Excel en Background
+    </button>
+</li>
+
+<li>
+    <button type="button" id="btn-mis-reportes-admin" onclick="openReportesModal()" class="addlink" style="background: #475569 !important; border-color: #475569 !important; cursor: pointer;">
+        <ion-icon name="folder-open-outline" style="vertical-align: middle; margin-right: 5px;"></ion-icon>
+        🗂️ Mis Reportes (<span id="admin-reportes-count">0</span>)
+    </button>
+</li>
+
+<li>
+    <a href="{% url 'activos:celery_import_activos' %}" class="addlink"
+        style="background: #6366f1 !important; border-color: #6366f1 !important;">
+        <ion-icon name="rocket-outline" style="vertical-align: middle; margin-right: 5px;"></ion-icon>
+        Importación Masiva (Celery)
+    </a>
+</li>
+
+<li>
+    <a href="{% url 'admin:activos_registroimportacion_changelist' %}" class="addlink"
+        style="background: #64748b !important;">
+        <ion-icon name="time-outline" style="vertical-align: middle; margin-right: 5px;"></ion-icon>
+        Historial de Cargas
+    </a>
+</li>
+
+<li>
+    <a href="{% url 'activos:explorador_jerarquico' %}" class="addlink" style="background: #059669 !important;">
+        <ion-icon name="list-outline" style="vertical-align: middle; margin-right: 5px;"></ion-icon>
+        Explorador Jerárquico
+    </a>
+</li>
+
+{{ block.super }}
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnExport = document.getElementById('btn-export-admin-background');
+    if (btnExport) {
+        btnExport.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Build the URL from current window location
+            // Include existing query params automatically
+            let queryParams = window.location.search;
+            
+            Swal.fire({
+                title: 'Exportación Asíncrona',
+                text: 'Se iniciará la exportación de los activos filtrados actualmente. El navegador no se colgará y podrás descargar el archivo desde "Mis Reportes" cuando termine.',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, generar reporte',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Iniciando...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+                    
+                    fetch("{% url 'admin:activos_activo_export_admin_background' %}" + queryParams)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === 'ok') {
+                                Swal.fire('¡Éxito!', data.message, 'success');
+                                fetchReportesCount();
+                                openReportesModal(); // Opcionalmente abrimos el modal
+                            } else {
+                                Swal.fire('Error', data.message || 'Error desconocido', 'error');
+                            }
+                        })
+                        .catch(err => {
+                            Swal.fire('Error', 'Hubo un error de conexión', 'error');
+                        });
+                }
+            });
+        });
+    }
+    
+    // Check report count on load
+    fetchReportesCount();
+});
+
+function fetchReportesCount() {
+    fetch('/activos/filter/reportes/')
+        .then(res => res.json())
+        .then(data => {
+            if (data.reportes) {
+                const count = data.reportes.filter(r => r.estado === 'PENDIENTE' || r.estado === 'PROCESANDO').length;
+                document.getElementById('admin-reportes-count').textContent = count > 0 ? count : data.reportes.length;
+            }
+        });
+}
+
+function openReportesModal() {
+    // Si queremos reusar el modal del Super Filtro en el admin, podríamos inyectarlo aquí.
+    // Por simplicidad, inyectaremos un contenedor modal dinámicamente si no existe,
+    // o redirigir al usuario al super-filtro si no hay modal aquí.
+    // Lo más elegante es instanciar un pequeño modal con Swal.
+    
+    Swal.fire({
+        title: 'Mis Reportes Generados',
+        html: '<div id="swal-reportes-container">Cargando reportes...</div>',
+        width: '800px',
+        showCloseButton: true,
+        showConfirmButton: false,
+        didOpen: () => {
+            loadReportesTable();
+        }
+    });
+}
+
+function loadReportesTable() {
+    fetch('/activos/filter/reportes/')
+        .then(res => res.json())
+        .then(data => {
+            let container = document.getElementById('swal-reportes-container');
+            if (data.reportes.length === 0) {
+                container.innerHTML = '<p class="text-muted">No tienes reportes recientes.</p>';
+                return;
+            }
+            
+            let html = '<table style="width:100%; text-align:left; border-collapse: collapse; font-size: 14px;">';
+            html += '<tr style="border-bottom: 2px solid #ddd;">';
+            html += '<th style="padding: 10px;">Nombre</th>';
+            html += '<th style="padding: 10px;">Estado</th>';
+            html += '<th style="padding: 10px;">Fecha</th>';
+            html += '<th style="padding: 10px;">Acción</th>';
+            html += '</tr>';
+            
+            let hasPending = false;
+            
+            data.reportes.forEach(r => {
+                let badgeColor = r.estado === 'COMPLETADO' ? '#10b981' : (r.estado === 'ERROR' ? '#ef4444' : '#f59e0b');
+                if (r.estado === 'PENDIENTE' || r.estado === 'PROCESANDO') hasPending = true;
+                
+                let actionLink = r.estado === 'COMPLETADO' && r.archivo_url ? 
+                    `<a href="${r.archivo_url}" target="_blank" style="background:#4F46E5; color:white; padding:5px 10px; border-radius:4px; text-decoration:none;">Descargar</a>` :
+                    (r.estado === 'ERROR' ? `<span style="color:#ef4444; font-size:12px;">${r.detalles_error || 'Falló'}</span>` : 
+                    (r.estado === 'CANCELADO' ? `<span style="color:#64748b; font-size:12px;">Cancelado</span>` : 
+                    `<div style="spinner-border text-warning" role="status"></div> (Procesando...) <br><button onclick="cancelarReporte('${r.id}')" style="background:#ef4444; color:white; border:none; padding:3px 8px; border-radius:4px; font-size:11px; cursor:pointer; margin-top:5px;">Cancelar</button>`));
+                    
+                html += `<tr style="border-bottom: 1px solid #eee;">`;
+                html += `<td style="padding: 10px;">${r.nombre}</td>`;
+                html += `<td style="padding: 10px;"><span style="color:${badgeColor}; font-weight:bold;">${r.estado}</span></td>`;
+                html += `<td style="padding: 10px;">${r.fecha}</td>`;
+                html += `<td style="padding: 10px;">${actionLink}</td>`;
+                html += `</tr>`;
+            });
+            html += '</table>';
+            container.innerHTML = html;
+            
+            if (hasPending) {
+                setTimeout(() => {
+                    const el = document.getElementById('swal-reportes-container');
+                    if (el) loadReportesTable();
+                }, 3000);
+            } else {
+                fetchReportesCount();
+            }
+        });
+}
+
+function cancelarReporte(id) {
+    Swal.fire({
+        title: '¿Cancelar exportación?',
+        text: "Se detendrá el proceso de recolección de datos.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('/activos/filter/reportes/cancelar/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '' },
+                body: JSON.stringify({id: id})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'ok') {
+                    loadReportesTable();
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            });
+        }
+    });
+}
+</script>
+{% endblock %}

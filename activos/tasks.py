@@ -730,3 +730,106 @@ def import_categorias_task(self, file_path, file_format, user_id=None, import_na
         
     cache.set(cache_key, final_res, 3600)
     return final_res
+
+@shared_task(bind=True)
+def generar_reporte_activos_task(self, reporte_id, filtros=None, query_ids=None):
+    import io
+    import json
+    from django.utils import timezone
+    from django.core.files.base import ContentFile
+    from .models import Activo, ReporteGenerado
+    
+    try:
+        reporte = ReporteGenerado.objects.get(id=reporte_id)
+    except ReporteGenerado.DoesNotExist:
+        return {'status': 'error', 'message': 'Reporte no encontrado'}
+        
+    reporte.estado = 'PROCESANDO'
+    reporte.save()
+    
+    try:
+        qs = Activo.objects.select_related('modelo__marca', 'ubicacion', 'familia').all()
+        
+        if query_ids:
+            qs = qs.filter(id__in=query_ids)
+        elif filtros:
+            # Replicar lógica del Super Filtro
+            if type(filtros) == str:
+                filtros = json.loads(filtros)
+            if filtros.get('estado'):
+                qs = qs.filter(estado__in=filtros['estado'])
+            if filtros.get('ubicacion'):
+                from .views_celery import _get_descendant_ids
+                from .models import Ubicacion
+                expanded_ids = _get_descendant_ids(Ubicacion, filtros['ubicacion'])
+                qs = qs.filter(ubicacion_id__in=expanded_ids)
+            if filtros.get('familia'):
+                qs = qs.filter(familia_id__in=filtros['familia'])
+            if filtros.get('marca'):
+                qs = qs.filter(modelo__marca_id__in=filtros['marca'])
+            if filtros.get('modelo'):
+                qs = qs.filter(modelo_id__in=filtros['modelo'])
+            if filtros.get('busqueda'):
+                q = filtros['busqueda']
+                from django.db.models import Q
+                qs = qs.filter(Q(nombre__icontains=q) | Q(codigo_interno__icontains=q) | Q(serie__icontains=q))
+                
+        qs = qs.order_by('-creado_en')
+        
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Activos Filtrados"
+        
+        # Header styling
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+        thin_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+        
+        headers = ['Código', 'Nombre', 'Estado', 'Ubicación', 'Familia', 'Marca', 'Modelo', 'Serie']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+        
+        for row_idx, a in enumerate(qs.iterator(), 2):
+            ws.cell(row=row_idx, column=1, value=a.codigo_interno).border = thin_border
+            ws.cell(row=row_idx, column=2, value=a.nombre).border = thin_border
+            ws.cell(row=row_idx, column=3, value=a.get_estado_display()).border = thin_border
+            # En Celery a veces "get_ruta_completa" hace llamadas a DB extra, cuidado con N+1.
+            # a.ubicacion y a.familia van con _str_ local.
+            ws.cell(row=row_idx, column=4, value=a.ubicacion.ruta_completa if getattr(a.ubicacion, 'ruta_completa', None) else (a.ubicacion.nombre if a.ubicacion else '')).border = thin_border
+            ws.cell(row=row_idx, column=5, value=str(a.familia) if a.familia else '').border = thin_border
+            ws.cell(row=row_idx, column=6, value=a.modelo.marca.nombre if a.modelo and a.modelo.marca else '').border = thin_border
+            ws.cell(row=row_idx, column=7, value=a.modelo.nombre if a.modelo else '').border = thin_border
+            ws.cell(row=row_idx, column=8, value=a.serie or '').border = thin_border
+            
+        # Auto-width
+        for col in ws.columns:
+            max_len = max((min(len(str(cell.value or '')), 50) for cell in col), default=10) + 2
+            ws.column_dimensions[col[0].column_letter].width = max_len
+        
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Save file to MinIO
+        file_name = f"exportacion_{reporte.id}.xlsx"
+        reporte.archivo.save(file_name, ContentFile(output.read()))
+        
+        reporte.estado = 'COMPLETADO'
+        reporte.completado_en = timezone.now()
+        reporte.save()
+        return {'status': 'completed', 'reporte_id': reporte.id}
+    except Exception as e:
+        reporte.estado = 'ERROR'
+        reporte.detalles_error = str(e)
+        reporte.save()
+        return {'status': 'error', 'message': str(e)}

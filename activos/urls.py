@@ -56,6 +56,15 @@ urlpatterns = [
     path('celery-download-template/', views_celery.download_activos_template, name='celery_download_template'),
     path('import-dashboard/', views_celery.imports_dashboard, name='imports_dashboard'),
 
+    # Super Filtro de Activos
+    path('celery-import/filter-options/', views_celery.superfilter_options, name='superfilter_options'),
+    path('celery-import/filter/', views_celery.superfilter_query, name='superfilter_query'),
+    path('celery-import/filter/export/', views_celery.superfilter_export, name='superfilter_export'),
+    path('celery-import/vistas/', views_celery.superfilter_vistas, name='superfilter_vistas'),
+    path('filter/reportes/', views_celery.superfilter_reportes, name='sf-reportes'),
+    path('filter/reportes/cancelar/', views_celery.superfilter_reportes_cancelar, name='sf-reportes-cancelar'),
+
+
     # Celery Bienes Afectos Import
     path('celery-import-bienes/', views_celery.import_bienes_afectos_view, name='celery_import_bienes'),
     path('celery-import-bienes/process/', views_celery.import_bienes_afectos_process, name='celery_import_bienes_process'),
