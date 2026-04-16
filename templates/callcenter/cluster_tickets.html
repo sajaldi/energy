@@ -170,6 +170,7 @@
                     <tr>
                         <th>Folio / ID</th>
                         <th>Solicitante</th>
+                        <th>Ubicación</th>
                         <th>Responsable Solicitud</th>
                         <th>Técnico Asignado</th>
                         <th>Descripción de Solicitud</th>
@@ -196,6 +197,9 @@
                             {% endif %}
                         </td>
                         <td>{{ t.solicitante|default:"-" }}</td>
+                        <td style="font-size: 0.8rem; color: var(--sap-text-muted); max-width: 150px;" title="{{ t.ubicacion_jerarquica }}">
+                            {{ t.ubicacion_jerarquica|truncatechars:100 }}
+                        </td>
                         <td style="color: var(--sap-text-muted); font-size: 0.85rem;">{{ t.responsable|default:"-" }}</td>
                         <td>
                             <a href="#" class="assign-user-link" data-id="{{ t.id|unlocalize }}" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
@@ -251,7 +255,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
+                        <td colspan="9" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
                             No hay tickets asignados a este grupo.
                         </td>
                     </tr>

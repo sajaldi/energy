@@ -125,6 +125,24 @@ class SolicitudTicket(models.Model):
         verbose_name_plural = "Solicitudes de Tickets"
         ordering = ['-fecha_solicitud']
 
+    @property
+    def ubicacion_jerarquica(self):
+        """
+        Retorna la ruta completa de la ubicación.
+        Si está vinculado a Ubicacion (activos), usa su ruta.
+        Si no, concatena Area > Nivel > Grupo > Unidad.
+        """
+        if self.ubicacion:
+            return self.ubicacion.ruta_completa
+            
+        parts = []
+        if self.area: parts.append(self.area)
+        if self.nivel: parts.append(self.nivel)
+        if self.grupo: parts.append(self.grupo)
+        if self.unidad: parts.append(self.unidad)
+        
+        return " > ".join(parts) if parts else "-"
+
     @classmethod
     def buscar_vectorial(cls, query_embedding, limit=10):
         """
