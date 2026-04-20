@@ -14,9 +14,12 @@
     <link rel="stylesheet" href="{% static 'callcenter/css/ticket_dashboard.css' %}">
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <style>
+        :root {
+            --sap-radius: 2px;
+        }
         .list-container {
             background: white;
-            border-radius: 0.75rem;
+            border-radius: var(--sap-radius);
             box-shadow: var(--sap-shadow);
             overflow: hidden;
             border: 1px solid var(--sap-border);
@@ -28,136 +31,125 @@
         }
         .visual-table th {
             background: #f8f9fa;
-            padding: 1rem 1.5rem;
-            font-size: 0.85rem;
+            padding: 0.75rem 1rem;
+            font-size: 0.8rem;
             font-weight: 700;
             color: var(--sap-text-muted);
-            border-bottom: 1px solid var(--sap-border);
+            border-bottom: 2px solid #edeff0;
             text-transform: uppercase;
+            letter-spacing: 0.02em;
         }
         .visual-table td {
-            padding: 1rem 1.5rem;
+            padding: 0.75rem 1rem;
             border-bottom: 1px solid #f0f0f0;
-            font-size: 0.9rem;
+            font-size: 0.875rem;
             vertical-align: middle;
         }
         .visual-table tr:hover {
-            background-color: #fcfdfe;
+            background-color: #f7f9fc;
         }
         .badge {
-            padding: 0.4rem 0.75rem;
-            border-radius: 2rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: var(--sap-radius);
             font-size: 0.75rem;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-        .badge-success { background: rgba(40, 167, 69, 0.1); color: var(--sap-success); }
-        .badge-warning { background: rgba(233, 115, 12, 0.1); color: var(--sap-warning); }
-        .btn-action {
-            padding: 0.5rem 1rem;
-            border-radius: 0.4rem;
-            background: var(--sap-primary);
-            color: white;
-            text-decoration: none;
             font-weight: 600;
-            font-size: 0.85rem;
             display: inline-flex;
             align-items: center;
             gap: 0.4rem;
-            transition: opacity 0.2s;
         }
-        .btn-action:hover { opacity: 0.9; }
+        .badge-success { background: #e7f4e9; color: #1e6330; border: 1px solid rgba(30, 99, 48, 0.2); }
+        .badge-warning { background: #fff4e5; color: #854e0b; border: 1px solid rgba(133, 78, 11, 0.2); }
+        
         .metric-card {
-            padding: 0.75rem 1.25rem;
-            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            border-radius: var(--sap-radius);
             transition: all 0.2s;
             cursor: pointer;
-            border: 1px solid transparent;
-        }
-        .metric-card:hover { background: rgba(0,0,0,0.05); }
-        .metric-card.active { 
-            background: rgba(10, 110, 209, 0.05); 
-            border: 1px solid rgba(10, 110, 209, 0.3);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .cluster-header {
+            border: 1px solid var(--sap-border);
             background: white;
-            padding: 2rem;
-            border-radius: 0.75rem;
-            margin-bottom: 2rem;
+            min-width: 140px;
+        }
+        .metric-card:hover { border-color: var(--sap-primary); background: #fcfdfe; }
+        .metric-card.active { 
+            border-color: var(--sap-primary);
+            background: #f0f7ff;
+            box-shadow: 0 0 0 1px var(--sap-primary);
+        }
+        .cluster-header-shell {
+            background: white;
+            padding: 1.5rem 2rem;
+            border-radius: var(--sap-radius);
+            margin-bottom: 1rem;
             box-shadow: var(--sap-shadow);
             border: 1px solid var(--sap-border);
-            border-top: 4px solid var(--sap-primary);
         }
+        /* Override specific button colors */
+        .btn-excel { background: #1d6f42 !important; border-color: #1d6f42 !important; color: white !important; }
+        .btn-pdf { background: #bb0000 !important; border-color: #bb0000 !important; color: white !important; }
     </style>
 </head>
 <body>
 
-    <div class="dashboard-wrapper">
-        <header class="header-section">
+    <nav class="fiori-shell">
+        <div class="fiori-breadcrumb">
+            <a href="{% url 'callcenter:ticket_dashboard' %}">Dashboard</a>
+            <i class="ph ph-caret-right"></i>
+            <span>{{ cluster.correlativo }}</span>
+        </div>
+        <div style="flex-grow: 1;"></div>
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="{% url 'callcenter:wizard_cluster' %}?cluster_id={{ cluster.id }}" class="btn-fiori" title="Sincronizar con Wizard">
+                <i class="ph ph-arrows-counter-clockwise"></i> <span>Sincronizar</span>
+            </a>
+            <button onclick="openCreateTicketModal()" class="btn-fiori primary">
+                <i class="ph ph-plus-circle"></i> <span>Nuevo Ticket</span>
+            </button>
+        </div>
+    </nav>
+
+    <div class="dashboard-wrapper" style="padding-top: 1rem;">
+        <header class="header-section" style="margin-bottom: 1.5rem;">
             <div class="header-title">
-                <h1>Tickets en Grupo: {{ cluster.correlativo }}</h1>
-                <p>{{ cluster.descripcion }}</p>
-            </div>
-            <div class="header-actions" style="display: flex; gap: 0.75rem;">
-                <a href="{% url 'callcenter:wizard_cluster' %}?cluster_id={{ cluster.id }}" class="btn-action" style="background-color: var(--sap-primary); border: none; cursor: pointer;" title="Buscar nuevos tickets y auto-asignar técnicos">
-                    <i class="ph ph-arrows-counter-clockwise"></i> Sincronizar con Wizard
-                </a>
-                <button onclick="openCreateTicketModal()" class="btn-action" style="background-color: var(--sap-success); border: none; cursor: pointer;">
-                    <i class="ph ph-plus-circle"></i> Nuevo Ticket
-                </button>
-                <a href="{% url 'callcenter:ticket_dashboard' %}" class="btn-back">
-                    <i class="ph ph-arrow-left"></i> Volver al Dashboard
-                </a>
+                <h1 style="font-size: 1.5rem;">Tickets en Grupo: {{ cluster.correlativo }}</h1>
+                <p style="font-size: 0.9rem;">{{ cluster.descripcion|truncatechars:150 }}</p>
             </div>
         </header>
 
-        <div class="cluster-header">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 2rem; align-items: center;">
-                    <div style="border-right: 1px solid #eee; padding-right: 2rem;">
-                        <span class="metric-label">Fecha de Grupo</span>
-                        <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem;">{{ cluster.fecha|date:"d M, Y" }}</div>
-                    </div>
-                    
+        <div class="cluster-header-shell">
+            <div class="fiori-toolbar">
+                <div style="display: flex; gap: 1rem;">
                     <a href="?" class="metric-card {% if not request.GET.status %}active{% endif %}" style="text-decoration: none; color: inherit;">
-                        <span class="metric-label">Total</span>
-                        <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem;">{{ total }}</div>
+                        <span class="metric-label" style="font-size: 0.75rem;">Total Tickets</span>
+                        <div style="font-size: 1.15rem; font-weight: 700; margin-top: 0.25rem;">{{ total }}</div>
                     </a>
 
                     <a href="?status=abiertos{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="metric-card {% if request.GET.status == 'abiertos' %}active{% endif %}" style="text-decoration: none; color: inherit;">
-                        <span class="metric-label">Abiertos</span>
-                        <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem; color: var(--sap-warning);">{{ abiertos }}</div>
+                        <span class="metric-label" style="font-size: 0.75rem;">Abiertos</span>
+                        <div style="font-size: 1.15rem; font-weight: 700; margin-top: 0.25rem; color: var(--sap-warning);">{{ abiertos }}</div>
                     </a>
 
                     <a href="?status=cerrados{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="metric-card {% if request.GET.status == 'cerrados' %}active{% endif %}" style="text-decoration: none; color: inherit;">
-                        <span class="metric-label">Cerrados</span>
-                        <div style="font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem; color: var(--sap-success);">{{ cerrados }}</div>
+                        <span class="metric-label" style="font-size: 0.75rem;">Cerrados</span>
+                        <div style="font-size: 1.15rem; font-weight: 700; margin-top: 0.25rem; color: var(--sap-success);">{{ cerrados }}</div>
                     </a>
                 </div>
 
-                <form method="get" class="search-form" style="display: flex; gap: 0.5rem; flex: 1; max-width: 400px; margin-right: auto; margin-left: 2rem;">
-                    <!-- Preserve existing filters -->
-                    {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
-                    {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
-                    <input type="text" name="q" value="{{ q }}" placeholder="Buscar por folio o descripción..." style="flex: 1; padding: 0.5rem 1rem; border: 1px solid var(--sap-border); border-radius: 6px; outline: none; font-family: inherit;">
-                    <button type="submit" class="btn-action" style="background-color: var(--sap-blue); padding: 0.5rem 1rem;">
-                        <i class="ph ph-magnifying-glass"></i>
-                    </button>
-                    {% if q %}
-                    <a href="?{% if request.GET.status %}status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="btn-action" style="background-color: var(--sap-border); color: var(--sap-text);">
-                        <i class="ph ph-x"></i>
-                    </a>
-                    {% endif %}
-                </form>
+                <div class="spacer"></div>
 
-                <div class="export-actions" style="display: flex; gap: 0.75rem;">
-                    <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-action" style="background-color: #1d6f42;">
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <form method="get" class="search-form" style="display: flex; gap: 0px; position: relative;">
+                        {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
+                        {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+                        <input type="text" name="q" value="{{ q }}" placeholder="Buscar por folio..." style="padding: 0 2.5rem 0 1rem; height: 2.25rem; border: 1px solid var(--sap-border); border-radius: var(--sap-radius); font-size: 0.875rem; width: 250px; outline: none;">
+                        <button type="submit" style="position: absolute; right: 0; top: 0; bottom: 0; width: 2.5rem; border: none; background: transparent; cursor: pointer; color: var(--sap-text-muted);">
+                            <i class="ph ph-magnifying-glass"></i>
+                        </button>
+                    </form>
+                    
+                    <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-excel" title="Exportar a Excel">
                         <i class="ph ph-file-xls"></i> Excel
                     </a>
-                    <a href="?export=pdf{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-action" style="background-color: #bb0000;">
+                    <a href="?export=pdf{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-pdf" title="Exportar a PDF">
                         <i class="ph ph-file-pdf"></i> PDF
                     </a>
                 </div>
@@ -224,20 +216,20 @@
                                 <span class="badge badge-warning"><i class="ph ph-clock"></i> Abierto</span>
                             {% endif %}
                         </td>
-                        <td style="display: flex; gap: 0.5rem; align-items: center;">
-                            <a href="{% url 'callcenter:ticket_cierre_visual' t.id %}" class="btn-action" title="Cerrar Ticket" style="padding: 0.5rem; min-width: 36px; justify-content: center;">
-                                <i class="ph ph-pencil-simple" style="font-size: 1.2rem;"></i>
+                        <td style="display: flex; gap: 0.4rem; align-items: center;">
+                            <a href="{% url 'callcenter:ticket_cierre_visual' t.id %}" class="btn-fiori ghost" title="Cerrar Ticket" style="padding: 0; width: 2rem; height: 2rem;">
+                                <i class="ph ph-pencil-simple" style="font-size: 1.1rem;"></i>
                             </a>
-                            <button class="btn-action notify-n8n-btn" data-id="{{ t.id|unlocalize }}" title="Notificar a Técnico (WhatsApp/n8n)" style="background-color: var(--sap-warning); border: none; cursor: pointer; padding: 0.5rem; min-width: 36px; justify-content: center;">
-                                <i class="ph ph-bell" style="font-size: 1.2rem;"></i>
+                            <button class="btn-fiori ghost notify-n8n-btn" data-id="{{ t.id|unlocalize }}" title="Notificar a Técnico" style="padding: 0; width: 2rem; height: 2rem; color: var(--sap-warning);">
+                                <i class="ph ph-bell" style="font-size: 1.1rem;"></i>
                             </button>
                             {% if t.fecha_cierre or t.cierre_enviado %}
                                 {% if t.restriccion_acceso %}
-                                    <button class="btn-action" title="Ver Restricción de Acceso" style="background-color: #6f42c1; border: none; cursor: pointer; padding: 0.5rem; min-width: 36px; justify-content: center;" onclick="viewRestriccion('{{ t.restriccion_acceso.id }}', '{{ t.restriccion_acceso.folio_ra }}', '{{ t.restriccion_acceso.horas_restriccion }}')">
-                                        <i class="ph ph-shield-check" style="font-size: 1.2rem;"></i>
+                                    <button class="btn-fiori ghost" title="Ver Restricción" style="padding: 0; width: 2rem; height: 2rem; color: #6f42c1;" onclick="viewRestriccion('{{ t.restriccion_acceso.id }}', '{{ t.restriccion_acceso.folio_ra }}', '{{ t.restriccion_acceso.horas_restriccion }}')">
+                                        <i class="ph ph-shield-check" style="font-size: 1.1rem;"></i>
                                     </button>
                                 {% else %}
-                                    <button class="btn-action open-restriccion-btn" 
+                                    <button class="btn-fiori ghost open-restriccion-btn" 
                                         data-id="{{ t.id|unlocalize }}" 
                                         data-folio="{{ t.folio|default:t.id_solicitud }}" 
                                         data-solicitante="{{ t.solicitante|default:'-' }}"
@@ -246,8 +238,8 @@
                                         data-description="{{ t.solicitud_descripcion|truncatechars:150|default:'-' }}"
                                         data-reporte="{{ t.fecha_solicitud|date:'d/m/Y H:i' }}"
                                         data-cierre="{{ t.fecha_cierre|date:'d/m/Y H:i' }}"
-                                        title="Crear Restricción de Acceso" style="background-color: #e91e63; border: none; cursor: pointer; padding: 0.5rem; min-width: 36px; justify-content: center;">
-                                        <i class="ph ph-lock-key" style="font-size: 1.2rem;"></i>
+                                        title="Crear Restricción" style="padding: 0; width: 2rem; height: 2rem; color: #e91e63;">
+                                        <i class="ph ph-lock-key" style="font-size: 1.1rem;"></i>
                                     </button>
                                 {% endif %}
                             {% endif %}
@@ -267,7 +259,7 @@
 
     <!-- Ticket Details Modal HTML -->
     <div id="ticket-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
-        <div style="background: white; width: 95%; max-width: 1400px; height: 90vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.2);">
+        <div style="background: white; width: 95%; max-width: 1400px; height: 90vh; border-radius: var(--sap-radius); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.2);">
             <div style="padding: 16px 24px; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center; background: #fafafa;">
                 <h3 style="margin: 0; font-size: 1.1rem; color: var(--sap-text);"><i class="ph ph-ticket" style="margin-right: 8px;"></i> Detalles del Ticket</h3>
                 <button class="btn-icon" onclick="closeTicketModal()" style="font-size: 1.5rem; color: var(--sap-label); cursor: pointer; border: none; background: transparent;"><i class="ph ph-x"></i></button>
@@ -284,14 +276,14 @@
 
     <!-- Restriccion Acceso Modal -->
     <div id="restriccion-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
-        <div style="background: white; width: 90%; max-width: 500px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.2);">
+        <div style="background: white; width: 90%; max-width: 500px; border-radius: var(--sap-radius); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.2);">
             <div style="padding: 16px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
                 <h3 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;"><i class="ph ph-lock-key" style="color: #e91e63;"></i> Restricción de Acceso</h3>
                 <button onclick="closeRestriccionModal()" style="border: none; background: transparent; font-size: 1.5rem; cursor: pointer; color: #999;"><i class="ph ph-x"></i></button>
             </div>
             <div style="padding: 24px;">
                 <!-- Ticket Summary Section -->
-                <div id="ra-ticket-summary" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; font-size: 0.85rem; color: #333;">
+                <div id="ra-ticket-summary" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #eee; border-radius: var(--sap-radius); font-size: 0.85rem; color: #333;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
                         <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Folio Ticket</strong> <span id="ra-ticket-folio" style="font-weight: 700;"></span></div>
                         <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Solicitante</strong> <span id="ra-ticket-solicitante"></span></div>

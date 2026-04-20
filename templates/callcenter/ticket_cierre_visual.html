@@ -268,6 +268,70 @@
         border-left: 4px solid var(--sap-blue);
     }
     .btn-unlink { color: var(--sap-error); cursor: pointer; font-size: 0.8rem; background: none; border: none; font-weight: 600; }
+
+    /* Drag & Drop Interactive Styles */
+    #tab-evidencias { position: relative; }
+    
+    .drop-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 110, 209, 0.08);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        border: 3px dashed var(--sap-blue);
+        border-radius: 12px;
+        pointer-events: none; /* Allow events to pass through initially */
+        transition: all 0.3s ease;
+    }
+
+    .drop-overlay.active {
+        display: flex;
+        pointer-events: all;
+        animation: pulseSubtle 1.5s infinite;
+    }
+
+    .drop-overlay-content {
+        background: white;
+        padding: 30px 50px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        text-align: center;
+        transform: scale(0.9);
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .drop-overlay.active .drop-overlay-content { transform: scale(1); }
+
+    .drop-overlay i {
+        font-size: 60px;
+        color: var(--sap-blue);
+        margin-bottom: 20px;
+        display: block;
+    }
+
+    .drop-overlay h3 {
+        margin: 0;
+        font-size: 20px;
+        color: var(--sap-shell);
+        font-weight: 700;
+    }
+
+    .drop-overlay p {
+        margin: 10px 0 0;
+        font-size: 14px;
+        color: var(--sap-label);
+    }
+
+    @keyframes pulseSubtle {
+        0% { background: rgba(10, 110, 209, 0.08); }
+        50% { background: rgba(10, 110, 209, 0.15); }
+        100% { background: rgba(10, 110, 209, 0.08); }
+    }
 </style>
 {% endblock %}
 
@@ -393,13 +457,17 @@
             <div class="evidence-box" data-id="{{ ev.id }}">
                 <div class="evidence-img-container">
                     {% if ev.archivo %}
-                        <img src="{{ ev.archivo.url }}" alt="{{ ev.descripcion }}">
+                        {% if ev.archivo.url|lower|slice:"-4:" == ".mp4" or ev.archivo.url|lower|slice:"-5:" == ".webm" %}
+                            <video src="{{ ev.archivo.url }}" style="width: 100%; height: 100%; object-fit: cover;" controls></video>
+                        {% else %}
+                            <img src="{{ ev.archivo.url }}" alt="{{ ev.descripcion }}">
+                        {% endif %}
                         <button type="button" class="btn-delete-ev" data-id="{{ ev.id }}" onclick="deleteEvidence(this.dataset.id)"><i class="fas fa-trash-alt"></i></button>
                     {% endif %}
                 </div>
                 <input type="text" class="visual-input ev-desc-input" 
                        style="font-size: 12px; padding: 6px 10px; height: auto;" 
-                       placeholder="¿Qué muestra esta foto?" 
+                       placeholder="¿Qué muestra esta evidencia?" 
                        value="{{ ev.descripcion|default:'' }}"
                        onblur="updateDescription('{{ ev.id }}', this.value)">
             </div>
@@ -407,10 +475,21 @@
             <div class="evidence-box add-evidence-box" onclick="document.getElementById('file-upload').click()" 
                  style="aspect-ratio: 1; justify-content: center; align-items: center; border: 2px dashed var(--sap-border); background: transparent;">
                 <i class="fas fa-camera"></i>
-                <span>Subir Foto</span>
+                <span style="font-size: 12px;">Subir Evidencia</span>
+                <span style="font-size: 10px; opacity: 0.7; font-weight: 400;">(o arrastra y pega aquí)</span>
             </div>
         </div>
-        <input type="file" id="file-upload" style="display: none;" accept="image/*" capture="environment" onchange="uploadFiles(this.files)">
+
+        <!-- Interactive Drop Overlay -->
+        <div id="drop-overlay" class="drop-overlay">
+            <div class="drop-overlay-content">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h3>¡Suelta para Subir!</h3>
+                <p>Solo imágenes y videos permitidos</p>
+            </div>
+        </div>
+
+        <input type="file" id="file-upload" style="display: none;" accept="image/*,video/*" multiple onchange="uploadFiles(this.files)">
     </div>
 
     <!-- Footer -->
@@ -477,10 +556,25 @@
     async function uploadFiles(files) {
         if (!files.length) return;
         
-        Swal.fire({ title: 'Subiendo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        // Validation: Only Images and Videos
+        const validFiles = Array.from(files).filter(file => {
+            return file.type.startsWith('image/') || file.type.startsWith('video/');
+        });
+
+        if (validFiles.length === 0) {
+            Swal.fire({ icon: 'error', title: 'Archivo no permitido', text: 'Solo puedes subir imágenes o videos.' });
+            return;
+        }
+
+        Swal.fire({ 
+            title: 'Subiendo Evidencias...', 
+            html: `Procesando <b>${validFiles.length}</b> archivo(s)...`,
+            allowOutsideClick: false, 
+            didOpen: () => Swal.showLoading() 
+        });
         
         const formData = new FormData();
-        for (let file of files) { formData.append('files', file); }
+        for (let file of validFiles) { formData.append('files', file); }
 
         try {
             const resp = await fetch('../upload-evidencia/', {
@@ -490,12 +584,79 @@
             });
             const data = await resp.json();
             if (data.success) {
-                location.reload(); // Re-render for now (can be optimized later)
+                // Success feedback before reload
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Subida completa!',
+                    text: 'Las evidencias se guardaron correctamente.',
+                    timer: 1500,
+                    showConfirmButton: false,
+                    willClose: () => { location.reload(); }
+                });
             }
         } catch (e) {
             Swal.fire({ icon: 'error', title: 'Error al subir fotos' });
         }
     }
+
+    // Interactive Drag & Drop Logic
+    const evidenceTab = document.getElementById('tab-evidencias');
+    const dropOverlay = document.getElementById('drop-overlay');
+
+    if (evidenceTab && dropOverlay) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            evidenceTab.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        evidenceTab.addEventListener('dragenter', () => {
+            if (evidenceTab.classList.contains('active')) dropOverlay.classList.add('active');
+        });
+
+        evidenceTab.addEventListener('dragover', () => {
+            if (evidenceTab.classList.contains('active')) dropOverlay.classList.add('active');
+        });
+
+        evidenceTab.addEventListener('dragleave', (e) => {
+            // Only hide if we actually leave the container, not just passing over child elements
+            if (!evidenceTab.contains(e.relatedTarget)) {
+                dropOverlay.classList.remove('active');
+            }
+        });
+
+        evidenceTab.addEventListener('drop', (e) => {
+            dropOverlay.classList.remove('active');
+            if (evidenceTab.classList.contains('active')) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                uploadFiles(files);
+            }
+        });
+    }
+
+    // Clipboard Paste Logic
+    window.addEventListener('paste', (e) => {
+        // Only active if we are on the evidences tab
+        if (!evidenceTab.classList.contains('active')) return;
+
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        const files = [];
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].kind === 'file') {
+                const blob = items[i].getAsFile();
+                if (blob) files.push(blob);
+            }
+        }
+
+        if (files.length > 0) {
+            uploadFiles(files);
+        }
+    });
 
     // AJAX Delete
     async function deleteEvidence(id) {
