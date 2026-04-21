@@ -25,10 +25,16 @@
             margin-top: 20px;
         }
 
+        .page-break {
+            page-break-after: always;
+            break-after: page;
+        }
+
         /* ===== SECCIÓN COMÚN (ambas mitades) ===== */
         .section {
             padding: 20px 22px;
             text-align: center;
+            background: white;
         }
 
         .section-title {
@@ -126,22 +132,23 @@
             line-height: 1.5;
         }
 
-        /* ===== LÍNEA DE CORTE ===== */
+        /* ===== LÍNEA DE CORTE (Visual solo en pantalla) ===== */
         .tear-line {
             border: none;
             border-top: 4px dashed #333;
-            margin: 0;
+            margin: 20px 0;
             position: relative;
+            width: 576px;
         }
         .tear-line::before {
-            content: '✂ ─ ─ ─ ─ ─ CORTAR AQUÍ ─ ─ ─ ─ ─ ✂';
+            content: '✂ ─ ─ ─ ─ ─ PUNTO DE CORTE ─ ─ ─ ─ ─ ✂';
             position: absolute;
             top: -12px;
             left: 50%;
             transform: translateX(-50%);
             font-size: 14px;
             font-weight: bold;
-            background: white;
+            background: #eee;
             padding: 0 8px;
             white-space: nowrap;
         }
@@ -179,99 +186,104 @@
         .btn-sistema  { background: #34495e; }
 
         @media print {
-            .print-btn, .btn-group, .help-text { display: none !important; }
+            .print-btn, .btn-group, .help-text, .tear-line { display: none !important; }
             body { background: white; }
             .label-content { border: none; margin: 0; }
+            .page-break { border: none; }
         }
     </style>
 </head>
 <body>
 
-    <div id="printable-label" class="label-content">
+    <div id="label-pages" style="display: flex; flex-direction: column; align-items: center;">
 
-        <!-- ══════════ PARTE 1: NOTIFICACIÓN (se pega en el lugar/escritorio) ══════════ -->
-        <div class="section">
-            <div class="section-title">⚠ ARTÍCULO RETIRADO ⚠</div>
+        <!-- ══════════ PARTE 1: NOTIFICACIÓN (Página 1) ══════════ -->
+        <div id="page-1" class="label-content page-break">
+            <div class="section">
+                <div class="section-title">⚠ ARTÍCULO RETIRADO ⚠</div>
 
-            <div class="qr-box">
-                <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
-            </div>
+                <div class="qr-box">
+                    <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
+                </div>
 
-            <div class="code-text">{{ objeto.codigo_barras }}</div>
+                <div class="code-text">{{ objeto.codigo_barras }}</div>
 
-            <div class="item-name">{{ objeto.catalogo_objeto.nombre }}</div>
+                <div class="item-name">{{ objeto.catalogo_objeto.nombre }}</div>
 
-            <div class="ubicacion">
-                <span class="ub-label">📍 UBICACIÓN:</span><br>
-                {{ ubicacion_jerarquica }}
-            </div>
+                <div class="ubicacion">
+                    <span class="ub-label">📍 UBICACIÓN:</span><br>
+                    {{ ubicacion_jerarquica }}
+                </div>
 
-            <div class="usuario">👤 {{ nombre_usuario }}</div>
+                <div class="usuario">👤 {{ nombre_usuario }}</div>
 
-            <div class="notif-body">
-                Estimado Usuari@: Se le notifica que su artículo
-                ha sido retirado de las instalaciones a una
-                bodega de almacenamiento.
-            </div>
+                <div class="notif-body">
+                    Estimado Usuari@: Se le notifica que su artículo
+                    ha sido retirado de las instalaciones a una
+                    bodega de almacenamiento.
+                </div>
 
-            <div class="notif-body notif-bold">
-                NOTA: El procedimiento interno del CCG
-                prohíbe el uso de cafeteras, microondas,
-                tostadoras o cualquier electrodoméstico
-                o electrónico de alto consumo dentro de
-                las oficinas y áreas comunes, para evitar
-                inconvenientes técnicos y de seguridad.
-            </div>
+                <div class="notif-body notif-bold">
+                    NOTA: El procedimiento interno del CCG
+                    prohíbe el uso de cafeteras, microondas,
+                    tostadoras o cualquier electrodoméstico
+                    o electrónico de alto consumo dentro de
+                    las oficinas y áreas comunes, para evitar
+                    inconvenientes técnicos y de seguridad.
+                </div>
 
-            <div class="notif-horario">
-                📍 Oficinas de la Operadora<br>
-                Sótano 1, con este comprobante<br>
-                🕐 Lunes a Viernes<br>
-                10:00 AM a 3:00 PM
-            </div>
+                <div class="notif-horario">
+                    📍 Oficinas de la Operadora<br>
+                    Sótano 1, con este comprobante<br>
+                    🕐 Lunes a Viernes<br>
+                    10:00 AM a 3:00 PM
+                </div>
 
-            <div class="notif-compromiso">
-                Al presentarse, deberá mostrar su DNI
-                y aceptar el compromiso de retirar el
-                artículo para no volver a ingresarlo
-                a las instalaciones.
-            </div>
+                <div class="notif-compromiso">
+                    Al presentarse, deberá mostrar su DNI
+                    y aceptar el compromiso de retirar el
+                    artículo para no volver a ingresarlo
+                    a las instalaciones.
+                </div>
 
-            <div class="section-footer">
-                {{ ahora|date:"d/m/Y H:i" }} &nbsp;|&nbsp;
-                {{ objeto.levantamiento.folio }}
+                <div class="section-footer">
+                    {{ ahora|date:"d/m/Y H:i" }} &nbsp;|&nbsp;
+                    {{ objeto.levantamiento.folio }}
+                </div>
             </div>
         </div>
 
-        <!-- ══════════ LÍNEA DE CORTE ══════════ -->
+        <!-- Línea visual solo en pantalla -->
         <hr class="tear-line">
 
-        <!-- ══════════ PARTE 2: CODO (se pega en el artículo) ══════════ -->
-        <div class="section">
-            <div class="section-title">COMPROBANTE DE RETIRO</div>
+        <!-- ══════════ PARTE 2: CODO (Página 2) ══════════ -->
+        <div id="page-2" class="label-content">
+            <div class="section">
+                <div class="section-title">COMPROBANTE DE RETIRO</div>
 
-            <div class="notif-body notif-bold" style="text-align: center; margin-top: 0;">
-                ▶ PEGUE ESTA ETIQUETA EN EL ARTÍCULO RETIRADO ◀
-            </div>
+                <div class="notif-body notif-bold" style="text-align: center; margin-top: 0;">
+                    ▶ PEGUE ESTA ETIQUETA EN EL ARTÍCULO RETIRADO ◀
+                </div>
 
-            <div class="qr-box">
-                <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
-            </div>
+                <div class="qr-box">
+                    <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
+                </div>
 
-            <div class="code-text">{{ objeto.codigo_barras }}</div>
+                <div class="code-text">{{ objeto.codigo_barras }}</div>
 
-            <div class="item-name">{{ objeto.catalogo_objeto.nombre }}</div>
+                <div class="item-name">{{ objeto.catalogo_objeto.nombre }}</div>
 
-            <div class="ubicacion">
-                <span class="ub-label">📍 UBICACIÓN:</span><br>
-                {{ ubicacion_jerarquica }}
-            </div>
+                <div class="ubicacion">
+                    <span class="ub-label">📍 UBICACIÓN:</span><br>
+                    {{ ubicacion_jerarquica }}
+                </div>
 
-            <div class="usuario">👤 {{ nombre_usuario }}</div>
+                <div class="usuario">👤 {{ nombre_usuario }}</div>
 
-            <div class="section-footer">
-                {{ ahora|date:"d/m/Y H:i" }} &nbsp;|&nbsp;
-                {{ objeto.levantamiento.folio }}
+                <div class="section-footer">
+                    {{ ahora|date:"d/m/Y H:i" }} &nbsp;|&nbsp;
+                    {{ objeto.levantamiento.folio }}
+                </div>
             </div>
         </div>
 
@@ -279,7 +291,7 @@
 
     <!-- Botones de impresión -->
     <div class="btn-group">
-        <button onclick="shareImage()" class="print-btn btn-posprint" id="btn-pos">
+        <button onclick="shareImages()" class="print-btn btn-posprint" id="btn-pos">
             🖨️ IMPRIMIR (COMPARTIR)
         </button>
 
@@ -293,18 +305,18 @@
     </div>
 
     <div class="help-text" style="margin: 15px 0 30px; font-size: 11px; color: #666; max-width: 85%; text-align: center; font-family: sans-serif; line-height: 1.6;">
-        <strong>Compartir:</strong> Envía imagen a PosPrinter Driver.<br>
+        <strong>Compartir:</strong> Envía las dos páginas a PosPrinter Driver.<br>
         <strong>RawBT:</strong> Envío directo con RawBT.<br>
-        <strong>Sistema:</strong> Diálogo de impresión del teléfono.
+        <strong>Sistema:</strong> Diálogo de impresión del teléfono (genera 2 páginas).
     </div>
 
     <script src="{% static 'seguridad/js/html2canvas.min.js' %}"></script>
     <script>
     const PRINTER_WIDTH = 576;
 
-    async function captureLabel() {
-        const label = document.getElementById('printable-label');
-        const canvas = await html2canvas(label, {
+    async function captureElement(elementId) {
+        const element = document.getElementById(elementId);
+        const canvas = await html2canvas(element, {
             scale: 1,
             backgroundColor: '#ffffff',
             useCORS: true,
@@ -325,25 +337,29 @@
         return canvas;
     }
 
-    async function shareImage() {
+    async function shareImages() {
         const btn = document.getElementById('btn-pos');
         const orig = btn.innerHTML;
         btn.innerHTML = '⏳ PROCESANDO...';
         btn.disabled = true;
         btn.style.opacity = '0.7';
         try {
-            const canvas = await captureLabel();
-            const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-            const file = new File([blob], 'etiqueta.png', { type: 'image/png' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ title: 'Etiqueta {{ objeto.codigo_barras }}', files: [file] });
+            const canvas1 = await captureElement('page-1');
+            const canvas2 = await captureElement('page-2');
+            
+            const blob1 = await new Promise(r => canvas1.toBlob(r, 'image/png'));
+            const blob2 = await new Promise(r => canvas2.toBlob(r, 'image/png'));
+            
+            const file1 = new File([blob1], 'etiqueta_notificacion.png', { type: 'image/png' });
+            const file2 = new File([blob2], 'etiqueta_comprobante.png', { type: 'image/png' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file1, file2] })) {
+                await navigator.share({ 
+                    title: 'Etiquetas {{ objeto.codigo_barras }}', 
+                    files: [file1, file2] 
+                });
             } else {
-                const url = canvas.toDataURL('image/png');
-                const a = document.createElement('a');
-                a.download = 'etiqueta_{{ objeto.codigo_barras }}.png';
-                a.href = url;
-                a.click();
-                alert('Imagen descargada. Compártela con POS Printer Driver.');
+                alert('Tu navegador no permite compartir múltiples archivos. Usa Impresión Sistema.');
             }
         } catch (err) {
             if (err.name !== 'AbortError') alert('Error: ' + err.message);
@@ -361,7 +377,13 @@
         btn.disabled = true;
         btn.style.opacity = '0.7';
         try {
-            const canvas = await captureLabel();
+            const canvas = await html2canvas(document.getElementById('label-pages'), {
+                scale: 1,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                width: PRINTER_WIDTH,
+                ignoreElements: (el) => el.classList.contains('tear-line')
+            });
             const b64 = canvas.toDataURL('image/png').split(',')[1];
             window.location.href = `intent:${b64}#Intent;scheme=base64;package=ru.a402d.rawbtprinter;end;`;
         } catch (err) {
