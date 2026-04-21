@@ -192,20 +192,32 @@
 <body>
 
     <header>
-        <button onclick="window.location.href='{% url 'core:mobile_dashboard' %}'" class="back-btn">
+        <button onclick="window.location.href='{% if request.GET.next %}{{ request.GET.next }}{% else %}{% url 'core:mobile_dashboard' %}{% endif %}'" class="back-btn">
             <ion-icon name="arrow-back-outline"></ion-icon>
         </button>
-        <h1>Escáner de Equipos</h1>
+        <h1 id="scanner-title">Escáner de Equipos</h1>
     </header>
 
     <div class="status-msg">
-        <span class="status-pill">Enfoca el código QR del equipo</span>
+        <span class="status-pill" id="main-pill">Enfoca el código QR del equipo</span>
     </div>
+
+    <script>
+        // Ajuste dinámico de UI según parámetros
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('multi') === '1') {
+            document.getElementById('scanner-title').innerText = "Modo Ráfaga (Múltiple)";
+            document.getElementById('main-pill').innerText = "Escaneando continuamente...";
+        }
+    </script>
 
     <div id="reader"></div>
     <div class="scanner-overlay"></div>
 
     <div class="scanner-controls">
+        <button class="control-btn" id="finish-btn" style="display: none; width: auto; border-radius: 30px; padding: 0 25px; background: var(--primary); font-size: 14px; font-weight: 700;">
+            FINALIZAR ESCANEO (<span id="batch-count">0</span>)
+        </button>
         <button class="control-btn" id="flash-toggle">
             <ion-icon name="flashlight-outline"></ion-icon>
         </button>
@@ -241,14 +253,89 @@
             aspectRatio: undefined 
         };
 
+        const scannedCodes = new Set();
+        const finishBtn = document.getElementById('finish-btn');
+        const batchCountSpan = document.getElementById('batch-count');
+
         const onScanSuccess = (decodedText, decodedResult) => {
             if (qrPaused) return;
-            qrPaused = true;
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const isMulti = urlParams.get('multi') === '1';
+            const skipResolver = urlParams.get('skip_resolver') === '1';
+            const apiUrl = urlParams.get('api_url');
+            const nextUrl = urlParams.get('next');
+
+            if (!isMulti) {
+                qrPaused = true;
+            }
 
             // Vibración si el dispositivo lo soporta
             if (navigator.vibrate) navigator.vibrate(100);
 
-            // Llamar al backend para resolver
+            // 1. MODO BATCH (ACUMULACIÓN LOCAL) - Prioridad si es Multi pero NO tiene API
+            if (isMulti && !apiUrl && nextUrl) {
+                if (!scannedCodes.has(decodedText)) {
+                    scannedCodes.add(decodedText);
+                    batchCountSpan.innerText = scannedCodes.size;
+                    finishBtn.style.display = 'flex';
+                    
+                    // Feedback visual
+                    const pill = document.querySelector('.status-pill');
+                    pill.innerText = `Agregado: ${decodedText.slice(0, 10)}...`;
+                    pill.style.background = '#059669';
+                    setTimeout(() => {
+                        pill.innerText = "Escaneando continuamente...";
+                        pill.style.background = 'rgba(0,0,0,0.5)';
+                    }, 800);
+                }
+                return;
+            }
+
+            // 2. MODO RÁFAGA (MULTISCAN API)
+            if (isMulti && apiUrl) {
+                const extraDataJson = urlParams.get('extra_data'); 
+                
+                // Feedback visual inmediato
+                const pill = document.querySelector('.status-pill');
+                const originalText = pill.innerText;
+                pill.innerText = `Capturado: ${decodedText.slice(0, 10)}... ✓`;
+                pill.style.background = '#059669';
+                
+                const bodyData = { codigo: decodedText };
+                if (extraDataJson) {
+                    extraDataJson.split(',').forEach(kv => {
+                        const [k, v] = kv.split('=');
+                        if (k && v) bodyData[k] = v;
+                    });
+                }
+
+                fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify(bodyData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status !== 'success') showToast(data.message || 'Error al registrar');
+                    setTimeout(() => {
+                        pill.innerText = originalText;
+                        pill.style.background = 'rgba(0,0,0,0.5)';
+                    }, 800);
+                })
+                .catch(err => showToast('Error de conexión'));
+                
+                return;
+            }
+
+            // 3. MODO BYPASS (REDIRECCIÓN DIRECTA)
+            if (skipResolver && nextUrl) {
+                const separator = nextUrl.includes('?') ? '&' : '?';
+                window.location.href = `${nextUrl}${separator}code=${encodeURIComponent(decodedText)}`;
+                return;
+            }
+
+            // 4. MODO ESTÁNDAR (RESOLVER EN BD)
             fetch(`{% url 'core:qr_resolver' %}?code=${encodeURIComponent(decodedText)}`)
                 .then(response => response.json())
                 .then(data => {
@@ -341,6 +428,17 @@
         // Switch Cámara (Simple reload for now)
         document.getElementById('camera-switch').addEventListener('click', () => {
             location.reload();
+        });
+
+        // Evento Finalizar Batch
+        finishBtn.addEventListener('click', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const nextUrl = urlParams.get('next');
+            if (nextUrl) {
+                const codesArray = Array.from(scannedCodes);
+                const separator = nextUrl.includes('?') ? '&' : '?';
+                window.location.href = `${nextUrl}${separator}codigos=${encodeURIComponent(codesArray.join(','))}`;
+            }
         });
     </script>
 </body>

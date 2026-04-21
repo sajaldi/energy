@@ -1,0 +1,252 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Validación de Lote - Almacén</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 120px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 15px;
+        }
+
+        .item-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--sap-border-color);
+            position: relative;
+            aspect-ratio: 1;
+        }
+
+        .item-card.confirmed {
+            border: 3px solid #3498db;
+        }
+
+        .item-card img { width: 100%; height: 100%; object-fit: cover; }
+
+        .item-card .overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(52, 152, 219, 0.8);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 30px; opacity: 0;
+        }
+
+        .item-card.confirmed .overlay { opacity: 1; }
+
+        .item-info {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.6); color: white; padding: 4px;
+            font-size: 10px; text-align: center;
+        }
+
+        .discrepancy-badge {
+            position: absolute; top: 5px; right: 5px;
+            background: #e74c3c; color: white; width: 18px; height: 18px;
+            border-radius: 50%; font-size: 10px; display: none; align-items: center; justify-content: center;
+            font-weight: 800; border: 1.5px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .floating-footer {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; padding: 15px; border-top: 1px solid var(--sap-border-color);
+            display: flex; gap: 10px; z-index: 1000;
+        }
+
+        .btn-action {
+            flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: 700;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            text-decoration: none; font-size: 14px;
+        }
+
+        .photo-preview-item {
+            position: relative;
+            width: 65px;
+            height: 65px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #ddd;
+        }
+        .photo-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-preview-item .remove-btn {
+            position: absolute; top: -5px; right: -5px;
+            background: #e74c3c; color: white; width: 20px; height: 20px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; cursor: pointer; border: 1.5px solid white;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="fiori-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{% url 'seguridad:mobile_almacen_recepcion' %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <div>
+                <h1 style="margin: 0; font-size: 16px; font-weight: 700;">Validar Lote</h1>
+                <p style="margin: 0; font-size: 11px; opacity: 0.8;">{{ levantamiento.folio }}</p>
+            </div>
+        </div>
+        <div id="counter" style="font-weight: 700; font-size: 14px;">0/{{ objetos|length }}</div>
+    </header>
+
+    <div class="grid-container" id="grid">
+        {% for obj in objetos %}
+        <div class="item-card {% if obj.status == 'ALMACENADO' %}confirmed{% endif %}" 
+             id="card-{{ obj.id }}" 
+             onclick="openDetailModal('{{ obj.id }}', '{{ obj.codigo_barras }}', '{{ obj.comentario_almacen|default:'' }}', '{{ obj.ubicacion_almacen|default:'' }}', '{{ obj.catalogo_objeto.nombre|escapejs }}')">
+            {% with foto=obj.fotos.first %}
+            <img src="{% if foto %}{{ foto.foto.url }}{% else %}{% static 'core/img/no-image.png' %}{% endif %}" alt="Obj">
+            {% endwith %}
+            <div class="overlay"><ion-icon name="cube-outline"></ion-icon></div>
+            <div class="item-info">{{ obj.codigo_barras }}</div>
+            <div class="discrepancy-badge" id="badge-{{ obj.id }}" {% if obj.tiene_novedad_almacen %}style="display:flex;"{% endif %}>!</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="floating-footer">
+        <a href="{% url 'core:mobile_scanner' %}?next={{ request.path }}&multi=1&api_url={% url 'seguridad:api_almacen_almacenar_objeto' %}&extra_data=levantamiento_id={{ levantamiento.id }}" class="btn-action" style="background: #3498db; color: white;">
+            <ion-icon name="qr-code-outline"></ion-icon>
+            RÁPIDO
+        </a>
+        <form method="POST" style="flex: 1;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="finalizar_recepcion">
+            <button type="submit" class="btn-action" style="background: var(--sap-brand-color); color: white; width: 100%;">
+                FINALIZAR LOTE
+            </button>
+        </form>
+    </div>
+
+    <script>
+        let currentPhotos = [];
+
+        async function openDetailModal(id, code, comment, location, name) {
+            currentPhotos = [];
+            
+            const { value: formValues } = await Swal.fire({
+                title: 'Recepción: ' + name,
+                html: `
+                    <div style="text-align: left; font-size: 14px;">
+                        <p><strong>Código:</strong> ${code}</p>
+                        
+                        <div style="margin-bottom: 12px;">
+                            <label style="font-weight: 700; font-size: 11px;">UBICACIÓN EN BODEGA</label>
+                            <input id="swal-location" class="swal2-input" placeholder="Ej: Pasillo 3, Nivel A" value="${location}" style="margin: 5px 0; width: 100%; box-sizing: border-box;">
+                        </div>
+
+                        <div style="margin-bottom: 12px;">
+                            <label style="font-weight: 700; font-size: 11px;">COMENTARIOS / NOVEDADES</label>
+                            <textarea id="swal-comment" class="swal2-textarea" placeholder="¿Llegó incompleto o dañado?" style="margin: 5px 0; width: 100%; box-sizing: border-box; height: 70px;">${comment}</textarea>
+                        </div>
+
+                        <div>
+                            <label style="font-weight: 700; font-size: 11px; display: block; margin-bottom: 5px;">EVIDENCIA (OPCIONAL)</label>
+                            <div id="photo-previews" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;"></div>
+                            <button type="button" onclick="document.getElementById('swal-file').click()" class="btn-action" style="background: #f1f5f9; color: #334155; font-size: 11px; padding: 10px; width: 100%; border: 1.5px dashed #cbd5e1;">
+                                <ion-icon name="camera-outline"></ion-icon> ADJUNTAR FOTO
+                            </button>
+                            <input type="file" id="swal-file" accept="image/*" capture="environment" style="display: none;" onchange="handleModalPhoto(this)">
+                        </div>
+                    </div>
+                `,
+                focusConfirm: false,
+                verticalButtons: true,
+                showCancelButton: true,
+                confirmButtonText: 'Confirmar Recepción',
+                preConfirm: () => {
+                    return {
+                        location: document.getElementById('swal-location').value,
+                        comment: document.getElementById('swal-comment').value
+                    }
+                }
+            });
+
+            if (formValues) {
+                confirmarGuardado(code, formValues.comment, formValues.location);
+            }
+        }
+
+        function handleModalPhoto(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                currentPhotos.push(file);
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const container = document.getElementById('photo-previews');
+                    const div = document.createElement('div');
+                    div.className = 'photo-preview-item';
+                    div.innerHTML = `
+                        <img src="${e.target.result}">
+                        <div class="remove-btn" onclick="this.parentElement.remove()">×</div>
+                    `;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function confirmarGuardado(codigo, comentario, ubicacion) {
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+            const formData = new FormData();
+            formData.append('codigo', codigo);
+            formData.append('levantamiento_id', '{{ levantamiento.id }}');
+            formData.append('comentario', comentario);
+            formData.append('ubicacion', ubicacion);
+            
+            currentPhotos.forEach(file => { formData.append('fotos', file); });
+
+            try {
+                const response = await fetch('{% url "seguridad:api_almacen_almacenar_objeto" %}', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    const card = document.getElementById('card-' + data.objeto_id);
+                    card.classList.add('confirmed');
+                    const badge = document.getElementById('badge-' + data.objeto_id);
+                    badge.style.display = data.tiene_novedad ? 'flex' : 'none';
+                    updateCounter();
+                    Swal.fire({ icon: 'success', title: 'Almacenado', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+                }
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Error de Red' });
+            }
+        }
+
+        function updateCounter() {
+            const confirmedCount = document.querySelectorAll('.item-card.confirmed').length;
+            const total = {{ objetos|length }};
+            document.getElementById('counter').innerText = `${confirmedCount}/${total}`;
+        }
+
+        updateCounter();
+    </script>
+</body>
+</html>

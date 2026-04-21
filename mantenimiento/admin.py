@@ -10,7 +10,7 @@ from django.shortcuts import render
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
-from .models import Tipo, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso
+from .models import Tipo, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Asistencia
 from activos.models import Categoria as CategoriaActivo
 from django.utils.safestring import mark_safe
 from django.urls import reverse, path
@@ -430,17 +430,17 @@ class TecnicoPuestoAdmin(ImportExportModelAdmin):
     resource_class = TecnicoPuestoResource
     change_list_template = 'admin/mantenimiento/tecnicopuesto/change_list.html' # Template custom con botón
 
-    list_display = ('get_nombre_completo', 'puesto', 'empresa', 'dni', 'get_carga_semanal', 'disponible')
-    list_filter = ('empresa', 'puesto', 'disponible', 'tipo_sangre')
+    list_display = ('get_thumbnail', 'get_nombre_completo', 'puesto', 'empresa', 'dni', 'codigo_asistencia', 'get_carga_semanal', 'disponible', 'esta_vigente')
+    list_filter = ('esta_vigente', 'empresa', 'puesto', 'disponible', 'tipo_sangre')
     search_fields = ('nombre', 'apellido', 'user__username', 'user__first_name', 'user__last_name', 'puesto__nombre', 'dni', 'empresa__nombre')
     autocomplete_fields = ('user', 'puesto', 'empresa')
     
     fieldsets = (
         ('Información de Identidad', {
-            'fields': ('user', 'nombre', 'apellido', 'dni')
+            'fields': ('foto', 'user', 'nombre', 'apellido', 'dni')
         }),
         ('Información Profesional', {
-            'fields': ('puesto', 'empresa', 'disponible')
+            'fields': ('puesto', 'empresa', 'disponible', 'esta_vigente', 'codigo_asistencia')
         }),
         ('Información Personal', {
             'fields': ('fecha_nacimiento', 'tipo_sangre', 'fecha_alta')
@@ -449,6 +449,12 @@ class TecnicoPuestoAdmin(ImportExportModelAdmin):
             'fields': ('horas_semanales_max',)
         }),
     )
+    
+    def get_thumbnail(self, obj):
+        if obj.foto:
+            return mark_safe(f'<img src="{obj.foto.url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 1px solid #ddd;" />')
+        return mark_safe('<i class="fas fa-user-circle" style="font-size: 30px; color: #ccc;"></i>')
+    get_thumbnail.short_description = 'Foto'
 
     def get_nombre_completo(self, obj):
         if obj.user:
@@ -506,6 +512,27 @@ class TecnicoPuestoAdmin(ImportExportModelAdmin):
         response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_personal.xlsx"'
         return response
+
+@admin.register(Asistencia)
+class AsistenciaAdmin(admin.ModelAdmin):
+    list_display = ('tecnico', 'fecha', 'hora_entrada', 'hora_salida', 'empresa_registro')
+    list_filter = ('fecha', 'empresa_registro')
+    search_fields = ('tecnico__nombre', 'tecnico__apellido', 'tecnico__dni', 'tecnico__codigo_asistencia')
+    readonly_fields = ('creado_en', 'actualizado_en')
+    autocomplete_fields = ('tecnico', 'empresa_registro', 'usuario_estacion')
+    
+    change_list_template = 'admin/mantenimiento/asistencia/change_list.html'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('generate-report/', self.admin_site.admin_view(self.reporte_view), name='mantenimiento_asistencia_reporte'),
+        ]
+        return custom_urls + urls
+
+    def reporte_view(self, request):
+        from .views.asistencia import AsistenciaReportView
+        return AsistenciaReportView.as_view()(request)
 
 class FlexibleDurationWidget(DurationWidget):
     """

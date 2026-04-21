@@ -1,0 +1,377 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Etiqueta - {{ objeto.codigo_barras }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #eee;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .label-content {
+            width: 576px;
+            background: white;
+            padding: 0;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            margin-top: 20px;
+        }
+
+        /* ===== SECCIÓN COMÚN (ambas mitades) ===== */
+        .section {
+            padding: 20px 22px;
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 36px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            border: 4px solid black;
+            padding: 10px 0;
+            margin-bottom: 16px;
+        }
+
+        .qr-box {
+            margin: 12px 0;
+        }
+        .qr-box img {
+            width: 260px;
+            height: 260px;
+        }
+
+        .code-text {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            margin: 8px 0;
+            border: 2px solid #333;
+            padding: 6px 0;
+        }
+
+        .item-name {
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 10px 0;
+        }
+
+        .ubicacion {
+            font-size: 18px;
+            margin: 8px 0;
+            padding: 8px 6px;
+            border: 2px solid #333;
+            text-align: left;
+            line-height: 1.5;
+        }
+        .ubicacion .ub-label {
+            font-weight: bold;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+
+        .usuario {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 8px 0;
+            padding: 6px 0;
+            border-top: 2px solid #333;
+            border-bottom: 2px solid #333;
+        }
+
+        .notif-body {
+            font-size: 18px;
+            text-align: justify;
+            line-height: 1.5;
+            margin: 12px 0;
+        }
+
+        .notif-bold {
+            font-weight: bold;
+        }
+
+        .notif-horario {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            border: 3px solid #333;
+            padding: 10px 8px;
+            margin: 12px 0;
+            line-height: 1.5;
+        }
+
+        .notif-compromiso {
+            font-size: 16px;
+            text-align: justify;
+            line-height: 1.5;
+            margin: 10px 0;
+            font-style: italic;
+        }
+
+        .section-footer {
+            font-size: 14px;
+            text-align: center;
+            margin-top: 12px;
+            border-top: 2px dashed #999;
+            padding-top: 8px;
+            line-height: 1.5;
+        }
+
+        /* ===== LÍNEA DE CORTE ===== */
+        .tear-line {
+            border: none;
+            border-top: 4px dashed #333;
+            margin: 0;
+            position: relative;
+        }
+        .tear-line::before {
+            content: '✂ ─ ─ ─ ─ ─ CORTAR AQUÍ ─ ─ ─ ─ ─ ✂';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            font-weight: bold;
+            background: white;
+            padding: 0 8px;
+            white-space: nowrap;
+        }
+
+        /* ===== BOTONES ===== */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            width: 90%;
+            max-width: 320px;
+        }
+
+        .print-btn {
+            padding: 15px 30px;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .print-btn:active { transform: scale(0.97); }
+
+        .btn-posprint { background: #27ae60; }
+        .btn-rawbt    { background: #2563eb; }
+        .btn-sistema  { background: #34495e; }
+
+        @media print {
+            .print-btn, .btn-group, .help-text { display: none !important; }
+            body { background: white; }
+            .label-content { border: none; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="printable-label" class="label-content">
+
+        <!-- ══════════ PARTE 1: NOTIFICACIÓN (se pega en el lugar/escritorio) ══════════ -->
+        <div class="section">
+            <div class="section-title">⚠ ARTÍCULO RETIRADO ⚠</div>
+
+            <div class="qr-box">
+                <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
+            </div>
+
+            <div class="code-text">{{ objeto.codigo_barras }}</div>
+
+            <div class="item-name">{{ objeto.catalogo_objeto.nombre }}</div>
+
+            <div class="ubicacion">
+                <span class="ub-label">📍 UBICACIÓN:</span><br>
+                {{ ubicacion_jerarquica }}
+            </div>
+
+            <div class="usuario">👤 {{ nombre_usuario }}</div>
+
+            <div class="notif-body">
+                Estimado Usuari@: Se le notifica que su artículo
+                ha sido retirado de las instalaciones a una
+                bodega de almacenamiento.
+            </div>
+
+            <div class="notif-body notif-bold">
+                NOTA: El procedimiento interno del CCG
+                prohíbe el uso de cafeteras, microondas,
+                tostadoras o cualquier electrodoméstico
+                o electrónico de alto consumo dentro de
+                las oficinas y áreas comunes, para evitar
+                inconvenientes técnicos y de seguridad.
+            </div>
+
+            <div class="notif-horario">
+                📍 Oficinas de la Operadora<br>
+                Sótano 1, con este comprobante<br>
+                🕐 Lunes a Viernes<br>
+                10:00 AM a 3:00 PM
+            </div>
+
+            <div class="notif-compromiso">
+                Al presentarse, deberá mostrar su DNI
+                y aceptar el compromiso de retirar el
+                artículo para no volver a ingresarlo
+                a las instalaciones.
+            </div>
+
+            <div class="section-footer">
+                {{ ahora|date:"d/m/Y H:i" }} &nbsp;|&nbsp;
+                {{ objeto.levantamiento.folio }}
+            </div>
+        </div>
+
+        <!-- ══════════ LÍNEA DE CORTE ══════════ -->
+        <hr class="tear-line">
+
+        <!-- ══════════ PARTE 2: CODO (se pega en el artículo) ══════════ -->
+        <div class="section">
+            <div class="section-title">COMPROBANTE DE RETIRO</div>
+
+            <div class="notif-body notif-bold" style="text-align: center; margin-top: 0;">
+                ▶ PEGUE ESTA ETIQUETA EN EL ARTÍCULO RETIRADO ◀
+            </div>
+
+            <div class="qr-box">
+                <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR">
+            </div>
+
+            <div class="code-text">{{ objeto.codigo_barras }}</div>
+
+            <div class="item-name">{{ objeto.catalogo_objeto.nombre }}</div>
+
+            <div class="ubicacion">
+                <span class="ub-label">📍 UBICACIÓN:</span><br>
+                {{ ubicacion_jerarquica }}
+            </div>
+
+            <div class="usuario">👤 {{ nombre_usuario }}</div>
+
+            <div class="section-footer">
+                {{ ahora|date:"d/m/Y H:i" }} &nbsp;|&nbsp;
+                {{ objeto.levantamiento.folio }}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Botones de impresión -->
+    <div class="btn-group">
+        <button onclick="shareImage()" class="print-btn btn-posprint" id="btn-pos">
+            🖨️ IMPRIMIR (COMPARTIR)
+        </button>
+
+        <button onclick="printRawBT()" class="print-btn btn-rawbt" id="btn-rawbt">
+            📤 IMPRIMIR (RAWBT)
+        </button>
+
+        <button onclick="window.print()" class="print-btn btn-sistema">
+            ⚙️ IMPRESIÓN SISTEMA
+        </button>
+    </div>
+
+    <div class="help-text" style="margin: 15px 0 30px; font-size: 11px; color: #666; max-width: 85%; text-align: center; font-family: sans-serif; line-height: 1.6;">
+        <strong>Compartir:</strong> Envía imagen a PosPrinter Driver.<br>
+        <strong>RawBT:</strong> Envío directo con RawBT.<br>
+        <strong>Sistema:</strong> Diálogo de impresión del teléfono.
+    </div>
+
+    <script src="{% static 'seguridad/js/html2canvas.min.js' %}"></script>
+    <script>
+    const PRINTER_WIDTH = 576;
+
+    async function captureLabel() {
+        const label = document.getElementById('printable-label');
+        const canvas = await html2canvas(label, {
+            scale: 1,
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            width: PRINTER_WIDTH
+        });
+        const bandH = 24;
+        const padH = Math.ceil(canvas.height / bandH) * bandH;
+        if (padH !== canvas.height) {
+            const padded = document.createElement('canvas');
+            padded.width = PRINTER_WIDTH;
+            padded.height = padH;
+            const ctx = padded.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, padded.width, padded.height);
+            ctx.drawImage(canvas, 0, 0);
+            return padded;
+        }
+        return canvas;
+    }
+
+    async function shareImage() {
+        const btn = document.getElementById('btn-pos');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '⏳ PROCESANDO...';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        try {
+            const canvas = await captureLabel();
+            const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+            const file = new File([blob], 'etiqueta.png', { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: 'Etiqueta {{ objeto.codigo_barras }}', files: [file] });
+            } else {
+                const url = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.download = 'etiqueta_{{ objeto.codigo_barras }}.png';
+                a.href = url;
+                a.click();
+                alert('Imagen descargada. Compártela con POS Printer Driver.');
+            }
+        } catch (err) {
+            if (err.name !== 'AbortError') alert('Error: ' + err.message);
+        } finally {
+            btn.innerHTML = orig;
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
+    }
+
+    async function printRawBT() {
+        const btn = document.getElementById('btn-rawbt');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '⏳ PROCESANDO...';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        try {
+            const canvas = await captureLabel();
+            const b64 = canvas.toDataURL('image/png').split(',')[1];
+            window.location.href = `intent:${b64}#Intent;scheme=base64;package=ru.a402d.rawbtprinter;end;`;
+        } catch (err) {
+            alert('Error: ' + err.message);
+        } finally {
+            btn.innerHTML = orig;
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
+    }
+    </script>
+</body>
+</html>

@@ -8,6 +8,7 @@ from core.views_proxy import media_proxy
 from core.views import global_search
 
 from django.views.generic import TemplateView
+from mantenimiento.views.asistencia import AsistenciaKioskView
 
 urlpatterns = [
     # Override global search before Django admin intercepts it
@@ -36,6 +37,9 @@ urlpatterns = [
     path('servicios/', include('servicios.urls', namespace='servicios')),
     path('ayuda/', include('ayuda.urls', namespace='ayuda')),
     path('plantillas/', include('plantillas.urls', namespace='plantillas')),
+    
+    # App Exclusiva de Asistencia (Kiosko)
+    path('asistencia/', AsistenciaKioskView.as_view(), name='asistencia_kiosk_app'),
     # PWA Support - Servidos como plantillas para asegurar carga desde la raíz
     path('manifest.json', TemplateView.as_view(template_name='core/manifest.json', content_type='application/json')),
     path('sw.js', TemplateView.as_view(template_name='core/sw.js', content_type='application/javascript')),

@@ -5,6 +5,7 @@ from .views.rutinas_dashboard import (
     rutinas_dashboard, rutina_detail_api, rutina_save_api, 
     rutina_delete_api, rutina_pasos_save_api, rutina_qr_pdf
 )
+from .views import asistencia
 
 app_name = 'mantenimiento'
 
@@ -84,4 +85,14 @@ urlpatterns = [
     path('api/search-activos/', views.api_buscar_activos, name='api_buscar_activos'),
     path('rutina-pdf/<int:ot_id>/', views.pdf_views.generate_rutina_pdf_view, name='rutina_pdf'),
     path('aviso-pdf/<int:aviso_id>/', views.pdf_views.generate_aviso_pdf_view, name='aviso_pdf'),
+
+    # Asistencia
+    path('asistencia/estacion/', asistencia.AsistenciaStationView.as_view(), name='asistencia_estacion'),
+    path('asistencia/procesar/', asistencia.AsistenciaProcessView.as_view(), name='asistencia_procesar'),
+    path('asistencia/reporte/', asistencia.AsistenciaReportView.as_view(), name='asistencia_reporte'),
+    path('asistencia/buscar-sin-vincular/', asistencia.BuscarTecnicosSinVincularView.as_view(), name='asistencia_buscar_sin_vincular'),
+    path('asistencia/vincular/', asistencia.VincularTecnicoCodigoView.as_view(), name='asistencia_vincular'),
+    path('asistencia/en-vivo/', asistencia.AsistenciaEnVivoView.as_view(), name='asistencia_en_vivo'),
+    path('asistencia/gestor/buscar/', asistencia.BuscarPersonalGestorView.as_view(), name='asistencia_buscar_personal'),
+    path('asistencia/gestor/guardar/', asistencia.GestionarPersonalView.as_view(), name='asistencia_gestionar_personal'),
 ]

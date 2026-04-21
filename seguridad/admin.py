@@ -4,7 +4,8 @@ from .models import (
     TipoInspeccion, ItemInspeccion, Inspeccion, ResultadoInspeccion,
     AsignacionEPP,
     AnalisisRiesgo, PasoTrabajo, Riesgo, Control,
-    TipoPermiso, RequisitoPermiso, PermisoTrabajo, VerificacionRequisito
+    TipoPermiso, RequisitoPermiso, PermisoTrabajo, VerificacionRequisito,
+    ObjetoCatalogo, LevantamientoConfiscacion, ObjetoConfiscado, FotoObjetoConfiscado
 )
 
 class ItemInspeccionInline(admin.TabularInline):
@@ -96,3 +97,40 @@ class PermisoTrabajoAdmin(admin.ModelAdmin):
     list_display = ('tipo', 'estado', 'fecha_inicio', 'fecha_fin', 'solicitante', 'ubicacion')
     list_filter = ('estado', 'tipo', 'fecha_inicio')
     search_fields = ('descripcion_trabajo', 'solicitante__username')
+
+# --- Confiscaciones Admin ---
+
+@admin.register(ObjetoCatalogo)
+class ObjetoCatalogoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'descripcion')
+    search_fields = ('nombre',)
+
+class FotoObjetoConfiscadoInline(admin.TabularInline):
+    model = FotoObjetoConfiscado
+    extra = 1
+
+@admin.register(ObjetoConfiscado)
+class ObjetoConfiscadoAdmin(admin.ModelAdmin):
+    inlines = [FotoObjetoConfiscadoInline]
+    list_display = ('catalogo_objeto', 'codigo_barras', 'levantamiento', 'status', 'fecha_confiscacion')
+    list_filter = ('status', 'fecha_confiscacion', 'catalogo_objeto')
+    search_fields = ('codigo_barras', 'descripcion', 'levantamiento__folio')
+    autocomplete_fields = ['catalogo_objeto', 'levantamiento']
+
+class ObjetoConfiscadoInline(admin.StackedInline):
+    model = ObjetoConfiscado
+    extra = 0
+    show_change_link = True
+    fields = ('catalogo_objeto', 'codigo_barras', 'status')
+
+@admin.register(LevantamientoConfiscacion)
+class LevantamientoConfiscacionAdmin(admin.ModelAdmin):
+    inlines = [ObjetoConfiscadoInline]
+    list_display = ('folio', 'fecha', 'ubicacion', 'inspector', 'count_objetos')
+    list_filter = ('fecha', 'ubicacion', 'inspector')
+    search_fields = ('folio', 'comentarios', 'ubicacion__nombre')
+    date_hierarchy = 'fecha'
+    
+    def count_objetos(self, obj):
+        return obj.objetos.count()
+    count_objetos.short_description = 'Objetos'

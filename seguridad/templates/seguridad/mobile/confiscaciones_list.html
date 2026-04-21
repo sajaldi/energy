@@ -1,0 +1,152 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Levantamientos de Objetos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 90px;
+            color: var(--sap-text-color);
+        }
+
+        .lev-card {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            box-shadow: var(--sap-card-shadow);
+            padding: 16px;
+            border: 1px solid var(--sap-border-color);
+            margin-bottom: 12px;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .fab {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 60px;
+            height: 60px;
+            background: var(--sap-brand-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            box-shadow: 0 4px 12px rgba(0, 112, 242, 0.4);
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="fiori-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{% url 'core:mobile_dashboard' %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <div>
+                <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Confiscaciones</h1>
+                <p style="margin: 0; font-size: 12px; opacity: 0.8;">Recorrido e Inventario</p>
+            </div>
+        </div>
+        <div class="avatar">
+            {{ user.username|slice:":1"|upper }}
+        </div>
+    </header>
+
+    <div style="padding: 15px;">
+        <!-- RECORRIDOS ACTIVOS (MULTIUSUARIO) -->
+        <h2 style="font-size: 14px; font-weight: 700; color: var(--sap-brand-color); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <ion-icon name="radio-outline" style="color: #e91e63;"></ion-icon>
+            RECORRIDOS EN CURSO (Únete)
+        </h2>
+        
+        {% if activos %}
+        {% for lev in activos %}
+        <a href="{% url 'seguridad:mobile_confiscacion_ejecutar' lev.id %}" class="lev-card" style="border-left: 4px solid #e91e63;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 15px; color: var(--sap-text-color); margin-bottom: 2px;">
+                        {{ lev.ubicacion.nombre }}
+                    </div>
+                    <div style="font-size: 11px; color: var(--sap-text-muted); font-weight: 500;">
+                        {{ lev.folio }}
+                    </div>
+                </div>
+                <div style="background: #fdf2f8; color: #be185d; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                    <span style="width: 6px; height: 6px; background: #be185d; border-radius: 50%; display: inline-block;"></span>
+                    {{ lev.num_objetos }} items
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--sap-text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--sap-border-color);">
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <ion-icon name="person-circle-outline"></ion-icon>
+                    Iniciado por: {{ lev.inspector.get_full_name|default:lev.inspector.username }}
+                </div>
+                <div style="background: var(--sap-brand-color); color: white; padding: 4px 12px; border-radius: 20px; font-weight: 700;">
+                    UNIRSE
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+        {% else %}
+        <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px dashed #ccc; margin-bottom: 30px;">
+            <p style="font-size: 13px; color: #666; margin: 0;">No hay recorridos activos en este momento.</p>
+        </div>
+        {% endif %}
+
+        <!-- HISTORIAL -->
+        <h2 style="font-size: 14px; font-weight: 700; color: var(--sap-text-muted); margin: 30px 0 12px; display: flex; align-items: center; gap: 8px;">
+            <ion-icon name="time-outline"></ion-icon>
+            HISTORIAL RECIENTE
+        </h2>
+
+        {% if historial %}
+        {% for lev in historial %}
+        <a href="{% url 'seguridad:mobile_confiscacion_ejecutar' lev.id %}" class="lev-card" style="opacity: 0.8;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 15px; color: var(--sap-text-color); margin-bottom: 2px;">
+                        {{ lev.ubicacion.nombre }}
+                    </div>
+                    <div style="font-size: 11px; color: var(--sap-text-muted); font-weight: 500;">
+                        {{ lev.folio }}
+                    </div>
+                </div>
+                <div style="background: #eaf3ff; color: #0070f2; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700;">
+                    {{ lev.num_objetos }} ítems
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--sap-text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--sap-border-color);">
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                    Fin: {{ lev.fecha_fin|date:"d/m/Y H:i"|default:lev.fecha|date:"d/m/Y H:i" }}
+                </div>
+                <div style="color: var(--sap-brand-color); font-weight: 600;">VER REPORTE</div>
+            </div>
+        </a>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <a href="{% url 'seguridad:mobile_confiscacion_nueva' %}" class="fab">
+        <ion-icon name="add-outline"></ion-icon>
+    </a>
+
+</body>
+</html>

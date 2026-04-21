@@ -5,62 +5,23 @@
 
 {% block extrahead %}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="{% static 'callcenter/css/ticket_dashboard.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
     :root {
-        --sap-blue: #0a6ed1;
-        --sap-shell: #354a5f;
-        --sap-bg: #f5f6f7;
-        --sap-card-bg: #ffffff;
-        --sap-label: #6a6d70;
-        --sap-text: #32363a;
-        --sap-border: #d9d9d9;
-        --sap-success: #107e3e;
-        --sap-success-bg: #e5f5ea;
-        --sap-warning: #e9730c;
-        --sap-warning-bg: #fef7e0;
-        --sap-error: #bb0000;
-        --sap-error-bg: #ffebeb;
+        --sap-radius: 2px;
     }
 
     #content { background: var(--sap-bg) !important; padding: 0 !important; }
 
     .visual-container {
         width: 100% !important;
-        max-width: 1100px !important;
+        max-width: 1200px !important;
         margin: 0 auto !important;
-        padding: 24px 16px 100px; /* Recuperar padding normal */
-        font-family: 'Inter', sans-serif;
+        padding: 0 16px 100px;
         box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    /* Header */
-    .object-header {
-        width: 100%;
-        background: var(--sap-shell);
-        color: white;
-        padding: 24px;
-        border-radius: 12px;
-        margin-bottom: 24px;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        box-sizing: border-box;
-    }
-
-    .header-main h1 { font-size: 24px; font-weight: 700; margin: 0 0 8px; }
-    .header-main p { font-size: 14px; opacity: 0.8; margin: 0; }
-    .header-status {
-        background: rgba(255,255,255,0.2);
-        padding: 6px 16px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
     }
 
     /* Tabs */
@@ -94,15 +55,13 @@
     .visual-card {
         background: var(--sap-card-bg);
         border: 1px solid var(--sap-border);
-        border-radius: 12px;
-        padding: 40px;
+        border-radius: var(--sap-radius);
+        padding: 0;
         margin-bottom: 24px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        box-shadow: var(--sap-shadow);
         display: none;
-        width: 100% !important;
-        min-width: 100%;
-        min-height: 550px;
-        box-sizing: border-box;
+        width: 100%;
+        overflow: hidden;
     }
 
     .visual-card.active { 
@@ -336,20 +295,41 @@
 {% endblock %}
 
 {% block content %}
-<div class="visual-container">
-    <!-- Header -->
-    <div class="object-header">
-        <div class="header-main">
-            <h1>Ticket #{{ ticket.folio|default:ticket.id_solicitud }}</h1>
-            <p><i class="fas fa-user"></i> {{ ticket.solicitante }} &bull; <i class="fas fa-calendar"></i> {{ ticket.fecha_solicitud|date:"d/m/Y H:i" }}</p>
+<!-- Fiori Shell Navigation -->
+<div class="fiori-shell">
+    <div class="shell-container">
+        <div class="shell-left">
+            <div class="shell-breadcrumbs">
+                <a href="{% url 'callcenter:ticket_dashboard' %}">Dashboard</a>
+                <i class="ph ph-caret-right"></i>
+                {% with cluster=ticket.grupos.first %}
+                {% if cluster %}
+                <a href="{% url 'callcenter:cluster_tickets' cluster.id %}">{{ cluster.correlativo }}</a>
+                <i class="ph ph-caret-right"></i>
+                {% endif %}
+                {% endwith %}
+                <span>Ticket #{{ ticket.folio|default:ticket.id_solicitud }}</span>
+            </div>
+            <div class="shell-title">
+                <h1>{{ ticket.folio|default:ticket.id_solicitud }}</h1>
+                <div class="shell-tags">
+                    <span class="shell-tag"><i class="ph ph-user"></i> {{ ticket.solicitante }}</span>
+                    <span class="shell-tag"><i class="ph ph-calendar"></i> {{ ticket.fecha_solicitud|date:"d/m/Y H:i" }}</span>
+                </div>
+            </div>
         </div>
-        <div class="header-status">
-            {% if ticket.cierre_enviado %}Cerrado & Notificado{% else %}En Proceso de Cierre{% endif %}
+        <div class="shell-right">
+            <div class="badge {% if ticket.cierre_enviado %}badge-success{% else %}badge-warning{% endif %}">
+                <i class="ph {% if ticket.cierre_enviado %}ph-check-circle{% else %}ph-clock{% endif %}"></i>
+                {% if ticket.cierre_enviado %}Cerrado & Notificado{% else %}En Proceso de Cierre{% endif %}
+            </div>
         </div>
     </div>
+</div>
 
+<div class="visual-container">
     <!-- Tabs -->
-    <div class="visual-tabs">
+    <div class="visual-tabs" style="margin-top: 1rem;">
         <div class="tab-item active" data-tab="tab-general">General</div>
         <div class="tab-item" data-tab="tab-seguimiento">Seguimiento Técnico</div>
         <div class="tab-item" data-tab="tab-evidencias">Evidencias ({{ evidences_count }})</div>
@@ -357,147 +337,158 @@
 
     <!-- Tab 1: General -->
     <div id="tab-general" class="visual-card active">
-        <div class="card-title"><i class="fas fa-info-circle"></i> Información de Origen</div>
-        <div class="info-grid">
-            <div class="info-item"><label>Ubicación</label><span>{{ ticket.ubicacion|default:"-" }}</span></div>
-            <div class="info-item"><label>Área</label><span>{{ ticket.area|default:"-" }}</span></div>
-            <div class="info-item"><label>Servicio</label><span>{{ ticket.servicio|default:"-" }}</span></div>
-            <div class="info-item"><label>Responsable</label><span>{{ ticket.responsable|default:"-" }}</span></div>
-        </div>
-        <div style="margin-top: 24px;">
-            <label style="font-size: 11px; font-weight: 700; color: var(--sap-label); text-transform: uppercase;">Descripción de Solicitud</label>
-            <div style="background: #fdfdfd; padding: 16px; border-radius: 8px; border: 1px solid #eee; margin-top: 8px; font-size: 14px; line-height: 1.6;">
-                {{ ticket.solicitud_descripcion|linebreaks }}
+        <div style="padding: 24px;">
+            <div class="card-title"><i class="ph ph-info"></i> Información de Origen</div>
+            <div class="info-grid">
+                <div class="info-item"><label>Ubicación</label><span>{{ ticket.ubicacion|default:"-" }}</span></div>
+                <div class="info-item"><label>Área</label><span>{{ ticket.area|default:"-" }}</span></div>
+                <div class="info-item"><label>Servicio</label><span>{{ ticket.servicio|default:"-" }}</span></div>
+                <div class="info-item"><label>Responsable</label><span>{{ ticket.responsable|default:"-" }}</span></div>
             </div>
-        </div>
+            <div style="margin-top: 24px;">
+                <label style="font-size: 11px; font-weight: 700; color: var(--sap-label); text-transform: uppercase;">Descripción de Solicitud</label>
+                <div style="background: #fdfdfd; padding: 16px; border-radius: var(--sap-radius); border: 1px solid #eee; margin-top: 8px; font-size: 14px; line-height: 1.6;">
+                    {{ ticket.solicitud_descripcion|linebreaks }}
+                </div>
+            </div>
 
-        <div style="margin-top: 32px; border-top: 1px dashed #ddd; padding-top: 24px;">
-            <div class="card-title" style="margin-bottom: 8px;"><i class="fas fa-microchip"></i> Equipo / Activo Relacionado</div>
-            <p style="font-size: 12px; color: var(--sap-label); margin-bottom: 15px;">Vincula el equipo físico que originó este ticket para el reporte técnico.</p>
-            
-            <div id="asset-display-container">
-                {% if ticket.activo %}
-                <div class="current-asset-card">
-                    <div>
-                        <div style="font-weight: 700; color: var(--sap-text);">{{ ticket.activo.nombre }}</div>
-                        <div style="font-size: 11px; color: var(--sap-label); text-transform: uppercase;">
-                            {{ ticket.activo.modelo.marca.nombre|default:"S/M" }} - {{ ticket.activo.modelo.nombre|default:"S/M" }} | S/N: {{ ticket.activo.serie|default:"N/S" }} | COD: {{ ticket.activo.codigo_interno }}
+            <div style="margin-top: 32px; border-top: 1px dashed #ddd; padding-top: 24px;">
+                <div class="card-title" style="margin-bottom: 8px;"><i class="ph ph-cpu"></i> Equipo / Activo Relacionado</div>
+                <p style="font-size: 12px; color: var(--sap-label); margin-bottom: 15px;">Vincula el equipo físico que originó este ticket para el reporte técnico.</p>
+                
+                <div id="asset-display-container">
+                    {% if ticket.activo %}
+                    <div class="current-asset-card" style="border-radius: var(--sap-radius);">
+                        <div>
+                            <div style="font-weight: 700; color: var(--sap-text);">{{ ticket.activo.nombre }}</div>
+                            <div style="font-size: 11px; color: var(--sap-label); text-transform: uppercase;">
+                                {{ ticket.activo.modelo.marca.nombre|default:"S/M" }} - {{ ticket.activo.modelo.nombre|default:"S/M" }} | S/N: {{ ticket.activo.serie|default:"N/S" }} | COD: {{ ticket.activo.codigo_interno }}
+                            </div>
                         </div>
+                        <button class="btn-unlink" onclick="updateAsset(null)"><i class="ph ph-x"></i> Desvincular</button>
                     </div>
-                    <button class="btn-unlink" onclick="updateAsset(null)"><i class="fas fa-times"></i> Desvincular</button>
+                    {% else %}
+                    <div style="padding: 20px; text-align: center; border: 2px dashed #eee; border-radius: var(--sap-radius); color: #999; font-size: 14px; margin-bottom: 15px;">
+                        <i class="ph ph-magnifying-glass" style="margin-bottom: 8px; font-size: 20px; display: block;"></i>
+                        No hay un activo vinculado aún.
+                    </div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <div style="padding: 20px; text-align: center; border: 2px dashed #eee; border-radius: 8px; color: #999; font-size: 14px; margin-bottom: 15px;">
-                    <i class="fas fa-search" style="margin-bottom: 8px; font-size: 20px; display: block;"></i>
-                    No hay un activo vinculado aún.
-                </div>
-                {% endif %}
-            </div>
 
-            <div class="asset-search-container" style="display: flex; gap: 0.75rem;">
-                <div style="position: relative; flex: 1;">
-                    <input type="text" id="asset-search-input" class="visual-input" placeholder="Escribe Nombre, Código o Serie para buscar activos (mín. 3 letras)...">
-                    <div id="search-results-box" class="search-results-popover"></div>
+                <div class="asset-search-container" style="display: flex; gap: 0.75rem;">
+                    <div style="position: relative; flex: 1;">
+                        <input type="text" id="asset-search-input" class="visual-input" placeholder="Escribe Nombre, Código o Serie para buscar activos (mín. 3 letras)...">
+                        <div id="search-results-box" class="search-results-popover"></div>
+                    </div>
+                    <button type="button" class="btn-fiori" onclick="openHierarchyModal()" style="height: 45px; min-width: 180px;">
+                        <i class="ph ph-tree-structure"></i> Explorador Fiori
+                    </button>
                 </div>
-                <button type="button" class="btn-action" onclick="openHierarchyModal()" style="padding: 0 1.25rem; height: 45px; background: #6a6d70; min-width: 170px; flex-shrink: 0; font-size: 0.8rem;">
-                    <i class="ph ph-magnifying-glass"></i> Buscador de activos
-                </button>
             </div>
         </div>
     </div>
 
     <!-- Tab 2: Seguimiento -->
     <div id="tab-seguimiento" class="visual-card">
-        <div class="card-title"><i class="fas fa-tools"></i> Detalle Técnico de Cierre</div>
-        <form id="closure-form">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Fecha de Cierre (Real)</label>
-                    <input type="datetime-local" name="fecha_cierre" class="visual-input" value="{{ ticket.fecha_cierre|date:'Y-m-d\TH:i' }}">
-                </div>
-                <div class="form-group">
-                    <label>Deductiva (USD)</label>
-                    <div style="position: relative;">
-                        <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--sap-label); font-weight: 600;">$</span>
-                        <input type="number" step="0.01" name="deductiva" class="visual-input" style="padding-left: 28px;" value="{{ ticket.deductiva|default:'0.00'|unlocalize }}">
+        <div style="padding: 24px;">
+            <div class="card-title"><i class="ph ph-wrench"></i> Detalle Técnico de Cierre</div>
+            <form id="closure-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Fecha de Cierre (Real)</label>
+                        <input type="datetime-local" name="fecha_cierre" class="visual-input" value="{{ ticket.fecha_cierre|date:'Y-m-d\TH:i' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Deductiva (USD)</label>
+                        <div style="position: relative;">
+                            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--sap-label); font-weight: 600;">$</span>
+                            <input type="number" step="0.01" name="deductiva" class="visual-input" style="padding-left: 28px;" value="{{ ticket.deductiva|default:'0.00'|unlocalize }}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Proveedor Deductiva</label>
+                        <select name="proveedor_deductiva" class="visual-input">
+                            <option value="">Seleccione un proveedor...</option>
+                            {% for p in proveedores %}
+                                <option value="{{ p.id }}" {% if ticket.proveedor_deductiva_id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Proveedor Deductiva</label>
-                    <select name="proveedor_deductiva" class="visual-input">
-                        <option value="">Seleccione un proveedor...</option>
-                        {% for p in proveedores %}
-                            <option value="{{ p.id }}" {% if ticket.proveedor_deductiva_id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
-                        {% endfor %}
-                    </select>
+                    <label>Diagnóstico</label>
+                    <textarea name="diagnostico" class="visual-textarea" placeholder="¿Qué se encontró?">{{ ticket.diagnostico }}</textarea>
                 </div>
-            </div>
-            <div class="form-group">
-                <label>Diagnóstico</label>
-                <textarea name="diagnostico" class="visual-textarea" placeholder="¿Qué se encontró?">{{ ticket.diagnostico }}</textarea>
-            </div>
-            <div class="form-group">
-                <label>Actividades Realizadas</label>
-                <textarea name="actividades" class="visual-textarea" placeholder="¿Qué se hizo?">{{ ticket.actividades }}</textarea>
-            </div>
-            <div class="form-group">
-                <label>Observaciones Finales</label>
-                <textarea name="observaciones" class="visual-textarea" placeholder="Notas adicionales">{{ ticket.observaciones }}</textarea>
-            </div>
-        </form>
+                <div class="form-group">
+                    <label>Actividades Realizadas</label>
+                    <textarea name="actividades" class="visual-textarea" placeholder="¿Qué se hizo?">{{ ticket.actividades }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Observaciones Finales</label>
+                    <textarea name="observaciones" class="visual-textarea" placeholder="Notas adicionales">{{ ticket.observaciones }}</textarea>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Tab 3: Evidencias -->
     <div id="tab-evidencias" class="visual-card">
-        <div class="card-title"><i class="fas fa-images"></i> Evidencias y Soporte</div>
-        <p style="font-size: 13px; color: var(--sap-label); margin: -10px 0 20px;">Fotos adjuntas para el reporte PDF final.</p>
-        
-        <div class="evidence-grid" id="evidence-container">
-            {% for ev in evidences %}
-            <div class="evidence-box" data-id="{{ ev.id }}">
-                <div class="evidence-img-container">
-                    {% if ev.archivo %}
-                        {% if ev.archivo.url|lower|slice:"-4:" == ".mp4" or ev.archivo.url|lower|slice:"-5:" == ".webm" %}
-                            <video src="{{ ev.archivo.url }}" style="width: 100%; height: 100%; object-fit: cover;" controls></video>
-                        {% else %}
-                            <img src="{{ ev.archivo.url }}" alt="{{ ev.descripcion }}">
+        <div style="padding: 24px;">
+            <div class="card-title"><i class="ph ph-images"></i> Evidencias y Soporte</div>
+            <p style="font-size: 13px; color: var(--sap-label); margin: -10px 0 20px;">Fotos adjuntas para el reporte PDF final.</p>
+            
+            <div class="evidence-grid" id="evidence-container">
+                {% for ev in evidences %}
+                <div class="evidence-box" data-id="{{ ev.id }}" style="border-radius: var(--sap-radius);">
+                    <div class="evidence-img-container" style="border-radius: var(--sap-radius);">
+                        {% if ev.archivo %}
+                            {% if ev.archivo.url|lower|slice:"-4:" == ".mp4" or ev.archivo.url|lower|slice:"-5:" == ".webm" %}
+                                <video src="{{ ev.archivo.url }}" style="width: 100%; height: 100%; object-fit: cover;" controls></video>
+                            {% else %}
+                                <img src="{{ ev.archivo.url }}" alt="{{ ev.descripcion }}">
+                            {% endif %}
+                            <button type="button" class="btn-delete-ev" data-id="{{ ev.id }}" onclick="deleteEvidence(this.dataset.id)"><i class="ph ph-trash"></i></button>
                         {% endif %}
-                        <button type="button" class="btn-delete-ev" data-id="{{ ev.id }}" onclick="deleteEvidence(this.dataset.id)"><i class="fas fa-trash-alt"></i></button>
-                    {% endif %}
+                    </div>
+                    <input type="text" class="visual-input ev-desc-input" 
+                           style="font-size: 12px; padding: 6px 10px; height: auto;" 
+                           placeholder="¿Qué muestra esta evidencia?" 
+                           value="{{ ev.descripcion|default:'' }}"
+                           onblur="updateDescription('{{ ev.id }}', this.value)">
                 </div>
-                <input type="text" class="visual-input ev-desc-input" 
-                       style="font-size: 12px; padding: 6px 10px; height: auto;" 
-                       placeholder="¿Qué muestra esta evidencia?" 
-                       value="{{ ev.descripcion|default:'' }}"
-                       onblur="updateDescription('{{ ev.id }}', this.value)">
+                {% endfor %}
+                <div class="evidence-box add-evidence-box" onclick="document.getElementById('file-upload').click()" 
+                     style="aspect-ratio: 1; justify-content: center; align-items: center; border: 2px dashed var(--sap-border); background: transparent; border-radius: var(--sap-radius);">
+                    <i class="ph ph-camera" style="font-size: 2rem;"></i>
+                    <span style="font-size: 12px;">Subir Evidencia</span>
+                    <span style="font-size: 10px; opacity: 0.7; font-weight: 400;">(o arrastra y pega aquí)</span>
+                </div>
             </div>
-            {% endfor %}
-            <div class="evidence-box add-evidence-box" onclick="document.getElementById('file-upload').click()" 
-                 style="aspect-ratio: 1; justify-content: center; align-items: center; border: 2px dashed var(--sap-border); background: transparent;">
-                <i class="fas fa-camera"></i>
-                <span style="font-size: 12px;">Subir Evidencia</span>
-                <span style="font-size: 10px; opacity: 0.7; font-weight: 400;">(o arrastra y pega aquí)</span>
-            </div>
-        </div>
 
-        <!-- Interactive Drop Overlay -->
-        <div id="drop-overlay" class="drop-overlay">
-            <div class="drop-overlay-content">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <h3>¡Suelta para Subir!</h3>
-                <p>Solo imágenes y videos permitidos</p>
+            <!-- Interactive Drop Overlay -->
+            <div id="drop-overlay" class="drop-overlay" style="border-radius: var(--sap-radius);">
+                <div class="drop-overlay-content" style="border-radius: var(--sap-radius);">
+                    <i class="ph ph-cloud-arrow-up"></i>
+                    <h3>¡Suelta para Subir!</h3>
+                    <p>Solo imágenes y videos permitidos</p>
+                </div>
             </div>
-        </div>
 
-        <input type="file" id="file-upload" style="display: none;" accept="image/*,video/*" multiple onchange="uploadFiles(this.files)">
+            <input type="file" id="file-upload" style="display: none;" accept="image/*,video/*" multiple onchange="uploadFiles(this.files)">
+        </div>
     </div>
 
-    <!-- Footer -->
-    <div class="visual-footer">
-        <button class="btn-visual btn-secondary" onclick="window.history.back()">Volver</button>
-        <button class="btn-visual btn-primary" onclick="saveProgress()">Guardar Progreso</button>
-        <button class="btn-visual btn-success" onclick="completeClosure()" style="display: flex; align-items: center; gap: 8px;">
-            <i class="fas fa-check-circle"></i> Enviar Cierre y Notificar
+    <!-- Footer Actions (Standard Toolbar style) -->
+    <div class="visual-footer" style="padding: 12px 24px;">
+        <button class="btn-fiori ghost" onclick="window.history.back()">
+            <i class="ph ph-arrow-left"></i> Volver
+        </button>
+        <div style="flex: 1;"></div>
+        <button class="btn-fiori secondary" onclick="saveProgress()">
+            <i class="ph ph-floppy-disk"></i> Guardar Progreso
+        </button>
+        <button class="btn-fiori primary" onclick="completeClosure()" style="gap: 8px;">
+            <i class="ph ph-navigation-arrow"></i> Enviar Cierre y Notificar
         </button>
     </div>
 </div>

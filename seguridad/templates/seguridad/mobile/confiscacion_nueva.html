@@ -1,0 +1,176 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nuevo Levantamiento</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            color: var(--sap-text-color);
+        }
+
+        .form-container {
+            padding: 20px;
+        }
+
+        .fiori-input-group {
+            margin-bottom: 20px;
+        }
+
+        .fiori-input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--sap-text-muted);
+        }
+
+        .fiori-input, .fiori-select, .fiori-textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            background: white;
+            font-family: inherit;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        .btn-start {
+            width: 100%;
+            padding: 15px;
+            background: var(--sap-brand-color);
+            color: white;
+            border: none;
+            border-radius: var(--sap-border-radius);
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="fiori-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{% url 'seguridad:mobile_confiscaciones_lista' %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <div>
+                <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Iniciar Recorrido</h1>
+                <p style="margin: 0; font-size: 12px; opacity: 0.8;">Configuración inicial</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="form-container">
+        {% if ubicacion_seleccionada %}
+        <!-- Paso 2: Confirmación y Comentarios -->
+        <div class="fiori-card" style="background: white; padding: 20px; border-radius: var(--sap-border-radius); border: 1px solid var(--sap-border-color);">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                <div style="background: var(--sap-success-color); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                    <ion-icon name="location"></ion-icon>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 14px; color: var(--sap-text-muted);">UBICACIÓN SELECCIONADA</h3>
+                    <p style="margin: 0; font-size: 16px; font-weight: 700;">{{ ubicacion_seleccionada.nombre }}</p>
+                </div>
+            </div>
+
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="ubicacion" value="{{ ubicacion_seleccionada.id }}">
+                
+                <div class="fiori-input-group">
+                    <label>COMENTARIOS / REFERENCIA</label>
+                    <textarea name="comentarios" class="fiori-textarea" rows="4" placeholder="Ej. Recorrido nocturno en oficinas del bloque A..."></textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <a href="?" class="btn-start" style="background: #e5e7eb; color: #374151; width: auto; padding: 15px 20px;">
+                        Cambiar
+                    </a>
+                    <button type="submit" class="btn-start" style="margin-top: 0; flex: 1;">
+                        Comenzar Levantamiento
+                        <ion-icon name="play-outline"></ion-icon>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {% else %}
+        <!-- Paso 1: Selección de Ubicación -->
+        
+        <!-- Botón QR -->
+        <a href="{% url 'core:mobile_scanner' %}?next={{ request.path }}" class="btn-start" style="background: var(--sap-brand-color); margin-bottom: 25px; text-decoration: none;">
+            <ion-icon name="qr-code-outline"></ion-icon>
+            Escanear Ubicación (QR)
+        </a>
+
+        <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <label style="font-size: 13px; font-weight: 700; color: var(--sap-text-muted);">
+                {% if parent %}
+                    SUB-UBICACIONES DE: {{ parent.nombre|upper }}
+                {% else %}
+                    UBICACIONES PRINCIPALES
+                {% endif %}
+            </label>
+            {% if parent %}
+            <a href="?parent_id={{ parent.padre_id|default:'' }}" style="font-size: 13px; color: var(--sap-brand-color); font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 5px;">
+                <ion-icon name="arrow-up-outline"></ion-icon> Subir nivel
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="location-list" style="display: flex; flex-direction: column; gap: 10px;">
+            {% for u in ubicaciones %}
+            <div class="location-item" style="background: white; border: 1px solid var(--sap-border-color); border-radius: var(--sap-border-radius); display: flex; align-items: center; padding: 12px 15px; gap: 12px;">
+                <div style="font-size: 20px; color: var(--sap-text-muted); display: flex;">
+                    {% if u.tipo == 'EDIFICIO' %}<ion-icon name="business-outline"></ion-icon>
+                    {% elif u.tipo == 'NIVEL' %}<ion-icon name="layers-outline"></ion-icon>
+                    {% else %}<ion-icon name="map-outline"></ion-icon>{% endif %}
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; font-size: 15px;">{{ u.nombre }}</div>
+                    <div style="font-size: 11px; color: var(--sap-text-muted);">{{ u.get_tipo_display }}</div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <a href="?selected_id={{ u.id }}" style="background: #f0f9ff; color: #0369a1; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 700; text-decoration: none; display: flex; align-items: center; border: 1px solid #bae6fd;">
+                        Ok
+                    </a>
+                    <a href="?parent_id={{ u.id }}" style="background: #f9fafb; color: #374151; padding: 8px; border-radius: 6px; font-size: 20px; display: flex; border: 1px solid var(--sap-border-color);">
+                        <ion-icon name="chevron-forward-outline"></ion-icon>
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align: center; padding: 30px; color: var(--sap-text-muted);">
+                <ion-icon name="alert-circle-outline" style="font-size: 40px; opacity: 0.3;"></ion-icon>
+                <p>No hay sub-ubicaciones aquí.</p>
+                {% if parent %}
+                <a href="?selected_id={{ parent.id }}" class="btn-start" style="background: var(--sap-success-color);">
+                    Seleccionar {{ parent.nombre }}
+                </a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,207 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Capturar Objeto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            color: var(--sap-text-color);
+        }
+
+        .form-container {
+            padding: 20px;
+        }
+
+        .fiori-input-group {
+            margin-bottom: 20px;
+        }
+
+        .fiori-input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--sap-text-muted);
+        }
+
+        .fiori-input, .fiori-select, .fiori-textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            background: white;
+            font-family: inherit;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        .photo-uploader {
+            border: 2px dashed var(--sap-border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .photo-uploader ion-icon {
+            font-size: 40px;
+            color: var(--sap-brand-color);
+            margin-bottom: 10px;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 15px;
+            background: var(--sap-success-color);
+            color: white;
+            border: none;
+            border-radius: var(--sap-border-radius);
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        #preview-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .preview-img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="fiori-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{% url 'seguridad:mobile_confiscacion_ejecutar' levantamiento.id %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <div>
+                <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Detalle de Objeto</h1>
+                <p style="margin: 0; font-size: 12px; opacity: 0.8;">Registro de decomiso</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="form-container">
+        {% if messages %}
+        <div style="margin-bottom: 20px;">
+            {% for message in messages %}
+            <div style="padding: 12px 15px; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px;
+                {% if message.tags == 'error' %} background: #fef2f2; color: #991b1b; border: 1px solid #fee2e2;
+                {% else %} background: #f0f9ff; color: #075985; border: 1px solid #e0f2fe; {% endif %}">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <ion-icon name="alert-circle-outline"></ion-icon>
+                    {{ message }}
+                </div>
+                {% if objeto_existente and message.tags == 'error' %}
+                <a href="{% url 'seguridad:mobile_confiscacion_editar_objeto' objeto_existente.id %}" 
+                   style="background: #991b1b; color: white; text-decoration: none; padding: 10px; border-radius: 6px; text-align: center; font-size: 13px;">
+                    <ion-icon name="create-outline" style="vertical-align: middle;"></ion-icon>
+                    EDITAR REGISTRO EXISTENTE
+                </a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="was_generated" value="{{ fue_generado }}">
+            
+            <div class="fiori-input-group">
+                <label>CÓDIGO DE ETIQUETA / BARRAS</label>
+                {% if fue_generado %}
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: flex-start; gap: 10px;">
+                    <ion-icon name="sparkles-outline" style="color: #16a34a; font-size: 20px; flex-shrink: 0;"></ion-icon>
+                    <div>
+                        <div style="font-weight: 700; color: #16a34a; font-size: 13px;">CÓDIGO SUGERIDO</div>
+                        <div style="font-size: 12px; color: #15803d; line-height: 1.4;">Se ha generado un código único. Se abrirá la <strong>impresión automática</strong> al guardar este objeto.</div>
+                    </div>
+                </div>
+                <input type="text" name="codigo_barras" class="fiori-input" value="{{ codigo_inicial }}" readonly style="background: #f9fafb; border-color: #e5e7eb; font-weight: 700; color: #111827;">
+                {% else %}
+                <input type="text" name="codigo_barras" class="fiori-input" value="{{ codigo_inicial }}" required placeholder="Escanee o ingrese código...">
+                {% endif %}
+            </div>
+
+            <div class="fiori-input-group">
+                <label>TIPO DE OBJETO</label>
+                <select name="catalogo_objeto" class="fiori-select" required>
+                    <option value="">Seleccione tipo...</option>
+                    {% for item in catalogo_objetos %}
+                    <option value="{{ item.id }}">{{ item.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="fiori-input-group">
+                <label>DESCRIPCIÓN / HALLAZGO</label>
+                <textarea name="descripcion" class="fiori-textarea" rows="3" placeholder="Ej. Se encontró en el escritorio del fondo..."></textarea>
+            </div>
+
+            <div class="fiori-input-group">
+                <label>FOTOGRAFÍAS DE EVIDENCIA</label>
+                <div class="photo-uploader" onclick="document.getElementById('photo-input').click()">
+                    <ion-icon name="camera-outline"></ion-icon>
+                    <div style="font-size: 13px; font-weight: 600;">Subir o Tomar Fotos</div>
+                    <div style="font-size: 11px; color: var(--sap-text-muted);">Puedes seleccionar múltiples</div>
+                    <input type="file" id="photo-input" name="fotos" accept="image/*" multiple capture="environment" style="display: none;" onchange="previewImages(this)">
+                </div>
+                <div id="preview-container"></div>
+            </div>
+
+            <button type="submit" class="btn-save">
+                Guardar Objeto
+                <ion-icon name="save-outline"></ion-icon>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        function previewImages(input) {
+            const container = document.getElementById('preview-container');
+            container.innerHTML = '';
+            if (input.files) {
+                Array.from(input.files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'preview-img';
+                        container.appendChild(img);
+                    }
+                    reader.readAsDataURL(file);
+                });
+            }
+        }
+    </script>
+
+</body>
+</html>

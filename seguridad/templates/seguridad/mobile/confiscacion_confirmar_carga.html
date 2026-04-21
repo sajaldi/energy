@@ -1,0 +1,267 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Confirmación de Carga</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 100px;
+            color: var(--sap-text-color);
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 15px;
+        }
+
+        .item-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--sap-border-color);
+            position: relative;
+            aspect-ratio: 1;
+            transition: all 0.3s ease;
+        }
+
+        .item-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .item-card.confirmed {
+            border: 3px solid #2ecc71;
+            box-shadow: 0 0 15px rgba(46, 204, 113, 0.4);
+        }
+
+        .item-card .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(46, 204, 113, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 30px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .item-card.confirmed .overlay {
+            opacity: 1;
+        }
+
+        .item-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 4px;
+            font-size: 10px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .floating-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 15px;
+            border-top: 1px solid var(--sap-border-color);
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 15px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #eee;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 2000;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--sap-brand-color);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="progress-bar">
+        <div id="progress" class="progress-fill"></div>
+    </div>
+
+    <header class="fiori-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{% url 'seguridad:mobile_confiscacion_ejecutar' levantamiento.id %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <div>
+                <h1 style="margin: 0; font-size: 16px; font-weight: 700;">Confirmar Carga</h1>
+                <p style="margin: 0; font-size: 11px; opacity: 0.8;">{{ levantamiento.folio }}</p>
+            </div>
+        </div>
+        <div id="counter" style="font-weight: 700; font-size: 14px;">0/{{ objetos|length }}</div>
+    </header>
+
+    <div style="padding: 15px 15px 0; font-size: 13px; color: var(--sap-text-muted);">
+        Escanee las etiquetas físicas para confirmar que se encuentran cargadas en el vehículo.
+    </div>
+
+    <div class="grid-container" id="grid">
+        {% for obj in objetos %}
+        <div class="item-card {% if obj.status == 'TRANSITO' %}confirmed{% endif %}" id="card-{{ obj.id }}" data-barcode="{{ obj.codigo_barras }}">
+            {% with foto=obj.fotos.first %}
+            {% if foto %}
+            <img src="{{ foto.foto.url }}" alt="Objeto">
+            {% else %}
+            <div style="width: 100%; height: 100%; background: #eee; display: flex; align-items: center; justify-content: center;">
+                <ion-icon name="image-outline" style="font-size: 32px; color: #ccc;"></ion-icon>
+            </div>
+            {% endif %}
+            {% endwith %}
+            <div class="overlay">
+                <ion-icon name="checkmark-circle"></ion-icon>
+            </div>
+            <div class="item-info">
+                {{ obj.codigo_barras }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="floating-footer">
+        <a href="{% url 'core:mobile_scanner' %}?next={{ request.path }}&multi=1&api_url={% url 'seguridad:api_confirmar_carga_objeto' %}&extra_data=levantamiento_id={{ levantamiento.id }}" class="btn-action" style="background: var(--sap-brand-color); color: white;">
+            <ion-icon name="qr-code-outline"></ion-icon>
+            INICIAR ESCANEO RÁPIDO
+        </a>
+        <form method="POST" style="flex: 1;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="finalizar_carga">
+            <button type="submit" id="btn-finish" class="btn-action" style="background: white; border: 2px solid #ccc; color: #999; width: 100%;">
+                FINALIZAR
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const totalItems = {{ objetos|length }};
+        let confirmedCount = document.querySelectorAll('.item-card.confirmed').length;
+
+        function updateProgress() {
+            const percent = (confirmedCount / totalItems) * 100;
+            document.getElementById('progress').style.width = percent + '%';
+            document.getElementById('counter').innerText = `${confirmedCount}/${totalItems}`;
+            
+            const btnFinish = document.getElementById('btn-finish');
+            if (confirmedCount === totalItems) {
+                btnFinish.style.borderColor = '#2ecc71';
+                btnFinish.style.background = '#27ae60';
+                btnFinish.style.color = 'white';
+                btnFinish.disabled = false;
+            } else {
+                btnFinish.disabled = true;
+            }
+        }
+
+        // Manejar el resultado del escáner core
+        const urlParams = new URLSearchParams(window.location.search);
+        const scannedCode = urlParams.get('code');
+
+        if (scannedCode) {
+            confirmarCarga(scannedCode);
+        }
+
+        async function confirmarCarga(codigo) {
+            const response = await fetch('{% url "seguridad:api_confirmar_carga_objeto" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    codigo: codigo,
+                    levantamiento_id: '{{ levantamiento.id }}'
+                })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                const card = document.getElementById('card-' + data.objeto_id);
+                if (card && !card.classList.contains('confirmed')) {
+                    card.classList.add('confirmed');
+                    confirmedCount++;
+                    updateProgress();
+                    
+                    // Solo activar vibración si el navegador lo permite
+                    if (navigator.vibrate) navigator.vibrate(100);
+                    
+                    Swal.fire({
+                        title: 'Confirmado',
+                        text: data.nombre,
+                        icon: 'success',
+                        timer: 1000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end'
+                    });
+                }
+            } else {
+                Swal.fire({
+                    title: 'Error',
+                    text: data.message,
+                    icon: 'error'
+                });
+            }
+            
+            // Limpiar la URL para evitar re-escaneo al recargar
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        updateProgress();
+    </script>
+
+</body>
+</html>

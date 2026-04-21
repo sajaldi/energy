@@ -1,0 +1,107 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Recepción en Almacén</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 20px;
+        }
+
+        .lote-card {
+            background: white;
+            margin: 15px;
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--sap-border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .lote-info h3 { margin: 0; font-size: 16px; color: var(--sap-text-color); }
+        .lote-info p { margin: 4px 0 0; font-size: 12px; color: var(--sap-text-muted); }
+
+        .btn-join {
+            background: var(--sap-brand-color);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .scanner-box {
+            background: white;
+            margin: 15px;
+            padding: 30px 20px;
+            border-radius: 12px;
+            border: 2px dashed #3498db;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            color: #3498db;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="fiori-header">
+        <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Gestión de Bodega</h1>
+    </header>
+
+    <!-- Sección de Recepción -->
+    <div style="padding: 15px 15px 5px; font-weight: 800; color: var(--sap-brand-color); font-size: 12px; letter-spacing: 0.5px;">
+        1. RECEPCIÓN (INGRESO)
+    </div>
+    <a href="{% url 'core:mobile_scanner' %}?next={{ request.path }}&skip_resolver=1" class="scanner-box" style="margin-top: 5px;">
+        <ion-icon name="download-outline" style="font-size: 48px;"></ion-icon>
+        <span style="font-weight: 700;">ESCANEAR ARTÍCULO PARA RECIBIR</span>
+    </a>
+
+    <div style="padding: 10px 15px 0; font-weight: 700; color: var(--sap-text-color); font-size: 13px;">
+        LOTES EN TRÁNSITO
+    </div>
+
+    {% for lote in lotes %}
+    <div class="lote-card" style="margin: 10px 15px;">
+        <div class="lote-info">
+            <h3>{{ lote.folio }}</h3>
+            <p>{{ lote.ubicacion.nombre }} • {{ lote.num_objetos }} objetos</p>
+        </div>
+        <a href="{% url 'seguridad:mobile_almacen_validar_lote' lote.id %}" class="btn-join">RECIBIR</a>
+    </div>
+    {% empty %}
+    <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+        No hay lotes en camino actualmente.
+    </div>
+    {% endfor %}
+
+    <hr style="margin: 20px 15px; border: none; border-top: 2px dashed #eee;">
+
+    <!-- Sección de Salida -->
+    <div style="padding: 15px 15px 5px; font-weight: 800; color: #e67e22; font-size: 12px; letter-spacing: 0.5px;">
+        2. SALIDA (ENTREGA A USUARIO)
+    </div>
+    
+    <a href="{% url 'core:mobile_scanner' %}?next={% url 'seguridad:mobile_almacen_entrega_validar' %}&multi=1" class="scanner-box" style="border-color: #e67e22; color: #e67e22; margin-top: 5px;">
+        <ion-icon name="share-outline" style="font-size: 48px;"></ion-icon>
+        <span style="font-weight: 700;">INICIAR ENTREGA / SALIDA</span>
+        <p style="font-size: 11px; margin: 0; opacity: 0.8;">Escanea el comprobante (codo) o el código del objeto</p>
+    </a>
+
+</body>
+</html>

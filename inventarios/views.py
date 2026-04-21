@@ -696,6 +696,10 @@ def mobile_inventario_dashboard(request):
     # Discrepancias (movimientos inconsistentes aprobados)
     discrepancias = MovimientoInventario.objects.filter(es_inconsistente=True, estado='APROBADO').select_related('material', 'ubicacion_origen').order_by('-fecha_movimiento')
     discrepancias_count = discrepancias.count()
+
+    # Confiscaciones en Tránsito
+    from seguridad.models import LevantamientoConfiscacion
+    confiscaciones_transito_count = LevantamientoConfiscacion.objects.filter(objetos__status='TRANSITO').distinct().count()
     
     # Verificar si el usuario es del grupo Almacenes o Superusuario
     es_almacen = request.user.groups.filter(name='Almacenes').exists() or request.user.is_superuser
@@ -713,6 +717,7 @@ def mobile_inventario_dashboard(request):
         'pedidos_pendientes': pedidos_pendientes,
         'discrepancias_count': discrepancias_count,
         'discrepancias_list': discrepancias[:10], # Mostrar últimas 10 en el dashboard
+        'confiscaciones_transito': confiscaciones_transito_count,
         'es_almacen': es_almacen,
         'title': 'Gestión de Materiales',
         'is_almacen': es_almacen, # Alias para el template

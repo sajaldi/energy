@@ -1,0 +1,189 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ejecución de Levantamiento</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 100px;
+            color: var(--sap-text-color);
+        }
+
+        .exec-header {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--sap-border-color);
+            margin-bottom: 15px;
+        }
+
+        .object-card {
+            background: white;
+            border-radius: 12px;
+            margin: 0 15px 15px;
+            overflow: hidden;
+            border: 1px solid var(--sap-border-color);
+        }
+
+        .photo-strip {
+            display: flex;
+            gap: 5px;
+            padding: 10px;
+            overflow-x: auto;
+            background: #f8f9fa;
+        }
+
+        .photo-thumb {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-scan {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--sap-brand-color);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 16px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            border: none;
+            text-decoration: none;
+        }
+
+        .badge-status {
+            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-ALMACENADO { background: #fff4e6; color: #e9730c; }
+        .status-RETIRADO { background: #e5f5ea; color: #107e3e; }
+    </style>
+</head>
+
+<body>
+
+    <header class="fiori-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{% url 'seguridad:mobile_confiscaciones_lista' %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <div>
+                <h1 style="margin: 0; font-size: 16px; font-weight: 700;">{{ levantamiento.folio }}</h1>
+                <p style="margin: 0; font-size: 12px; opacity: 0.8;">{{ levantamiento.ubicacion.nombre }}</p>
+            </div>
+        </div>
+        <a href="{% url 'seguridad:mobile_confiscacion_pdf' levantamiento.id %}" target="_blank" style="color: white; font-size: 22px; display: flex;">
+            <ion-icon name="document-text-outline"></ion-icon>
+        </a>
+    </header>
+
+    <div class="exec-header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; font-weight: 600; color: var(--sap-text-muted);">OBJETOS DETECTADOS: {{ objetos|length }}</span>
+            <span style="font-size: 12px; color: var(--sap-text-muted);">{{ levantamiento.fecha|date:"H:i" }}</span>
+        </div>
+    </div>
+
+    <div id="objects-list">
+        {% for obj in objetos %}
+        <div class="object-card">
+            <div style="padding: 12px; display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <div style="font-weight: 700; color: var(--sap-text-color);">{{ obj.catalogo_objeto.nombre }}</div>
+                    <div style="font-size: 11px; font-weight: 600; color: var(--sap-brand-color); letter-spacing: 1px;">
+                        # {{ obj.codigo_barras }}
+                    </div>
+                </div>
+                <span class="badge-status status-{{ obj.status }}">{{ obj.get_status_display }}</span>
+            </div>
+            
+            {% if obj.descripcion %}
+            <div style="padding: 0 12px 10px; font-size: 13px; color: var(--sap-text-muted);">
+                {{ obj.descripcion }}
+            </div>
+            {% endif %}
+
+            <div class="photo-strip">
+                {% for f in obj.fotos.all %}
+                <img src="{{ f.foto.url }}" class="photo-thumb" onclick="Swal.fire({imageUrl: this.src, showConfirmButton: false, customClass: 'swal-wide'})">
+                {% endfor %}
+            </div>
+
+            <!-- Botón de Impresión -->
+            <div style="padding: 10px 12px; border-top: 1px dashed var(--sap-border-color); display: flex; justify-content: flex-end;">
+                <a href="{% url 'seguridad:mobile_confiscacion_imprimir_etiqueta' obj.id %}" target="_blank"
+                   style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #34495e; text-decoration: none;">
+                    <ion-icon name="print-outline" style="font-size: 18px; color: var(--sap-brand-color);"></ion-icon>
+                    IMPRIMIR ETIQUETA
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not levantamiento.finalizado %}
+    <div style="padding: 15px; margin-bottom: 5px;">
+        <a href="{% url 'seguridad:mobile_confiscacion_agregar_objeto' levantamiento.id %}?generar=1" 
+           style="width: 100%; padding: 15px; border-radius: 12px; background: #3498db; color: white; border: none; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);">
+            <ion-icon name="add-circle-outline"></ion-icon>
+            GENERAR NUEVA ETIQUETA
+        </a>
+    </div>
+
+    <div style="padding: 0 15px 15px;">
+        <a href="{% url 'seguridad:mobile_confiscacion_confirmar_carga' levantamiento.id %}" 
+           style="width: 100%; padding: 15px; border-radius: 12px; background: #2ecc71; color: white; border: none; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
+            <ion-icon name="arrow-forward-circle-outline"></ion-icon>
+            FINALIZAR REGISTRO E INICIAR CARGA
+        </a>
+    </div>
+
+    <a href="{% url 'core:mobile_scanner' %}?next={{ request.path }}&label=Etiqueta&skip_resolver=1" class="btn-scan" id="scan-trigger">
+        <ion-icon name="qr-code-outline"></ion-icon>
+        ESCANEAR ETIQUETA
+    </a>
+    {% else %}
+    <div style="padding: 20px; text-align: center; background: #f1f2f3; margin: 15px; border-radius: 12px; border: 1px solid #ccc;">
+        <ion-icon name="lock-closed-outline" style="font-size: 32px; color: #666;"></ion-icon>
+        <div style="font-weight: 700; color: #666; margin-top: 10px;">RECORRIDO FINALIZADO</div>
+        <div style="font-size: 12px; color: #888;">Este levantamiento es ahora de solo lectura.</div>
+    </div>
+    {% endif %}
+
+    <script>
+        // Lógica para manejar el retorno del escáner core
+        const urlParams = new URLSearchParams(window.location.search);
+        const scannedCode = urlParams.get('code');
+        
+        if (scannedCode) {
+            // Si el código viene del escáner central, redirigir al formulario de captura
+            window.location.href = "{% url 'seguridad:mobile_confiscacion_agregar_objeto' levantamiento.id %}?codigo=" + encodeURIComponent(scannedCode);
+        }
+    </script>
+
+</body>
+</html>

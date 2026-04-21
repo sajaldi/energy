@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Levantamiento - {{ levantamiento.folio }}</title>
+    <style>
+        @page {
+            margin: 0;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            margin: 0;
+            padding: 40px;
+            color: #333;
+            background-color: white;
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+        .header {
+            display: table;
+            width: 100%;
+            border-bottom: 2px solid #0070f2;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header-left {
+            display: table-cell;
+            vertical-align: middle;
+            width: 30%;
+        }
+        .header-right {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: right;
+            width: 70%;
+        }
+        .logo {
+            max-width: 180px;
+            max-height: 80px;
+        }
+        .report-title {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #0070f2;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .company-name {
+            font-size: 10pt;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .info-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background: #f8f9fa;
+        }
+        .info-grid td {
+            padding: 12px 15px;
+            border: 1px solid #dee2e6;
+        }
+        .label {
+            font-weight: bold;
+            color: #495057;
+            font-size: 9pt;
+            text-transform: uppercase;
+            width: 20%;
+        }
+        .value {
+            color: #212529;
+            width: 30%;
+        }
+
+        .section-title {
+            background-color: #354a5f;
+            color: white;
+            padding: 10px 15px;
+            font-size: 12pt;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .items-table th {
+            background-color: #e9ecef;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            text-align: left;
+            font-size: 9pt;
+            text-transform: uppercase;
+        }
+        .items-table td {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            vertical-align: top;
+        }
+
+        .photo-gallery {
+            margin-top: 10px;
+            display: block;
+        }
+        .photo-item {
+            width: 160px;
+            height: 120px;
+            object-fit: cover;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 8pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-ALMACENADO { background-color: #fff4e6; color: #d9480f; }
+        .status-RETIRADO { background-color: #ebfbee; color: #2b8a3e; }
+
+        .footer {
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+            right: 40px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+            font-size: 8pt;
+            color: #999;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-left">
+            {% if logo_dcc_b64 %}
+            <img src="data:image/png;base64,{{ logo_dcc_b64 }}" class="logo">
+            {% else %}
+            <div style="font-weight: bold;">[LOGO]</div>
+            {% endif %}
+        </div>
+        <div class="header-right">
+            <h1 class="report-title">Reporte de Levantamiento</h1>
+            <div class="company-name">Operadora de Infraestructura de Honduras, S.A. de C.V.</div>
+        </div>
+    </div>
+
+    <table class="info-grid">
+        <tr>
+            <td class="label">Folio</td>
+            <td class="value"><strong>{{ levantamiento.folio }}</strong></td>
+            <td class="label">Fecha / Hora</td>
+            <td class="value">{{ levantamiento.fecha|date:"d/m/Y H:i" }}</td>
+        </tr>
+        <tr>
+            <td class="label">Ubicación</td>
+            <td class="value">{{ levantamiento.ubicacion.nombre }}</td>
+            <td class="label">Inspector</td>
+            <td class="value">{{ levantamiento.inspector.get_full_name|default:levantamiento.inspector.username }}</td>
+        </tr>
+        {% if levantamiento.comentarios %}
+        <tr>
+            <td class="label">Observaciones</td>
+            <td colspan="3" class="value">{{ levantamiento.comentarios }}</td>
+        </tr>
+        {% endif %}
+    </table>
+
+    <div class="section-title">Inventario de Objetos Confiscados</div>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">Código</th>
+                <th style="width: 25%;">Descripción</th>
+                <th style="width: 10%;">Estado</th>
+                <th style="width: 50%;">Evidencia Fotográfica</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for obj in objetos %}
+            <tr>
+                <td><strong>{{ obj.codigo_barras }}</strong><br><small>{{ obj.catalogo_objeto.nombre }}</small></td>
+                <td>{{ obj.descripcion|default:"Sin descripción adicional" }}</td>
+                <td><span class="status-badge status-{{ obj.status }}">{{ obj.get_status_display }}</span></td>
+                <td>
+                    <div class="photo-gallery">
+                        {% for f in obj.fotos.all %}
+                        {% if f.b64 %}
+                        <img src="data:image/jpeg;base64,{{ f.b64 }}" class="photo-item">
+                        {% else %}
+                        <div class="photo-placeholder" style="display:inline-block; width:160px; height:120px; background:#f0f0f0; font-size:8pt; text-align:center; line-height:120px;">Sin foto</div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 30px;">No se registraron hallazgos en este levantamiento.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 50px;">
+        <table style="width: 100%;">
+            <tr>
+                <td style="width: 50%; text-align: center;">
+                    <div style="border-top: 1px solid #333; width: 200px; margin: 0 auto; padding-top: 5px;">
+                        Firma Inspector<br>
+                        <small>{{ levantamiento.inspector.get_full_name }}</small>
+                    </div>
+                </td>
+                <td style="width: 50%; text-align: center;">
+                    <div style="border-top: 1px solid #333; width: 200px; margin: 0 auto; padding-top: 5px;">
+                        Recibido Conforme<br>
+                        <small>Seguridad / Administración</small>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="footer">
+        Este documento es un registro oficial de confiscación. Fecha de generación: {{ ahora|date:"d/m/Y H:i:s" }} - Página 1 de 1
+    </div>
+
+</body>
+</html>

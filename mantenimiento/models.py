@@ -140,6 +140,10 @@ class TecnicoPuesto(models.Model):
     fecha_alta = models.DateField(null=True, blank=True, help_text="Fecha de ingreso a la empresa")
     
     disponible = models.BooleanField(default=True)
+    esta_vigente = models.BooleanField(default=True, verbose_name="Vigente", help_text="Si no está vigente, no podrá ingresar al recinto")
+    codigo_asistencia = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Código QR Carnet", help_text="ID del carnet físico (ej. PERSONAL0001)")
+    foto = models.ImageField(upload_to='tecnicos/', null=True, blank=True, verbose_name="Foto de Perfil")
+    
     horas_semanales_max = models.DecimalField(max_length=5, max_digits=5, decimal_places=2, default=40.00, help_text="Capacidad máxima de horas por semana")
 
     def __str__(self):
@@ -150,6 +154,35 @@ class TecnicoPuesto(models.Model):
     class Meta:
         verbose_name = "Personal"
         verbose_name_plural = "Personal"
+
+class Asistencia(models.Model):
+    """
+    Registro diario de ingresos y egresos de técnicos mediante escaneo de QR.
+    """
+    tecnico = models.ForeignKey(TecnicoPuesto, on_delete=models.CASCADE, related_name='asistencias', verbose_name="Técnico")
+    fecha = models.DateField(auto_now_add=True, db_index=True)
+    hora_entrada = models.TimeField(null=True, blank=True, verbose_name="Hora de Entrada")
+    hora_salida = models.TimeField(null=True, blank=True, verbose_name="Hora de Salida")
+    
+    # Campo para almacenar la empresa al momento del registro (snapshot)
+    empresa_registro = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Empresa en Registro")
+    
+    usuario_estacion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Operador Estación")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.tecnico} - {self.fecha}"
+
+    def save(self, *args, **kwargs):
+        if not self.empresa_registro and self.tecnico.empresa:
+            self.empresa_registro = self.tecnico.empresa
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Registro de Asistencia"
+        verbose_name_plural = "Registros de Asistencias"
+        ordering = ['-fecha', '-hora_entrada']
 
 class PasoRutina(models.Model):
     TIPO_RESPUESTA_CHOICES = [

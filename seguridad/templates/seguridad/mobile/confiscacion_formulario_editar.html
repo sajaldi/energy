@@ -1,0 +1,231 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Editar Objeto Confiscado</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            color: var(--sap-text-color);
+        }
+
+        .form-container {
+            padding: 20px;
+        }
+
+        .fiori-input-group {
+            margin-bottom: 20px;
+        }
+
+        .fiori-input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--sap-text-muted);
+        }
+
+        .fiori-input, .fiori-select, .fiori-textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            background: #f5f5f5;
+            font-family: inherit;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        .fiori-input:focus, .fiori-select:focus, .fiori-textarea:focus {
+            background: white;
+            border-color: var(--sap-brand-color);
+            outline: none;
+        }
+
+        .photo-uploader {
+            border: 2px dashed var(--sap-border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .photo-uploader ion-icon {
+            font-size: 40px;
+            color: var(--sap-brand-color);
+            margin-bottom: 10px;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 15px;
+            background: var(--sap-brand-color);
+            color: white;
+            border: none;
+            border-radius: var(--sap-border-radius);
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .gallery-existing {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .gallery-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--sap-border-color);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #preview-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .preview-img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid var(--sap-brand-color);
+            opacity: 0.7;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        
+        .status-almacenado { background: #e0f2fe; color: #0369a1; }
+        .status-retirado { background: #fef2f2; color: #991b1b; }
+    </style>
+</head>
+
+<body>
+
+    <header class="fiori-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{% url 'seguridad:mobile_confiscacion_ejecutar' objeto.levantamiento.id %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <div>
+                <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Editar Registro</h1>
+                <p style="margin: 0; font-size: 12px; opacity: 0.8;">Código: {{ objeto.codigo_barras }}</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="form-container">
+        <div style="margin-bottom: 20px; padding: 12px; background: white; border-radius: 8px; border: 1px solid var(--sap-border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12px; font-weight: 600; color: var(--sap-text-muted);">ESTADO ACTUAL</span>
+                <span class="status-badge status-{{ objeto.status|lower }}">{{ objeto.get_status_display }}</span>
+            </div>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="fiori-input-group">
+                <label>CÓDIGO DE ETIQUETA (Solo lectura)</label>
+                <input type="text" class="fiori-input" value="{{ objeto.codigo_barras }}" readonly style="opacity: 0.6; cursor: not-allowed;">
+            </div>
+
+            <div class="fiori-input-group">
+                <label>TIPO DE OBJETO</label>
+                <select name="catalogo_objeto" class="fiori-select" required>
+                    {% for item in catalogo_objetos %}
+                    <option value="{{ item.id }}" {% if item.id == objeto.catalogo_objeto.id %}selected{% endif %}>{{ item.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="fiori-input-group">
+                <label>DESCRIPCIÓN / HALLAZGO</label>
+                <textarea name="descripcion" class="fiori-textarea" rows="4" placeholder="Actualizar detalles...">{{ objeto.descripcion }}</textarea>
+            </div>
+
+            <div class="fiori-input-group">
+                <label>FOTOS EXISTENTES (Evidencia previa)</label>
+                <div class="gallery-existing">
+                    {% for foto in objeto.fotos.all %}
+                    <div class="gallery-item">
+                        <img src="{{ foto.foto.url }}" alt="Evidencia">
+                    </div>
+                    {% empty %}
+                    <p style="grid-column: span 3; font-size: 12px; color: var(--sap-text-muted); text-align: center;">No hay fotos registradas.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="fiori-input-group">
+                <label>AÑADIR NUEVAS FOTOS</label>
+                <div class="photo-uploader" onclick="document.getElementById('photo-input').click()">
+                    <ion-icon name="add-circle-outline"></ion-icon>
+                    <div style="font-size: 13px; font-weight: 600;">Subir más evidencia</div>
+                    <input type="file" id="photo-input" name="fotos" accept="image/*" multiple capture="environment" style="display: none;" onchange="previewImages(this)">
+                </div>
+                <div id="preview-container"></div>
+            </div>
+
+            <button type="submit" class="btn-save">
+                Actualizar Registro
+                <ion-icon name="checkmark-done-outline"></ion-icon>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        function previewImages(input) {
+            const container = document.getElementById('preview-container');
+            container.innerHTML = '';
+            if (input.files) {
+                Array.from(input.files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'preview-img';
+                        container.appendChild(img);
+                    }
+                    reader.readAsDataURL(file);
+                });
+            }
+        }
+    </script>
+
+</body>
+</html>

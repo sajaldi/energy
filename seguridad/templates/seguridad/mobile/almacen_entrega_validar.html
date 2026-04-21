@@ -1,0 +1,227 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Validar Entrega - Bodega</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 20px;
+        }
+
+        .form-card {
+            background: white;
+            margin: 15px;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--sap-border-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .fiori-input {
+            width: 100%;
+            padding: 12px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            background: #f8fafc;
+        }
+
+        .fiori-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .item-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .item-row img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
+        .item-row .info { flex: 1; }
+        .item-row .info h4 { margin: 0; font-size: 13px; }
+        .item-row .info p { margin: 2px 0 0; font-size: 11px; color: #999; }
+
+        .camera-btn {
+            background: #f1f5f9;
+            border: 1.2px dashed #cbd5e1;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            transition: all 0.2s;
+        }
+
+        .camera-btn.has-photo {
+            border: 2px solid #3498db;
+            background: #f0f7ff;
+            color: #3498db;
+        }
+
+        .btn-submit {
+            background: var(--sap-brand-color);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 12px;
+            width: 100%;
+            font-weight: 700;
+            font-size: 16px;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(0, 112, 242, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="fiori-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="{% url 'seguridad:mobile_almacen_recepcion' %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <div>
+                <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Finalizar Entrega</h1>
+            </div>
+        </div>
+    </header>
+
+    <div class="form-card">
+        <h3 style="margin: 0 0 15px 0; font-size: 15px; color: var(--sap-brand-color);">Objetos a Entregar</h3>
+        {% for obj in objetos %}
+        <div class="item-row">
+            {% with foto=obj.fotos.first %}
+            <img src="{% if foto %}{{ foto.foto.url }}{% else %}{% static 'core/img/no-image.png' %}{% endif %}" alt="Obj">
+            {% endwith %}
+            <div class="info">
+                <h4>{{ obj.catalogo_objeto.nombre }}</h4>
+                <p>{{ obj.codigo_barras }} • {{ obj.levantamiento.folio }}</p>
+            </div>
+            <ion-icon name="checkmark-circle" style="color: #27ae60; font-size: 20px;"></ion-icon>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="form-card">
+        <h3 style="margin: 0 0 15px 0; font-size: 15px; color: var(--sap-brand-color);">Datos de quien Recibe</h3>
+        
+        <label class="fiori-label">Nombre Completo del Retirante *</label>
+        <input type="text" id="nombre_retirante" class="fiori-input" placeholder="Ej: Juan Pérez">
+
+        <label class="fiori-label">DNI / Identidad</label>
+        <input type="text" id="dni_retirante" class="fiori-input" placeholder="Número de identidad">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="camera-btn" id="btn-id" onclick="document.getElementById('file-id').click()">
+                <ion-icon name="card-outline" style="font-size: 28px;"></ion-icon>
+                <span style="font-size: 10px; font-weight: 600;">FOTO IDENTIDAD</span>
+                <input type="file" id="file-id" accept="image/*" capture="environment" style="display: none;" onchange="updatePhotoStatus('btn-id', this)">
+            </div>
+            <div class="camera-btn" id="btn-evidencia" onclick="document.getElementById('file-evidencia').click()">
+                <ion-icon name="camera-outline" style="font-size: 28px;"></ion-icon>
+                <span style="font-size: 10px; font-weight: 600;">FOTO ENTREGA</span>
+                <input type="file" id="file-evidencia" accept="image/*" capture="environment" style="display: none;" onchange="updatePhotoStatus('btn-evidencia', this)">
+            </div>
+        </div>
+
+        <label class="fiori-label">Comentarios Adicionales</label>
+        <textarea id="comentarios" class="fiori-input" style="height: 60px;"></textarea>
+
+        <button onclick="confirmarEntrega()" class="btn-submit">CONFIRMAR Y ENTREGAR</button>
+    </div>
+
+    <script>
+        function updatePhotoStatus(btnId, input) {
+            const btn = document.getElementById(btnId);
+            if (input.files && input.files[0]) {
+                btn.classList.add('has-photo');
+                btn.querySelector('span').innerText = 'FOTO CAPTURADA';
+            }
+        }
+
+        async function confirmarEntrega() {
+            const nombre = document.getElementById('nombre_retirante').value;
+            const dni = document.getElementById('dni_retirante').value;
+            const com = document.getElementById('comentarios').value;
+            const fileId = document.getElementById('file-id').files[0];
+            const fileEv = document.getElementById('file-evidencia').files[0];
+
+            if (!nombre) {
+                Swal.fire({ icon: 'warning', title: 'Faltan Datos', text: 'El nombre del retirante es obligatorio.' });
+                return;
+            }
+
+            if (!fileId || !fileEv) {
+                const result = await Swal.fire({
+                    title: '¿Continuar sin fotos?',
+                    text: "Se recomienda tomar fotos de la identidad y de la entrega para respaldo legal.",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, entregar así',
+                    cancelButtonText: 'No, tomar fotos'
+                });
+                if (!result.isConfirmed) return;
+            }
+
+            Swal.fire({ title: 'Procesando entrega...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+            const formData = new FormData();
+            formData.append('nombre_retirante', nombre);
+            formData.append('dni_retirante', dni);
+            formData.append('comentarios', com);
+            formData.append('objeto_ids', '{% for o in objetos %}{{ o.id }}{% if not forloop.last %},{% endif %}{% endfor %}');
+            
+            if (fileId) formData.append('foto_identidad', fileId);
+            if (fileEv) formData.append('foto_entrega', fileEv);
+
+            try {
+                const response = await fetch('{% url "seguridad:api_almacen_confirmar_entrega" %}', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    await Swal.fire({
+                        icon: 'success',
+                        title: '¡Entrega Exitosa!',
+                        text: 'El proceso se ha completado correctamente.',
+                        confirmButtonText: 'Ver Recibo PDF'
+                    });
+                    window.location.href = data.pdf_url;
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+                }
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Error de Red', text: 'No se pudo comunicar con el servidor.' });
+            }
+        }
+    </script>
+</body>
+</html>

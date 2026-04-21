@@ -1,0 +1,535 @@
+{% extends "admin/base_site.html" %}
+{% load static i18n %}
+
+{% block title %}Reporte de Asistencia{% endblock %}
+
+{% block extrastyle %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<style>
+    :root {
+        --sap-shell: #354a5f;
+        --sap-bg: #f5f6f7;
+        --sap-border: #d9d9d9;
+        --sap-primary: #0070f2;
+        --sap-success: #107e3e;
+        --sap-warning: #e9730c;
+        --fiori-radius: 4px;
+    }
+
+    #content {
+        font-family: 'Inter', -apple-system, sans-serif !important;
+        background: var(--sap-bg);
+        padding: 0 !important;
+    }
+
+    .report-shell {
+        background: var(--sap-shell);
+        color: white;
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .report-shell h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .report-container {
+        max-width: 1300px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+
+    /* ---- Filter Bar ---- */
+    .filter-bar {
+        background: white;
+        padding: 1.25rem 1.5rem;
+        border-radius: var(--fiori-radius);
+        border: 1px solid var(--sap-border);
+        margin-bottom: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 1rem;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .filter-group label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6a6d70;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        padding: 8px 12px;
+        border: 1px solid var(--sap-border);
+        border-radius: var(--fiori-radius);
+        font-size: 0.9rem;
+        font-family: inherit;
+        min-width: 160px;
+    }
+
+    .btn-filter {
+        padding: 8px 20px;
+        background: var(--sap-primary);
+        color: white;
+        border: none;
+        border-radius: var(--fiori-radius);
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.2s;
+    }
+
+    .btn-filter:hover { background: #005bc5; }
+
+    .btn-outline {
+        padding: 8px 20px;
+        background: white;
+        color: var(--sap-primary);
+        border: 1px solid var(--sap-primary);
+        border-radius: var(--fiori-radius);
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+
+    .btn-outline:hover { background: #f0f5ff; }
+
+    /* ---- Summary Cards ---- */
+    .summary-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .summary-card {
+        flex: 1;
+        min-width: 180px;
+        background: white;
+        padding: 1.25rem;
+        border-radius: var(--fiori-radius);
+        border: 1px solid var(--sap-border);
+        text-align: center;
+    }
+
+    .summary-card .label {
+        font-size: 0.75rem;
+        color: #6a6d70;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .summary-card .value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--sap-primary);
+    }
+
+    .summary-card .value.success { color: var(--sap-success); }
+    .summary-card .value.warning { color: var(--sap-warning); }
+
+    /* ---- Day Sections ---- */
+    .day-section {
+        background: white;
+        border-radius: var(--fiori-radius);
+        border: 1px solid var(--sap-border);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .day-header {
+        background: linear-gradient(135deg, #354a5f 0%, #4a6580 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .day-header:hover { opacity: 0.95; }
+
+    .day-header h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .day-header .day-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .day-body {
+        padding: 0;
+    }
+
+    .day-body.collapsed { display: none; }
+
+    /* ---- Company Block ---- */
+    .company-block {
+        border-bottom: 1px solid #eee;
+    }
+
+    .company-block:last-child { border-bottom: none; }
+
+    .company-block-header {
+        background: #f8f9fa;
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #eee;
+    }
+
+    .company-block-header h4 {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--sap-shell);
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .count-badge {
+        background: #e1f0ff;
+        color: #0056b3;
+        padding: 3px 12px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    /* ---- Table ---- */
+    .att-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .att-table th {
+        text-align: left;
+        padding: 0.6rem 1.5rem;
+        background: #fafafa;
+        border-bottom: 1px solid var(--sap-border);
+        color: #6a6d70;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .att-table td {
+        padding: 0.75rem 1.5rem;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.9rem;
+        color: #333;
+    }
+
+    .att-table tr:hover { background: #f5f8ff; }
+
+    .att-table .name-cell {
+        font-weight: 600;
+    }
+
+    .att-table .dni-sub {
+        font-size: 0.78rem;
+        color: #888;
+        margin-top: 2px;
+    }
+
+    .badge-time {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .badge-in { background: #e6f4ea; color: #1e7e34; }
+    .badge-out { background: #feefe3; color: #b25800; }
+    .badge-pending { color: #ccc; font-style: italic; font-size: 0.85rem; }
+
+    .status-complete { color: var(--sap-success); display: flex; align-items: center; gap: 5px; font-size: 0.85rem; }
+    .status-inside { color: var(--sap-warning); display: flex; align-items: center; gap: 5px; font-size: 0.85rem; }
+
+    .duracion-acumulada {
+        background: #f0f2f4;
+        color: #495057;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid #dee2e6;
+    }
+
+    /* ---- Empty State ---- */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #999;
+    }
+
+    .empty-state i { font-size: 4rem; opacity: 0.2; display: block; margin-bottom: 1rem; }
+
+    /* ---- Print ---- */
+    @media print {
+        #header, #nav-sidebar, .breadcrumbs, .filter-bar, .btn-outline, .report-shell { display: none !important; }
+        #content { padding: 0 !important; background: white !important; }
+        .day-body.collapsed { display: block !important; }
+        .day-header { background: #354a5f !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .summary-card { border: 1px solid #ccc; }
+        .att-table th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
+    @media (max-width: 768px) {
+        .filter-bar { flex-direction: column; align-items: stretch; }
+        .filter-group input, .filter-group select { min-width: auto; width: 100%; }
+        .summary-row { flex-direction: column; }
+        .att-table th:nth-child(4), .att-table td:nth-child(4) { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label='mantenimiento' %}">Mantenimiento</a>
+&rsaquo; <a href="{% url 'admin:mantenimiento_asistencia_changelist' %}">Asistencias</a>
+&rsaquo; Reporte Visual
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="report-shell">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="{% url 'admin:mantenimiento_asistencia_changelist' %}" style="color: white; font-size: 1.4rem; text-decoration: none;">
+            <i class="ph ph-arrow-left"></i>
+        </a>
+        <h2>
+            <i class="ph ph-calendar-check" style="font-size: 1.4rem;"></i>
+            Reporte de Asistencia por Empresa
+        </h2>
+    </div>
+    <div style="font-size: 0.85rem; opacity: 0.8;">
+        Panel Administrativo
+    </div>
+</div>
+
+<div class="report-container">
+
+    <!-- Filtros -->
+    <form class="filter-bar" method="get">
+        <div class="filter-group">
+            <label>Desde</label>
+            <input type="date" name="fecha_desde" value="{{ fecha_desde|date:'Y-m-d' }}">
+        </div>
+        <div class="filter-group">
+            <label>Hasta</label>
+            <input type="date" name="fecha_hasta" value="{{ fecha_hasta|date:'Y-m-d' }}">
+        </div>
+        <div class="filter-group">
+            <label>Empresa</label>
+            <select name="empresa">
+                <option value="">— Todas —</option>
+                {% for emp in empresas_catalogo %}
+                <option value="{{ emp.id }}" {% if empresa_filtro == emp.id|stringformat:"d" %}selected{% endif %}>{{ emp.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn-filter">
+            <i class="ph ph-magnifying-glass"></i> Generar
+        </button>
+        <button type="button" class="btn-outline" onclick="window.print()">
+            <i class="ph ph-printer"></i> Imprimir
+        </button>
+        <button type="button" class="btn-outline" onclick="exportCSV()">
+            <i class="ph ph-file-csv"></i> Exportar CSV
+        </button>
+    </form>
+
+    <!-- Resumen -->
+    <div class="summary-row">
+        <div class="summary-card">
+            <div class="label">Total Registros</div>
+            <div class="value">{{ total_general }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Días con Actividad</div>
+            <div class="value success">{{ reporte_por_dia|length }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Rango Consultado</div>
+            <div style="font-size: 1rem; font-weight: 600; color: #333; margin-top: 6px;">
+                {{ fecha_desde|date:"d/M/Y" }} — {{ fecha_hasta|date:"d/M/Y" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Reporte por Día -->
+    {% for dia in reporte_por_dia %}
+    <div class="day-section">
+        <div class="day-header" onclick="toggleDay(this)">
+            <h3>
+                <i class="ph ph-calendar-blank"></i>
+                {{ dia.fecha|date:"l, d \d\e F Y" }}
+            </h3>
+            <span class="day-badge">{{ dia.total_dia }} registro{{ dia.total_dia|pluralize:"s" }}</span>
+        </div>
+        <div class="day-body">
+            {% for bloque in dia.empresas %}
+            <div class="company-block">
+                <div class="company-block-header">
+                    <h4>
+                        <i class="ph ph-buildings"></i>
+                        {{ bloque.empresa.nombre }}
+                    </h4>
+                    <span class="count-badge">{{ bloque.total }} técnico{{ bloque.total|pluralize:"s" }}</span>
+                </div>
+                <table class="att-table">
+                    <thead>
+                        <tr>
+                            <th>Técnico</th>
+                            <th>Puesto</th>
+                            <th>Entrada</th>
+                            <th>Salida</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in bloque.tecnicos_data %}
+                        <tr>
+                            <td>
+                                <div class="name-cell">{{ item.tecnico }}</div>
+                                <div class="dni-sub">DNI: {{ item.tecnico.dni|default:"—" }}</div>
+                            </td>
+                            <td>{{ item.tecnico.puesto.nombre|default:"—" }}</td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    {% for marc in item.marcaciones %}
+                                        <span class="badge-time badge-in">{{ marc.hora_entrada|time:"h:i A" }}</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    {% for marc in item.marcaciones %}
+                                        {% if marc.hora_salida %}
+                                            <span class="badge-time badge-out">{{ marc.hora_salida|time:"h:i A" }}</span>
+                                        {% else %}
+                                            <span class="badge-pending">Pendiente</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+                                    <span class="duracion-acumulada" title="Tiempo total del día">
+                                        <i class="ph ph-timer"></i> {{ item.duracion_total }}
+                                    </span>
+                                    {% if item.esta_adentro %}
+                                        <span class="status-inside" style="font-size: 0.75rem;">
+                                            <i class="ph ph-clock"></i> En Recinto
+                                        </span>
+                                    {% else %}
+                                        <span class="status-complete" style="font-size: 0.75rem;">
+                                            <i class="ph ph-check-circle"></i> Fuera
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <i class="ph ph-clipboard-x"></i>
+        <p style="font-size: 1.1rem; font-weight: 500;">No se encontraron registros de asistencia</p>
+        <p style="font-size: 0.9rem;">Verifique el rango de fechas o la empresa seleccionada.</p>
+    </div>
+    {% endfor %}
+
+</div>
+
+<script>
+function toggleDay(header) {
+    const body = header.nextElementSibling;
+    body.classList.toggle('collapsed');
+}
+
+function exportCSV() {
+    const rows = [['Fecha', 'Empresa', 'Técnico', 'DNI', 'Puesto', 'Entradas', 'Salidas', 'Total Horas', 'Estado']];
+    
+    document.querySelectorAll('.day-section').forEach(section => {
+        const fecha = section.querySelector('.day-header h3').textContent.trim().replace(/\s+/g, ' ');
+        section.querySelectorAll('.company-block').forEach(block => {
+            const empresa = block.querySelector('.company-block-header h4').textContent.trim();
+            block.querySelectorAll('.att-table tbody tr').forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                const nombre = cells[0]?.querySelector('.name-cell')?.textContent?.trim() || '';
+                const dni = cells[0]?.querySelector('.dni-sub')?.textContent?.replace('DNI:', '')?.trim() || '';
+                const puesto = cells[1]?.textContent?.trim() || '';
+                
+                // Procesar marcaciones múltiples
+                const entradas = Array.from(cells[2].querySelectorAll('.badge-time')).map(b => b.textContent.trim()).join(' | ');
+                const salidas = Array.from(cells[3].querySelectorAll('.badge-time, .badge-pending')).map(b => b.textContent.trim()).join(' | ');
+                
+                const duracion = cells[4]?.querySelector('.duracion-acumulada')?.textContent?.trim() || '';
+                const estado = cells[4]?.querySelector('.status-inside, .status-complete')?.textContent?.trim() || '';
+                
+                rows.push([fecha, empresa, nombre, dni, puesto, entradas, salidas, duracion, estado]);
+            });
+        });
+    });
+    
+    const csvContent = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_asistencia_{{ fecha_desde|date:"Ymd" }}_{{ fecha_hasta|date:"Ymd" }}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

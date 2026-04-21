@@ -1,5 +1,7 @@
 from django.db import models
 from django.utils import timezone
+import uuid
+import datetime
 
 class TipoIncidente(models.Model):
     nombre = models.CharField(max_length=100)
@@ -188,5 +190,111 @@ class PermisoTrabajo(models.Model):
 class VerificacionRequisito(models.Model):
     permiso = models.ForeignKey(PermisoTrabajo, on_delete=models.CASCADE, related_name='verificaciones')
     requisito = models.ForeignKey(RequisitoPermiso, on_delete=models.CASCADE)
-    cumple = models.BooleanField(default=False)
-    observacion = models.CharField(max_length=255, blank=True)
+# --- Confiscaciones y Levantamientos ---
+
+class ObjetoCatalogo(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Objeto de Catálogo"
+        verbose_name_plural = "Catálogo de Objetos"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+class LevantamientoConfiscacion(models.Model):
+    fecha = models.DateTimeField(default=timezone.now)
+    ubicacion = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, verbose_name="Ubicación")
+    inspector = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True)
+    comentarios = models.TextField(blank=True, null=True)
+    folio = models.CharField(max_length=50, blank=True, unique=True, editable=False)
+    
+    finalizado = models.BooleanField(default=False, verbose_name="¿Finalizado?")
+    fecha_fin = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Finalización")
+
+    def save(self, *args, **kwargs):
+        if not self.folio:
+            self.folio = f"LEV-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Levantamiento de Objetos"
+        verbose_name_plural = "Levantamientos de Objetos"
+
+    def __str__(self):
+        return f"{self.folio} - {self.ubicacion} ({self.fecha.date()})"
+
+class EntregaConfiscacion(models.Model):
+    nombre_retirante = models.CharField(max_length=200, verbose_name="Nombre de quien recibe")
+    dni_retirante = models.CharField(max_length=50, blank=True, null=True, verbose_name="DNI/Identidad")
+    
+    foto_identidad = models.ImageField(upload_to='confiscaciones/entregas/id/', null=True, blank=True)
+    foto_entrega = models.ImageField(upload_to='confiscaciones/entregas/evidencia/', null=True, blank=True)
+    
+    entregado_por = models.ForeignKey('auth.User', on_delete=models.CASCADE)
+    fecha = models.DateTimeField(auto_now_add=True)
+    
+    comentarios = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Entrega de Confiscación"
+        verbose_name_plural = "Entregas de Confiscación"
+
+    def __str__(self):
+        return f"Entrega #{self.id} - {self.nombre_retirante} ({self.fecha.date()})"
+
+class ObjetoConfiscado(models.Model):
+    STATUS_CHOICES = [
+        ('LEVANTADO', 'Registrado/Levantado'),
+        ('TRANSITO', 'En Tránsito/Movilizando'),
+        ('ALMACENADO', 'Almacenado en Bodega'),
+        ('RETIRADO', 'Retirado por Tercero'),
+        ('DEVUELTO', 'Devuelto/Regularizado'),
+    ]
+
+    levantamiento = models.ForeignKey(LevantamientoConfiscacion, on_delete=models.CASCADE, related_name='objetos')
+    catalogo_objeto = models.ForeignKey(ObjetoCatalogo, on_delete=models.SET_NULL, null=True, verbose_name="Tipo de Objeto")
+    codigo_barras = models.CharField(max_length=100, unique=True, verbose_name="Código de Barras/Etiqueta")
+    descripcion = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='LEVANTADO')
+    
+    fecha_confiscacion = models.DateTimeField(auto_now_add=True)
+    fecha_retiro = models.DateTimeField(null=True, blank=True)
+    
+    # Entrega vinculada
+    entrega = models.ForeignKey(EntregaConfiscacion, on_delete=models.SET_NULL, null=True, blank=True, related_name='objetos_entregados')
+    
+    # Campos de Almacén
+    comentario_almacen = models.TextField(null=True, blank=True, verbose_name="Comentario de Almacén/Discrepancia")
+    ubicacion_almacen = models.CharField(max_length=100, null=True, blank=True, verbose_name="Ubicación en Bodega")
+
+    @property
+    def tiene_novedad_almacen(self):
+        """ Retorna True si el objeto tiene comentarios o fotos de la etapa Almacén """
+        if self.comentario_almacen:
+            return True
+        return self.fotos.filter(etapa='ALMACEN').exists()
+
+    class Meta:
+        verbose_name = "Objeto Confiscado"
+        verbose_name_plural = "Objetos Confiscados"
+
+    def __str__(self):
+        return f"{self.catalogo_objeto} [{self.codigo_barras}]"
+
+class FotoObjetoConfiscado(models.Model):
+    ETAPA_CHOICES = [
+        ('LEVANTE', 'Levantamiento'),
+        ('ALMACEN', 'Recepción Almacén'),
+        ('RETIRO', 'Retiro/Cierre')
+    ]
+    objeto = models.ForeignKey(ObjetoConfiscado, on_delete=models.CASCADE, related_name='fotos')
+    foto = models.ImageField(upload_to='confiscaciones/')
+    etapa = models.CharField(max_length=20, choices=ETAPA_CHOICES, default='LEVANTE')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Foto de Objeto"
+        verbose_name_plural = "Fotos de Objetos"
