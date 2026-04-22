@@ -2,6 +2,8 @@ from django.db import models
 from django.utils import timezone
 import uuid
 import datetime
+from core.image_utils import compress_image
+
 
 class TipoIncidente(models.Model):
     nombre = models.CharField(max_length=100)
@@ -37,7 +39,13 @@ class Incidente(models.Model):
     fecha_reporte = models.DateTimeField(auto_now_add=True)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
 
+    def save(self, *args, **kwargs):
+        if self.foto:
+            self.foto = compress_image(self.foto)
+        super().save(*args, **kwargs)
+
     def __str__(self):
+
         return f"{self.titulo} - {self.get_estado_display()}"
 
 # --- Inspecciones ---
@@ -92,6 +100,12 @@ class ResultadoInspeccion(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_ITEM, default='CUMPLE')
     observacion = models.CharField(max_length=255, blank=True)
     foto = models.ImageField(upload_to='inspecciones/', blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if self.foto:
+            self.foto = compress_image(self.foto)
+        super().save(*args, **kwargs)
+
 
 # --- EPP ---
 
@@ -242,6 +256,14 @@ class EntregaConfiscacion(models.Model):
         verbose_name = "Entrega de Confiscación"
         verbose_name_plural = "Entregas de Confiscación"
 
+    def save(self, *args, **kwargs):
+        if self.foto_identidad:
+            self.foto_identidad = compress_image(self.foto_identidad)
+        if self.foto_entrega:
+            self.foto_entrega = compress_image(self.foto_entrega)
+        super().save(*args, **kwargs)
+
+
     def __str__(self):
         return f"Entrega #{self.id} - {self.nombre_retirante} ({self.fecha.date()})"
 
@@ -295,6 +317,12 @@ class FotoObjetoConfiscado(models.Model):
     etapa = models.CharField(max_length=20, choices=ETAPA_CHOICES, default='LEVANTE')
     creado_en = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        if self.foto:
+            self.foto = compress_image(self.foto)
+        super().save(*args, **kwargs)
+
     class Meta:
+
         verbose_name = "Foto de Objeto"
         verbose_name_plural = "Fotos de Objetos"

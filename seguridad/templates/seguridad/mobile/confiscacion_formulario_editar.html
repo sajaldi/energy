@@ -208,24 +208,89 @@
         </form>
     </div>
 
+    <script src="{% static 'core/js/compressor.js' %}"></script>
     <script>
-        function previewImages(input) {
+        let compressedFiles = [];
+
+        async function previewImages(input) {
             const container = document.getElementById('preview-container');
             container.innerHTML = '';
+            compressedFiles = [];
+
             if (input.files) {
-                Array.from(input.files).forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.className = 'preview-img';
-                        container.appendChild(img);
+                const filesArray = Array.from(input.files);
+                
+                if (filesArray.length > 1) {
+                    const status = document.createElement('div');
+                    status.id = 'compression-status';
+                    status.style = 'grid-column: 1/-1; font-size: 11px; color: var(--sap-brand-color); font-weight: 700;';
+                    status.innerText = 'Optimizando imágenes...';
+                    container.appendChild(status);
+                }
+
+                for (const file of filesArray) {
+                    try {
+                        const compressed = await ImageCompressor.compress(file);
+                        compressedFiles.push(compressed);
+
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.className = 'preview-img';
+                            container.appendChild(img);
+                        }
+                        reader.readAsDataURL(compressed);
+                    } catch (err) {
+                        console.error('Error comprimiendo:', err);
+                        compressedFiles.push(file);
                     }
-                    reader.readAsDataURL(file);
-                });
+                }
+                const status = document.getElementById('compression-status');
+                if (status) status.remove();
             }
         }
+
+        document.querySelector('form').onsubmit = async function(e) {
+            if (compressedFiles.length === 0) return true;
+            
+            e.preventDefault();
+            const btn = this.querySelector('.btn-save');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<ion-icon name="sync-outline" class="rotating"></ion-icon> Actualizando...';
+
+            const formData = new FormData(this);
+            formData.delete('fotos');
+            compressedFiles.forEach(file => {
+                formData.append('fotos', file);
+            });
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    const text = await response.text();
+                    document.documentElement.innerHTML = text;
+                }
+            } catch (err) {
+                alert('Error al guardar. Verifique su conexión.');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        };
     </script>
+    <style>
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .rotating { animation: rotate 2s linear infinite; }
+    </style>
+
 
 </body>
 </html>

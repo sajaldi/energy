@@ -265,6 +265,15 @@ class VincularTecnicoCodigoView(LoginRequiredMixin, View):
             
         tecnico = get_object_or_404(TecnicoPuesto, id=tecnico_id)
         
+        # Validar Documentación de su Empresa
+        if tecnico.empresa:
+            ok, msg = tecnico.empresa.tiene_documentacion_completa()
+            if not ok:
+                return JsonResponse({
+                    'success': False, 
+                    'message': f'RECHAZADO: La empresa "{tecnico.empresa.nombre}" tiene expediente incompleto ({msg}). Imposible generar QR.'
+                }, status=403)
+        
         # Validar que el código no lo tenga ya alguien más (doble check)
         if TecnicoPuesto.objects.filter(codigo_asistencia=codigo).exists():
             return JsonResponse({'success': False, 'message': 'Este código ya fue vinculado a otro técnico hace unos instantes.'}, status=400)
@@ -430,8 +439,26 @@ class GestionarPersonalView(LoginRequiredMixin, View):
         if dni and TecnicoPuesto.objects.filter(dni=dni).exclude(id=tecnico.id).exists():
             return JsonResponse({'success': False, 'message': 'Ese DNI ya está registrado en otro perfil.'}, status=400)
 
-        # Validar Código Asistencia único
+        # Validar Código Asistencia único y Requisitos de Empresa
         codigo = request.POST.get('codigo_asistencia', '').strip()
+        
+        emp_id = request.POST.get('empresa_id')
+        empresa_objetivo = None
+        if emp_id:
+            from ..models import Empresa
+            empresa_objetivo = Empresa.objects.filter(id=emp_id).first()
+        else:
+            empresa_objetivo = tecnico.empresa
+
+        if codigo and codigo != tecnico.codigo_asistencia: # Solo si intenta asignar uno nuevo
+            if empresa_objetivo:
+                ok, msg = empresa_objetivo.tiene_documentacion_completa()
+                if not ok:
+                    return JsonResponse({
+                        'success': False, 
+                        'message': f'No se puede asignar QR: La empresa {empresa_objetivo.nombre} tiene su expediente incompleto ({msg}).'
+                    }, status=403)
+
         if codigo and TecnicoPuesto.objects.filter(codigo_asistencia=codigo).exclude(id=tecnico.id).exists():
             return JsonResponse({'success': False, 'message': 'Ese Código QR ya está vinculado a otro técnico.'}, status=400)
 

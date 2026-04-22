@@ -6,6 +6,23 @@ import tempfile
 import json
 
 logger = logging.getLogger(__name__)
+# Configuración global de encodings para importación
+IMPORT_ENCODINGS = ['utf-8-sig', 'utf-8', 'windows-1252', 'iso-8859-1', 'utf-16', 'mac_roman']
+
+def try_decode(content, encodings=None):
+    """Intenta decodificar el contenido usando una lista de encodings prioritarios."""
+    if encodings is None:
+        encodings = IMPORT_ENCODINGS
+    for encoding in encodings:
+        try:
+            decoded = content.decode(encoding)
+            if encoding in ['iso-8859-1', 'windows-1252', 'latin-1'] and '\x00' in decoded:
+                continue
+            return decoded
+        except (UnicodeDecodeError, AttributeError):
+            continue
+    return content.decode('utf-8', errors='replace')
+
 
 @shared_task(name='documentos.tasks.extract_document_metadata')
 def extract_document_metadata(revision_id):
@@ -111,15 +128,9 @@ def import_comentarios_task(self, file_path, file_format, user_id=None, verifica
         with default_storage.open(file_path, 'rb') as f:
             file_content = f.read()
             if file_format == 'csv':
-                # Intentar decodificar con varios encodings
-                decoded = None
-                for enc in ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252']:
-                    try:
-                        decoded = file_content.decode(enc)
-                        break
-                    except UnicodeDecodeError:
-                        continue
-                if not decoded: decoded = file_content.decode('utf-8', errors='ignore')
+                # Intentar decodificar con lógica robusta
+                decoded = try_decode(file_content)
+
                 
                 dataset = Dataset().load(decoded, format='csv')
             elif file_format in ['xls', 'xlsx']:

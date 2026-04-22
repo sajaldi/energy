@@ -257,7 +257,7 @@ class PuestoTrabajoAdmin(admin.ModelAdmin):
         return mark_safe(f'<a class="button" href="{url}" style="background: #4f46e5; color: white; font-weight: 700;">📊 VER DASHBOARD DE CARGAS</a>')
     ver_dashboard_link.short_description = 'Dashboard'
 
-from .models import Tipo, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Empresa
+from .models import Tipo, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Empresa, DocumentoEmpresa
 
 class EmpresaResource(resources.ModelResource):
     class Meta:
@@ -267,6 +267,13 @@ class EmpresaResource(resources.ModelResource):
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ('id',)
+
+class DocumentoEmpresaInline(admin.TabularInline):
+    model = DocumentoEmpresa
+    extra = 1
+    fields = ('tipo_documento', 'archivo', 'es_valido', 'descripcion')
+    verbose_name = "Documento de Expediente"
+    verbose_name_plural = "Expediente de Cumplimiento (Checklist)"
 
 class PersonalInline(admin.TabularInline):
     model = TecnicoPuesto
@@ -287,10 +294,17 @@ class PersonalInline(admin.TabularInline):
 @admin.register(Empresa)
 class EmpresaAdmin(ImportExportModelAdmin):
     resource_class = EmpresaResource
-    list_display = ('nombre', 'activo', 'creado_en')
+    list_display = ('nombre', 'activo', 'ver_status_documentacion', 'creado_en')
     search_fields = ('nombre',)
     list_filter = ('activo',)
-    inlines = [PersonalInline]
+    inlines = [DocumentoEmpresaInline, PersonalInline]
+
+    def ver_status_documentacion(self, obj):
+        ok, msg = obj.tiene_documentacion_completa()
+        if ok:
+            return mark_safe('<span style="color: green; font-weight: bold;">✅ Completo</span>')
+        return mark_safe(f'<span style="color: red; font-size: 11px;" title="{msg}">❌ Incompleto</span>')
+    ver_status_documentacion.short_description = 'Checklist'
 
 # --- RESOURCE PERSONALIZADO PARA TÉCNICOS ---
 class TecnicoPuestoResource(resources.ModelResource):

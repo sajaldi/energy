@@ -1,0 +1,597 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Avisos | Mantenimiento</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        :root {
+            /* SAP Fiori Horizon / Quartz Colors */
+            --sap-shell-color: #354a5f;
+            --sap-background: #f7f7f7;
+            --sap-text-color: #32363a;
+            --sap-text-muted: #6a6d70;
+            --sap-primary: #0070f2;
+            --sap-primary-hover: #0056b3;
+            --sap-border: #d9d9d9;
+            --sap-card-bg: #ffffff;
+            --sap-tile-bg: #ffffff;
+            --sap-accent: #e9730c;
+            --sap-success: #107e3e;
+            --sap-error: #bb0000;
+            --sap-info: #0a6ed1;
+
+            --bg-body: #f8fafc;
+            --kanban-bg: #e2e8f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: '72', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--sap-background);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--sap-text-color);
+            overflow: hidden;
+        }
+
+        /* SAP Shell Bar Style */
+        .dashboard-header {
+            background: var(--sap-shell-color);
+            color: white;
+            padding: 0.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .header-title h1 { font-size: 1.25rem; font-weight: 600; margin: 0; color: white; }
+        .header-title p { color: #d9d9d9; font-size: 0.85rem; margin-top: 2px; }
+
+        .sub-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--sap-border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .breadcrumb { display: flex; align-items: center; gap: 8px; color: var(--sap-text-muted); font-size: 0.9rem; }
+        
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.4rem 1rem; border-radius: 0.25rem;
+            font-size: 0.875rem; font-weight: 500; cursor: pointer;
+            transition: all 0.2s; border: 1px solid transparent; text-decoration: none;
+        }
+        .btn-primary { background-color: var(--sap-primary); color: white; }
+        .btn-primary:hover { background-color: var(--sap-primary-hover); }
+        .btn-outline { background-color: transparent; border-color: var(--sap-primary); color: var(--sap-primary); }
+        .btn-outline:hover { background-color: #f0f7ff; }
+
+        .search-bar { display: flex; gap: 10px; width: 300px; }
+        .search-input { width: 100%; padding: 0.5rem; border: 1px solid var(--sap-border); border-radius: 4px; outline: none; }
+        .search-input:focus { border-color: var(--sap-primary); }
+
+        /* Kanban Board */
+        .kanban-board {
+            display: flex;
+            flex: 1;
+            padding: 1.5rem;
+            gap: 1.5rem;
+            overflow-x: auto;
+            align-items: flex-start;
+        }
+
+        .kanban-column {
+            background: #f1f5f9;
+            border-radius: 8px;
+            width: 320px;
+            min-width: 320px;
+            max-height: calc(100vh - 160px);
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #e2e8f0;
+        }
+
+        .column-header {
+            padding: 1rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid;
+            background: white;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .column-header[data-state="ABIERTO"] { border-bottom-color: #ef4444; }
+        .column-header[data-state="PROCESO"] { border-bottom-color: #f59e0b; }
+        .column-header[data-state="CERRADO"] { border-bottom-color: #10b981; }
+        .column-header[data-state="CANCELADO"] { border-bottom-color: #64748b; }
+
+        .count-badge {
+            background: #e2e8f0;
+            color: #475569;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+
+        .kanban-items {
+            padding: 1rem;
+            flex: 1;
+            overflow-y: auto;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .kanban-items::-webkit-scrollbar { width: 6px; }
+        .kanban-items::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Card */
+        .kanban-card {
+            background: white;
+            border-radius: 6px;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #cbd5e1;
+            transition: transform 0.1s, box-shadow 0.1s;
+            user-select: none;
+        }
+        
+        .kanban-card:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .kanban-card.sortable-ghost { opacity: 0.4; }
+
+        .kanban-card.pr-CRITICA { border-left-color: #ef4444; }
+        .kanban-card.pr-ALTA { border-left-color: #f59e0b; }
+        .kanban-card.pr-MEDIA { border-left-color: #3b82f6; }
+        .kanban-card.pr-BAJA { border-left-color: #10b981; }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .card-id { font-size: 0.8rem; font-weight: 700; color: #475569; }
+        .card-time { font-size: 0.7rem; color: #94a3b8; }
+        
+        .card-title { font-size: 0.9rem; color: #1e293b; font-weight: 500; margin-bottom: 8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        .card-meta { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+        .card-users { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .avatar { width: 24px; height: 24px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: bold; color: #475569; }
+        .avatar-initial { background: #3b82f6; color: white; }
+
+        /* Modal Side Panel */
+        .side-panel {
+            position: fixed;
+            top: 0; right: -500px;
+            width: 450px; height: 100vh;
+            background: white;
+            box-shadow: -5px 0 25px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .side-panel.open { right: 0; }
+
+        .panel-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 999;
+            display: none;
+        }
+        .panel-overlay.open { display: block; }
+
+        .panel-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--sap-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+        }
+
+        .panel-body {
+            padding: 1.5rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .panel-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--sap-border);
+            background: #f8fafc;
+            display: flex;
+            gap: 10px;
+        }
+
+        .panel-close {
+            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;
+        }
+
+        .info-group { margin-bottom: 1.25rem; }
+        .info-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+        .info-value { font-size: 0.95rem; color: #1e293b; }
+
+        .form-control { width: 100%; padding: 0.5rem; border: 1px solid var(--sap-border); border-radius: 4px; outline: none; margin-top: 5px; }
+        
+        .img-preview { width: 100%; max-height: 250px; object-fit: contain; border-radius: 4px; border: 1px solid #e2e8f0; background: #f1f5f9; display: none; margin-top: 10px; cursor: pointer; }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="header-title">
+            <h1>🔧 Tablero de Avisos</h1>
+            <p>Gestión visual de solicitudes y fallas</p>
+        </div>
+        <div class="header-user" style="display: flex; align-items: center; gap: 15px;">
+            <div style="text-align: right;">
+                <div style="font-weight: 600; font-size: 0.9rem;">{{ request.user.get_full_name|default:request.user.username }}</div>
+            </div>
+            <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                {{ request.user.username.0|upper }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sub Header & Tools -->
+    <div class="sub-header">
+        <div class="breadcrumb">
+            <span>Mantenimiento</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            <span style="color: var(--sap-text-color); font-weight: 500;">Avisos Kanban</span>
+        </div>
+        <div style="display: flex; gap: 15px;">
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="search-input" placeholder="Buscar avisos o ubicación..." autocomplete="off">
+            </div>
+            <a href="{% url 'admin:mantenimiento_aviso_add' %}" class="btn btn-outline" target="_blank">+ Nuevo Aviso</a>
+            <a href="{% url 'mantenimiento:dashboard' %}" class="btn btn-primary">Volver al Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Kanban Wrapper -->
+    <div class="kanban-board" id="kanbanBoard">
+        <!-- Generado dinamicamente -->
+    </div>
+
+    <!-- Overlay & Side Panel -->
+    <div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+    <div class="side-panel" id="sidePanel">
+        <div class="panel-header">
+            <div>
+                <h3 id="panelTitle" style="margin:0; font-size: 1.1rem; color: #0f172a;">Detalle del Aviso</h3>
+                <span id="panelSubtitle" style="font-size: 0.8rem; color: #64748b;">AV-0</span>
+            </div>
+            <button class="panel-close" onclick="closePanel()">&times;</button>
+        </div>
+        <div class="panel-body">
+            <input type="hidden" id="detalleId">
+            
+            <div class="info-group">
+                <div class="info-label">Descripción Reportada</div>
+                <div class="info-value" id="detalleDesc" style="font-weight: 500;">...</div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="info-group">
+                    <div class="info-label">Estado</div>
+                    <select id="detalleEstado" class="form-control">
+                        <option value="ABIERTO">Abierto</option>
+                        <option value="PROCESO">En Proceso</option>
+                        <option value="CERRADO">Cerrado</option>
+                        <option value="CANCELADO">Cancelado</option>
+                    </select>
+                </div>
+                <div class="info-group">
+                    <div class="info-label">Prioridad</div>
+                    <div class="info-value" id="detallePrioridad" style="font-weight: 600; padding-top: 5px;">...</div>
+                </div>
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">Ubicación / Activo</div>
+                <div class="info-value" id="detalleUbicacion">...</div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Reportado Por</div>
+                <div class="info-value" id="detalleSolicitante">...</div>
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">Asignar Responsable</div>
+                <select id="detalleResponsable" class="form-control">
+                    <option value="">-- Sin Asignar --</option>
+                </select>
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">Evidencia Fotográfica</div>
+                <img id="detalleFoto" class="img-preview" src="" alt="Evidencia">
+                <div id="noFotoMsg" style="font-size: 0.85rem; color: #94a3b8; font-style: italic; display: none; margin-top: 5px;">No se adjuntó fotografía</div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0;">
+
+            <div class="info-group" style="background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <h4 style="font-size: 0.95rem; margin-bottom: 15px; color: var(--sap-primary);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Generar O.T. Correctiva</h4>
+                <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 10px;">Convierte este aviso en una Orden de Trabajo formal para ejecución.</p>
+                <div style="margin-bottom: 10px;">
+                    <label class="info-label">Fecha y Hora Programada</label>
+                    <input type="datetime-local" id="otFechaInicio" class="form-control">
+                </div>
+                <button type="button" class="btn btn-outline" style="width: 100%; justify-content: center; margin-top: 5px;" onclick="convertirEnOT()">+ Crear OT</button>
+            </div>
+
+        </div>
+        <div class="panel-footer">
+            <button class="btn btn-primary" style="flex: 1; justify-content: center;" onclick="guardarAviso()">Guardar Cambios</button>
+            <a href="#" id="linkAdmin" class="btn btn-outline" target="_blank" title="Ver en Admin">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- JS Data -->
+    <script>
+        const tecnicos = JSON.parse('{{ tecnicos_json|safe|escapejs }}');
+        
+        const stateGroups = [
+            { id: 'ABIERTO', name: 'Pendientes', color: '#ef4444' },
+            { id: 'PROCESO', name: 'Proceso', color: '#f59e0b' },
+            { id: 'CERRADO', name: 'Resueltos / Cerrados', color: '#10b981' },
+            { id: 'CANCELADO', name: 'Cancelados', color: '#64748b' }
+        ];
+
+        let avisosCache = {};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initResponsables();
+            crearColumnas();
+            cargarAvisos();
+
+            let delayTimer;
+            document.getElementById('searchInput').addEventListener('input', function(e) {
+                clearTimeout(delayTimer);
+                delayTimer = setTimeout(function() {
+                    cargarAvisos(e.target.value);
+                }, 400); 
+            });
+        });
+
+        function initResponsables() {
+            const select = document.getElementById('detalleResponsable');
+            tecnicos.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.nombre;
+                select.appendChild(opt);
+            });
+            // Date pre-fill today
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('otFechaInicio').value = now.toISOString().slice(0, 16);
+        }
+
+        function crearColumnas() {
+            const board = document.getElementById('kanbanBoard');
+            board.innerHTML = '';
+            
+            stateGroups.forEach(group => {
+                const col = document.createElement('div');
+                col.className = 'kanban-column';
+                col.innerHTML = `
+                    <div class="column-header" data-state="${group.id}">
+                        <span>${group.name}</span>
+                        <span class="count-badge" id="count-${group.id}">0</span>
+                    </div>
+                    <div class="kanban-items" id="col-${group.id}" data-state="${group.id}">
+                    </div>
+                `;
+                board.appendChild(col);
+
+                // Configurar SortableJS
+                Sortable.create(col.querySelector('.kanban-items'), {
+                    group: 'kanban',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    onEnd: function (evt) {
+                        const itemEl = evt.item;
+                        const avisoId = itemEl.dataset.id;
+                        const oldState = evt.from.dataset.state;
+                        const newState = evt.to.dataset.state;
+
+                        if (oldState !== newState) {
+                            actualizarEstadoAviso(avisoId, newState, oldState, evt.item, evt.from, evt.oldIndex);
+                        }
+                    }
+                });
+            });
+        }
+
+        function cargarAvisos(query = '') {
+            fetch(`/mantenimiento/avisos/api/list/?search=${encodeURIComponent(query)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Object.keys(data.data).forEach(stateId => {
+                            const container = document.getElementById(`col-${stateId}`);
+                            if (container) {
+                                container.innerHTML = '';
+                                const items = data.data[stateId];
+                                document.getElementById(`count-${stateId}`).textContent = items.length;
+                                
+                                items.forEach(av => {
+                                    avisosCache[av.id] = av;
+                                    container.appendChild(crearCard(av));
+                                });
+                            }
+                        });
+                    }
+                });
+        }
+
+        function crearCard(aviso) {
+            const div = document.createElement('div');
+            div.className = `kanban-card pr-${aviso.prioridad}`;
+            div.dataset.id = aviso.id;
+            
+            const pColor = aviso.prioridad === 'CRITICA' ? '#ef4444' : (aviso.prioridad === 'ALTA' ? '#f59e0b' : '#3b82f6');
+            const respAbbrev = aviso.responsable_nombre ? aviso.responsable_nombre.substring(0, 2).toUpperCase() : '??';
+            const reqAbbrev = aviso.solicitante ? aviso.solicitante.substring(0, 2).toUpperCase() : 'S';
+            
+            div.innerHTML = `
+                <div class="card-header">
+                    <span class="card-id">${aviso.titulo}</span>
+                    <span class="card-time">${aviso.creado_en.split(' ')[0]}</span>
+                </div>
+                <div class="card-title">${aviso.descripcion}</div>
+                <div class="card-meta">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    ${aviso.ubicacion}
+                </div>
+                <div class="card-meta">
+                    <span style="color:${pColor}; font-weight:600; font-size:0.7rem;">[${aviso.prioridad}]</span>
+                     ${aviso.falla ? ` | ${aviso.falla.substring(0,15)}` : ''}
+                </div>
+                <div class="card-users">
+                    <div style="display:flex; gap: 5px; align-items:center;">
+                        <div class="avatar" title="Solicitante: ${aviso.solicitante}">${reqAbbrev}</div>
+                        ${aviso.tiene_foto ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>' : ''}
+                    </div>
+                    <div class="avatar avatar-initial" title="Responsable: ${aviso.responsable_nombre}">${respAbbrev}</div>
+                </div>
+            `;
+            
+            div.addEventListener('click', () => abrirDetalle(aviso.id));
+            return div;
+        }
+
+        function actualizarEstadoAviso(avisoId, newState, oldState, elem, oldContainer, oldIndex) {
+            fetch(`/mantenimiento/avisos/api/update/${avisoId}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ estado: newState })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    // Update counters
+                    document.getElementById(`count-${newState}`).textContent = document.getElementById(`col-${newState}`).children.length;
+                    document.getElementById(`count-${oldState}`).textContent = document.getElementById(`col-${oldState}`).children.length;
+                    if(avisosCache[avisoId]) avisosCache[avisoId].estado = newState;
+                } else {
+                    alert('Error al mover: ' + res.message);
+                    // Revert UI
+                    if(oldIndex === 0) {
+                        oldContainer.prepend(elem);
+                    } else {
+                        oldContainer.insertBefore(elem, oldContainer.children[oldIndex]);
+                    }
+                }
+            });
+        }
+
+        function abrirDetalle(valId) {
+            const aviso = avisosCache[valId];
+            if (!aviso) return;
+            
+            document.getElementById('detalleId').value = aviso.id;
+            document.getElementById('panelTitle').textContent = `Detalle del Aviso`;
+            document.getElementById('panelSubtitle').textContent = aviso.titulo;
+            document.getElementById('detalleDesc').textContent = aviso.descripcion;
+            document.getElementById('detalleEstado').value = aviso.estado;
+            document.getElementById('detallePrioridad').innerHTML = `<span class="count-badge" style="background:#f1f5f9; color: #000;">${aviso.prioridad}</span>`;
+            document.getElementById('detalleUbicacion').textContent = aviso.activo ? `${aviso.ubicacion} -> ${aviso.activo}` : aviso.ubicacion;
+            document.getElementById('detalleSolicitante').textContent = aviso.solicitante;
+            document.getElementById('detalleResponsable').value = aviso.responsable_id || '';
+            
+            const dFoto = document.getElementById('detalleFoto');
+            const noMsg = document.getElementById('noFotoMsg');
+            if (aviso.tiene_foto && aviso.foto_url) {
+                dFoto.src = aviso.foto_url;
+                dFoto.style.display = 'block';
+                noMsg.style.display = 'none';
+                dFoto.onclick = () => window.open(aviso.foto_url, '_blank');
+            } else {
+                dFoto.style.display = 'none';
+                noMsg.style.display = 'block';
+            }
+            
+            document.getElementById('linkAdmin').href = `/admin/mantenimiento/aviso/${aviso.id}/change/`;
+            
+            document.getElementById('sidePanel').classList.add('open');
+            document.getElementById('panelOverlay').classList.add('open');
+        }
+
+        function closePanel() {
+            document.getElementById('sidePanel').classList.remove('open');
+            document.getElementById('panelOverlay').classList.remove('open');
+        }
+
+        function guardarAviso() {
+            const avisoId = document.getElementById('detalleId').value;
+            const ns = document.getElementById('detalleEstado').value;
+            const nr = document.getElementById('detalleResponsable').value;
+            
+            fetch(`/mantenimiento/avisos/api/update/${avisoId}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ estado: ns, responsable_id: nr || null })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    closePanel();
+                    cargarAvisos(document.getElementById('searchInput').value); // Reload
+                } else {
+                    alert('Error: ' + res.message);
+                }
+            });
+        }
+        
+        function convertirEnOT() {
+            const avisoId = document.getElementById('detalleId').value;
+            const tecnico = document.getElementById('detalleResponsable').value;
+            const fInicial = document.getElementById('otFechaInicio').value;
+            
+            if (!confirm('¿Deseas generar la Orden de Trabajo Correctiva ahora? Esto asociará el aviso y le cambiará su estado a En Proceso.')) return;
+            
+            fetch(`/mantenimiento/avisos/api/create-ot/${avisoId}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ tecnico_id: tecnico || null, fecha_inicio: fInicial })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    alert(res.message);
+                    closePanel();
+                    cargarAvisos(document.getElementById('searchInput').value);
+                    window.open(`/admin/mantenimiento/ordentrabajo/${res.ot_id}/change/`, '_blank');
+                } else {
+                    alert('Atención: ' + res.message);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

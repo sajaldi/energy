@@ -137,12 +137,13 @@
         </form>
     </div>
 
+    <script src="{% static 'core/js/compressor.js' %}"></script>
     <script>
         let currentPhotos = [];
 
         async function openDetailModal(id, code, comment, location, name) {
             currentPhotos = [];
-            
+            // ... (resto igual)
             const { value: formValues } = await Swal.fire({
                 title: 'Recepción: ' + name,
                 html: `
@@ -186,24 +187,46 @@
             }
         }
 
-        function handleModalPhoto(input) {
+        async function handleModalPhoto(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                currentPhotos.push(file);
                 
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const container = document.getElementById('photo-previews');
-                    const div = document.createElement('div');
-                    div.className = 'photo-preview-item';
-                    div.innerHTML = `
-                        <img src="${e.target.result}">
-                        <div class="remove-btn" onclick="this.parentElement.remove()">×</div>
-                    `;
-                    container.appendChild(div);
-                };
-                reader.readAsDataURL(file);
+                // Mostrar cargando en el botón
+                const btn = document.querySelector('button[onclick*="swal-file"]');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerText = 'Optimizando...';
+
+                try {
+                    const compressed = await ImageCompressor.compress(file);
+                    currentPhotos.push(compressed);
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const container = document.getElementById('photo-previews');
+                        const div = document.createElement('div');
+                        div.className = 'photo-preview-item';
+                        const photoIndex = currentPhotos.length - 1;
+                        div.innerHTML = `
+                            <img src="${e.target.result}">
+                            <div class="remove-btn" onclick="removePhoto(${photoIndex}, this)">×</div>
+                        `;
+                        container.appendChild(div);
+                    };
+                    reader.readAsDataURL(compressed);
+                } catch (err) {
+                    console.error('Error compression:', err);
+                    currentPhotos.push(file);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
             }
+        }
+
+        function removePhoto(index, el) {
+            currentPhotos.splice(index, 1);
+            el.parentElement.remove();
         }
 
         async function confirmarGuardado(codigo, comentario, ubicacion) {
@@ -248,5 +271,6 @@
 
         updateCounter();
     </script>
+
 </body>
 </html>

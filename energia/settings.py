@@ -90,7 +90,7 @@ USE_X_FORWARDED_PORT = True
 # n8n Automation Configuration
 if IS_LOCAL:
      # En local usamos la IP pública directa para mayor estabilidad
-     N8N_BASE_URL = 'http://181.115.47.107:5678'
+     N8N_BASE_URL = 'http://localhost:5678'
      N8N_WEBHOOK_ENV = '/webhook-test/' # Para desarrollo/pruebas
 else:
      # URL interna para comunicación entre contenedores en Coolify
@@ -105,6 +105,14 @@ N8N_PROCESS_DOCUMENT_WEBHOOK_URL = os.environ.get(
     f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}process-document'
 )
 N8N_EXTRACT_TEXTO_WEBHOOK_URL = N8N_PROCESS_DOCUMENT_WEBHOOK_URL
+
+# URL para avisos
+URL_AVISOS = os.environ.get(
+    'URL_AVISOS',
+     f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}avisos-asignacion'
+)
+N8N_AVISOS_WEBHOOK_URL = URL_AVISOS
+
 
 # Metadatos y Chat
 N8N_CHAT_WEBHOOK_URL = os.environ.get('N8N_CHAT_WEBHOOK_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}chat-documento')

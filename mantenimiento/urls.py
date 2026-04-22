@@ -95,4 +95,10 @@ urlpatterns = [
     path('asistencia/en-vivo/', asistencia.AsistenciaEnVivoView.as_view(), name='asistencia_en_vivo'),
     path('asistencia/gestor/buscar/', asistencia.BuscarPersonalGestorView.as_view(), name='asistencia_buscar_personal'),
     path('asistencia/gestor/guardar/', asistencia.GestionarPersonalView.as_view(), name='asistencia_gestionar_personal'),
+
+    # Avisos Dashboard Kanban
+    path('avisos/dashboard/', views.avisos_dashboard.avisos_kanban_dashboard, name='avisos_dashboard'),
+    path('avisos/api/list/', views.avisos_dashboard.api_get_avisos, name='api_get_avisos'),
+    path('avisos/api/update/<int:pk>/', views.avisos_dashboard.api_update_aviso_estado, name='api_update_aviso_estado'),
+    path('avisos/api/create-ot/<int:pk>/', views.avisos_dashboard.api_aviso_create_ot, name='api_aviso_create_ot'),
 ]

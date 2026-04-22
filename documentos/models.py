@@ -8,6 +8,7 @@ import datetime # Required for Revision model default
 from activos.models import Activo
 from activos.models import Ubicacion
 from core.storage import MinIOStorage
+from core.models import Departamento
 
 minio_storage = MinIOStorage()
 
@@ -43,10 +44,33 @@ class Carpeta(models.Model):
     # Vínculo opcional con proyecto para filtrar en el explorador de proyectos
     proyecto_id = models.IntegerField(null=True, blank=True, db_index=True, help_text="ID del proyecto vinculado (si aplica)")
     
+    # Restricción por departamentos
+    departamentos = models.ManyToManyField(
+        Departamento, 
+        blank=True, 
+        related_name='carpetas_documentos',
+        help_text="Si se asignan departamentos, solo los usuarios de esos departamentos verán esta carpeta."
+    )
+    
     creado_en = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.nombre
+
+    def user_has_access(self, user):
+        """
+        Determina si un usuario puede ver esta carpeta.
+        """
+        if user.is_superuser:
+            return True
+        # Si la carpeta no tiene departamentos asignados, es pública
+        if not self.departamentos.exists():
+            return True
+        # Si tiene departamentos, el usuario debe pertenecer a al menos uno
+        user_dept = getattr(user.perfil, 'departamento', None)
+        if user_dept and self.departamentos.filter(id=user_dept.id).exists():
+            return True
+        return False
 
     class Meta:
         verbose_name = "Carpeta"
@@ -201,6 +225,14 @@ class Documento(models.Model):
     activos = models.ManyToManyField(Activo, blank=True, related_name='documentos')
     ubicaciones = models.ManyToManyField(Ubicacion, blank=True, related_name='documentos')
     
+    # Restricción por departamentos
+    departamentos = models.ManyToManyField(
+        Departamento, 
+        blank=True, 
+        related_name='documentos_asignados',
+        help_text="Si se asignan departamentos, solo los usuarios de esos departamentos verán este documento."
+    )
+    
     responsable = models.ForeignKey(
         User, 
         on_delete=models.SET_NULL, 
@@ -256,6 +288,21 @@ class Documento(models.Model):
 
     def __str__(self):
         return f"{self.codigo} - {self.titulo}"
+
+    def user_has_access(self, user):
+        """
+        Determina si un usuario puede ver este documento.
+        """
+        if user.is_superuser:
+            return True
+        # Si el documento no tiene departamentos asignados, es público
+        if not self.departamentos.exists():
+            return True
+        # Si tiene departamentos, el usuario debe pertenecer a al menos uno
+        user_dept = getattr(user.perfil, 'departamento', None)
+        if user_dept and self.departamentos.filter(id=user_dept.id).exists():
+            return True
+        return False
 
     class Meta:
         verbose_name = "Documento"

@@ -5,11 +5,14 @@ from tablib import Dataset
 import time
 from .resources import RequisicionResource, ItemSolicitudPagoResource
 
-def try_decode(content, encodings=['utf-8-sig', 'iso-8859-1', 'windows-1252', 'utf-8']):
+def try_decode(content, encodings=['utf-8-sig', 'utf-8', 'windows-1252', 'iso-8859-1', 'utf-16', 'mac_roman']):
     for encoding in encodings:
         try:
-            return content.decode(encoding)
-        except UnicodeDecodeError:
+            decoded = content.decode(encoding)
+            if encoding in ['iso-8859-1', 'windows-1252', 'latin-1'] and '\x00' in decoded:
+                continue
+            return decoded
+        except (UnicodeDecodeError, AttributeError):
             continue
     return content.decode('utf-8', errors='ignore')
 

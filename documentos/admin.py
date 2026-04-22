@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import Documento, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca, ComentarioBiblioteca
+from .models import Documento, Carpeta, Revision, TipoDocumento, Disciplina, MetadatoConfig, MetadatoValor, ComentarioDocumento, N8nChatHistory, Biblioteca, ComentarioBiblioteca
 import json
 
 from django.forms import TextInput, Textarea
@@ -115,8 +115,9 @@ class MetadatoValorInline(admin.TabularInline):
 @admin.register(Documento)
 class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
     list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'fecha_inicio', 'vista_rapida_button', 'trazabilidad_link')
-    list_filter = ('tipo_documento', 'disciplina', 'estado_actual', 'fecha_inicio')
+    list_filter = ('tipo_documento', 'disciplina', 'estado_actual', 'fecha_inicio', 'departamentos')
     search_fields = ('codigo', 'titulo', 'revisiones__comentarios')
+    filter_horizontal = ('activos', 'ubicaciones', 'departamentos')
 
     def get_respuesta_a_codigo(self, obj):
         return obj.respuesta_a.codigo if obj.respuesta_a else "-"
@@ -144,6 +145,10 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         }),
         ('Estado y Herramientas', {
             'fields': (('estado_actual', 'ultima_revision'), ('vista_rapida_button', 'sync_metadatos_button', 'get_word_templates_buttons'))
+        }),
+        ('Seguridad y Acceso', {
+            'fields': ('departamentos',),
+            'description': 'Si se seleccionan departamentos, solo los usuarios de dichos departamentos podrán ver este documento.'
         }),
         ('Relaciones', {
             'fields': ('activos', 'ubicaciones')
@@ -826,6 +831,13 @@ class BibliotecaAdmin(admin.ModelAdmin):
         if not change:
             obj.creado_por = request.user
         super().save_model(request, obj, form, change)
+        
+@admin.register(Carpeta)
+class CarpetaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'padre', 'proyecto_id', 'creado_en')
+    list_filter = ('creado_en', 'departamentos')
+    search_fields = ('nombre',)
+    filter_horizontal = ('departamentos',)
 
 
 # Importar y registrar admins del sistema de firmas

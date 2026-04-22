@@ -106,6 +106,12 @@ class PuestoTrabajo(models.Model):
         verbose_name = "Puesto de Trabajo"
         verbose_name_plural = "Puestos de Trabajo"
 
+def empresa_directory_path(instance, filename):
+    import re
+    # Limpiar nombre para evitar caracteres no deseados en la url
+    nombre_limpio = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', instance.empresa.nombre)
+    return f'empresas/{instance.empresa.id}_{nombre_limpio}/{filename}'
+
 class Empresa(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
     descripcion = models.TextField(blank=True, null=True)
@@ -113,12 +119,106 @@ class Empresa(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
+    def tiene_documentacion_completa(self):
+        """
+        Retorna (True, None) si tiene los documentos obligatorios requeridos. 
+        Retorna (False, "Motivo") en caso de no cumplir.
+        1. Evalúa Doc fijos (ej. RTN).
+        2. Evalúa Docs mensuales (Planillas) dando un margen de gracia hasta el día 10 del mes actual
+           para presentar los documentos del mes anterior.
+        """
+        import datetime
+        from django.utils import timezone
+        
+        hoy = timezone.now().date()
+        
+        # Calcular Mes y Año a evaluar
+        # Si hoy es 9 de Mayo (día <= 10): Se exige Marzo.
+        # Si hoy es 11 de Mayo (día > 10): Se exige Abril.
+        if hoy.day <= 10:
+            mes_evaluacion = hoy.month - 2
+            anio_evaluacion = hoy.year
+        else:
+            mes_evaluacion = hoy.month - 1
+            anio_evaluacion = hoy.year
+            
+        # Ajuste de año si cae en negativo/cero
+        while mes_evaluacion <= 0:
+            mes_evaluacion += 12
+            anio_evaluacion -= 1
+
+        tipos_maestros = ['RTN']
+        tipos_mensuales = ['PLANILLA_IHSS', 'ALTAS_BAJAS', 'EXPEDIENTE_MENSUAL', 'REPORTES']
+        
+        # Obtener documentos subidos (Que sean válidos)
+        docs_subidos_maestros = set(self.documentos.filter(es_valido=True, mes__isnull=True).values_list('tipo_documento', flat=True))
+        # O también contar si los subieron como "Este mes" aunque sean maestros
+        docs_subidos_todos = set(self.documentos.filter(es_valido=True).values_list('tipo_documento', flat=True))
+        
+        docs_subidos_mes = set(self.documentos.filter(
+            es_valido=True, 
+            mes=mes_evaluacion, 
+            anio=anio_evaluacion
+        ).values_list('tipo_documento', flat=True))
+        
+        # Chequear Maestros
+        faltantes_maestros = [t for t in tipos_maestros if t not in docs_subidos_todos]
+        if faltantes_maestros:
+            return False, f"Falta documento maestro: {', '.join(faltantes_maestros)}"
+            
+        # Chequear Mensuales
+        faltantes_mensuales = [t for t in tipos_mensuales if t not in docs_subidos_mes]
+        if faltantes_mensuales:
+            mes_nombre = datetime.date(1900, mes_evaluacion, 1).strftime('%B').capitalize()
+            return False, f"Falta documentación correspondiente a {mes_nombre} {anio_evaluacion}: {', '.join(faltantes_mensuales)}"
+            
+        return True, None
+
     def __str__(self):
         return self.nombre
 
     class Meta:
         verbose_name = "Empresa"
         verbose_name_plural = "Empresas"
+
+class DocumentoEmpresa(models.Model):
+    TIPO_DOC_CHOICES = [
+        ('RTN', 'RTN / Identidad Tributaria (Único)'),
+        ('ACTA_CONST', 'Acta Constitutiva / Poder (Único)'),
+        ('CONTRATO', 'Contrato Marco (Único)'),
+        ('PLANILLA_IHSS', 'Planilla IHSS'),
+        ('ALTAS_BAJAS', 'Altas y Bajas'),
+        ('EXPEDIENTE_MENSUAL', 'Expediente Mensual'),
+        ('REPORTES', 'Reportes / Otros Entregables'),
+        ('OTRO', 'Otro (Especificar)'),
+    ]
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='documentos')
+    tipo_documento = models.CharField(max_length=50, choices=TIPO_DOC_CHOICES)
+    
+    # Período de Aplicación (Opcional, para docs únicos)
+    mes = models.PositiveIntegerField(null=True, blank=True, help_text="Mes de aplicación (1-12). Dejar vacío si es DOC ÚNICO.")
+    anio = models.PositiveIntegerField(null=True, blank=True, help_text="Año de aplicación (ej. 2026)")
+    
+    archivo = models.FileField(upload_to=empresa_directory_path, help_text="Archivo físico a subir a MinIO")
+    descripcion = models.CharField(max_length=200, blank=True, null=True, help_text="Aclaración adicional")
+    
+    es_valido = models.BooleanField(default=True, help_text="Si no es válido, no contará para la autorización de QR.")
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Documento de Subcontratista"
+        verbose_name_plural = "Documentos de Subcontratistas"
+        # Quitamos el constraints porque ahora los mensuales se repiten cada mes,
+        # pero podemos forzar que no haya duplicados por MES y AÑO y TIPO.
+        unique_together = ('empresa', 'tipo_documento', 'mes', 'anio')
+
+    def __str__(self):
+        m = f" ({self.mes}/{self.anio})" if self.mes and self.anio else ""
+        return f"{self.get_tipo_documento_display()}{m} - {self.empresa.nombre}"
+
 
 class TecnicoPuesto(models.Model):
     TIPO_SANGRE_CHOICES = [
@@ -700,35 +800,53 @@ class Aviso(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
+        responsable_cambiado = False
+        if self.pk:
+            old_aviso = Aviso.objects.filter(pk=self.pk).first()
+            if old_aviso and old_aviso.responsable != self.responsable and self.responsable is not None:
+                responsable_cambiado = True
+
         if self.foto:
-            self.foto = self.optimize_image(self.foto)
+            self.foto = compress_image(self.foto)
         super().save(*args, **kwargs)
 
-    def optimize_image(self, image_field, max_width=1024, quality=70):
-        from PIL import Image
-        from io import BytesIO
-        from django.core.files.uploadedfile import InMemoryUploadedFile
-        import sys
 
-        try:
-            img = Image.open(image_field)
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
+        if responsable_cambiado:
+            self.notificar_asignacion_webhook()
+
+    def notificar_asignacion_webhook(self):
+        import threading
+        import requests
+        from django.conf import settings
+
+        def send_webhook():
+            # N8N webhook endpoint (configurable en settings.py o variable de entorno)
+            url = getattr(settings, 'N8N_AVISOS_WEBHOOK_URL', 'http://localhost:5678/webhook/avisos-asignacion')
             
-            if img.width > max_width:
-                new_height = int((max_width / img.width) * img.height)
-                img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+            tecnico_nombre = self.responsable.get_full_name() or self.responsable.username
             
-            output = BytesIO()
-            img.save(output, format='JPEG', quality=quality, optimize=True)
-            output.seek(0)
+            payload = {
+                "aviso_id": self.id,
+                "aviso_titulo": f"AV-{self.id}",
+                "aviso_descripcion": self.descripcion,
+                "aviso_prioridad": self.prioridad,
+                "ubicacion": self.ubicacion.nombre if self.ubicacion else "Desconocida",
+                "tecnico_id": self.responsable.id,
+                "tecnico_username": self.responsable.username,
+                "tecnico_nombre": tecnico_nombre,
+                "tecnico_email": self.responsable.email,
+                "fecha_asignacion": self.actualizado_en.isoformat() if self.actualizado_en else ""
+            }
             
-            return InMemoryUploadedFile(
-                output, 'ImageField', f"{image_field.name.split('.')[0]}.jpg",
-                'image/jpeg', sys.getsizeof(output), None
-            )
-        except Exception:
-            return image_field
+            try:
+                # Enviamos el POST request con un timeout de 5s para no bloquear si hay problemas
+                requests.post(url, json=payload, timeout=5)
+            except Exception as e:
+                print(f"Error enviando webhook a n8n: {e}")
+
+        # Lanzar la llamada al webhook en un hilo separado para no bloquear la respuesta HTTP
+        threading.Thread(target=send_webhook).start()
+
 
     def __str__(self):
         return f"AV-{self.id}: {self.descripcion[:30]} ({self.estado})"
@@ -746,31 +864,10 @@ class FotoAviso(models.Model):
 
     def save(self, *args, **kwargs):
         if self.foto:
-            # Reutilizar lógica de Aviso si es posible o definirla de nuevo
-            self.foto = self.optimize_image(self.foto)
+            self.foto = compress_image(self.foto)
         super().save(*args, **kwargs)
 
-    def optimize_image(self, image_field, max_width=1024, quality=70):
-        from PIL import Image
-        from io import BytesIO
-        from django.core.files.uploadedfile import InMemoryUploadedFile
-        import sys
-        try:
-            img = Image.open(image_field)
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
-            if img.width > max_width:
-                new_height = int((max_width / img.width) * img.height)
-                img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
-            output = BytesIO()
-            img.save(output, format='JPEG', quality=quality, optimize=True)
-            output.seek(0)
-            return InMemoryUploadedFile(
-                output, 'ImageField', f"{image_field.name.split('.')[0]}.jpg",
-                'image/jpeg', sys.getsizeof(output), None
-            )
-        except Exception:
-            return image_field
+
 
     class Meta:
         verbose_name = "Foto de Aviso"
@@ -905,6 +1002,8 @@ class CierreOrdenTrabajo(models.Model):
             self.orden_trabajo.save(update_fields=['estado', 'fecha_ejecucion'])
 
 import os
+from core.image_utils import compress_image
+
 
 class ArchivoOrdenTrabajo(models.Model):
     TIPO_ARCHIVO_CHOICES = [
@@ -943,7 +1042,12 @@ class ArchivoOrdenTrabajo(models.Model):
             elif ext in ['.pdf', '.doc', '.docx', '.xls', '.xlsx']:
                 self.tipo = 'DOCUMENTO'
             
+        # Comprimir si es imagen
+        if self.archivo and self.tipo == 'IMAGEN':
+            self.archivo = compress_image(self.archivo)
+            
         super().save(*args, **kwargs)
+
 
 class ValorPasoOrden(models.Model):
     """

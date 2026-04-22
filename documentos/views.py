@@ -51,6 +51,10 @@ def documento_trazabilidad(request, doc_id):
     """
     documento = get_object_or_404(Documento, id=doc_id)
     
+    if not documento.user_has_access(request.user):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("No tienes acceso a este departamento.")
+    
     # 1. Encontrar la raíz (el primer documento de la cadena)
     root = documento
     visited = {root.id}
@@ -158,6 +162,11 @@ def documento_visor_pines(request, doc_id):
     Vista exclusiva para colocar y ver pines en el PDF.
     """
     documento = get_object_or_404(Documento, id=doc_id)
+    
+    if not documento.user_has_access(request.user):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("No tienes acceso a este departamento.")
+        
     context = {'documento': documento}
     return render(request, 'documentos/visor_comentarios.html', context)
 
@@ -169,6 +178,9 @@ def documento_detalle_json(request, doc_id):
     """
     try:
         doc = get_object_or_404(Documento, id=doc_id)
+        
+        if not doc.user_has_access(request.user):
+            return JsonResponse({'error': 'No autorizado para este departamento'}, status=403)
         
         # Metadatos dinámicos
         metadatos = []
@@ -863,15 +875,25 @@ def documento_buscar(request):
     from django.contrib.postgres.search import TrigramSimilarity
     from django.db.models import Q, F
     
+    docs_qs = Documento.objects.all()
+    
+    # Filtro por departamento (Seguridad)
+    if not request.user.is_superuser:
+        user_dept = getattr(request.user.perfil, 'departamento', None)
+        if user_dept:
+            docs_qs = docs_qs.filter(Q(departamentos=user_dept) | Q(departamentos__isnull=True))
+        else:
+            docs_qs = docs_qs.filter(departamentos__isnull=True)
+
     # Búsqueda en código y título (exacta)
-    docs_exactos = Documento.objects.filter(
+    docs_exactos = docs_qs.filter(
         Q(codigo__icontains=q) | Q(titulo__icontains=q)
     ).values('id', 'codigo', 'titulo')[:10]
     
     # Búsqueda en contenido (si no hay resultados exactos)
     if len(docs_exactos) < 5:
         # Usar trigram similarity para búsqueda fuzzy en contenido
-        docs_contenido = Documento.objects.annotate(
+        docs_contenido = docs_qs.annotate(
             similarity=TrigramSimilarity('contenido_texto', q),
         ).filter(
             similarity__gt=0.1  # Umbral de similitud
@@ -903,6 +925,14 @@ def documento_busqueda_avanzada(request):
     # Iniciar queryset
     docs = Documento.objects.all()
     
+    # Filtro por departamento
+    if not request.user.is_superuser:
+        user_dept = getattr(request.user.perfil, 'departamento', None)
+        if user_dept:
+            docs = docs.filter(Q(departamentos=user_dept) | Q(departamentos__isnull=True))
+        else:
+            docs = docs.filter(departamentos__isnull=True)
+            
     # Filtro por texto (código, título, o contenido)
     if q and len(q) >= 3:
         if buscar_contenido:
@@ -974,6 +1004,11 @@ def documento_proxy_pdf(request, doc_id):
     logger = logging.getLogger(__name__)
 
     doc = get_object_or_404(Documento, id=doc_id)
+    
+    if not doc.user_has_access(request.user):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("No tienes acceso a este departamento.")
+
     if not doc.ultima_revision or not doc.ultima_revision.archivo:
         logger.warning(f"Intento de acceso a proxy PDF sin archivo: Doc {doc_id}")
         raise Http404("Documento sin archivo")
@@ -1187,6 +1222,15 @@ def api_biblioteca_documentos(request, bib_id):
         
         query = request.GET.get('q', '')
         documentos = Documento.objects.all()
+        
+        # Filtro por departamento
+        if not request.user.is_superuser:
+            user_dept = getattr(request.user.perfil, 'departamento', None)
+            if user_dept:
+                documentos = documentos.filter(models.Q(departamentos=user_dept) | models.Q(departamentos__isnull=True))
+            else:
+                documentos = documentos.filter(departamentos__isnull=True)
+
         if query:
             documentos = documentos.filter(
                 models.Q(codigo__icontains=query) | 
@@ -1296,7 +1340,15 @@ def api_documento_busqueda_vectorial(request):
         resultados_dict = {} # Map ID -> dict con datos fusionados
         
         # --- FASE 1: BÚSQUEDA POR TEXTO (EXACTA/MODO RÁPIDO) ---
-        docs_texto = Documento.objects.filter(
+        docs_qs = Documento.objects.all()
+        if not request.user.is_superuser:
+            user_dept = getattr(request.user.perfil, 'departamento', None)
+            if user_dept:
+                docs_qs = docs_qs.filter(Q(departamentos=user_dept) | Q(departamentos__isnull=True))
+            else:
+                docs_qs = docs_qs.filter(departamentos__isnull=True)
+
+        docs_texto = docs_qs.filter(
             Q(codigo__icontains=query) | Q(titulo__icontains=query)
         )[:10]
         
@@ -1323,7 +1375,15 @@ def api_documento_busqueda_vectorial(request):
                 )
                 query_vector = res['embedding']
                 
-                fragmentos = DocumentoFragmento.objects.select_related('documento').annotate(
+                fragmentos_qs = DocumentoFragmento.objects.select_related('documento')
+                if not request.user.is_superuser:
+                    user_dept = getattr(request.user.perfil, 'departamento', None)
+                    if user_dept:
+                        fragmentos_qs = fragmentos_qs.filter(Q(documento__departamentos=user_dept) | Q(documento__departamentos__isnull=True))
+                    else:
+                        fragmentos_qs = fragmentos_qs.filter(documento__departamentos__isnull=True)
+                
+                fragmentos = fragmentos_qs.annotate(
                     distance=CosineDistance('embedding', query_vector)
                 ).order_by('distance')[:40]
 
@@ -1484,6 +1544,14 @@ def api_explorer_listar(request):
         # Si no hay proyecto y no piden todo, solo carpetas sin proyecto (globales)
         carpetas_qs = carpetas_qs.filter(proyecto_id__isnull=True)
 
+    # Filtro por departamento (Seguridad)
+    if not request.user.is_superuser:
+        user_dept = getattr(request.user.perfil, 'departamento', None)
+        if user_dept:
+            carpetas_qs = carpetas_qs.filter(models.Q(departamentos=user_dept) | models.Q(departamentos__isnull=True))
+        else:
+            carpetas_qs = carpetas_qs.filter(departamentos__isnull=True)
+
     # Filtrar documentos
     documentos_data = []
     
@@ -1492,6 +1560,14 @@ def api_explorer_listar(request):
         from activos.models.plano import VisorPlano
         from django.db.models import Q
         vinc = DocumentoProyecto.objects.filter(proyecto_id=proyecto_id, carpeta_id=padre_id).select_related('documento', 'documento__ultima_revision', 'documento__tipo_documento')
+        
+        # Filtro por departamento en proyectos
+        if not request.user.is_superuser:
+            user_dept = getattr(request.user.perfil, 'departamento', None)
+            if user_dept:
+                vinc = vinc.filter(Q(documento__departamentos=user_dept) | Q(documento__departamentos__isnull=True))
+            else:
+                vinc = vinc.filter(documento__departamentos__isnull=True)
         
         doc_ids = [d.documento_id for d in vinc]
         doc_codes = [d.documento.codigo for d in vinc]
@@ -1568,6 +1644,14 @@ def api_explorer_listar(request):
         from activos.models.plano import VisorPlano
         from django.db.models import Q
         docs_qs = Documento.objects.filter(carpeta_id=padre_id).select_related('ultima_revision', 'tipo_documento')
+        
+        # Filtro por departamento (General)
+        if not request.user.is_superuser:
+            user_dept = getattr(request.user.perfil, 'departamento', None)
+            if user_dept:
+                docs_qs = docs_qs.filter(Q(departamentos=user_dept) | Q(departamentos__isnull=True))
+            else:
+                docs_qs = docs_qs.filter(departamentos__isnull=True)
         
         doc_ids = [d.id for d in docs_qs]
         doc_codes = [d.codigo for d in docs_qs]
@@ -1695,13 +1779,23 @@ def api_explorer_buscar_global(request):
     Busca documentos en toda la biblioteca para el selector.
     """
     query = request.GET.get('q', '').strip()
+    docs = Documento.objects.all().select_related('ultima_revision', 'tipo_documento')
+    
+    # Filtro por departamento (Seguridad)
+    if not request.user.is_superuser:
+        user_dept = getattr(request.user.perfil, 'departamento', None)
+        if user_dept:
+            docs = docs.filter(models.Q(departamentos=user_dept) | models.Q(departamentos__isnull=True))
+        else:
+            docs = docs.filter(departamentos__isnull=True)
+
     if not query:
         # Si no hay query, retornar los últimos 10
-        docs = Documento.objects.all().select_related('ultima_revision', 'tipo_documento').order_by('-creado_en')[:10]
+        docs = docs.order_by('-creado_en')[:10]
     else:
-        docs = Documento.objects.filter(
+        docs = docs.filter(
             models.Q(codigo__icontains=query) | models.Q(titulo__icontains=query)
-        ).select_related('ultima_revision', 'tipo_documento')[:20]
+        )[:20]
     
     results = []
     for d in docs:

@@ -155,12 +155,31 @@
         <button onclick="confirmarEntrega()" class="btn-submit">CONFIRMAR Y ENTREGAR</button>
     </div>
 
+    <script src="{% static 'core/js/compressor.js' %}"></script>
     <script>
-        function updatePhotoStatus(btnId, input) {
+        let compressedFiles = {
+            'file-id': null,
+            'file-evidencia': null
+        };
+
+        async function updatePhotoStatus(btnId, input) {
             const btn = document.getElementById(btnId);
             if (input.files && input.files[0]) {
-                btn.classList.add('has-photo');
-                btn.querySelector('span').innerText = 'FOTO CAPTURADA';
+                const file = input.files[0];
+                const originalLabel = btn.querySelector('span').innerText;
+                btn.querySelector('span').innerText = 'OPTIMIZANDO...';
+                
+                try {
+                    const compressed = await ImageCompressor.compress(file);
+                    compressedFiles[input.id] = compressed;
+                    btn.classList.add('has-photo');
+                    btn.querySelector('span').innerText = 'FOTO CAPTURADA';
+                } catch (err) {
+                    console.error('Error compression:', err);
+                    compressedFiles[input.id] = file;
+                    btn.classList.add('has-photo');
+                    btn.querySelector('span').innerText = 'FOTO ORIGINAL';
+                }
             }
         }
 
@@ -168,8 +187,9 @@
             const nombre = document.getElementById('nombre_retirante').value;
             const dni = document.getElementById('dni_retirante').value;
             const com = document.getElementById('comentarios').value;
-            const fileId = document.getElementById('file-id').files[0];
-            const fileEv = document.getElementById('file-evidencia').files[0];
+            
+            const fileId = compressedFiles['file-id'];
+            const fileEv = compressedFiles['file-evidencia'];
 
             if (!nombre) {
                 Swal.fire({ icon: 'warning', title: 'Faltan Datos', text: 'El nombre del retirante es obligatorio.' });
@@ -223,5 +243,6 @@
             }
         }
     </script>
+
 </body>
 </html>

@@ -8,15 +8,18 @@ from .services import WorkOrderService
 logger = logging.getLogger(__name__)
 
 
-def try_decode(content, encodings=['utf-8-sig', 'utf-8', 'windows-1252', 'iso-8859-1', 'latin-1', 'utf-16']):
+def try_decode(content, encodings=['utf-8-sig', 'utf-8', 'windows-1252', 'iso-8859-1', 'utf-16', 'mac_roman']):
     """Intenta decodificar el contenido usando una lista de encodings prioritarios."""
     if not content:
         return ""
         
     for encoding in encodings:
         try:
-            return content.decode(encoding)
-        except (UnicodeDecodeError, LookupError):
+            decoded = content.decode(encoding)
+            if encoding in ['iso-8859-1', 'windows-1252', 'latin-1'] and '\x00' in decoded:
+                continue
+            return decoded
+        except (UnicodeDecodeError, LookupError, AttributeError):
             continue
             
     # Último recurso: forzar utf-8 reemplazando caracteres inválidos para que no se pierda la fila

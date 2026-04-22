@@ -3,15 +3,25 @@ from import_export import resources
 from .models import Ubicacion, Activo, Plano
 import time
 
-def try_decode(content, encodings=['utf-8-sig', 'iso-8859-1', 'windows-1252', 'utf-8']):
+def try_decode(content, encodings=['utf-8-sig', 'utf-8', 'windows-1252', 'iso-8859-1', 'utf-16', 'mac_roman']):
     """Intenta decodificar el contenido usando una lista de encodings prioritarios."""
     for encoding in encodings:
         try:
-            return content.decode(encoding)
-        except UnicodeDecodeError:
+            decoded = content.decode(encoding)
+            # Verificación extra para UTF-8: si tiene caracteres nulos, 
+            # tal vez no sea el encoding correcto (aunque no lance error)
+            if encoding in ['iso-8859-1', 'windows-1252'] and '\x00' in decoded:
+                continue
+            
+            print(f"[DEBUG IMPORT] Decodificado exitosamente con: {encoding}")
+            return decoded
+        except (UnicodeDecodeError, AttributeError):
             continue
-    # Si ninguno funciona, forzar utf-8 ignorando errores para que al menos no rompa la tarea
-    return content.decode('utf-8', errors='ignore')
+    
+    # Si ninguno funciona, forzar utf-8 con reemplazo para que al menos se vea qué falló
+    print(f"[WARNING IMPORT] No se pudo determinar encoding. Usando UTF-8 con reemplazo.")
+    return content.decode('utf-8', errors='replace')
+
 
 @shared_task(bind=True)
 def import_ubicaciones_task(self, file_path, file_format):
