@@ -445,6 +445,26 @@
             font-size: 0.8rem;
             border-left: 4px solid #4f46e5;
         }
+
+        /* Highlight de búsqueda unificada */
+        .routine-row.search-highlight {
+            background: #fffbe6 !important;
+            border-left: 3px solid #e9730c !important;
+        }
+
+        .routine-row.search-highlight .routine-name {
+            font-weight: 600;
+            color: #32363a;
+        }
+
+        .routine-row.search-highlight .routine-code {
+            color: #e9730c;
+        }
+
+        /* Indicador de búsqueda activa en cat-row */
+        .tree-node.expanded > .cat-row {
+            background: #f0f7ff;
+        }
     </style>
 </head>
 
@@ -518,7 +538,41 @@
         <div class="explorer-card">
             {% include "mantenimiento/partials/dashboard_filters.html" %}
 
-            <div class="tree-container">
+            <!-- Buscador Unificado: Categorías + Rutinas -->
+            <div style="padding: 0.65rem 1.5rem; background: #f7f8fa; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.75rem;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6a6d70" stroke-width="2" style="flex-shrink:0;">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <div style="position: relative; flex: 1; max-width: 420px;">
+                    <input
+                        id="cat-search-input"
+                        type="text"
+                        placeholder="Buscar categoría o rutina por nombre / código..."
+                        autocomplete="off"
+                        oninput="filterCategories(this.value)"
+                        style="width:100%; padding: 0.4rem 2.2rem 0.4rem 0.75rem; border: 1px solid var(--border); border-radius: 0.25rem; font-size: 0.85rem; outline: none; color: var(--text-main); transition: border-color 0.2s;"
+                        onfocus="this.style.borderColor='var(--sap-primary)'"
+                        onblur="this.style.borderColor='var(--border)'"
+                    >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"
+                        style="position:absolute; right:8px; top:50%; transform:translateY(-50%); pointer-events:none;">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </div>
+                <span style="font-size:0.75rem; color:var(--text-muted); border-left:1px solid var(--border); padding-left:0.75rem; white-space:nowrap;">
+                    🗂 Categorías &amp; 📄 Rutinas
+                </span>
+                <span id="cat-search-count" style="font-size: 0.78rem; color: var(--sap-primary); font-weight:600; white-space: nowrap;"></span>
+                <button
+                    onclick="clearCatSearch()"
+                    id="cat-search-clear"
+                    style="display:none; background:none; border:1px solid var(--border); cursor:pointer; color:var(--text-muted); font-size:0.8rem; padding:3px 10px; border-radius:4px; transition:all 0.2s;"
+                    onmouseover="this.style.background='#f0f0f0'"
+                    onmouseout="this.style.background='none'"
+                    title="Limpiar búsqueda">✕ Limpiar</button>
+            </div>
+
+            <div class="tree-container" id="tree-container">
                 {% if tree %}
                 {% for node in tree %}
                 {% include "mantenimiento/partials/routine_tree_node.html" with node=node %}
@@ -528,6 +582,10 @@
                     <p>No se encontraron resultados para la búsqueda.</p>
                 </div>
                 {% endif %}
+                <div id="cat-search-empty" style="display:none; text-align:center; padding:2.5rem; color:var(--text-muted);">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.4; margin-bottom:0.75rem;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <p style="font-size:0.9rem;">No se encontraron categorías que coincidan.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -1300,6 +1358,101 @@
             });
         }
 
+        // ─── BUSCADOR UNIFICADO: categorías + rutinas (tiempo real) ──────────
+        function filterCategories(query) {
+            const q = query.trim().toLowerCase();
+            const clearBtn  = document.getElementById('cat-search-clear');
+            const countSpan = document.getElementById('cat-search-count');
+            const emptyMsg  = document.getElementById('cat-search-empty');
+
+            clearBtn.style.display = q ? 'inline-block' : 'none';
+
+            // ── Sin filtro: restaurar todo ────────────────────────────────────
+            if (!q) {
+                document.querySelectorAll('#tree-container .tree-node').forEach(n => {
+                    n.style.display = '';
+                    n.classList.remove('expanded');
+                });
+                document.querySelectorAll('#tree-container .routine-row').forEach(r => {
+                    r.style.display = '';
+                    r.classList.remove('search-highlight');
+                });
+                document.querySelectorAll('#tree-container .routines-container').forEach(rc => {
+                    rc.style.display = '';
+                });
+                countSpan.textContent = '';
+                if (emptyMsg) emptyMsg.style.display = 'none';
+                return;
+            }
+
+            // ── Función recursiva ─────────────────────────────────────────────
+            // Retorna true si el nodo o algún descendiente (categoría o rutina) coincide.
+            // Como efecto secundario, muestra/oculta las rutinas individualmente.
+            function processNode(node) {
+                const catName = (node.dataset.catName || '').toLowerCase();
+                const catCode = (node.dataset.catCode || '').toLowerCase();
+                const catMatch = catName.includes(q) || catCode.includes(q);
+
+                // Procesar subcategorías (recursivo)
+                let subCatMatch = false;
+                node.querySelectorAll(':scope > .tree-content > .tree-node').forEach(sub => {
+                    if (processNode(sub)) subCatMatch = true;
+                });
+
+                // Procesar rutinas dentro de ESTE nodo (no los hijos, solo las propias)
+                let routineMatch = false;
+                const routineContainer = node.querySelector(':scope > .tree-content > .routines-container');
+                if (routineContainer) {
+                    let visibleRoutines = 0;
+                    routineContainer.querySelectorAll(':scope > .routine-row').forEach(rr => {
+                        const rName = (rr.dataset.routineName || '').toLowerCase();
+                        const rCode = (rr.dataset.routineCode || '').toLowerCase();
+                        const rMatch = rName.includes(q) || rCode.includes(q) || catMatch;
+                        rr.style.display = rMatch ? '' : 'none';
+                        if (rMatch) {
+                            visibleRoutines++;
+                            routineMatch = true;
+                            rr.classList.add('search-highlight');
+                        } else {
+                            rr.classList.remove('search-highlight');
+                        }
+                    });
+                    // Ocultar el contenedor si no hay rutinas visibles y la categoría no coincide
+                    routineContainer.style.display = (visibleRoutines > 0 || catMatch) ? '' : 'none';
+                }
+
+                const anyMatch = catMatch || subCatMatch || routineMatch;
+
+                if (anyMatch) {
+                    node.style.display = '';
+                    node.classList.add('expanded'); // auto-expandir
+                } else {
+                    node.style.display = 'none';
+                    node.classList.remove('expanded');
+                }
+
+                return anyMatch;
+            }
+
+            // ── Aplicar a nodos raíz ──────────────────────────────────────────
+            const rootNodes = document.querySelectorAll('#tree-container > .tree-node');
+            let visible = 0;
+            rootNodes.forEach(node => {
+                if (processNode(node)) visible++;
+            });
+
+            // ── Contador y mensaje vacío ──────────────────────────────────────
+            countSpan.textContent = visible > 0 ? `${visible} categoría${visible !== 1 ? 's' : ''}` : '';
+            if (emptyMsg) emptyMsg.style.display = visible === 0 ? 'block' : 'none';
+        }
+
+        function clearCatSearch() {
+            const input = document.getElementById('cat-search-input');
+            input.value = '';
+            filterCategories('');
+            input.focus();
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>

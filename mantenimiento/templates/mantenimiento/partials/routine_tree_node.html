@@ -1,5 +1,5 @@
 {% load static %}
-<div class="tree-node" data-level="{{ node.level }}">
+<div class="tree-node" data-level="{{ node.level }}" data-cat-name="{{ node.categoria.nombre|lower }}" data-cat-code="{{ node.categoria.codigo|default:''|lower }}">
     <div class="tree-row cat-row {% if node.subcategorias or node.rutinas %}has-children{% endif %}"
         onclick="toggleNode(this)">
         <span class="tree-icon">
@@ -15,6 +15,7 @@
             </svg>
         </span>
         <span class="cat-name" style="font-size: 0.95rem; font-weight: 500; color: #32363a;">{{ node.categoria.nombre }}</span>
+        {% if node.categoria.codigo %}<span style="font-family: monospace; font-size: 0.78rem; color: #0a6ed1; margin-left: 6px; background: #e7f0f7; padding: 1px 6px; border-radius: 4px;">{{ node.categoria.codigo }}</span>{% endif %}
         <span class="cat-count">
             {% with total_r=node.rutinas|length %}
             {% if total_r > 0 %}({{ total_r }}){% endif %}
@@ -47,7 +48,10 @@
         {% if node.rutinas %}
         <div class="routines-container">
             {% for rutina in node.rutinas %}
-            <div class="tree-row routine-row" onclick="toggleRoutineExpansion(this, {{ rutina.id }})">
+            <div class="tree-row routine-row"
+                 data-routine-name="{{ rutina.nombre|lower }}"
+                 data-routine-code="{{ rutina.codigo_rutina|default:''|lower }}"
+                 onclick="toggleRoutineExpansion(this, {{ rutina.id }})">
                 <span class="tree-icon">
                     <svg class="file-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2">
