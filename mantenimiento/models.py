@@ -22,6 +22,13 @@ class Tipo(models.Model):
     codigo = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Código")
     padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subtipos')
     categoria_activo = models.OneToOneField('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimiento_tipo', help_text="Vincular con una categoría de activo particular")
+    servicio = models.ForeignKey(
+        'servicios.Servicio',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tipos_mantenimiento',
+        help_text="Servicio al que pertenece esta categoría (se hereda a rutinas e hijos)"
+    )
     descripcion = models.TextField(blank=True, null=True)
     
     def get_ruta_completa(self, separador=' → '):
@@ -75,7 +82,19 @@ class Tipo(models.Model):
             count += 1
             curr = curr.padre
         return count
-    
+
+    def get_servicio(self):
+        """
+        Devuelve el Servicio asignado subiendo la jerarquía de Tipos.
+        Primero busca en sí mismo, luego en el padre, abuelo, etc.
+        """
+        curr = self
+        while curr:
+            if curr.servicio_id:
+                return curr.servicio
+            curr = curr.padre
+        return None
+
     def __str__(self):
         return self.get_ruta_completa()
     
@@ -799,6 +818,16 @@ class Aviso(models.Model):
     fecha_cierre = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Cierre")
     actualizado_en = models.DateTimeField(auto_now=True)
 
+    # Campos de Parada / Downtime
+    equipo_parado = models.BooleanField(
+        default=False, null=True, blank=True,
+        verbose_name="¿Equipo Parado?", 
+        help_text="Marque esta opción si la avería ha detenido el funcionamiento del equipo."
+    )
+    fecha_inicio_parada = models.DateTimeField(null=True, blank=True, verbose_name="Inicio de Parada")
+    fecha_fin_parada = models.DateTimeField(null=True, blank=True, verbose_name="Fin de Parada")
+
+
     def save(self, *args, **kwargs):
         responsable_cambiado = False
         if self.pk:
@@ -906,6 +935,7 @@ class OrdenTrabajo(models.Model):
     TIPO_CHOICES = [
         ('PREVENTIVA', 'Preventiva'),
         ('CORRECTIVA', 'Correctiva'),
+        ('NO_PROGRAMADA', 'No Programada'),
     ]
     
     PRIORIDAD_CHOICES = [
@@ -942,22 +972,40 @@ class OrdenTrabajo(models.Model):
     
     notas = models.TextField(blank=True, null=True)
     
+    equipo_parado = models.BooleanField(default=False, null=True, blank=True, verbose_name="¿Equipo Parado?", help_text="Si se marca, el activo pasará a 'Fuera de Servicio' mientras la orden esté abierta")
+    
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
         """Garantiza que la orden tenga un código único si no existe."""
-        # Detectar si es nuevo antes de llamar a super()
         is_new = self.pk is None
-        
-        # Guardado estándar
         super().save(*args, **kwargs)
         
-        # Generación de código posterior si es necesario
         if is_new and not self.codigo_de_orden:
-            # Usamos update directo para evitar recursión y asegurar el valor en DB
-            # str(self.id).zfill(9) ya tiene el ID asignado por super().save()
-            new_code = f"OT-{str(self.id).zfill(9)}"
+            if self.tipo == 'NO_PROGRAMADA':
+                year = timezone.now().year
+                # Buscar la última OTNP de este año para incrementar la secuencia
+                last_otnp = OrdenTrabajo.objects.filter(
+                    tipo='NO_PROGRAMADA',
+                    codigo_de_orden__startswith=f"OTNP-{year}-"
+                ).order_by('-codigo_de_orden').first()
+                
+                next_num = 1
+                if last_otnp and last_otnp.codigo_de_orden:
+                    try:
+                        # Asumiendo formato OTNP-YYYY-#####
+                        parts = last_otnp.codigo_de_orden.split('-')
+                        if len(parts) == 3:
+                            last_num = int(parts[2])
+                            next_num = last_num + 1
+                    except (ValueError, IndexError):
+                        pass
+                
+                new_code = f"OTNP-{year}-{str(next_num).zfill(5)}"
+            else:
+                new_code = f"OT-{str(self.id).zfill(9)}"
+                
             self.codigo_de_orden = new_code
             OrdenTrabajo.objects.filter(pk=self.pk).update(codigo_de_orden=new_code)
 

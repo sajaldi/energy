@@ -1533,7 +1533,7 @@ class AvisoResource(resources.ModelResource):
 
     class Meta:
         model = Aviso
-        fields = ('id', 'activo', 'ubicacion', 'falla', 'proyecto', 'descripcion', 'prioridad', 'tipo', 'estado', 'solicitante', 'creado_en', 'actualizado_en')
+        fields = ('id', 'activo', 'ubicacion', 'falla', 'proyecto', 'descripcion', 'prioridad', 'tipo', 'estado', 'equipo_parado', 'fecha_inicio_parada', 'fecha_fin_parada', 'solicitante', 'creado_en', 'actualizado_en')
         export_order = fields
         skip_unchanged = True
         report_skipped = True
@@ -1543,8 +1543,8 @@ class AvisoAdmin(ImportExportModelAdmin):
     resource_class = AvisoResource
     change_list_template = "admin/mantenimiento/procedimiento/change_list.html"
     list_per_page = 50
-    list_display = ('id', 'tipo', 'prioridad', 'estado', 'falla', 'descripcion_corta', 'ubicacion', 'activo', 'proyecto', 'solicitante', 'creado_en', 'enviar_whatsapp_button', 'import_link')
-    list_filter = ('proyecto', 'tipo', 'estado', 'prioridad', 'falla', 'creado_en')
+    list_display = ('id', 'tipo', 'prioridad', 'estado', 'falla', 'descripcion_corta', 'ubicacion', 'activo', 'equipo_parado', 'proyecto', 'solicitante', 'creado_en', 'enviar_whatsapp_button', 'import_link')
+    list_filter = ('proyecto', 'equipo_parado', 'tipo', 'estado', 'prioridad', 'falla', 'creado_en')
     list_select_related = ('ubicacion', 'activo', 'solicitante', 'falla', 'proyecto')
     search_fields = ('descripcion', 'ubicacion__nombre', 'activo__nombre', 'proyecto__nombre', 'proyecto__codigo')
     autocomplete_fields = ('activo', 'ubicacion', 'solicitante', 'falla', 'proyecto')

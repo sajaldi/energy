@@ -3,7 +3,8 @@ from . import views
 from .views import import_rutinas, import_pasos
 from .views.rutinas_dashboard import (
     rutinas_dashboard, rutina_detail_api, rutina_save_api, 
-    rutina_delete_api, rutina_pasos_save_api, rutina_qr_pdf
+    rutina_delete_api, rutina_pasos_save_api, rutina_qr_pdf,
+    api_rutina_kpis, api_rutina_kpis_save
 )
 from .views import asistencia
 
@@ -47,6 +48,7 @@ urlpatterns = [
     path('app/crear-ot-rutina/<int:rutina_id>/', views.mobile_crear_ot_rutina, name='mobile_crear_ot_rutina'),
     path('app/medicion/<int:pk>/crear/', views.mobile_crear_medicion, name='mobile_crear_medicion'),
     path('app/ot/<int:pk>/check-pdf-status/', views.check_ot_pdf_status, name='check_ot_pdf_status'),
+    path('app/ot/crear-no-programada/', views.mobile_crear_otnp, name='mobile_crear_otnp'),
     path('dashboard-cargas/', views.dashboard_cargas, name='dashboard_cargas'),
     path('dashboard-cargas/asignar-puesto/', views.asignar_puesto_ajax, name='asignar_puesto_ajax'),
     path('rutinas/dashboard/', rutinas_dashboard, name='rutinas_dashboard'),
@@ -55,6 +57,8 @@ urlpatterns = [
     path('rutinas/dashboard/save/', rutina_save_api, name='rutina_save_api'),
     path('rutinas/dashboard/delete/<int:pk>/', rutina_delete_api, name='rutina_delete_api'),
     path('rutinas/dashboard/rutina/pasos/save/', rutina_pasos_save_api, name='rutina_pasos_save_api'),
+    path('rutinas/dashboard/rutina/<int:pk>/kpis/', api_rutina_kpis, name='api_rutina_kpis'),
+    path('rutinas/dashboard/rutina/<int:pk>/kpis/save/', api_rutina_kpis_save, name='api_rutina_kpis_save'),
     # API Endpoints para Tipos (Categorías) dentro del dashboard
     path('rutinas/api/tipo/<int:pk>/', views.rutinas_dashboard.tipo_detail_api, name='tipo_detail_api'),
     path('rutinas/api/tipo/save/', views.rutinas_dashboard.tipo_save_api, name='tipo_save_api'),

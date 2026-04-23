@@ -92,7 +92,7 @@ def rutinas_dashboard(request):
     
     # Pre-filtrar rutinas en DB si hay filtros pesados, sino traer todo (depende del volumen)
     # Si hay búsqueda o filtros, pre-filtramos en DB para reducir RAM
-    all_rutinas_qs = Rutina.objects.all().select_related('frecuencia', 'puesto_trabajo', 'tipo')
+    all_rutinas_qs = Rutina.objects.all().select_related('frecuencia', 'puesto_trabajo', 'tipo').prefetch_related('kpis')
     
     # Nota: Si el volumen de rutinas es inmenso (>10k), mejor filtrar aquí en DB
     if frecuencia_int:
@@ -472,3 +472,79 @@ def rutina_qr_pdf(request, pk):
         return HttpResponse(f'Error al generar PDF: {pisa_status.err}', status=500)
         
     return response
+
+
+@staff_member_required
+def api_rutina_kpis(request, pk):
+    """API que devuelve los KPIs vinculados a una rutina y los disponibles para su servicio"""
+    from django.http import JsonResponse
+    from servicios.models import KPI
+    
+    try:
+        rutina = Rutina.objects.select_related('tipo', 'tipo__padre', 'tipo__padre__padre').get(pk=pk)
+        
+        # 1. KPIs actualmente vinculados
+        kpis_vinculados = rutina.kpis.select_related('servicio').all()
+        vinculados_data = [{
+            'id': kpi.id,
+            'nombre': kpi.nombre or "KPI sin nombre",
+            'servicio': kpi.servicio.nombre if kpi.servicio else "General",
+            'categoria': kpi.categoria,
+            'estado': kpi.estado
+        } for kpi in kpis_vinculados]
+        
+        # 2. KPIs disponibles (filtrados por el servicio heredado de la categoría)
+        servicio_heredado = rutina.tipo.get_servicio() if rutina.tipo else None
+        
+        disponibles_qs = KPI.objects.exclude(id__in=[k.id for k in kpis_vinculados]).select_related('servicio')
+        
+        if servicio_heredado:
+            disponibles_qs = disponibles_qs.filter(servicio=servicio_heredado)
+            
+        disponibles_data = [{
+            'id': kpi.id,
+            'nombre': kpi.nombre or "KPI sin nombre",
+            'servicio': kpi.servicio.nombre if kpi.servicio else "General",
+            'categoria': kpi.categoria
+        } for kpi in disponibles_qs]
+        
+        return JsonResponse({
+            'status': 'success',
+            'servicio_filtro': servicio_heredado.nombre if servicio_heredado else None,
+            'vinculados': vinculados_data,
+            'disponibles': disponibles_data
+        })
+        
+    except Rutina.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Rutina no encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def api_rutina_kpis_save(request, pk):
+    """API para guardar (añadir/quitar) los KPIs vinculados a una rutina"""
+    from django.http import JsonResponse
+    from servicios.models import KPI
+    import json
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+        
+    try:
+        rutina = Rutina.objects.get(pk=pk)
+        data = json.loads(request.body)
+        
+        kpi_ids = data.get('kpi_ids', [])
+        
+        # Como es ManyToMany, podemos simplemente asignar la nueva lista completa
+        # Esto eliminará los que no estén en la lista y añadirá los nuevos
+        kpis_to_set = KPI.objects.filter(id__in=kpi_ids)
+        rutina.kpis.set(kpis_to_set)
+        
+        return JsonResponse({'status': 'success', 'message': 'KPIs actualizados correctamente'})
+        
+    except Rutina.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Rutina no encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

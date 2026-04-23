@@ -262,6 +262,7 @@ def mobile_crear_aviso(request, pk=None):
             'tipo': request.POST.get('tipo', 'SOLICITUD'),
             'responsable_id': request.POST.get('responsable') if request.POST.get('responsable') and request.POST.get('responsable') != 'none' else None,
             'departamento_id': request.POST.get('departamento') if request.POST.get('departamento') and request.POST.get('departamento') != 'none' else None,
+            'equipo_parado': request.POST.get('equipo_parado') == 'on',
         }
         
         # Estado solo si estamos editando o si se envía explícitamente
@@ -690,6 +691,53 @@ def mobile_crear_medicion(request, pk):
     return render(request, 'mantenimiento/mobile_crear_medicion.html', {'punto': punto})
 
 @staff_member_required
+def mobile_crear_otnp(request):
+    """
+    Crea una Orden de Trabajo No Programada (OTNP) desde la app móvil.
+    """
+    if request.method == 'POST':
+        try:
+            ubi_id = request.POST.get('ubicacion')
+            prio = request.POST.get('prioridad', 'MEDIA')
+            desc = request.POST.get('descripcion', '').strip()
+            tecnico_id = request.POST.get('tecnico')
+            
+            ubicacion = get_object_or_404(Ubicacion, pk=ubi_id) if ubi_id else None
+            tecnico = User.objects.filter(pk=tecnico_id).first() if tecnico_id and tecnico_id != 'none' else request.user
+            
+            now = timezone.now()
+            
+            ot = OrdenTrabajo.objects.create(
+                tipo='NO_PROGRAMADA',
+                prioridad=prio,
+                ubicacion=ubicacion,
+                tecnico=tecnico,
+                descripcion_corta=desc[:200],
+                descripcion_detallada=desc,
+                estado='PROGRAMADA',
+                inicio_programado=now,
+                fin_programado=now + timedelta(hours=2) # Default 2 hours
+            )
+            
+            return JsonResponse({'status': 'success', 'ot_id': ot.id, 'codigo': ot.codigo_de_orden})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    # GET: Mostrar formulario
+    ubicaciones = Ubicacion.objects.all().order_by('nombre')
+    prioridades = OrdenTrabajo.PRIORIDAD_CHOICES
+    tecnicos = User.objects.filter(
+        Q(groups__name='Tecnicos') | 
+        Q(perfil_tecnico__isnull=False)
+    ).distinct().order_by('first_name')
+    
+    return render(request, 'mantenimiento/mobile_crear_otnp.html', {
+        'ubicaciones': ubicaciones,
+        'prioridades': prioridades,
+        'tecnicos': tecnicos,
+    })
+
+@staff_member_required
 def check_ot_pdf_status(request, pk):
     """
     Endpoint AJAX para verificar si el reporte PDF de una OT ya está disponible.
@@ -709,3 +757,4 @@ def check_ot_pdf_status(request, pk):
         })
     else:
         return JsonResponse({'ready': False})
+

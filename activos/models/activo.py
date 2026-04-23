@@ -3,6 +3,7 @@ from django.core.validators import RegexValidator
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 from core.storage import MinIOStorage
 
 minio_storage = MinIOStorage()
@@ -117,6 +118,57 @@ class Activo(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.codigo_interno or 'S/C'})"
+
+    def actualizar_estado(self, save=True):
+        """
+        Actualiza el estado del activo basado en los avisos y órdenes de trabajo abiertas.
+        Si hay alguna OT no cerrada o Aviso no cerrado con equipo_parado=True, el estado es FUERA_SERVICIO.
+        """
+        from mantenimiento.models import OrdenTrabajo, Aviso
+        
+        # OTs abiertas que tienen el equipo parado
+        ots_parada = self.ordenes_trabajo.filter(
+            equipo_parado=True
+        ).exclude(estado__in=['REALIZADA', 'CANCELADA'])
+        
+        # Avisos abiertos que tienen el equipo parado
+        avisos_parada = self.avisos.filter(
+            equipo_parado=True
+        ).exclude(estado__in=['CERRADO', 'CANCELADO'])
+        
+        nuevo_estado = 'FUERA_SERVICIO' if (ots_parada.exists() or avisos_parada.exists()) else 'OPERATIVO'
+        
+        if self.estado != nuevo_estado:
+            self.estado = nuevo_estado
+            if save:
+                self.save(update_fields=['estado'])
+        return nuevo_estado
+
+    def get_total_downtime(self):
+        """Retorna el total de horas de parada acumuladas."""
+        from .downtime import DowntimeActivo
+        total = self.historial_paradas.aggregate(total=models.Sum('duracion_horas'))['total'] or 0
+        return total
+
+    def get_mtbf(self):
+        """
+        Calcula el MTBF (Mean Time Between Failures) según el estándar SAP PM.
+        Fallo = Cada registro de parada documentado (DowntimeActivo).
+        MTBF = (Tiempo total operativo) / (Número de fallos)
+        """
+        fallos_count = self.historial_paradas.count()
+        
+        if fallos_count == 0:
+            return None
+            
+        # Tiempo total desde la creación hasta ahora (en horas)
+        ahora = timezone.now()
+        tiempo_total = (ahora - self.creado_en).total_seconds() / 3600.0
+        
+        tiempo_parado = self.get_total_downtime()
+        tiempo_operativo = max(0, tiempo_total - tiempo_parado)
+        
+        return tiempo_operativo / fallos_count
 
     class Meta:
         verbose_name = "Activo"

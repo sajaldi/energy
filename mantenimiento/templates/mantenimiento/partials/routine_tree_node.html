@@ -21,7 +21,7 @@
             {% if total_r > 0 %}({{ total_r }}){% endif %}
             {% endwith %}
         </span>
-        <div class="action-btns" style="margin-left: auto; opacity: 0; transition: opacity 0.2s;">
+        <div class="action-btns" style="margin-left: auto; transition: opacity 0.2s;">
             <button class="btn-action" onclick="event.stopPropagation(); openTipoModal({{ node.categoria.id }}, {% if node.categoria.padre_id %}{{ node.categoria.padre_id }}{% else %}null{% endif %})" title="Editar Categoría" style="color: var(--sap-primary);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -75,6 +75,11 @@
                         {% if rutina.es_invasiva %}
                         <span class="badge" style="background:#fff2f2; color:#bb0000; border:1px solid #ffcccc;" title="Rutina Invasiva (Horario no operativo)">⚠️ Invasiva</span>
                         {% endif %}
+                        {% with k_count=rutina.kpis.all|length %}
+                        {% if k_count > 0 %}
+                        <span class="badge" style="background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5;" title="{{ k_count }} KPIs vinculados">📊 {{ k_count }} KPI{{ k_count|pluralize }}</span>
+                        {% endif %}
+                        {% endwith %}
                     </div>
                 </div>
                 <div class="action-btns" style="opacity: 0; transition: opacity 0.2s;">

@@ -9,7 +9,7 @@ from import_export.admin import ImportExportModelAdmin, ImportExportMixin, Impor
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget
 from django.contrib.auth.models import User
-from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal, DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja, FotoUbicacion, ReporteGenerado
+from .models import Activo, Categoria, Familia, Ubicacion, Marca, Modelo, Plano, VisorPlano, PinPlano, PuntoMedicion, DocumentoMedicion, RegistroImportacion, Disciplina, ControlSubmittal, DocumentoAltaBaja, ItemAltaBaja, ArchivoAltaBaja, FotoUbicacion, ReporteGenerado, DowntimeActivo
 
 @admin.register(ReporteGenerado)
 class ReporteGeneradoAdmin(admin.ModelAdmin):
@@ -17,6 +17,14 @@ class ReporteGeneradoAdmin(admin.ModelAdmin):
     list_filter = ('estado', 'creado_en')
     search_fields = ('nombre', 'usuario__username')
     readonly_fields = ('creado_en', 'completado_en')
+
+@admin.register(DowntimeActivo)
+class DowntimeActivoAdmin(admin.ModelAdmin):
+    list_display = ('activo', 'aviso', 'orden_trabajo', 'inicio', 'fin', 'duracion_horas', 'motivo')
+    list_filter = ('inicio', 'activo', ('aviso', admin.EmptyFieldListFilter), ('orden_trabajo', admin.EmptyFieldListFilter))
+    search_fields = ('activo__nombre', 'orden_trabajo__codigo_de_orden', 'aviso__id', 'motivo')
+    readonly_fields = ('duracion_horas',)
+    autocomplete_fields = ('activo', 'orden_trabajo', 'aviso')
 
 @admin.register(FotoUbicacion)
 class FotoUbicacionAdmin(admin.ModelAdmin):
@@ -952,7 +960,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
 
 
     
-    list_display = ('nombre', 'ver_en_fiori', 'codigo_interno', 'epc', 'descripcion', 'ultima_auditoria_display', 'get_marca_modelo', 'serie', 'get_plano_codigo', 'referencia', 'get_ubicacion_ruta')
+    list_display = ('nombre', 'ver_en_fiori', 'codigo_interno', 'mt_mtbf', 'mt_total_downtime', 'epc', 'descripcion', 'ultima_auditoria_display', 'get_marca_modelo', 'serie', 'get_plano_codigo', 'referencia', 'get_ubicacion_ruta')
     list_filter = (
         NombreStartsWithFilter,
         ActivoFaltantesFilter, 
@@ -982,7 +990,7 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
 
 
     inlines = [ComponenteActivoInline, PuntoMedicionInline, DocumentoMedicionInline, AuditoriasActivoInline]
-    readonly_fields = ('ultima_auditoria_display', 'get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'tickets_asociados', 'crear_aviso_link', 'get_puntos_medicion_summary')
+    readonly_fields = ('mt_mtbf', 'mt_total_downtime', 'historial_paradas_table', 'ultima_auditoria_display', 'get_marca', 'get_ubicacion_ruta', 'get_modelo_img', 'ver_en_plano', 'rutinas_aplicables', 'ordenes_programadas', 'historial_ordenes', 'tickets_asociados', 'crear_aviso_link', 'get_puntos_medicion_summary')
     actions = ['export_admin_action', 'export_direct_xlsx', 'export_streaming_csv', 'limpiar_todo_el_inventario']
 
     @admin.action(description="BORRADO RÁPIDO: Eliminar selección actual (evita error de límites)")
@@ -1592,6 +1600,39 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
             
         return super().changelist_view(request, extra_context=extra_context)
     
+    def mt_mtbf(self, obj):
+        val = obj.get_mtbf()
+        if val is None: return "-"
+        return f"{val:.1f} h"
+    mt_mtbf.short_description = "MTBF (h)"
+
+    def mt_total_downtime(self, obj):
+        return f"{obj.get_total_downtime():.1f} h"
+    mt_total_downtime.short_description = "Downtime Total"
+
+    def historial_paradas_table(self, obj):
+        paradas = obj.historial_paradas.all()[:10]
+        if not paradas.exists():
+            return "No hay paradas registradas"
+        
+        html = '<table style="width:100%; border-collapse: collapse; font-size: 0.85rem;">'
+        html += '<thead style="background:#f1f5f9;"><tr>'
+        html += '<th style="padding:8px; text-align:left;">Inicio</th>'
+        html += '<th style="padding:8px; text-align:left;">Fin</th>'
+        html += '<th style="padding:8px; text-align:center;">Horas</th>'
+        html += '<th style="padding:8px; text-align:left;">Motivo</th>'
+        html += '</tr></thead><tbody>'
+        for p in paradas:
+            fin = p.fin.strftime('%d/%m/%Y %H:%M') if p.fin else '<span style="color:red; font-weight:bold;">En curso</span>'
+            html += f'<tr style="border-bottom:1px solid #eee;">'
+            html += f'<td style="padding:8px;">{p.inicio.strftime("%d/%m/%Y %H:%M")}</td>'
+            html += f'<td style="padding:8px;">{fin}</td>'
+            html += f'<td style="padding:8px; text-align:center;">{p.duracion_horas:.1f}</td>'
+            html += f'<td style="padding:8px;">{p.motivo or ""}</td></tr>'
+        html += '</tbody></table>'
+        return format_html(html)
+    historial_paradas_table.short_description = "Historial de Paradas"
+    
     def get_categoria(self, obj):
         if obj.modelo and obj.modelo.categoria:
             return obj.modelo.categoria
@@ -1699,6 +1740,13 @@ class ActivoAdminCustom(ImportExportActionModelAdmin):
                 'crear_aviso_link'
             ),
             'description': 'Información sobre rutinas aplicables, órdenes pendientes, historial de mantenimiento y avisos/tickets.'
+        }),
+        ('Historial de Paradas y MTBF', {
+            'fields': (
+                ('mt_mtbf', 'mt_total_downtime'),
+                'historial_paradas_table'
+            ),
+            'description': 'Métricas de confiabilidad y disponibilidad basadas en el historial de fallos y paradas.'
         }),
     )
 

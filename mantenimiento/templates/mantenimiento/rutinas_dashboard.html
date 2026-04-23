@@ -411,6 +411,8 @@
         .action-btns {
             display: flex;
             gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
         }
 
         .btn-action {
@@ -464,6 +466,133 @@
         /* Indicador de búsqueda activa en cat-row */
         .tree-node.expanded > .cat-row {
             background: #f0f7ff;
+        }
+
+        /* MODALES - SISTEMA DE CAPAS ANTIGRAVITY */
+        .modal-base-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none; /* Controlado por JS */
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+            pointer-events: all;
+        }
+
+        #routineModal { z-index: 10000 !important; }
+        #tipoModal { z-index: 20000 !important; }
+        .selector-modal-backdrop { z-index: 30000 !important; }
+
+        .modal-glass {
+            position: relative;
+            background: #ffffff;
+            width: 90%;
+            max-width: 900px;
+            max-height: 90vh;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2rem 4rem rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            pointer-events: all !important;
+            border: 1px solid var(--border);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #ffffff;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid var(--border);
+            background: #f8fafc;
+        }
+
+        .modal-tabs {
+            display: flex;
+            gap: 1rem;
+            padding: 0 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: #ffffff;
+        }
+
+        .tab-btn {
+            padding: 1rem 0;
+            border: none;
+            background: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--sap-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--sap-primary);
+            border-bottom-color: var(--sap-primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .modal-loader {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            flex-direction: column;
+            gap: 1rem;
+            font-weight: 600;
+            color: var(--sap-primary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--sap-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .glass-invasive {
+            border: 3px solid #ef4444 !important;
         }
     </style>
 </head>
@@ -588,12 +717,13 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div><!-- close inner .container (647) -->
+    </div><!-- close outer .container (601) -->
 
     {% include "mantenimiento/partials/routine_detail_modal.html" %}
 
-    <!-- Modal nueva/editar categoría (Tipo) -->
-    <div id="tipoModal" class="modal-backdrop" style="display: none;">
+    <!-- Modal nueva/editar categoría (Tipo) - DIRECT CHILD OF BODY -->
+    <div id="tipoModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
         <div class="modal-glass" style="max-width: 500px;">
             <div class="modal-header">
                 <h2 id="modal-tipo-title" style="margin: 0; font-size: 1.25rem;">Nueva Categoría</h2>
@@ -653,17 +783,27 @@
     </div>
 
     <script>
-        // Init variables
-        let modal, tipoModal, loader, form, footerView, footerEdit;
+        // Variables globales para modales
+        let rModal, tModal, rLoader, rForm, tForm;
         let currentRoutineId = null;
         let currentTipoId = null;
 
+        // DEBUG LOGGER ANTIGRAVITY
+        document.addEventListener('click', (e) => {
+            console.log('ANTIGRAVITY CLICK TARGET:', e.target);
+            console.log('TARGET Z-INDEX:', window.getComputedStyle(e.target).zIndex);
+            console.log('TARGET DISPLAY:', window.getComputedStyle(e.target).display);
+        }, true);
+
         document.addEventListener('DOMContentLoaded', () => {
-            modal = document.getElementById('routineModal');
-            loader = document.getElementById('modal-loader');
-            form = document.getElementById('routineForm');
-            footerView = document.getElementById('m-footer-view');
-            footerEdit = document.getElementById('m-footer-edit');
+            rModal = document.getElementById('routineModal');
+            tModal = document.getElementById('tipoModal');
+            rLoader = document.getElementById('modal-loader');
+            rForm = document.getElementById('routineForm');
+            tForm = document.getElementById('tipoForm');
+
+            // Asegurar limpieza inicial total
+            document.querySelectorAll('.modal-base-backdrop').forEach(m => m.style.display = 'none');
 
             // Auto-expandir si hay búsqueda o filtros activos
             const hasFilters = "{{ search|yesno:'true,false' }}" === "true" || 
@@ -678,12 +818,20 @@
 
             // Global key listeners
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') closeRoutineModal();
+                if (e.key === 'Escape') {
+                    closeRoutineModal();
+                    closeTipoModal();
+                }
             });
 
-            if (modal) {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) closeRoutineModal();
+            if (rModal) {
+                rModal.addEventListener('click', (e) => {
+                    if (e.target === rModal) closeRoutineModal();
+                });
+            }
+            if (tModal) {
+                tModal.addEventListener('click', (e) => {
+                    if (e.target === tModal) closeTipoModal();
                 });
             }
 
@@ -694,9 +842,8 @@
                 });
             }
             
-            const tf = document.getElementById('tipoForm');
-            if (tf) {
-                tf.addEventListener('submit', (e) => {
+            if (tForm) {
+                tForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     saveTipo();
                 });
@@ -714,69 +861,104 @@
             }
         }
 
-
-
         function toggleNode(element) {
             const node = element.parentElement;
             node.classList.toggle('expanded');
         }
 
         function closeRoutineModal() {
-            if (modal) modal.style.display = 'none';
+            if (rModal) rModal.setAttribute('style', 'display:none;');
             currentRoutineId = null;
             toggleInvasiveBorder(false);
         }
 
         // --- MANEJO DE CATEGORÍAS (TIPOS) ---
-        function openTipoModal(id = null, parentId = null) {
-            tipoModal = document.getElementById('tipoModal');
-            currentTipoId = id;
+        function openTipoModal(id, parentId) {
+            console.log("ANTIGRAVITY: Force opening tipoModal", id);
             
-            document.getElementById('tipoForm').reset();
-            document.getElementById('tipo-id').value = '';
-            document.getElementById('btn-delete-tipo').style.display = 'none';
-            document.getElementById('modal-tipo-title').textContent = id ? 'Editar Categoría' : 'Nueva Categoría';
+            const routineM = document.getElementById('routineModal');
+            if (routineM) {
+                routineM.style.display = 'none';
+                routineM.style.visibility = 'hidden';
+            }
+
+            const targetM = document.getElementById('tipoModal');
+            if (!targetM) return console.error("tipoModal NO ENCONTRADO EN EL DOM");
+
+            // Limpiar otros backdrops
+            document.querySelectorAll('.modal-base-backdrop').forEach(m => {
+                if(m.id !== 'tipoModal') m.style.display = 'none';
+            });
+
+            // NUCLEAR: Rewrite entire style attribute to force browser reflow
+            targetM.setAttribute('style', 
+                'display:flex !important;' +
+                'position:fixed !important;' +
+                'top:0 !important;' +
+                'left:0 !important;' +
+                'width:100vw !important;' +
+                'height:100vh !important;' +
+                'background:rgba(0,0,0,0.5);' +
+                'z-index:999999 !important;' +
+                'align-items:center;' +
+                'justify-content:center;' +
+                'backdrop-filter:blur(4px);' +
+                'visibility:visible !important;' +
+                'opacity:1 !important;' +
+                'pointer-events:all !important;'
+            );
+            console.log('ANTIGRAVITY: style set, rect=', targetM.getBoundingClientRect());
+
+            currentTipoId = id || null;
+            const tFormLocal = document.getElementById('tipoForm');
+            if (tFormLocal) tFormLocal.reset();
             
-            if (parentId) {
-                document.getElementById('tipo-padre').value = parentId;
+            const tipoIdInput = document.getElementById('tipo-id');
+            const btnDelete = document.getElementById('btn-delete-tipo');
+            const modalTitle = document.getElementById('modal-tipo-title');
+            const padreSelect = document.getElementById('tipo-padre');
+            const loaderT = document.getElementById('tipo-loader');
+
+            if (tipoIdInput) tipoIdInput.value = '';
+            if (btnDelete) btnDelete.style.display = 'none';
+            if (modalTitle) modalTitle.textContent = id ? 'Editar Categoría' : 'Nueva Categoría';
+            
+            if (padreSelect && parentId) {
+                padreSelect.value = parentId;
             }
             
-            tipoModal.style.display = 'flex';
-            
             if (id) {
-                document.getElementById('tipo-loader').style.display = 'flex';
-                fetch(`/mantenimiento/rutinas/api/tipo/${id}/`)
+                if (loaderT) loaderT.style.display = 'flex';
+                fetch('/mantenimiento/rutinas/api/tipo/' + id + '/')
                     .then(r => r.json())
                     .then(data => {
-                        document.getElementById('tipo-loader').style.display = 'none';
+                        if (loaderT) loaderT.style.display = 'none';
                         if (data.status === 'success') {
                             const t = data.tipo;
-                            document.getElementById('tipo-id').value = t.id;
-                            document.getElementById('tipo-nombre').value = t.nombre;
-                            document.getElementById('tipo-codigo').value = t.codigo;
-                            document.getElementById('tipo-padre').value = t.padre_id;
-                            document.getElementById('tipo-descripcion').value = t.descripcion;
+                            if (tipoIdInput) tipoIdInput.value = t.id;
+                            if (document.getElementById('tipo-nombre')) document.getElementById('tipo-nombre').value = t.nombre;
+                            if (document.getElementById('tipo-codigo')) document.getElementById('tipo-codigo').value = t.codigo;
+                            if (padreSelect) padreSelect.value = t.padre_id;
+                            if (document.getElementById('tipo-descripcion')) document.getElementById('tipo-descripcion').value = t.descripcion;
                             
-                            document.getElementById('btn-delete-tipo').style.display = 'inline-block';
-                        } else {
-                            alert(data.message);
-                            closeTipoModal();
+                            if (btnDelete) btnDelete.style.display = 'inline-block';
                         }
                     })
-                    .catch(err => {
-                        console.error(err);
-                        alert("Error de conexión al cargar la categoría");
-                        closeTipoModal();
-                    });
+                    .catch(err => console.error(err));
             }
         }
 
         function closeTipoModal() {
-            if (tipoModal) tipoModal.style.display = 'none';
+            console.log("ANTIGRAVITY: Force closing tipoModal");
+            const targetM = document.getElementById('tipoModal');
+            if (targetM) {
+                targetM.setAttribute('style', 'display:none;');
+            }
             currentTipoId = null;
         }
 
         function saveTipo() {
+            console.log("saveTipo starting...");
             const data = {
                 id: document.getElementById('tipo-id').value || null,
                 nombre: document.getElementById('tipo-nombre').value,
@@ -784,6 +966,11 @@
                 padre_id: document.getElementById('tipo-padre').value || null,
                 descripcion: document.getElementById('tipo-descripcion').value
             };
+            
+            if (!data.nombre) {
+                alert("El nombre de la categoría es obligatorio");
+                return;
+            }
             
             const btn = document.querySelector('#tipoForm button[type="submit"]');
             const originalText = btn.innerHTML;
@@ -801,7 +988,6 @@
             .then(r => r.json())
             .then(res => {
                 if (res.status === 'success') {
-                    // Recargar la página para reconstruir el árbol complejo en el servidor
                     window.location.reload();
                 } else {
                     alert('Error: ' + res.message);
@@ -891,13 +1077,41 @@
                 });
         }
 
+        function createNewRoutine(categoryId) {
+            console.log("createNewRoutine called for category:", categoryId);
+            showRoutineDetail(null, true);
+            
+            setTimeout(() => {
+                const catSelect = document.getElementById('f-categoria');
+                if (catSelect) {
+                    catSelect.value = categoryId;
+                }
+            }, 150);
+        }
+
         function showRoutineDetail(id, isEdit = false) {
             currentRoutineId = id;
             if (typeof updateQrButton === 'function') updateQrButton();
             
-            if (modal) modal.style.display = 'flex';
-            if (loader) loader.style.display = 'flex';
-
+            if (rModal) {
+                rModal.setAttribute('style',
+                    'display:flex !important;' +
+                    'position:fixed !important;' +
+                    'top:0 !important;' +
+                    'left:0 !important;' +
+                    'width:100vw !important;' +
+                    'height:100vh !important;' +
+                    'background:rgba(0,0,0,0.5);' +
+                    'z-index:100000 !important;' +
+                    'align-items:center;' +
+                    'justify-content:center;' +
+                    'backdrop-filter:blur(4px);' +
+                    'visibility:visible !important;' +
+                    'opacity:1 !important;' +
+                    'pointer-events:all !important;'
+                );
+            }
+            
             if (isEdit) {
                 enterEditMode();
             } else {
@@ -906,17 +1120,26 @@
 
             switchTab('general');
 
+            if (!id) {
+                fillModalData({});
+                return;
+            }
+
+            if (rLoader) rLoader.style.display = 'flex';
+
             fetch('/mantenimiento/rutinas/dashboard/detail/' + id + '/')
                 .then(res => res.json())
                 .then(data => {
+                    if (rLoader) rLoader.style.display = 'none';
                     if (data.status === 'success') {
                         fillModalData(data.rutina);
-
+                        loadKpis(id);
+                        
                         const historyBody = document.getElementById('m-history-body');
                         const historyEmpty = document.getElementById('m-history-empty');
                         if (historyBody) historyBody.innerHTML = '';
 
-                        if (data.historial.length > 0) {
+                        if (data.historial && data.historial.length > 0) {
                             if (historyEmpty) historyEmpty.style.display = 'none';
                             data.historial.forEach(ot => {
                                 const row = document.createElement('tr');
@@ -931,13 +1154,13 @@
                         } else {
                             if (historyEmpty) historyEmpty.style.display = 'block';
                         }
-                        if (loader) loader.style.display = 'none';
+                    } else {
+                        alert(data.message || "Error al cargar rutina");
                     }
                 })
                 .catch(err => {
-                    console.error(err);
-                    showToast('Error al cargar detalles', 'error');
-                    closeRoutineModal();
+                    console.error("Error fetching routine:", err);
+                    if (rLoader) rLoader.style.display = 'none';
                 });
         }
 
@@ -1453,6 +1676,201 @@
             input.focus();
         }
         // ─────────────────────────────────────────────────────────────────────
+
+        // ─── GESTIÓN DE KPIS ─────────────────────────────────────────────────
+        let availableKpis = []; // KPIs filtrados por servicio disponibles para vincular
+        let selectedKpisToLink = new Set(); // IDs de KPIs seleccionados en el modal selector
+
+        function loadKpis(rutinaId) {
+            const body = document.getElementById('m-kpis-body');
+            const empty = document.getElementById('m-kpis-empty');
+            const info = document.getElementById('kpi-service-info');
+            const selectorInfo = document.getElementById('kpi-selector-service-info');
+
+            if (!body) return;
+            body.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 2rem; color: #94a3b8;">Cargando KPIs...</td></tr>';
+            if (empty) empty.style.display = 'none';
+
+            fetch(`/mantenimiento/rutinas/dashboard/rutina/${rutinaId}/kpis/`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Guardar para el selector
+                        availableKpis = data.disponibles;
+                        
+                        // Info de servicio
+                        const sName = data.servicio_filtro || 'Sin servicio asignado';
+                        if (info) info.innerHTML = `Servicio detectado: <strong style="color: #0070f2;">${sName}</strong> <small>(Filtrando KPIs compatibles)</small>`;
+                        if (selectorInfo) selectorInfo.textContent = `Mostrando KPIs disponibles para: ${sName}`;
+
+                        renderKpiTable(data.vinculados);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    body.innerHTML = '<tr><td colspan="4" style="text-align:center; color: #ef4444;">Error al cargar KPIs</td></tr>';
+                });
+        }
+
+        function renderKpiTable(kpis) {
+            const body = document.getElementById('m-kpis-body');
+            const empty = document.getElementById('m-kpis-empty');
+            body.innerHTML = '';
+
+            if (kpis.length === 0) {
+                if (empty) empty.style.display = 'block';
+                return;
+            }
+
+            if (empty) empty.style.display = 'none';
+
+            kpis.forEach(k => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight: 600; color: #1e293b;">${k.nombre}</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">${k.servicio}</div>
+                    </td>
+                    <td><span class="kpi-badge-cat">${k.categoria}</span></td>
+                    <td>
+                        <span class="badge" style="background: ${k.estado === 'ACTIVO' ? '#ecfdf5' : '#fef2f2'}; color: ${k.estado === 'ACTIVO' ? '#10b981' : '#ef4444'};">
+                            ${k.estado}
+                        </span>
+                    </td>
+                    <td class="edit-mode" style="display:${document.getElementById('routineForm').style.display === 'none' ? 'none' : 'table-cell'}">
+                        <button onclick="removeKpi(${k.id})" class="btn-action" style="color: #ef4444;" title="Desvincular KPI">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        function openKpiSelector() {
+            const modal = document.getElementById('kpiSelectorModal');
+            const container = document.getElementById('kpi-list-selectable');
+            const search = document.getElementById('kpi-search-input');
+            
+            if (!modal || !container) return;
+            
+            search.value = '';
+            selectedKpisToLink.clear();
+            modal.style.display = 'flex';
+            
+            renderSelectableKpis(availableKpis);
+        }
+
+        function closeKpiSelector() {
+            const modal = document.getElementById('kpiSelectorModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function renderSelectableKpis(kpis) {
+            const container = document.getElementById('kpi-list-selectable');
+            container.innerHTML = '';
+
+            if (kpis.length === 0) {
+                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #94a3b8; font-style: italic;">No hay más KPIs compatibles para vincular.</div>';
+                return;
+            }
+
+            kpis.forEach(k => {
+                const item = document.createElement('div');
+                item.className = `kpi-selectable-item ${selectedKpisToLink.has(k.id) ? 'selected' : ''}`;
+                item.onclick = () => toggleKpiSelection(k.id, item);
+                
+                item.innerHTML = `
+                    <input type="checkbox" ${selectedKpisToLink.has(k.id) ? 'checked' : ''} onclick="event.stopPropagation(); toggleKpiSelection(${k.id}, this.parentElement)">
+                    <div class="kpi-info-main">
+                        <span style="font-weight: 500; font-size: 0.9rem; color: #1e293b;">${k.nombre}</span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span style="font-size: 0.75rem; color: #94a3b8;">${k.servicio}</span>
+                            <span class="kpi-badge-cat">${k.categoria}</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function filterAvailableKpis(query) {
+            const q = query.toLowerCase();
+            const filtered = availableKpis.filter(k => k.nombre.toLowerCase().includes(q) || k.categoria.toLowerCase().includes(q));
+            renderSelectableKpis(filtered);
+        }
+
+        function toggleKpiSelection(id, element) {
+            const checkbox = element.querySelector('input[type="checkbox"]');
+            if (selectedKpisToLink.has(id)) {
+                selectedKpisToLink.delete(id);
+                element.classList.remove('selected');
+                checkbox.checked = false;
+            } else {
+                selectedKpisToLink.add(id);
+                element.classList.add('selected');
+                checkbox.checked = true;
+            }
+        }
+
+        function confirmKpiLinking() {
+            if (selectedKpisToLink.size === 0) {
+                closeKpiSelector();
+                return;
+            }
+
+            // Obtener los actuales para no perderlos (aunque el API maneja .set(), necesitamos mandarlos todos)
+            // Mejor: mandamos los actuales + los nuevos
+            const currentIds = Array.from(document.querySelectorAll('#m-kpis-body button')).map(btn => {
+                const onc = btn.getAttribute('onclick');
+                return parseInt(onc.match(/\d+/)[0]);
+            });
+
+            const allIds = [...new Set([...currentIds, ...Array.from(selectedKpisToLink)])];
+            saveKpis(allIds);
+        }
+
+        function removeKpi(id) {
+            if (!confirm('¿Seguro que deseas desvincular este KPI de esta rutina?')) return;
+            
+            const currentIds = Array.from(document.querySelectorAll('#m-kpis-body button'))
+                .map(btn => {
+                    const onc = btn.getAttribute('onclick');
+                    return parseInt(onc.match(/\d+/)[0]);
+                })
+                .filter(kId => kId !== id);
+
+            saveKpis(currentIds);
+        }
+
+        function saveKpis(idList) {
+            if (!currentRoutineId) return;
+
+            fetch(`/mantenimiento/rutinas/dashboard/rutina/${currentRoutineId}/kpis/save/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ kpi_ids: idList })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    showToast('Vinculación de KPIs actualizada', 'success');
+                    closeKpiSelector();
+                    loadKpis(currentRoutineId);
+                } else {
+                    alert('Error: ' + res.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error de conexión al guardar KPIs");
+            });
+        }
 
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
