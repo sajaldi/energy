@@ -217,8 +217,10 @@ def api_get_assets_wizard(request):
         except Rutina.DoesNotExist:
             pass
             
-    if all_cats:
-        f['modelo__categoria_id__in'] = all_cats
+    if not all_cats:
+        return JsonResponse({'status': 'success', 'activos': []})
+        
+    f['modelo__categoria_id__in'] = all_cats
         
     activos = Activo.objects.filter(**f).select_related('ubicacion', 'modelo__categoria')[:200]
     return JsonResponse({

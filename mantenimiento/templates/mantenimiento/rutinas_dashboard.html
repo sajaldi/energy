@@ -1176,6 +1176,11 @@
             document.getElementById('m-techs').innerText = rutina.tecnicos;
             document.getElementById('m-description').innerText = rutina.descripcion;
             document.getElementById('m-tools').innerText = rutina.herramientas;
+            
+            // Nuevos campos vista
+            document.getElementById('m-ubicacion').innerText = rutina.ubicacion_predeterminada_nombre || 'No asignada';
+            document.getElementById('m-cat-activo').innerText = rutina.categoria_activo_nombre || 'No asignada';
+            document.getElementById('m-horario').innerText = rutina.horario_predeterminado_nombre || 'No asignado';
 
             document.getElementById('f-id').value = rutina.id;
             document.getElementById('f-nombre').value = rutina.nombre;
@@ -1200,6 +1205,20 @@
 
             setSelectByText('f-categoria', rutina.categoria);
             setSelectByText('f-frecuencia', rutina.frecuencia);
+            
+            // Usar IDs para mayor precisión
+            if (rutina.categoria_id) document.getElementById('f-categoria').value = rutina.categoria_id;
+            if (rutina.frecuencia_id) document.getElementById('f-frecuencia').value = rutina.frecuencia_id;
+            
+            // Nuevos campos edición
+            const fUbic = document.getElementById('f-ubicacion');
+            if (fUbic) fUbic.value = rutina.ubicacion_predeterminada_id || '';
+            
+            const fCatAct = document.getElementById('f-cat-activo');
+            if (fCatAct) fCatAct.value = rutina.categoria_activo_id || '';
+            
+            const fHor = document.getElementById('f-horario');
+            if (fHor) fHor.value = rutina.horario_predeterminado_id || '';
 
         // Renderizar pasos en ambas vistas
         renderSteps(rutina.pasos, 'm-steps-list-view', false);

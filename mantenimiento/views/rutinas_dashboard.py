@@ -2,7 +2,8 @@ from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from ..models import Tipo, Rutina, Frecuencia, PuestoTrabajo, PasoRutina
+from ..models import Tipo, Rutina, Frecuencia, PuestoTrabajo, PasoRutina, Horario
+from activos.models import Categoria, Ubicacion
 from django.db.models import Count, Q
 
 
@@ -119,11 +120,19 @@ def rutinas_dashboard(request):
     # Todas las categorías para el select de creación/edición
     todas_categorias = Tipo.objects.all().order_by('nombre')
     
+    # Nuevos campos para selects
+    ubicaciones = Ubicacion.objects.all().order_by('nombre')
+    categorias_activos = Categoria.objects.all().order_by('nombre')
+    horarios = Horario.objects.all().order_by('nombre')
+    
     return render(request, 'mantenimiento/rutinas_dashboard.html', {
         'tree': tree,
         'frecuencias': frecuencias,
         'puestos': puestos,
         'todas_categorias': todas_categorias,
+        'ubicaciones': ubicaciones,
+        'categorias_activos': categorias_activos,
+        'horarios': horarios,
         'total_rutinas': total_rutinas,
         'frecuencia_selected': frecuencia_int,
         'puesto_selected': puesto_int,
@@ -138,7 +147,10 @@ def rutina_detail_api(request, pk):
     from ..models import OrdenTrabajo, CierreOrdenTrabajo, PasoRutina
     
     try:
-        rutina = Rutina.objects.select_related('frecuencia', 'puesto_trabajo', 'tipo').get(pk=pk)
+        rutina = Rutina.objects.select_related(
+            'frecuencia', 'puesto_trabajo', 'tipo', 
+            'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado'
+        ).get(pk=pk)
         
         # Obtener historial de OTs realizadas
         # Limitamos a las últimas 10 para rendimiento
@@ -167,12 +179,20 @@ def rutina_detail_api(request, pk):
                 'codigo': rutina.codigo_rutina or "S/C",
                 'nombre': rutina.nombre,
                 'categoria': rutina.tipo.nombre if rutina.tipo else "General",
+                'categoria_id': rutina.tipo_id,
                 'frecuencia': rutina.frecuencia.nombre if rutina.frecuencia else "S/F",
+                'frecuencia_id': rutina.frecuencia_id,
                 'tiempo_estimado': str(rutina.tiempo_estimado) if rutina.tiempo_estimado else "N/A",
                 'tecnicos': rutina.cantidad_tecnicos,
                 'descripcion': rutina.descripcion or "Sin descripción",
                 'herramientas': rutina.herramientas or "Ninguna",
                 'es_invasiva': rutina.es_invasiva,
+                'ubicacion_predeterminada_id': rutina.ubicacion_predeterminada_id,
+                'ubicacion_predeterminada_nombre': rutina.ubicacion_predeterminada.nombre if rutina.ubicacion_predeterminada else "No asignada",
+                'categoria_activo_id': rutina.categoria_activo_id,
+                'categoria_activo_nombre': rutina.categoria_activo.nombre if rutina.categoria_activo else "No asignada",
+                'horario_predeterminado_id': rutina.horario_predeterminado_id,
+                'horario_predeterminado_nombre': rutina.horario_predeterminado.nombre if rutina.horario_predeterminado else "No asignado",
                 'admin_url': f"/admin/mantenimiento/rutina/{rutina.id}/change/",
                 'pasos': [
                     {
@@ -235,6 +255,16 @@ def rutina_save_api(request):
         
         puesto_id = data.get('puesto_trabajo_id')
         rutina.puesto_trabajo = PuestoTrabajo.objects.get(pk=puesto_id) if puesto_id else None
+        
+        # Nuevos campos
+        ubic_id = data.get('ubicacion_predeterminada_id')
+        rutina.ubicacion_predeterminada = Ubicacion.objects.get(pk=ubic_id) if ubic_id else None
+        
+        cat_activo_id = data.get('categoria_activo_id')
+        rutina.categoria_activo = Categoria.objects.get(pk=cat_activo_id) if cat_activo_id else None
+        
+        horario_id = data.get('horario_predeterminado_id')
+        rutina.horario_predeterminado = Horario.objects.get(pk=horario_id) if horario_id else None
         
         # DurationField handling (HH:MM:SS)
         from datetime import timedelta

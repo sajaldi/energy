@@ -344,6 +344,9 @@ class PasoRutina(models.Model):
 class Rutina(models.Model):
     codigo_rutina = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="Código identificador de la rutina")
     nombre = models.CharField(max_length=200, blank=True, help_text="Deje vacío para generar un nombre automático basado en frecuencia y tipo")
+    ubicacion_predeterminada = models.ForeignKey('activos.Ubicacion', on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas_predeterminadas', help_text="Ubicación física predeterminada donde se suele realizar esta rutina")
+    categoria_activo = models.ForeignKey('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas_categoria', help_text="Categoría de activo a la que aplica esta rutina")
+    horario_predeterminado = models.ForeignKey('Horario', on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas_predeterminadas', help_text="Horario predeterminado sugerido para la ejecución de esta rutina")
     tipo = models.ForeignKey(Tipo, on_delete=models.SET_NULL, null=True, blank=True, related_name='rutinas', 
                                   help_text="Clasificación de mantenimiento (ej: Mecánica, Eléctrica)")
     descripcion = models.TextField(blank=True, null=True)
@@ -483,7 +486,7 @@ class PlanificacionMensual(models.Model):
 
 class Programacion(models.Model):
     rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='programaciones')
-    horario = models.ForeignKey(Horario, on_delete=models.SET_NULL, null=True, related_name='programaciones')
+    horarios = models.ManyToManyField(Horario, blank=True, related_name='programaciones', help_text="Seleccione uno o más horarios para la programación")
     
     # Areas y Activos
     areas = models.ManyToManyField('activos.Ubicacion', blank=True, related_name='programaciones', help_text="Seleccione las áreas para filtrar los activos")
@@ -541,7 +544,7 @@ class Programacion(models.Model):
         # 1. Expandir áreas a sus descendientes
         areas_iniciales = self.areas.all()
         # Permitimos sin áreas si hay activos específicos o si hay categoría en la rutina (para el Wizard)
-        if not self.horario:
+        if not self.horarios.exists():
             return 0
         
         has_criteria = areas_iniciales.exists() or self.activos.exists() or (self.rutina.tipo)
@@ -666,7 +669,14 @@ class Programacion(models.Model):
                         current_dt_cursor = None
                         continue
                         
-                    horario_dia = self.horario.dias.filter(dia=fecha_actual_cursor.weekday()).first()
+                    # Buscar si hay algún horario disponible para este día
+                    horario_dia = None
+                    for h in self.horarios.all():
+                        hd = h.dias.filter(dia=fecha_actual_cursor.weekday()).first()
+                        if hd:
+                            horario_dia = hd
+                            break
+                    
                     if not horario_dia:
                         fecha_actual_cursor += timedelta(days=1)
                         current_dt_cursor = None

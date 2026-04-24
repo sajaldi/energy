@@ -698,14 +698,32 @@ class RutinaResource(ProgressResourceMixin, resources.ModelResource):
         
         super().import_field(field, obj, row, is_m2m, **kwargs)
 
+    ubicacion_predeterminada = fields.Field(
+        column_name='ubicacion_predeterminada',
+        attribute='ubicacion_predeterminada',
+        widget=ForeignKeyWidget(Ubicacion, field='nombre')
+    )
+    
+    categoria_activo = fields.Field(
+        column_name='categoria_activo',
+        attribute='categoria_activo',
+        widget=ForeignKeyWidget(CategoriaActivo, field='nombre')
+    )
+    
+    horario_predeterminado = fields.Field(
+        column_name='horario_predeterminado',
+        attribute='horario_predeterminado',
+        widget=ForeignKeyWidget(Horario, field='nombre')
+    )
+
     class Meta:
         model = Rutina
         import_id_fields = ('id', 'codigo_rutina')
         fields = ('id', 'codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta', 
-                  'frecuencia_nombre', 'descripcion', 
+                  'frecuencia_nombre', 'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado', 'descripcion', 
                   'tiempo_estimado', 'cantidad_tecnicos', 'herramientas', 'es_invasiva')
         export_order = ('id', 'codigo_rutina', 'nombre', 'tipo_nombre', 'tipo_ruta',
-                       'frecuencia_nombre', 'tiempo_estimado', 
+                       'frecuencia_nombre', 'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado', 'tiempo_estimado', 
                        'cantidad_tecnicos', 'herramientas', 'es_invasiva', 'descripcion')
         skip_unchanged = True
         report_skipped = True
@@ -1213,8 +1231,8 @@ class OrdenTrabajoInline(admin.TabularInline):
 class ProgramacionInline(admin.TabularInline):
     model = Programacion
     extra = 0
-    readonly_fields = ('creado_en', 'horario', 'fecha_inicio', 'fecha_fin', 'procesada', 'ver_detalle_link')
-    fields = ('creado_en', 'horario', 'fecha_inicio', 'fecha_fin', 'procesada', 'ver_detalle_link')
+    readonly_fields = ('creado_en', 'fecha_inicio', 'fecha_fin', 'procesada', 'ver_detalle_link')
+    fields = ('creado_en', 'horarios', 'fecha_inicio', 'fecha_fin', 'procesada', 'ver_detalle_link')
     ordering = ('-creado_en',)
     can_delete = False
     show_change_link = True
@@ -1231,10 +1249,10 @@ class RutinaAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/mantenimiento/rutina/change_list.html'
     list_per_page = 50
     resource_class = RutinaResource
-    list_display = ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'es_invasiva', 'creado_en', 'actualizado_en', 'ver_dashboard_link', 'programar_rutina_link')
-    list_filter = (('tipo', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo', 'es_invasiva', 'creado_en')
+    list_display = ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado', 'tiempo_estimado', 'cantidad_tecnicos', 'es_invasiva', 'creado_en', 'actualizado_en', 'ver_dashboard_link', 'programar_rutina_link')
+    list_filter = (('tipo', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo', 'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado', 'es_invasiva', 'creado_en')
     search_fields = ('codigo_rutina', 'nombre', 'descripcion', 'herramientas')
-    autocomplete_fields = ('tipo', 'frecuencia', 'puesto_trabajo')
+    autocomplete_fields = ('tipo', 'frecuencia', 'puesto_trabajo', 'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado')
     readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link', 'ver_dashboard_link')
     list_select_related = True
     inlines = [PasoRutinaInline, ProgramacionInline] # Agregado historial de programaciones
@@ -1257,12 +1275,15 @@ class RutinaAdmin(ImportExportModelAdmin):
         return super().get_queryset(request).select_related(
             'tipo__padre__padre__padre__padre__padre', 
             'frecuencia', 
-            'puesto_trabajo'
+            'puesto_trabajo',
+            'ubicacion_predeterminada',
+            'categoria_activo',
+            'horario_predeterminado'
         )
     
     fieldsets = (
         ('Identificación', {
-            'fields': ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'programar_rutina_link')
+            'fields': ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado', 'programar_rutina_link')
         }),
         ('Manual de Pasos', {
             'fields': ('descripcion', 'herramientas')
@@ -1393,12 +1414,12 @@ class PlanificacionMensualAdmin(admin.ModelAdmin):
 @admin.register(Programacion)
 class ProgramacionAdmin(admin.ModelAdmin):
     list_per_page = 50
-    list_display = ('id', 'rutina', 'get_areas', 'horario', 'procesada', 'ver_cronograma_visual_link')
-    list_filter = ('rutina__frecuencia', 'procesada')
-    list_select_related = ('rutina', 'horario')
+    list_display = ('id', 'rutina', 'get_areas', 'procesada', 'ver_cronograma_visual_link')
+    list_filter = ('rutina__frecuencia', 'procesada', 'horarios')
+    list_select_related = ('rutina',)
     search_fields = ('id', 'rutina__nombre')
-    fields = ('rutina', 'horario', 'areas', 'activos', 'fecha_inicio', 'fecha_fin', 'procesada')
-    autocomplete_fields = ('rutina', 'horario', 'areas', 'activos')
+    fields = ('rutina', 'horarios', 'areas', 'activos', 'fecha_inicio', 'fecha_fin', 'procesada')
+    autocomplete_fields = ('rutina', 'horarios', 'areas', 'activos')
     actions = ['generar_ordenes_action', 'reset_procesada_action', 'eliminar_ordenes_action']
     inlines = [OrdenTrabajoInline]
 
@@ -1413,7 +1434,7 @@ class ProgramacionAdmin(admin.ModelAdmin):
     ver_cronograma_visual_link.short_description = 'Cronograma Visual'
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('rutina', 'horario').prefetch_related('areas')
+        return super().get_queryset(request).select_related('rutina').prefetch_related('areas', 'horarios')
 
     def get_areas(self, obj):
         # Al usar prefetch_related('areas'), esto no genera queries N+1

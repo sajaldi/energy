@@ -18,11 +18,12 @@ def programar_rutina_wizard(request):
             data = json.loads(request.body)
             prog = Programacion.objects.create(
                 rutina_id=data['rutina_id'],
-                horario_id=data['horario_id'],
                 fecha_inicio=datetime.strptime(data['fecha_inicio'], '%Y-%m-%d').date(),
                 fecha_fin=datetime.strptime(data['fecha_fin'], '%Y-%m-%d').date() if data.get('fecha_fin') else None,
                 procesada=False
             )
+            if data.get('horarios'): prog.horarios.set(data['horarios'])
+            elif data.get('horario_id'): prog.horarios.set([data['horario_id']])
             if data.get('areas'): prog.areas.set(data['areas'])
             if data.get('activos'): prog.activos.set(data['activos'])
             
@@ -37,7 +38,7 @@ def programar_rutina_wizard(request):
     horarios = Horario.objects.all().prefetch_related('dias')
     ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
     categorias_activos = CategoriaActivo.objects.all().order_by('nombre')
-    rutinas = Rutina.objects.all().select_related('tipo', 'frecuencia')
+    rutinas = Rutina.objects.all().select_related('tipo', 'frecuencia', 'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado')
     pre_cat = rutina.tipo.categoria_activo.id if rutina and rutina.tipo and rutina.tipo.categoria_activo else None
 
     return render(request, 'mantenimiento/visual_scheduler.html', {

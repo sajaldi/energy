@@ -7,18 +7,18 @@
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <style>
     :root {
-        --primary: #3b82f6;
-        --primary-dark: #1d4ed8;
-        --primary-light: #eff6ff;
-        --secondary: #6366f1;
-        --bg: #f8fafc;
+        --primary: #0070f2;
+        --primary-dark: #005bb7;
+        --primary-light: #e5f0fa;
+        --secondary: #6a6d70;
+        --bg: #f5f6f7;
         --card: #ffffff;
-        --border: #e2e8f0;
-        --text: #0f172a;
-        --text-muted: #64748b;
-        --positive: #10b981;
-        --negative: #ef4444;
-        --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --border: #d9d9d9;
+        --text: #32363a;
+        --text-muted: #6a6d70;
+        --positive: #107e3e;
+        --negative: #bb0000;
+        --shadow: 0 0 10px rgba(0, 0, 0, 0.05);
     }
 
     #content {
@@ -67,7 +67,7 @@
         height: 48px;
         background: white;
         border: 2px solid var(--border);
-        border-radius: 50%;
+        border-radius: 2px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -105,7 +105,7 @@
     /* Wizard Cards */
     .wizard-card {
         background: white;
-        border-radius: 24px;
+        border-radius: 0;
         padding: 40px;
         box-shadow: var(--shadow);
         border: 1px solid var(--border);
@@ -155,8 +155,8 @@
     }
 
     .option-card {
-        border: 2px solid var(--border);
-        border-radius: 16px;
+        border: 1px solid var(--border);
+        border-radius: 0;
         padding: 20px;
         cursor: pointer;
         transition: all 0.2s;
@@ -183,7 +183,7 @@
         color: white;
         width: 24px;
         height: 24px;
-        border-radius: 50%;
+        border-radius: 2px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -206,8 +206,8 @@
 
     /* Tree selection (Simplified for UI) */
     .tree-view {
-        background: #f8fafc;
-        border-radius: 12px;
+        background: #fafafa;
+        border-radius: 0;
         padding: 20px;
         max-height: 300px;
         overflow-y: auto;
@@ -220,7 +220,7 @@
         gap: 10px;
         padding: 8px;
         cursor: pointer;
-        border-radius: 8px;
+        border-radius: 0;
         transition: background 0.2s;
     }
 
@@ -242,7 +242,7 @@
 
     .btn-wiz {
         padding: 12px 32px;
-        border-radius: 12px;
+        border-radius: 0;
         font-weight: 700;
         font-family: inherit;
         cursor: pointer;
@@ -327,7 +327,7 @@
     .search-input {
         width: 100%;
         padding: 16px;
-        border-radius: 12px;
+        border-radius: 0;
         border: 1px solid var(--border);
         font-family: inherit;
         font-size: 1rem;
@@ -383,7 +383,9 @@
             {% for r in rutinas %}
             <div class="option-card {% if rutina_preselected.id == r.id %}selected{% endif %}" data-id="{{ r.id }}"
                 data-type="rutina" data-name="{{ r.nombre }}"
-                data-asset-cat-id="{{ r.categoria.categoria_activo.id|default:'' }}">
+                data-horario-id="{{ r.horario_predeterminado.id|default:'' }}"
+                data-ubicacion-id="{{ r.ubicacion_predeterminada.id|default:'' }}"
+                data-asset-cat-id="{{ r.categoria_activo.id|default:'' }}">
                 <span class="option-title">{{ r.nombre }}</span>
                 <span class="option-meta">{{ r.categoria.nombre }} | {{ r.frecuencia.nombre }}</span>
             </div>
@@ -397,10 +399,10 @@
             <h2>Horario Laboral</h2>
             <p>Define en qué franja horaria se realizarán los trabajos.</p>
         </div>
-        <div class="selection-grid">
+        <div class="selection-grid" id="horarioGrid">
             {% for h in horarios %}
-            <div class="option-card" data-id="{{ h.id }}" data-type="horario">
-                <div style="width: 24px; height: 24px; background: {{ h.color }}; border-radius: 4px; float: right;">
+            <div class="option-card" data-id="{{ h.id }}" data-type="horario" data-name="{{ h.nombre }}">
+                <div style="width: 24px; height: 24px; background: {{ h.color }}; border-radius: 2px; float: right;">
                 </div>
                 <span class="option-title">{{ h.nombre }}</span>
                 <span class="option-meta">{{ h.resumen_corto }}</span>
@@ -428,7 +430,7 @@
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                 {% for c in categorias_activos %}
                 <label class="asset-cat-label" data-id="{{ c.id }}"
-                    style="background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 99px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    style="background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 0; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                     <input type="checkbox" name="cat" value="{{ c.id }}">
                     {{ c.nombre }}
                 </label>
@@ -443,18 +445,18 @@
             <h2>Confirmar Activos</h2>
             <p id="assetStepLead">Estas rutinas se aplicarán a los siguientes activos.</p>
             <div id="noAssetNotice"
-                style="display: none; background: #fff7ed; border: 1px solid #ffedd5; color: #9a3412; padding: 12px; border-radius: 12px; font-size: 0.9rem; margin-top: 10px; text-align: left;">
+                style="display: none; background: #fff7ed; border: 1px solid #ffedd5; color: #9a3412; padding: 12px; border-radius: 0; font-size: 0.9rem; margin-top: 10px; text-align: left;">
                 <ion-icon name="information-circle"></ion-icon> Esta rutina parece ser de inspección u operativa. Puedes
                 omitir la selección de activos individuales si prefieres aplicarla a nivel de área.
             </div>
         </div>
         <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
             <button class="btn-wiz btn-prev" id="btnSkipAssets"
-                style="padding: 6px 16px; font-size: 0.85rem; border-radius: 8px; background: #f1f5f9; color: var(--text-muted); border: 1px dashed var(--border);">
+                style="padding: 6px 16px; font-size: 0.85rem; border-radius: 0; background: #f1f5f9; color: var(--text-muted); border: 1px dashed var(--border);">
                 Omitir Activos (Programar por Área)
             </button>
             <button class="btn-wiz btn-prev" onclick="toggleAllAssets(true)"
-                style="padding: 6px 16px; font-size: 0.85rem; border-radius: 8px;">Seleccionar Todos</button>
+                style="padding: 6px 16px; font-size: 0.85rem; border-radius: 0;">Seleccionar Todos</button>
         </div>
         <div class="tree-view" id="assetList" style="max-height: 400px;">
             <p style="text-align: center; color: var(--text-muted); padding: 40px;">Cargando activos...</p>
@@ -481,7 +483,7 @@
             </div>
 
             <div class="form-group"
-                style="background: white; padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+                style="background: white; padding: 16px; border-radius: 0; border: 1px solid var(--border);">
                 <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
                     <input type="checkbox" id="soloProyeccion" style="width: 20px; height: 20px;">
                     <div>
@@ -535,7 +537,8 @@
     const totalSteps = 5;
     const selections = {
         rutina: "{{ rutina_preselected.id|default:'' }}",
-        horario: "",
+        horario: "", // Keep for legacy if needed
+        horarios: [],
         areas: [],
         categorias: [{% if preselected_cat_id %}"{{ preselected_cat_id }}"{% endif %}],
     activos: [],
@@ -556,12 +559,26 @@
     document.querySelectorAll('.option-card').forEach(card => {
         card.addEventListener('click', () => {
             const type = card.dataset.type;
-            document.querySelectorAll(`.option-card[data-type="${type}"]`).forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-            selections[type] = card.dataset.id;
+            const id = card.dataset.id;
+
+            if (type === 'horario') {
+                // Multiple selection for horarios
+                if (card.classList.contains('selected')) {
+                    card.classList.remove('selected');
+                    selections.horarios = selections.horarios.filter(i => i !== id);
+                } else {
+                    card.classList.add('selected');
+                    selections.horarios.push(id);
+                }
+            } else {
+                // Single selection for others
+                document.querySelectorAll(`.option-card[data-type="${type}"]`).forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selections[type] = id;
+            }
 
             if (type === 'rutina') {
-                updateCategoryVisibility(card.dataset.assetCatId);
+                updateRoutineDefaults(card);
             }
         });
     });
@@ -605,8 +622,8 @@
         if (step === 1 && !selections.rutina) {
             alert("Por favor selecciona una rutina."); return false;
         }
-        if (step === 2 && !selections.horario) {
-            alert("Por favor selecciona un horario."); return false;
+        if (step === 2 && selections.horarios.length === 0) {
+            alert("Por favor selecciona al menos un horario."); return false;
         }
         if (step === 3) {
             selections.areas = Array.from(document.querySelectorAll('input[name="area"]:checked')).map(i => i.value);
@@ -680,27 +697,64 @@
             'Siguiente <ion-icon name="arrow-forward"></ion-icon>';
     }
 
+    function updateRoutineDefaults(card) {
+        const horarioId = card.dataset.horarioId;
+        const ubicacionId = card.dataset.ubicacionId;
+        const assetCatId = card.dataset.assetCatId;
+
+        // 1. Auto-select Horario in Step 2
+        if (horarioId) {
+            const horarioCard = document.querySelector(`.option-card[data-type="horario"][data-id="${horarioId}"]`);
+            if (horarioCard) {
+                // For auto-select, we might want to clear others or just add
+                document.querySelectorAll('.option-card[data-type="horario"]').forEach(c => c.classList.remove('selected'));
+                horarioCard.classList.add('selected');
+                selections.horarios = [horarioId];
+            }
+        }
+
+        // 2. Auto-select Ubicacion in Step 3
+        if (ubicacionId) {
+            const areaCheckbox = document.querySelector(`input[name="area"][value="${ubicacionId}"]`);
+            if (areaCheckbox) {
+                // Clear others if you want exclusive, or just add it
+                // document.querySelectorAll('input[name="area"]').forEach(i => i.checked = false);
+                areaCheckbox.checked = true;
+            }
+        }
+
+        // 3. Update Category Visibility and Auto-select in Step 3
+        updateCategoryVisibility(assetCatId);
+    }
+
     function updateCategoryVisibility(assetCatId) {
         const catLabels = document.querySelectorAll('.asset-cat-label');
         if (!assetCatId) {
-            // Si no hay categoría vinculada, mostrar todas (o podrías decidir ocultarlas todas)
-            catLabels.forEach(l => l.style.display = 'flex');
+            catLabels.forEach(l => {
+                l.style.display = 'none';
+                const cb = l.querySelector('input');
+                if (cb) cb.checked = false;
+            });
             return;
         }
 
         catLabels.forEach(l => {
+            const cb = l.querySelector('input');
             if (l.dataset.id === assetCatId) {
                 l.style.display = 'flex';
-                // Auto-marcarla para conveniencia
-                const cb = l.querySelector('input');
                 if (cb) cb.checked = true;
+                l.style.borderColor = 'var(--primary)';
+                l.style.background = 'var(--primary-light)';
             } else {
                 l.style.display = 'none';
-                const cb = l.querySelector('input');
                 if (cb) cb.checked = false;
+                l.style.borderColor = 'var(--border)';
+                l.style.background = 'white';
             }
         });
     }
+
+    // (Initial pre-selection listener moved to the end of script)
 
     async function finalizeAndGenerate() {
         selections.activos = Array.from(document.querySelectorAll('input[name="asset_final"]:checked')).map(i => i.value);
@@ -726,7 +780,7 @@
                 },
                 body: JSON.stringify({
                     rutina_id: selections.rutina,
-                    horario_id: selections.horario,
+                    horarios: selections.horarios,
                     areas: selections.areas,
                     activos: selections.activos,
                     fecha_inicio: selections.fecha_inicio,
@@ -806,21 +860,23 @@
         }, 1000);
     }
 
-    // Auto-advance if routine is pre-selected
-    document.addEventListener('DOMContentLoaded', () => {
-        if (selections.rutina) {
-            // Find selected routine card to get its asset category ID
-            const selectedRoutineCard = document.querySelector(`.option-card[data-id="${selections.rutina}"][data-type="rutina"]`);
-            if (selectedRoutineCard) {
-                updateCategoryVisibility(selectedRoutineCard.dataset.assetCatId);
-            }
-            updateStep(2);
+    // Initialize if preselected
+    window.addEventListener('DOMContentLoaded', () => {
+        const preselectedRutina = document.querySelector('.option-card[data-type="rutina"].selected');
+        if (preselectedRutina) {
+            updateRoutineDefaults(preselectedRutina);
+            updateStep(2); // Auto-advance to schedule
         }
-        // Marcar categorías preseleccionadas
-        if (selections.categorias.length > 0) {
+        
+        // Marcar categorías preseleccionadas (legacy or manual)
+        if (selections.categorias && selections.categorias.length > 0) {
             selections.categorias.forEach(catId => {
                 const cb = document.querySelector(`input[name="cat"][value="${catId}"]`);
-                if (cb) cb.checked = true;
+                if (cb) {
+                    cb.checked = true;
+                    cb.closest('label').style.borderColor = 'var(--primary)';
+                    cb.closest('label').style.background = 'var(--primary-light)';
+                }
             });
         }
     });
