@@ -36,7 +36,7 @@ def notify_n8n_solicitud_material(solicitud):
             'usuario': solicitud.usuario.username,
             'usuario_nombre': f"{solicitud.usuario.first_name} {solicitud.usuario.last_name}".strip(),
             'ubicacion_origen': solicitud.ubicacion_origen.nombre,
-            'orden_trabajo': solicitud.orden_trabajo.numero_ot if solicitud.orden_trabajo else "N/A",
+            'orden_trabajo': solicitud.orden_trabajo.codigo_de_orden if solicitud.orden_trabajo else "N/A",
             'ot_id': solicitud.orden_trabajo.id if solicitud.orden_trabajo else None,
             'comentarios': solicitud.comentarios_solicitud or "",
             'items': items,
