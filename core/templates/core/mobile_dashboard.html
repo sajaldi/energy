@@ -1,4 +1,4 @@
-{% load static core_tags %}
+{% load static core_tags l10n %}
 <!DOCTYPE html>
 <html lang="es">
 
@@ -522,13 +522,15 @@
 <body>
 
     <header>
-        <div class="user-greeting">
+        <a href="{% url 'seguridad:mobile_perfil' %}" class="user-greeting" style="text-decoration: none;">
             <p>¡Bienvenido!</p>
             <h1>{{ user.username|capfirst }}</h1>
-        </div>
-        <div class="avatar">
-            {{ user.username|slice:":1"|upper }}
-        </div>
+        </a>
+        <a href="{% url 'seguridad:mobile_perfil' %}" style="text-decoration: none;">
+            <div class="avatar">
+                {{ user.username|slice:":1"|upper }}
+            </div>
+        </a>
     </header>
 
     <div class="container">
@@ -785,9 +787,9 @@
         </div>
         <div class="fade-in" style="animation-delay: 0.5s;">
             {% for ot in ots_hoy %}
-            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" style="text-decoration: none; color: inherit;">
+            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id|unlocalize %}" style="text-decoration: none; color: inherit;">
                 <div class="task-card priority-{{ ot.prioridad }}"
-                     data-ot-id="{{ ot.id }}"
+                     data-ot-id="{{ ot.id|unlocalize }}"
                      data-ot-codigo="{{ ot.codigo_de_orden|default:"OT-"|add:ot.id|stringformat:"s" }}"
                      data-ot-estado="{{ ot.estado }}">
                     <div class="task-date-box">
@@ -840,7 +842,7 @@
             <span>Admin</span>
         </a>
         {% else %}
-        <a href="{% url 'admin:index' %}" class="tab-item">
+        <a href="{% url 'seguridad:mobile_perfil' %}" class="tab-item">
             <ion-icon name="person-outline"></ion-icon>
             <span>Perfil</span>
         </a>

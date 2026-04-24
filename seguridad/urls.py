@@ -34,4 +34,5 @@ urlpatterns = [
     path('app/almacen/api/confirmar-entrega/', views.api_almacen_confirmar_entrega, name='api_almacen_confirmar_entrega'),
     path('app/almacen/entrega/pdf/<int:pk>/', views.mobile_confiscacion_entrega_pdf_view, name='mobile_confiscacion_entrega_pdf'),
     path('app/confiscacion/imprimir/<int:pk>/', views.mobile_confiscacion_imprimir_etiqueta, name='mobile_confiscacion_imprimir_etiqueta'),
+    path('app/perfil/', views.mobile_perfil, name='mobile_perfil'),
 ]

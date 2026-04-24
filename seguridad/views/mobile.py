@@ -15,7 +15,7 @@ from ..models import (
     FotoObjetoConfiscado, EntregaConfiscacion
 )
 from activos.models.ubicacion import Ubicacion
-from mantenimiento.models import OrdenTrabajo
+from mantenimiento.models import OrdenTrabajo, TecnicoPuesto
 
 @staff_member_required
 def mobile_mis_permisos(request):
@@ -670,4 +670,15 @@ def mobile_confiscacion_imprimir_etiqueta(request, pk):
         'ahora': timezone.now(),
         'ubicacion_jerarquica': ubicacion_jerarquica,
         'nombre_usuario': nombre_usuario,
+    })
+@login_required
+def mobile_perfil(request):
+    """
+    Muestra la interfaz de perfil del usuario logueado.
+    """
+    perfil = getattr(request.user, 'perfil_tecnico', None)
+    
+    return render(request, 'seguridad/mobile/perfil.html', {
+        'perfil': perfil,
+        'usuario': request.user
     })

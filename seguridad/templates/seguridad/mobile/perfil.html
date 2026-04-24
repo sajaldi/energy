@@ -1,0 +1,322 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mi Perfil - SoftCoM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 90px;
+            color: var(--sap-text-color);
+        }
+
+        .profile-header {
+            background: var(--sap-shell-bg);
+            color: white;
+            padding: 40px 20px 60px 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .profile-avatar-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto -50px auto;
+            z-index: 2;
+        }
+
+        .profile-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid var(--sap-bg-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: 700;
+            color: var(--sap-brand-color);
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-content {
+            background: var(--sap-bg-color);
+            padding: 60px 20px 20px 20px;
+            border-radius: 24px 24px 0 0;
+            margin-top: -20px;
+        }
+
+        .user-name {
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+
+        .user-role {
+            font-size: 14px;
+            color: var(--sap-text-muted);
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+
+        .info-card {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            padding: 20px;
+            border: 1px solid var(--sap-border-color);
+            box-shadow: var(--sap-card-shadow);
+            margin-bottom: 20px;
+        }
+
+        .info-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--sap-group-bg);
+        }
+
+        .info-group:last-child {
+            border-bottom: none;
+        }
+
+        .info-icon {
+            width: 36px;
+            height: 36px;
+            background: #f0f4f8;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--sap-brand-color);
+            font-size: 18px;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: var(--sap-text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--sap-text-color);
+        }
+
+        .logout-btn {
+            background: #fff1f2;
+            color: #e11d48;
+            border: 1px solid #fecdd3;
+            padding: 16px;
+            border-radius: 16px;
+            width: 100%;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:active {
+            background: #ffe4e6;
+            transform: scale(0.98);
+        }
+
+        /* Bottom Tab Bar (replicated from dashboard for consistency) */
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: #ffffff;
+            border-top: 1px solid var(--sap-border-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: var(--sap-text-muted);
+            width: 20%;
+        }
+
+        .tab-item.active {
+            color: var(--sap-brand-color);
+            font-weight: 700;
+        }
+
+        .tab-item ion-icon {
+            font-size: 26px;
+        }
+
+        .tab-item span {
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .scan-btn {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--sap-brand-color), #1e40af);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 30px;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+            margin-top: -35px;
+            border: 4px solid white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="profile-header">
+        <div style="display: flex; align-items: center; gap: 12px; position: absolute; top: 20px; left: 20px;">
+            <a href="{% url 'core:mobile_dashboard' %}" style="color: white; font-size: 24px; display: flex;">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+        </div>
+        <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Mi Perfil</h1>
+    </div>
+
+    <div class="profile-avatar-container">
+        <div class="profile-avatar">
+            {% if perfil.foto %}
+                <img src="{{ perfil.foto.url }}" alt="Foto de perfil">
+            {% else %}
+                {{ usuario.username|slice:":1"|upper }}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="profile-content">
+        <div class="user-name">{{ usuario.get_full_name|default:usuario.username }}</div>
+        <div class="user-role">{{ perfil.puesto.nombre|default:"Usuario del Sistema" }}</div>
+
+        <div class="info-card">
+            <div class="info-group">
+                <div class="info-icon">
+                    <ion-icon name="person-outline"></ion-icon>
+                </div>
+                <div>
+                    <div class="info-label">Usuario</div>
+                    <div class="info-value">{{ usuario.username }}</div>
+                </div>
+            </div>
+            <div class="info-group">
+                <div class="info-icon">
+                    <ion-icon name="mail-outline"></ion-icon>
+                </div>
+                <div>
+                    <div class="info-label">Correo Electrónico</div>
+                    <div class="info-value">{{ usuario.email|default:"No especificado" }}</div>
+                </div>
+            </div>
+            {% if perfil %}
+            <div class="info-group">
+                <div class="info-icon">
+                    <ion-icon name="business-outline"></ion-icon>
+                </div>
+                <div>
+                    <div class="info-label">Empresa</div>
+                    <div class="info-value">{{ perfil.empresa.nombre|default:"N/A" }}</div>
+                </div>
+            </div>
+            <div class="info-group">
+                <div class="info-icon">
+                    <ion-icon name="id-card-outline"></ion-icon>
+                </div>
+                <div>
+                    <div class="info-label">DNI / Identidad</div>
+                    <div class="info-value">{{ perfil.dni|default:"No registrado" }}</div>
+                </div>
+            </div>
+            <div class="info-group">
+                <div class="info-icon">
+                    <ion-icon name="water-outline"></ion-icon>
+                </div>
+                <div>
+                    <div class="info-label">Tipo de Sangre</div>
+                    <div class="info-value">{{ perfil.get_tipo_sangre_display|default:"No especificado" }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <form id="logout-form" action="{% url 'admin:logout' %}" method="POST" style="display: none;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'core:mobile_dashboard' %}">
+        </form>
+
+        <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" class="logout-btn">
+            <ion-icon name="log-out-outline"></ion-icon>
+            Cerrar Sesión
+        </a>
+    </div>
+
+    <!-- Tab Bar -->
+    <nav class="tab-bar">
+        <a href="{% url 'core:mobile_dashboard' %}" class="tab-item">
+            <ion-icon name="grid-outline"></ion-icon>
+            <span>Inicio</span>
+        </a>
+        <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item">
+            <ion-icon name="calendar-clear-outline"></ion-icon>
+            <span>Agenda</span>
+        </a>
+
+        <a href="{% url 'core:mobile_scanner' %}" class="scan-btn">
+            <ion-icon name="scan-outline"></ion-icon>
+        </a>
+
+        <a href="{% url 'activos:arbol_activos' %}" class="tab-item">
+            <ion-icon name="cube-outline"></ion-icon>
+            <span>Activos</span>
+        </a>
+        <a href="{% url 'seguridad:mobile_perfil' %}" class="tab-item active">
+            <ion-icon name="person-outline"></ion-icon>
+            <span>Perfil</span>
+        </a>
+    </nav>
+
+</body>
+
+</html>

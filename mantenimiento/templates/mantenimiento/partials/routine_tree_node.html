@@ -1,4 +1,4 @@
-{% load static %}
+{% load static l10n %}
 <div class="tree-node" data-level="{{ node.level }}" data-cat-name="{{ node.categoria.nombre|lower }}" data-cat-code="{{ node.categoria.codigo|default:''|lower }}">
     <div class="tree-row cat-row {% if node.subcategorias or node.rutinas %}has-children{% endif %}"
         onclick="toggleNode(this)">
@@ -51,7 +51,7 @@
             <div class="tree-row routine-row"
                  data-routine-name="{{ rutina.nombre|lower }}"
                  data-routine-code="{{ rutina.codigo_rutina|default:''|lower }}"
-                 onclick="toggleRoutineExpansion(this, {{ rutina.id }})">
+                 onclick="toggleRoutineExpansion(this, {{ rutina.id|unlocalize }})">
                 <span class="tree-icon">
                     <svg class="file-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2">
@@ -84,7 +84,7 @@
                 </div>
                 <div class="action-btns" style="opacity: 0; transition: opacity 0.2s;">
                     <button class="btn-action"
-                        onclick="event.stopPropagation(); showRoutineDetail({{ rutina.id }}, true);"
+                        onclick="event.stopPropagation(); showRoutineDetail({{ rutina.id|unlocalize }}, true);"
                         title="Editar Rutina">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">

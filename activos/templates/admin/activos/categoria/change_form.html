@@ -54,38 +54,40 @@
 {% block content %}
 <div id="content-main">
     {% if not is_popup and change and not add %}
-    <ul class="nav nav-tabs mb-3" id="categoriaTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="form-tab" data-toggle="tab" data-target="#form-content" type="button"
-                role="tab">
-                <i class="fas fa-edit"></i> Datos de la Categoría
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="explorer-tab" data-toggle="tab" data-target="#explorer-content" type="button"
-                role="tab" onclick="loadExplorer()">
-                <i class="fas fa-sitemap"></i> Explorador de Activos
-            </button>
-        </li>
-    </ul>
-    {% endif %}
+        <ul class="nav nav-tabs mb-3" id="categoriaTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="form-tab" data-toggle="tab" data-target="#form-content" type="button"
+                    role="tab">
+                    <i class="fas fa-edit"></i> Datos de la Categoría
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="explorer-tab" data-toggle="tab" data-target="#explorer-content" type="button"
+                    role="tab" onclick="loadExplorer()">
+                    <i class="fas fa-sitemap"></i> Explorador de Activos
+                </button>
+            </li>
+        </ul>
 
-    <div class="tab-content" id="categoriaTabsContent">
-        <!-- Contenido del Formulario -->
-        <div class="tab-pane fade show active" id="form-content" role="tabpanel">
-            {{ block.super }}
-        </div>
-
-        <!-- Contenido del Explorador -->
-        <div class="tab-pane fade" id="explorer-content" role="tabpanel" style="min-height: 800px;">
-            <div id="explorer-loader" class="text-center p-5">
-                <div class="spinner-border text-primary" role="status"></div>
-                <p class="mt-2 text-muted">Iniciando explorador...</p>
+        <div class="tab-content" id="categoriaTabsContent">
+            <!-- Contenido del Formulario -->
+            <div class="tab-pane fade show active" id="form-content" role="tabpanel">
+                {{ block.super }}
             </div>
-            <iframe id="explorer-iframe" src="" frameborder="0"
-                style="width: 100%; height: calc(100vh - 160px); display: none; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.08);"></iframe>
+
+            <!-- Contenido del Explorador -->
+            <div class="tab-pane fade" id="explorer-content" role="tabpanel" style="min-height: 800px;">
+                <div id="explorer-loader" class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted">Iniciando explorador...</p>
+                </div>
+                <iframe id="explorer-iframe" src="" frameborder="0"
+                    style="width: 100%; height: calc(100vh - 160px); display: none; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.08);"></iframe>
+            </div>
         </div>
-    </div>
+    {% else %}
+        {{ block.super }}
+    {% endif %}
 </div>
 
 <script>
@@ -93,11 +95,15 @@
         const iframe = document.getElementById('explorer-iframe');
         const loader = document.getElementById('explorer-loader');
         if (iframe.src === "" || iframe.src === window.location.href) {
+            {% if object_id %}
             iframe.src = "{% url 'admin:activos_categoria_explorer' object_id=object_id %}";
             iframe.onload = function () {
                 loader.style.display = 'none';
                 iframe.style.display = 'block';
             };
+            {% else %}
+            loader.innerHTML = '<p class="text-muted">El explorador solo está disponible para categorías existentes.</p>';
+            {% endif %}
         }
     }
 

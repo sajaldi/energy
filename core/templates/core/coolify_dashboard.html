@@ -74,7 +74,14 @@
             {% for c in containers %}
             <tr>
                 <td>{{ c.id }}</td>
-                <td><strong>{{ c.name }}</strong></td>
+                <td>
+                    {% if c.friendly_name %}
+                        <span style="display: block; font-size: 1.1em; color: #007bff;">{{ c.friendly_name }}</span>
+                        <small style="color: #666;">{{ c.name }}</small>
+                    {% else %}
+                        <strong>{{ c.name }}</strong>
+                    {% endif %}
+                </td>
                 <td>{{ c.image }}</td>
                 <td>
                     <span class="status-badge {% if 'Up' in c.status %}status-up{% else %}status-down{% endif %}">
@@ -82,7 +89,11 @@
                     </span>
                 </td>
                 <td>
-                    <button class="button" onclick="viewLogs('{{ c.id }}')">Ver Logs</button>
+                    <button class="button" onclick="viewLogs('{{ c.id }}')">Logs</button>
+                    <button class="button" style="background-color: #17a2b8;" onclick="monitorLogs('{{ c.id }}')">En Vivo</button>
+                    {% if c.application_id %}
+                        <button class="button" style="background-color: #6f42c1;" onclick="viewBuildLogs('{{ c.application_id }}')">Log Deploy</button>
+                    {% endif %}
                     <button class="button" style="background-color: #dc3545;" onclick="redeployContainer('{{ c.id }}')">Redeploy</button>
                 </td>
             </tr>
@@ -141,8 +152,64 @@
             });
     }
 
+    function viewBuildLogs(applicationId) {
+        const modal = document.getElementById('logsModal');
+        const output = document.getElementById('logsOutput');
+        modal.style.display = 'block';
+        output.innerText = 'Consultando historial de despliegue en Coolify...\n';
+
+        fetch(`/devops/coolify/logs/build/?application_id=${applicationId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    output.innerText = data.logs || 'No se encontraron logs de despliegue.';
+                } else {
+                    output.innerText = 'Error: ' + data.message;
+                }
+            })
+            .catch(err => {
+                output.innerText = 'Error de conexión: ' + err;
+            });
+    }
+
     function closeLogs() {
+        if (currentReader) {
+            currentReader.cancel();
+            currentReader = null;
+        }
         document.getElementById('logsModal').style.display = 'none';
+    }
+
+    let currentReader = null;
+
+    async function monitorLogs(containerId) {
+        const modal = document.getElementById('logsModal');
+        const output = document.getElementById('logsOutput');
+        modal.style.display = 'block';
+        output.innerText = 'Conectando a stream de logs en vivo...\n';
+
+        try {
+            const response = await fetch(`/devops/coolify/logs/stream/?container_id=${containerId}`);
+            currentReader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { value, done } = await currentReader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value, { stream: true });
+                output.innerText += chunk;
+                modal.querySelector('.modal-logs-content').scrollTop = modal.querySelector('.modal-logs-content').scrollHeight;
+                
+                if (output.innerText.length > 50000) {
+                    output.innerText = output.innerText.slice(-30000);
+                }
+            }
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                output.innerText += '\nError de stream: ' + err;
+            }
+        }
     }
 
     async function redeployContainer(containerId) {

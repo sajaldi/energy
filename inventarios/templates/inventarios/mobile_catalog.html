@@ -255,6 +255,16 @@
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:20px;">
                     <div style="background:#f1f5f9; padding:12px; border-radius:2px;">
+                        <div class="fiori-label">NUEVO</div>
+                        <div id="ov-stock-nuevo" style="font-size:20px; font-weight:800; color:var(--sap-success);">0</div>
+                    </div>
+                    <div style="background:#fffbeb; padding:12px; border-radius:2px; border: 1px solid #fde68a;">
+                        <div class="fiori-label">USADO</div>
+                        <div id="ov-stock-usado" style="font-size:20px; font-weight:800; color:var(--sap-warning);">0</div>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:20px;">
+                    <div style="background:#f1f5f9; padding:12px; border-radius:2px;">
                         <div class="fiori-label">Stock Total</div>
                         <div id="ov-stock-total" style="font-size:20px; font-weight:800; color:var(--sap-brand-color);">0</div>
                     </div>
@@ -334,7 +344,7 @@
             <ion-icon name="cube-outline"></ion-icon>
             <span>Almacén</span>
         </a>
-        <a href="{% url 'admin:index' %}" class="tab-item">
+        <a href="{% url 'seguridad:mobile_perfil' %}" class="tab-item">
             <ion-icon name="person-outline"></ion-icon>
             <span>Perfil</span>
         </a>
@@ -436,7 +446,15 @@
                     <div style="flex:1; min-width:0;">
                         <div class="mat-title">${m.nombre}</div>
                         <div class="mat-sku">${m.sku}</div>
-                        <span class="mat-badge">${m.categoria}</span>
+                        ${m.bodegas && m.bodegas.length > 0 ? `
+                            <div style="font-size:10px; color:var(--sap-brand-color); margin-top:4px; display:flex; align-items:center; gap:4px; font-weight:700;">
+                                <ion-icon name="business-outline"></ion-icon>
+                                <span>${m.bodegas.join(', ')}</span>
+                            </div>
+                        ` : `
+                            <div style="font-size:10px; color:var(--sap-text-muted); margin-top:4px; font-style:italic;">Sin ubicación</div>
+                        `}
+                        <span class="mat-badge" style="margin-top:6px;">${m.categoria}</span>
                     </div>
                     <div class="mat-stock">
                         <span class="stock-num" style="color:${m.stock <= 0 ? 'var(--sap-error)' : 'var(--sap-brand-color)'}">${m.stock}</span>
@@ -456,6 +474,8 @@
             document.getElementById('ov-name').innerText = data.nombre;
             document.getElementById('ov-img').src = data.image_url;
             document.getElementById('ov-stock-total').innerText = `${data.stock_total} ${data.unidad}`;
+            document.getElementById('ov-stock-nuevo').innerText = `${data.stock_nuevo} ${data.unidad}`;
+            document.getElementById('ov-stock-usado').innerText = `${data.stock_usado} ${data.unidad}`;
             document.getElementById('ov-stock-min').innerText = `${data.stock_minimo} ${data.unidad}`;
             document.getElementById('ov-cat-desc').innerText = data.categoria;
             document.getElementById('ov-desc').innerText = data.descripcion;

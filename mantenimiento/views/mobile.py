@@ -758,3 +758,23 @@ def check_ot_pdf_status(request, pk):
     else:
         return JsonResponse({'ready': False})
 
+@staff_member_required
+def mobile_ot_eliminar(request, pk):
+    """
+    Elimina una Orden de Trabajo. SOLO PERMITIDO PARA SUPERUSER.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'status': 'error', 'message': 'Solo los administradores pueden eliminar órdenes.'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    ot_id = ot.id
+    
+    try:
+        ot.delete()
+        return JsonResponse({'status': 'success', 'message': f'Orden #{ot_id} eliminada correctamente.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+

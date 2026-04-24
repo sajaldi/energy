@@ -132,7 +132,10 @@
 
         async function triggerDelete(el) {
             el.dataset.longPressed = 'true';
-            const otId = el.getAttribute('data-ot-id');
+            // Sanitizar ID: eliminar cualquier coma o punto de formato decimal/miles
+            let otId = el.getAttribute('data-ot-id');
+            if (otId) otId = otId.toString().replace(/[,.]/g, '');
+            
             const otCode = el.getAttribute('data-ot-codigo') || 'esta orden';
             const estado = el.getAttribute('data-ot-estado');
 

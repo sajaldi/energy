@@ -1231,9 +1231,9 @@ class RutinaAdmin(ImportExportModelAdmin):
     change_list_template = 'admin/mantenimiento/rutina/change_list.html'
     list_per_page = 50
     resource_class = RutinaResource
-    list_display = ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'es_invasiva', 'cantidad_tecnicos', 'ver_dashboard_link', 'programar_rutina_link')
-    list_filter = (('tipo', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo', 'es_invasiva')
-    search_fields = ('codigo_rutina', 'nombre', 'herramientas')
+    list_display = ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'tiempo_estimado', 'cantidad_tecnicos', 'es_invasiva', 'creado_en', 'actualizado_en', 'ver_dashboard_link', 'programar_rutina_link')
+    list_filter = (('tipo', admin.RelatedOnlyFieldListFilter), 'frecuencia', 'puesto_trabajo', 'es_invasiva', 'creado_en')
+    search_fields = ('codigo_rutina', 'nombre', 'descripcion', 'herramientas')
     autocomplete_fields = ('tipo', 'frecuencia', 'puesto_trabajo')
     readonly_fields = ('creado_en', 'actualizado_en', 'programar_rutina_link', 'ver_dashboard_link')
     list_select_related = True
@@ -1242,7 +1242,8 @@ class RutinaAdmin(ImportExportModelAdmin):
 
     def programar_rutina_link(self, obj):
         if not obj.id: return "-"
-        url = reverse('mantenimiento:programar_rutina_wizard') + f'?rutina={obj.id}'
+        # Usamos str(obj.id) para asegurar que el ID sea una cadena numérica pura sin formato regional
+        url = reverse('mantenimiento:programar_rutina_wizard') + f'?rutina={str(obj.id)}'
         return mark_safe(f'<a class="button" href="{url}" style="background: #10b981; color: white; font-weight: 700; padding: 5px 15px; border-radius: 4px; text-decoration: none;">🗓️ PROGRAMAR ESTA RUTINA</a>')
     programar_rutina_link.short_description = 'Programación'
 
@@ -1261,13 +1262,17 @@ class RutinaAdmin(ImportExportModelAdmin):
     
     fieldsets = (
         ('Identificación', {
-            'fields': ('codigo_rutina', ('nombre', 'programar_rutina_link'), 'tipo', 'frecuencia', 'puesto_trabajo')
+            'fields': ('codigo_rutina', 'nombre', 'tipo', 'frecuencia', 'puesto_trabajo', 'programar_rutina_link')
         }),
         ('Manual de Pasos', {
-            'fields': ('herramientas',)
+            'fields': ('descripcion', 'herramientas')
         }),
         ('Detalles de Ejecución', {
-            'fields': ('es_invasiva', 'tiempo_estimado', 'cantidad_tecnicos', 'descripcion')
+            'fields': (('es_invasiva', 'cantidad_tecnicos'), 'tiempo_estimado')
+        }),
+        ('Metadatos', {
+            'fields': ('creado_en', 'actualizado_en'),
+            'classes': ('collapse',)
         }),
     )
 

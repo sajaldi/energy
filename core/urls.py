@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views_coolify import coolify_dashboard, coolify_redeploy, coolify_logs
+from .views_coolify import coolify_dashboard, coolify_redeploy, coolify_logs, coolify_stream_logs, coolify_build_logs
 
 app_name = 'core'
 
@@ -26,4 +26,6 @@ urlpatterns = [
     path('devops/coolify/', coolify_dashboard, name='coolify_dashboard'),
     path('devops/coolify/redeploy/', coolify_redeploy, name='coolify_redeploy'),
     path('devops/coolify/logs/', coolify_logs, name='coolify_logs'),
+    path('devops/coolify/logs/stream/', coolify_stream_logs, name='coolify_stream_logs'),
+    path('devops/coolify/logs/build/', coolify_build_logs, name='coolify_build_logs'),
 ]

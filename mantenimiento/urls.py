@@ -38,6 +38,7 @@ urlpatterns = [
     path('app/ot/<int:pk>/update-ajax/', views.mobile_ot_update_ajax, name='mobile_ot_update_ajax'),
     path('app/ot/<int:pk>/iniciar/', views.mobile_ot_iniciar, name='mobile_ot_iniciar'),
     path('app/ot/<int:pk>/finalizar/', views.mobile_ot_finalizar, name='mobile_ot_finalizar'),
+    path('app/ot/<int:pk>/eliminar/', views.mobile_ot_eliminar, name='mobile_ot_eliminar'),
     path('app/ot/<int:pk>/upload-file/', views.mobile_ot_upload_file, name='mobile_ot_upload_file'),
     path('app/ot/<int:pk>/delete-file/<int:archivo_id>/', views.mobile_ot_delete_file, name='mobile_ot_delete_file'),
     path('app/aviso/crear/', views.mobile_crear_aviso, name='mobile_crear_aviso'),

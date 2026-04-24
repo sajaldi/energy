@@ -1,0 +1,275 @@
+{% load static core_tags %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Historial de Devoluciones | SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+
+    <style>
+        :root {
+            --header-bg: #334155;
+            --card-border: #e2e8f0;
+            --sap-brand-color: #0070f2;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            margin: 0;
+            padding-bottom: 30px;
+        }
+
+        header {
+            background: var(--header-bg);
+            color: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        header h1 { font-size: 16px; margin: 0; font-weight: 700; flex: 1; }
+        header .back-link { color: white; text-decoration: none; display: flex; font-size: 24px; }
+
+        .container { padding: 15px; }
+
+        /* Estilo de Tarjetas igual al Dashboard */
+        .return-card {
+            background: white;
+            border: 1px solid var(--card-border);
+            margin-bottom: 12px;
+            padding: 15px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 10px;
+        }
+
+        .return-id { font-weight: 800; color: var(--header-bg); font-size: 14px; }
+        .return-date { font-size: 11px; color: #94a3b8; font-weight: 700; }
+
+        .info-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+        .info-label { font-weight: 800; color: #64748b; font-size: 11px; text-transform: uppercase; width: 70px; flex-shrink: 0; }
+        .info-value { font-weight: 600; color: #1e293b; }
+
+        .items-box {
+            background: #f8fafc;
+            padding: 12px;
+            margin-top: 10px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .items-title { font-size: 10px; font-weight: 800; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px dashed #e2e8f0;
+            font-size: 12px;
+        }
+        .item-row:last-child { border-bottom: none; }
+
+        .item-name { font-weight: 700; color: #334155; }
+        
+        .status-badge {
+            font-size: 9px;
+            padding: 2px 6px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-left: 5px;
+        }
+        .status-nuevo { background: #dcfce7; color: #15803d; }
+        .status-usado { background: #fff7ed; color: #c2410c; }
+
+        .qty-badge { font-weight: 800; color: var(--sap-brand-color); }
+
+        .comment-box {
+            font-size: 12px;
+            color: #64748b;
+            font-style: italic;
+            margin-top: 10px;
+            padding: 8px;
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .photos-strip {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        .photos-strip img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border: 1px solid #e2e8f0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        /* Overlay para detalle de material */
+        .detail-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #f1f5f9;
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+        }
+        .overlay-header {
+            background: white;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a href="{% url 'inventarios:mobile_inventario_dashboard' %}" class="back-link">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </a>
+        <h1>Historial de Devoluciones</h1>
+    </header>
+
+    <div class="container">
+        {% for dev in devoluciones %}
+        <div class="return-card">
+            <div class="card-header">
+                <div class="return-id">FOLIO #{{ dev.id }}</div>
+                <div class="return-date">{{ dev.fecha_devolucion|date:"d/m/Y H:i" }}</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">Devuelve:</div>
+                <div class="info-value">{{ dev.persona_devuelve.get_full_name|default:dev.persona_devuelve.username }}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">Recibe:</div>
+                <div class="info-value">{{ dev.usuario_recibe.get_full_name|default:dev.usuario_recibe.username }}</div>
+            </div>
+
+            <div class="info-row">
+                <div class="info-label">Bodega:</div>
+                <div class="info-value">{{ dev.ubicacion_destino.nombre }}</div>
+            </div>
+
+            {% if dev.comentarios %}
+            <div class="comment-box">"{{ dev.comentarios }}"</div>
+            {% endif %}
+
+            <div class="items-box">
+                <div class="items-title">Materiales Devueltos</div>
+                {% for item in dev.items.all %}
+                <div class="item-row" onclick="openMaterialDetail('{{ item.material_original.id }}')">
+                    <div>
+                        <span class="item-name">{{ item.material_original.nombre }}</span>
+                        <span class="status-badge {% if item.estado_fisico == 'NUEVO' %}status-nuevo{% else %}status-usado{% endif %}">
+                            {{ item.estado_fisico }}
+                        </span>
+                    </div>
+                    <div class="qty-badge">{{ item.cantidad }} {{ item.material_original.unidad_medida.abreviatura|default:"UND" }}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if dev.fotos.exists %}
+            <div class="photos-strip">
+                {% for foto in dev.fotos.all %}
+                <a href="{{ foto.imagen.url }}" target="_blank">
+                    <img src="{{ foto.imagen.url }}" alt="Evidencia">
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <ion-icon name="document-text-outline" style="font-size: 48px; opacity: 0.3;"></ion-icon>
+            <p>No hay registros de devoluciones.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Modal Detalle Material -->
+    <div id="material-overlay" class="detail-overlay">
+        <div class="overlay-header">
+            <ion-icon name="close-outline" onclick="closeMaterialDetail()" style="font-size: 28px;"></ion-icon>
+            <h2 style="margin:0; font-size: 16px; font-weight: 800;">Detalle de Material</h2>
+        </div>
+        <div id="material-content" style="padding: 20px; flex: 1; overflow-y: auto; background: white;">
+            <!-- Contenido AJAX -->
+        </div>
+    </div>
+
+    <script>
+        async function openMaterialDetail(id) {
+            const overlay = document.getElementById('material-overlay');
+            const content = document.getElementById('material-content');
+            overlay.style.display = 'flex';
+            content.innerHTML = '<div style="text-align:center; padding:50px;">Cargando...</div>';
+
+            try {
+                const res = await fetch(`/inventarios/api/stock/${id}/`);
+                const data = await res.json();
+                
+                content.innerHTML = `
+                    <div style="text-align:center; margin-bottom: 20px;">
+                        <img src="${data.image_url}" style="width: 150px; height: 150px; object-fit: cover; border: 1px solid #e2e8f0;">
+                    </div>
+                    <h2 style="margin: 0; color: #334155;">${data.nombre}</h2>
+                    <p style="color: #64748b; font-size: 12px; font-weight: 800;">SKU: ${data.sku}</p>
+                    <hr style="opacity: 0.1; margin: 20px 0;">
+                    <div style="background: #f1f5f9; padding: 15px; margin-bottom: 15px;">
+                        <span style="display:block; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase;">Stock Total</span>
+                        <span style="font-size: 24px; font-weight: 800; color: #0070f2;">${data.stock_total} ${data.unidad}</span>
+                    </div>
+                    <p style="font-size: 13px; line-height: 1.5;">${data.descripcion || 'Sin descripción adicional.'}</p>
+                    <button onclick="closeMaterialDetail()" style="width: 100%; padding: 15px; background: #334155; color: white; border: none; font-weight: 800; margin-top: 20px;">CERRAR</button>
+                `;
+            } catch (err) {
+                content.innerHTML = '<p style="color:red; text-align:center;">Error al cargar datos.</p>';
+            }
+        }
+
+        function closeMaterialDetail() {
+            document.getElementById('material-overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

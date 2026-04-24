@@ -693,7 +693,10 @@
                 {% endif %}
             </div>
             {% if request.user.is_authenticated %}
-            <a href="{% url 'admin:logout' %}" class="btn-text btn-icon-hover" title="Cerrar Sessión">
+            <form id="logout-form-portal" action="{% url 'admin:logout' %}" method="POST" style="display: none;">
+                {% csrf_token %}
+            </form>
+            <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form-portal').submit();" class="btn-text btn-icon-hover" title="Cerrar Sessión">
                 <ion-icon name="log-out-outline" style="font-size: 1.4rem;"></ion-icon>
             </a>
             {% endif %}

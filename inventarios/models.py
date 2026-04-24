@@ -226,6 +226,21 @@ class FotoIngreso(models.Model):
         verbose_name = "Foto de Ingreso"
         verbose_name_plural = "Fotos de Ingresos"
 
+class FotoDespacho(models.Model):
+    solicitud = models.ForeignKey(SolicitudMaterial, on_delete=models.CASCADE, related_name='fotos', verbose_name="Solicitud")
+    imagen = models.ImageField(upload_to='despachos/fotos/', verbose_name="Foto del Despacho")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Foto de Despacho"
+        verbose_name_plural = "Fotos de Despachos"
+
+    def save(self, *args, **kwargs):
+        if self.imagen:
+            from core.image_utils import compress_image
+            self.imagen = compress_image(self.imagen)
+        super().save(*args, **kwargs)
+
 class StockRecord(models.Model):
     material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='existencias')
     lote = models.ForeignKey(Lote, on_delete=models.CASCADE, null=True, blank=True, related_name='existencias_lote')
@@ -256,6 +271,7 @@ class MovimientoInventario(models.Model):
     lote = models.ForeignKey(Lote, on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos')
     solicitud = models.ForeignKey(SolicitudMaterial, on_delete=models.CASCADE, null=True, blank=True, related_name='items')
     ingreso = models.ForeignKey(IngresoInventario, on_delete=models.CASCADE, null=True, blank=True, related_name='detalles', verbose_name="Ingreso relacionado")
+    devolucion = models.ForeignKey('DevolucionMaterial', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_relacionados', verbose_name="Devolución relacionada")
     tipo = models.CharField(max_length=15, choices=TIPO_MOVIMIENTO, db_index=True)
     cantidad = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name="Cantidad Entregada/Real")
     cantidad_solicitada = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Cantidad Solicitada")
@@ -342,3 +358,43 @@ def trigger_stock_recalculation(sender, instance, **kwargs):
     """
     if instance.material_id:
         instance.material.recalcular_stock()
+
+class DevolucionMaterial(models.Model):
+    usuario_recibe = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='devoluciones_recibidas', verbose_name="Recibido por")
+    persona_devuelve = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='materiales_devueltos', verbose_name="Persona que Devuelve")
+    fecha_devolucion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Devolución")
+    ubicacion_destino = models.ForeignKey('activos.Ubicacion', on_delete=models.CASCADE, related_name='devoluciones_destino', verbose_name="Ubicación de Destino")
+    comentarios = models.TextField(blank=True, null=True, verbose_name="Comentarios / Observaciones")
+
+    class Meta:
+        verbose_name = "Devolución de Material"
+        verbose_name_plural = "Devoluciones de Materiales"
+        ordering = ['-fecha_devolucion']
+
+    def __str__(self):
+        return f"Devolución #{self.id} - {self.persona_devuelve} ({self.fecha_devolucion.strftime('%d/%m/%Y')})"
+
+class ItemDevolucion(models.Model):
+    ESTADO_MATERIAL = [
+        ('NUEVO', 'Nuevo'),
+        ('USADO', 'Usado'),
+    ]
+    devolucion = models.ForeignKey(DevolucionMaterial, on_delete=models.CASCADE, related_name='items')
+    material_original = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='items_devueltos')
+    material_recibido = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='devoluciones_como_recibido')
+    cantidad = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    estado_fisico = models.CharField(max_length=20, choices=ESTADO_MATERIAL, default='NUEVO')
+    
+    def __str__(self):
+        return f"{self.material_recibido.nombre} x {self.cantidad}"
+
+class FotoDevolucion(models.Model):
+    devolucion = models.ForeignKey(DevolucionMaterial, on_delete=models.CASCADE, related_name='fotos')
+    imagen = models.ImageField(upload_to='inventarios/devoluciones/')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.imagen:
+            from core.image_utils import compress_image
+            self.imagen = compress_image(self.imagen)
+        super().save(*args, **kwargs)

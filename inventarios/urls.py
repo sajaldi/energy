@@ -31,6 +31,10 @@ urlpatterns = [
     path('mobile/crear-solicitud/', mobile_crear_solicitud, name='mobile_crear_solicitud'),
     path('mobile/catalog/', views.mobile_catalog, name='mobile_catalog'),
     path('mobile/gestion-salidas/', views.mobile_inventario_dashboard, name='mobile_gestion_salidas'),
+    path('mobile/devolucion/', views.mobile_devolucion_view, name='mobile_devolucion'),
+    path('mobile/devolucion/historial/', views.mobile_historial_devoluciones_view, name='mobile_historial_devoluciones'),
+    path('api/devolucion/registrar/', views.api_registrar_devolucion, name='api_registrar_devolucion'),
+    path('api/usuarios/search/', views.api_search_usuarios, name='api_search_usuarios'),
     path('api/ordenes-trabajo/search/', views.api_search_ordenes_trabajo, name='api_search_ot'),
     path('api/niveles/', views.api_niveles_por_edificio, name='api_niveles_edificio'),
 

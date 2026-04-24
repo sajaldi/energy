@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from .models import Material, StockRecord, MovimientoInventario, SolicitudMaterial, Lote, UnidadMedida, FotoMaterial
 from django.db import transaction
@@ -159,6 +160,21 @@ def api_get_material_stock(request, material_id):
         # SVG de respaldo
         image_url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'%3E%3C/path%3E%3Cpolyline points='3.27 6.96 12 12.01 20.73 6.96'%3E%3C/polyline%3E%3Cline x1='12' y1='22.08' x2='12' y2='12'%3E%3C/line%3E%3C/svg%3E"
 
+    # Clasificación de Stock (Nuevo vs Usado)
+    stock_nuevo = Decimal('0.00')
+    stock_usado = Decimal('0.00')
+    
+    if material.sku.endswith('-USADO'):
+        base_sku = material.sku.replace('-USADO', '')
+        original = Material.objects.filter(sku=base_sku).first()
+        stock_usado = material.get_stock_total()
+        stock_nuevo = original.get_stock_total() if original else Decimal('0.00')
+    else:
+        variant_sku = f"{material.sku}-USADO"
+        variant = Material.objects.filter(sku=variant_sku).first()
+        stock_nuevo = material.get_stock_total()
+        stock_usado = variant.get_stock_total() if variant else Decimal('0.00')
+
     # Obtener últimos movimientos
     from .models import MovimientoInventario
     movimientos = MovimientoInventario.objects.filter(material=material).order_by('-fecha_movimiento')[:10]
@@ -176,6 +192,8 @@ def api_get_material_stock(request, material_id):
         'tipo_material': material.get_tipo_material_display() if hasattr(material, 'get_tipo_material_display') else "N/A",
         'image_url': image_url,
         'stock_total': float(material.get_stock_total()),
+        'stock_nuevo': float(stock_nuevo),
+        'stock_usado': float(stock_usado),
         'categoria_id': material.categoria_id,
         'unidad_id': material.unidad_medida_id,
         'tipo_raw': material.tipo_material,
@@ -190,11 +208,11 @@ def api_get_material_stock(request, material_id):
         'movimientos': [
             {
                 'fecha': m.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
-                'tipo': m.get_tipo_display(),
+                'tipo': 'Devolución' if m.devolucion or (m.comentarios and "Devolución #" in m.comentarios) else m.get_tipo_display(),
                 'tipo_raw': m.tipo,
                 'cantidad': float(m.cantidad),
                 'usuario': m.usuario.get_full_name() or m.usuario.username,
-                'ubicacion': m.ubicacion_destino.nombre if m.tipo == 'ENTRADA' else (m.ubicacion_origen.nombre if m.ubicacion_origen else "N/A")
+                'ubicacion': (m.ubicacion_destino.nombre if m.ubicacion_destino else "N/A") if m.tipo == 'ENTRADA' else (m.ubicacion_origen.nombre if m.ubicacion_origen else "N/A")
             } for m in movimientos
         ]
     })
@@ -533,6 +551,20 @@ def api_detalle_solicitud_almacen(request, pk):
         m = mov.material
         image_url = m.imagen.url if m.imagen else ''
         stock_actual = m.get_stock_total()
+        
+        # Detalle de ubicaciones
+        existencias = m.existencias.select_related('ubicacion').filter(cantidad__gt=0)
+        ubicaciones = [
+            {'nombre': ex.ubicacion.nombre, 'cantidad': float(ex.cantidad), 'detalle': ex.ubicacion_especifica or ''}
+            for ex in existencias
+        ]
+
+        # Verificar stock usado (SKU-USADO)
+        sku_usado = f"{m.sku}-USADO"
+        # Intentamos buscar el material usado
+        material_usado = Material.objects.filter(sku=sku_usado).first()
+        stock_usado = float(material_usado.get_stock_total()) if material_usado else 0
+
         data.append({
             'mov_id': mov.id,
             'material_id': m.id,
@@ -541,6 +573,8 @@ def api_detalle_solicitud_almacen(request, pk):
             'unidad': m.unidad_medida.nombre if m.unidad_medida else 'Unidad',
             'cantidad_solicitada': float(mov.cantidad),
             'stock_disponible': float(stock_actual),
+            'stock_usado': stock_usado,
+            'ubicaciones': ubicaciones,
             'image_url': image_url
         })
     
@@ -568,10 +602,17 @@ def api_despachar_solicitud(request, pk):
     
     solicitud = get_object_or_404(SolicitudMaterial, pk=pk)
     
-    try:
-        data = json.loads(request.body)
-    except:
-        data = {}
+    # Manejar tanto JSON puro como FormData (para fotos)
+    if request.content_type == 'application/json':
+        try:
+            data = json.loads(request.body)
+        except:
+            data = {}
+    else:
+        # Asumimos multipart/form-data
+        data = request.POST.dict()
+        if 'cantidades' in data:
+            data['cantidades'] = json.loads(data['cantidades'])
     
     accion = data.get('accion', 'despachar')
     comentarios_almacen = data.get('comentarios', '')
@@ -586,10 +627,19 @@ def api_despachar_solicitud(request, pk):
         solicitud.items.filter(estado='PENDIENTE').update(estado='RECHAZADO')
         return JsonResponse({'status': 'success', 'message': f'Solicitud #{solicitud.id} rechazada.'})
     
+    # Procesar Fotos si las hay
+    from .models import FotoDespacho
+    photos = request.FILES.getlist('fotos')
+    for p in photos:
+        FotoDespacho.objects.create(solicitud=solicitud, imagen=p)
+    
     # Despachar: Liquidar cada movimiento con cantidades ajustadas
     cantidades_map = {}
     for c in data.get('cantidades', []):
-        cantidades_map[int(c['mov_id'])] = Decimal(str(c['cantidad']))
+        cantidades_map[int(c['mov_id'])] = {
+            'cantidad': Decimal(str(c.get('cantidad', 0))),
+            'cantidad_usada': Decimal(str(c.get('cantidad_usada', 0)))
+        }
     
     errores = []
     procesados = 0
@@ -597,22 +647,63 @@ def api_despachar_solicitud(request, pk):
     with transaction.atomic():
         for mov in solicitud.items.filter(estado='PENDIENTE'):
             try:
-                # Si el almacenista especificó cantidad para este movimiento
-                cantidad_entregada = cantidades_map.get(mov.id, mov.cantidad)
+                # Obtener lo que el almacenista especificó
+                item_data = cantidades_map.get(mov.id, {'cantidad': mov.cantidad, 'cantidad_usada': 0})
+                cant_nueva = item_data['cantidad']
+                cant_usada = item_data['cantidad_usada']
                 
-                if cantidad_entregada <= 0:
-                    # No entregar este item, dejarlo pendiente o rechazarlo
+                if cant_nueva <= 0 and cant_usada <= 0:
+                    # No entregar este item, rechazarlo
                     mov.estado = 'RECHAZADO'
                     mov.comentarios = (mov.comentarios or '') + f' | No entregado por almacén.'
                     mov.save()
                     continue
                 
-                # Actualizar cantidad del movimiento a lo que el almacenista realmente entrega
-                mov.cantidad = cantidad_entregada
-                mov.save()
+                # Caso 1: Se entrega material USADO
+                if cant_usada > 0:
+                    # Buscar el material usado
+                    sku_usado = f"{mov.material.sku}-USADO"
+                    material_usado = Material.objects.filter(sku=sku_usado).first()
+                    if not material_usado:
+                        errores.append(f"{mov.material.nombre}: No existe registro de material USADO para este SKU.")
+                        continue
+                    
+                    # Si se entrega TODO como usado, simplemente cambiamos el material del movimiento original
+                    # Si se entrega PARCIAL, creamos un nuevo movimiento para el usado
+                    if cant_nueva == 0:
+                        mov.material = material_usado
+                        mov.cantidad = cant_usada
+                        mov.save()
+                        mov.liquidar(request.user)
+                        procesados += 1
+                    else:
+                        # Entrega Mixta: El original se queda como nuevo, creamos uno nuevo para el usado
+                        mov_usado = MovimientoInventario.objects.create(
+                            material=material_usado,
+                            tipo=mov.tipo,
+                            cantidad=cant_usada,
+                            ubicacion_origen=mov.ubicacion_origen,
+                            ubicacion_destino=mov.ubicacion_destino,
+                            usuario=mov.usuario,
+                            solicitud=mov.solicitud,
+                            estado='PENDIENTE', # Se liquida ahora
+                            comentarios=f"Entrega de material usado (Sustitución de {mov.material.nombre})"
+                        )
+                        mov_usado.liquidar(request.user)
+                        
+                        # Actualizar el original con la parte nueva
+                        mov.cantidad = cant_nueva
+                        mov.save()
+                        mov.liquidar(request.user)
+                        procesados += 2 # Contamos ambos como procesados
                 
-                mov.liquidar(request.user)
-                procesados += 1
+                # Caso 2: Solo se entrega material NUEVO (comportamiento original)
+                elif cant_nueva > 0:
+                    mov.cantidad = cant_nueva
+                    mov.save()
+                    mov.liquidar(request.user)
+                    procesados += 1
+                    
             except ValueError as e:
                 errores.append(f"{mov.material.nombre}: {str(e)}")
         
@@ -785,6 +876,189 @@ def api_niveles_por_edificio(request):
     has_qr = bool(parent.codigo_qr)
     
     return JsonResponse({'results': results, 'parent_has_qr': has_qr})
+
+@login_required
+@mobile_permission_required('logistica')
+def mobile_devolucion_view(request):
+    """
+    Vista móvil para que el almacenista registre una devolución de materiales.
+    """
+    from activos.models import Ubicacion
+    from .models import CategoriaMaterial
+    from django.db.models import Q
+
+    # Ubicaciones tipo Bodega o Almacén para recibir la devolución
+    ubicaciones = Ubicacion.objects.filter(
+        Q(tipo='ALMACEN') | Q(tipo='BODEGA') | Q(es_almacen=True)
+    ).order_by('nombre')
+    
+    context = {
+        'ubicaciones': ubicaciones,
+        'categorias': CategoriaMaterial.objects.all().order_by('nombre'),
+        'title': 'Devolución de Materiales'
+    }
+    return render(request, 'inventarios/mobile_devolucion.html', context)
+
+@login_required
+@mobile_permission_required('logistica')
+def mobile_historial_devoluciones_view(request):
+    """
+    Vista móvil para ver el historial de devoluciones de materiales.
+    """
+    from .models import DevolucionMaterial
+    
+    # Obtener las últimas 50 devoluciones, optimizando con select_related
+    devoluciones = DevolucionMaterial.objects.select_related(
+        'usuario_recibe', 'persona_devuelve', 'ubicacion_destino'
+    ).prefetch_related('items').order_by('-fecha_devolucion')[:50]
+    
+    context = {
+        'devoluciones': devoluciones,
+        'title': 'Historial de Devoluciones'
+    }
+    return render(request, 'inventarios/mobile_historial_devoluciones.html', context)
+
+@csrf_exempt
+@login_required
+def api_registrar_devolucion(request):
+    """
+    API para registrar una devolución de materiales desde la App móvil.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    try:
+        # La data viene como FormData para soportar las fotos
+        persona_devuelve_id = request.POST.get('persona_devuelve_id')
+        ubicacion_id = request.POST.get('ubicacion_id')
+        comentarios = request.POST.get('comentarios', '')
+        items_json = request.POST.get('items') # JSON stringified list
+        
+        if not persona_devuelve_id or not ubicacion_id or not items_json:
+            return JsonResponse({'status': 'error', 'message': 'Faltan campos obligatorios'}, status=400)
+
+        items = json.loads(items_json)
+        if not items:
+            return JsonResponse({'status': 'error', 'message': 'No hay materiales en la devolución'}, status=400)
+
+        from django.contrib.auth.models import User
+        persona_devuelve = get_object_or_404(User, id=persona_devuelve_id)
+        ubicacion = get_object_or_404(Ubicacion, id=ubicacion_id)
+        
+        with transaction.atomic():
+            from .models import DevolucionMaterial, ItemDevolucion, FotoDevolucion, Material, MovimientoInventario
+            
+            # 1. Crear Cabecera
+            devolucion = DevolucionMaterial.objects.create(
+                usuario_recibe=request.user,
+                persona_devuelve=persona_devuelve,
+                ubicacion_destino=ubicacion,
+                comentarios=comentarios
+            )
+            
+            # 2. Procesar Materiales
+            for item in items:
+                material_id = item.get('material_id')
+                cantidad = Decimal(str(item.get('cantidad', 0)))
+                estado_fisico = item.get('estado', 'NUEVO') # 'NUEVO' o 'USADO'
+                
+                if cantidad <= 0: continue
+                
+                material_original = get_object_or_404(Material, id=material_id)
+                material_a_recibir = material_original
+                
+                # Lógica para USADO
+                if estado_fisico == 'USADO':
+                    if material_original.sku.endswith('-USADO'):
+                        # Si ya es un material marcado como usado, lo recibimos directamente
+                        material_a_recibir = material_original
+                    else:
+                        sku_usado = f"{material_original.sku}-USADO"
+                        material_usado = Material.objects.filter(sku=sku_usado).first()
+                        
+                        if not material_usado:
+                            # Crear nuevo material para el stock usado si no existe
+                            material_usado = Material.objects.create(
+                                nombre=f"{material_original.nombre} (USADO)",
+                                sku=sku_usado,
+                                marca=material_original.marca,
+                                descripcion=f"Material recuperado/usado de: {material_original.nombre}. {material_original.descripcion or ''}",
+                                categoria=material_original.categoria,
+                                unidad_medida=material_original.unidad_medida,
+                                precio_estimado=material_original.precio_estimado * Decimal('0.5'), # 50% valor estimado por ser usado
+                                tipo_material=material_original.tipo_material,
+                                imagen=material_original.imagen
+                            )
+                        material_a_recibir = material_usado
+                
+                # 3. Crear Item de Devolución
+                ItemDevolucion.objects.create(
+                    devolucion=devolucion,
+                    material_original=material_original,
+                    material_recibido=material_a_recibir,
+                    cantidad=cantidad,
+                    estado_fisico=estado_fisico
+                )
+                
+                # 4. Crear Movimiento de Inventario (Entrada)
+                # Se crea como APROBADO de una vez porque el almacenista lo está recibiendo físicamente
+                mov = MovimientoInventario.objects.create(
+                    material=material_a_recibir,
+                    tipo='ENTRADA',
+                    cantidad=cantidad,
+                    ubicacion_destino=ubicacion,
+                    usuario=request.user,
+                    devolucion=devolucion,
+                    comentarios=f"Devolución #{devolucion.id} por {persona_devuelve.get_full_name() or persona_devuelve.username}. Estado: {estado_fisico}",
+                    estado='APROBADO',
+                    aprobado_por=request.user,
+                    fecha_aprobacion=timezone.now()
+                )
+            
+            # 5. Procesar Fotos
+            photos = request.FILES.getlist('fotos')
+            for p in photos:
+                FotoDevolucion.objects.create(
+                    devolucion=devolucion,
+                    imagen=p
+                )
+                
+        return JsonResponse({
+            'status': 'success', 
+            'message': f'Devolución #{devolucion.id} registrada correctamente.',
+            'devolucion_id': devolucion.id
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+def api_search_usuarios(request):
+    """
+    API para buscar usuarios (personal registrado) por nombre o username.
+    """
+    q = request.GET.get('q', '').strip()
+    if not q:
+        return JsonResponse({'results': []})
+    
+    from django.contrib.auth.models import User
+    from django.db.models import Q
+    
+    usuarios = User.objects.filter(
+        Q(first_name__icontains=q) | 
+        Q(last_name__icontains=q) | 
+        Q(username__icontains=q)
+    ).distinct()[:10]
+    
+    results = []
+    for u in usuarios:
+        results.append({
+            'id': u.id,
+            'nombre_completo': u.get_full_name() or u.username,
+            'username': u.username
+        })
+        
+    return JsonResponse({'results': results})
 
 @login_required
 def api_search_ordenes_trabajo(request):
@@ -1276,90 +1550,8 @@ def api_get_solicitud_items(request, pk):
             
     return JsonResponse({'items': items})
 
-@csrf_exempt
-@login_required
-def api_create_material(request):
-    """
-    Crea un nuevo material desde un modal rápido en el dashboard.
-    Maneja FormData (archivos y texto) y opcionalmente añade un stock inicial.
-    Funciona offline gracias al CSFR_Exempt, asumiendo session cookie válida.
-    """
-    if request.method == 'POST':
-        try:
-            nombre = request.POST.get('nombre')
-            sku = request.POST.get('sku')
-            descripcion = request.POST.get('descripcion', '')
-            categoria_id = request.POST.get('categoria_id')
-            unidad_id = request.POST.get('unidad_id')
-            
-            stock_inicial = request.POST.get('stock_inicial')
-            ubicacion_id = request.POST.get('ubicacion_id')
-            # Las fotos pueden venir como 'imagen' (compatible con antes) o 'fotos' (múltiples)
-            fotografias = request.FILES.getlist('fotos')
-            imagen_principal = request.FILES.get('imagen')
-            
-            if not nombre or not sku:
-                return JsonResponse({'status': 'error', 'message': 'El Nombre y SKU son obligatorios.'}, status=400)
-                
-            if Material.objects.filter(sku=sku).exists():
-                return JsonResponse({'status': 'error', 'message': f'El SKU {sku} ya existe en el sistema.'}, status=400)
-                
-            with transaction.atomic():
-                # Crear Material
-                material = Material.objects.create(
-                    nombre=nombre.strip(),
-                    sku=sku.strip(),
-                    descripcion=descripcion.strip()
-                )
-                
-                if categoria_id:
-                    material.categoria_id = categoria_id
-                if unidad_id:
-                    material.unidad_medida_id = unidad_id
-                
-                # Imagen principal
-                if imagen_principal:
-                    material.imagen = imagen_principal
-                elif fotografias:
-                    material.imagen = fotografias[0] # Usar la primera como principal
-                
-                material.save()
 
-                # Guardar fotos adicionales
-                from .models import FotoMaterial
-                for f in fotografias:
-                    FotoMaterial.objects.create(material=material, imagen=f)
-                    
-                # Crear stock inicial si aplica
-                if stock_inicial and ubicacion_id:
-                    cantidad = Decimal(stock_inicial)
-                    if cantidad > 0:
-                        ubicacion = Ubicacion.objects.get(id=ubicacion_id)
-                        
-                        MovimientoInventario.objects.create(
-                            material=material,
-                            tipo='ENTRADA',
-                            cantidad=cantidad,
-                            ubicacion_destino=ubicacion,
-                            estado='APROBADO',
-                            usuario=request.user,
-                            comentarios="Inventario/Stock Inicial (Carga Rápida/Offline)"
-                        )
 
-            return JsonResponse({
-                'status': 'success',
-                'message': 'Material creado correctamente.',
-                'material': {
-                    'id': material.id,
-                    'nombre': material.nombre,
-                    'sku': material.sku
-                }
-            })
-            
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-    
-    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
 @login_required
 def api_get_material_by_sku(request):
@@ -1556,8 +1748,12 @@ def api_create_material(request):
 
                 # 2. Procesar Fotos
                 fotos = request.FILES.getlist('fotos')
-                for f in fotos:
+                for i, f in enumerate(fotos):
                     FotoMaterial.objects.create(material=material, imagen=f)
+                    # Si el material no tiene imagen principal, usar la primera que llegue
+                    if i == 0 and not material.imagen:
+                        material.imagen = f
+                        material.save()
 
                 # 3. Stock Inicial
                 if stock_inicial > 0 and ubicacion_id:

@@ -143,9 +143,21 @@ def api_get_notifications(request):
 def api_delete_ots(request):
     if request.method != 'POST': return JsonResponse({'status': 'error', 'message': 'POST req.'}, status=405)
     try:
-        data = json.loads(request.body); ids = data.get('ot_ids', [])
+        data = json.loads(request.body)
+        raw_ids = data.get('ot_ids', [])
+        
+        # Limpiar IDs de cualquier formato de miles/decimales (comas o puntos)
+        ids = []
+        for rid in raw_ids:
+            if isinstance(rid, str):
+                cleaned = rid.replace(',', '').replace('.', '')
+                if cleaned.isdigit(): ids.append(int(cleaned))
+            elif isinstance(rid, (int, float)):
+                ids.append(int(rid))
+
         ots = OrdenTrabajo.objects.filter(id__in=ids, estado__in=['ESPERA', 'PROGRAMADA', 'EJECUCION'])
-        c = ots.count(); ots.delete()
+        c = ots.count()
+        ots.delete()
         return JsonResponse({'status': 'success', 'message': f'{c} eliminadas.'})
     except Exception as e: return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 

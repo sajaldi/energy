@@ -784,7 +784,7 @@
 
     <script>
         // Variables globales para modales
-        let rModal, tModal, rLoader, rForm, tForm;
+        let rModal, tModal, rLoader, rForm, tForm, footerView, footerEdit;
         let currentRoutineId = null;
         let currentTipoId = null;
 
@@ -801,6 +801,8 @@
             rLoader = document.getElementById('modal-loader');
             rForm = document.getElementById('routineForm');
             tForm = document.getElementById('tipoForm');
+            footerView = document.getElementById('m-footer-view');
+            footerEdit = document.getElementById('m-footer-edit');
 
             // Asegurar limpieza inicial total
             document.querySelectorAll('.modal-base-backdrop').forEach(m => m.style.display = 'none');
@@ -1348,7 +1350,7 @@
                 verificacion: row.querySelector('.s-verif').value
             }));
 
-            if (loader && !isSilent) loader.style.display = 'flex';
+            if (rLoader && !isSilent) rLoader.style.display = 'flex';
 
             fetch('/mantenimiento/rutinas/dashboard/rutina/pasos/save/', {
                 method: 'POST',
@@ -1371,12 +1373,12 @@
                     } else {
                         if(!isSilent) showToast(res.message, 'error');
                     }
-                    if (loader && !isSilent) loader.style.display = 'none';
+                    if (rLoader && !isSilent) rLoader.style.display = 'none';
                 })
                 .catch(err => {
                     console.error(err);
                     if(!isSilent) showToast('Error al guardar pasos', 'error');
-                    if (loader && !isSilent) loader.style.display = 'none';
+                    if (rLoader && !isSilent) rLoader.style.display = 'none';
                 });
         }
 
@@ -1424,7 +1426,7 @@
 
         function createNewRoutine(categoryId = null) {
             currentRoutineId = null;
-            if (form) form.reset();
+            if (rForm) rForm.reset();
             const fId = document.getElementById('f-id');
             const fCat = document.getElementById('f-categoria');
             if (fId) fId.value = '';
@@ -1438,20 +1440,20 @@
 
             toggleInvasiveBorder(false);
 
-            if (modal) modal.style.display = 'flex';
+            if (rModal) rModal.style.display = 'flex';
             enterEditMode();
             const btnDel = document.getElementById('btn-delete');
             if (btnDel) btnDel.style.display = 'none';
         }
 
         function saveRoutine() {
-            if (form && !form.checkValidity()) {
-                form.reportValidity();
+            if (rForm && !rForm.checkValidity()) {
+                rForm.reportValidity();
                 return;
             }
 
-            if (loader) loader.style.display = 'flex';
-            const formData = new FormData(form);
+            if (rLoader) rLoader.style.display = 'flex';
+            const formData = new FormData(rForm);
             const data = Object.fromEntries(formData.entries());
 
             fetch('/mantenimiento/rutinas/dashboard/save/', {
@@ -1465,47 +1467,46 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === 'success') {
-                        currentRoutineId = res.rutina_id; // Setup routine ID if it was created
-                        
-                        // Guardar pasos después de guardar la rutina exitosamente
-                        const stepRows = document.querySelectorAll('.step-row-edit');
-                        if (stepRows.length > 0) {
-                            // save steps but silently
-                            saveRutinaSteps(true);
-                        }
-                        
                         showToast('Rutina guardada correctamente', 'success');
-                        setTimeout(() => location.reload(), 1000);
+                        
+                        if (!currentRoutineId) {
+                            currentRoutineId = res.id;
+                            saveRutinaSteps(true);
+                            location.reload();
+                        } else {
+                            saveRutinaSteps(true);
+                            exitEditMode();
+                            document.getElementById('m-routine-name').innerText = data.nombre;
+                        }
                     } else {
                         showToast(res.message, 'error');
-                        if (loader) loader.style.display = 'none';
                     }
+                    if (rLoader) rLoader.style.display = 'none';
                 })
                 .catch(err => {
                     console.error(err);
-                    showToast('Error de conexión', 'error');
-                    if (loader) loader.style.display = 'none';
+                    showToast('Error de conexión al guardar rutina', 'error');
+                    if (rLoader) rLoader.style.display = 'none';
                 });
         }
 
         function confirmDeleteRoutine() {
             if (!currentRoutineId) return;
             if (confirm('¿Estás seguro de que deseas eliminar esta rutina? Esta acción no se puede deshacer.')) {
-                if (loader) loader.style.display = 'flex';
-                fetch('/mantenimiento/rutinas/dashboard/delete/' + currentRoutineId + '/', {
+                if (rLoader) rLoader.style.display = 'flex';
+                fetch(`/mantenimiento/rutinas/dashboard/rutina/${currentRoutineId}/eliminar/`, {
                     method: 'POST',
                     headers: { 'X-CSRFToken': '{{ csrf_token }}' }
                 })
-                    .then(res => res.json())
-                    .then(res => {
-                        if (res.status === 'success') {
-                            showToast('Rutina eliminada', 'success');
-                            setTimeout(() => location.reload(), 1000);
-                        } else {
-                            showToast(res.message, 'error');
-                            if (loader) loader.style.display = 'none';
-                        }
-                    });
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        location.reload();
+                    } else {
+                        alert(res.message);
+                        if (rLoader) rLoader.style.display = 'none';
+                    }
+                });
             }
         }
 

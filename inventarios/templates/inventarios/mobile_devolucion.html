@@ -1,0 +1,841 @@
+{% load static core_tags %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Devolución de Materiales | SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    {% include 'core/fiori_tokens.html' %}
+
+    <style>
+        :root {
+            --sap-border-radius: 2px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
+            margin: 0;
+            padding-bottom: 100px;
+            min-height: 100vh;
+        }
+
+        /* Header SAP Shell */
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            color: var(--sap-shell-color);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            height: 48px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.12);
+        }
+
+        .back-btn {
+            font-size: 24px;
+            color: white;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+        }
+
+        .fiori-header h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 400;
+            color: white;
+            flex: 1;
+        }
+
+        .container {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .fiori-card {
+            background: white;
+            border-radius: var(--sap-border-radius);
+            padding: 16px;
+            border: 1px solid #d9d9d9;
+            box-shadow: 0 0 0.125rem 0 rgba(0,0,0,0.08);
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--sap-text-color);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6a6d70;
+            margin-bottom: 4px;
+        }
+
+        .form-control {
+            width: 100%;
+            height: 44px;
+            padding: 0 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: var(--sap-border-radius);
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--sap-text-color);
+            background: #fff;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--sap-brand-color);
+            box-shadow: 0 0 0 2px rgba(0, 112, 242, 0.1);
+        }
+
+        textarea.form-control {
+            height: auto;
+            padding: 12px;
+        }
+
+        /* Material Item in List */
+        .item-row {
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .item-row:last-child { border-bottom: none; }
+
+        .item-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-name {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--sap-text-color);
+        }
+
+        .item-sku {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .remove-btn {
+            color: var(--sap-error);
+            font-size: 22px;
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+        }
+
+        .item-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .qty-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8f9fa;
+            padding: 4px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .qty-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #d9d9d9;
+            background: white;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--sap-brand-color);
+            cursor: pointer;
+        }
+
+        .qty-input {
+            width: 50px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--sap-text-color);
+        }
+
+        .condition-toggle {
+            display: flex;
+            gap: 4px;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 4px;
+            flex: 1;
+        }
+
+        .condition-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
+            border-radius: 2px;
+            cursor: pointer;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+
+        .condition-btn.active {
+            background: var(--sap-brand-color);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Search Results Popover (Personnel) */
+        .search-results-popover {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d9d9d9;
+            border-top: none;
+            z-index: 110;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .search-result-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+        }
+
+        .search-result-item:active {
+            background: #f1f5f9;
+        }
+
+        /* Footer Action */
+        .sticky-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 16px;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom));
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.08);
+            z-index: 1000;
+            display: flex;
+            gap: 12px;
+            border-top: 1px solid #eee;
+        }
+
+        .btn-submit {
+            flex: 1;
+            background: var(--sap-brand-color);
+            color: white;
+            border: none;
+            height: 54px;
+            border-radius: var(--sap-border-radius);
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* BOTTOM DRAWER (Material Selector) */
+        .drawer-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            display: none;
+            align-items: flex-end;
+        }
+        .drawer-overlay.active { display: flex; }
+
+        .bottom-drawer {
+            background: white;
+            width: 100%;
+            max-height: 85vh;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .drawer-overlay.active .bottom-drawer { transform: translateY(0); }
+
+        .drawer-header {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .drawer-header h3 { margin: 0; font-size: 16px; font-weight: 700; }
+        .close-drawer { font-size: 24px; color: #6a6d70; border: none; background: none; }
+
+        .drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .category-scroller {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            margin-bottom: 16px;
+            padding: 4px 0;
+        }
+        .category-scroller::-webkit-scrollbar { display: none; }
+        .chip {
+            padding: 8px 16px;
+            background: #f0f2f4;
+            border-radius: 20px;
+            font-size: 13px;
+            white-space: nowrap;
+            color: #6a6d70;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+        .chip.active {
+            background: var(--sap-brand-color);
+            color: white;
+            font-weight: 600;
+        }
+
+        .skeleton {
+            background: #f0f2f4;
+            height: 60px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .scan-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--sap-brand-color);
+            color: white;
+            border: none;
+            border-radius: var(--sap-border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .photo-preview {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #d9d9d9;
+        }
+        .btn-camera {
+            background: #f8fafc;
+            color: var(--sap-brand-color);
+            border: 1.5px dashed #cbd5e1;
+            padding: 12px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="fiori-header">
+        <button onclick="window.history.back()" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+        <h1>{{ title }}</h1>
+        <a href="{% url 'inventarios:mobile_historial_devoluciones' %}" style="color: white; font-size: 24px; display: flex;">
+            <ion-icon name="time-outline"></ion-icon>
+        </a>
+    </header>
+
+    <div class="container">
+        <!-- Datos Generales -->
+        <div class="fiori-card">
+            <div class="card-title">
+                <ion-icon name="person-circle-outline" style="color: var(--sap-brand-color);"></ion-icon> Datos Generales
+            </div>
+            
+            <div class="form-group">
+                <label>Persona que devuelve *</label>
+                <div style="position: relative;">
+                    <input type="text" id="persona_devuelve_search" class="form-control" placeholder="Buscar personal..." onkeyup="searchUsers(this.value)">
+                    <div id="user-search-results" class="search-results-popover"></div>
+                </div>
+                <div id="selected-user-display" style="display: none; margin-top: 8px; padding: 12px; background: #f0f7ff; border: 1px solid #3498db; border-radius: 2px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <ion-icon name="person-circle" style="font-size: 24px; color: #3498db;"></ion-icon>
+                        <div>
+                            <div id="selected-user-name" style="font-weight: 700; font-size: 14px;"></div>
+                            <div id="selected-user-username" style="font-size: 11px; color: #64748b;"></div>
+                        </div>
+                    </div>
+                    <ion-icon name="close-circle" style="font-size: 20px; color: #e74c3c; cursor: pointer;" onclick="clearUser()"></ion-icon>
+                </div>
+                <input type="hidden" id="persona_devuelve_id">
+            </div>
+
+            <div class="form-group">
+                <label>Bodega Destino *</label>
+                <select id="ubicacion_id" class="form-control">
+                    <option value="">-- Seleccionar Ubicación --</option>
+                    {% for ub in ubicaciones %}
+                    <option value="{{ ub.id }}" {% if ub.id == request.user.perfil.ubicacion_defecto_id %}selected{% endif %}>{{ ub.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+                <label>Comentarios / Motivo</label>
+                <textarea id="comentarios" class="form-control" rows="2" placeholder="Opcional..."></textarea>
+            </div>
+        </div>
+
+        <!-- Selector de Materiales (Estilo Solicitud) -->
+        <div class="fiori-card" onclick="openSelector()">
+            <div class="card-title">
+                <ion-icon name="search-outline" style="color: var(--sap-brand-color);"></ion-icon> Agregar Materiales
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <div class="form-control" style="display: flex; align-items: center; color: #6a6d70; flex: 1;">
+                    Buscar material...
+                </div>
+                <div class="scan-btn">
+                    <ion-icon name="barcode-outline"></ion-icon>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Materiales Agregados -->
+        <div class="fiori-card">
+            <div class="card-title">
+                <ion-icon name="cube-outline" style="color: var(--sap-brand-color);"></ion-icon> Materiales a Devolver (<span id="item-count">0</span>)
+            </div>
+            
+            <div id="items-container">
+                <div id="empty-state" style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px;">
+                    <ion-icon name="cart-outline" style="font-size: 32px; opacity: 0.2;"></ion-icon>
+                    <p>No has agregado materiales aún.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Evidencia Fotográfica -->
+        <div class="fiori-card">
+            <div class="card-title">
+                <ion-icon name="camera-outline" style="color: var(--sap-brand-color);"></ion-icon> Evidencia Fotográfica
+            </div>
+            
+            <div class="btn-camera" onclick="document.getElementById('photo-input').click()">
+                <ion-icon name="camera" style="font-size: 20px;"></ion-icon>
+                <span>Tomar Fotos</span>
+            </div>
+            <input type="file" id="photo-input" multiple accept="image/*" capture="environment" style="display: none;" onchange="handlePhotos(this)">
+            
+            <div id="photo-preview-grid" class="photo-grid"></div>
+        </div>
+    </div>
+
+    <div class="sticky-footer">
+        <button class="btn-submit" onclick="submitDevolucion()">
+            <ion-icon name="save-outline"></ion-icon>
+            REGISTRAR DEVOLUCIÓN
+        </button>
+    </div>
+
+    <!-- Drawer Selector de Materiales -->
+    <div id="selectorOverlay" class="drawer-overlay" onclick="closeSelector()">
+        <div class="bottom-drawer" onclick="event.stopPropagation()">
+            <div class="drawer-header">
+                <h3>Selección de Materiales</h3>
+                <button class="close-drawer" onclick="closeSelector()">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="drawer-body">
+                <div class="form-group">
+                    <input type="text" id="material-search" class="form-control" placeholder="Nombre, SKU o Escaneo..." autocomplete="off" onkeyup="performMaterialSearch()">
+                </div>
+                <div class="category-scroller">
+                    <div class="chip active" onclick="setCategory('', this)">Todo</div>
+                    {% for cat in categorias %}
+                    <div class="chip" onclick="setCategory('{{ cat.id }}', this)">{{ cat.nombre }}</div>
+                    {% endfor %}
+                </div>
+                <div id="search-results" class="results-list">
+                    <div style="text-align: center; padding: 20px; color: #999;">
+                        <ion-icon name="search-outline" style="font-size: 32px; opacity: 0.2;"></ion-icon>
+                        <p>Escriba para buscar...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.selectedItems = new Map();
+        let photos = [];
+        let currentCategoryId = "";
+        let materialDebounce = null;
+
+        // --- Personnel Search ---
+        function searchUsers(query) {
+            const resultsDiv = document.getElementById('user-search-results');
+            if (query.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            fetch(`{% url 'inventarios:api_search_usuarios' %}?q=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    resultsDiv.innerHTML = '';
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(user => {
+                            const div = document.createElement('div');
+                            div.className = 'search-result-item';
+                            div.innerHTML = `
+                                <div style="font-weight:700; font-size:14px;">${user.nombre_completo}</div>
+                                <div style="font-size:11px; color:#64748b;">@${user.username}</div>
+                            `;
+                            div.onclick = () => selectUser(user);
+                            resultsDiv.appendChild(div);
+                        });
+                        resultsDiv.style.display = 'block';
+                    } else {
+                        resultsDiv.style.display = 'none';
+                    }
+                });
+        }
+
+        function selectUser(user) {
+            document.getElementById('persona_devuelve_id').value = user.id;
+            document.getElementById('selected-user-name').innerText = user.nombre_completo;
+            document.getElementById('selected-user-username').innerText = `@${user.username}`;
+            
+            document.getElementById('persona_devuelve_search').style.display = 'none';
+            document.getElementById('user-search-results').style.display = 'none';
+            document.getElementById('selected-user-display').style.display = 'flex';
+        }
+
+        function clearUser() {
+            document.getElementById('persona_devuelve_id').value = '';
+            document.getElementById('persona_devuelve_search').value = '';
+            document.getElementById('persona_devuelve_search').style.display = 'block';
+            document.getElementById('selected-user-display').style.display = 'none';
+        }
+
+        // --- Material Selector ---
+        function openSelector() {
+            document.getElementById('selectorOverlay').classList.add('active');
+            setTimeout(() => document.getElementById('material-search').focus(), 300);
+        }
+
+        function closeSelector() {
+            document.getElementById('selectorOverlay').classList.remove('active');
+        }
+
+        function setCategory(id, el) {
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            currentCategoryId = id;
+            performMaterialSearch();
+        }
+
+        function performMaterialSearch() {
+            const q = document.getElementById('material-search').value.trim();
+            const resultsDiv = document.getElementById('search-results');
+            
+            if (q.length < 3 && !currentCategoryId) {
+                resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;"><ion-icon name="search-outline" style="font-size: 32px; opacity: 0.2;"></ion-icon><p>Escriba para buscar...</p></div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
+
+            clearTimeout(materialDebounce);
+            materialDebounce = setTimeout(() => {
+                fetch(`{% url 'inventarios:api_list_materials' %}?q=${q}&category=${currentCategoryId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        resultsDiv.innerHTML = '';
+                        if (data.results && data.results.length > 0) {
+                            data.results.forEach(m => {
+                                const isAdded = window.selectedItems.has(String(m.id));
+                                const div = document.createElement('div');
+                                div.style = "border:1px solid #e8eaed; border-radius:4px; margin-bottom:8px; display:flex; padding:12px; align-items:center; cursor:pointer;";
+                                div.innerHTML = `
+                                    <div style="flex:1; min-width:0;">
+                                        <div style="font-weight:700; font-size:14px;">${m.nombre} ${isAdded ? '<span style="color:var(--sap-success); font-size:10px;">(Añadido)</span>' : ''}</div>
+                                        <div style="font-size:11px; color:#666;">${m.sku} | Stock: ${m.stock} ${m.unidad}</div>
+                                    </div>
+                                    <ion-icon name="${isAdded ? 'checkmark-circle' : 'add-circle'}" style="font-size:28px; color:${isAdded ? 'var(--sap-success)' : 'var(--sap-brand-color)'};"></ion-icon>
+                                `;
+                                div.onclick = () => addMaterial(m);
+                                resultsDiv.appendChild(div);
+                            });
+                        } else {
+                            resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;"><p>Sin resultados.</p></div>';
+                        }
+                    });
+            }, 300);
+        }
+
+        function addMaterial(m) {
+            const mid = String(m.id);
+            if (window.selectedItems.has(mid)) {
+                Swal.fire({ toast: true, position: 'top', icon: 'info', title: 'Ya agregado', showConfirmButton: false, timer: 1000 });
+                return;
+            }
+
+            window.selectedItems.set(mid, {
+                material_id: m.id,
+                nombre: m.nombre,
+                sku: m.sku,
+                unidad: m.unidad,
+                cantidad: 1,
+                estado: 'NUEVO'
+            });
+
+            renderAddedItems();
+            performMaterialSearch(); // Actualizar badges en el selector
+            
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Agregado', showConfirmButton: false, timer: 1000 });
+        }
+
+        function removeItem(id) {
+            window.selectedItems.delete(String(id));
+            renderAddedItems();
+        }
+
+        function updateQty(id, delta) {
+            const item = window.selectedItems.get(String(id));
+            if (item) {
+                item.cantidad = Math.max(0.1, Math.round((item.cantidad + delta) * 10) / 10);
+                renderAddedItems();
+            }
+        }
+
+        function setCondition(id, cond) {
+            const item = window.selectedItems.get(String(id));
+            if (item) {
+                item.estado = cond;
+                renderAddedItems();
+            }
+        }
+
+        function renderAddedItems() {
+            const container = document.getElementById('items-container');
+            const countLabel = document.getElementById('item-count');
+            
+            if (window.selectedItems.size === 0) {
+                container.innerHTML = `<div id="empty-state" style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px;">
+                    <ion-icon name="cart-outline" style="font-size: 32px; opacity: 0.2;"></ion-icon>
+                    <p>No has agregado materiales aún.</p>
+                </div>`;
+                countLabel.innerText = 0;
+                return;
+            }
+
+            container.innerHTML = '';
+            window.selectedItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'item-row';
+                div.innerHTML = `
+                    <div class="item-main">
+                        <div class="item-info">
+                            <div class="item-name">${item.nombre}</div>
+                            <div class="item-sku">${item.sku} · ${item.unidad}</div>
+                        </div>
+                        <button class="remove-btn" onclick="removeItem('${item.material_id}')">
+                            <ion-icon name="trash-outline"></ion-icon>
+                        </button>
+                    </div>
+                    <div class="item-controls">
+                        <div class="qty-controls">
+                            <div class="qty-btn" onclick="updateQty('${item.material_id}', -1)">-</div>
+                            <input type="number" class="qty-input" value="${item.cantidad}" onchange="window.selectedItems.get('${item.material_id}').cantidad = parseFloat(this.value) || 1; renderAddedItems();">
+                            <div class="qty-btn" onclick="updateQty('${item.material_id}', 1)">+</div>
+                        </div>
+                        <div class="condition-toggle">
+                            <div class="condition-btn ${item.estado === 'NUEVO' ? 'active' : ''}" onclick="setCondition('${item.material_id}', 'NUEVO')">NUEVO</div>
+                            <div class="condition-btn ${item.estado === 'USADO' ? 'active' : ''}" onclick="setCondition('${item.material_id}', 'USADO')">USADO</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            countLabel.innerText = window.selectedItems.size;
+        }
+
+        // --- Photos ---
+        function handlePhotos(input) {
+            const grid = document.getElementById('photo-preview-grid');
+            const files = Array.from(input.files);
+            
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'photo-preview';
+                    grid.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+                photos.push(file);
+            });
+        }
+
+        // --- Submission ---
+        function submitDevolucion() {
+            const userId = document.getElementById('persona_devuelve_id').value;
+            const ubicacionId = document.getElementById('ubicacion_id').value;
+            const comentarios = document.getElementById('comentarios').value;
+
+            if (!userId) {
+                Swal.fire('Error', 'Debe seleccionar quién devuelve el material de la lista de personal registrado.', 'error');
+                return;
+            }
+            if (!ubicacionId) {
+                Swal.fire('Error', 'Seleccione la bodega de destino.', 'error');
+                return;
+            }
+            if (window.selectedItems.size === 0) {
+                Swal.fire('Error', 'Agregue al menos un material.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: '¿Registrar Devolución?',
+                text: "Se procesará la entrada de materiales al inventario.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, registrar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0070f2'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('persona_devuelve_id', userId);
+                    formData.append('ubicacion_id', ubicacionId);
+                    formData.append('comentarios', comentarios);
+                    
+                    const itemsArray = Array.from(window.selectedItems.values());
+                    formData.append('items', JSON.stringify(itemsArray));
+                    
+                    photos.forEach((photo) => {
+                        formData.append('fotos', photo);
+                    });
+
+                    Swal.fire({
+                        title: 'Procesando...',
+                        didOpen: () => { Swal.showLoading() },
+                        allowOutsideClick: false
+                    });
+
+                    fetch('{% url "inventarios:api_registrar_devolucion" %}', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            Swal.fire({
+                                title: '¡Éxito!',
+                                text: data.message,
+                                icon: 'success'
+                            }).then(() => {
+                                window.location.href = "{% url 'inventarios:mobile_dashboard' %}";
+                            });
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire('Error', 'Error de conexión con el servidor.', 'error');
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

@@ -20,8 +20,8 @@ def get_coolify_containers():
     ssh = None
     try:
         ssh = get_ssh_client()
-        # Comando para listar contenedores con un formato fácil de parsear
-        command = 'docker ps --format "{{.ID}}|{{.Names}}|{{.Status}}|{{.Image}}"'
+        # Comando para listar contenedores con un formato fácil de parsear, incluyendo labels
+        command = 'docker ps --format "{{.ID}}|{{.Names}}|{{.Status}}|{{.Image}}|{{.Labels}}"'
         stdin, stdout, stderr = ssh.exec_command(command)
         output = stdout.read().decode('utf-8').strip()
         
@@ -31,9 +31,38 @@ def get_coolify_containers():
             for line in lines:
                 parts = line.split('|')
                 if len(parts) >= 4:
+                    labels_str = parts[4] if len(parts) > 4 else ""
+                    
+                    # Intentar extraer un nombre más amigable de las etiquetas de Coolify
+                    friendly_name = ""
+                    # Mapeo de posibles etiquetas que usa Coolify v4 para el nombre
+                    label_keys = [
+                        "coolify.serviceName=", 
+                        "coolify.resourceName=", 
+                        "coolify.application.name=",
+                        "coolify.service.name="
+                    ]
+                    
+                    for key in label_keys:
+                        if key in labels_str:
+                            for part in labels_str.split(','):
+                                if part.startswith(key):
+                                    friendly_name = part.split('=')[1]
+                                    break
+                            if friendly_name:
+                                break
+                    
+                    application_id = ""
+                    for part in labels_str.split(','):
+                        if part.startswith("coolify.applicationId="):
+                            application_id = part.split('=')[1]
+                            break
+                    
                     containers.append({
                         'id': parts[0],
                         'name': parts[1],
+                        'friendly_name': friendly_name,
+                        'application_id': application_id,
                         'status': parts[2],
                         'image': parts[3]
                     })
@@ -41,6 +70,35 @@ def get_coolify_containers():
     except Exception as e:
         print(f"Error SSH al obtener contenedores: {e}")
         return []
+    finally:
+        if ssh:
+            ssh.close()
+
+def get_coolify_deploy_logs(application_id):
+    """Obtiene los logs de despliegue (build) de la base de datos de Coolify."""
+    ssh = None
+    try:
+        ssh = get_ssh_client()
+        # Consultar el último despliegue para esta aplicación
+        # La tabla application_deployment_queues contiene los logs en formato JSON
+        cmd = f"docker exec coolify-db psql -U coolify -d coolify -t -c \"SELECT logs FROM application_deployment_queues WHERE application_id = '{application_id}' ORDER BY id DESC LIMIT 1;\""
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+        raw_logs = stdout.read().decode('utf-8').strip()
+        
+        if not raw_logs:
+            return "No se encontraron logs de despliegue para esta aplicación."
+            
+        try:
+            logs_json = json.loads(raw_logs)
+            formatted_logs = ""
+            for entry in logs_json:
+                output = entry.get('output', '')
+                formatted_logs += f"{output}\n"
+            return formatted_logs
+        except:
+            return raw_logs # Retornar crudo si no es JSON válido
+    except Exception as e:
+        return f"Error al obtener logs de despliegue: {e}"
     finally:
         if ssh:
             ssh.close()

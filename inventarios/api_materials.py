@@ -32,7 +32,7 @@ def api_list_materials(request):
         output_field=DecimalField()
     )
 
-    materials = Material.objects.select_related('categoria', 'unidad_medida').prefetch_related('departamentos').annotate(
+    materials = Material.objects.select_related('categoria', 'unidad_medida').prefetch_related('departamentos', 'existencias__ubicacion').annotate(
         stock_total=Coalesce(stock_total_expr, Decimal('0.00'))
     ).order_by('nombre')
 
@@ -75,6 +75,14 @@ def api_list_materials(request):
         else:
             is_allowed = False
 
+        # Obtener bodegas con stock
+        bodegas_list = []
+        for ex in m.existencias.all():
+            if ex.cantidad > 0:
+                bodegas_list.append(ex.ubicacion.nombre)
+        
+        unique_bodegas = sorted(list(set(bodegas_list)))
+
         data.append({
             'id': m.id,
             'nombre': m.nombre,
@@ -86,7 +94,8 @@ def api_list_materials(request):
             'categoria': m.categoria.nombre if m.categoria else 'General',
             'tipo_material': m.get_tipo_material_display() if hasattr(m, 'get_tipo_material_display') else m.tipo_material,
             'image_url': image_url,
-            'is_allowed': is_allowed
+            'is_allowed': is_allowed,
+            'bodegas': unique_bodegas
         })
         
     return JsonResponse({
