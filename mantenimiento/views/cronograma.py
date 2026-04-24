@@ -227,9 +227,9 @@ def cronograma_mantenimiento_visual(request):
                             routine_color = '#ef4444' # Rojo invasiva
                         else:
                             if not color_found: 
-                                best_color = ots[0]['programacion__horario__color'] or '#3b82f6'
+                                best_color = ots[0].get('color_horario') or '#3b82f6'
                                 color_found = True
-                            routine_color = ots[0]['programacion__horario__color'] or '#3b82f6'
+                            routine_color = ots[0].get('color_horario') or '#3b82f6'
                     first = ots[0] if ots else None
                     celdas_rutina.append({
                         'active': bool(ots), 
@@ -384,9 +384,8 @@ def detalle_mes(request, year, month):
             'rutina__tipo__padre',
             'rutina__frecuencia',
             'ubicacion',
-            'programacion',
-            'programacion__horario'
-        ).prefetch_related('activos')
+            'programacion'
+        ).prefetch_related('activos', 'programacion__horarios')
         
         existing_ot_keys = set((ot.programacion_id, timezone.localtime(ot.inicio_programado).date()) for ot in ordenes if ot.programacion_id)
         
@@ -397,7 +396,7 @@ def detalle_mes(request, year, month):
         if programacion_id: proy_filtros['id'] = programacion_id
         if tipo_ids: proy_filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
         
-        proyecciones_qs = Programacion.objects.filter(**proy_filtros).select_related('rutina__tipo', 'rutina__frecuencia', 'horario').prefetch_related('areas')
+        proyecciones_qs = Programacion.objects.filter(**proy_filtros).select_related('rutina__tipo', 'rutina__frecuencia').prefetch_related('areas', 'horarios')
         if ubi_ids:
             proyecciones_qs = proyecciones_qs.filter(areas__id__in=list(all_ids)).distinct()
         
@@ -410,9 +409,13 @@ def detalle_mes(request, year, month):
             frec_dias = prog.rutina.frecuencia.dias
             if not frec_dias: continue
             
-            if prog.horario_id not in working_days_cache:
-                working_days_cache[prog.horario_id] = set(prog.horario.dias.values_list('dia', flat=True)) if prog.horario else set(range(7))
-            working_days = working_days_cache[prog.horario_id]
+            if prog.id not in working_days_cache:
+                working_days = set()
+                for h in prog.horarios.all():
+                    working_days.update(h.dias.values_list('dia', flat=True))
+                if not working_days: working_days = set(range(7))
+                working_days_cache[prog.id] = working_days
+            working_days = working_days_cache[prog.id]
             
             if fecha_ciclo < month_start: 
                 fecha_ciclo += timedelta(days=max(0, (month_start - fecha_ciclo).days // frec_dias) * frec_dias)
@@ -469,7 +472,7 @@ def detalle_mes(request, year, month):
                         'rutina_nombre': ot.rutina.nombre if ot.rutina else "OT", 
                         'activos_nombres': ", ".join([a.nombre for a in assets]), 
                         'duration_pos': dp, 
-                        'color': '#ef4444' if (ot.rutina and ot.rutina.es_invasiva) else (ot.programacion.horario.color if ot.programacion and ot.programacion.horario else '#3b82f6')
+                        'color': '#ef4444' if (ot.rutina and ot.rutina.es_invasiva) else (ot.programacion.horarios.first().color if ot.programacion and ot.programacion.horarios.exists() else '#3b82f6')
                     }
                     
                     if not assets:
@@ -489,7 +492,7 @@ def detalle_mes(request, year, month):
                 'fin_full': '', 'fin_hm': '', 
                 'rutina_nombre': p.rutina.nombre, 'activos_nombres': 'Simulado', 
                 'duration_pos': 'single', 'prog_id': p.id, 'date': f.isoformat(), 
-                'color': '#ef4444' if p.rutina.es_invasiva else (p.horario.color if p.horario else '#94a3b8')
+                'color': '#ef4444' if p.rutina.es_invasiva else (p.horarios.first().color if p.horarios.exists() else '#94a3b8')
             }
             add_to_tree_common(info, p.rutina, fa, [], info['color'], f.day)
 

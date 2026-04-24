@@ -2,9 +2,9 @@ import collections
 import calendar
 import math
 from datetime import datetime, date, timedelta
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Subquery, OuterRef
 from django.utils import timezone
-from .models import OrdenTrabajo, Rutina, Tipo, Programacion, RestriccionCalendario, ArchivoOrdenTrabajo
+from .models import OrdenTrabajo, Rutina, Tipo, Programacion, RestriccionCalendario, ArchivoOrdenTrabajo, Horario
 from django.core.files.base import ContentFile
 from .utils.pdf_utils import generate_ot_pdf_bytes
 
@@ -42,12 +42,16 @@ class WorkOrderService:
             filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
         
         # 1. Fetch real Work Orders
+        color_subquery = Horario.objects.filter(programaciones=OuterRef('programacion_id')).values('color')[:1]
+        
         ordenes_qs = OrdenTrabajo.objects.filter(**filtros).select_related(
-            'ubicacion', 'rutina__tipo', 'rutina__frecuencia', 'programacion__horario'
+            'ubicacion', 'rutina__tipo', 'rutina__frecuencia'
+        ).annotate(
+            color_horario=Subquery(color_subquery)
         ).values(
             'id', 'rutina__nombre', 'ubicacion__nombre', 'ubicacion_id', 
             'rutina__tipo_id', 'inicio_programado', 'estado', 
-            'programacion__horario__color', 'programacion_id', 'rutina__es_invasiva'
+            'color_horario', 'programacion_id', 'rutina__es_invasiva'
         )
         
         ordenes_list = list(ordenes_qs)
@@ -62,8 +66,8 @@ class WorkOrderService:
             proy_filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
             
         proyecciones = Programacion.objects.filter(**proy_filtros).select_related(
-            'rutina__tipo', 'rutina__frecuencia', 'horario'
-        )
+            'rutina__tipo', 'rutina__frecuencia'
+        ).prefetch_related('horarios', 'areas')
         
         if ubicacion_ids:
             proyecciones = proyecciones.filter(areas__id__in=list(all_ids)).distinct()
@@ -75,11 +79,16 @@ class WorkOrderService:
             fecha_ciclo = prog.fecha_inicio
             limite = min(prog.fecha_fin or (prog.fecha_inicio + timedelta(days=365)), date(year, 12, 31))
             frec_dias = prog.rutina.frecuencia.dias
-            color = prog.horario.color if prog.horario else '#94a3b8'
+            # Usar el primer horario encontrado o uno por defecto
+            primer_horario = prog.horarios.first()
+            color = primer_horario.color if primer_horario else '#94a3b8'
             
-            if prog.horario_id not in working_days_cache:
-                working_days_cache[prog.horario_id] = set(prog.horario.dias.values_list('dia', flat=True)) if prog.horario else set(range(7))
-            working_days = working_days_cache[prog.horario_id]
+            # Combinar días de todos los horarios
+            working_days = set()
+            for h in prog.horarios.all():
+                working_days.update(h.dias.values_list('dia', flat=True))
+            if not working_days:
+                working_days = set(range(7))
 
             # Simplified projection logic for the service
             first_area = prog.areas.first()
@@ -179,8 +188,8 @@ class WorkOrderService:
     def get_grouped_tree(year):
         """Logic for grouping orders by Tipo > Subtipo > Frequency > Routine"""
         ordenes = OrdenTrabajo.objects.filter(inicio_programado__year=year).select_related(
-            'rutina__tipo', 'rutina__frecuencia', 'ubicacion', 'programacion__horario'
-        ).prefetch_related('programacion__horario__dias', 'activos').order_by(
+            'rutina__tipo', 'rutina__frecuencia', 'ubicacion'
+        ).prefetch_related('programacion__horarios__dias', 'activos').order_by(
             'rutina__tipo__nombre', 'rutina__nombre', 'inicio_programado'
         )
         
@@ -318,8 +327,8 @@ class WorkOrderService:
             filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
 
         ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
-            'rutina__tipo', 'rutina__frecuencia', 'ubicacion', 'programacion__horario'
-        ).prefetch_related('programacion__horario__dias', 'activos')
+            'rutina__tipo', 'rutina__frecuencia', 'ubicacion'
+        ).prefetch_related('programacion__horarios__dias', 'activos')
         
         # Pre-fetch locations and cache hierarchy
         all_locs = {l.id: l for l in OrdenTrabajo.ubicacion.field.related_model.objects.all()}
@@ -364,7 +373,8 @@ class WorkOrderService:
             rut_name = ot.rutina.nombre if ot.rutina else "OT Sin Rutina"
             
             # Color logic (optional, reuse existing or random)
-            color = ot.programacion.horario.color if ot.programacion and ot.programacion.horario else '#94a3b8'
+            primer_horario = ot.programacion.horarios.first() if ot.programacion else None
+            color = primer_horario.color if primer_horario else '#94a3b8'
             if root_name not in system_colors:
                 system_colors[root_name] = color
 
