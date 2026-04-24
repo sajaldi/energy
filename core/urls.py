@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views_coolify import coolify_dashboard, coolify_redeploy, coolify_logs
 
 app_name = 'core'
 
@@ -20,4 +21,9 @@ urlpatterns = [
     path('portal/', views.system_portal, name='system_portal'),
     path('vistas/guardar/', views.guardar_vista_personalizada, name='guardar_vista'),
     path('vistas/eliminar/<int:vista_id>/', views.eliminar_vista_personalizada, name='eliminar_vista'),
+    
+    # Coolify Admin Dashboard
+    path('devops/coolify/', coolify_dashboard, name='coolify_dashboard'),
+    path('devops/coolify/redeploy/', coolify_redeploy, name='coolify_redeploy'),
+    path('devops/coolify/logs/', coolify_logs, name='coolify_logs'),
 ]
