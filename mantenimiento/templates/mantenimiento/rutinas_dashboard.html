@@ -1168,22 +1168,22 @@
 
         function fillModalData(rutina) {
             // No sobreescribir m-title aquí, ya se maneja en showRoutineDetail/enterEditMode
-            document.getElementById('m-routine-name').innerText = rutina.nombre;
+            document.getElementById('m-routine-name').innerText = rutina.nombre || 'Nueva Rutina';
             document.getElementById('m-routine-code').innerText = rutina.codigo || 'S/C';
-            document.getElementById('m-category').innerText = rutina.categoria;
-            document.getElementById('m-frequency').innerText = rutina.frecuencia;
-            document.getElementById('m-time').innerText = rutina.tiempo_estimado;
-            document.getElementById('m-techs').innerText = rutina.tecnicos;
-            document.getElementById('m-description').innerText = rutina.descripcion;
-            document.getElementById('m-tools').innerText = rutina.herramientas;
+            document.getElementById('m-category').innerText = rutina.categoria || '-';
+            document.getElementById('m-frequency').innerText = rutina.frecuencia || '-';
+            document.getElementById('m-time').innerText = rutina.tiempo_estimado || '-';
+            document.getElementById('m-techs').innerText = rutina.tecnicos || '-';
+            document.getElementById('m-description').innerText = rutina.descripcion || 'Sin descripción.';
+            document.getElementById('m-tools').innerText = rutina.herramientas || 'Ninguna.';
             
             // Nuevos campos vista
             document.getElementById('m-ubicacion').innerText = rutina.ubicacion_predeterminada_nombre || 'No asignada';
             document.getElementById('m-cat-activo').innerText = rutina.categoria_activo_nombre || 'No asignada';
             document.getElementById('m-horario').innerText = rutina.horario_predeterminado_nombre || 'No asignado';
 
-            document.getElementById('f-id').value = rutina.id;
-            document.getElementById('f-nombre').value = rutina.nombre;
+            document.getElementById('f-id').value = rutina.id || '';
+            document.getElementById('f-nombre').value = rutina.nombre || '';
             document.getElementById('f-codigo').value = rutina.codigo || '';
             document.getElementById('f-descripcion').value = rutina.descripcion || '';
             document.getElementById('f-herramientas').value = rutina.herramientas || '';
@@ -1207,8 +1207,10 @@
             setSelectByText('f-frecuencia', rutina.frecuencia);
             
             // Usar IDs para mayor precisión
-            if (rutina.categoria_id) document.getElementById('f-categoria').value = rutina.categoria_id;
-            if (rutina.frecuencia_id) document.getElementById('f-frecuencia').value = rutina.frecuencia_id;
+            document.getElementById('f-categoria').value = rutina.categoria_id || '';
+            document.getElementById('f-frecuencia').value = rutina.frecuencia_id || '';
+            const fPuesto = document.getElementById('f-puesto');
+            if (fPuesto) fPuesto.value = rutina.puesto_trabajo_id || '';
             
             // Nuevos campos edición
             const fUbic = document.getElementById('f-ubicacion');
@@ -1443,27 +1445,6 @@
             switchTab('general');
         }
 
-        function createNewRoutine(categoryId = null) {
-            currentRoutineId = null;
-            if (rForm) rForm.reset();
-            const fId = document.getElementById('f-id');
-            const fCat = document.getElementById('f-categoria');
-            if (fId) fId.value = '';
-            if (categoryId && fCat) fCat.value = categoryId;
-
-            const fInvasiva = document.getElementById('f-invasiva');
-            if(fInvasiva) fInvasiva.checked = false;
-            
-            const badgeContainer = document.getElementById('m-invasiva-badge');
-            if (badgeContainer) badgeContainer.innerHTML = '-';
-
-            toggleInvasiveBorder(false);
-
-            if (rModal) rModal.style.display = 'flex';
-            enterEditMode();
-            const btnDel = document.getElementById('btn-delete');
-            if (btnDel) btnDel.style.display = 'none';
-        }
 
         function saveRoutine() {
             if (rForm && !rForm.checkValidity()) {
