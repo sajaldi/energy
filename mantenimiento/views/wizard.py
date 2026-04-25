@@ -36,9 +36,18 @@ def programar_rutina_wizard(request):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
     horarios = Horario.objects.all().prefetch_related('dias')
-    ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
-    categorias_activos = CategoriaActivo.objects.all().order_by('nombre')
-    rutinas = Rutina.objects.all().select_related('tipo', 'frecuencia', 'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado')
+    ubicaciones_roots = Ubicacion.objects.filter(padre__isnull=True).prefetch_related(
+        'sub_ubicaciones', 
+        'sub_ubicaciones__sub_ubicaciones', 
+        'sub_ubicaciones__sub_ubicaciones__sub_ubicaciones'
+    ).order_by('nombre')
+    
+    categorias_activos = CategoriaActivo.objects.filter(padre__isnull=True).prefetch_related(
+        'subcategorias', 
+        'subcategorias__subcategorias'
+    ).order_by('nombre')
+    
+    rutinas = Rutina.objects.all().select_related('tipo__categoria_activo', 'frecuencia', 'ubicacion_predeterminada', 'categoria_activo', 'horario_predeterminado')
     pre_cat = rutina.tipo.categoria_activo.id if rutina and rutina.tipo and rutina.tipo.categoria_activo else None
 
     return render(request, 'mantenimiento/visual_scheduler.html', {

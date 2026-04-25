@@ -1,0 +1,39 @@
+<div class="tree-node" style="margin-left: 20px;" data-id="{{ node.id }}">
+    <div class="tree-item-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+        <!-- Botón de expandir/contraer -->
+        {% if node.subcategorias.all %}
+        <button type="button" class="tree-toggle" data-target="children_cat_{{ node.id }}" style="background: none; border: none; cursor: pointer; padding: 2px; display: flex; align-items: center; color: var(--text-secondary); width: 20px; justify-content: center;">
+            <ion-icon name="chevron-forward-outline"></ion-icon>
+        </button>
+        {% else %}
+        <span style="width: 20px; display: inline-block;"></span> <!-- Espaciador -->
+        {% endif %}
+        
+        <!-- Checkbox de selección -->
+        <label class="tree-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-size: 0.9rem;">
+            <input type="checkbox" name="cat" value="{{ node.id }}" class="cat-checkbox" data-parent-node="{{ parent_id }}">
+            <span>
+                <ion-icon name="{{ node.icono|default:'pricetag-outline' }}" style="color: var(--primary)"></ion-icon>
+                {{ node.nombre }}
+            </span>
+        </label>
+        
+        <!-- Botón de seleccionar todos los subniveles -->
+        {% if node.subcategorias.all %}
+        <button type="button" class="select-all-btn" data-type="cat" data-parent-id="{{ node.id }}" style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; white-space: nowrap;">
+            <ion-icon name="checkmark-done-outline" style="vertical-align: middle; margin-right: 2px;"></ion-icon> Todos
+        </button>
+        {% endif %}
+    </div>
+    
+    <!-- Contenedor de Hijos (recursión) -->
+    {% if node.subcategorias.all %}
+    <div id="children_cat_{{ node.id }}" class="tree-children" style="display: none; border-left: 1px dashed var(--border); margin-left: 9px; padding-left: 2px; padding-top: 4px;">
+        {% for child in node.subcategorias.all %}
+            {% with node=child parent_id=node.id %}
+                {% include 'mantenimiento/partials/tree_categoria.html' %}
+            {% endwith %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

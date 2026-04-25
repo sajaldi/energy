@@ -417,23 +417,25 @@
             <h2>Áreas de Trabajo</h2>
             <p>Selecciona los edificios o áreas donde se encuentran los activos.</p>
         </div>
-        <div class="tree-view" id="areaTree">
+        <div class="tree-view" id="areaTree" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); padding: 12px; background: white; margin-left: 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
             {% for u in ubicaciones_roots %}
-            <label class="tree-item">
-                <input type="checkbox" name="area" value="{{ u.id }}">
-                <span><ion-icon name="business-outline"></ion-icon> {{ u.nombre }}</span>
-            </label>
+                {% with node=u parent_id=None %}
+                    {% include 'mantenimiento/partials/tree_ubicacion.html' %}
+                {% endwith %}
+            {% empty %}
+                <p style="color: var(--text-secondary); text-align: center; padding: 20px;">No hay ubicaciones registradas.</p>
             {% endfor %}
         </div>
-        <div style="margin-top: 24px;">
+        
+        <div style="margin-top: 24px;" id="catTreeContainer">
             <p style="font-size: 0.9rem; font-weight: 700; margin-bottom: 12px;">Categoría de Activos (Opcional)</p>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <div class="tree-view" id="catTree" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); padding: 12px; background: white; margin-left: 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
                 {% for c in categorias_activos %}
-                <label class="asset-cat-label" data-id="{{ c.id }}"
-                    style="background: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 0; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                    <input type="checkbox" name="cat" value="{{ c.id }}">
-                    {{ c.nombre }}
-                </label>
+                    {% with node=c parent_id=None %}
+                        {% include 'mantenimiento/partials/tree_categoria.html' %}
+                    {% endwith %}
+                {% empty %}
+                    <p style="color: var(--text-secondary); text-align: center; padding: 20px;">No hay categorías registradas.</p>
                 {% endfor %}
             </div>
         </div>
@@ -583,6 +585,100 @@
         });
     });
 
+    // --- LÓGICA DE ÁRBOL JERÁRQUICO ---
+    
+    // 1. Expandir/Contraer Nodos
+    document.addEventListener('click', (e) => {
+        const toggleBtn = e.target.closest('.tree-toggle');
+        if (toggleBtn) {
+            const targetId = toggleBtn.getAttribute('data-target');
+            const childrenContainer = document.getElementById(targetId);
+            const icon = toggleBtn.querySelector('ion-icon');
+            
+            if (childrenContainer) {
+                if (childrenContainer.style.display === 'none') {
+                    childrenContainer.style.display = 'block';
+                    icon.setAttribute('name', 'chevron-down-outline');
+                } else {
+                    childrenContainer.style.display = 'none';
+                    icon.setAttribute('name', 'chevron-forward-outline');
+                }
+            }
+        }
+    });
+
+    // 2. Botón "Seleccionar Todos"
+    document.addEventListener('click', (e) => {
+        const selectAllBtn = e.target.closest('.select-all-btn');
+        if (selectAllBtn) {
+            const type = selectAllBtn.getAttribute('data-type'); // 'area' o 'cat'
+            const parentId = selectAllBtn.getAttribute('data-parent-id');
+            const childrenContainerId = type === 'area' ? `children_area_${parentId}` : `children_cat_${parentId}`;
+            const childrenContainer = document.getElementById(childrenContainerId);
+            
+            if (childrenContainer) {
+                const checkboxes = childrenContainer.querySelectorAll(`input[name="${type}"]`);
+                
+                // Determinar el nuevo estado: si todos están marcados, desmarcar. Si no, marcar todos.
+                let allChecked = true;
+                checkboxes.forEach(cb => {
+                    if (!cb.checked) allChecked = false;
+                });
+                
+                const newState = !allChecked;
+                checkboxes.forEach(cb => {
+                    cb.checked = newState;
+                });
+                
+                // Actualizar estilo del botón para dar feedback
+                const icon = selectAllBtn.querySelector('ion-icon');
+                if (newState) {
+                    selectAllBtn.style.background = 'var(--primary)';
+                    selectAllBtn.style.color = 'white';
+                    selectAllBtn.style.borderColor = 'var(--primary)';
+                    if(icon) icon.setAttribute('name', 'checkmark-outline');
+                } else {
+                    selectAllBtn.style.background = 'var(--bg-secondary)';
+                    selectAllBtn.style.color = 'var(--text-secondary)';
+                    selectAllBtn.style.borderColor = 'var(--border)';
+                    if(icon) icon.setAttribute('name', 'checkmark-done-outline');
+                }
+            }
+        }
+    });
+    
+    // Función de ayuda para expandir automáticamente hasta un nodo
+    function expandToNode(nodeId, type) {
+        // Encontrar el checkbox correspondiente
+        const cb = document.querySelector(`input[name="${type}"][value="${nodeId}"]`);
+        if (!cb) return;
+        
+        // Marcar el checkbox
+        cb.checked = true;
+        
+        // Expandir todos los padres
+        let currentNode = cb.closest('.tree-node');
+        while (currentNode) {
+            const parentId = currentNode.getAttribute('data-id');
+            // Buscar si este nodo es hijo de alguien mirando el id del children container
+            const container = currentNode.closest('.tree-children');
+            if (container) {
+                container.style.display = 'block';
+                // Cambiar el icono del botón toggle asociado
+                const toggleId = container.id;
+                const toggleBtn = document.querySelector(`.tree-toggle[data-target="${toggleId}"]`);
+                if (toggleBtn) {
+                    const icon = toggleBtn.querySelector('ion-icon');
+                    if (icon) icon.setAttribute('name', 'chevron-down-outline');
+                }
+                currentNode = container.closest('.tree-node');
+            } else {
+                break;
+            }
+        }
+    }
+    // ----------------------------------
+
     btnSkipAssets.addEventListener('click', () => {
         selections.activos = []; // Limpiar selección
         updateStep(5); // Ir directo a fechas
@@ -715,12 +811,8 @@
 
         // 2. Auto-select Ubicacion in Step 3
         if (ubicacionId) {
-            const areaCheckbox = document.querySelector(`input[name="area"][value="${ubicacionId}"]`);
-            if (areaCheckbox) {
-                // Clear others if you want exclusive, or just add it
-                // document.querySelectorAll('input[name="area"]').forEach(i => i.checked = false);
-                areaCheckbox.checked = true;
-            }
+            document.querySelectorAll('input[name="area"]').forEach(i => i.checked = false);
+            expandToNode(ubicacionId, 'area');
         }
 
         // 3. Update Category Visibility and Auto-select in Step 3
@@ -728,30 +820,17 @@
     }
 
     function updateCategoryVisibility(assetCatId) {
-        const catLabels = document.querySelectorAll('.asset-cat-label');
-        if (!assetCatId) {
-            catLabels.forEach(l => {
-                l.style.display = 'none';
-                const cb = l.querySelector('input');
-                if (cb) cb.checked = false;
-            });
-            return;
-        }
+        const catTreeContainer = document.getElementById('catTreeContainer');
+        if (!catTreeContainer) return;
 
-        catLabels.forEach(l => {
-            const cb = l.querySelector('input');
-            if (l.dataset.id === assetCatId) {
-                l.style.display = 'flex';
-                if (cb) cb.checked = true;
-                l.style.borderColor = 'var(--primary)';
-                l.style.background = 'var(--primary-light)';
-            } else {
-                l.style.display = 'none';
-                if (cb) cb.checked = false;
-                l.style.borderColor = 'var(--border)';
-                l.style.background = 'white';
-            }
-        });
+        if (!assetCatId) {
+            catTreeContainer.style.display = 'none';
+            document.querySelectorAll('input[name="cat"]').forEach(cb => cb.checked = false);
+        } else {
+            catTreeContainer.style.display = 'block';
+            document.querySelectorAll('input[name="cat"]').forEach(cb => cb.checked = false);
+            expandToNode(assetCatId, 'cat');
+        }
     }
 
     // (Initial pre-selection listener moved to the end of script)
