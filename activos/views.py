@@ -9,6 +9,7 @@ from celery.result import AsyncResult
 from django.contrib.admin.views.decorators import staff_member_required
 from core.decorators import mobile_permission_required
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 
 def visor_plano(request, visor_id=None, plano_id=None):
     from .models.plano import VisorPlano, Plano
@@ -1844,7 +1845,7 @@ def api_ubicacion_delete(request, ubicacion_id):
     ubi.delete()
     return JsonResponse({'status': 'success', 'message': 'Ubicación eliminada.'})
 
-@staff_member_required
+@login_required
 def api_modelo_detalle(request, modelo_id):
     """Returns JSON data for a specific asset model."""
     from .models.activo import Modelo

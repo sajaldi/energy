@@ -582,8 +582,10 @@
             modal.classList.add('open');
 
             try {
-                const response = await fetch(`/activos/api/modelo-detalle/${modId}/`);
+                // Usamos una ruta relativa al origen para mayor compatibilidad
+                const response = await fetch(`${window.location.origin}/activos/api/modelo-detalle/${modId}/`);
                 const data = await response.json();
+
 
                 document.getElementById('m-title').innerText = data.nombre;
                 document.getElementById('m-marca').innerText = data.marca;
