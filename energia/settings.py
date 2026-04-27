@@ -181,6 +181,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'servicios',
     'ayuda.apps.AyudaConfig',
+    'iot',
 ]
 
 
@@ -559,10 +560,16 @@ JAZZMIN_SETTINGS = {
         "core": "fas fa-bolt",
         "plantillas": "fas fa-file-word",
         "django_celery_results": "fas fa-clock",
+        "iot": "fas fa-microchip",
+        "iot.BACnetGateway": "fas fa-network-wired",
+        "iot.BACnetDevice": "fas fa-server",
+        "iot.BACnetPoint": "fas fa-broadcast-tower",
+        "iot.Telemetry": "fas fa-chart-line",
     },
     "order_with_respect_to": [
         "core", "activos", "documentos", "proyectos", "mantenimiento", 
         "inventarios", "callcenter", "presupuestos", "seguridad",
+        "iot",
         "auth", "servicios", "ayuda", "plantillas", "django_celery_results"
     ],
     "show_sidebar": True,
@@ -615,6 +622,14 @@ JAZZMIN_SETTINGS = {
                 "url": "/admin/servicios/kpi/",
                 "icon": "fas fa-chart-bar",
                 "permissions": ["servicios.view_kpi"],
+            },
+        ],
+        "iot": [
+            {
+                "name": "📊 Dashboard IoT BACnet",
+                "url": "/iot/dashboard/",
+                "icon": "fas fa-microchip",
+                "permissions": ["iot.view_telemetry"],
             },
         ],
     },

@@ -73,7 +73,7 @@ class ControlAdmin(admin.ModelAdmin):
 class RequisitoPermisoInline(admin.TabularInline):
     model = RequisitoPermiso
     extra = 1
-    fields = ('texto', 'es_critico', 'orden')
+    fields = ('orden', 'texto', 'tipo_respuesta', 'es_critico', 'verificacion', 'unidad_medida', 'valor_objetivo', 'rango_min', 'rango_max')
     ordering = ['orden']
 
 @admin.register(TipoPermiso)

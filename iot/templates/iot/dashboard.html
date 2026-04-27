@@ -1,0 +1,251 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static humanize %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+<style>
+    :root {
+        --primary: #0ea5e9;
+        --primary-dark: #0284c7;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --bg-body: #f1f5f9;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --radius-xl: 16px;
+        --radius-lg: 12px;
+        --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    }
+
+    body {
+        font-family: 'Outfit', sans-serif !important;
+        background-color: var(--bg-body) !important;
+    }
+
+    .iot-dashboard {
+        padding: 30px;
+    }
+
+    .hero-header {
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .hero-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--text-main);
+        letter-spacing: -1px;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .hero-header h1 ion-icon {
+        color: var(--primary);
+    }
+
+    .device-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 25px;
+    }
+
+    .device-card {
+        background: white;
+        border-radius: var(--radius-xl);
+        padding: 25px;
+        box-shadow: var(--card-shadow);
+        border: 1px solid rgba(255,255,255,1);
+        transition: transform 0.3s ease;
+    }
+
+    .device-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .device-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+
+    .device-info h3 {
+        font-weight: 700;
+        margin: 0;
+        color: var(--text-main);
+    }
+
+    .device-info p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .status-online {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .status-offline {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .status-online .status-dot { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+    .status-offline .status-dot { background: #ef4444; }
+
+    .points-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .point-item {
+        background: #f8fafc;
+        padding: 15px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .point-label .point-name {
+        font-weight: 700;
+        color: var(--text-main);
+        display: block;
+    }
+
+    .point-label .point-meta {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .point-data {
+        text-align: right;
+    }
+
+    .point-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1;
+    }
+
+    .point-unit {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-left: 2px;
+    }
+
+    .point-time {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 60px;
+        background: white;
+        border-radius: var(--radius-xl);
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="iot-dashboard">
+    <div class="hero-header">
+        <div>
+            <h1><ion-icon name="pulse-outline"></ion-icon> {{ title }}</h1>
+            <p class="text-muted">Monitoreo de infraestructura Reliable Controls via BACnet/IP</p>
+        </div>
+        <div class="actions">
+            <a href="{% url 'admin:iot_bacnetgateway_changelist' %}" class="btn btn-outline-primary" style="border-radius: 20px;">
+                <i class="fas fa-cog"></i> Configurar Gateways
+            </a>
+        </div>
+    </div>
+
+    <div class="device-grid">
+        {% for device in devices %}
+        <div class="device-card">
+            <div class="device-header">
+                <div class="device-info">
+                    <h3>{{ device.name|default:"Controlador Desconocido" }}</h3>
+                    <p>{{ device.address }} | {{ device.vendor|default:"Vendor N/A" }}</p>
+                </div>
+                <div class="status-badge {% if device.is_online %}status-online{% else %}status-offline{% endif %}">
+                    <span class="status-dot"></span>
+                    {% if device.is_online %}En Línea{% else %}Desconectado{% endif %}
+                </div>
+            </div>
+
+            <div class="points-container">
+                {% for point in points %}
+                    {% if point.device_id == device.id %}
+                    <div class="point-item">
+                        <div class="point-label">
+                            <span class="point-name">{{ point.name }}</span>
+                            <span class="point-meta">{{ point.get_object_type_display }} #{{ point.instance }}</span>
+                        </div>
+                        <div class="point-data">
+                            <div class="point-value">
+                                {{ point.last_value|floatformat:2|default:"--" }}<span class="point-unit">{{ point.unit|default:"" }}</span>
+                            </div>
+                            <div class="point-time">
+                                <i class="far fa-clock"></i> {{ point.last_time|naturaltime|default:"Sin datos" }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            {% if not device.points.exists %}
+            <div class="text-center p-3 text-muted small">
+                No hay puntos configurados para este dispositivo.
+            </div>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <ion-icon name="construct-outline" style="font-size: 4rem; opacity: 0.2;"></ion-icon>
+            <h3 class="mt-3">No hay dispositivos configurados</h3>
+            <p>Agrega un Gateway y realiza un descubrimiento para comenzar.</p>
+            <a href="{% url 'admin:iot_bacnetgateway_add' %}" class="btn btn-primary mt-2">Agregar Gateway</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

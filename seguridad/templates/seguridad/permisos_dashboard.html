@@ -1,0 +1,592 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Tipos de Permisos | Seguridad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --sap-shell-color: #1e293b;
+            --sap-background: #f1f5f9;
+            --sap-text-color: #334155;
+            --sap-text-muted: #64748b;
+            --sap-primary: #2563eb;
+            --sap-primary-hover: #1d4ed8;
+            --sap-border: #e2e8f0;
+            --sap-card-bg: #ffffff;
+            --sap-success: #10b981;
+            --sap-error: #ef4444;
+            --sap-warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--sap-background);
+            color: var(--sap-text-color);
+            min-height: 100vh;
+        }
+
+        .dashboard-header {
+            background: var(--sap-shell-color);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .actions-bar {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .permisos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .permiso-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            border: 1px solid var(--sap-border);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .permiso-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-color: var(--sap-primary);
+        }
+
+        .permiso-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .permiso-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--sap-shell-color);
+        }
+
+        .permiso-count {
+            background: #eff6ff;
+            color: var(--sap-primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .permiso-desc {
+            font-size: 0.875rem;
+            color: var(--sap-text-muted);
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--sap-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--sap-primary-hover);
+        }
+
+        .btn-outline {
+            border-color: var(--sap-border);
+            background: white;
+            color: var(--sap-text-color);
+        }
+
+        .btn-outline:hover {
+            background: #f8fafc;
+        }
+
+        /* Modal Styles */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-container {
+            background: white;
+            width: 95%;
+            max-width: 900px;
+            max-height: 90vh;
+            border-radius: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--sap-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-footer {
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid var(--sap-border);
+            background: #f8fafc;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .modal-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--sap-border);
+            padding: 0 1.5rem;
+        }
+
+        .tab-btn {
+            padding: 1rem 1.5rem;
+            border: none;
+            background: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--sap-text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: var(--sap-primary);
+            border-bottom-color: var(--sap-primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid var(--sap-border);
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--sap-primary);
+            box-shadow: 0 0 0 1px var(--sap-primary);
+        }
+
+        /* Step Styles (Bonitos) */
+        .step-item-static {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1.5rem;
+            position: relative;
+        }
+
+        .step-number-circle {
+            width: 28px;
+            height: 28px;
+            background: var(--sap-primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: #cbd5e1;
+        }
+
+        .remove-step {
+            color: #ef4444;
+            cursor: pointer;
+        }
+
+        .add-step-btn {
+            width: 100%;
+            padding: 1rem;
+            border: 2px dashed var(--sap-border);
+            border-radius: 8px;
+            background: #f8fafc;
+            color: var(--sap-text-muted);
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+
+        .add-step-btn:hover {
+            border-color: var(--sap-primary);
+            color: var(--sap-primary);
+            background: #eff6ff;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="dashboard-header">
+        <div class="header-title">
+            <h1>🛡️ Gestión de Tipos de Permisos</h1>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'mantenimiento:dashboard' %}" class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.3); background: transparent;">
+                Volver al Dashboard
+            </a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="actions-bar">
+            <h2 style="font-weight: 700; color: var(--sap-shell-color);">Tipos Configurados</h2>
+            <button class="btn btn-primary" onclick="openModal(null)">
+                + Nuevo Tipo de Permiso
+            </button>
+        </div>
+
+        <div class="permisos-grid" id="permisos-list">
+            {% for tipo in tipos_permiso %}
+            <div class="permiso-card" onclick="openModal({{ tipo.id }})">
+                <div class="permiso-header">
+                    <span class="permiso-title">{{ tipo.nombre }}</span>
+                    <span class="permiso-count">{{ tipo.requisitos.count }} requisitos</span>
+                </div>
+                <div class="permiso-desc">
+                    {{ tipo.descripcion|default:"Sin descripción"|truncatechars:120 }}
+                </div>
+                <div style="margin-top: auto; display: flex; justify-content: flex-end;">
+                    <span style="font-size: 0.75rem; color: var(--sap-primary); font-weight: 700;">CONFIGURAR →</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal Base -->
+    <div class="modal-backdrop" id="permisoModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="modalTitle">Configurar Tipo de Permiso</h2>
+                <button class="btn" style="padding: 0.25rem; background: none;" onclick="closeModal()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="modal-tabs">
+                <button class="tab-btn active" onclick="switchTab('tab-general')">Información General</button>
+                <button class="tab-btn" onclick="switchTab('tab-requisitos')">Requisitos del Checklist</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Tab General -->
+                <div id="tab-general" class="tab-content active">
+                    <input type="hidden" id="tipo-id">
+                    <div class="form-group">
+                        <label class="form-label">Nombre del Permiso</label>
+                        <input type="text" id="tipo-nombre" class="form-control" placeholder="Ej: Trabajo en Alturas">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Descripción / Instrucciones Generales</label>
+                        <textarea id="tipo-descripcion" class="form-control" rows="4" placeholder="Especifique el alcance y advertencias generales..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Tab Requisitos -->
+                <div id="tab-requisitos" class="tab-content">
+                    <div id="requisitos-sortable">
+                        <!-- Requisitos se cargan aquí -->
+                    </div>
+                    <button class="add-step-btn" onclick="addRequisitoRow()">
+                        + Añadir nuevo requisito
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="savePermiso()">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTipoId = null;
+        const modal = document.getElementById('permisoModal');
+        const sortableContainer = document.getElementById('requisitos-sortable');
+
+        // Inicializar Sortable
+        new Sortable(sortableContainer, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost'
+        });
+
+        async function openModal(id) {
+            currentTipoId = id;
+            document.getElementById('tipo-id').value = id || '';
+            document.getElementById('tipo-nombre').value = '';
+            document.getElementById('tipo-descripcion').value = '';
+            sortableContainer.innerHTML = '';
+
+            if (id) {
+                document.getElementById('modalTitle').innerText = 'Editar Tipo de Permiso';
+                try {
+                    const response = await fetch(`/seguridad/api/tipo-permiso/${id}/`);
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        document.getElementById('tipo-nombre').value = data.tipo.nombre;
+                        document.getElementById('tipo-descripcion').value = data.tipo.descripcion;
+                        data.tipo.requisitos.forEach(req => addRequisitoRow(req));
+                    }
+                } catch (e) {
+                    console.error("Error cargando detalle", e);
+                }
+            } else {
+                document.getElementById('modalTitle').innerText = 'Nuevo Tipo de Permiso';
+                addRequisitoRow(); // Uno vacío por defecto
+            }
+
+            modal.style.display = 'flex';
+            switchTab('tab-general');
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function addRequisitoRow(data = null) {
+            const row = document.createElement('div');
+            row.className = 'step-item-static';
+            row.dataset.id = data ? data.id : '';
+            
+            row.innerHTML = `
+                <div class="step-actions">
+                    <div class="drag-handle">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 10l-2-2m2 2l2-2m-2 2l-2 2m2-2l2 2"/></svg>
+                    </div>
+                    <div class="remove-step" onclick="this.closest('.step-item-static').remove()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </div>
+                </div>
+                <div class="step-content">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label class="form-label">Texto del Requisito / Pregunta</label>
+                            <input type="text" class="form-control req-texto" value="${data ? data.texto : ''}" placeholder="Ej: ¿Se cuenta con arnés de seguridad?">
+                        </div>
+                        <div>
+                            <label class="form-label">Tipo de Respuesta</label>
+                            <select class="form-control req-tipo">
+                                <option value="CHECK" ${data && data.tipo_respuesta === 'CHECK' ? 'selected' : ''}>Check (Si/No/NA)</option>
+                                <option value="NUMERICO" ${data && data.tipo_respuesta === 'NUMERICO' ? 'selected' : ''}>Numérico</option>
+                                <option value="TEXTO" ${data && data.tipo_respuesta === 'TEXTO' ? 'selected' : ''}>Texto</option>
+                                <option value="FOTO" ${data && data.tipo_respuesta === 'FOTO' ? 'selected' : ''}>Foto</option>
+                                <option value="HEADER" ${data && data.tipo_respuesta === 'HEADER' ? 'selected' : ''}>Encabezado</option>
+                                <option value="INSTRUCCION" ${data && data.tipo_respuesta === 'INSTRUCCION' ? 'selected' : ''}>Instrucción</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: center; padding-top: 1.5rem; gap: 8px;">
+                            <input type="checkbox" class="req-critico" ${data && data.es_critico ? 'checked' : ''}>
+                            <label class="form-label" style="margin: 0;">Crítico</label>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label class="form-label">Verificación</label>
+                            <input type="text" class="form-control req-verif" value="${data ? data.verificacion : ''}" placeholder="¿Qué revisar?">
+                        </div>
+                        <div>
+                            <label class="form-label">U. Medida</label>
+                            <input type="text" class="form-control req-unidad" value="${data ? data.unidad_medida : ''}" placeholder="Ej: Bar">
+                        </div>
+                        <div>
+                            <label class="form-label">Min</label>
+                            <input type="number" class="form-control req-min" value="${data ? data.rango_min || '' : ''}">
+                        </div>
+                        <div>
+                            <label class="form-label">Max</label>
+                            <input type="number" class="form-control req-max" value="${data ? data.rango_max || '' : ''}">
+                        </div>
+                    </div>
+                </div>
+            `;
+            sortableContainer.appendChild(row);
+        }
+
+        async function savePermiso() {
+            const nombre = document.getElementById('tipo-nombre').value;
+            if (!nombre) {
+                Swal.fire('Error', 'El nombre es obligatorio', 'error');
+                return;
+            }
+
+            const generalData = {
+                id: currentTipoId,
+                nombre: nombre,
+                descripcion: document.getElementById('tipo-descripcion').value
+            };
+
+            try {
+                // 1. Guardar General
+                const resGen = await fetch('/seguridad/api/tipo-permiso/save/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(generalData)
+                });
+                const dataGen = await resGen.json();
+
+                if (dataGen.status === 'success') {
+                    const tipoId = dataGen.tipo_id;
+                    
+                    // 2. Guardar Requisitos
+                    const requisitos = [];
+                    document.querySelectorAll('.step-item-static').forEach(row => {
+                        requisitos.push({
+                            id: row.dataset.id,
+                            texto: row.querySelector('.req-texto').value,
+                            tipo_respuesta: row.querySelector('.req-tipo').value,
+                            es_critico: row.querySelector('.req-critico').checked,
+                            verificacion: row.querySelector('.req-verif').value,
+                            unidad_medida: row.querySelector('.req-unidad').value,
+                            rango_min: row.querySelector('.req-min').value,
+                            rango_max: row.querySelector('.req-max').value
+                        });
+                    });
+
+                    const resReq = await fetch('/seguridad/api/tipo-permiso/requisitos/save/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({ tipo_id: tipoId, requisitos: requisitos })
+                    });
+                    
+                    const dataReq = await resReq.json();
+                    if (dataReq.status === 'success') {
+                        Swal.fire('Éxito', 'Permiso guardado correctamente', 'success').then(() => {
+                            location.reload();
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un problema al guardar', 'error');
+            }
+        }
+    </script>
+</body>
+
+</html>

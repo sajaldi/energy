@@ -14,4 +14,8 @@ from .mobile import (
 from .pdf_views import (
     generar_permiso_pdf_view, mobile_confiscacion_pdf_view
 )
+from .permisos_dashboard import (
+    tipo_permiso_dashboard, tipo_permiso_detail_api,
+    tipo_permiso_save_api, tipo_permiso_requisitos_save_api
+)
 

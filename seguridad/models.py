@@ -161,10 +161,28 @@ class TipoPermiso(models.Model):
         return self.nombre
 
 class RequisitoPermiso(models.Model):
+    TIPO_RESPUESTA_CHOICES = [
+        ('INSTRUCCION', 'Instrucción (Solo lectura)'),
+        ('CHECK', 'Check (Si/No/NA)'),
+        ('NUMERICO', 'Valor Numérico'),
+        ('TEXTO', 'Texto Libre'),
+        ('FOTO', 'Registro Fotográfico'),
+        ('HEADER', 'ENCABEZADO / GRUPO'),
+    ]
+    
     tipo_permiso = models.ForeignKey(TipoPermiso, on_delete=models.CASCADE, related_name='requisitos')
     texto = models.CharField(max_length=255)
     es_critico = models.BooleanField(default=False, help_text="Si es crítico, no se puede proceder sin este requisito")
     orden = models.PositiveIntegerField(default=0)
+    
+    tipo_respuesta = models.CharField(max_length=20, choices=TIPO_RESPUESTA_CHOICES, default='CHECK')
+    verificacion = models.CharField(max_length=100, blank=True, null=True, help_text="¿Qué debe verificar el solicitante/autorizador?")
+    
+    # Metadata para validación
+    unidad_medida = models.CharField(max_length=20, blank=True, null=True, help_text="Ej: ppm, %, LEL")
+    valor_objetivo = models.FloatField(blank=True, null=True, help_text="Valor ideal esperado")
+    rango_min = models.FloatField(blank=True, null=True)
+    rango_max = models.FloatField(blank=True, null=True)
     
     class Meta:
         ordering = ['orden', 'id']
@@ -204,6 +222,31 @@ class PermisoTrabajo(models.Model):
 class VerificacionRequisito(models.Model):
     permiso = models.ForeignKey(PermisoTrabajo, on_delete=models.CASCADE, related_name='verificaciones')
     requisito = models.ForeignKey(RequisitoPermiso, on_delete=models.CASCADE)
+    
+    valor_texto = models.TextField(blank=True, null=True)
+    valor_numerico = models.FloatField(blank=True, null=True)
+    valor_bool = models.BooleanField(null=True, blank=True, help_text="Para tipos CHECK")
+    no_aplica = models.BooleanField(default=False)
+    
+    comentarios = models.TextField(blank=True, null=True, help_text="Observaciones adicionales")
+    foto = models.ImageField(upload_to='permisos/verificaciones/', blank=True, null=True)
+    
+    capturado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.foto:
+            self.foto = compress_image(self.foto)
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Verificación de Requisito"
+        verbose_name_plural = "Verificaciones de Requisitos"
+        unique_together = ('permiso', 'requisito')
+
+    def __str__(self):
+        return f"Verif {self.permiso_id} - {self.requisito}"
+
 # --- Confiscaciones y Levantamientos ---
 
 class ObjetoCatalogo(models.Model):

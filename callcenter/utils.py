@@ -74,6 +74,13 @@ def import_tickets_from_df(df):
         'correo_cierre', 'cierre_enviado'
     ]
 
+    # PROTECCIÓN: Si el usuario ya llenó campos de cierre/seguimiento manualmente, 
+    # no permitimos que el robot los sobrescriba con valores vacíos (None/NaN).
+    protected_fields = [
+        'diagnostico', 'actividades', 'observaciones', 'fecha_cierre',
+        'fecha_diagnostico', 'fecha_actividades', 'fecha_observaciones'
+    ]
+
     for _, row in df.iterrows():
         id_sol_int = int(row['id_sol_int'])
         
@@ -134,7 +141,12 @@ def import_tickets_from_df(df):
         if obj:
             # Actualizar objeto existente en memoria
             for field, val in data.items():
+                if field in protected_fields:
+                    current_val = getattr(obj, field)
+                    if current_val and not val:
+                        continue 
                 setattr(obj, field, val)
+
             to_update.append(obj)
             actualizados += 1
             # Actualizar los mapas para evitar duplicados en el mismo loop
@@ -154,9 +166,6 @@ def import_tickets_from_df(df):
     # 3. Ejecutar operaciones en lotes
     if to_create:
         # ignore_conflicts=True evita que un duplicate key aborte toda la transacción.
-        # Los tickets ya existentes (por race condition o webhook previo) son ignorados aquí
-        # y se tratan con update_or_create a continuación para garantizar que sus datos
-        # estén actualizados.
         created_objs = SolicitudTicket.objects.bulk_create(
             to_create, batch_size=100, ignore_conflicts=True
         )
@@ -164,7 +173,17 @@ def import_tickets_from_df(df):
         created_ids = {obj.id_solicitud for obj in created_objs if obj.pk}
         conflicts = [obj for obj in to_create if obj.id_solicitud not in created_ids]
         for obj in conflicts:
-            data_fields = {f: getattr(obj, f) for f in update_fields}
+            # Para conflictos, también aplicamos la protección
+            existing_db = SolicitudTicket.objects.get(id_solicitud=obj.id_solicitud)
+            data_fields = {}
+            for f in update_fields:
+                val = getattr(obj, f)
+                if f in protected_fields:
+                    current_val = getattr(existing_db, f)
+                    if current_val and not val:
+                        continue # Mantener valor de la DB
+                data_fields[f] = val
+            
             SolicitudTicket.objects.filter(id_solicitud=obj.id_solicitud).update(**data_fields)
             actualizados += 1
             creados -= 1  # No era un nuevo registro, ajustar contador

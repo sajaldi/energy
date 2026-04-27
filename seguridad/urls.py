@@ -35,4 +35,10 @@ urlpatterns = [
     path('app/almacen/entrega/pdf/<int:pk>/', views.mobile_confiscacion_entrega_pdf_view, name='mobile_confiscacion_entrega_pdf'),
     path('app/confiscacion/imprimir/<int:pk>/', views.mobile_confiscacion_imprimir_etiqueta, name='mobile_confiscacion_imprimir_etiqueta'),
     path('app/perfil/', views.mobile_perfil, name='mobile_perfil'),
+
+    # Dashboards de Gestión
+    path('gestion/tipos-permisos/', views.tipo_permiso_dashboard, name='tipo_permiso_dashboard'),
+    path('api/tipo-permiso/<int:pk>/', views.tipo_permiso_detail_api, name='tipo_permiso_detail_api'),
+    path('api/tipo-permiso/save/', views.tipo_permiso_save_api, name='tipo_permiso_save_api'),
+    path('api/tipo-permiso/requisitos/save/', views.tipo_permiso_requisitos_save_api, name='tipo_permiso_requisitos_save_api'),
 ]
