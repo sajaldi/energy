@@ -1,15 +1,258 @@
 {% extends "auditorias/wizard/base_wizard.html" %}
+{% load i18n static %}
 
 {% block extrahead %}
 {{ block.super }}
-{{ form.media }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+    .tree-view {
+        background: #fafafa;
+        border-radius: 8px;
+        padding: 20px;
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 20px;
+    }
+
+    .tree-node {
+        margin-top: 4px;
+    }
+
+    .tree-item-row {
+        transition: background 0.2s;
+        border-radius: 4px;
+        padding: 2px 4px;
+    }
+
+    .tree-item-row:hover {
+        background: #f1f5f9;
+    }
+
+    .tree-toggle {
+        transition: transform 0.2s;
+    }
+
+    .tree-toggle i {
+        font-size: 0.8rem;
+    }
+
+    .tree-label {
+        flex-grow: 1;
+        user-select: none;
+    }
+
+    .tree-label input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
+
+    .select-all-btn:hover {
+        background: #e2e8f0 !important;
+        color: #1e293b !important;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 15px;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section-title i {
+        color: #3b82f6;
+    }
+</style>
 {% endblock %}
 
 {% block wizard_step_content %}
-<h2>Paso 2: Definir Alcance</h2>
-<p class="help">Selecciona qué ubicaciones y qué categorías de activos deseas auditar.</p>
-
-<div style="margin-top: 20px;">
-    {{ form.as_p }}
+<div class="wizard-header" style="margin-bottom: 30px;">
+    <h2 style="margin-bottom: 8px;">Paso 2: Definir Alcance</h2>
+    <p style="color: #64748b;">Selecciona las ubicaciones y categorías de activos que deseas incluir en esta auditoría.</p>
 </div>
+
+<div class="row" style="display: flex; gap: 30px;">
+    <!-- Ubicaciones -->
+    <div style="flex: 1;">
+        <h3 class="section-title"><i class="fas fa-map-marked-alt"></i> Ubicaciones</h3>
+        <input type="text" id="searchUbicaciones" class="tree-search" placeholder="Buscar ubicación..." style="width: 100%; padding: 8px 12px; margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem;">
+        <div class="tree-view" id="ubicacionesTree">
+            {% for u in ubicaciones_roots %}
+                {% with node=u %}
+                    {% include 'auditorias/partials/tree_ubicacion.html' %}
+                {% endwith %}
+            {% empty %}
+                <p style="text-align: center; padding: 20px; color: #64748b;">No hay ubicaciones registradas.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Categorías -->
+    <div style="flex: 1;">
+        <h3 class="section-title"><i class="fas fa-tags"></i> Categorías</h3>
+        <input type="text" id="searchCategorias" class="tree-search" placeholder="Buscar categoría..." style="width: 100%; padding: 8px 12px; margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem;">
+        <div class="tree-view" id="categoriasTree">
+            {% for c in categorias_roots %}
+                {% with node=c %}
+                    {% include 'auditorias/partials/tree_categoria.html' %}
+                {% endwith %}
+            {% empty %}
+                <p style="text-align: center; padding: 20px; color: #64748b;">No hay categorías registradas.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Expandir/Contraer Nodos
+        document.addEventListener('click', function(e) {
+            const toggleBtn = e.target.closest('.tree-toggle');
+            if (toggleBtn) {
+                const targetId = toggleBtn.getAttribute('data-target');
+                const childrenContainer = document.getElementById(targetId);
+                const icon = toggleBtn.querySelector('.tree-icon');
+                
+                if (childrenContainer) {
+                    if (childrenContainer.style.display === 'none' || childrenContainer.style.display === '') {
+                        childrenContainer.style.display = 'block';
+                        icon.classList.remove('fa-chevron-right');
+                        icon.classList.add('fa-chevron-down');
+                    } else {
+                        childrenContainer.style.display = 'none';
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-right');
+                    }
+                }
+            }
+        });
+
+        // 2. Botón "Seleccionar Todos"
+        document.addEventListener('click', function(e) {
+            const selectAllBtn = e.target.closest('.select-all-btn');
+            if (selectAllBtn) {
+                const type = selectAllBtn.getAttribute('data-type'); // 'ubicaciones' o 'categorias'
+                const parentId = selectAllBtn.getAttribute('data-parent-id');
+                const childrenContainerId = type === 'ubicaciones' ? `children_area_${parentId}` : `children_cat_${parentId}`;
+                const childrenContainer = document.getElementById(childrenContainerId);
+                
+                if (childrenContainer) {
+                    const checkboxes = childrenContainer.querySelectorAll(`input[name="${type}"]`);
+                    
+                    // Determinar el nuevo estado
+                    let allChecked = true;
+                    checkboxes.forEach(cb => {
+                        if (!cb.checked) allChecked = false;
+                    });
+                    
+                    const newState = !allChecked;
+                    checkboxes.forEach(cb => {
+                        cb.checked = newState;
+                    });
+                    
+                    // Expandir el contenedor si estamos seleccionando todos
+                    if (newState) {
+                        childrenContainer.style.display = 'block';
+                        const toggleBtn = document.querySelector(`.tree-toggle[data-target="${childrenContainerId}"]`);
+                        if (toggleBtn) {
+                            const icon = toggleBtn.querySelector('.tree-icon');
+                            icon.classList.remove('fa-chevron-right');
+                            icon.classList.add('fa-chevron-down');
+                        }
+                    }
+                }
+            }
+        });
+
+        // 3. Auto-expandir nodos seleccionados (cuando volvemos atrás en el wizard)
+        function expandSelected() {
+            const selectedCheckboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            selectedCheckboxes.forEach(cb => {
+                let parent = cb.closest('.tree-children');
+                while (parent) {
+                    parent.style.display = 'block';
+                    const toggleId = parent.id;
+                    const toggleBtn = document.querySelector(`.tree-toggle[data-target="${toggleId}"]`);
+                    if (toggleBtn) {
+                        const icon = toggleBtn.querySelector('.tree-icon');
+                        icon.classList.remove('fa-chevron-right');
+                        icon.classList.add('fa-chevron-down');
+                    }
+                    parent = parent.parentElement.closest('.tree-children');
+                }
+            });
+        }
+        // 4. Búsqueda en los árboles
+        function setupTreeSearch(inputId, treeContainerId) {
+            const input = document.getElementById(inputId);
+            const container = document.getElementById(treeContainerId);
+            
+            if (!input || !container) return;
+
+            input.addEventListener('keyup', function() {
+                const query = this.value.toLowerCase().trim();
+                const allNodes = container.querySelectorAll('.tree-node');
+                
+                if (query === '') {
+                    // Resetear a estado normal
+                    allNodes.forEach(node => {
+                        node.style.display = 'block';
+                        const childrenContainer = node.querySelector(':scope > .tree-children');
+                        if (childrenContainer) childrenContainer.style.display = 'none'; // colapsar
+                        
+                        const icon = node.querySelector('.tree-icon');
+                        if (icon) {
+                            icon.classList.remove('fa-chevron-down');
+                            icon.classList.add('fa-chevron-right');
+                        }
+                    });
+                    expandSelected();
+                    return;
+                }
+
+                // Ocultar todos primero
+                allNodes.forEach(node => {
+                    node.style.display = 'none';
+                });
+
+                // Mostrar los que coinciden y sus padres
+                allNodes.forEach(node => {
+                    const label = node.querySelector(':scope > .tree-item-row .tree-label');
+                    if (label && label.innerText.toLowerCase().includes(query)) {
+                        node.style.display = 'block';
+                        
+                        // Expandir hacia arriba
+                        let parent = node.closest('.tree-children');
+                        while (parent) {
+                            const parentNode = parent.closest('.tree-node');
+                            if (parentNode) {
+                                parentNode.style.display = 'block';
+                                parent.style.display = 'block';
+                                
+                                const toggleBtn = parentNode.querySelector(':scope > .tree-item-row .tree-toggle');
+                                if (toggleBtn) {
+                                    const icon = toggleBtn.querySelector('.tree-icon');
+                                    if(icon) {
+                                        icon.classList.remove('fa-chevron-right');
+                                        icon.classList.add('fa-chevron-down');
+                                    }
+                                }
+                            }
+                            parent = parentNode ? parentNode.parentElement.closest('.tree-children') : null;
+                        }
+                    }
+                });
+            });
+        }
+
+        setupTreeSearch('searchUbicaciones', 'ubicacionesTree');
+        setupTreeSearch('searchCategorias', 'categoriasTree');
+        
+        expandSelected();
+    });
+</script>
 {% endblock %}

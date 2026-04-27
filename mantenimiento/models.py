@@ -863,17 +863,40 @@ class Aviso(models.Model):
             url = getattr(settings, 'N8N_AVISOS_WEBHOOK_URL', 'http://localhost:5678/webhook/avisos-asignacion')
             
             tecnico_nombre = self.responsable.get_full_name() or self.responsable.username
+            tecnico_telefono = ""
+            if hasattr(self.responsable, 'perfil') and self.responsable.perfil.telefono:
+                tecnico_telefono = self.responsable.perfil.telefono
+                
+            solicitante_nombre = "Sistema"
+            if self.solicitante:
+                solicitante_nombre = self.solicitante.get_full_name() or self.solicitante.username
+                
+            foto_url = ""
+            if self.foto:
+                site_url = getattr(settings, 'SITE_URL', '').rstrip('/')
+                if site_url and not self.foto.url.startswith('http'):
+                    foto_url = f"{site_url}{self.foto.url}"
+                else:
+                    foto_url = self.foto.url
             
             payload = {
                 "aviso_id": self.id,
                 "aviso_titulo": f"AV-{self.id}",
                 "aviso_descripcion": self.descripcion,
                 "aviso_prioridad": self.prioridad,
+                "aviso_tipo": self.get_tipo_display() if hasattr(self, 'get_tipo_display') else self.tipo,
+                "aviso_estado": self.estado,
                 "ubicacion": self.ubicacion.nombre if self.ubicacion else "Desconocida",
+                "activo": self.activo.nombre if hasattr(self, 'activo') and self.activo else "",
+                "falla": self.falla.nombre if hasattr(self, 'falla') and self.falla else "",
+                "solicitante": solicitante_nombre,
                 "tecnico_id": self.responsable.id,
                 "tecnico_username": self.responsable.username,
                 "tecnico_nombre": tecnico_nombre,
                 "tecnico_email": self.responsable.email,
+                "tecnico_telefono": tecnico_telefono,
+                "foto_url": foto_url,
+                "fecha_creacion": self.creado_en.isoformat() if self.creado_en else "",
                 "fecha_asignacion": self.actualizado_en.isoformat() if self.actualizado_en else ""
             }
             

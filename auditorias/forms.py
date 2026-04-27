@@ -4,9 +4,11 @@ from activos.models import Ubicacion, Categoria
 from django.contrib.admin.widgets import FilteredSelectMultiple
 
 class AuditoriaStep1Form(forms.ModelForm):
+    nombre = forms.CharField(required=False, label="Nombre de la Auditoría", help_text="Déjalo en blanco para generar uno automáticamente según la ubicación.")
+    
     class Meta:
         model = Auditoria
-        fields = ['nombre', 'fecha_fin']
+        fields = ['nombre', 'tipo', 'fecha_fin']
         widgets = {
             'fecha_fin': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -14,17 +16,9 @@ class AuditoriaStep1Form(forms.ModelForm):
 class AuditoriaStep2Form(forms.Form):
     ubicaciones = forms.ModelMultipleChoiceField(
         queryset=Ubicacion.objects.all(),
-        widget=FilteredSelectMultiple("Ubicaciones", is_stacked=False),
         required=False
     )
     categorias = forms.ModelMultipleChoiceField(
         queryset=Categoria.objects.all(),
-        widget=FilteredSelectMultiple("Categorías", is_stacked=False),
         required=False
     )
-    
-    class Media:
-        css = {
-            'all': ('/static/admin/css/widgets.css',),
-        }
-        js = ('/admin/jsi18n/',)

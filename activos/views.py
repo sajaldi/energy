@@ -1714,3 +1714,149 @@ def qr_generator_pdf(request):
         import traceback
         traceback.print_exc()
         return HttpResponse(f'Error Processing Lotes: {str(e)}', status=500)
+
+
+# ─── Visor / Gestor de Ubicaciones ──────────────────────────────────────────
+
+@staff_member_required
+def ubicacion_manager_view(request):
+    """Renders the mobile-style location manager/viewer."""
+    from .models import Ubicacion
+    total = Ubicacion.objects.count()
+    raices = Ubicacion.objects.filter(padre__isnull=True).order_by('orden', 'nombre').count()
+    return render(request, 'activos/ubicacion_manager.html', {
+        'total': total,
+        'raices': raices,
+    })
+
+
+@staff_member_required
+def api_ubicacion_list(request):
+    """Returns a JSON tree of ubicaciones, optionally filtered by parent."""
+    from .models import Ubicacion
+    from django.db.models import Count
+
+    parent_id = request.GET.get('parent_id')
+    q = request.GET.get('q', '').strip()
+
+    if q:
+        qs = Ubicacion.objects.filter(nombre__icontains=q).select_related('padre').order_by('nombre')[:50]
+    elif parent_id:
+        qs = Ubicacion.objects.filter(padre_id=parent_id).order_by('orden', 'nombre')
+    else:
+        qs = Ubicacion.objects.filter(padre__isnull=True).order_by('orden', 'nombre')
+
+    TIPO_ICONS = {
+        'EDIFICIO': 'business',
+        'NIVEL': 'layers',
+        'ESPACIO': 'grid',
+        'BODEGA': 'archive',
+        'OTRO': 'location',
+    }
+
+    data = []
+    for u in qs:
+        children_count = u.sub_ubicaciones.count()
+        activos_count = u.activos.count() if hasattr(u, 'activos') else 0
+        data.append({
+            'id': u.id,
+            'nombre': u.nombre,
+            'tipo': u.tipo,
+            'tipo_display': u.get_tipo_display(),
+            'icon': TIPO_ICONS.get(u.tipo, 'location'),
+            'codigo_qr': u.codigo_qr or '',
+            'descripcion': u.descripcion or '',
+            'orden': u.orden,
+            'es_almacen': u.es_almacen,
+            'padre_id': u.padre_id,
+            'padre_nombre': u.padre.nombre if u.padre else None,
+            'children_count': children_count,
+            'activos_count': activos_count,
+            'has_children': children_count > 0,
+        })
+    return JsonResponse({'results': data, 'parent_id': parent_id})
+
+
+@staff_member_required
+def api_ubicacion_save(request):
+    """Creates or updates a Ubicacion via AJAX POST."""
+    import json as _json
+    from .models import Ubicacion
+
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    try:
+        data = _json.loads(request.body)
+    except Exception:
+        data = request.POST
+
+    ubi_id = data.get('id')
+    nombre = (data.get('nombre') or '').strip()
+    tipo = data.get('tipo', 'OTRO')
+    padre_id = data.get('padre_id') or None
+    descripcion = data.get('descripcion', '')
+    orden = int(data.get('orden') or 0)
+    es_almacen = bool(data.get('es_almacen', False))
+    codigo_qr = (data.get('codigo_qr') or '').strip() or None
+
+    if not nombre:
+        return JsonResponse({'error': 'El nombre es requerido.'}, status=400)
+
+    try:
+        if ubi_id:
+            ubi = get_object_or_404(Ubicacion, id=ubi_id)
+        else:
+            ubi = Ubicacion()
+
+        ubi.nombre = nombre
+        ubi.tipo = tipo
+        ubi.padre_id = padre_id if padre_id else None
+        ubi.descripcion = descripcion
+        ubi.orden = orden
+        ubi.es_almacen = es_almacen
+        ubi.codigo_qr = codigo_qr
+        ubi.save()
+
+        return JsonResponse({
+            'status': 'success',
+            'id': ubi.id,
+            'nombre': ubi.nombre,
+            'message': 'Ubicación guardada correctamente.',
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@staff_member_required
+def api_ubicacion_delete(request, ubicacion_id):
+    """Deletes a Ubicacion if it has no children or assets."""
+    from .models import Ubicacion
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    ubi = get_object_or_404(Ubicacion, id=ubicacion_id)
+    if ubi.sub_ubicaciones.exists():
+        return JsonResponse({'error': 'No se puede eliminar: tiene sub-ubicaciones.'}, status=400)
+    if ubi.activos.exists():
+        return JsonResponse({'error': 'No se puede eliminar: tiene activos asignados.'}, status=400)
+
+    ubi.delete()
+    return JsonResponse({'status': 'success', 'message': 'Ubicación eliminada.'})
+
+@staff_member_required
+def api_modelo_detalle(request, modelo_id):
+    """Returns JSON data for a specific asset model."""
+    from .models.activo import Modelo
+    modelo = get_object_or_404(Modelo, id=modelo_id)
+    data = {
+        'id': modelo.id,
+        'nombre': modelo.nombre,
+        'marca': str(modelo.marca),
+        'categoria': str(modelo.categoria) if modelo.categoria else "Sin Categoría",
+        'descripcion': modelo.descripcion or "Sin descripción técnica adicional.",
+        'imagen': modelo.imagen if modelo.imagen else None,
+        'precio': str(modelo.precio_promedio) if modelo.precio_promedio else "0.00",
+        'unidad': str(modelo.unidad_medida) if modelo.unidad_medida else "N/A"
+    }
+    return JsonResponse(data)

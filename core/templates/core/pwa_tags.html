@@ -202,3 +202,136 @@
         });
     })();
 </script>
+
+<!-- Offline Sync Script -->
+<script>
+    (function() {
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function dataURItoBlob(dataURI) {
+            const parts = dataURI.split(',');
+            const byteString = atob(parts[1]);
+            const mimeString = parts[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], {type: mimeString});
+        }
+
+        async function syncOfflineAvisos() {
+            if (!navigator.onLine) return;
+
+            const dbRequest = indexedDB.open('SoftcomOfflineDB', 1);
+            
+            dbRequest.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('offlineAvisos')) {
+                    db.createObjectStore('offlineAvisos', { keyPath: 'id' });
+                }
+            };
+
+            dbRequest.onsuccess = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('offlineAvisos')) return;
+
+                const tx = db.transaction('offlineAvisos', 'readonly');
+                const store = tx.objectStore('offlineAvisos');
+                const getAllReq = store.getAll();
+
+                getAllReq.onsuccess = async () => {
+                    const avisos = getAllReq.result;
+                    if (!avisos || avisos.length === 0) return;
+
+                    console.log(`[Offline Sync] Encontrados ${avisos.length} avisos offline para sincronizar.`);
+
+                    // Asegurar que SweetAlert est cargado
+                    if (!window.Swal && document.head) {
+                        const script = document.createElement('script');
+                        script.src = "https://cdn.jsdelivr.net/npm/sweetalert2@11";
+                        document.head.appendChild(script);
+                    }
+
+                    for (const aviso of avisos) {
+                        try {
+                            const formData = new FormData();
+                            
+                            // Aadir campos de texto
+                            for (const [key, value] of Object.entries(aviso.fields)) {
+                                if (Array.isArray(value)) {
+                                    value.forEach(v => formData.append(key, v));
+                                } else {
+                                    formData.append(key, value);
+                                }
+                            }
+
+                            // Asegurar token CSRF si no est en los campos
+                            if (!formData.has('csrfmiddlewaretoken')) {
+                                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+                            }
+
+                            // Aadir archivos decodificados
+                            if (aviso.files && aviso.files.length > 0) {
+                                for (const fileObj of aviso.files) {
+                                    const blob = dataURItoBlob(fileObj.data);
+                                    formData.append(fileObj.fieldName, blob, fileObj.name);
+                                }
+                            }
+
+                            // Enviar
+                            const response = await fetch('/mantenimiento/app/aviso/crear/', {
+                                method: 'POST',
+                                body: formData,
+                                headers: {
+                                    'X-CSRFToken': getCookie('csrftoken')
+                                }
+                            });
+
+                            if (response.ok || response.redirected) {
+                                // Eliminar de IndexedDB local
+                                const delTx = db.transaction('offlineAvisos', 'readwrite');
+                                delTx.objectStore('offlineAvisos').delete(aviso.id);
+                                
+                                console.log(`[Offline Sync] Aviso ${aviso.id} sincronizado.`);
+                                
+                                setTimeout(() => {
+                                    if (window.Swal) {
+                                        Swal.fire({
+                                            toast: true,
+                                            position: 'top-end',
+                                            icon: 'success',
+                                            title: 'Aviso offline sincronizado con éxito',
+                                            showConfirmButton: false,
+                                            timer: 4000
+                                        });
+                                    }
+                                }, 1000);
+                            } else {
+                                console.error('[Offline Sync] Error al sincronizar aviso', aviso.id, response.statusText);
+                            }
+                        } catch (err) {
+                            console.error('[Offline Sync] Error procesando aviso offline', aviso.id, err);
+                        }
+                    }
+                };
+            };
+        }
+
+        window.addEventListener('online', syncOfflineAvisos);
+        window.addEventListener('load', syncOfflineAvisos);
+    })();
+</script>

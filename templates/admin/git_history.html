@@ -1,0 +1,131 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/dashboard.css' %}">
+<style>
+    .commit-card {
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        background: white;
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .commit-header {
+        background: #f8fafc;
+        padding: 15px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .branch-badge {
+        background: #3b82f6;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    .commit-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .commit-table th {
+        text-align: left;
+        background: #f1f5f9;
+        padding: 12px 20px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #64748b;
+        letter-spacing: 0.05em;
+    }
+    .commit-table td {
+        padding: 15px 20px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: top;
+    }
+    .hash-badge {
+        font-family: monospace;
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #0f172a;
+        font-weight: 600;
+    }
+    .commit-subject {
+        font-weight: 600;
+        color: #1e293b;
+        display: block;
+        margin-bottom: 4px;
+    }
+    .commit-meta {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+    .commit-author {
+        color: #334155;
+        font-weight: 500;
+    }
+    .commit-row:hover {
+        background: #f8fafc;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; Historial de Git
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="commit-card">
+        <div class="commit-header">
+            <h2 style="margin: 0; font-size: 1.25rem;">Historial de Pushes Recientes</h2>
+            <div class="branch-badge">
+                <i class="fas fa-code-branch"></i> {{ current_branch }}
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="commit-table">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">Hash</th>
+                        <th style="width: 150px;">Autor</th>
+                        <th>Mensaje</th>
+                        <th style="width: 200px;">Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for commit in commits %}
+                    <tr class="commit-row">
+                        <td><span class="hash-badge">{{ commit.hash }}</span></td>
+                        <td><span class="commit-author">{{ commit.author }}</span></td>
+                        <td>
+                            <span class="commit-subject">{{ commit.subject }}</span>
+                        </td>
+                        <td>
+                            <div class="commit-meta">
+                                <i class="far fa-clock"></i> {{ commit.relative_date }}<br>
+                                <small>{{ commit.absolute_date }}</small>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 40px; color: #64748b;">
+                            No se encontraron commits. Asegúrate de que el proyecto sea un repositorio Git.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

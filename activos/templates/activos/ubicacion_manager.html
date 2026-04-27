@@ -1,0 +1,429 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ubicaciones - SoftCoM</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+{% include 'core/fiori_tokens.html' %}
+<style>
+*{box-sizing:border-box;}
+body{font-family:'Outfit',sans-serif;background:#f1f5f9;margin:0;padding-bottom:90px;color:#1e293b;}
+
+/* Header */
+.app-header{background:var(--sap-shell-bg,#1e3a5f);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,.15);}
+.header-left{display:flex;align-items:center;gap:12px;}
+.back-btn{color:#fff;font-size:24px;display:flex;cursor:pointer;text-decoration:none;}
+.header-title{margin:0;font-size:17px;font-weight:700;}
+.header-subtitle{font-size:11px;opacity:.7;margin:0;}
+.btn-add{background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 14px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.btn-add:active{transform:scale(.96);}
+
+/* Breadcrumb */
+.breadcrumb{padding:12px 16px;display:flex;align-items:center;gap:6px;font-size:13px;color:#64748b;overflow-x:auto;white-space:nowrap;background:#fff;border-bottom:1px solid #e2e8f0;}
+.bc-item{cursor:pointer;color:var(--sap-brand-color,#2563eb);font-weight:600;}
+.bc-item:last-child{color:#1e293b;font-weight:700;}
+.bc-sep{color:#cbd5e1;}
+
+/* Stats bar */
+.stats-bar{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#e2e8f0;border-bottom:1px solid #e2e8f0;}
+.stat-tile{background:#fff;padding:14px 20px;text-align:center;}
+.stat-val{display:block;font-size:1.6rem;font-weight:700;color:var(--sap-brand-color,#2563eb);}
+.stat-lbl{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;}
+
+/* Search */
+.search-wrap{padding:12px 16px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;}
+.search-input{flex:1;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s;}
+.search-input:focus{border-color:var(--sap-brand-color,#2563eb);}
+.search-clear{background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;display:flex;align-items:center;}
+
+/* Location cards */
+.list-wrap{padding:12px 16px;}
+.card{background:#fff;border-radius:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;animation:fadeUp .25s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.card-main{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;}
+.card-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.icon-EDIFICIO{background:#dbeafe;color:#1d4ed8;}
+.icon-NIVEL{background:#ede9fe;color:#7c3aed;}
+.icon-ESPACIO{background:#d1fae5;color:#059669;}
+.icon-BODEGA{background:#fff7ed;color:#c2410c;}
+.icon-OTRO{background:#f1f5f9;color:#475569;}
+.card-info{flex:1;min-width:0;}
+.card-name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-meta{font-size:12px;color:#64748b;margin-top:2px;display:flex;align-items:center;gap:8px;}
+.badge{padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;}
+.badge-edificio{background:#dbeafe;color:#1d4ed8;}
+.badge-nivel{background:#ede9fe;color:#7c3aed;}
+.badge-espacio{background:#d1fae5;color:#059669;}
+.badge-bodega{background:#fff7ed;color:#c2410c;}
+.badge-otro{background:#f1f5f9;color:#475569;}
+.badge-almacen{background:#fef9c3;color:#854d0e;}
+.card-actions{display:flex;gap:4px;}
+.action-btn{width:32px;height:32px;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.btn-edit{background:#eff6ff;color:#2563eb;}
+.btn-nav{background:#f0fdf4;color:#16a34a;}
+.btn-del{background:#fff1f2;color:#e11d48;}
+.card-children{border-top:1px solid #f1f5f9;padding:10px 16px;background:#f8fafc;font-size:12px;color:#64748b;display:flex;gap:16px;}
+
+/* Empty state */
+.empty{text-align:center;padding:48px 20px;color:#94a3b8;}
+.empty ion-icon{font-size:48px;display:block;margin:0 auto 12px;}
+.empty p{margin:0;font-weight:600;}
+
+/* Loading */
+.loading{text-align:center;padding:32px;color:#94a3b8;}
+.spinner{width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:var(--sap-brand-color,#2563eb);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;align-items:flex-end;}
+.modal-overlay.open{display:flex;}
+.modal-sheet{background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-height:90vh;overflow-y:auto;animation:slideUp .3s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-handle{width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 20px;}
+.modal-title{font-size:18px;font-weight:700;margin:0 0 20px;text-align:center;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;}
+.form-control{width:100%;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:15px;font-family:inherit;transition:border-color .2s;outline:none;}
+.form-control:focus{border-color:var(--sap-brand-color,#2563eb);box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f8fafc;border-radius:10px;}
+.toggle-label{font-weight:600;font-size:14px;}
+.toggle{position:relative;width:44px;height:24px;}
+.toggle input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:#e2e8f0;border-radius:24px;cursor:pointer;transition:.2s;}
+.slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+input:checked+.slider{background:var(--sap-brand-color,#2563eb);}
+input:checked+.slider:before{transform:translateX(20px);}
+.btn-save{background:var(--sap-brand-color,#2563eb);color:#fff;border:none;width:100%;padding:14px;border-radius:12px;font-weight:700;font-size:16px;cursor:pointer;margin-top:8px;transition:transform .15s;}
+.btn-save:active{transform:scale(.98);}
+.btn-cancel{background:#f1f5f9;color:#475569;border:none;width:100%;padding:12px;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer;margin-top:8px;}
+.error-msg{color:#e11d48;font-size:13px;font-weight:600;background:#fff1f2;padding:10px 14px;border-radius:8px;margin-bottom:12px;display:none;}
+
+/* Tab Bar */
+.tab-bar{position:fixed;bottom:0;left:0;right:0;height:70px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:space-around;align-items:center;box-shadow:0 -2px 10px rgba(0,0,0,.05);z-index:1000;}
+.tab-item{display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:#94a3b8;width:20%;}
+.tab-item ion-icon{font-size:24px;}
+.tab-item span{font-size:10px;font-weight:700;}
+.scan-btn{width:56px;height:56px;background:linear-gradient(135deg,var(--sap-brand-color,#2563eb),#1e40af);border-radius:18px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;box-shadow:0 6px 18px rgba(37,99,235,.4);margin-top:-30px;border:4px solid #fff;}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="app-header">
+  <div class="header-left">
+    <a href="{% url 'activos:arbol_activos' %}" class="back-btn"><ion-icon name="arrow-back-outline"></ion-icon></a>
+    <div>
+      <p class="header-title">Ubicaciones</p>
+      <p class="header-subtitle">{{ total }} ubicaciones · {{ raices }} raíces</p>
+    </div>
+  </div>
+  <button class="btn-add" onclick="openModal(null)">
+    <ion-icon name="add-outline"></ion-icon> Nueva
+  </button>
+</div>
+
+<!-- Breadcrumb -->
+<div class="breadcrumb" id="breadcrumb">
+  <span class="bc-item" onclick="navigate(null,'Inicio')">Inicio</span>
+</div>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat-tile">
+    <span class="stat-val" id="stat-total">{{ total }}</span>
+    <span class="stat-lbl">Total</span>
+  </div>
+  <div class="stat-tile">
+    <span class="stat-val" id="stat-showing">—</span>
+    <span class="stat-lbl">En vista</span>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="search-wrap">
+  <input id="search-input" class="search-input" placeholder="Buscar ubicación..." oninput="onSearch(this.value)">
+  <button class="search-clear" onclick="clearSearch()"><ion-icon name="close-circle-outline"></ion-icon></button>
+</div>
+
+<!-- List -->
+<div class="list-wrap" id="list-wrap">
+  <div class="loading"><div class="spinner"></div><p>Cargando ubicaciones...</p></div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title" id="modal-title">Nueva Ubicación</p>
+    <div class="error-msg" id="modal-error"></div>
+    <input type="hidden" id="f-id">
+    <div class="form-group">
+      <label class="form-label">Nombre *</label>
+      <input id="f-nombre" class="form-control" placeholder="Ej: Edificio Principal" maxlength="100">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Tipo</label>
+        <select id="f-tipo" class="form-control">
+          <option value="EDIFICIO">Edificio</option>
+          <option value="NIVEL">Nivel/Piso</option>
+          <option value="ESPACIO" selected>Espacio/Área</option>
+          <option value="BODEGA">Bodega</option>
+          <option value="OTRO">Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Orden</label>
+        <input id="f-orden" class="form-control" type="number" value="0" min="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ubicación padre</label>
+      <select id="f-padre" class="form-control">
+        <option value="">— Ninguno (raíz) —</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Código QR</label>
+      <input id="f-qr" class="form-control" placeholder="Ej: UBC000000001">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descripción</label>
+      <textarea id="f-desc" class="form-control" rows="2" placeholder="Descripción opcional"></textarea>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">¿Es almacén?</span>
+      <label class="toggle"><input id="f-almacen" type="checkbox"><span class="slider"></span></label>
+    </div>
+    <button class="btn-save" onclick="saveUbicacion()">Guardar</button>
+    <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="del-modal" onclick="closeDelOutside(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <p class="modal-title" style="color:#e11d48">Eliminar Ubicación</p>
+    <p style="text-align:center;color:#64748b;margin-bottom:20px;" id="del-msg">¿Estás seguro?</p>
+    <input type="hidden" id="del-id">
+    <button class="btn-save" style="background:#e11d48;" onclick="confirmDelete()">Sí, eliminar</button>
+    <button class="btn-cancel" onclick="closeDelModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- Tab Bar -->
+<nav class="tab-bar">
+  <a href="{% url 'core:mobile_dashboard' %}" class="tab-item"><ion-icon name="grid-outline"></ion-icon><span>Inicio</span></a>
+  <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item"><ion-icon name="calendar-clear-outline"></ion-icon><span>Agenda</span></a>
+  <a href="{% url 'core:mobile_scanner' %}" class="scan-btn"><ion-icon name="scan-outline"></ion-icon></a>
+  <a href="{% url 'activos:arbol_activos' %}" class="tab-item" style="color:var(--sap-brand-color,#2563eb);"><ion-icon name="cube-outline"></ion-icon><span>Activos</span></a>
+  <a href="{% url 'seguridad:mobile_perfil' %}" class="tab-item"><ion-icon name="person-outline"></ion-icon><span>Perfil</span></a>
+</nav>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+const API_LIST = "{% url 'activos:api_ubicacion_list' %}";
+const API_SAVE = "{% url 'activos:api_ubicacion_save' %}";
+const API_DEL  = "/activos/api/ubicaciones/delete/";
+
+// Navigation stack: [{id, nombre}]
+let stack = [];
+let searchTimeout = null;
+let allUbicaciones = []; // flat list for padre select
+
+// ─── Navigation ────────────────────────────────────────────────────────────
+function currentParentId(){return stack.length ? stack[stack.length-1].id : null;}
+
+function navigate(id, nombre){
+  if(id === null){stack = [];}
+  else{
+    // If already in stack, pop back to that level
+    const idx = stack.findIndex(s => s.id === id);
+    if(idx >= 0) stack = stack.slice(0, idx+1);
+    else stack.push({id, nombre});
+  }
+  renderBreadcrumb();
+  loadList();
+}
+
+function renderBreadcrumb(){
+  const bc = document.getElementById('breadcrumb');
+  let html = `<span class="bc-item" onclick="navigate(null,'Inicio')">Inicio</span>`;
+  stack.forEach((s,i)=>{
+    html += `<ion-icon name="chevron-forward-outline" class="bc-sep"></ion-icon>`;
+    html += `<span class="bc-item" onclick="navigate(${s.id},'${s.nombre.replace(/'/g,"\\'")}')">`;
+    html += s.nombre + `</span>`;
+  });
+  bc.innerHTML = html;
+}
+
+// ─── List Loading ───────────────────────────────────────────────────────────
+async function loadList(q=''){
+  const wrap = document.getElementById('list-wrap');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Cargando...</p></div>';
+
+  const pid = currentParentId();
+  let url = API_LIST + '?';
+  if(q) url += `q=${encodeURIComponent(q)}`;
+  else if(pid) url += `parent_id=${pid}`;
+
+  try{
+    const res = await fetch(url);
+    const data = await res.json();
+    renderList(data.results);
+    document.getElementById('stat-showing').textContent = data.results.length;
+  }catch(e){
+    wrap.innerHTML = '<div class="empty"><ion-icon name="warning-outline"></ion-icon><p>Error cargando datos</p></div>';
+  }
+}
+
+function renderList(items){
+  const wrap = document.getElementById('list-wrap');
+  if(!items.length){
+    wrap.innerHTML = '<div class="empty"><ion-icon name="location-outline"></ion-icon><p>No hay ubicaciones aquí</p></div>';
+    return;
+  }
+  wrap.innerHTML = items.map((u,i) => cardHTML(u,i)).join('');
+}
+
+function cardHTML(u, i){
+  const delay = Math.min(i*30, 200);
+  const badge = `<span class="badge badge-${u.tipo.toLowerCase()}">${u.tipo_display}</span>`;
+  const almacen = u.es_almacen ? `<span class="badge badge-almacen">Almacén</span>` : '';
+  const navBtn = u.has_children
+    ? `<button class="action-btn btn-nav" onclick="navigate(${u.id},'${u.nombre.replace(/'/g,"\\'")}'); event.stopPropagation();" title="Ver sub-ubicaciones"><ion-icon name="chevron-forward-outline"></ion-icon></button>`
+    : '';
+  return `
+  <div class="card" style="animation-delay:${delay}ms">
+    <div class="card-main" onclick="navigate(${u.id},'${u.nombre.replace(/'/g,"\\'")}')">
+      <div class="card-icon icon-${u.tipo}"><ion-icon name="${u.icon}-outline"></ion-icon></div>
+      <div class="card-info">
+        <div class="card-name">${u.nombre}</div>
+        <div class="card-meta">${badge}${almacen}${u.padre_nombre ? `<span>↳ ${u.padre_nombre}</span>` : ''}</div>
+      </div>
+      <div class="card-actions" onclick="event.stopPropagation()">
+        ${navBtn}
+        <button class="action-btn btn-edit" onclick="openModal(${JSON.stringify(u).replace(/"/g,'&quot;')})" title="Editar"><ion-icon name="pencil-outline"></ion-icon></button>
+        <button class="action-btn btn-del" onclick="openDelModal(${u.id},'${u.nombre.replace(/'/g,"\\'")}'); event.stopPropagation();" title="Eliminar"><ion-icon name="trash-outline"></ion-icon></button>
+      </div>
+    </div>
+    ${u.children_count||u.activos_count ? `<div class="card-children"><span>📂 ${u.children_count} sub-ubic.</span><span>📦 ${u.activos_count} activos</span></div>` : ''}
+  </div>`;
+}
+
+// ─── Search ─────────────────────────────────────────────────────────────────
+function onSearch(val){
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(()=>{ loadList(val.trim()); }, 350);
+}
+function clearSearch(){ document.getElementById('search-input').value=''; loadList(); }
+
+// ─── Padre Select ─────────────────────────────────────────────────────────
+async function loadPadreOptions(currentId){
+  try{
+    const res = await fetch(API_LIST + '?'); // root
+    const data = await res.json();
+    allUbicaciones = data.results;
+    const sel = document.getElementById('f-padre');
+    sel.innerHTML = '<option value="">— Ninguno (raíz) —</option>';
+    allUbicaciones.forEach(u=>{
+      if(u.id != currentId){
+        sel.innerHTML += `<option value="${u.id}">${u.nombre}</option>`;
+      }
+    });
+    // Also try to load all via repeated calls (simplified: just load all roots for now)
+  }catch(e){}
+}
+
+// ─── Modal ───────────────────────────────────────────────────────────────────
+async function openModal(u){
+  document.getElementById('modal-error').style.display='none';
+  await loadPadreOptions(u ? u.id : null);
+
+  if(u){
+    document.getElementById('modal-title').textContent = 'Editar Ubicación';
+    document.getElementById('f-id').value = u.id;
+    document.getElementById('f-nombre').value = u.nombre;
+    document.getElementById('f-tipo').value = u.tipo;
+    document.getElementById('f-orden').value = u.orden;
+    document.getElementById('f-padre').value = u.padre_id || '';
+    document.getElementById('f-qr').value = u.codigo_qr || '';
+    document.getElementById('f-desc').value = u.descripcion || '';
+    document.getElementById('f-almacen').checked = u.es_almacen;
+  } else {
+    document.getElementById('modal-title').textContent = 'Nueva Ubicación';
+    document.getElementById('f-id').value = '';
+    document.getElementById('f-nombre').value = '';
+    document.getElementById('f-tipo').value = 'ESPACIO';
+    document.getElementById('f-orden').value = '0';
+    document.getElementById('f-padre').value = currentParentId() || '';
+    document.getElementById('f-qr').value = '';
+    document.getElementById('f-desc').value = '';
+    document.getElementById('f-almacen').checked = false;
+  }
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+function closeModalOutside(e){ if(e.target === document.getElementById('modal')) closeModal(); }
+
+async function saveUbicacion(){
+  const errEl = document.getElementById('modal-error');
+  errEl.style.display='none';
+  const payload = {
+    id: document.getElementById('f-id').value || null,
+    nombre: document.getElementById('f-nombre').value.trim(),
+    tipo: document.getElementById('f-tipo').value,
+    orden: document.getElementById('f-orden').value,
+    padre_id: document.getElementById('f-padre').value || null,
+    codigo_qr: document.getElementById('f-qr').value.trim(),
+    descripcion: document.getElementById('f-desc').value.trim(),
+    es_almacen: document.getElementById('f-almacen').checked,
+  };
+  if(!payload.nombre){ errEl.textContent='El nombre es requerido.'; errEl.style.display='block'; return; }
+  try{
+    const res = await fetch(API_SAVE, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(data.status === 'success'){
+      closeModal();
+      loadList();
+    } else {
+      errEl.textContent = data.error || 'Error al guardar.';
+      errEl.style.display='block';
+    }
+  }catch(e){ errEl.textContent='Error de red.'; errEl.style.display='block'; }
+}
+
+// ─── Delete Modal ────────────────────────────────────────────────────────────
+function openDelModal(id, nombre){
+  document.getElementById('del-id').value = id;
+  document.getElementById('del-msg').textContent = `¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`;
+  document.getElementById('del-modal').classList.add('open');
+}
+function closeDelModal(){ document.getElementById('del-modal').classList.remove('open'); }
+function closeDelOutside(e){ if(e.target === document.getElementById('del-modal')) closeDelModal(); }
+
+async function confirmDelete(){
+  const id = document.getElementById('del-id').value;
+  try{
+    const res = await fetch(`${API_DEL}${id}/`,{method:'POST',headers:{'X-CSRFToken':CSRF}});
+    const data = await res.json();
+    if(data.status === 'success'){ closeDelModal(); loadList(); }
+    else{ alert(data.error || 'No se puede eliminar.'); closeDelModal(); }
+  }catch(e){ alert('Error de red.'); }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+loadList();
+</script>
+</body>
+</html>

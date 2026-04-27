@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/get_rutinas_ubicacion/', views_rutinas.get_rutinas_ubicacion, name='get_rutinas_ubicacion'),
     path('app/ubicaciones/', views.mobile_ubicaciones, name='mobile_ubicaciones'),
     path('app/ubicaciones/<int:parent_id>/', views.mobile_ubicaciones, name='mobile_ubicaciones_child'),
+    path('api/modelo-detalle/<int:modelo_id>/', views.api_modelo_detalle, name='api_modelo_detalle'),
     
     # Administrador / Scanner de Ubicaciones Físicas (Móvil)
     path('app/admin/', views.mobile_admin_dashboard, name='mobile_admin_dashboard'),
@@ -96,4 +97,10 @@ urlpatterns = [
     
     # Fotos de Ubicación
     path('api/ubicacion/upload-fotos/', views.api_upload_foto_ubicacion, name='api_upload_foto_ubicacion'),
+
+    # Gestor de Ubicaciones (Mobile APP Style)
+    path('ubicaciones/gestor/', views.ubicacion_manager_view, name='ubicacion_manager'),
+    path('api/ubicaciones/list/', views.api_ubicacion_list, name='api_ubicacion_list'),
+    path('api/ubicaciones/save/', views.api_ubicacion_save, name='api_ubicacion_save'),
+    path('api/ubicaciones/delete/<int:ubicacion_id>/', views.api_ubicacion_delete, name='api_ubicacion_delete'),
 ]

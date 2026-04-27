@@ -2,12 +2,16 @@ from django import template
 
 register = template.Library()
 
-@register.filter
+@register.filter(name='dict_get')
 def dict_get(dictionary, key):
     """Acceso dinámico a diccionarios en plantillas"""
     if not dictionary:
         return None
     return dictionary.get(key)
+
+@register.filter(name='get_item')
+def get_item(dictionary, key):
+    return dict_get(dictionary, key)
 
 @register.filter(name='has_group')
 def has_group(user, group_name):

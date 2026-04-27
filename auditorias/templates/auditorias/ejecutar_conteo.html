@@ -1,0 +1,615 @@
+{% load static core_tags %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Conteo - SoftCoM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    {% include 'core/fiori_tokens.html' %}
+    <style>
+        body {
+            font-family: 'Outfit', var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            margin: 0;
+            padding-bottom: 90px;
+            color: var(--sap-text-color);
+        }
+
+        .app-header {
+            background: var(--sap-shell-bg);
+            color: white;
+            padding: 20px 20px 20px 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .back-button {
+            position: absolute;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            text-decoration: none;
+        }
+
+        .header-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 70%;
+        }
+
+        .status-badge {
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            text-transform: uppercase;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 4px;
+            position: absolute;
+            right: 20px;
+        }
+
+        .fiori-content {
+            padding: 16px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .fiori-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .fiori-stat-tile {
+            background: #ffffff;
+            padding: 15px;
+            text-align: center;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .fiori-stat-val {
+            display: block;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--sap-brand-color, #2563eb);
+        }
+
+        .fiori-stat-lbl {
+            font-size: 0.75rem;
+            color: var(--sap-text-muted);
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        /* List Items */
+        .conteo-list {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .conteo-list-header {
+            background: #f8fafc;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            text-transform: uppercase;
+        }
+
+        .conteo-item {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+        }
+
+        .conteo-item:last-child {
+            border-bottom: none;
+        }
+
+        .conteo-info {
+            flex: 1;
+        }
+
+        .conteo-category {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #1e293b;
+            display: block;
+        }
+
+        .conteo-location {
+            font-size: 0.8rem;
+            color: var(--sap-text-muted);
+            display: block;
+            margin-top: 4px;
+        }
+
+        .conteo-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .conteo-expected {
+            font-size: 0.8rem;
+            color: var(--sap-text-muted);
+            text-align: right;
+            min-width: 45px;
+        }
+
+        .conteo-input {
+            width: 60px;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .conteo-input:focus {
+            border-color: var(--sap-brand-color, #2563eb);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .conteo-input.match {
+            border-color: #10b981;
+            background: #ecfdf5;
+            color: #047857;
+        }
+
+        .conteo-input.diff {
+            border-color: #f59e0b;
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        .btn-finalize {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 16px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            display: block;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+            transition: transform 0.2s;
+        }
+        
+        .btn-finalize:active {
+            transform: scale(0.98);
+        }
+
+        /* Bottom Tab Bar */
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: #ffffff;
+            border-top: 1px solid var(--sap-border-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: var(--sap-text-muted);
+            width: 20%;
+        }
+
+        .tab-item ion-icon {
+            font-size: 26px;
+        }
+
+        .tab-item span {
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .scan-btn {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--sap-brand-color, #2563eb), #1e40af);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 30px;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+            margin-top: -35px;
+            border: 4px solid white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-header">
+        <a href="{% url 'auditorias:lista_auditorias' %}" class="back-button">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </a>
+        <h1 class="header-title">{{ auditoria.nombre }}</h1>
+        <span class="status-badge">{{ auditoria.get_estado_display }}</span>
+    </div>
+
+    <div class="fiori-content">
+        <style>
+            .acc-l1,.acc-l2,.acc-l3,.acc-l4{border-radius:12px;margin-bottom:8px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.05);}
+            .acc-l1{background:#fff;}
+            .acc-l2{background:#f8fafc;margin:6px 0;border-radius:8px;}
+            .acc-l3{background:#f1f5f9;margin:4px 0;border-radius:8px;}
+            .acc-l4{background:#eef2ff;margin:4px 0;border-radius:8px;}
+            .acc-header{display:flex;align-items:center;padding:14px 16px;cursor:pointer;gap:10px;transition:background .15s;user-select:none;}
+            .acc-header:active{background:rgba(37,99,235,.06);}
+            .acc-l2 .acc-header{padding:11px 14px;}
+            .acc-l3 .acc-header{padding:9px 12px;font-size:13px;}
+            .acc-l4 .acc-header{padding:8px 10px;font-size:12px;}
+            .acc-icon{font-size:20px;flex-shrink:0;}
+            .acc-l1 .acc-icon{color:#2563eb;}
+            .acc-l2 .acc-icon{color:#7c3aed;font-size:18px;}
+            .acc-l3 .acc-icon{color:#059669;font-size:16px;}
+            .acc-l4 .acc-icon{color:#4f46e5;font-size:14px;}
+            .acc-label{font-weight:700;flex:1;color:#1e293b;}
+            .acc-l2 .acc-label{font-weight:600;color:#374151;}
+            .acc-l3 .acc-label{font-weight:600;color:#4b5563;}
+            .acc-l4 .acc-label{font-weight:600;color:#6366f1;}
+            .acc-counts{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+            .pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;}
+            .pill-blue{background:#eff6ff;color:#1d4ed8;}
+            .pill-purple{background:#f5f3ff;color:#6d28d9;}
+            .pill-green{background:#dcfce7;color:#166534;}
+            .pill-indigo{background:#e0e7ff;color:#4338ca;}
+            .pill-yellow{background:#fef9c3;color:#854d0e;}
+            .acc-chevron{color:#94a3b8;font-size:18px;transition:transform .25s;flex-shrink:0;}
+            .acc-chevron.open{transform:rotate(90deg);}
+            .acc-body{display:none;padding:0 10px 10px;}
+            .acc-body.open{display:block;}
+            .acc-l2 .acc-body{padding:0 8px 8px;}
+            .acc-l3 .acc-body{padding:0 6px 6px;}
+            .acc-l4 .acc-body{padding:0;}
+
+            /* Conteo row */
+            .conteo-item{border-bottom:1px solid #e2e8f0;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;background:#fff;}
+            .conteo-item:last-child{border-bottom:none;border-radius:0 0 8px 8px;}
+            .conteo-item:first-child{border-radius:8px 8px 0 0;}
+            .conteo-item:only-child{border-radius:8px;}
+            .conteo-info{flex:1;}
+            .conteo-category{font-weight:700;font-size:.95rem;color:#1e293b;display:block;}
+            .conteo-location{font-size:.78rem;color:#64748b;display:block;margin-top:3px;}
+            .conteo-controls{display:flex;align-items:center;gap:10px;}
+            .conteo-expected{font-size:.78rem;color:#64748b;text-align:right;min-width:42px;}
+            .conteo-input{width:62px;padding:8px;text-align:center;border:1.5px solid #cbd5e1;border-radius:8px;font-size:1.1rem;font-weight:700;outline:none;transition:all .2s;font-family:inherit;}
+            .conteo-input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+            .conteo-input.match{border-color:#10b981;background:#ecfdf5;color:#047857;}
+            .conteo-input.diff{border-color:#f59e0b;background:#fffbeb;color:#b45309;}
+
+            .btn-finalize{background:#ef4444;color:#fff;border:none;padding:16px;border-radius:16px;font-weight:700;font-size:1rem;cursor:pointer;width:100%;display:block;text-align:center;box-shadow:0 4px 10px rgba(239,68,68,.3);transition:transform .2s;margin-top:8px;}
+            .btn-finalize:active{transform:scale(.98);}
+        </style>
+
+        <!-- Stats -->
+        <div class="fiori-stats">
+            <div class="fiori-stat-tile">
+                <span class="fiori-stat-val">{{ total_esperado }}</span>
+                <span class="fiori-stat-lbl">ESPERADO</span>
+            </div>
+            <div class="fiori-stat-tile">
+                <span class="fiori-stat-val" id="total-encontrado" style="color:#10b981;">{{ total_encontrado }}</span>
+                <span class="fiori-stat-lbl">CONTEO</span>
+            </div>
+        </div>
+
+        <!-- 4-level accordion: Raíz → Sub-Ubicación → Categoría → Modelo -->
+        {% if arbol_conteo %}
+            {% for ubi_raiz, sub_ubis in arbol_conteo.items %}
+            <div class="acc-l1">
+                <div class="acc-header" onclick="toggleAcc(this)">
+                    <ion-icon class="acc-icon" name="business-outline"></ion-icon>
+                    <span class="acc-label">{{ ubi_raiz }}</span>
+                    <div class="acc-counts">
+                        <span class="pill pill-blue">{{ sub_ubis.keys|length }} áreas</span>
+                    </div>
+                    <ion-icon class="acc-chevron open" name="chevron-forward-outline"></ion-icon>
+                </div>
+                <div class="acc-body open">
+                    {% for sub_nombre, categorias in sub_ubis.items %}
+                    <div class="acc-l2">
+                        <div class="acc-header" onclick="toggleAcc(this)">
+                            <ion-icon class="acc-icon" name="location-outline"></ion-icon>
+                            <span class="acc-label">{{ sub_nombre }}</span>
+                            <div class="acc-counts">
+                                <span class="pill pill-purple">{{ categorias.keys|length }} cat.</span>
+                            </div>
+                            <ion-icon class="acc-chevron open" name="chevron-forward-outline"></ion-icon>
+                        </div>
+                        <div class="acc-body open">
+                            {% for cat_nombre, modelos in categorias.items %}
+                            <div class="acc-l3">
+                                <div class="acc-header" onclick="toggleAcc(this)">
+                                    <ion-icon class="acc-icon" name="pricetag-outline"></ion-icon>
+                                    <span class="acc-label">{{ cat_nombre }}</span>
+                                    <div class="acc-counts">
+                                        <span class="pill pill-green">{{ modelos.keys|length }} mod.</span>
+                                    </div>
+                                    <ion-icon class="acc-chevron open" name="chevron-forward-outline"></ion-icon>
+                                </div>
+                                <div class="acc-body open">
+                                    {% for mod_tuple, conteos_mod in modelos.items %}
+                                    {% with mod_nombre=mod_tuple.0 mod_id=mod_tuple.1 %}
+                                    <div class="acc-l4">
+                                        <div class="acc-header" onclick="toggleAcc(this)">
+                                            <ion-icon class="acc-icon" name="cube-outline"></ion-icon>
+                                            <span class="acc-label">{{ mod_nombre }}</span>
+                                            <div class="acc-counts">
+                                                {% if mod_id %}
+                                                <ion-icon name="information-circle-outline" 
+                                                          style="font-size:20px;color:#2563eb;margin-right:8px;"
+                                                          onclick="showModelDetail(event, '{{ mod_id }}')"></ion-icon>
+                                                {% endif %}
+                                                <span class="pill pill-indigo">{{ conteos_mod|length }}</span>
+                                            </div>
+                                            <ion-icon class="acc-chevron open" name="chevron-forward-outline"></ion-icon>
+                                        </div>
+                                        <div class="acc-body open">
+                                            {% for conteo in conteos_mod %}
+                                            <div class="conteo-item">
+                                                <div class="conteo-info">
+                                                    <span class="conteo-category">Conteo Actual</span>
+                                                    <span class="conteo-location">
+                                                        <ion-icon name="navigate-outline" style="vertical-align:text-bottom;color:#2563eb;font-size:12px;"></ion-icon>
+                                                        {{ conteo.ubicacion.get_ruta_completa }}
+                                                    </span>
+                                                </div>
+                                                <div class="conteo-controls">
+                                                    <div class="conteo-expected">
+                                                        <span style="font-size:10px;display:block;color:#94a3b8;">ESP.</span>
+                                                        <strong>{{ conteo.cantidad_esperada }}</strong>
+                                                    </div>
+                                                    <input type="number"
+                                                           inputmode="numeric"
+                                                           pattern="[0-9]*"
+                                                           class="conteo-input {% if conteo.cantidad_encontrada > 0 %}{% if conteo.cantidad_encontrada == conteo.cantidad_esperada %}match{% else %}diff{% endif %}{% endif %}"
+                                                           value="{{ conteo.cantidad_encontrada }}"
+                                                           min="0"
+                                                           data-conteo-id="{{ conteo.id }}"
+                                                           data-esperada="{{ conteo.cantidad_esperada }}"
+                                                           onblur="updateCount(this)"
+                                                           onchange="updateCount(this)">
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endwith %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+
+        {% else %}
+            <div style="text-align:center;padding:48px 20px;color:#94a3b8;background:#fff;border-radius:16px;">
+                <ion-icon name="cube-outline" style="font-size:48px;display:block;margin-bottom:10px;"></ion-icon>
+                <p style="font-weight:600;margin:0;">No hay categorías asignadas para contar.</p>
+            </div>
+        {% endif %}
+
+        <button class="btn-finalize" onclick="finalizarAuditoria()">
+            <ion-icon name="checkmark-circle-outline" style="vertical-align:middle;font-size:20px;margin-right:5px;"></ion-icon>
+            FINALIZAR CONTEO
+        </button>
+    </div>
+
+    <!-- Modal para Detalle de Modelo -->
+    <div id="modelModal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="m-title">Detalle del Modelo</h3>
+                <ion-icon name="close-outline" class="modal-close" onclick="closeModal()"></ion-icon>
+            </div>
+            <div class="modal-content">
+                <div id="m-image-container" class="m-img-box">
+                    <img id="m-image" src="" alt="Foto del modelo">
+                </div>
+                <div class="m-info-grid">
+                    <div class="m-field">
+                        <label>Marca</label>
+                        <span id="m-marca">-</span>
+                    </div>
+                    <div class="m-field">
+                        <label>Categoría</label>
+                        <span id="m-categoria">-</span>
+                    </div>
+                    <div class="m-field">
+                        <label>Precio Ref.</label>
+                        <span id="m-precio">-</span>
+                    </div>
+                    <div class="m-field">
+                        <label>U. Medida</label>
+                        <span id="m-unidad">-</span>
+                    </div>
+                </div>
+                <div class="m-desc">
+                    <label>Descripción</label>
+                    <p id="m-descripcion">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+        .modal-overlay.open{display:flex;}
+        .modal-card{background:#fff;width:100%;max-width:400px;border-radius:24px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,.2);animation:modalIn .3s ease-out;}
+        @keyframes modalIn{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+        .modal-header{padding:20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f1f5f9;}
+        .modal-header h3{margin:0;font-size:1.1rem;color:#1e293b;}
+        .modal-close{font-size:24px;color:#64748b;cursor:pointer;}
+        .modal-content{padding:20px;max-height:70vh;overflow-y:auto;}
+        .m-img-box{width:100%;height:200px;background:#f8fafc;border-radius:16px;overflow:hidden;margin-bottom:20px;display:flex;align-items:center;justify-content:center;}
+        .m-img-box img{max-width:100%;max-height:100%;object-fit:contain;}
+        .m-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+        .m-field label{display:block;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px;}
+        .m-field span{font-weight:600;color:#1e293b;font-size:14px;}
+        .m-desc label{display:block;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px;}
+        .m-desc p{font-size:13px;color:#475569;line-height:1.5;margin:0;}
+    </style>
+
+    </div>
+
+    <!-- Tab Bar -->
+    <nav class="tab-bar">
+        <a href="{% url 'core:mobile_dashboard' %}" class="tab-item"><ion-icon name="grid-outline"></ion-icon><span>Inicio</span></a>
+        <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item"><ion-icon name="calendar-clear-outline"></ion-icon><span>Agenda</span></a>
+        <a href="{% url 'core:mobile_scanner' %}" class="scan-btn"><ion-icon name="scan-outline"></ion-icon></a>
+        <a href="{% url 'activos:arbol_activos' %}" class="tab-item"><ion-icon name="cube-outline"></ion-icon><span>Activos</span></a>
+        <a href="{% url 'seguridad:mobile_perfil' %}" class="tab-item"><ion-icon name="person-outline"></ion-icon><span>Perfil</span></a>
+    </nav>
+
+    <script>
+        function toggleAcc(header) {
+            const chevron = header.querySelector('.acc-chevron');
+            const body    = header.nextElementSibling;
+            const isOpen  = body.classList.contains('open');
+            body.classList.toggle('open', !isOpen);
+            chevron.classList.toggle('open', !isOpen);
+        }
+
+        async function updateCount(input) {
+            const conteoId = input.getAttribute('data-conteo-id');
+            const cantidadEsperada = parseInt(input.getAttribute('data-esperada'));
+            let cantidad = parseInt(input.value);
+
+            if (isNaN(cantidad) || cantidad < 0) { cantidad = 0; input.value = 0; }
+
+            input.classList.remove('match', 'diff');
+            if (cantidad > 0) {
+                input.classList.add(cantidad === cantidadEsperada ? 'match' : 'diff');
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('conteo_id', conteoId);
+                formData.append('cantidad', cantidad);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                const response = await fetch("{% url 'auditorias:api_actualizar_conteo' auditoria.id %}", {
+                    method: 'POST', body: formData
+                });
+                if (!response.ok) throw new Error("Error de red");
+
+                let total = 0;
+                document.querySelectorAll('.conteo-input').forEach(inp => {
+                    let v = parseInt(inp.value); if (!isNaN(v)) total += v;
+                });
+                document.getElementById('total-encontrado').innerText = total;
+            } catch (err) { console.error("No se pudo guardar", err); }
+        }
+
+        async function finalizarAuditoria() {
+            if (!confirm("¿Finalizar el conteo? Las cantidades se reasignarán automáticamente y no podrás deshacer esta acción.")) return;
+            try {
+                const response = await fetch("{% url 'auditorias:api_finalizar' auditoria.id %}", {
+                    method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    alert("Auditoría Finalizada con Éxito.");
+                    window.location.href = "{% url 'auditorias:lista_auditorias' %}";
+                } else { alert("Error: " + data.error); }
+            } catch (e) { alert("Error al finalizar auditoría."); }
+        }
+
+        async function showModelDetail(event, modId) {
+            if (event) event.stopPropagation(); // Evitar que el acordeón se cierre
+            if (!modId || modId === '0') return;
+
+            const modal = document.getElementById('modelModal');
+            
+            // Limpiar datos previos
+            document.getElementById('m-title').innerText = "Cargando...";
+            document.getElementById('m-image').src = "";
+            document.getElementById('m-marca').innerText = "...";
+            
+            modal.classList.add('open');
+
+            try {
+                const response = await fetch(`/activos/api/modelo-detalle/${modId}/`);
+                const data = await response.json();
+
+                document.getElementById('m-title').innerText = data.nombre;
+                document.getElementById('m-marca').innerText = data.marca;
+                document.getElementById('m-categoria').innerText = data.categoria;
+                document.getElementById('m-precio').innerText = "L. " + data.precio;
+                document.getElementById('m-unidad').innerText = data.unidad;
+                document.getElementById('m-descripcion').innerText = data.descripcion;
+                
+                if (data.imagen) {
+                    document.getElementById('m-image').src = data.imagen;
+                    document.getElementById('m-image-container').style.display = 'flex';
+                } else {
+                    document.getElementById('m-image-container').style.display = 'none';
+                }
+            } catch (err) {
+                console.error("Error cargando modelo:", err);
+                alert("No se pudo cargar el detalle del modelo.");
+                closeModal();
+            }
+        }
+
+        function closeModal(event) {
+            document.getElementById('modelModal').classList.remove('open');
+        }
+    </script>
+
+
+</body>
+</html>

@@ -1,0 +1,31 @@
+{% load core_tags %}
+<div class="tree-node" style="border-left: 1px solid #ddd; margin-left: 15px; padding-left: 10px;">
+    <div class="location-header" style="background: #f8f9fa; padding: 5px 10px; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; border: 1px solid #eee;">
+        <i class="fas fa-map-marker-alt" style="color: #0a6ed1;"></i>
+        {{ node.nombre }}
+    </div>
+
+    <!-- Activos en esta ubicación -->
+    <div class="assets-list" style="margin: 5px 0 10px 0;">
+        {% with assets=resultados_por_ubicacion|dict_get:node %}
+            {% if assets %}
+                {% for res in assets %}
+                <div class="asset-row" style="padding: 8px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; background: white;">
+                    <div style="flex: 1;">
+                        <span style="display: block; font-weight: 600; font-size: 0.85rem;">{{ res.activo.nombre }}</span>
+                        <span style="font-size: 0.7rem; color: #666;">{{ res.activo.codigo_interno }}</span>
+                    </div>
+                    <span class="status-badge {{ res.estado|lower }}" style="font-size: 0.65rem;">{{ res.get_estado_display }}</span>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Hijos recursivos -->
+    {% for child in node.sub_ubicaciones.all %}
+        {% if child in todas_ubicaciones %}
+            {% include 'auditorias/partials/tree_resultados.html' with node=child %}
+        {% endif %}
+    {% endfor %}
+</div>

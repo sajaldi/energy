@@ -916,11 +916,114 @@
             }
         });
 
+        // IndexedDB wrapper
+        function saveAvisoOffline(payload) {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('SoftcomOfflineDB', 1);
+                
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('offlineAvisos')) {
+                        db.createObjectStore('offlineAvisos', { keyPath: 'id' });
+                    }
+                };
+
+                request.onsuccess = (e) => {
+                    const db = e.target.result;
+                    const tx = db.transaction('offlineAvisos', 'readwrite');
+                    const store = tx.objectStore('offlineAvisos');
+                    store.add(payload);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                };
+
+                request.onerror = () => reject(request.error);
+            });
+        }
+
         // Form Submit
-        document.getElementById('order-form').onsubmit = function () {
+        document.getElementById('order-form').onsubmit = async function (e) {
             const btn = document.getElementById('submit-trigger');
-            btn.disabled = true;
-            btn.innerText = 'Procesando...';
+
+            if (!navigator.onLine) {
+                e.preventDefault();
+                btn.disabled = true;
+                btn.innerText = 'Procesando Offline...';
+                console.log("Offline mode detected. Saving locally...");
+
+                try {
+                    const form = this;
+                    const formData = new FormData(form);
+                    
+                    // Convert files to base64
+                    const filePromises = [];
+                    const fileInputs = form.querySelectorAll('input[type="file"]');
+                    for (let input of fileInputs) {
+                        if (input.files) {
+                            for (let file of input.files) {
+                                filePromises.push(new Promise((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onload = () => resolve({
+                                        fieldName: input.name,
+                                        name: file.name,
+                                        type: file.type,
+                                        data: reader.result
+                                    });
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(file);
+                                }));
+                            }
+                        }
+                    }
+
+                    const base64Files = await Promise.all(filePromises);
+
+                    // Construir el payload
+                    const payload = {
+                        id: Date.now() + Math.random().toString(36).substr(2, 9),
+                        timestamp: Date.now(),
+                        fields: {},
+                        files: base64Files
+                    };
+
+                    for (let [key, value] of formData.entries()) {
+                        if (!(value instanceof File)) {
+                            if (payload.fields[key] !== undefined) {
+                                if (!Array.isArray(payload.fields[key])) {
+                                    payload.fields[key] = [payload.fields[key]];
+                                }
+                                payload.fields[key].push(value);
+                            } else {
+                                payload.fields[key] = value;
+                            }
+                        }
+                    }
+
+                    // Guardar en IndexedDB
+                    await saveAvisoOffline(payload);
+
+                    if (window.Swal) {
+                        await Swal.fire({
+                            title: 'Sin Conexión', 
+                            text: 'El aviso ha sido guardado localmente y se enviará cuando recupere la señal.', 
+                            icon: 'info',
+                            confirmButtonColor: '#0a6ed1'
+                        });
+                    } else {
+                        alert("Sin Conexión. El aviso ha sido guardado localmente y se enviará cuando recupere la señal.");
+                    }
+                    window.location.href = "{% url 'mantenimiento:mobile_mis_avisos' %}";
+                    
+                } catch (error) {
+                    console.error("Error saving offline", error);
+                    btn.disabled = false;
+                    btn.innerText = 'Crear Aviso';
+                    if (window.Swal) Swal.fire('Error', 'No se pudo guardar el aviso offline.', 'error');
+                }
+            } else {
+                btn.disabled = true;
+                btn.innerText = 'Procesando...';
+            }
         };
 
         // Initialize state if editing

@@ -1102,3 +1102,50 @@ def eliminar_vista_personalizada(request, vista_id):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
+import subprocess
+from django.contrib.auth.decorators import user_passes_test
+
+@user_passes_test(lambda u: u.is_superuser)
+def git_history_view(request):
+    """
+    Vista para mostrar los últimos commits (pushes) del repositorio Git en el admin.
+    """
+    import subprocess
+    from django.contrib import admin
+    
+    commits = []
+    current_branch = "N/A"
+    
+    try:
+        # Obtener rama actual
+        branch_cmd = ['git', 'rev-parse', '--abbrev-ref', 'HEAD']
+        current_branch = subprocess.check_output(branch_cmd, text=True).strip()
+        
+        # Obtener últimos 30 commits
+        # Formato: hash | autor | fecha relativa | fecha absoluta | mensaje
+        cmd = ['git', 'log', '-n', '30', '--pretty=format:%h|%an|%ar|%ad|%s', '--date=format:%d/%m/%Y %H:%M']
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        lines = result.stdout.split('\n')
+        
+        for line in lines:
+            if '|' in line:
+                parts = line.split('|', 4)
+                if len(parts) == 5:
+                    commits.append({
+                        'hash': parts[0],
+                        'author': parts[1],
+                        'relative_date': parts[2],
+                        'absolute_date': parts[3],
+                        'subject': parts[4],
+                    })
+    except Exception as e:
+        logger.error(f"Error obteniendo historial de Git: {e}")
+        messages.error(request, f"No se pudo obtener el historial de Git. ¿Está el repositorio inicializado? Error: {e}")
+
+    context = {
+        'title': 'Historial de Versiones (Pushes)',
+        'commits': commits,
+        'current_branch': current_branch,
+        **admin.site.each_context(request),
+    }
+    return render(request, 'admin/git_history.html', context)

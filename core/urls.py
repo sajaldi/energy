@@ -28,4 +28,5 @@ urlpatterns = [
     path('devops/coolify/logs/', coolify_logs, name='coolify_logs'),
     path('devops/coolify/logs/stream/', coolify_stream_logs, name='coolify_stream_logs'),
     path('devops/coolify/logs/build/', coolify_build_logs, name='coolify_build_logs'),
+    path('devops/git-history/', views.git_history_view, name='git_history'),
 ]

@@ -4,7 +4,30 @@
 <h2>Paso 1: Información Básica de la Auditoría</h2>
 <p class="help">Define cuándo se realizará y cómo se llamará.</p>
 
-<div style="margin-top: 20px;">
-    {{ form.as_p }}
-</div>
+<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 600; color: #334155; margin-bottom: 5px;">
+                {{ form.nombre.label }}
+            </label>
+            {{ form.nombre }}
+            {% if form.nombre.help_text %}
+            <p style="font-size: 0.8rem; color: #64748b; margin-top: 5px;">{{ form.nombre.help_text }}</p>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 600; color: #334155; margin-bottom: 5px;">
+                Método de Auditoría
+            </label>
+            {{ form.tipo }}
+            <p style="font-size: 0.8rem; color: #64748b; margin-top: 5px;">Escaneo Individual permite verificar código por código. Por Conteo es rápido para registrar totales por área.</p>
+        </div>
+
+        <div>
+            <label style="display: block; font-weight: 600; color: #334155; margin-bottom: 5px;">
+                {{ form.fecha_fin.label|default:"Fecha límite esperada (Opcional)" }}
+            </label>
+            {{ form.fecha_fin }}
+        </div>
+    </div>
 {% endblock %}
