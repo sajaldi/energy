@@ -344,7 +344,8 @@ def detalle_mes(request, year, month):
     if programacion_id:
         try:
             prog = Programacion.objects.get(id=programacion_id)
-            if prog.horario: working_weekdays = set(prog.horario.dias.values_list('dia', flat=True))
+            horario = prog.horarios.first()
+            if horario: working_weekdays = set(horario.dias.values_list('dia', flat=True))
         except: pass
         
     restricciones_mes = set(RestriccionCalendario.objects.filter(fecha__year=year, fecha__month=month).values_list('fecha__day', flat=True))
@@ -385,7 +386,7 @@ def detalle_mes(request, year, month):
             'rutina__frecuencia',
             'ubicacion',
             'programacion'
-        ).prefetch_related('activos', 'programacion__horarios')
+        ).prefetch_related('activos__modelo__categoria', 'programacion__horarios')
         
         existing_ot_keys = set((ot.programacion_id, timezone.localtime(ot.inicio_programado).date()) for ot in ordenes if ot.programacion_id)
         
@@ -433,8 +434,8 @@ def detalle_mes(request, year, month):
         for c in categs.values():
             if c.padre_id: c.padre = categs.get(c.padre_id)
             
-        # Structure: Tree[Sys][Sub][Rut][Ubi][AssetKey][Day] -> List of OTs
-        tree_dict = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(list))))))
+        # Structure: Tree[Sys][Sub][Rut][Ubi][AssetCat][AssetKey][Day] -> List of OTs
+        tree_dict = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(list)))))))
         system_colors = {}
 
         def add_to_tree_common(ot_dict, rut, ubi, assets, prog_color, day_key):
@@ -451,9 +452,10 @@ def detalle_mes(request, year, month):
                 system_colors[sys_name] = '#64748b'
             
             asset_key = (assets[0].id, assets[0].nombre) if assets else (None, "General")
+            asset_cat = assets[0].modelo.categoria.nombre if (assets and assets[0].modelo and assets[0].modelo.categoria) else "General"
             rut_key = (rut.nombre, rut.frecuencia.nombre) if rut and rut.frecuencia else (rut.nombre if rut else "OT Sin Rutina", "")
             ubi_label = ubi.get_ruta_completa(separador=' - ') if ubi else "Multiple"
-            tree_dict[sys_name][sub_name][rut_key][ubi_label][asset_key][day_key].append(ot_dict)
+            tree_dict[sys_name][sub_name][rut_key][ubi_label][asset_cat][asset_key][day_key].append(ot_dict)
 
         for ot in ordenes:
             sd = timezone.localtime(ot.inicio_programado)
@@ -505,17 +507,20 @@ def detalle_mes(request, year, month):
                 for rut_key in sorted(tree_dict[sys][sub].keys()):
                     ubis = []; rda = collections.defaultdict(bool)
                     for ubi in sorted(tree_dict[sys][sub][rut_key].keys()):
-                        assets_l = []
-                        for ak in sorted(tree_dict[sys][sub][rut_key][ubi].keys(), key=lambda x: x[1]):
-                            cells = []
-                            for d in days_range:
-                                ots = tree_dict[sys][sub][rut_key][ubi][ak].get(d, [])
-                                active = len(ots) > 0
-                                gt = ots[0].get('group_type') if ots else None
-                                cells.append({'day': d, 'ots': ots, 'active': active, 'group_type': gt})
-                                if active: rda[d] = True; subda[d] = True; sda[d] = True
-                            assets_l.append({'label': ak[1], 'id': ak[0], 'celdas': cells})
-                        ubis.append({'label': ubi, 'celdas': [{'day': d, 'active': any(a['celdas'][d-1]['active'] for a in assets_l)} for d in days_range], 'activos': assets_l})
+                        cats = []; uda = collections.defaultdict(bool)
+                        for acat in sorted(tree_dict[sys][sub][rut_key][ubi].keys()):
+                            assets_l = []
+                            for ak in sorted(tree_dict[sys][sub][rut_key][ubi][acat].keys(), key=lambda x: x[1]):
+                                cells = []
+                                for d in days_range:
+                                    ots = tree_dict[sys][sub][rut_key][ubi][acat][ak].get(d, [])
+                                    active = len(ots) > 0
+                                    gt = ots[0].get('group_type') if ots else None
+                                    cells.append({'day': d, 'ots': ots, 'active': active, 'group_type': gt})
+                                    if active: rda[d] = True; subda[d] = True; sda[d] = True; uda[d] = True
+                                assets_l.append({'label': ak[1], 'id': ak[0], 'celdas': cells})
+                            cats.append({'label': acat, 'celdas': [{'day': d, 'active': any(a['celdas'][d-1]['active'] for a in assets_l)} for d in days_range], 'activos': assets_l})
+                        ubis.append({'label': ubi, 'celdas': [{'day': d, 'active': uda[d]} for d in days_range], 'categorias': cats})
                     ruts.append({'label': rut_key[0], 'frecuencia': rut_key[1], 'celdas': [{'day': d, 'active': rda[d]} for d in days_range], 'ubicaciones': ubis})
                 subs.append({'label': sub, 'celdas': [{'day': d, 'active': subda[d]} for d in days_range], 'rutinas': ruts})
             tree.append({'label': sys, 'color': system_colors.get(sys, "#64748b"), 'celdas': [{'day': d, 'active': sda[d]} for d in days_range], 'subs': subs})

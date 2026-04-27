@@ -220,12 +220,12 @@ class WorkOrderService:
             if sub_name not in tree[dis_name]: tree[dis_name][sub_name] = {}
             if f_key not in tree[dis_name][sub_name]: tree[dis_name][sub_name][f_key] = {}
             if r_key not in tree[dis_name][sub_name][f_key]:
-                horario_obj = ot.programacion.horario if ot.programacion else None
+                horario_obj = ot.programacion.horarios.first() if ot.programacion else None
                 tree[dis_name][sub_name][f_key][r_key] = {
                     'nombre': rut.nombre if rut else "OT",
                     'descripcion': (rut.descripcion if rut else "") or "Sin descripción",
                     'horario_nombre': horario_obj.nombre if horario_obj else "N/A",
-                    'horario_completo': horario_obj.resumen_corto() if horario_obj else "N/A",
+                    'horario_completo': (horario_obj.resumen_corto() if hasattr(horario_obj, 'resumen_corto') else horario_obj.nombre) if horario_obj else "N/A",
                     'matrix': collections.defaultdict(list)
                 }
             
@@ -328,7 +328,7 @@ class WorkOrderService:
 
         ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
             'rutina__tipo', 'rutina__frecuencia', 'ubicacion'
-        ).prefetch_related('programacion__horarios__dias', 'activos')
+        ).prefetch_related('programacion__horarios__dias', 'activos__modelo__categoria')
         
         # Pre-fetch locations and cache hierarchy
         all_locs = {l.id: l for l in OrdenTrabajo.ubicacion.field.related_model.objects.all()}
@@ -361,8 +361,8 @@ class WorkOrderService:
             # Ajuste para jerarquía estricta (Edificio -> Piso):
             return (root.nombre, sub.nombre)
 
-        # Structure: Tree[Root][Sub][Category][Routine][AssetKey] -> List of OTs
-        tree = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(list))))))
+        # Structure: Tree[Root][Sub][Category][Routine][AssetCat][AssetKey][Day] -> List of OTs
+        tree = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(list)))))))
         
         system_colors = {} # To store colors based on root
         
@@ -404,8 +404,8 @@ class WorkOrderService:
 
                     if not assets:
                         asset_key = (0, "General") 
-                        # Use dict to allow multiple OTs per day per slot
-                        tree[root_name][sub_name][cat_name][rut_name][asset_key][cd.day].append(base_info)
+                        # Consistent 7-level structure
+                        tree[root_name][sub_name][cat_name][rut_name]["General"][asset_key][cd.day].append(base_info)
                     else:
                         for idx, a in enumerate(assets):
                             info = base_info.copy()
@@ -413,67 +413,36 @@ class WorkOrderService:
                                 info['group_type'] = 'start' if idx == 0 else ('end' if idx == len(assets) - 1 else 'middle')
                             
                             asset_key = (a.id, a.nombre)
-                            tree[root_name][sub_name][cat_name][rut_name][asset_key][cd.day].append(info)
+                            asset_cat = a.modelo.categoria.nombre if (a.modelo and a.modelo.categoria) else "General"
+                            tree[root_name][sub_name][cat_name][rut_name][asset_cat][asset_key][cd.day].append(info)
 
         # Convert to list structure for template
         ft = []
         for sys in sorted(tree.keys()): # Root Location
-            subs = []
-            sda = collections.defaultdict(bool)
-            
+            subs = []; sda = collections.defaultdict(bool)
             for sub in sorted(tree[sys].keys()): # Sub Location
-                rutinas_mapped = [] # Mapped to 'rutinas' key in template (holds Categories)
-                subda = collections.defaultdict(bool)
-                
-                for cat in sorted(tree[sys][sub].keys()): # Category
-                    ubicaciones_mapped = [] # Mapped to 'ubicaciones' key in template (holds Routines)
-                    rda = collections.defaultdict(bool) # cat activity
-                    
-                    for rut in sorted(tree[sys][sub][cat].keys()): # Routine
-                        assets_l = []
-                        
-                        for ak in sorted(tree[sys][sub][cat][rut].keys(), key=lambda x: x[1]): # Asset
-                            cells = []
-                            for d in days_range:
-                                ots = tree[sys][sub][cat][rut][ak].get(d, [])
-                                active = len(ots) > 0
-                                gt = ots[0].get('group_type') if ots else None
-                                cells.append({'day': d, 'ots': ots, 'active': active, 'group_type': gt})
-                                if active: 
-                                    rda[d] = True
-                                    subda[d] = True
-                                    sda[d] = True
-                            
-                            assets_l.append({'label': ak[1], 'id': ak[0], 'celdas': cells})
-                            
-                        # 'ubicaciones' list item (Actually Routine)
-                        ubicaciones_mapped.append({
-                            'label': rut, 
-                            'celdas': [{'day': d, 'active': any(a['celdas'][d-1]['active'] for a in assets_l)} for d in days_range],
-                            'activos': assets_l
-                        })
-                    
-                    # 'rutinas' list item (Actually Category)
-                    rutinas_mapped.append({
-                        'label': cat,
-                        'celdas': [{'day': d, 'active': rda[d]} for d in days_range],
-                        'ubicaciones': ubicaciones_mapped # Contains Routines
-                    })
-                
-                # 'subs' list item (Sub Location)
-                subs.append({
-                    'label': sub,
-                    'celdas': [{'day': d, 'active': subda[d]} for d in days_range],
-                    'rutinas': rutinas_mapped # Contains Categories
-                })
-            
-            # 'tree' item (Root Location)
-            ft.append({
-                'label': sys,
-                'color': system_colors.get(sys, "#64748b"),
-                'celdas': [{'day': d, 'active': sda[d]} for d in days_range],
-                'subs': subs
-            })
+                rcats = []; subda = collections.defaultdict(bool)
+                for rcat in sorted(tree[sys][sub].keys()): # Routine Category (Discipline)
+                    ruts = []; rcda = collections.defaultdict(bool)
+                    for rut in sorted(tree[sys][sub][rcat].keys()): # Routine
+                        acats = []; rda = collections.defaultdict(bool)
+                        for acat in sorted(tree[sys][sub][rcat][rut].keys()): # Asset Category
+                            assets_l = []; ada = collections.defaultdict(bool)
+                            for ak in sorted(tree[sys][sub][rcat][rut][acat].keys(), key=lambda x: x[1]): # Asset
+                                cells = []
+                                for d in days_range:
+                                    ots = tree[sys][sub][rcat][rut][acat][ak].get(d, [])
+                                    active = len(ots) > 0
+                                    gt = ots[0].get('group_type') if ots else None
+                                    cells.append({'day': d, 'ots': ots, 'active': active, 'group_type': gt})
+                                    if active: sda[d]=True; subda[d]=True; rcda[d]=True; rda[d]=True; ada[d]=True
+                                assets_l.append({'label': ak[1], 'id': ak[0], 'celdas': cells})
+                            acats.append({'label': acat, 'celdas': [{'day': d, 'active': ada[d]} for d in days_range], 'activos': assets_l})
+                        ruts.append({'label': rut, 'celdas': [{'day': d, 'active': rda[d]} for d in days_range], 'categorias': acats})
+                    rcats.append({'label': rcat, 'celdas': [{'day': d, 'active': rcda[d]} for d in days_range], 'rutinas': ruts})
+                subs.append({'label': sub, 'celdas': [{'day': d, 'active': subda[d]} for d in days_range], 'rutinas': rcats})
+            ft.append({'label': sys, 'color': system_colors.get(sys, "#64748b"), 'celdas': [{'day': d, 'active': sda[d]} for d in days_range], 'subs': subs})
+        return ft
             
 
     @staticmethod

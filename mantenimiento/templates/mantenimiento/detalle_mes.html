@@ -206,6 +206,18 @@
             background-color: #fef3c7;
         }
 
+        .row-cat {
+            background-color: #f8fafc;
+            cursor: pointer;
+            display: none;
+            color: #475569;
+            font-size: 0.7rem;
+        }
+
+        .row-cat:hover {
+            background-color: #f1f5f9;
+        }
+
         .row-asset {
             background-color: #ffffff;
             display: none;
@@ -240,6 +252,11 @@
 
         .indent-5 {
             padding-left: 92px !important;
+            font-size: 0.65rem;
+        }
+
+        .indent-6 {
+            padding-left: 112px !important;
             font-size: 0.65rem;
         }
 
@@ -814,11 +831,28 @@
                         {% endfor %}
                     </tr>
 
-                    {% for asset in ubi.activos %}
-                    <!-- NIVEL 5: ACTIVO -->
-                    <tr
-                        class="row-asset ubi-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}">
+                    {% for cat in ubi.categorias %}
+                    <!-- NIVEL 5: CATEGORÍA DE ACTIVO -->
+                    <tr class="row-cat ubi-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}"
+                        id="row-cat-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"
+                        onclick="toggleTree('cat-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}-{{ forloop.counter }}', this)">
                         <td class="sticky-col indent-5">
+                            <span class="toggle-icon">▶</span> {{ cat.label }}
+                        </td>
+                        {% for c in cat.celdas %}
+                        <td class="{% if c.day in non_working_days %}non-working-day{% endif %}">
+                            {% if c.active %}
+                            <div class="dot active" style="background-color: #94a3b8; opacity: 0.3;"></div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    {% for asset in cat.activos %}
+                    <!-- NIVEL 6: ACTIVO -->
+                    <tr
+                        class="row-asset cat-{{ forloop.parentloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.parentloop.counter }}-{{ forloop.parentloop.counter }}">
+                        <td class="sticky-col indent-6">
                             {{ asset.label }}
                         </td>
                         {% for c in asset.celdas %}
@@ -842,7 +876,8 @@
                         </td>
                         {% endfor %}
                     </tr>
-                    {% endfor %} <!-- Activo -->
+                    {% endfor %} <!-- Asset -->
+                    {% endfor %} <!-- Categoría -->
                     {% endfor %} <!-- Ubicación -->
                     {% endfor %} <!-- Rutina -->
                     {% endfor %} <!-- Sub -->
@@ -982,7 +1017,7 @@
         }
 
         function expandAll() {
-            const levels = ['row-sub', 'row-rut', 'row-ubi', 'row-asset'];
+            const levels = ['row-sub', 'row-rut', 'row-ubi', 'row-cat', 'row-asset'];
             let expandedRows = [];
             document.querySelectorAll('.row-sys, .row-sub, .row-rut, .row-ubi').forEach(row => {
                 row.classList.add('open');
@@ -996,7 +1031,7 @@
 
         function collapseAll() {
             localStorage.removeItem('expandedRows');
-            const levels = ['row-sub', 'row-rut', 'row-ubi', 'row-asset'];
+            const levels = ['row-sub', 'row-rut', 'row-ubi', 'row-cat', 'row-asset'];
             levels.forEach(cls => {
                 document.querySelectorAll('.' + cls).forEach(row => row.classList.remove('visible'));
             });

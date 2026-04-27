@@ -477,6 +477,7 @@ JAZZMIN_SETTINGS = {
         {"name": "🔄 Sincronizar SIG", "url": "/admin/callcenter/solicitudticket/sync-tickets/", "permissions": ["callcenter.view_solicitudticket"]},
         {"name": "📊 Dashboard Importaciones", "url": "/activos/import-dashboard/", "permissions": ["activos.view_registroimportacion"]},
         {"name": "🎫 Dashboard Tickets", "url": "/callcenter/dashboard/", "permissions": ["callcenter.view_solicitudticket"]},
+        {"name": "📜 Historial Versiones", "url": "/devops/git-history/", "permissions": ["auth.view_user"]},
         {"name": "❓ Ayuda", "url": "/ayuda/", "new_window": True},
     ],
     "show_sidebar": True,
