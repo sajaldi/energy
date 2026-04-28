@@ -150,10 +150,10 @@
             left: 0;
             right: 0;
             background: white;
-            padding: 16px;
+            padding: 12px 16px;
             display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 12px;
+            grid-template-columns: 1fr 1.5fr 1.5fr;
+            gap: 8px;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
             z-index: 1000;
         }
@@ -496,11 +496,14 @@
     </div>
 
     <div class="footer-actions">
-        <button type="button" class="fiori-btn fiori-btn-ghost" onclick="window.location.href='{% url 'core:mobile_dashboard' %}'">
+        <button type="button" class="fiori-btn fiori-btn-ghost" onclick="window.location.href='{% url 'core:mobile_dashboard' %}'" style="padding: 10px 5px; font-size: 13px;">
             Cancelar
         </button>
-        <button type="button" class="fiori-btn fiori-btn-primary" id="btn-submit" style="background: #e91e63;">
-            <ion-icon name="save-outline"></ion-icon> Guardar Acuerdo
+        <button type="button" class="fiori-btn fiori-btn-secondary" id="btn-save-draft" style="background: #f0f0f0; color: #333; border: 1px solid #ccc; padding: 10px 5px; font-size: 13px;">
+            <ion-icon name="save-outline"></ion-icon> Solo Guardar
+        </button>
+        <button type="button" class="fiori-btn fiori-btn-primary" id="btn-submit" style="background: #e91e63; padding: 10px 5px; font-size: 13px;">
+            <ion-icon name="paper-plane-outline"></ion-icon> Guardar y Enviar
         </button>
     </div>
 
@@ -762,50 +765,7 @@
             // Añadir una tarea por defecto
             $('#btn-add-task').click();
 
-            // --- Envío del Formulario ---
-            $('#btn-submit').click(function() {
-                // Validaciones previas
-                if (!$('#ticket-id').val()) {
-                    Swal.fire({ icon: 'error', title: 'Ticket Requerido', text: 'Debe buscar y seleccionar un ticket de la lista.' });
-                    return;
-                }
-
-                if (!$('#enlace-select').val()) {
-                    Swal.fire({ icon: 'error', title: 'Enlace Requerido', text: 'Debe seleccionar una persona de contacto.' });
-                    return;
-                }
-
-                Swal.fire({
-                    title: '¿Guardar Acuerdo?',
-                    text: "Se guardará en estado BORRADOR y aparecerá en el dashboard.",
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d81b60',
-                    confirmButtonText: 'Sí, guardar',
-                    cancelButtonText: 'Revisar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-                        $.ajax({
-                            url: '{% url "callcenter:mobile_crear_tiempo_acordado" %}',
-                            method: 'POST',
-                            data: $('#tiempo-acordado-form').serialize(),
-                            success: function(res) {
-                                if (res.success) {
-                                    Swal.fire({ icon: 'success', title: 'Acuerdo Guardado', text: 'El tiempo acordado se creó correctamente.' })
-                                    .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
-                                } else {
-                                    Swal.fire({ icon: 'error', title: 'Error', text: res.error });
-                                }
-                            },
-                            error: function() {
-                                Swal.fire({ icon: 'error', title: 'Error Fatal', text: 'No se pudo conectar con el servidor.' });
-                            }
-                        });
-                    }
-                });
-            });
+            // --- Envío del Formulario (se maneja más abajo con las firmas) ---
 
             // Cerrar menú de búsqueda al tocar fuera
             $(document).on('click', function(e) {
@@ -848,8 +808,8 @@
             $('#btn-clear-enlace').click(function() { padEnlace.clear(); });
             $('#btn-clear-responsable').click(function() { padResp.clear(); });
 
-            // Actualizar lógica de GUARDAR para incluir ambas firmas
-            $('#btn-submit').off('click').click(function() {
+            // Actualizar lógica de GUARDAR para soportar Borrador o Guardar y Enviar
+            function submitForm(isDraft) {
                 // Validaciones
                 if (!$('#ticket-id').val()) {
                     Swal.fire({ icon: 'error', title: 'Ticket Requerido', text: 'Debe buscar y seleccionar un ticket.' });
@@ -860,26 +820,31 @@
                     return;
                 }
                 
-                if (padEnlace.isEmpty() || padResp.isEmpty()) {
-                    Swal.fire({ 
-                        icon: 'warning', 
-                        title: 'Firmas Faltantes', 
-                        text: 'Se requieren ambas firmas (Enlace y Responsable) para formalizar el acuerdo.' 
-                    });
-                    return;
+                if (!isDraft) {
+                    if (padEnlace.isEmpty() || padResp.isEmpty()) {
+                        Swal.fire({ 
+                            icon: 'warning', 
+                            title: 'Firmas Faltantes', 
+                            text: 'Se requieren ambas firmas (Enlace y Responsable) para formalizar y enviar el acuerdo.' 
+                        });
+                        return;
+                    }
                 }
 
-                // Capturar Firmas
-                $('#firma-enlace-b64').val(padEnlace.toDataURL());
-                $('#firma-responsable-b64').val(padResp.toDataURL());
+                // Capturar Firmas (si las hay, incluso en borrador)
+                if (!padEnlace.isEmpty()) $('#firma-enlace-b64').val(padEnlace.toDataURL());
+                if (!padResp.isEmpty()) $('#firma-responsable-b64').val(padResp.toDataURL());
+
+                let titleTxt = isDraft ? '¿Solo Guardar?' : '¿Guardar y Enviar Acuerdo?';
+                let textTxt = isDraft ? 'Se guardará el acuerdo sin enviarlo por correo.' : 'Se guardará el acuerdo con las firmas y se enviará por correo a las partes.';
 
                 Swal.fire({
-                    title: '¿Guardar Acuerdo?',
-                    text: "Se guardará el acuerdo con las firmas de conformidad.",
+                    title: titleTxt,
+                    text: textTxt,
                     icon: 'question',
                     showCancelButton: true,
-                    confirmButtonColor: '#d81b60',
-                    confirmButtonText: 'Sí, guardar',
+                    confirmButtonColor: isDraft ? '#16a34a' : '#d81b60',
+                    confirmButtonText: 'Sí, continuar',
                     cancelButtonText: 'Revisar'
                 }).then((result) => {
                     if (result.isConfirmed) {
@@ -891,42 +856,32 @@
                             data: $('#tiempo-acordado-form').serialize(),
                             success: function(res) {
                                 if (res.success) {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Acuerdo Guardado',
-                                        text: 'El acuerdo se creó correctamente. ¿Desea enviarlo por correo ahora?',
-                                        showCancelButton: true,
-                                        confirmButtonColor: '#0070f2',
-                                        cancelButtonColor: '#6c757d',
-                                        confirmButtonText: 'Sí, enviar ahora',
-                                        cancelButtonText: 'No, solo guardar'
-                                    }).then((sendResult) => {
-                                        if (sendResult.isConfirmed) {
-                                            Swal.fire({ 
-                                                title: 'Enviando Reporte...', 
-                                                text: 'Esto puede tardar unos segundos.',
-                                                allowOutsideClick: false, 
-                                                didOpen: () => { Swal.showLoading(); } 
-                                            });
+                                    if (!isDraft) {
+                                        Swal.fire({ 
+                                            title: 'Enviando Reporte...', 
+                                            text: 'Esto puede tardar unos segundos.',
+                                            allowOutsideClick: false, 
+                                            didOpen: () => { Swal.showLoading(); } 
+                                        });
 
-                                            let sendUrl = "{% url 'callcenter:enviar_tiempo_acordado_power_automate' 0 %}".replace('0', res.id);
-                                            $.ajax({
-                                                url: sendUrl,
-                                                method: 'POST',
-                                                data: { 'csrfmiddlewaretoken': '{{ csrf_token }}' },
-                                                success: function(sendRes) {
-                                                    Swal.fire({ icon: 'success', title: 'Enviado', text: 'El reporte ha sido enviado exitosamente.' })
-                                                    .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
-                                                },
-                                                error: function() {
-                                                    Swal.fire({ icon: 'error', title: 'Error al enviar', text: 'El acuerdo se guardó, pero no se pudo enviar el correo.' })
-                                                    .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
-                                                }
-                                            });
-                                        } else {
-                                            window.location.href = '{% url "core:mobile_dashboard" %}';
-                                        }
-                                    });
+                                        let sendUrl = "{% url 'callcenter:enviar_tiempo_acordado_power_automate' 0 %}".replace('0', res.id);
+                                        $.ajax({
+                                            url: sendUrl,
+                                            method: 'POST',
+                                            data: { 'csrfmiddlewaretoken': '{{ csrf_token }}' },
+                                            success: function(sendRes) {
+                                                Swal.fire({ icon: 'success', title: 'Enviado', text: 'El reporte ha sido guardado y enviado exitosamente.' })
+                                                .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
+                                            },
+                                            error: function() {
+                                                Swal.fire({ icon: 'warning', title: 'Guardado, pero error al enviar', text: 'El acuerdo se guardó, pero no se pudo enviar el correo en este momento.' })
+                                                .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
+                                            }
+                                        });
+                                    } else {
+                                        Swal.fire({ icon: 'success', title: 'Guardado', text: 'El acuerdo se guardó correctamente sin enviarlo.' })
+                                        .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
+                                    }
                                 } else {
                                     Swal.fire({ icon: 'error', title: 'Error', text: res.error });
                                 }
@@ -937,7 +892,10 @@
                         });
                     }
                 });
-            });
+            }
+
+            $('#btn-save-draft').click(function() { submitForm(true); });
+            $('#btn-submit').click(function() { submitForm(false); });
         });
     </script>
 </body>

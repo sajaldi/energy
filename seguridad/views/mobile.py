@@ -1,7 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Count
@@ -496,6 +498,15 @@ def mobile_confiscacion_editar_objeto(request, pk):
         'objeto': objeto,
         'catalogo_objetos': catalogo
     })
+
+@staff_member_required
+@require_POST
+def mobile_confiscacion_eliminar_objeto(request, pk):
+    objeto = get_object_or_404(ObjetoConfiscado, pk=pk)
+    levantamiento_id = objeto.levantamiento.id
+    objeto.delete()
+    messages.success(request, "Objeto eliminado correctamente.")
+    return redirect('seguridad:mobile_confiscacion_ejecutar', pk=levantamiento_id)
 
 @staff_member_required
 def mobile_confiscacion_objeto_actualizar(request, pk):

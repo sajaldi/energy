@@ -1,118 +1,48 @@
 import BAC0
 import logging
-from datetime import datetime
+import asyncio
+import threading
 from ..models import BACnetGateway, BACnetDevice, BACnetPoint, Telemetry
+from asgiref.sync import sync_to_async
 
 logger = logging.getLogger(__name__)
 
 class BACnetService:
-    def __init__(self, gateway_id):
-        try:
-            self.gateway_db = BACnetGateway.objects.get(id=gateway_id)
-        except BACnetGateway.DoesNotExist:
-            logger.error(f"Gateway con ID {gateway_id} no existe.")
-            self.gateway_db = None
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __init__(self):
         self.bacnet = None
-        
+        self.ip_local = "10.21.1.132/24"
+        self.bbmd_ip = "10.40.193.100"
+        self.connected = False
+
+    @classmethod
+    def get_instance(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = cls()
+            return cls._instance
+
     def connect(self):
-        if not self.gateway_db:
-            return False
-        try:
-            # Inicializar BAC0
-            # BAC0.lite crea una interfaz local para hablar en la red BACnet
-            # ip: la IP del servidor en la red VPN
-            self.bacnet = BAC0.lite(
-                ip=self.gateway_db.ip_address, 
-                port=self.gateway_db.port, 
-                deviceId=self.gateway_db.device_id
-            )
-            logger.info(f"Conectado a BACnet via {self.gateway_db.ip_address}")
-            return True
-        except Exception as e:
-            logger.error(f"Error conectando a BACnet: {e}")
-            return False
-
-    def discover_devices(self, networks=None):
-        """
-        Realiza un Who-Is en la red para encontrar controladores de Reliable Controls u otros.
-        """
-        if not self.bacnet:
-            if not self.connect(): return []
-            
-        logger.info("Iniciando descubrimiento de dispositivos BACnet...")
-        # discover() devuelve una lista de dispositivos encontrados
-        try:
-            discovered = self.bacnet.discover(networks=networks)
-        except Exception as e:
-            logger.error(f"Error en descubrimiento: {e}")
-            return []
-
-        found_devices = []
-        for dev in discovered:
-            # En BAC0, dev suele ser un objeto con address y device_id
+        if not self.connected or self.bacnet is None:
             try:
-                addr = getattr(dev, 'address', str(dev))
-                dev_id = getattr(dev, 'device_id', None)
-                
-                if not dev_id: continue
-
-                # Intentar obtener información básica
-                name = ""
-                vendor = ""
-                try:
-                    name = self.bacnet.read(f"{addr} device {dev_id} objectName")
-                    vendor = self.bacnet.read(f"{addr} device {dev_id} vendorName")
-                except:
-                    pass
-                    
-                device_obj, created = BACnetDevice.objects.update_or_create(
-                    device_id=dev_id,
-                    defaults={
-                        'gateway': self.gateway_db,
-                        'address': str(addr),
-                        'name': str(name) if name else f"Device {dev_id}",
-                        'vendor': str(vendor) if vendor else "Unknown",
-                        'is_online': True
-                    }
-                )
-                found_devices.append(device_obj)
+                logger.info(f"Conectando servicio global BACnet en {self.ip_local} via BBMD {self.bbmd_ip}...")
+                self.bacnet = BAC0.lite(ip=self.ip_local, bbmdAddress=self.bbmd_ip, bbmdTTL=60)
+                self.connected = True
+                logger.info("Servicio BACnet conectado exitosamente.")
             except Exception as e:
-                logger.warning(f"Error procesando dispositivo descubierto: {e}")
-            
-        return found_devices
+                logger.error(f"Error al conectar BACnet: {e}")
+                self.connected = False
+        return self.connected
 
-    def poll_all_points(self):
-        """
-        Lee todos los puntos configurados y guarda la telemetría.
-        Ideal para ejecutarse en una tarea de Celery.
-        """
-        if not self.bacnet:
-            if not self.connect(): return
-            
-        points = BACnetPoint.objects.filter(device__gateway=self.gateway_db)
+    async def read_point(self, address):
+        """Lee un punto de forma asincrona para no bloquear el hilo de Django"""
+        if not self.connect():
+            raise Exception("No se pudo establecer conexion BACnet")
         
-        for pt in points:
-            try:
-                # Formato: <address> <object_type> <instance> presentValue
-                query = f"{pt.device.address} {pt.object_type} {pt.instance} presentValue"
-                val = self.bacnet.read(query)
-                
-                if pt.save_history:
-                    Telemetry.objects.create(
-                        point=pt,
-                        value=float(val),
-                        status="OK"
-                    )
-                
-                # Actualizar estado del dispositivo
-                if not pt.device.is_online:
-                    pt.device.is_online = True
-                    pt.device.save()
-            except Exception as e:
-                logger.warning(f"Error leyendo punto {pt}: {e}")
-                # Si falla, marcamos dispositivo como offline temporalmente
-                pt.device.is_online = False
-                pt.device.save()
+        # Envolviendo la lectura en un timeout para seguridad
+        return await asyncio.wait_for(self.bacnet.read(address), timeout=5.0)
 
     def disconnect(self):
         if self.bacnet:
@@ -121,3 +51,7 @@ class BACnetService:
             except:
                 pass
             self.bacnet = None
+            self.connected = False
+
+# Instancia global accesible desde fuera
+bacnet_instance = BACnetService.get_instance()

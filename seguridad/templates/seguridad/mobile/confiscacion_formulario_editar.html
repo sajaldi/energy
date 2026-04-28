@@ -218,10 +218,20 @@
                 <div id="preview-container"></div>
             </div>
 
-            <button type="submit" class="btn-save">
-                Actualizar Registro
-                <ion-icon name="checkmark-done-outline"></ion-icon>
-            </button>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="btn-save" style="flex: 2;">
+                    Actualizar Registro
+                    <ion-icon name="checkmark-done-outline"></ion-icon>
+                </button>
+                <button type="button" class="btn-save" style="flex: 1; background-color: var(--sap-error); color: white;" onclick="confirmarEliminacion()">
+                    <ion-icon name="trash-outline"></ion-icon>
+                    Eliminar
+                </button>
+            </div>
+        </form>
+
+        <form id="delete-form" method="POST" action="{% url 'seguridad:mobile_confiscacion_eliminar_objeto' objeto.id %}" style="display: none;">
+            {% csrf_token %}
         </form>
     </div>
 
@@ -267,6 +277,23 @@
                 html5QrCodeInline.stop().catch(err => console.error(err));
             }
         }
+        function confirmarEliminacion() {
+            Swal.fire({
+                title: '¿Eliminar Objeto?',
+                text: "Esta acción no se puede deshacer y borrará el objeto y sus fotos del levantamiento.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('delete-form').submit();
+                }
+            });
+        }
+
         let compressedFiles = [];
 
         async function previewImages(input) {

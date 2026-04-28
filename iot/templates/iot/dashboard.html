@@ -209,6 +209,9 @@
                     <span class="status-dot"></span>
                     {% if device.is_online %}En Línea{% else %}Desconectado{% endif %}
                 </div>
+                <button class="btn btn-sm btn-icon sync-btn" data-device-id="{{ device.id }}" title="Sincronizar ahora" style="background: var(--bg-body); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; color: var(--text-muted); cursor: pointer; transition: all 0.3s;">
+                    <ion-icon name="sync-outline" style="font-size: 1.2rem;"></ion-icon>
+                </button>
             </div>
 
             <div class="points-container">
@@ -237,6 +240,48 @@
                 No hay puntos configurados para este dispositivo.
             </div>
             {% endif %}
+
+            <!-- Seccion de Horarios -->
+            {% if schedules %}
+            <div class="mt-4 pt-3 border-top">
+                <h5 class="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                    <ion-icon name="calendar-outline"></ion-icon> Programación Horaria
+                </h5>
+                <div class="schedule-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    {% for sch in schedules %}
+                        {% if sch.device_id == device.id %}
+                        <div class="schedule-item p-2 rounded-lg" style="background: #f1f5f9; border-left: 4px solid var(--primary);">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="font-bold text-sm">{{ sch.name }}</span>
+                                <span class="status-badge {% if sch.present_value %}status-online{% else %}status-offline{% endif %}" style="padding: 2px 8px; font-size: 0.6rem;">
+                                    {% if sch.present_value %}ACTIVO{% else %}INACTIVO{% endif %}
+                                </span>
+                            </div>
+                            <div class="text-xs text-muted mt-1">
+                                <i class="far fa-clock"></i> 
+                                {% with today_idx=now|date:"N"|add:"-1" %}
+                                    {% if today_idx >= 0 and today_idx < 7 %}
+                                        {# Nota: Esto es simplificado para el dashboard #}
+                                        {% for day_events in sch.weekly_schedule %}
+                                            {% if forloop.counter0 == today_idx %}
+                                                {% if day_events %}
+                                                    {% for event in day_events %}
+                                                        {{ event.time }} ({{ event.value|yesno:"ON,OFF" }}){% if not forloop.last %} | {% endif %}
+                                                    {% endfor %}
+                                                {% else %}
+                                                    Sin eventos programados para hoy
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
         {% empty %}
         <div class="empty-state">
@@ -248,4 +293,53 @@
         {% endfor %}
     </div>
 </div>
+
+<script>
+document.querySelectorAll('.sync-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const deviceId = this.dataset.deviceId;
+        const icon = this.querySelector('ion-icon');
+        
+        // Efecto visual de carga
+        this.disabled = true;
+        icon.style.animation = 'spin 1s linear infinite';
+        this.style.color = 'var(--primary)';
+
+        fetch(`/iot/sync-device/${deviceId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Recargar la pagina para ver los nuevos valores (mas simple por ahora)
+                location.reload();
+            } else {
+                alert('Error al sincronizar: ' + (data.error || 'Desconocido'));
+                stopLoading(this, icon);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error de red');
+            stopLoading(this, icon);
+        });
+    });
+});
+
+function stopLoading(btn, icon) {
+    btn.disabled = false;
+    icon.style.animation = 'none';
+    btn.style.color = 'var(--text-muted)';
+}
+</script>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
 {% endblock %}

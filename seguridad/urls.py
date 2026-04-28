@@ -19,6 +19,7 @@ urlpatterns = [
     path('app/confiscaciones/<int:pk>/', views.mobile_confiscacion_ejecutar, name='mobile_confiscacion_ejecutar'),
     path('app/confiscaciones/<int:pk>/agregar/', views.mobile_confiscacion_agregar_objeto, name='mobile_confiscacion_agregar_objeto'),
     path('app/confiscaciones/objeto/<int:pk>/editar/', views.mobile_confiscacion_editar_objeto, name='mobile_confiscacion_editar_objeto'),
+    path('app/confiscaciones/objeto/<int:pk>/eliminar/', views.mobile_confiscacion_eliminar_objeto, name='mobile_confiscacion_eliminar_objeto'),
     path('app/confiscaciones/objeto/status/<int:pk>/', views.mobile_confiscacion_objeto_actualizar, name='mobile_confiscacion_objeto_actualizar'),
     path('app/confiscaciones/pdf/<int:pk>/', views.mobile_confiscacion_pdf_view, name='mobile_confiscacion_pdf'),
     path('app/confiscaciones/confirmar-carga/<int:pk>/', views.mobile_confiscacion_confirmar_carga, name='mobile_confiscacion_confirmar_carga'),

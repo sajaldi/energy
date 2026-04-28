@@ -72,3 +72,19 @@ class Telemetry(models.Model):
 
     def __str__(self):
         return f"{self.point.name}: {self.value} @ {self.timestamp}"
+
+class BACnetSchedule(models.Model):
+    device = models.ForeignKey(BACnetDevice, on_delete=models.CASCADE, related_name="schedules")
+    name = models.CharField(max_length=200)
+    instance = models.IntegerField()
+    weekly_schedule = models.JSONField(null=True, blank=True, help_text="JSON representation of weekly events")
+    present_value = models.BooleanField(default=False)
+    last_sync = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Horario BACnet"
+        verbose_name_plural = "Horarios BACnet"
+        unique_together = ('device', 'instance')
+
+    def __str__(self):
+        return f"{self.name} ({self.device.name})"
