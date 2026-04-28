@@ -244,9 +244,19 @@
             <h1>Detalle de Acuerdo</h1>
         </div>
         <a href="{% url 'callcenter:exportar_tiempo_acordado_pdf' acuerdo.id %}" 
-           style="color: white; font-size: 20px; display: flex;" title="Descargar PDF">
+           style="color: white; font-size: 20px; display: flex; margin-right: 8px;" title="Descargar PDF">
             <ion-icon name="download-outline"></ion-icon>
         </a>
+        {% if acuerdo.estatus == 'BORRADOR' %}
+        <a href="{% url 'callcenter:exportar_tiempo_acordado_pdf' acuerdo.id %}?manual=1" 
+           style="color: white; font-size: 20px; display: flex; margin-right: 8px;" title="Descargar Plantilla Manual">
+            <ion-icon name="document-text-outline"></ion-icon>
+        </a>
+        <a href="{% url 'callcenter:mobile_editar_tiempo_acordado' acuerdo.id %}" 
+           style="color: white; font-size: 20px; display: flex; margin-right: 8px;" title="Editar Borrador">
+            <ion-icon name="create-outline"></ion-icon>
+        </a>
+        {% endif %}
         <button id="btnSendPA" 
                 data-url="{% url 'callcenter:enviar_tiempo_acordado_power_automate' acuerdo.id %}"
                 style="color: white; font-size: 20px; background: none; border: none; padding: 0; display: flex; cursor: pointer;" 

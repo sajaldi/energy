@@ -34,6 +34,7 @@ urlpatterns = [
     path('tiempo-acordado/dashboard/', views.tiempo_acordado_dashboard_view, name='tiempo_acordado_dashboard'),
     path('app/tiempo-acordado/nuevo/', views.mobile_crear_tiempo_acordado_view, name='mobile_crear_tiempo_acordado'),
     path('app/tiempo-acordado/<int:pk>/', views.mobile_detalle_tiempo_acordado_view, name='mobile_detalle_tiempo_acordado'),
+    path('app/tiempo-acordado/<int:pk>/editar/', views.mobile_crear_tiempo_acordado_view, name='mobile_editar_tiempo_acordado'),
     path('app/tiempo-acordado/<int:pk>/pdf/', views.exportar_tiempo_acordado_pdf_view, name='exportar_tiempo_acordado_pdf'),
     path('app/tiempo-acordado/<int:pk>/enviar/', views.enviar_tiempo_acordado_power_automate_ajax, name='enviar_tiempo_acordado_power_automate'),
     

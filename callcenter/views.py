@@ -995,7 +995,7 @@ def mobile_detalle_tiempo_acordado_view(request, pk):
     return render(request, 'callcenter/mobile_detalle_tiempo_acordado.html', context)
 
 
-def _generate_tiempo_acordado_pdf_binary(acuerdo):
+def _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=False):
     """
     Función interna que centraliza la generación del reporte.
     Retorna una tupla: (archivo_bytes, nombre_archivo, content_type)
@@ -1166,12 +1166,12 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
             'OBSERVACIONES': acuerdo.observaciones or '',
             'GANTT': InlineImage(doc, gantt_stream, width=Mm(190)) if gantt_stream else "",
             # Tags principales
-            'FIRMA_RESPONSABLE': get_base64_image_tag(acuerdo.firma_responsable, "RESPONSABLE"),
-            'FIRMA_ENLACE': get_base64_image_tag(acuerdo.firma_enlace, "ENLACE"),
+            'FIRMA_RESPONSABLE': get_base64_image_tag(None if force_empty_signatures else acuerdo.firma_responsable, "RESPONSABLE"),
+            'FIRMA_ENLACE': get_base64_image_tag(None if force_empty_signatures else acuerdo.firma_enlace, "ENLACE"),
             # Variaciones por si la plantilla usa nombres cortos
-            'firma_resp': get_base64_image_tag(acuerdo.firma_responsable, "RESPONSABLE_V"),
-            'firma_enl': get_base64_image_tag(acuerdo.firma_enlace, "ENLACE_V"),
-            'FIRMA_R': get_base64_image_tag(acuerdo.firma_responsable, "RESPONSABLE_V2")
+            'firma_resp': get_base64_image_tag(None if force_empty_signatures else acuerdo.firma_responsable, "RESPONSABLE_V"),
+            'firma_enl': get_base64_image_tag(None if force_empty_signatures else acuerdo.firma_enlace, "ENLACE_V"),
+            'FIRMA_R': get_base64_image_tag(None if force_empty_signatures else acuerdo.firma_responsable, "RESPONSABLE_V2")
         }
 
         doc.render(ctx)
@@ -1231,8 +1231,8 @@ def _generate_tiempo_acordado_pdf_binary(acuerdo):
             gantt_b64 = b64_lib.b64encode(gantt_buf.getvalue()).decode('utf-8')
         
         # Limpiar firmas para asegurar que el navegador las lea correctamente
-        firma_r = acuerdo.firma_responsable or ""
-        firma_e = acuerdo.firma_enlace or ""
+        firma_r = "" if force_empty_signatures else (acuerdo.firma_responsable or "")
+        firma_e = "" if force_empty_signatures else (acuerdo.firma_enlace or "")
         
         # Asegurar prefijo data:image si falta (ya que Playwright lo necesita en el tag img)
         if firma_r and not firma_r.startswith('data:'): firma_r = f"data:image/png;base64,{firma_r}"
@@ -1283,7 +1283,13 @@ def exportar_tiempo_acordado_pdf_view(request, pk):
     from django.http import HttpResponse
 
     acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
-    data, filename, content_type = _generate_tiempo_acordado_pdf_binary(acuerdo)
+    
+    # Si se pide formato manual, forzar firmas vacías
+    force_empty = request.GET.get('manual') == '1'
+    data, filename, content_type = _generate_tiempo_acordado_pdf_binary(acuerdo, force_empty_signatures=force_empty)
+    
+    if force_empty:
+        filename = f"Plantilla_Manual_Acuerdo_{acuerdo.id}.pdf"
     
     response = HttpResponse(data, content_type=content_type)
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -1578,39 +1584,82 @@ def tiempo_acordado_dashboard_view(request):
     
 @staff_member_required
 @mobile_permission_required('tiempo_acordado')
-def mobile_crear_tiempo_acordado_view(request):
-    """Vista Fiori para crear un Tiempo Acordado desde la App."""
+def mobile_crear_tiempo_acordado_view(request, pk=None):
+    """Vista Fiori para crear o editar un Tiempo Acordado desde la App."""
     from .models import SolicitudTicket, Enlace, Institucion, TiempoAcordado, TiempoAcordadoTarea, CronogramaPredefinido
     from activos.models import Ubicacion
     from django.utils import timezone
     from datetime import datetime
     
+    acuerdo = None
+    if pk:
+        acuerdo = get_object_or_404(TiempoAcordado, pk=pk)
+        # Solo permitir editar si es BORRADOR
+        if acuerdo.estatus != 'BORRADOR':
+            return JsonResponse({'success': False, 'error': 'Solo se pueden editar acuerdos en estado BORRADOR.'}, status=403)
+
     if request.method == 'POST':
         try:
-            # 1. Crear el Acuerdo Base
-            ticket_id = request.POST.get('ticket')
-            enlace_id = request.POST.get('enlace')
-            ubicacion_id = request.POST.get('ubicacion')
+            # 1. Crear o Actualizar el Acuerdo Base
+            ticket_id = request.POST.get('ticket', '').replace(',', '')
+            enlace_id = request.POST.get('enlace', '').replace(',', '')
+            ubicacion_id = request.POST.get('ubicacion', '').replace(',', '')
+            if not ubicacion_id and acuerdo:
+                ubicacion_id = acuerdo.ubicacion_id
             fecha_final_str = request.POST.get('fecha_solucion_final')
             
             if not ticket_id or not enlace_id or not fecha_final_str:
                 return JsonResponse({'success': False, 'error': 'Ticket, Enlace y Fecha Final son requeridos.'})
 
-            acuerdo = TiempoAcordado.objects.create(
-                ticket_id=ticket_id,
-                enlace_id=enlace_id,
-                ubicacion_id=ubicacion_id if ubicacion_id else None,
-                motivo_extension=request.POST.get('motivo_extension', ''),
-                solucion_provisional=request.POST.get('solucion_provisional', ''),
-                observaciones=request.POST.get('observaciones', ''),
-                fecha_solucion_final=timezone.make_aware(datetime.fromisoformat(fecha_final_str)),
-                usuario_creador=request.user,
-                estatus='BORRADOR',
-                firma_enlace=request.POST.get('firma_enlace'),
-                firma_responsable=request.POST.get('firma_responsable')
-            )
+            from django.utils.dateparse import parse_datetime
+
+            def safe_parse_dt(dt_str):
+                if not dt_str: return None
+                try:
+                    dt = parse_datetime(dt_str)
+                    if not dt:
+                        # Reintento manual si parse_datetime falla (algunos formatos ISO)
+                        dt = datetime.fromisoformat(dt_str)
+                    if dt and timezone.is_naive(dt):
+                        return timezone.make_aware(dt)
+                    return dt
+                except:
+                    return None
+
+            # Datos base
+            fecha_final = safe_parse_dt(fecha_final_str)
+            if not fecha_final:
+                return JsonResponse({'success': False, 'error': f'Formato de fecha final inválido: {fecha_final_str}'})
+
+            datos_acuerdo = {
+                'ticket_id': ticket_id,
+                'enlace_id': enlace_id,
+                'ubicacion_id': ubicacion_id if ubicacion_id else None,
+                'motivo_extension': request.POST.get('motivo_extension', ''),
+                'solucion_provisional': request.POST.get('solucion_provisional', ''),
+                'observaciones': request.POST.get('observaciones', ''),
+                'fecha_solucion_final': fecha_final,
+                'firma_enlace': request.POST.get('firma_enlace') or (acuerdo.firma_enlace if acuerdo else None),
+                'firma_responsable': request.POST.get('firma_responsable') or (acuerdo.firma_responsable if acuerdo else None)
+            }
+
+            if acuerdo:
+                # Actualizar existente
+                for key, value in datos_acuerdo.items():
+                    setattr(acuerdo, key, value)
+                acuerdo.save()
+            else:
+                # Crear nuevo
+                acuerdo = TiempoAcordado.objects.create(
+                    usuario_creador=request.user,
+                    estatus='BORRADOR',
+                    **datos_acuerdo
+                )
             
-            # 2. Procesar Tareas del Cronograma
+            # 2. Procesar Tareas
+            if pk:
+                acuerdo.tareas.all().delete()
+
             tareas_desc = request.POST.getlist('tarea_descripcion[]')
             tareas_inicio = request.POST.getlist('tarea_inicio[]')
             tareas_fin = request.POST.getlist('tarea_fin[]')
@@ -1618,20 +1667,25 @@ def mobile_crear_tiempo_acordado_view(request):
             objs_tareas = []
             for i in range(len(tareas_desc)):
                 if tareas_desc[i].strip() and tareas_inicio[i] and tareas_fin[i]:
-                    objs_tareas.append(TiempoAcordadoTarea(
-                        tiempo_acordado=acuerdo,
-                        descripcion=tareas_desc[i],
-                        fecha_inicio=timezone.make_aware(datetime.fromisoformat(tareas_inicio[i])),
-                        fecha_fin=timezone.make_aware(datetime.fromisoformat(tareas_fin[i]))
-                    ))
+                    t_ini = safe_parse_dt(tareas_inicio[i])
+                    t_fin = safe_parse_dt(tareas_fin[i])
+                    
+                    if t_ini and t_fin:
+                        objs_tareas.append(TiempoAcordadoTarea(
+                            tiempo_acordado=acuerdo,
+                            descripcion=tareas_desc[i],
+                            fecha_inicio=t_ini,
+                            fecha_fin=t_fin
+                        ))
             
             if objs_tareas:
                 TiempoAcordadoTarea.objects.bulk_create(objs_tareas)
                 
             return JsonResponse({'success': True, 'id': acuerdo.id})
         except Exception as e:
-            logger.error(f"Error creando Tiempo Acordado móvil: {e}", exc_info=True)
-            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+            import traceback
+            logger.error(f"Error procesando Tiempo Acordado móvil: {e}\n{traceback.format_exc()}")
+            return JsonResponse({'success': False, 'error': str(e)})
 
     # Contexto para el GET
     # Solo mostramos ubicaciones que son de tipo EDIFICIO para el primer selector
@@ -1642,10 +1696,11 @@ def mobile_crear_tiempo_acordado_view(request):
     cronogramas_templates = CronogramaPredefinido.objects.all().order_by('nombre')
     
     return render(request, 'callcenter/mobile_crear_tiempo_acordado.html', {
+        'acuerdo': acuerdo,
         'enlaces': enlaces,
         'edificios': edificios,
         'cronogramas_templates': cronogramas_templates,
-        'title': 'Nuevo Tiempo Acordado',
+        'title': 'Editar Tiempo Acordado' if acuerdo else 'Nuevo Tiempo Acordado',
         'now': timezone.localtime(timezone.now())
     })
 

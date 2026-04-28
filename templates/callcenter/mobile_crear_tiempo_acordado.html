@@ -1,4 +1,4 @@
-{% load static %}
+{% load static l10n %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -297,17 +297,16 @@
                 
                 <div class="form-field search-container">
                     <label>Vincular Ticket</label>
-                    <input type="text" id="ticket-search" placeholder="Busque por folio o descripción..." autocomplete="off">
-                    <input type="hidden" name="ticket" id="ticket-id" required>
+                    <input type="text" id="ticket-search" placeholder="Busque por folio o descripción..." autocomplete="off" value="{{ acuerdo.ticket.folio|default:acuerdo.ticket.id_solicitud }}">
+                    <input type="hidden" name="ticket" id="ticket-id" required value="{{ acuerdo.ticket.id|unlocalize }}">
                     <div id="search-results" class="fiori-dropdown"></div>
                     
-                    <!-- Card de Detalle de Ticket -->
-                    <div id="ticket-detail-card" class="ticket-detail-card">
+                    <div id="ticket-detail-card" class="ticket-detail-card" {% if acuerdo.ticket %}style="display: block;"{% endif %}>
                         <div class="td-row">
                             <ion-icon name="document-text-outline" class="td-icon"></ion-icon>
                             <div class="td-content">
                                 <span class="td-label">Descripción Completa</span>
-                                <div class="td-value" id="td-desc"></div>
+                                <div class="td-value" id="td-desc">{{ acuerdo.ticket.falla_descripcion }}</div>
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -315,14 +314,14 @@
                                 <ion-icon name="calendar-outline" class="td-icon"></ion-icon>
                                 <div class="td-content">
                                     <span class="td-label">Fecha Reporte</span>
-                                    <div class="td-value" id="td-fecha"></div>
+                                    <div class="td-value" id="td-fecha">{{ acuerdo.ticket.creado_en|date:"d/m/Y H:i" }}</div>
                                 </div>
                             </div>
                             <div class="td-row">
                                 <ion-icon name="person-outline" class="td-icon"></ion-icon>
                                 <div class="td-content">
                                     <span class="td-label">Reportado Por</span>
-                                    <div class="td-value" id="td-user"></div>
+                                    <div class="td-value" id="td-user">{{ acuerdo.ticket.solicitante|default:"No identificado" }}</div>
                                 </div>
                             </div>
                         </div>
@@ -330,7 +329,7 @@
                             <ion-icon name="location-outline" class="td-icon"></ion-icon>
                             <div class="td-content">
                                 <span class="td-label">Ubicación del Reporte</span>
-                                <div class="td-value" id="td-ubic"></div>
+                                <div class="td-value" id="td-ubic">{{ acuerdo.ticket.area|default:"N/A" }}</div>
                             </div>
                         </div>
                     </div>
@@ -338,25 +337,24 @@
 
                 <div class="form-field search-container">
                     <label>Persona de Enlace (Buscador)</label>
-                    <input type="text" id="enlace-search" placeholder="Escriba nombre o institución..." autocomplete="off">
-                    <input type="hidden" name="enlace" id="enlace-id" required>
+                    <input type="text" id="enlace-search" placeholder="Escriba nombre o institución..." autocomplete="off" value="{{ acuerdo.enlace.nombre }}">
+                    <input type="hidden" name="enlace" id="enlace-id" required value="{{ acuerdo.enlace.id|unlocalize }}">
                     <div id="enlace-results" class="fiori-dropdown" style="display: none; position: absolute; width: 100%; z-index: 101; background: white; border: 1px solid var(--sap-border-color); border-radius: 6px; box-shadow: var(--sap-card-shadow);"></div>
                     
-                    <!-- Card de Detalle de Contacto -->
-                    <div id="contact-detail-card" class="ticket-detail-card" style="border-left-color: #2563eb;">
+                    <div id="contact-detail-card" class="ticket-detail-card" style="border-left-color: #2563eb; {% if acuerdo.enlace %}display: block;{% endif %}">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div class="td-row">
                                 <ion-icon name="call-outline" class="td-icon" style="color: #2563eb;"></ion-icon>
                                 <div class="td-content">
                                     <span class="td-label">Teléfono</span>
-                                    <div class="td-value" id="cd-tel"></div>
+                                    <div class="td-value" id="cd-tel">{{ acuerdo.enlace.telefono|default:"N/A" }}</div>
                                 </div>
                             </div>
                             <div class="td-row">
                                 <ion-icon name="mail-outline" class="td-icon" style="color: #2563eb;"></ion-icon>
                                 <div class="td-content">
                                     <span class="td-label">Correo</span>
-                                    <div class="td-value" id="cd-email"></div>
+                                    <div class="td-value" id="cd-email">{{ acuerdo.enlace.email|default:"N/A" }}</div>
                                 </div>
                             </div>
                         </div>
@@ -364,7 +362,7 @@
                             <ion-icon name="business-outline" class="td-icon" style="color: #2563eb;"></ion-icon>
                             <div class="td-content">
                                 <span class="td-label">Ubicación del Contacto</span>
-                                <div class="td-value" id="cd-ubic"></div>
+                                <div class="td-value" id="cd-ubic">{{ acuerdo.enlace.ubicacion.nombre|default:"N/A" }}</div>
                             </div>
                         </div>
                     </div>
@@ -372,8 +370,8 @@
 
                 <div class="form-field">
                     <label>Institución (Auto)</label>
-                    <input type="text" id="institucion-nombre" readonly placeholder="Se autocompletará">
-                    <input type="hidden" name="institucion" id="institucion-id">
+                    <input type="text" id="institucion-nombre" readonly placeholder="Se autocompletará" value="{{ acuerdo.enlace.institucion.nombre }}">
+                    <input type="hidden" name="institucion" id="institucion-id" value="{{ acuerdo.enlace.institucion.id|unlocalize }}">
                 </div>
 
                 <!-- Ubicación Jerárquica -->
@@ -383,14 +381,14 @@
                         <select id="edificio-select">
                             <option value="">Seleccione...</option>
                             {% for edif in edificios %}
-                            <option value="{{ edif.id }}">{{ edif.nombre }}</option>
+                            <option value="{{ edif.id|unlocalize }}" {% if acuerdo.ubicacion.padre_id == edif.id %}selected{% endif %}>{{ edif.nombre }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-field">
                         <label>Nivel / Piso</label>
                         <select name="ubicacion" id="ubicacion-select" disabled>
-                            <option value="">-- Elija Edificio --</option>
+                            <option value="{{ acuerdo.ubicacion.id|unlocalize }}" selected>{{ acuerdo.ubicacion.nombre }}</option>
                         </select>
                     </div>
                 </div>
@@ -404,22 +402,22 @@
                 
                 <div class="form-field">
                     <label>Motivo de la Extensión</label>
-                    <textarea name="motivo_extension" rows="3" placeholder="Explique por qué se requiere este tiempo..." required></textarea>
+                    <textarea name="motivo_extension" rows="3" placeholder="Explique por qué se requiere este tiempo..." required>{{ acuerdo.motivo_extension }}</textarea>
                 </div>
 
                 <div class="form-field">
                     <label>Solución Provisional</label>
-                    <textarea name="solucion_provisional" rows="3" placeholder="Medidas de contingencia aplicadas..."></textarea>
+                    <textarea name="solucion_provisional" rows="3" placeholder="Medidas de contingencia aplicadas...">{{ acuerdo.solucion_provisional }}</textarea>
                 </div>
 
                 <div class="form-field">
                     <label>Fecha Límite Solución Final</label>
-                    <input type="datetime-local" name="fecha_solucion_final" required>
+                    <input type="datetime-local" name="fecha_solucion_final" required value="{{ acuerdo.fecha_solucion_final|date:'Y-m-d\TH:i' }}">
                 </div>
 
                 <div class="form-field">
                     <label>Notas Internas</label>
-                    <textarea name="observaciones" rows="2" placeholder="Observaciones adicionales..."></textarea>
+                    <textarea name="observaciones" rows="2" placeholder="Observaciones adicionales...">{{ acuerdo.observaciones }}</textarea>
                 </div>
             </div>
 
@@ -762,8 +760,16 @@
                 });
             });
 
-            // Añadir una tarea por defecto
+            // Añadir una tarea por defecto (Solo si es nuevo)
+            {% if not acuerdo %}
             $('#btn-add-task').click();
+            {% else %}
+            // Si es edición, habilitar selectores y cargar tareas
+            $('#ubicacion-select').prop('disabled', false);
+            {% for tarea in acuerdo.tareas.all %}
+            addTaskRow("{{ tarea.descripcion }}", "{{ tarea.fecha_inicio|date:'Y-m-d\TH:i' }}", "{{ tarea.fecha_fin|date:'Y-m-d\TH:i' }}");
+            {% endfor %}
+            {% endif %}
 
             // --- Envío del Formulario (se maneja más abajo con las firmas) ---
 
@@ -850,8 +856,10 @@
                     if (result.isConfirmed) {
                         Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
+                        let ajaxUrl = '{% if acuerdo %}{% url "callcenter:mobile_editar_tiempo_acordado" acuerdo.id %}{% else %}{% url "callcenter:mobile_crear_tiempo_acordado" %}{% endif %}';
+                        
                         $.ajax({
-                            url: '{% url "callcenter:mobile_crear_tiempo_acordado" %}',
+                            url: ajaxUrl,
                             method: 'POST',
                             data: $('#tiempo-acordado-form').serialize(),
                             success: function(res) {
@@ -873,8 +881,10 @@
                                                 Swal.fire({ icon: 'success', title: 'Enviado', text: 'El reporte ha sido guardado y enviado exitosamente.' })
                                                 .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
                                             },
-                                            error: function() {
-                                                Swal.fire({ icon: 'warning', title: 'Guardado, pero error al enviar', text: 'El acuerdo se guardó, pero no se pudo enviar el correo en este momento.' })
+                                            error: function(xhr) {
+                                                let errorMsg = 'No se pudo enviar el correo en este momento.';
+                                                if (xhr.responseJSON && xhr.responseJSON.message) errorMsg = xhr.responseJSON.message;
+                                                Swal.fire({ icon: 'warning', title: 'Guardado, pero error al enviar', text: errorMsg })
                                                 .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
                                             }
                                         });
@@ -883,11 +893,19 @@
                                         .then(() => { window.location.href = '{% url "core:mobile_dashboard" %}'; });
                                     }
                                 } else {
-                                    Swal.fire({ icon: 'error', title: 'Error', text: res.error });
+                                    Swal.fire({ icon: 'error', title: 'Error de Validación', text: res.error });
                                 }
                             },
-                            error: function() {
-                                Swal.fire({ icon: 'error', title: 'Error Fatal', text: 'No se pudo conectar con el servidor.' });
+                            error: function(xhr) {
+                                let errorMsg = 'No se pudo conectar con el servidor o ocurrió un error interno.';
+                                if (xhr.responseJSON && xhr.responseJSON.error) errorMsg = xhr.responseJSON.error;
+                                else if (xhr.responseText && xhr.responseText.length < 200) errorMsg = xhr.responseText;
+                                
+                                Swal.fire({ 
+                                    icon: 'error', 
+                                    title: 'Error del Servidor', 
+                                    text: errorMsg 
+                                });
                             }
                         });
                     }
