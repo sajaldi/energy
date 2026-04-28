@@ -1,0 +1,360 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ejecutar Rutina</title>
+    {% include 'core/pwa_tags.html' %}
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <style>
+        :root {
+            --sap-blue: #0a6ed1;
+            --sap-shell: #354a5f;
+            --sap-bg: #f7f7f7;
+            --sap-card-bg: #ffffff;
+            --sap-label: #6a6d70;
+            --sap-text: #32363a;
+            --sap-border: #d9d9d9;
+            --sap-success: #107e3e;
+            --sap-error: #bb0000;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--sap-bg);
+            color: var(--sap-text);
+            margin: 0;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        header {
+            background-color: var(--sap-shell);
+            height: 48px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .back-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 8px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        header h1 {
+            font-size: 16px;
+            font-weight: 500;
+            margin: 0;
+            flex-grow: 1;
+        }
+
+        .container {
+            padding: 12px;
+            max-width: 600px;
+            margin: 0 auto;
+            padding-bottom: 80px;
+        }
+
+        .fiori-section {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.04);
+        }
+
+        .section-header {
+            padding: 12px 16px;
+            background: #fafafa;
+            border-bottom: 1px solid var(--sap-border);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--sap-label);
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-content { padding: 16px; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group:last-child { margin-bottom: 0; }
+
+        label {
+            display: block;
+            font-size: 13px;
+            color: var(--sap-label);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .sap-input-container {
+            background: white;
+            border: 1px solid var(--sap-border);
+            border-radius: 4px;
+            transition: border-color 0.2s;
+        }
+
+        .sap-input-container:focus-within {
+            border-color: var(--sap-blue);
+            outline: 2px solid rgba(10, 110, 209, 0.2);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            border: none;
+            background: transparent;
+            padding: 10px 12px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--sap-text);
+            outline: none;
+        }
+
+        .select2-container--default .select2-selection--single {
+            border: none !important;
+            height: 40px !important;
+            display: flex;
+            align-items: center;
+        }
+
+        .footer-actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid var(--sap-border);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            z-index: 900;
+        }
+
+        .sap-btn-main {
+            background: var(--sap-blue);
+            color: white;
+            border: 1px solid var(--sap-blue);
+            padding: 0 20px;
+            height: 40px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(10, 110, 209, 0.2);
+        }
+
+        .sap-btn-cancel {
+            background: white;
+            color: var(--sap-blue);
+            border: 1px solid var(--sap-blue);
+            padding: 0 20px;
+            height: 40px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 14px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .puesto-badge {
+            background: #e1f0ff;
+            color: #0056b3;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="{% url 'core:mobile_dashboard' %}" class="back-btn">
+            <ion-icon name="chevron-back-outline"></ion-icon>
+        </a>
+        <h1>Ejecutar Rutina</h1>
+    </header>
+
+    <div class="container">
+        {% if error_mensaje %}
+        <div class="fiori-section" style="border-color: var(--sap-error);">
+            <div class="section-content" style="color: var(--sap-error); text-align: center;">
+                <ion-icon name="alert-circle-outline" style="font-size: 48px;"></ion-icon>
+                <p>{{ error_mensaje }}</p>
+                <a href="{% url 'core:mobile_dashboard' %}" class="sap-btn-main" style="display: inline-flex; align-items: center; text-decoration: none; margin-top: 10px;">Volver al Inicio</a>
+            </div>
+        </div>
+        {% else %}
+        <form id="rutina-manual-form">
+            {% csrf_token %}
+
+            <div class="fiori-section">
+                <div class="section-header">
+                    <span>Selección de Rutina</span>
+                    {% if puesto %}
+                    <span class="puesto-badge">{{ puesto.nombre }}</span>
+                    {% endif %}
+                </div>
+                <div class="section-content">
+                    <div class="form-group">
+                        <label>Rutina *</label>
+                        <div class="sap-input-container">
+                            <select name="rutina" id="rutina-select" required style="width: 100%;">
+                                <option value="">Seleccione rutina...</option>
+                                {% for r in rutinas %}
+                                <option value="{{ r.id }}" data-tipo="{{ r.tipo.nombre|default:'' }}">
+                                    {{ r.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <p id="rutina-desc" style="font-size: 12px; color: var(--sap-label); margin-top: 5px;"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fiori-section">
+                <div class="section-header">Ubicación y Activo</div>
+                <div class="section-content">
+                    <div class="form-group">
+                        <label>Ubicación *</label>
+                        <div class="sap-input-container">
+                            <select name="ubicacion" id="ubicacion-select" required style="width: 100%;">
+                                <option value="">Seleccione ubicación...</option>
+                                {% for u in ubicaciones %}
+                                <option value="{{ u.id }}">{{ u.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Activo (Opcional)</label>
+                        <div class="sap-input-container">
+                            <select name="activo" id="activo-select" style="width: 100%;">
+                                <option value="">Seleccione activo...</option>
+                            </select>
+                        </div>
+                        <p style="font-size: 11px; color: var(--sap-label); margin-top: 5px;">
+                            Si selecciona una ubicación pero no un activo, el sistema intentará vincular automáticamente los activos correspondientes de esa área.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-actions">
+                <a href="{% url 'core:mobile_dashboard' %}" class="sap-btn-cancel">Cancelar</a>
+                <button type="submit" class="sap-btn-main">Iniciar Ejecución</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#rutina-select').select2({
+                placeholder: "Buscar rutina...",
+                allowClear: true
+            });
+
+            $('#ubicacion-select').select2({
+                placeholder: "Buscar ubicación...",
+                allowClear: true
+            });
+
+            $('#activo-select').select2({
+                placeholder: "Seleccione activo (opcional)",
+                allowClear: true
+            });
+
+            // Cargar activos cuando cambia la ubicación
+            $('#ubicacion-select').on('change', function() {
+                const ubiId = $(this).val();
+                if (!ubiId) {
+                    $('#activo-select').empty().append('<option value="">Seleccione activo...</option>').trigger('change');
+                    return;
+                }
+
+                // Usar el endpoint existente para buscar activos
+                fetch(`{% url 'mantenimiento:api_buscar_activos' %}?ubicacion_id=${ubiId}`)
+                .then(res => res.json())
+                .then(data => {
+                    let options = '<option value="">Seleccione activo...</option>';
+                    data.forEach(a => {
+                        options += `<option value="${a.id}">${a.nombre} [${a.codigo_interno}]</option>`;
+                    });
+                    $('#activo-select').html(options).trigger('change');
+                });
+            });
+
+            $('#rutina-manual-form').onsubmit = function(e) {
+                e.preventDefault();
+                
+                const btn = this.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.innerText = 'Generando Orden...';
+
+                const formData = new FormData(this);
+                
+                fetch("{% url 'mantenimiento:mobile_crear_ot_desde_puesto' %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire({
+                            title: '¡Orden Generada!',
+                            text: `Se ha creado la orden ${data.codigo} para ejecución inmediata.`,
+                            icon: 'success',
+                            confirmButtonText: 'Ver Orden',
+                            confirmButtonColor: '#0a6ed1'
+                        }).then((result) => {
+                            window.location.href = `/mantenimiento/app/ot/${data.ot_id}/`;
+                        });
+                    } else {
+                        Swal.fire('Error', data.message || 'Error desconocido', 'error');
+                        btn.disabled = false;
+                        btn.innerText = 'Iniciar Ejecución';
+                    }
+                })
+                .catch(err => {
+                    Swal.fire('Error de conexión', 'No se pudo contactar al servidor', 'error');
+                    btn.disabled = false;
+                    btn.innerText = 'Iniciar Ejecución';
+                });
+            };
+        });
+    </script>
+</body>
+</html>

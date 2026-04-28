@@ -416,7 +416,19 @@
                     </div>
 
                     <div class="fiori-form-group">
-                        <label>Técnico Responsable</label>
+                        <label>Empresa Responsable</label>
+                        <select name="empresa_responsable" class="fiori-select" onchange="updateOT()">
+                            <option value="none">-- Seleccionar Empresa --</option>
+                            {% for e in empresas %}
+                            <option value="{{ e.id }}" {% if ot.empresa_responsable_id == e.id %}selected{% endif %}>
+                                {{ e.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="fiori-form-group">
+                        <label>Técnico Líder / Principal</label>
                         <select name="tecnico" class="fiori-select" onchange="updateOT()">
                             <option value="none">-- Seleccionar Técnico --</option>
                             {% for t in tecnicos %}
@@ -428,9 +440,27 @@
                     </div>
 
                     <div class="fiori-form-group">
-                        <label>Fecha y Hora Programada</label>
-                        <input type="datetime-local" name="inicio_programado" class="fiori-input" 
-                               value="{{ ot.inicio_programado|date:'Y-m-d\TH:i' }}" onchange="updateOT()">
+                        <label>Equipo de Técnicos (Opcional)</label>
+                        <select name="tecnicos" id="tecnicosSelect" class="fiori-select" multiple="multiple" onchange="updateOT()">
+                            {% for t in tecnicos %}
+                            <option value="{{ t.id }}" {% if t.id in tecnicos_ids %}selected{% endif %}>
+                                {{ t.get_full_name|default:t.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="fiori-form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label>Inicio Programado</label>
+                            <input type="datetime-local" name="inicio_programado" class="fiori-input" 
+                                   value="{{ ot.inicio_programado|date:'Y-m-d\TH:i' }}" onchange="updateOT()">
+                        </div>
+                        <div>
+                            <label>Fin Programado</label>
+                            <input type="datetime-local" name="fin_programado" class="fiori-input" 
+                                   value="{{ ot.fin_programado|date:'Y-m-d\TH:i' }}" onchange="updateOT()">
+                        </div>
                     </div>
                 </form>
             </div>
@@ -586,6 +616,14 @@
         <a href="{% url 'mantenimiento:mobile_ot_iniciar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1;">
             <ion-icon name="play-outline"></ion-icon> Iniciar
         </a>
+        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-ghost" style="padding: 10px 12px;">
+            <ion-icon name="create-outline"></ion-icon> Editar
+        </a>
+        {% if ot.tipo == 'NO_PROGRAMADA' %}
+        <button onclick="sendWebhook()" class="fiori-btn fiori-btn-purple" style="padding: 10px 12px;" title="Enviar Webhook">
+            <ion-icon name="mail-outline"></ion-icon>
+        </button>
+        {% endif %}
         {% elif ot.estado == 'EJECUCION' %}
         <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id|unlocalize }}" class="fiori-btn fiori-btn-ghost" style="padding: 10px 12px;" title="Materiales">
             <ion-icon name="cube-outline"></ion-icon>
@@ -593,9 +631,13 @@
         <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1;">
             <ion-icon name="create-outline"></ion-icon> Continuar
         </a>
-        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-primary" style="background: var(--sap-success); flex-grow: 1;">
+        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-success" style="flex-grow: 1;">
             <ion-icon name="checkmark-done-outline"></ion-icon> Finalizar
         </a>
+        <!-- Webhook en Ejecución -->
+        <button onclick="sendWebhook()" class="fiori-btn fiori-btn-purple" style="padding: 10px 12px;" title="Enviar Webhook">
+            <ion-icon name="mail-outline"></ion-icon>
+        </button>
         {% elif ot.estado == 'REALIZADA' %}
             <!-- Botón Dinámico de PDF -->
             <div id="pdfActionContainer" style="flex-grow: 1; display: flex; gap: 8px;">
@@ -606,18 +648,22 @@
                         <a href="{{ a.archivo.url }}" target="_blank" class="fiori-btn fiori-btn-primary" style="background: #e52929; flex-grow: 1; padding: 10px 8px;">
                             <ion-icon name="document-text-outline"></ion-icon> PDF
                         </a>
-                        <!-- Marcador para JS de que el PDF ya está -->
                         <script>window.pdfReady = true;</script>
                         {% endif %}
                     {% endfor %}
                 {% endif %}
                 {% endwith %}
 
-                {% if is_gerente %}
+                {% if is_gerente or ot.tecnico == user or ot.supervisor == user %}
                 <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; border-color: var(--sap-brand-color); color: var(--sap-brand-color); padding: 10px 8px;">
-                    <ion-icon name="create-outline"></ion-icon> Editar Reporte
+                    <ion-icon name="create-outline"></ion-icon> Editar
                 </a>
                 {% endif %}
+
+                <!-- Webhook Button -->
+                <button onclick="sendWebhook()" class="fiori-btn fiori-btn-purple" style="flex-grow: 1; padding: 10px 8px;">
+                    <ion-icon name="mail-outline"></ion-icon> Webhook
+                </button>
                 
                 <script>
                     if (!window.pdfReady) {
@@ -635,13 +681,13 @@
             </a>
         {% endif %}
         
-        <a href="{% url 'seguridad:mobile_generar_permiso' ot.id|unlocalize %}" class="fiori-btn fiori-btn-ghost" style="background: #f3e8ff; color: #7e22ce; border-color: #d8b4fe;">
-            <ion-icon name="shield-checkmark-outline"></ion-icon> Permiso
+        <a href="{% url 'seguridad:mobile_generar_permiso' ot.id|unlocalize %}" class="fiori-btn fiori-btn-ghost" style="background: #f3e8ff; color: #7e22ce; border-color: #d8b4fe;" title="Permiso">
+            <ion-icon name="shield-checkmark-outline"></ion-icon>
         </a>
 
         {% if user.is_superuser %}
-        <button onclick="deleteOT()" class="fiori-btn fiori-btn-danger" style="background: #ef4444; border-color: #dc2626;">
-            <ion-icon name="trash-outline"></ion-icon> Eliminar
+        <button onclick="deleteOT()" class="fiori-btn fiori-btn-danger" style="background: #ef4444; border-color: #dc2626;" title="Eliminar">
+            <ion-icon name="trash-outline"></ion-icon>
         </button>
         {% endif %}
     </div>
@@ -974,6 +1020,63 @@
             e.preventDefault();
             uploadArea.classList.remove('dragover');
             uploadFiles(e.dataTransfer.files);
+        });
+
+        // === Webhook Sending ===
+        async function sendWebhook() {
+            const { value: confirm } = await Swal.fire({
+                title: '¿Enviar reporte por correo?',
+                text: "Se disparará un webhook para enviar el PDF de esta OT a los interesados.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#8b5cf6',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'SÍ, ENVIAR',
+                cancelButtonText: 'CANCELAR'
+            });
+
+            if (!confirm) return;
+
+            const toast = document.getElementById('toast');
+            toast.textContent = "Iniciando envío...";
+            toast.classList.add('show');
+
+            try {
+                const response = await fetch("{% url 'mantenimiento:mobile_ot_webhook' ot.id|unlocalize %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    Swal.fire({
+                        title: '¡Enviado!',
+                        text: result.message,
+                        icon: 'success',
+                        timer: 3000
+                    });
+                } else {
+                    Swal.fire('Error', result.message, 'error');
+                }
+            } catch (error) {
+                console.error("Webhook error:", error);
+                Swal.fire('Error', 'No se pudo contactar con el servidor de automatización.', 'error');
+            } finally {
+                toast.classList.remove('show');
+            }
+        }
+
+        // === Initialization ===
+        $(document).ready(function() {
+            $('#tecnicosSelect').select2({
+                placeholder: "Seleccionar colaboradores",
+                allowClear: true,
+                width: '100%'
+            });
         });
     </script>
 

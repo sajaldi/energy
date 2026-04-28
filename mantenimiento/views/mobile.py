@@ -5,11 +5,13 @@ from datetime import datetime, timedelta
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib.auth.models import User, Group
+from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from django.db.models import Count, Q, Min
+from django.conf import settings
 from core.decorators import mobile_permission_required
-from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso, ArchivoOrdenTrabajo
+from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso, ArchivoOrdenTrabajo, Empresa, Rutina
 from activos.models import Activo, Ubicacion, DocumentoMedicion, PuntoMedicion
 from core.models import Departamento
 from ..tasks import task_generar_ot_pdf
@@ -75,6 +77,7 @@ def mobile_ot_detalle(request, pk):
         Q(perfil_tecnico__puesto__nombre__icontains='Supervisor')
     ).distinct().order_by('first_name')
     tecnicos = User.objects.filter(Q(groups__name='Tecnicos') | Q(perfil_tecnico__isnull=False)).distinct().order_by('first_name')
+    empresas = Empresa.objects.filter(activo=True).order_by('nombre')
     
     is_gerente = request.user.groups.filter(name='Gerentes').exists() or request.user.is_superuser
     
@@ -86,9 +89,11 @@ def mobile_ot_detalle(request, pk):
         'ot': ot,
         'supervisores': supervisores,
         'tecnicos': tecnicos,
+        'empresas': empresas,
         'is_gerente': is_gerente,
         'ubicaciones': ubicaciones,
         'resultados': ot.resultados_checklist.select_related('paso').order_by('paso__orden'),
+        'tecnicos_ids': list(ot.tecnicos.values_list('id', flat=True)),
     }
 
     return render(request, 'mantenimiento/mobile_ot_detalle.html', context)
@@ -106,26 +111,45 @@ def mobile_ot_update_ajax(request, pk):
         return JsonResponse({'status': 'error', 'message': 'No se puede modificar una orden finalizada'}, status=400)
 
     tecnico_id = request.POST.get('tecnico')
+    tecnicos_ids = request.POST.getlist('tecnicos')
     supervisor_id = request.POST.get('supervisor')
+    empresa_id = request.POST.get('empresa_responsable')
     fecha_str = request.POST.get('inicio_programado')
+    fecha_fin_str = request.POST.get('fin_programado')
     ubicacion_id = request.POST.get('ubicacion')
     
     try:
         if tecnico_id:
             ot.tecnico = User.objects.get(pk=tecnico_id) if tecnico_id != 'none' else None
         
+        if tecnicos_ids:
+            # tecnicos_ids puede venir como ['none'] si se limpia el select múltiple
+            valid_ids = [tid for tid in tecnicos_ids if tid != 'none']
+            ot.tecnicos.set(valid_ids)
+            # Si no hay un técnico líder asignado pero sí hay colaboradores, el primero es el líder
+            if not ot.tecnico and valid_ids:
+                ot.tecnico_id = valid_ids[0]
+
         if supervisor_id:
             ot.supervisor = User.objects.get(pk=supervisor_id) if supervisor_id != 'none' else None
             
+        if empresa_id:
+            ot.empresa_responsable = Empresa.objects.get(pk=empresa_id) if empresa_id != 'none' else None
+
         if ubicacion_id:
             ot.ubicacion = Ubicacion.objects.get(pk=ubicacion_id) if ubicacion_id != 'none' else None
             
         if fecha_str:
-            # Formato esperado: YYYY-MM-DDTHH:MM (datetime-local)
             new_date = datetime.fromisoformat(fecha_str)
             if timezone.is_naive(new_date):
                 new_date = timezone.make_aware(new_date)
             ot.inicio_programado = new_date
+
+        if fecha_fin_str:
+            new_end_date = datetime.fromisoformat(fecha_fin_str)
+            if timezone.is_naive(new_end_date):
+                new_end_date = timezone.make_aware(new_end_date)
+            ot.fin_programado = new_end_date
             
         ot.save()
         return JsonResponse({'status': 'success', 'message': 'Orden actualizada correctamente'})
@@ -480,7 +504,7 @@ def mobile_ot_finalizar(request, pk):
         if accion == 'finalize' or (ot.estado == 'REALIZADA' and is_gerente):
             if ot.estado != 'REALIZADA':
                 ot.estado = 'REALIZADA'
-                ot.fecha_termino = timezone.now()
+                ot.fecha_ejecucion = timezone.now()
             
             ot.save()
             
@@ -737,6 +761,74 @@ def mobile_crear_otnp(request):
         'tecnicos': tecnicos,
     })
 
+@login_required
+def mobile_crear_ot_desde_puesto(request):
+    """
+    Lista rutinas asociadas al puesto del usuario y permite crear una OT inmediata.
+    """
+    try:
+        puesto_tecnico = request.user.perfil_tecnico
+        puesto = puesto_tecnico.puesto
+    except Exception:
+        puesto = None
+
+    # Si es superusuario o staff sin puesto, permitimos ver todas las rutinas?
+    # El requerimiento dice "asociadas al puesto del usuario", pero para administradores es mejor ver todo.
+    if request.user.is_superuser and not puesto:
+        rutinas = Rutina.objects.all().select_related('tipo', 'frecuencia', 'puesto_trabajo')
+    elif puesto:
+        rutinas = Rutina.objects.filter(puesto_trabajo=puesto).select_related('tipo', 'frecuencia')
+    else:
+        rutinas = []
+
+    if request.method == 'POST':
+        try:
+            rutina_id = request.POST.get('rutina')
+            ubi_id = request.POST.get('ubicacion')
+            activo_id = request.POST.get('activo')
+            
+            rutina = get_object_or_404(Rutina, pk=rutina_id)
+            ubicacion = get_object_or_404(Ubicacion, pk=ubi_id) if ubi_id else None
+            activo = Activo.objects.filter(id=activo_id).first() if activo_id else None
+            
+            now = timezone.now()
+            duracion = rutina.tiempo_estimado or timedelta(hours=1)
+            
+            ot = OrdenTrabajo.objects.create(
+                tipo='NO_PROGRAMADA',
+                rutina=rutina,
+                ubicacion=ubicacion or (activo.ubicacion if activo else None) or rutina.ubicacion_predeterminada,
+                tecnico=request.user,
+                estado='PROGRAMADA',
+                inicio_programado=now,
+                fin_programado=now + duracion,
+                prioridad='MEDIA',
+                descripcion_corta=f"Ejecución Manual: {rutina.nombre}",
+                descripcion_detallada=f"Orden generada manualmente por el usuario basada en la rutina: {rutina.nombre}"
+            )
+            
+            if activo:
+                ot.activos.add(activo)
+            elif ubicacion and rutina.tipo:
+                # Intentar auto-vincular activos si la rutina tiene tipo/categoria
+                cat_activo = rutina.tipo.categoria_activo
+                if cat_activo:
+                    activos_candidatos = Activo.objects.filter(ubicacion=ubicacion, modelo__categoria=cat_activo)
+                    for a in activos_candidatos:
+                        ot.activos.add(a)
+            
+            return JsonResponse({'status': 'success', 'ot_id': ot.id, 'codigo': ot.codigo_de_orden})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    ubicaciones = Ubicacion.objects.all().order_by('nombre')
+    
+    return render(request, 'mantenimiento/mobile_crear_ot_rutina.html', {
+        'rutinas': rutinas,
+        'ubicaciones': ubicaciones,
+        'puesto': puesto
+    })
+
 @staff_member_required
 def check_ot_pdf_status(request, pk):
     """
@@ -778,3 +870,86 @@ def mobile_ot_eliminar(request, pk):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+
+@staff_member_required
+def mobile_ot_webhook(request, pk):
+    """
+    Triggers a webhook to n8n with OT details and PDF report.
+    If PDF doesn't exist, it triggers generation first.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    
+    # 1. Asegurar que el PDF existe (o disparar generación)
+    filename = f"OT_{ot.id}.pdf"
+    archivo_pdf = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, nombre=filename).first()
+    
+    # Si no existe, lo generamos síncronamente para asegurar que el webhook lo lleve
+    if not archivo_pdf:
+        from ..services import WorkOrderService
+        try:
+            archivo_pdf = WorkOrderService.save_ot_pdf_as_attachment(ot.id)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Error generando PDF: {str(e)}'}, status=500)
+
+    # 2. Preparar payload para n8n
+    webhook_url = getattr(settings, 'N8N_OT_WEBHOOK_URL', None)
+    if not webhook_url:
+        return JsonResponse({'status': 'error', 'message': 'Webhook URL no configurada en settings'}, status=500)
+
+    # Preparar datos extendidos del técnico para el correo
+    tecnico_dni = "N/A"
+    tecnico_empresa = "DCC"
+    if ot.tecnico and hasattr(ot.tecnico, 'perfil_tecnico'):
+        tecnico_dni = ot.tecnico.perfil_tecnico.dni or "N/A"
+        if ot.tecnico.perfil_tecnico.empresa:
+            tecnico_empresa = ot.tecnico.perfil_tecnico.empresa.nombre
+
+    # Preparar lista de técnicos colaboradores
+    tecnicos_list = ot.tecnicos.all()
+    tecnicos_nombres = ", ".join([t.get_full_name() or t.username for t in tecnicos_list])
+    if not tecnicos_nombres:
+        tecnicos_nombres = ot.tecnico.get_full_name() if ot.tecnico else "No asignado"
+
+    # Empresa Responsable
+    empresa_final = tecnico_empresa
+    if ot.empresa_responsable:
+        empresa_final = ot.empresa_responsable.nombre
+
+    try:
+        data = {
+            'event': 'ot_report_sent',
+            'ot_id': ot.id,
+            'codigo': str(ot.codigo_de_orden or ""),
+            'tipo_ot': str(ot.tipo or ""),
+            'estado': str(ot.get_estado_display() or ""),
+            'fecha_termino': str(ot.fecha_ejecucion.isoformat()) if ot.fecha_ejecucion else "",
+            'inicio_programado': str(ot.inicio_programado.isoformat()) if ot.inicio_programado else "",
+            'fin_programado': str(ot.fin_programado.isoformat()) if ot.fin_programado else "",
+            'tecnico_lider': str(ot.tecnico.get_full_name() if ot.tecnico else "No asignado"),
+            'tecnicos_equipo': str(tecnicos_nombres),
+            'tecnico_dni': str(tecnico_dni),
+            'tecnico_empresa': str(empresa_final),
+            'supervisor': str(ot.supervisor.get_full_name() if ot.supervisor else "No asignado"),
+            'ubicacion': str(ot.ubicacion.nombre if ot.ubicacion else "No especificada"),
+            'ubicacion_completa': str(ot.ubicacion.get_ruta_completa() if ot.ubicacion else "No especificada"),
+            'descripcion_corta': str(ot.descripcion_corta or (ot.rutina.nombre if ot.rutina else "OT Correctiva")),
+            'descripcion_detallada': str(ot.descripcion_detallada or ""),
+            'pdf_url': str(request.build_absolute_uri(archivo_pdf.archivo.url)) if archivo_pdf else "",
+            'pdf_name': str(archivo_pdf.nombre) if archivo_pdf else "",
+            'user_triggered': str(request.user.get_full_name() or request.user.username),
+            'site_url': str(settings.SITE_URL or ""),
+        }
+
+        import requests
+        response = requests.post(webhook_url, json=data, timeout=10)
+        
+        # Si el status code es 400, forzar el detalle en la excepción
+        if not response.ok:
+            raise Exception(f"{response.status_code} - {response.text}")
+            
+        return JsonResponse({'status': 'success', 'message': 'Webhook enviado exitosamente. El correo será procesado.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Error llamando al webhook: {str(e)}'}, status=500)

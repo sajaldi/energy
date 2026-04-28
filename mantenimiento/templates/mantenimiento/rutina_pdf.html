@@ -122,10 +122,12 @@
     </table>
 
     <div class="section-title" style="margin-top: 5px;">
-        {% if ot.rutina %}
+        {% if ot.tipo == 'NO_PROGRAMADA' %}
+            ORDEN DE TRABAJO NO PROGRAMADA
+        {% elif ot.rutina %}
             {{ ot.rutina.nombre|upper }}
         {% else %}
-            SIN RUTINA
+            ORDEN DE TRABAJO
         {% endif %}
     </div>
 
@@ -133,26 +135,36 @@
         <tr>
             <td class="label-cell">Empresa:</td>
             <td class="value-cell">{{ empresa_nombre|default:"Operadora CC" }}</td>
-            <td class="label-cell">Edificio:</td>
+            <td class="label-cell">Ubicación:</td>
             <td class="value-cell">
-                {% if edificio_nombre %}
-                    {{ edificio_nombre }}
-                {% elif ot.ubicacion %}
-                    {{ ot.ubicacion.nombre }}
+                {% if ot.tipo == 'NO_PROGRAMADA' %}
+                    {{ ubicacion_completa }}
                 {% else %}
-                    N/A
+                    {% if edificio_nombre %}
+                        {{ edificio_nombre }}
+                    {% elif ot.ubicacion %}
+                        {{ ot.ubicacion.nombre }}
+                    {% else %}
+                        N/A
+                    {% endif %}
                 {% endif %}
             </td>
         </tr>
         <tr>
             <td class="label-cell">Supervisor OCC:</td>
             <td class="value-cell">{{ supervisor_nombre|default:"Allan Castellanos" }}</td>
-            <td class="label-cell">Fecha:</td>
-            <td class="value-cell">{{ ot.cierre.fecha_fin_real|date:"d/m/Y"|default:ahora|date:"d/m/Y" }}</td>
+            <td class="label-cell">Fecha Programada:</td>
+            <td class="value-cell">
+                {{ inicio_programado|date:"d/m/Y H:i" }}
+                {% if fin_programado %}
+                    - {{ fin_programado|date:"d/m/Y H:i" }}
+                {% endif %}
+            </td>
         </tr>
     </table>
 
     <table style="margin-top: -1px;">
+        {% if ot.tipo != 'NO_PROGRAMADA' %}
         <tr>
             <td class="label-cell" style="width: 15%;">Rutina:</td>
             <td class="value-cell" style="width: 85%;">
@@ -163,16 +175,29 @@
                 {% endif %}
             </td>
         </tr>
+        {% endif %}
         <tr>
-            <td class="label-cell">Equipo:</td>
-            <td>{{ activo_nombre|default:"N/A" }}</td>
+            <td class="label-cell" style="width: 15%;">Equipo:</td>
+            <td style="width: 85%;">{{ activo_nombre|default:"N/A" }}</td>
         </tr>
+        {% if ot.tipo != 'NO_PROGRAMADA' %}
         <tr>
             <td class="label-cell">Frecuencia:</td>
             <td>{% if ot.rutina.frecuencia %}{{ ot.rutina.frecuencia.nombre }}{% else %}N/A{% endif %}</td>
         </tr>
+        {% endif %}
+        {% if ot.tipo == 'NO_PROGRAMADA' %}
+        <tr>
+            <td class="label-cell">Descripción Actividad:</td>
+            <td style="font-size: 10px; padding: 8px;">
+                <strong>{{ ot.descripcion_corta|default:"" }}</strong><br>
+                {{ ot.descripcion_detallada|linebreaksbr|default:"" }}
+            </td>
+        </tr>
+        {% endif %}
     </table>
 
+    {% if ot.tipo != 'NO_PROGRAMADA' %}
     <div class="bg-dark-gray" style="margin-top: 5px; padding: 4px;">INSTRUCCIONES</div>
 
     <table class="checklist-table">
@@ -270,22 +295,29 @@
             {% endfor %}
         </tbody>
     </table>
+    {% endif %}
 
     <div style="margin-top: 20px;">
         <table style="border: none;">
             <tr>
-                <td style="border: none; width: 33%; text-align: center; padding-top: 40px;">
-                    <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"></div>
-                    <div style="font-size: 8px;">Firma Técnico</div>
-                    <div style="font-weight: bold;">
-                        {% if ot.cierre.tecnico %}
-                            {{ ot.cierre.tecnico.get_full_name }}
-                        {% elif ot.tecnico %}
-                            {{ ot.tecnico.get_full_name }}
-                        {% else %}
+                <td style="border: none; width: 33%; text-align: center; padding-top: 40px; vertical-align: bottom;">
+                    {% if ot.tipo == 'NO_PROGRAMADA' and signature_qr_b64 %}
+                        <img src="data:image/png;base64,{{ signature_qr_b64 }}" style="max-height: 80px; margin-bottom: 5px;"><br>
+                    {% else %}
+                        <div style="border-top: 1px solid black; width: 80%; margin: 0 auto; margin-bottom: 5px;"></div>
+                        <div style="font-size: 8px;">Firma Técnico</div>
+                    {% endif %}
+                    
+                    {% for t in tecnicos_data %}
+                        <div style="font-weight: bold; margin-top: 4px; font-size: 10px;">
+                            {{ t.nombre }}
+                        </div>
+                        <div style="font-size: 8px; color: #666;">DNI: {{ t.dni }}</div>
+                    {% empty %}
+                        <div style="font-weight: bold; margin-top: 4px; font-size: 10px;">
                             Técnico No Asignado
-                        {% endif %}
-                    </div>
+                        </div>
+                    {% endfor %}
                 </td>
                 <td style="border: none; width: 33%;"></td>
                 <td style="border: none; width: 33%; text-align: center; padding-top: 40px;">

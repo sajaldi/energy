@@ -44,7 +44,9 @@ from .mobile import (
     mobile_crear_medicion,
     check_ot_pdf_status,
     mobile_crear_otnp,
-    mobile_ot_eliminar
+    mobile_ot_eliminar,
+    mobile_ot_webhook,
+    mobile_crear_ot_desde_puesto
 )
 from .dashboard import dashboard_cargas, asignar_puesto_ajax
 from .dashboard_general import mantenimiento_dashboard

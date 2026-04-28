@@ -153,63 +153,73 @@ def auditoria_wizard(request):
                         # Lógica para Conteo Masivo detallado (por sub-ubicación, categoría y modelo)
                         from .models import ConteoAuditoria
                         from django.db.models import Count
+                        from activos.models.activo import Modelo
                         
                         ubicaciones_ids = session_data.get('ubicaciones', [])
                         categorias_ids = session_data.get('categorias', [])
                         
                         # Obtener todos los IDs de las ubicaciones descendientes
-                        all_sub_ubicaciones = set()
+                        all_sub_ubicaciones = list(set())
                         for u_id in ubicaciones_ids:
                             ubi = Ubicacion.objects.filter(id=u_id).first()
                             if ubi:
-                                all_sub_ubicaciones.update(ubi.get_descendants(include_self=True).values_list('id', flat=True))
+                                all_sub_ubicaciones.extend(list(ubi.get_descendants(include_self=True).values_list('id', flat=True)))
+                        all_sub_ubicaciones = list(set(all_sub_ubicaciones))
                         
                         # Obtener todos los IDs de las categorías descendientes
-                        all_sub_categorias = set()
+                        all_sub_categorias = list(set())
                         for c_id in categorias_ids:
                             cat = Categoria.objects.filter(id=c_id).first()
                             if cat:
-                                all_sub_categorias.update(cat.get_descendants(include_self=True).values_list('id', flat=True))
+                                all_sub_categorias.extend(list(cat.get_descendants(include_self=True).values_list('id', flat=True)))
+                        all_sub_categorias = list(set(all_sub_categorias))
                         
-                        # 1. Agrupar activos por (ubicacion_id, categoria_id, modelo_id)
+                        # 1. Obtener todos los modelos de las categorías seleccionadas
+                        modelos_sistema = list(Modelo.objects.filter(categoria_id__in=all_sub_categorias))
+                        cats_con_modelos = set(m.categoria_id for m in modelos_sistema)
+                        cats_sin_modelos = [c_id for c_id in all_sub_categorias if c_id not in cats_con_modelos]
+
+                        # 2. Agrupar activos existentes para saber las cantidades esperadas
                         assets_grouped = Activo.objects.filter(
                             ubicacion_id__in=all_sub_ubicaciones,
                             modelo__categoria_id__in=all_sub_categorias
-                        ).values('ubicacion_id', 'modelo__categoria_id', 'modelo_id').annotate(total=Count('id'))
+                        ).values('ubicacion_id', 'modelo_id').annotate(total=Count('id'))
+                        
+                        expected_map = {}
+                        for g in assets_grouped:
+                            expected_map[(g['ubicacion_id'], g['modelo_id'])] = g['total']
                         
                         conteo_objects = []
-                        covered_pairs = set() # (ubicacion_id, categoria_id)
-
-                        # Crear registros para lo que realmente existe
-                        for group in assets_grouped:
-                            u_id = group['ubicacion_id']
-                            c_id = group['modelo__categoria_id']
-                            conteo_objects.append(ConteoAuditoria(
-                                auditoria=auditoria,
-                                ubicacion_id=u_id,
-                                categoria_id=c_id,
-                                modelo_id=group['modelo_id'],
-                                cantidad_esperada=group['total']
-                            ))
-                            covered_pairs.add((u_id, c_id))
                         
-                        # 2. Asegurar que TODAS las combinaciones (Ubicación x Categoría) existan (incluso con 0)
+                        # 3. Generar la matriz completa: Ubicación x Modelo
                         for u_id in all_sub_ubicaciones:
-                            for c_id in all_sub_categorias:
-                                if (u_id, c_id) not in covered_pairs:
-                                    conteo_objects.append(ConteoAuditoria(
-                                        auditoria=auditoria,
-                                        ubicacion_id=u_id,
-                                        categoria_id=c_id,
-                                        modelo_id=None,
-                                        cantidad_esperada=0
-                                    ))
+                            # Modelos conocidos
+                            for mod in modelos_sistema:
+                                total = expected_map.get((u_id, mod.id), 0)
+                                conteo_objects.append(ConteoAuditoria(
+                                    auditoria=auditoria,
+                                    ubicacion_id=u_id,
+                                    categoria_id=mod.categoria_id,
+                                    modelo_id=mod.id,
+                                    cantidad_esperada=total
+                                ))
+                            
+                            # Categorías que no tienen modelos definidos en el sistema
+                            for c_id in cats_sin_modelos:
+                                conteo_objects.append(ConteoAuditoria(
+                                    auditoria=auditoria,
+                                    ubicacion_id=u_id,
+                                    categoria_id=c_id,
+                                    modelo_id=None,
+                                    cantidad_esperada=0
+                                ))
                         
                         if conteo_objects:
                             ConteoAuditoria.objects.bulk_create(conteo_objects)
                         
                         auditoria.estado = 'EN_CURSO'
                         auditoria.save()
+
 
 
                         

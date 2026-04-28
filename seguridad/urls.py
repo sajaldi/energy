@@ -23,6 +23,7 @@ urlpatterns = [
     path('app/confiscaciones/pdf/<int:pk>/', views.mobile_confiscacion_pdf_view, name='mobile_confiscacion_pdf'),
     path('app/confiscaciones/confirmar-carga/<int:pk>/', views.mobile_confiscacion_confirmar_carga, name='mobile_confiscacion_confirmar_carga'),
     path('app/confiscaciones/api/confirmar-carga-objeto/', views.api_confirmar_carga_objeto, name='api_confirmar_carga_objeto'),
+    path('app/confiscaciones/api/crear-tipo-objeto/', views.api_crear_objeto_catalogo, name='api_crear_tipo_objeto'),
     
     # Almacenes
     path('app/almacen/recepcion/', views.mobile_almacen_recepcion, name='mobile_almacen_recepcion'),

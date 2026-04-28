@@ -35,7 +35,7 @@ def _optimize_image(img_data, max_width=800, quality=75):
         logger.warning(f"Error optimizing image: {e}")
         return img_data # Fallback to original
 
-def generate_ot_pdf_bytes(ot, request=None):
+def generate_ot_pdf_bytes(ot, request=None, pdf_url=None):
     """
     Generates PDF bytes for a Work Order using Playwright.
     Logic extracted from generate_rutina_pdf_view.
@@ -70,7 +70,56 @@ def generate_ot_pdf_bytes(ot, request=None):
     
     edificio = ot.ubicacion.get_root() if ot.ubicacion else None
     edificio_nombre = edificio.nombre if edificio else "N/A"
+    ubicacion_completa = ot.ubicacion.get_ruta_completa() if ot.ubicacion else "N/A"
     activo_nombre = ot.activos.first().nombre if ot.activos.exists() else "N/A"
+    
+    # Datos del Técnico Líder
+    tecnico_perfil = None
+    if ot.tecnico and hasattr(ot.tecnico, 'perfil_tecnico'):
+        tecnico_perfil = ot.tecnico.perfil_tecnico
+
+    # Empresa Responsable (Prioridad: Campo Directo > Empresa del Perfil > Default)
+    empresa_nombre = "Operadora de Infraestructura de Honduras, S.A. de C.V."
+    if ot.empresa_responsable:
+        empresa_nombre = ot.empresa_responsable.nombre
+    elif tecnico_perfil and tecnico_perfil.empresa:
+        empresa_nombre = tecnico_perfil.empresa.nombre
+    
+    # Técnicos (Lista consolidada y estructurada)
+    tecnicos_list = ot.tecnicos.all()
+    tecnicos_data = []
+    
+    if tecnicos_list.exists():
+        tecnico_nombre = ", ".join([t.get_full_name() or t.username for t in tecnicos_list])
+        tecnico_dni = ", ".join([t.perfil_tecnico.dni for t in tecnicos_list if hasattr(t, 'perfil_tecnico') and t.perfil_tecnico.dni]) or "N/A"
+        for t in tecnicos_list:
+            t_dni = t.perfil_tecnico.dni if hasattr(t, 'perfil_tecnico') and t.perfil_tecnico.dni else "N/A"
+            tecnicos_data.append({'nombre': t.get_full_name() or t.username, 'dni': t_dni})
+    else:
+        tecnico_nombre = ot.tecnico.get_full_name() if ot.tecnico else "N/A"
+        tecnico_dni = tecnico_perfil.dni if tecnico_perfil and tecnico_perfil.dni else "N/A"
+        if ot.tecnico:
+            tecnicos_data.append({'nombre': tecnico_nombre, 'dni': tecnico_dni})
+
+    # Generar QR de Firma para OTNP (Apunta a la URL del PDF)
+    signature_qr_b64 = ""
+    if ot.tipo == 'NO_PROGRAMADA':
+        import qrcode
+        from io import BytesIO
+        
+        # Usar la URL proporcionada o construir una por defecto
+        final_pdf_url = pdf_url
+        if not final_pdf_url:
+            final_pdf_url = f"{settings.SITE_URL}/mantenimiento/app/ot/{ot.id}/pdf/"
+        
+        qr = qrcode.QRCode(version=1, box_size=10, border=1)
+        qr.add_data(final_pdf_url)
+        qr.make(fit=True)
+        img_qr = qr.make_image(fill_color="black", back_color="white")
+        
+        buffer = BytesIO()
+        img_qr.save(buffer, format="PNG")
+        signature_qr_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
     # Encode logo
     logo_dcc_b64 = ""
@@ -115,11 +164,18 @@ def generate_ot_pdf_bytes(ot, request=None):
         'ot': ot,
         'checklist_items': checklist_items,
         'empresa_nombre': empresa_nombre,
+        'tecnico_nombre': tecnico_nombre,
+        'tecnico_dni': tecnico_dni,
+        'tecnicos_data': tecnicos_data,
         'supervisor_nombre': supervisor_nombre,
         'edificio_nombre': edificio_nombre,
+        'ubicacion_completa': ubicacion_completa,
         'activo_nombre': activo_nombre,
         'logo_dcc_b64': logo_dcc_b64,
+        'signature_qr_b64': signature_qr_b64,
         'fotos_adjuntas': fotos_adjuntas,
+        'inicio_programado': ot.inicio_programado,
+        'fin_programado': ot.fin_programado,
         'ahora': timezone.now(),
     }
 

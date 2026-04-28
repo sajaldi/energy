@@ -424,7 +424,7 @@ def mobile_confiscacion_agregar_objeto(request, pk):
                 catalogo_objeto=catalogo,
                 codigo_barras=codigo_barras,
                 descripcion=request.POST.get('descripcion', ''),
-                status='ALMACENADO'
+                status='IDENTIFICADO'
             )
             
             # Procesar fotos (múltiples)
@@ -682,3 +682,30 @@ def mobile_perfil(request):
         'perfil': perfil,
         'usuario': request.user
     })
+@csrf_exempt
+@login_required
+def api_crear_objeto_catalogo(request):
+    """
+    API para crear un nuevo tipo de objeto en el catálogo desde el móvil.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        nombre = data.get('nombre', '').strip()
+        
+        if not nombre:
+            return JsonResponse({'status': 'error', 'message': 'El nombre es obligatorio'}, status=400)
+        
+        # Crear o obtener si ya existe
+        objeto_tipo, created = ObjetoCatalogo.objects.get_or_create(nombre=nombre)
+        
+        return JsonResponse({
+            'status': 'success',
+            'id': objeto_tipo.id,
+            'nombre': objeto_tipo.nombre,
+            'created': created
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

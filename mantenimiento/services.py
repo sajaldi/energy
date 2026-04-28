@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 from django.db.models import Q, Count, Subquery, OuterRef
 from django.utils import timezone
 from .models import OrdenTrabajo, Rutina, Tipo, Programacion, RestriccionCalendario, ArchivoOrdenTrabajo, Horario
+from django.conf import settings
 from django.core.files.base import ContentFile
 from .utils.pdf_utils import generate_ot_pdf_bytes
 
@@ -457,7 +458,14 @@ class WorkOrderService:
         filename = f"OT_{ot.id}.pdf"
         existing = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, nombre=filename).first()
         
-        pdf_bytes = generate_ot_pdf_bytes(ot)
+        # Calcular URL del PDF (existente o futura)
+        pdf_url = None
+        if existing and existing.archivo:
+            pdf_url = f"{settings.SITE_URL}{existing.archivo.url}"
+        else:
+            pdf_url = f"{settings.SITE_URL}/media/mantenimiento/ot/{filename}"
+
+        pdf_bytes = generate_ot_pdf_bytes(ot, pdf_url=pdf_url)
         
         if existing:
             existing.archivo.save(filename, ContentFile(pdf_bytes), save=True)

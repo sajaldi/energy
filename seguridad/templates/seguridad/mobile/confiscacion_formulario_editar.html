@@ -165,8 +165,13 @@
             </div>
 
             <div class="fiori-input-group">
-                <label>TIPO DE OBJETO</label>
-                <select name="catalogo_objeto" class="fiori-select" required>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label style="margin-bottom: 0;">TIPO DE OBJETO</label>
+                    <button type="button" onclick="agregarNuevoTipo()" style="background: none; border: none; color: var(--sap-brand-color); font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 0;">
+                        <ion-icon name="add-circle-outline" style="font-size: 16px;"></ion-icon> AGREGAR TIPO
+                    </button>
+                </div>
+                <select name="catalogo_objeto" id="catalogo_objeto" class="fiori-select" required>
                     {% for item in catalogo_objetos %}
                     <option value="{{ item.id }}" {% if item.id == objeto.catalogo_objeto.id %}selected{% endif %}>{{ item.nombre }}</option>
                     {% endfor %}
@@ -285,6 +290,47 @@
                 btn.innerHTML = originalHtml;
             }
         };
+
+        async function agregarNuevoTipo() {
+            const nombre = prompt("Ingrese el nombre del nuevo tipo de objeto (ej: Laptop, Herramienta, etc.):");
+            if (!nombre || nombre.trim() === "") return;
+
+            try {
+                const response = await fetch("{% url 'seguridad:api_crear_tipo_objeto' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ nombre: nombre.trim() })
+                });
+                
+                const data = await response.json();
+                if (data.status === 'success') {
+                    const select = document.getElementById('catalogo_objeto');
+                    
+                    // Verificar si ya existe en el select
+                    let exists = false;
+                    for (let i = 0; i < select.options.length; i++) {
+                        if (select.options[i].value == data.id) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!exists) {
+                        const option = new Option(data.nombre, data.id);
+                        select.add(option);
+                    }
+                    select.value = data.id;
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error al conectar con el servidor.");
+            }
+        }
     </script>
     <style>
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

@@ -140,3 +140,11 @@ def handle_cierre_ot_status(sender, instance, **kwargs):
             ot.aviso.fecha_fin_parada = instance.fecha_fin_real
         ot.aviso.save()
 
+    # Reprogramación dinámica de órdenes futuras para Rutinas
+    if ot.programacion and ot.rutina:
+        try:
+            ot.programacion.reprogramar_futuras_ordenes(ot, instance.fecha_fin_real)
+        except Exception as e:
+            # Podríamos loguear esto, por ahora print para debug
+            print(f"Error al reprogramar órdenes futuras para OT #{ot.id}: {e}")
+

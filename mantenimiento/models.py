@@ -506,6 +506,131 @@ class Programacion(models.Model):
     def __str__(self):
         return f"Prog: {self.rutina.nombre}"
 
+    @staticmethod
+    def buscar_slot_disponible(fecha_inicio_base, duracion_segundos, horarios_qs, restricciones_set, current_dt_cursor=None):
+        """
+        Busca el primer slot disponible a partir de fecha_inicio_base/current_dt_cursor.
+        Retorna (start_dt, end_dt, final_fecha_cursor, final_dt_cursor)
+        """
+        fecha_actual_cursor = fecha_inicio_base
+        segundos_pendientes = duracion_segundos
+        ot_start_dt = None
+        ot_end_dt = None
+        
+        while segundos_pendientes > 0:
+            # Seguridad para evitar bucles infinitos en caso de mala configuración
+            if (fecha_actual_cursor - fecha_inicio_base).days > 365:
+                break
+
+            # Chequear si es día laborable y no restringido
+            if fecha_actual_cursor in restricciones_set:
+                fecha_actual_cursor += timedelta(days=1)
+                current_dt_cursor = None
+                continue
+                
+            # Buscar si hay algún horario disponible para este día
+            horario_dia = None
+            for h in horarios_qs:
+                hd = h.dias.filter(dia=fecha_actual_cursor.weekday()).first()
+                if hd:
+                    horario_dia = hd
+                    break
+            
+            if not horario_dia:
+                fecha_actual_cursor += timedelta(days=1)
+                current_dt_cursor = None
+                continue
+            
+            # Ventana laboral
+            try:
+                inicio_laboral = timezone.make_aware(datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio))
+                fin_laboral = timezone.make_aware(datetime.combine(fecha_actual_cursor, horario_dia.hora_fin))
+                if fin_laboral < inicio_laboral:
+                    fin_laboral += timedelta(days=1)
+            except (ValueError, TypeError):
+                inicio_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio)
+                fin_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_fin)
+                if fin_laboral < inicio_laboral:
+                    fin_laboral += timedelta(days=1)
+            
+            # Punto de entrada
+            entry_dt = max(current_dt_cursor, inicio_laboral) if current_dt_cursor else inicio_laboral
+            
+            if entry_dt >= fin_laboral:
+                fecha_actual_cursor += timedelta(days=1)
+                current_dt_cursor = None
+                continue
+            
+            if not ot_start_dt: ot_start_dt = entry_dt
+            
+            segundos_disponibles = (fin_laboral - entry_dt).total_seconds()
+            
+            if segundos_pendientes <= segundos_disponibles:
+                ot_end_dt = entry_dt + timedelta(seconds=segundos_pendientes)
+                current_dt_cursor = ot_end_dt
+                segundos_pendientes = 0
+            else:
+                segundos_pendientes -= segundos_disponibles
+                fecha_actual_cursor += timedelta(days=1)
+                current_dt_cursor = None
+                
+        return ot_start_dt, ot_end_dt, fecha_actual_cursor, current_dt_cursor
+
+    def reprogramar_futuras_ordenes(self, ot_base, fecha_finalizacion_real):
+        """
+        Reprograma todas las órdenes futuras de esta programación que correspondan
+        a los mismos activos/ubicación que ot_base, basándose en la fecha real de finalización.
+        """
+        # Identificar activos y ubicación de la OT base
+        activos_ids = list(ot_base.activos.values_list('id', flat=True))
+        ubicacion_id = ot_base.ubicacion_id
+        
+        # Buscar órdenes futuras de esta programación (solo preventivas y no iniciadas)
+        ordenes_futuras = self.ordenes.filter(
+            inicio_programado__gt=ot_base.inicio_programado,
+            estado__in=['ESPERA', 'PROGRAMADA']
+        ).order_by('inicio_programado')
+        
+        # Filtrar solo las que coinciden en activos o ubicación
+        if activos_ids:
+            ordenes_futuras = ordenes_futuras.filter(activos__id__in=activos_ids).distinct()
+        else:
+            ordenes_futuras = ordenes_futuras.filter(ubicacion_id=ubicacion_id, activos__isnull=True)
+
+        if not ordenes_futuras.exists():
+            return 0
+
+        # Lógica de reprogramación
+        frecuencia_dias = self.rutina.frecuencia.dias
+        tiempo_rutina = self.rutina.tiempo_estimado or timedelta(hours=1)
+        restricciones = set(RestriccionCalendario.objects.values_list('fecha', flat=True))
+        horarios = list(self.horarios.all())
+        
+        proxima_base = fecha_finalizacion_real
+        count = 0
+        
+        for ot in ordenes_futuras:
+            # Calcular nueva fecha base (fecha finalización anterior + frecuencia)
+            base_date = (proxima_base + timedelta(days=frecuencia_dias))
+            if isinstance(base_date, datetime):
+                base_date = base_date.date()
+                
+            start_dt, end_dt, final_fecha, final_cursor = self.buscar_slot_disponible(
+                base_date,
+                tiempo_rutina.total_seconds(),
+                horarios,
+                restricciones
+            )
+            
+            if start_dt and end_dt:
+                ot.inicio_programado = start_dt
+                ot.fin_programado = end_dt
+                ot.save(update_fields=['inicio_programado', 'fin_programado'])
+                proxima_base = start_dt # Para la siguiente OT de la cadena
+                count += 1
+        
+        return count
+
     def generar_ordenes(self, fecha_corte=None):
         """
         Genera órdenes de trabajo secuenciales expandiendo las áreas seleccionadas
@@ -655,66 +780,13 @@ class Programacion(models.Model):
             
             for activo, area_sugerida in items_a_procesar_config:
                 segundos_pendientes = tiempo_rutina.total_seconds()
-                
-                # Buscamos el slot para ESTE activo en particular
-                ot_start_dt = None
-                ot_end_dt = None
-                
-                while segundos_pendientes > 0:
-                    if fecha_actual_cursor > limite: break # Seguridad
-                    
-                    # Chequear si es día laborable y no restringido
-                    if fecha_actual_cursor in restricciones:
-                        fecha_actual_cursor += timedelta(days=1)
-                        current_dt_cursor = None
-                        continue
-                        
-                    # Buscar si hay algún horario disponible para este día
-                    horario_dia = None
-                    for h in self.horarios.all():
-                        hd = h.dias.filter(dia=fecha_actual_cursor.weekday()).first()
-                        if hd:
-                            horario_dia = hd
-                            break
-                    
-                    if not horario_dia:
-                        fecha_actual_cursor += timedelta(days=1)
-                        current_dt_cursor = None
-                        continue
-                    
-                    # Ventana laboral
-                    try:
-                        inicio_laboral = timezone.make_aware(datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio))
-                        fin_laboral = timezone.make_aware(datetime.combine(fecha_actual_cursor, horario_dia.hora_fin))
-                        if fin_laboral < inicio_laboral:
-                            fin_laboral += timedelta(days=1)
-                    except (ValueError, TypeError):
-                        inicio_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_inicio)
-                        fin_laboral = datetime.combine(fecha_actual_cursor, horario_dia.hora_fin)
-                        if fin_laboral < inicio_laboral:
-                            fin_laboral += timedelta(days=1)
-                    
-                    # Punto de entrada para este activo
-                    entry_dt = max(current_dt_cursor, inicio_laboral) if current_dt_cursor else inicio_laboral
-                    
-                    if entry_dt >= fin_laboral:
-                        # Si el cursor ya pasó el fin laboral de hoy, saltar a mañana
-                        fecha_actual_cursor += timedelta(days=1)
-                        current_dt_cursor = None
-                        continue
-                    
-                    if not ot_start_dt: ot_start_dt = entry_dt
-                    
-                    segundos_disponibles = (fin_laboral - entry_dt).total_seconds()
-                    
-                    if segundos_pendientes <= segundos_disponibles:
-                        ot_end_dt = entry_dt + timedelta(seconds=segundos_pendientes)
-                        current_dt_cursor = ot_end_dt # El siguiente activo empieza donde termina este
-                        segundos_pendientes = 0
-                    else:
-                        segundos_pendientes -= segundos_disponibles
-                        fecha_actual_cursor += timedelta(days=1)
-                        current_dt_cursor = None
+                ot_start_dt, ot_end_dt, fecha_actual_cursor, current_dt_cursor = self.buscar_slot_disponible(
+                    fecha_actual_cursor,
+                    segundos_pendientes,
+                    list(self.horarios.all()),
+                    restricciones,
+                    current_dt_cursor
+                )
                 
                 # Crear o Agrupar la orden para ESTE activo
                 if ot_start_dt and ot_end_dt:
@@ -984,7 +1056,9 @@ class OrdenTrabajo(models.Model):
     prioridad = models.CharField(max_length=10, choices=PRIORIDAD_CHOICES, default='MEDIA', db_index=True)
     rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE, related_name='ordenes', null=True, blank=True)
     aviso = models.ForeignKey(Aviso, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes')
-    tecnico = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asignadas', help_text="Técnico específico asignado")
+    tecnico = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_asignadas', help_text="Técnico líder/responsable principal")
+    tecnicos = models.ManyToManyField(User, related_name='ordenes_colaboracion', blank=True, help_text="Equipo de técnicos asignados")
+    empresa_responsable = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_responsables')
     supervisor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_supervisadas', help_text="Supervisor asignado a la orden")
     equipo = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_equipo', help_text="Equipo o Grupo de trabajo asignado")
     

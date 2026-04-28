@@ -125,6 +125,12 @@ N8N_TICKET_NOTIFY_URL = os.environ.get('N8N_TICKET_NOTIFY_URL', f'{N8N_BASE_URL}
 # Materiales e Inventarios
 N8N_SOLICITUD_WEBHOOK_URL = os.environ.get('N8N_SOLICITUD_WEBHOOK_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}solicitud-material')
 
+# Ordenes de Trabajo y Reportes
+N8N_OT_WEBHOOK_URL = os.environ.get(
+    'N8N_OT_WEBHOOK_URL', 
+    'https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e7b524b469954e71870b4b73c6c54a26/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=TYYR08s7NihebVikrkZVZTtD9oTnhkuEiKDTOteqps0'
+)
+
 # --- URL del Sitio para Callbacks ---
 if os.environ.get('COOLIFY_FQDN'):
     SITE_URL = f"https://{os.environ.get('COOLIFY_FQDN')}"

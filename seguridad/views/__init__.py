@@ -9,7 +9,8 @@ from .mobile import (
     mobile_almacen_entrega_validar, api_almacen_confirmar_entrega,
     mobile_confiscacion_entrega_pdf_view,
     mobile_confiscacion_imprimir_etiqueta,
-    mobile_perfil
+    mobile_perfil,
+    api_crear_objeto_catalogo
 )
 from .pdf_views import (
     generar_permiso_pdf_view, mobile_confiscacion_pdf_view
