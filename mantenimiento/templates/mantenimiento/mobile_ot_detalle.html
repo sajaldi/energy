@@ -613,10 +613,10 @@
     <!-- SAP Fiori Action Bar -->
     <div class="fiori-footer" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; border-top: 1px solid var(--sap-border-color); display: flex; gap: 8px; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);">
         {% if ot.estado == 'PROGRAMADA' or ot.estado == 'ESPERA' %}
-        <a href="{% url 'mantenimiento:mobile_ot_iniciar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1;">
+        <a href="{% url 'mantenimiento:mobile_ot_iniciar' ot.id %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1;">
             <ion-icon name="play-outline"></ion-icon> Iniciar
         </a>
-        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-ghost" style="padding: 10px 12px;">
+        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-ghost" style="padding: 10px 12px;">
             <ion-icon name="create-outline"></ion-icon> Editar
         </a>
         {% if ot.tipo == 'NO_PROGRAMADA' %}
@@ -625,13 +625,13 @@
         </button>
         {% endif %}
         {% elif ot.estado == 'EJECUCION' %}
-        <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id|unlocalize }}" class="fiori-btn fiori-btn-ghost" style="padding: 10px 12px;" title="Materiales">
+        <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id }}" class="fiori-btn fiori-btn-ghost" style="padding: 10px 12px;" title="Materiales">
             <ion-icon name="cube-outline"></ion-icon>
         </a>
-        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1;">
+        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1;">
             <ion-icon name="create-outline"></ion-icon> Continuar
         </a>
-        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-success" style="flex-grow: 1;">
+        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-success" style="flex-grow: 1;">
             <ion-icon name="checkmark-done-outline"></ion-icon> Finalizar
         </a>
         <!-- Webhook en Ejecución -->
@@ -644,7 +644,7 @@
                 {% with ot.archivos.all as archivos %}
                 {% if archivos %}
                     {% for a in archivos %}
-                        {% if a.nombre == "OT_"|add:ot.id|unlocalize|add:".pdf" or "Reporte" in a.nombre %}
+                        {% if a.nombre == "OT_"|add:ot.id|add:".pdf" or "Reporte" in a.nombre %}
                         <a href="{{ a.archivo.url }}" target="_blank" class="fiori-btn fiori-btn-primary" style="background: #e52929; flex-grow: 1; padding: 10px 8px;">
                             <ion-icon name="document-text-outline"></ion-icon> PDF
                         </a>
@@ -655,7 +655,7 @@
                 {% endwith %}
 
                 {% if is_gerente or ot.tecnico == user or ot.supervisor == user %}
-                <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id|unlocalize %}" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; border-color: var(--sap-brand-color); color: var(--sap-brand-color); padding: 10px 8px;">
+                <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; border-color: var(--sap-brand-color); color: var(--sap-brand-color); padding: 10px 8px;">
                     <ion-icon name="create-outline"></ion-icon> Editar
                 </a>
                 {% endif %}
@@ -676,12 +676,12 @@
                 </script>
             </div>
             
-            <a href="{% url 'mantenimiento:rutina_pdf' ot.id|unlocalize %}" target="_blank" class="fiori-btn fiori-btn-ghost" style="color: var(--sap-error); border-color: var(--sap-error);" title="Generar Manualmente">
+            <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" class="fiori-btn fiori-btn-ghost" style="color: var(--sap-error); border-color: var(--sap-error);" title="Generar Manualmente">
                 <ion-icon name="refresh-outline"></ion-icon>
             </a>
         {% endif %}
         
-        <a href="{% url 'seguridad:mobile_generar_permiso' ot.id|unlocalize %}" class="fiori-btn fiori-btn-ghost" style="background: #f3e8ff; color: #7e22ce; border-color: #d8b4fe;" title="Permiso">
+        <a href="{% url 'seguridad:mobile_generar_permiso' ot.id %}" class="fiori-btn fiori-btn-ghost" style="background: #f3e8ff; color: #7e22ce; border-color: #d8b4fe;" title="Permiso">
             <ion-icon name="shield-checkmark-outline"></ion-icon>
         </a>
 
@@ -714,7 +714,7 @@
                         didOpen: () => Swal.showLoading()
                     });
                     
-                    fetch("{% url 'mantenimiento:mobile_ot_eliminar' ot.id|unlocalize %}", {
+                    fetch("{% url 'mantenimiento:mobile_ot_eliminar' ot.id %}", {
                         method: 'POST',
                         headers: {
                             'X-CSRFToken': '{{ csrf_token }}'
@@ -835,7 +835,7 @@
                 }
 
                 try {
-                    const response = await fetch("{% url 'mantenimiento:check_ot_pdf_status' ot.id|unlocalize %}");
+                    const response = await fetch("{% url 'mantenimiento:check_ot_pdf_status' ot.id %}");
                     const data = await response.json();
 
                     if (data.ready) {
@@ -885,7 +885,7 @@
             toast.classList.add('show');
 
             try {
-                const response = await fetch("{% url 'mantenimiento:mobile_ot_update_ajax' ot.id|unlocalize %}", {
+                const response = await fetch("{% url 'mantenimiento:mobile_ot_update_ajax' ot.id %}", {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -926,7 +926,7 @@
             }
 
             try {
-                const response = await fetch("{% url 'mantenimiento:mobile_ot_upload_file' ot.id|unlocalize %}", {
+                const response = await fetch("{% url 'mantenimiento:mobile_ot_upload_file' ot.id %}", {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -987,7 +987,7 @@
             const toast = document.getElementById('toast');
 
             try {
-                const response = await fetch(`{% url 'mantenimiento:mobile_ot_delete_file' ot.id|unlocalize 0 %}`.replace('/0/', '/' + archivoId + '/'), {
+                const response = await fetch(`{% url 'mantenimiento:mobile_ot_delete_file' ot.id 0 %}`.replace('/0/', '/' + archivoId + '/'), {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': csrfToken,
@@ -1042,7 +1042,7 @@
             toast.classList.add('show');
 
             try {
-                const response = await fetch("{% url 'mantenimiento:mobile_ot_webhook' ot.id|unlocalize %}", {
+                const response = await fetch("{% url 'mantenimiento:mobile_ot_webhook' ot.id %}", {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': '{{ csrf_token }}',

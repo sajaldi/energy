@@ -856,17 +856,17 @@
                             {{ asset.label }}
                         </td>
                         {% for c in asset.celdas %}
-                        <td id="cell-{{ asset.id|unlocalize }}-{{ c.day }}"
+                        <td id="cell-{{ asset.id }}-{{ c.day }}"
                             class="{% if c.group_type %}group-{{ c.group_type }}{% endif %} {% if c.horiz_type %}horiz-{{ c.horiz_type }}{% endif %} {% if c.day in non_working_days %}non-working-day{% endif %}"
                             onclick="handleCellClick(event, this, {{ c.day|default:0 }})">
                             {% if c.active %}
                             {% for ot in c.ots %}
                             <div class="ot-pill status-{{ ot.estado }} duration-{{ ot.duration_pos }}"
-                                data-ot-id="{{ ot.id|unlocalize }}" data-ot-date="{{ ot.inicio_iso }}"
-                                data-ot-assets="{{ ot.activos_nombres }}" data-asset-id="{{ asset.id|unlocalize }}"
-                                data-ot-estado="{{ ot.estado }}" data-prog-id="{{ ot.prog_id|default:''|unlocalize }}"
+                                data-ot-id="{{ ot.id }}" data-ot-date="{{ ot.inicio_iso }}"
+                                data-ot-assets="{{ ot.activos_nombres }}" data-asset-id="{{ asset.id }}"
+                                data-ot-estado="{{ ot.estado }}" data-prog-id="{{ ot.prog_id|default:'' }}"
                                 onclick="selectOT(event, this)" oncontextmenu="showContextMenu(event, this)"
-                                title="OT #{{ ot.id|unlocalize }}&#10;Estado: {{ ot.estado }}&#10;Rutina: {{ ot.rutina_nombre }}&#10;Inicio: {{ ot.inicio_hm }}&#10;Fin: {{ ot.fin_full }}">
+                                title="OT #{{ ot.id }}&#10;Estado: {{ ot.estado }}&#10;Rutina: {{ ot.rutina_nombre }}&#10;Inicio: {{ ot.inicio_hm }}&#10;Fin: {{ ot.fin_full }}">
                                 {% if ot.estado == 'REALIZADA' %}
                                 <ion-icon name="checkmark-sharp" style="pointer-events: none;"></ion-icon>
                                 {% endif %}
@@ -966,8 +966,8 @@
 
     <script>
         let pendingMoves = null; // {ids, date}
-        const currentYear = {{ year| unlocalize }};
-        const currentMonth = {{ month| unlocalize }};
+        const currentYear = {{ year }};
+        const currentMonth = {{ month }};
 
         // Persistencia del árbol
         document.addEventListener('DOMContentLoaded', () => {
