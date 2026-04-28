@@ -323,6 +323,7 @@ class ObjetoConfiscado(models.Model):
     catalogo_objeto = models.ForeignKey(ObjetoCatalogo, on_delete=models.SET_NULL, null=True, verbose_name="Tipo de Objeto")
     codigo_barras = models.CharField(max_length=100, unique=True, verbose_name="Código de Barras/Etiqueta")
     descripcion = models.TextField(blank=True, null=True)
+    ubicacion_especifica = models.CharField(max_length=200, blank=True, null=True, verbose_name="Ubicación Específica")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='IDENTIFICADO')
     
     fecha_confiscacion = models.DateTimeField(auto_now_add=True)

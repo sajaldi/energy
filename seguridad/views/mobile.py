@@ -424,6 +424,7 @@ def mobile_confiscacion_agregar_objeto(request, pk):
                 catalogo_objeto=catalogo,
                 codigo_barras=codigo_barras,
                 descripcion=request.POST.get('descripcion', ''),
+                ubicacion_especifica=request.POST.get('ubicacion_especifica', ''),
                 status='IDENTIFICADO'
             )
             
@@ -475,6 +476,7 @@ def mobile_confiscacion_editar_objeto(request, pk):
         catalogo_id = request.POST.get('catalogo_objeto')
         objeto.catalogo_objeto = get_object_or_404(ObjetoCatalogo, pk=catalogo_id)
         objeto.descripcion = request.POST.get('descripcion', '')
+        objeto.ubicacion_especifica = request.POST.get('ubicacion_especifica', '')
         objeto.save()
         
         # Añadir fotos nuevas si hay
@@ -659,10 +661,12 @@ def mobile_confiscacion_imprimir_etiqueta(request, pk):
     # Ubicación jerárquica del levantamiento
     ubicacion = objeto.levantamiento.ubicacion
     ubicacion_jerarquica = ubicacion.get_ruta_completa() if ubicacion else 'Sin ubicación'
+    if objeto.ubicacion_especifica:
+        ubicacion_jerarquica += f" ({objeto.ubicacion_especifica})"
 
-    # Nombre del inspector (usuario que levantó)
-    inspector = objeto.levantamiento.inspector
-    nombre_usuario = inspector.get_full_name() or inspector.username if inspector else 'N/A'
+    # Nombre del usuario que genera la etiqueta (logueado)
+    usuario_actual = request.user
+    nombre_usuario = usuario_actual.get_full_name() or usuario_actual.username if usuario_actual.is_authenticated else 'Desconocido'
 
     return render(request, 'seguridad/mobile/confiscacion_imprimir.html', {
         'objeto': objeto,

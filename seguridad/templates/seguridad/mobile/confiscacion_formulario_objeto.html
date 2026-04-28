@@ -8,6 +8,8 @@
     <title>Capturar Objeto</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     
     {% include 'core/fiori_tokens.html' %}
     <style>
@@ -64,7 +66,7 @@
         .btn-save {
             width: 100%;
             padding: 15px;
-            background: var(--sap-success-color);
+            background: var(--sap-brand-color);
             color: white;
             border: none;
             border-radius: var(--sap-border-radius);
@@ -167,8 +169,18 @@
             </div>
 
             <div class="fiori-input-group">
+                <label>UBICACIÓN ESPECÍFICA</label>
+                <div style="position: relative;">
+                    <input type="text" name="ubicacion_especifica" id="ubicacion_especifica" class="fiori-input" placeholder="Ej. Gaveta 3, Debajo de escritorio..." style="padding-right: 40px;">
+                    <button type="button" onclick="startLocationScanner()" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 24px; color: var(--sap-brand-color); display: flex; padding: 5px;">
+                        <ion-icon name="qr-code-outline"></ion-icon>
+                    </button>
+                </div>
+            </div>
+
+            <div class="fiori-input-group">
                 <label>DESCRIPCIÓN / HALLAZGO</label>
-                <textarea name="descripcion" class="fiori-textarea" rows="3" placeholder="Ej. Se encontró en el escritorio del fondo..."></textarea>
+                <textarea name="descripcion" class="fiori-textarea" rows="3" placeholder="Ej. Se encontró envuelto en..."></textarea>
             </div>
 
             <div class="fiori-input-group">
@@ -189,14 +201,53 @@
         </form>
     </div>
 
+    <!-- Modal del Escáner de Ubicación -->
+    <div id="scanner-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 9999; flex-direction: column;">
+        <div style="padding: 20px; display: flex; justify-content: space-between; align-items: center; background: #000;">
+            <h3 style="color: white; margin: 0; font-family: var(--sap-font-family);">Escanear Ubicación</h3>
+            <button type="button" onclick="stopLocationScanner()" style="background: none; border: none; color: white; font-size: 28px; display: flex; padding: 0;">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+        </div>
+        <div id="inline-reader" style="flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;"></div>
+    </div>
+
     <script src="{% static 'core/js/compressor.js' %}"></script>
     <script>
+        let html5QrCodeInline = null;
+
+        function startLocationScanner() {
+            document.getElementById('scanner-modal').style.display = 'flex';
+            if (!html5QrCodeInline) {
+                html5QrCodeInline = new Html5Qrcode("inline-reader");
+            }
+            html5QrCodeInline.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (decodedText, decodedResult) => {
+                    document.getElementById('ubicacion_especifica').value = decodedText;
+                    stopLocationScanner();
+                    if (navigator.vibrate) navigator.vibrate(100);
+                },
+                (errorMessage) => { }
+            ).catch((err) => {
+                console.error(err);
+                alert("Error abriendo cámara: " + err);
+                stopLocationScanner();
+            });
+        }
+
+        function stopLocationScanner() {
+            document.getElementById('scanner-modal').style.display = 'none';
+            if (html5QrCodeInline && html5QrCodeInline.isScanning) {
+                html5QrCodeInline.stop().catch(err => console.error(err));
+            }
+        }
+
         let compressedFiles = [];
 
         async function previewImages(input) {
             const container = document.getElementById('preview-container');
-            container.innerHTML = '';
-            compressedFiles = [];
             
             if (input.files) {
                 const filesArray = Array.from(input.files);
@@ -231,6 +282,9 @@
                 }
                 const status = document.getElementById('compression-status');
                 if (status) status.remove();
+                
+                // Limpiar el input para que pueda detectar el evento change si se elige el mismo archivo
+                input.value = "";
             }
         }
 

@@ -27,12 +27,24 @@
             margin-bottom: 15px;
         }
 
+        #objects-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            padding: 0 15px 15px 15px;
+        }
+
         .object-card {
             background: white;
             border-radius: 0;
-            margin: 0 15px 15px;
             overflow: hidden;
             border: 1px solid var(--sap-border-color);
+            cursor: pointer;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+        
+        .object-card:active {
+            background-color: #f8f9fa;
         }
 
         .photo-strip {
@@ -110,7 +122,7 @@
 
     <div id="objects-list">
         {% for obj in objetos %}
-        <div class="object-card">
+        <div class="object-card" onclick="window.location.href='{% url 'seguridad:mobile_confiscacion_editar_objeto' obj.id %}'">
             <div style="padding: 12px; display: flex; justify-content: space-between; align-items: start;">
                 <div>
                     <div style="font-weight: 700; color: var(--sap-text-color);">{{ obj.catalogo_objeto.nombre }}</div>
@@ -129,13 +141,14 @@
 
             <div class="photo-strip">
                 {% for f in obj.fotos.all %}
-                <img src="{{ f.foto.url }}" class="photo-thumb" onclick="Swal.fire({imageUrl: this.src, showConfirmButton: false, customClass: 'swal-wide'})">
+                <img src="{{ f.foto.url }}" class="photo-thumb" onclick="event.stopPropagation(); Swal.fire({imageUrl: this.src, showConfirmButton: false, customClass: 'swal-wide'})">
                 {% endfor %}
             </div>
 
             <!-- Botón de Impresión -->
             <div style="padding: 10px 12px; border-top: 1px dashed var(--sap-border-color); display: flex; justify-content: flex-end;">
                 <a href="{% url 'seguridad:mobile_confiscacion_imprimir_etiqueta' obj.id %}" target="_blank"
+                   onclick="event.stopPropagation();"
                    style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #34495e; text-decoration: none;">
                     <ion-icon name="print-outline" style="font-size: 18px; color: var(--sap-brand-color);"></ion-icon>
                     IMPRIMIR ETIQUETA
