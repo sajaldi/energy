@@ -468,6 +468,8 @@ def ticket_search_view(request):
 
 @staff_member_required
 def ticket_cierre_visual_view(request, ticket_id):
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
     if request.method == 'POST':
@@ -510,6 +512,8 @@ def ticket_cierre_visual_view(request, ticket_id):
 @csrf_exempt
 @staff_member_required
 def upload_evidencia_ajax(request, ticket_id):
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     if request.method == 'POST' and request.FILES:
         files = request.FILES.getlist('files')
@@ -528,6 +532,8 @@ def upload_evidencia_ajax(request, ticket_id):
 @csrf_exempt
 @staff_member_required
 def delete_evidencia_ajax(request, ticket_id, evidencia_id):
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
     evidencia = get_object_or_404(EvidenciaTicket, id=evidencia_id, ticket_id=ticket_id)
     if request.method == 'POST':
         evidencia.delete()
@@ -712,6 +718,8 @@ def get_assignable_users_ajax(request):
 @csrf_exempt
 def assign_ticket_user_ajax(request, ticket_id):
     """Asigna un usuario responsable a un ticket via AJAX."""
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
     import json
@@ -768,6 +776,8 @@ def search_activos_ajax(request):
 @csrf_exempt
 def update_ticket_activo_ajax(request, ticket_id):
     """Vincula un activo a un ticket en tiempo real."""
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
     if request.method == 'POST':
         ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
         activo_id = request.POST.get('activo_id')
@@ -786,6 +796,8 @@ def update_ticket_activo_ajax(request, ticket_id):
 @require_POST
 def notify_ticket_n8n_ajax(request, ticket_id):
     """Envía los datos del ticket a n8n para notificaciones (WhatsApp, etc)."""
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
     # Obtener el teléfono del técnico asignado si existe
@@ -1950,6 +1962,8 @@ def create_restriccion_acceso_ajax(request, ticket_id):
     """
     from .utils import calcular_horas_habiles
     
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
     if not ticket.fecha_cierre:
