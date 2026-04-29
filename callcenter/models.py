@@ -543,6 +543,14 @@ class FallaTicket(models.Model):
     Catálogo de fallas estandarizadas para el Call Center.
     """
     nombre = models.CharField(max_length=255, unique=True, verbose_name="Nombre de la Falla")
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subfallas',
+        verbose_name="Falla Padre"
+    )
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción Adicional")
     departamento_responsable = models.ForeignKey(
         'core.Departamento',
@@ -562,6 +570,12 @@ class FallaTicket(models.Model):
     )
 
     def __str__(self):
+        return self.nombre_completo
+
+    @property
+    def nombre_completo(self):
+        if self.parent:
+            return f"{self.parent.nombre} > {self.nombre}"
         return self.nombre
 
     class Meta:

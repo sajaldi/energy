@@ -304,7 +304,7 @@
                 <i class="ph ph-caret-right"></i>
                 {% with cluster=ticket.grupos.first %}
                 {% if cluster %}
-                <a href="{% url 'callcenter:cluster_tickets' cluster.id %}">{{ cluster.correlativo }}</a>
+                <a href="{% url 'callcenter:cluster_tickets' cluster.id|unlocalize %}">{{ cluster.correlativo }}</a>
                 <i class="ph ph-caret-right"></i>
                 {% endif %}
                 {% endwith %}
@@ -707,7 +707,7 @@
         };
         
         if (!iframe.src) {
-            iframe.src = '/activos/arbol-ubicaciones/?select=true&ubicacion_id={{ ticket.ubicacion_id|default:"" }}';
+            iframe.src = '/activos/arbol-ubicaciones/?select=true&ubicacion_id={{ ticket.ubicacion_id|unlocalize|default:"" }}';
         } else {
             loader.style.display = 'none';
         }

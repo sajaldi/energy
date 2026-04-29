@@ -1,5 +1,6 @@
 {% load static %}
 {% load humanize %}
+{% load l10n %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -63,7 +64,7 @@
 
             <div class="groups-grid">
                 {% for grupo in grupos %}
-                <div class="group-card" onclick="window.location.href='{% url 'callcenter:cluster_tickets' grupo.id %}'" style="cursor: pointer;">
+                <div class="group-card" onclick="window.location.href='{% url 'callcenter:cluster_tickets' grupo.id|unlocalize %}'" style="cursor: pointer;">
                     <div class="group-header">
                         <span class="group-id">{{ grupo.correlativo }}</span>
                         <span class="group-date">
@@ -79,7 +80,7 @@
                                 <canvas class="cluster-chart" 
                                         data-cerrados="{{ grupo.num_cerrados }}" 
                                         data-abiertos="{{ grupo.num_abiertos }}"
-                                        id="chart-{{ grupo.id }}"></canvas>
+                                        id="chart-{{ grupo.id|unlocalize }}"></canvas>
                             </div>
                             <div class="chart-legend">
                                 <div class="legend-item">

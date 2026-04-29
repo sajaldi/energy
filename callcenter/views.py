@@ -564,22 +564,24 @@ def cluster_tickets_view(request, cluster_id):
     from xhtml2pdf import pisa
     
     from django.db.models import Prefetch, Count, Q
+    from .models import FallaTicket
+    from django.contrib.auth.models import User
+    
     cluster = get_object_or_404(GrupoTicket, id=cluster_id)
     
-    # Optimizamos agregando el conteo de tiempos acordados asociados
+    # Parámetros de Filtro y Búsqueda
+    q = request.GET.get('q', '').strip()
+    status = request.GET.get('status')
+    sort = request.GET.get('sort')
+    
+    # Optimizamos agregando relaciones necesarias
     tickets = cluster.tickets.all().select_related(
-        'ubicacion', 'usuario_responsable', 'restriccion_acceso'
+        'ubicacion', 'usuario_responsable', 'restriccion_acceso', 'falla_reportada', 'falla_reportada__parent'
     ).annotate(
         num_tiempos_acordados=Count('tiempos_acordados')
-    ).order_by('-fecha_solicitud')
+    ).order_by('falla_reportada__parent__nombre', 'falla_reportada__nombre', '-fecha_solicitud')
     
-    # Calcular estadísticas dirigidas (siempre sobre el total del cluster)
-    total = tickets.count()
-    cerrados = tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).count()
-    abiertos = total - cerrados
-
-    # Búsqueda por folio o descripción
-    q = request.GET.get('q', '').strip()
+    # Aplicar búsqueda por texto (q)
     if q:
         tickets = tickets.filter(
             Q(folio__icontains=q) | 
@@ -589,38 +591,20 @@ def cluster_tickets_view(request, cluster_id):
             Q(usuario_responsable__first_name__icontains=q) |
             Q(usuario_responsable__last_name__icontains=q)
         ).distinct()
-    
-    # Filtrado por status
-    status_filter = request.GET.get('status')
-    if status_filter == 'abiertos':
-        tickets = tickets.filter(Q(fecha_cierre__isnull=True) & Q(cierre_enviado=False))
-    elif status_filter == 'cerrados':
+        
+    # Filtro por Status
+    if status == 'abiertos':
+        tickets = tickets.filter(fecha_cierre__isnull=True, cierre_enviado=False)
+    elif status == 'cerrados':
         tickets = tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True))
 
-    # Ordenar por estado
-    sort = request.GET.get('sort')
-    if sort == 'estado':
-        from django.db.models import Case, When, Value, IntegerField
-        tickets = tickets.annotate(
-            is_closed=Case(
-                When(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True), then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField()
-            )
-        ).order_by('is_closed', '-fecha_solicitud')
-    elif sort == '-estado':
-        from django.db.models import Case, When, Value, IntegerField
-        tickets = tickets.annotate(
-            is_closed=Case(
-                When(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True), then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField()
-            )
-        ).order_by('-is_closed', '-fecha_solicitud')
+    # Calcular estadísticas dirigidas
+    total = tickets.count()
+    cerrados_count = tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).count()
+    abiertos_count = total - cerrados_count
     
     # Manejo de Exportación
     export_type = request.GET.get('export')
-    
     if export_type == 'excel':
         data = []
         for t in tickets:
@@ -644,8 +628,8 @@ def cluster_tickets_view(request, cluster_id):
             'cluster': cluster,
             'tickets': tickets,
             'total': total,
-            'cerrados': cerrados,
-            'abiertos': abiertos,
+            'cerrados': cerrados_count,
+            'abiertos': abiertos_count,
             'fecha_reporte': timezone.now()
         })
         response = HttpResponse(content_type='application/pdf')
@@ -658,12 +642,14 @@ def cluster_tickets_view(request, cluster_id):
     context = {
         'cluster': cluster,
         'tickets': tickets,
-        'abiertos': abiertos,
-        'cerrados': cerrados,
         'total': total,
+        'cerrados': cerrados_count,
+        'abiertos': abiertos_count,
         'q': q,
-        'title': f"Tickets en {cluster.correlativo}"
+        'title': f'Tickets en {cluster.correlativo}'
     }
+    return render(request, 'callcenter/cluster_tickets.html', context)
+    return render(request, 'callcenter/cluster_tickets.html', context)
     return render(request, 'callcenter/cluster_tickets.html', context)
 
 @staff_member_required

@@ -204,15 +204,74 @@
                 <div class="section-content">
                     <div class="form-group">
                         <label>Ubicación *</label>
-                        <div class="sap-input-container">
-                            <select name="ubicacion" required>
-                                <option value="">Seleccione ubicación...</option>
-                                {% for u in ubicaciones %}
-                                <option value="{{ u.id }}">{{ u.nombre }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="sap-input-container" onclick="openLocationSelector()" style="cursor: pointer; display: flex; align-items: center; padding-right: 12px; background: #fff;">
+                            <input type="text" id="ubicacion-display" readonly placeholder="Seleccione ubicación..." style="flex-grow: 1; pointer-events: none;" required>
+                            <input type="hidden" name="ubicacion" id="ubicacion-id" required>
+                            <ion-icon name="search-outline" style="color: var(--sap-blue); font-size: 18px;"></ion-icon>
                         </div>
                     </div>
+
+                    <!-- Modal Selector de Ubicación -->
+                    <div id="location-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; backdrop-filter: blur(2px);">
+                        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: white; border-top-left-radius: 20px; border-top-right-radius: 20px; height: 85vh; display: flex; flex-direction: column; animation: slideUp 0.3s ease-out;">
+                            <div style="padding: 20px; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center;">
+                                <h3 style="margin: 0; font-size: 18px;">Seleccionar Ubicación</h3>
+                                <button type="button" onclick="closeLocationSelector()" style="background: none; border: none; font-size: 24px; color: var(--sap-label);"><ion-icon name="close-outline"></ion-icon></button>
+                            </div>
+                            
+                            <div style="padding: 12px 16px;">
+                                <div class="sap-input-container" style="display: flex; align-items: center; padding: 0 12px;">
+                                    <ion-icon name="search-outline" style="color: var(--sap-label);"></ion-icon>
+                                    <input type="text" id="location-search" placeholder="Buscar por nombre o nivel..." style="padding: 12px 8px;">
+                                </div>
+                            </div>
+
+                            <div id="location-list" style="flex-grow: 1; overflow-y: auto; padding: 0 16px 20px;">
+                                {% for u in ubicaciones %}
+                                <div class="location-item depth-{{ u.depth }}" 
+                                     data-id="{{ u.id }}" 
+                                     data-name="{{ u.nombre }}" 
+                                     data-path="{{ u.full_path }}"
+                                     data-parent="{{ u.padre_id|default:'' }}"
+                                     data-has-children="{{ u.has_children|yesno:'true,false' }}"
+                                     style="padding: 12px 10px; border-bottom: 1px solid #f8f8f8; cursor: pointer; display: flex; align-items: center; 
+                                            margin-left: calc({{ u.depth }} * 20px); 
+                                            {% if u.depth > 0 %}display: none;{% endif %}">
+                                    
+                                    <div class="expand-icon" style="width: 24px; display: flex; align-items: center; color: var(--sap-label);">
+                                        {% if u.has_children %}
+                                            <ion-icon name="chevron-forward-outline" class="caret" style="transition: transform 0.2s;"></ion-icon>
+                                        {% else %}
+                                            <ion-icon name="ellipse" style="font-size: 6px; opacity: 0.3; margin-left: 4px;"></ion-icon>
+                                        {% endif %}
+                                    </div>
+
+                                    <div style="flex-grow: 1;">
+                                        <div style="font-weight: {% if u.depth == 0 %}600{% else %}500{% endif %}; font-size: 14px; color: var(--sap-text);">{{ u.nombre }}</div>
+                                        <div class="path-hint" style="font-size: 10px; color: var(--sap-label); display: none;">{{ u.full_path }}</div>
+                                    </div>
+                                    
+                                    <div style="color: var(--sap-blue); opacity: 0; transition: opacity 0.2s;" class="check-icon">
+                                        <ion-icon name="checkmark-circle" style="font-size: 20px;"></ion-icon>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <style>
+                        @keyframes slideUp {
+                            from { transform: translateY(100%); }
+                            to { transform: translateY(0); }
+                        }
+                        .location-item:active { background-color: #f0f7ff; }
+                        .location-item.searching { margin-left: 0 !important; border-left: 3px solid #eee; }
+                        .location-item.searching .path-hint { display: block !important; }
+                        .location-item.searching .expand-icon { display: none; }
+                        .location-item.expanded .caret { transform: rotate(90deg); }
+                        .location-item.hidden { display: none !important; }
+                    </style>
 
                     <div class="form-group">
                         <label>Técnico Asignado</label>
@@ -261,6 +320,105 @@
     </div>
 
     <script>
+        // Location Selector Logic
+        function openLocationSelector() {
+            document.getElementById('location-modal').style.display = 'block';
+            document.getElementById('location-search').focus();
+            document.body.style.overflow = 'hidden'; // Prevent background scroll
+        }
+
+        function closeLocationSelector() {
+            document.getElementById('location-modal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Search logic
+        document.getElementById('location-search').addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.location-item');
+            
+            if (query.length > 0) {
+                // Modo búsqueda: aplanamos todo y mostramos coincidencias
+                items.forEach(item => {
+                    const name = item.dataset.name.toLowerCase();
+                    const path = item.dataset.path.toLowerCase();
+                    
+                    item.classList.add('searching');
+                    if (name.includes(query) || path.includes(query)) {
+                        item.classList.remove('hidden');
+                        item.style.display = 'flex';
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+            } else {
+                // Modo árbol: restauramos niveles y ocultamos hijos
+                items.forEach(item => {
+                    item.classList.remove('searching');
+                    item.classList.remove('hidden');
+                    
+                    // Solo mostramos los de nivel 0 (raíz)
+                    const depth = item.className.match(/depth-(\d+)/)[1];
+                    if (depth === "0") {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                    // Resetear caret de los que estaban expandidos
+                    item.classList.remove('expanded');
+                });
+            }
+        });
+
+        // Tree Navigation & Selection
+        document.querySelectorAll('.location-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                const isExpandClick = e.target.closest('.expand-icon');
+                const hasChildren = this.dataset.hasChildren === 'true';
+                const id = this.dataset.id;
+                
+                // Si es modo búsqueda, cualquier clic selecciona
+                const isSearching = document.getElementById('location-search').value.length > 0;
+
+                if (hasChildren && !isSearching && (isExpandClick || e.target.classList.contains('expand-icon'))) {
+                    // Lógica de expandir/colapsar
+                    const isExpanded = this.classList.toggle('expanded');
+                    const children = document.querySelectorAll(`.location-item[data-parent="${id}"]`);
+                    
+                    children.forEach(child => {
+                        if (isExpanded) {
+                            child.style.display = 'flex';
+                            child.classList.remove('hidden');
+                        } else {
+                            // Si colapsamos, también debemos colapsar a los nietos recursivamente
+                            collapseDescendants(id);
+                        }
+                    });
+                    return; // No seleccionamos si solo estamos expandiendo
+                }
+
+                // Lógica de Selección
+                const name = this.dataset.name;
+                const path = this.dataset.path;
+                
+                document.getElementById('ubicacion-id').value = id;
+                document.getElementById('ubicacion-display').value = name;
+                document.getElementById('ubicacion-display').title = path;
+                
+                closeLocationSelector();
+            });
+        });
+
+        function collapseDescendants(parentId) {
+            const children = document.querySelectorAll(`.location-item[data-parent="${parentId}"]`);
+            children.forEach(child => {
+                child.style.display = 'none';
+                child.classList.remove('expanded');
+                const childId = child.dataset.id;
+                collapseDescendants(childId);
+            });
+        }
+
         document.getElementById('otnp-form').onsubmit = function(e) {
             e.preventDefault();
             

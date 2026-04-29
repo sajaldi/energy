@@ -382,9 +382,10 @@ class CronogramaItemPredefinidoAdmin(admin.ModelAdmin):
 
 @admin.register(FallaTicket)
 class FallaTicketAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'departamento_responsable', 'usuario_responsable', 'get_tickets_count')
-    list_filter = ('departamento_responsable', 'usuario_responsable')
+    list_display = ('nombre', 'parent', 'departamento_responsable', 'usuario_responsable', 'get_tickets_count')
+    list_filter = ('parent', 'departamento_responsable', 'usuario_responsable')
     search_fields = ('nombre', 'descripcion')
+    autocomplete_fields = ('parent', 'usuario_responsable')
     
     def get_tickets_count(self, obj):
         return obj.tickets.count()

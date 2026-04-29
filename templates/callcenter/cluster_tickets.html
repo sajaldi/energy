@@ -17,17 +17,34 @@
         :root {
             --sap-radius: 2px;
         }
+        .dashboard-wrapper {
+            max-width: 100% !important;
+            padding: 1rem 2rem !important;
+        }
         .list-container {
             background: white;
             border-radius: var(--sap-radius);
             box-shadow: var(--sap-shadow);
-            overflow: hidden;
+            overflow-x: auto;
             border: 1px solid var(--sap-border);
+            width: 100%;
+        }
+        .group-header {
+            display: table-row !important;
+            background: #f1f3f4 !important;
+        }
+        .group-header td {
+            background: #f1f3f4 !important;
+            border-top: 1px solid #dee2e6 !important;
+            border-bottom: 1px solid #dee2e6 !important;
+            padding: 0.8rem 1.25rem !important;
+            box-shadow: inset 5px 0 0 var(--sap-primary);
         }
         .visual-table {
             width: 100%;
             border-collapse: collapse;
             text-align: left;
+            table-layout: auto;
         }
         .visual-table th {
             background: #f8f9fa;
@@ -38,6 +55,9 @@
             border-bottom: 2px solid #edeff0;
             text-transform: uppercase;
             letter-spacing: 0.02em;
+            position: sticky;
+            top: 3rem;
+            z-index: 10;
         }
         .visual-table td {
             padding: 0.75rem 1rem;
@@ -83,7 +103,6 @@
             box-shadow: var(--sap-shadow);
             border: 1px solid var(--sap-border);
         }
-        /* Override specific button colors */
         .btn-excel { background: #1d6f42 !important; border-color: #1d6f42 !important; color: white !important; }
         .btn-pdf { background: #bb0000 !important; border-color: #bb0000 !important; color: white !important; }
     </style>
@@ -117,10 +136,16 @@
 
         <div class="cluster-header-shell">
             <div class="fiori-toolbar">
-                <div style="display: flex; gap: 1rem;">
-                    <a href="?" class="metric-card {% if not request.GET.status %}active{% endif %}" style="text-decoration: none; color: inherit;">
+                <div class="fiori-breadcrumb">
+                    <a href="{% url 'callcenter:ticket_dashboard' %}">Dashboard</a>
+                    <i class="ph ph-caret-right"></i>
+                    <span>{{ cluster.correlativo }}</span>
+                </div>
+
+                <div class="fiori-segmented-control">
+                    <a href="?{% if request.GET.sort %}sort={{ request.GET.sort }}{% endif %}" class="metric-card {% if not request.GET.status %}active{% endif %}" style="text-decoration: none; color: inherit;">
                         <span class="metric-label" style="font-size: 0.75rem;">Total Tickets</span>
-                        <div style="font-size: 1.15rem; font-weight: 700; margin-top: 0.25rem;">{{ total }}</div>
+                        <div style="font-size: 1.15rem; font-weight: 700; margin-top: 0.25rem; color: var(--sap-primary);">{{ total }}</div>
                     </a>
 
                     <a href="?status=abiertos{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="metric-card {% if request.GET.status == 'abiertos' %}active{% endif %}" style="text-decoration: none; color: inherit;">
@@ -176,17 +201,24 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for t in tickets %}
-                    <tr>
-                        <td style="font-weight: 700;">
-                            <a href="#" class="ticket-detail-link" data-id="{{ t.id }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
+                    {% regroup tickets by falla_reportada.nombre_completo as grouped_tickets %}
+                    {% for group in grouped_tickets %}
+                    <tr class="group-header" 
+                        onclick="toggleGroup(this)" 
+                        data-group-id="group-{{ forloop.index }}"
+                        style="background: #f1f3f4; cursor: pointer;">
+                        <td colspan="9" style="font-weight: 700; padding: 0.8rem 1.25rem !important; border-top: 1px solid #dee2e6 !important; border-bottom: 1px solid #dee2e6 !important; box-shadow: inset 5px 0 0 var(--sap-primary);">
+                            <i class="ph ph-caret-right caret-icon" style="margin-right: 8px; transition: transform 0.2s;"></i>
+                            {{ group.grouper|default:"Sin Clasificar" }} 
+                            <span style="font-weight: 400; color: var(--sap-text-muted); margin-left: 10px;">({{ group.list|length }} tickets)</span>
+                        </td>
+                    </tr>
+                    {% for t in group.list %}
+                    <tr class="group-row group-{{ forloop.parentloop.index }}" style="display: none;">
+                        <td style="font-weight: 700; padding-left: 2.5rem;">
+                            <a href="#" class="ticket-detail-link" data-id="{{ t.id|unlocalize }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
                                 {{ t.folio|default:t.id_solicitud }}
                             </a>
-                            {% if t.num_tiempos_acordados > 0 %}
-                                <a href="{% url 'callcenter:tiempo_acordado_dashboard' %}" title="Tiene {{ t.num_tiempos_acordados }} Acuerdo(s) de Tiempo. Clic para ver Dashboard." style="color: var(--sap-blue); margin-left: 6px; cursor: pointer; text-decoration: none;">
-                                    <i class="ph-fill ph-calendar-check" style="font-size: 1.1rem; vertical-align: middle;"></i>
-                                </a>
-                            {% endif %}
                         </td>
                         <td>{{ t.solicitante|default:"-" }}</td>
                         <td style="font-size: 0.8rem; color: var(--sap-text-muted); max-width: 150px;" title="{{ t.ubicacion_jerarquica }}">
@@ -194,11 +226,11 @@
                         </td>
                         <td style="color: var(--sap-text-muted); font-size: 0.85rem;">{{ t.responsable|default:"-" }}</td>
                         <td>
-                            <a href="#" class="assign-user-link" data-id="{{ t.id }}" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                            <a href="#" class="assign-user-link" data-id="{{ t.id|unlocalize }}" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
                             {% if t.usuario_responsable_id %}
-                                <span id="user-label-{{ t.id }}" style="font-weight: 600; color: var(--sap-primary);">{{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}</span>
+                                <span id="user-label-{{ t.id|unlocalize }}" style="font-weight: 600; color: var(--sap-primary);">{{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}</span>
                             {% else %}
-                                <span id="user-label-{{ t.id }}" style="color: var(--sap-label); font-style: italic;"><i class="ph ph-user-plus"></i> Sin asignar</span>
+                                <span id="user-label-{{ t.id|unlocalize }}" style="color: var(--sap-label); font-style: italic;"><i class="ph ph-user-plus"></i> Sin asignar</span>
                             {% endif %}
                             </a>
                         </td>
@@ -207,44 +239,20 @@
                         <td>
                             {% if t.fecha_cierre or t.cierre_enviado %}
                                 <span class="badge badge-success"><i class="ph ph-check-circle"></i> Cerrado</span>
-                                {% if t.correo_cierre %}
-                                    <span title="Correo de cierre enviado" style="color: var(--sap-success); margin-left: 6px; font-size: 1.1rem; vertical-align: middle; cursor: help;"><i class="ph-fill ph-envelope"></i></span>
-                                {% else %}
-                                    <span title="Correo de cierre pendiente" style="color: #ccc; margin-left: 6px; font-size: 1.1rem; vertical-align: middle; cursor: help;"><i class="ph ph-envelope-open"></i></span>
-                                {% endif %}
                             {% else %}
                                 <span class="badge badge-warning"><i class="ph ph-clock"></i> Abierto</span>
                             {% endif %}
                         </td>
                         <td style="display: flex; gap: 0.4rem; align-items: center;">
-                            <a href="{% url 'callcenter:ticket_cierre_visual' t.id %}" class="btn-fiori ghost" title="Cerrar Ticket" style="padding: 0; width: 2rem; height: 2rem;">
+                            <a href="{% url 'callcenter:ticket_cierre_visual' t.id|unlocalize %}" class="btn-fiori ghost" title="Cerrar Ticket" style="padding: 0; width: 2rem; height: 2rem;">
                                 <i class="ph ph-pencil-simple" style="font-size: 1.1rem;"></i>
                             </a>
-                            <button class="btn-fiori ghost notify-n8n-btn" data-id="{{ t.id }}" title="Notificar a Técnico" style="padding: 0; width: 2rem; height: 2rem; color: var(--sap-warning);">
+                            <button class="btn-fiori ghost notify-n8n-btn" data-id="{{ t.id|unlocalize }}" title="Notificar a Técnico" style="padding: 0; width: 2rem; height: 2rem; color: var(--sap-warning);">
                                 <i class="ph ph-bell" style="font-size: 1.1rem;"></i>
                             </button>
-                            {% if t.fecha_cierre or t.cierre_enviado %}
-                                {% if t.restriccion_acceso %}
-                                    <button class="btn-fiori ghost" title="Ver Restricción" style="padding: 0; width: 2rem; height: 2rem; color: #6f42c1;" onclick="viewRestriccion('{{ t.restriccion_acceso.id }}', '{{ t.restriccion_acceso.folio_ra }}', '{{ t.restriccion_acceso.horas_restriccion }}')">
-                                        <i class="ph ph-shield-check" style="font-size: 1.1rem;"></i>
-                                    </button>
-                                {% else %}
-                                    <button class="btn-fiori ghost open-restriccion-btn" 
-                                        data-id="{{ t.id }}" 
-                                        data-folio="{{ t.folio|default:t.id_solicitud }}" 
-                                        data-solicitante="{{ t.solicitante|default:'-' }}"
-                                        data-servicio="{{ t.servicio|default:'-' }}"
-                                        data-ubicacion="{{ t.ubicacion.nombre_completo|default:t.area|default:'-' }}"
-                                        data-description="{{ t.solicitud_descripcion|truncatechars:150|default:'-' }}"
-                                        data-reporte="{{ t.fecha_solicitud|date:'d/m/Y H:i' }}"
-                                        data-cierre="{{ t.fecha_cierre|date:'d/m/Y H:i' }}"
-                                        title="Crear Restricción" style="padding: 0; width: 2rem; height: 2rem; color: #e91e63;">
-                                        <i class="ph ph-lock-key" style="font-size: 1.1rem;"></i>
-                                    </button>
-                                {% endif %}
-                            {% endif %}
                         </td>
                     </tr>
+                    {% endfor %}
                     {% empty %}
                     <tr>
                         <td colspan="9" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
@@ -274,64 +282,37 @@
         </div>
     </div>
 
-    <!-- Restriccion Acceso Modal -->
-    <div id="restriccion-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
-        <div style="background: white; width: 90%; max-width: 500px; border-radius: var(--sap-radius); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.2);">
-            <div style="padding: 16px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
-                <h3 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;"><i class="ph ph-lock-key" style="color: #e91e63;"></i> Restricción de Acceso</h3>
-                <button onclick="closeRestriccionModal()" style="border: none; background: transparent; font-size: 1.5rem; cursor: pointer; color: #999;"><i class="ph ph-x"></i></button>
-            </div>
-            <div style="padding: 24px;">
-                <!-- Ticket Summary Section -->
-                <div id="ra-ticket-summary" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #eee; border-radius: var(--sap-radius); font-size: 0.85rem; color: #333;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
-                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Folio Ticket</strong> <span id="ra-ticket-folio" style="font-weight: 700;"></span></div>
-                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Solicitante</strong> <span id="ra-ticket-solicitante"></span></div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
-                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Servicio</strong> <span id="ra-ticket-servicio"></span></div>
-                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Ubicación</strong> <span id="ra-ticket-ubicacion"></span></div>
-                    </div>
-                    <div style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                        <strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Descripción Solicitud</strong>
-                        <div id="ra-ticket-description" style="color: #444; margin-top: 4px; line-height: 1.4;"></div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Fecha de Reporte</strong> <span id="ra-ticket-reporte" style="color: #005fb8;"></span></div>
-                        <div><strong style="color: #666; font-size: 0.75rem; text-transform: uppercase; display: block;">Fecha de Cierre</strong> <span id="ra-ticket-cierre" style="color: #28a745;"></span></div>
-                    </div>
-                </div>
-                
-                <div style="background: #fff8e1; border: 1px solid #ffe082; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; color: #795548;">
-                    <i class="ph ph-info" style="margin-right: 4px;"></i> 
-                    Los tiempos se calcularán automáticamente desde el reporte hasta el cierre, excluyendo horarios fuera de la ventana 07:00 - 23:00.
-                </div>
-
-                <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 8px;">Firma del Usuario de Conformidad</label>
-                <div style="border: 2px dashed #ddd; border-radius: 8px; background: #fafafa; margin-bottom: 12px;">
-                    <canvas id="restriccion-canvas" style="width: 100%; height: 200px; touch-action: none; cursor: crosshair;"></canvas>
-                </div>
-                <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                    <button type="button" id="clear-restriccion" style="background: #eee; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
-                        <i class="ph ph-eraser"></i> Limpiar Firma
-                    </button>
-                </div>
-            </div>
-            <div style="padding: 16px 24px; background: #f9f9f9; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 12px;">
-                <button onclick="closeRestriccionModal()" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-weight: 600;">Cancelar</button>
-                <button id="save-restriccion-btn" style="padding: 8px 24px; border-radius: 6px; border: none; background: #e91e63; color: white; font-weight: 700; cursor: pointer; box-shadow: 0 2px 4px rgba(233, 30, 99, 0.3);">
-                    Generar Restricción
-                </button>
-            </div>
-        </div>
-    </div>
-
-<style>
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-</style>
-
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        function toggleGroup(headerElement) {
+            const groupId = headerElement.getAttribute('data-group-id');
+            const targetRows = document.getElementsByClassName(groupId);
+            if (targetRows.length === 0) return;
+
+            const isExpanding = targetRows[0].style.display === 'none';
+
+            // 1. Colapsar ABSOLUTAMENTE TODAS las filas de tickets
+            document.querySelectorAll('.group-row').forEach(row => {
+                row.style.display = 'none';
+            });
+
+            // 2. Resetear ABSOLUTAMENTE TODOS los iconos de flecha
+            document.querySelectorAll('.caret-icon').forEach(icon => {
+                icon.style.transform = 'rotate(0deg)';
+            });
+
+            // 3. Si estábamos expandiendo, mostramos solo este grupo
+            if (isExpanding) {
+                for (let i = 0; i < targetRows.length; i++) {
+                    targetRows[i].style.display = 'table-row';
+                }
+                const caret = headerElement.querySelector('.caret-icon');
+                if (caret) {
+                    caret.style.transform = 'rotate(90deg)';
+                }
+            }
+        }
+
         // User Assignment logic
         let assignableUsers = null;
 
@@ -420,7 +401,6 @@
                             }
                             Swal.fire({ icon: 'success', title: 'Guardado', timer: 1500, showConfirmButton: false });
                         } else {
-                            // If the DOM wasn't hard-refreshed and lacks the ID, just reload the page visually.
                             Swal.fire({ icon: 'success', title: 'Guardado', timer: 1000, showConfirmButton: false }).then(() => {
                                 window.location.reload();
                             });
@@ -433,7 +413,6 @@
         }
 
         function openTicketModal(ticketId, folio) {
-            console.log(`Opening Modal for Ticket ID: ${ticketId}, Folio: ${folio}`);
             const modal = document.getElementById('ticket-modal');
             const iframe = document.getElementById('ticket-iframe');
             const loader = document.getElementById('ticket-loader');
@@ -454,7 +433,6 @@
             document.getElementById('ticket-iframe').src = '';
         }
 
-        // Init event listeners for data-attribute based triggers
         document.addEventListener('click', function(e) {
             const detailLink = e.target.closest('.ticket-detail-link');
             if (detailLink) {
@@ -503,11 +481,9 @@
                             <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--sap-primary);">1. BUSCAR EXISTENTE (Opcional)</label>
                             <input id="swal-search-ticket" type="text" class="swal2-input" style="width: 100%; margin: 0;" placeholder="Buscar por folio, ID o descripción..." list="existing-tickets-list">
                             <datalist id="existing-tickets-list"></datalist>
-                            <p style="font-size: 0.75rem; color: #666; margin-top: 0.25rem;">Si seleccionas uno, se vinculará automáticamente este ticket al cluster.</p>
                         </div>
-                        
                         <div>
-                            <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--sap-success);">2. O CREAR NUEVO / VINCULACIÓN DIRECTA</label>
+                            <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--sap-success);">2. O CREAR NUEVO</label>
                             <div style="margin-bottom: 1rem;">
                                 <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">ID Solicitud Servicio (Requerido)</label>
                                 <input id="swal-id-solicitud" type="number" class="swal2-input" style="width: 100%; margin: 0;" placeholder="Ej: 141123">
@@ -527,23 +503,10 @@
                     const searchInput = document.getElementById('swal-search-ticket');
                     const dataList = document.getElementById('existing-tickets-list');
                     let timeout = null;
-
                     searchInput.addEventListener('input', (e) => {
                         clearTimeout(timeout);
                         const val = e.target.value;
                         if (val.length < 2) return;
-
-                        // Check if selection was made from list
-                        const options = dataList.childNodes;
-                        for (let i = 0; i < options.length; i++) {
-                            if (options[i].value === val) {
-                                document.getElementById('swal-id-solicitud').value = options[i].dataset.idSolicitud;
-                                document.getElementById('swal-solicitante').value = "Existente";
-                                document.getElementById('swal-descripcion').value = "Vínculo de ticket existente";
-                                return;
-                            }
-                        }
-
                         timeout = setTimeout(async () => {
                             try {
                                 const res = await fetch(`{% url 'callcenter:search_tickets_autocomplete' %}?q=${encodeURIComponent(val)}`);
@@ -579,12 +542,9 @@
             if (formValues) {
                 try {
                     Swal.fire({ title: 'Creando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                    const res = await fetch("{% url 'callcenter:create_ticket_in_cluster' cluster.id %}", {
+                    const res = await fetch("{% url 'callcenter:create_ticket_in_cluster' cluster.id|unlocalize %}", {
                         method: 'POST',
-                        headers: { 
-                            'X-CSRFToken': '{{ csrf_token }}',
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
                         body: JSON.stringify(formValues)
                     });
                     const data = await res.json();
@@ -606,129 +566,8 @@
             const currentSort = urlParams.get('sort');
             const newSort = currentSort === field ? `-${field}` : field;
             urlParams.set('sort', newSort);
-            urlParams.set('sort', newSort);
             window.location.href = "?" + urlParams.toString();
         }
-
-        // Restriccion de Acceso logic
-        let raTicketId = null;
-        let raCanvas = document.getElementById('restriccion-canvas');
-        let raPad = null;
-
-        function initRaPad() {
-            if (!raPad) {
-                raPad = new SignaturePad(raCanvas, {
-                    backgroundColor: 'rgba(255, 255, 255, 0)',
-                    penColor: 'rgb(0, 0, 0)'
-                });
-                
-                function resize() {
-                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                    raCanvas.width = raCanvas.offsetWidth * ratio;
-                    raCanvas.height = raCanvas.offsetHeight * ratio;
-                    raCanvas.getContext("2d").scale(ratio, ratio);
-                    raPad.clear();
-                }
-                window.addEventListener("resize", resize);
-                // Initial resize
-                const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                raCanvas.width = raCanvas.offsetWidth * ratio;
-                raCanvas.height = raCanvas.offsetHeight * ratio;
-                raCanvas.getContext("2d").scale(ratio, ratio);
-                raPad.clear();
-            }
-        }
-
-        function openRestriccionModal(btn) {
-            raTicketId = btn.dataset.id;
-            
-            // Populating summary
-            document.getElementById('ra-ticket-folio').innerText = btn.dataset.folio;
-            document.getElementById('ra-ticket-solicitante').innerText = btn.dataset.solicitante;
-            document.getElementById('ra-ticket-servicio').innerText = btn.dataset.servicio;
-            document.getElementById('ra-ticket-ubicacion').innerText = btn.dataset.ubicacion;
-            document.getElementById('ra-ticket-description').innerText = btn.dataset.description;
-            document.getElementById('ra-ticket-reporte').innerText = btn.dataset.reporte;
-            document.getElementById('ra-ticket-cierre').innerText = btn.dataset.cierre;
-            
-            document.getElementById('restriccion-modal').style.display = 'flex';
-            setTimeout(initRaPad, 100); 
-        }
-
-        function closeRestriccionModal() {
-            document.getElementById('restriccion-modal').style.display = 'none';
-        }
-
-        document.getElementById('clear-restriccion').addEventListener('click', () => {
-            if (raPad) raPad.clear();
-        });
-
-        document.getElementById('save-restriccion-btn').addEventListener('click', async () => {
-            if (!raPad || raPad.isEmpty()) {
-                Swal.fire('Firma Requerida', 'Por favor, el usuario debe firmar para confirmar la restricción.', 'warning');
-                return;
-            }
-
-            const firma = raPad.toDataURL();
-            
-            try {
-                Swal.fire({ title: 'Generando registro...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                const url = `{% url 'callcenter:create_restriccion_acceso_ajax' 0 %}`.replace('0', raTicketId);
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                    body: JSON.stringify({ firma: firma })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    Swal.fire({ 
-                        icon: 'success', 
-                        title: 'Restricción Generada', 
-                        html: `<b>Folio:</b> ${data.folio}<br><b>Horas Habiles:</b> ${data.horas}`, 
-                        timer: 3000, 
-                        showConfirmButton: true 
-                    }).then(() => {
-                        window.location.reload();
-                    });
-                } else {
-                    Swal.fire('Error', data.message || 'No se pudo generar la restricción.', 'error');
-                }
-            } catch (e) {
-                Swal.fire('Error', 'Error de red o servidor.', 'error');
-            }
-        });
-
-        function viewRestriccion(id, folio, horas) {
-            const pdfUrl = `{% url 'callcenter:export_restriccion_acceso_pdf' 0 %}`.replace('0', id);
-            Swal.fire({
-                title: 'Información de Restricción',
-                html: `
-                    <div style="text-align: left; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #eee;">
-                        <p style="margin-bottom: 12px; font-size: 1.1rem;"><strong>Folio RA:</strong> <span style="color: #e91e63; font-weight: 700;">${folio}</span></p>
-                        <p style="margin-bottom: 0;"><strong>Tiempo Restringido:</strong> <span style="font-weight: 600;">${horas} horas hábiles</span></p>
-                    </div>
-                `,
-                icon: 'info',
-                showCancelButton: true,
-                confirmButtonText: '<i class="ph ph-file-pdf"></i> Descargar PDF',
-                cancelButtonText: 'Cerrar',
-                confirmButtonColor: '#bb0000',
-                cancelButtonColor: '#6c757d',
-                reverseButtons: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.open(pdfUrl, '_blank');
-                }
-            });
-        }
-
-        document.addEventListener('click', e => {
-            const btn = e.target.closest('.open-restriccion-btn');
-            if (btn) {
-                e.preventDefault();
-                openRestriccionModal(btn);
-            }
-        });
     </script>
 </body>
 </html>

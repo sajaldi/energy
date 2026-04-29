@@ -748,7 +748,17 @@ def mobile_crear_otnp(request):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
     # GET: Mostrar formulario
-    ubicaciones = Ubicacion.objects.all().order_by('nombre')
+    ubicaciones_qs = Ubicacion.objects.all()
+    ubicaciones = []
+    for u in ubicaciones_qs:
+        u.full_path = u.get_ruta_completa()
+        u.depth = u.level
+        u.has_children = u.sub_ubicaciones.exists()
+        ubicaciones.append(u)
+    
+    # Ordenar para que el árbol se vea natural (Padre seguido de sus hijos)
+    ubicaciones.sort(key=lambda x: x.full_path)
+
     prioridades = OrdenTrabajo.PRIORIDAD_CHOICES
     tecnicos = User.objects.filter(
         Q(groups__name='Tecnicos') | 

@@ -1,5 +1,7 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from .models import BACnetGateway, BACnetDevice, BACnetPoint, Telemetry
+from .services.bacnet import bacnet_instance
+from asgiref.sync import async_to_sync
 
 @admin.register(BACnetGateway)
 class BACnetGatewayAdmin(admin.ModelAdmin):
@@ -13,6 +15,29 @@ class BACnetDeviceAdmin(admin.ModelAdmin):
     list_filter = ('is_online', 'vendor', 'gateway')
     search_fields = ('name', 'address', 'device_id')
     readonly_fields = ('last_seen',)
+    actions = ['discover_points']
+
+    @admin.action(description="Descubrir puntos automáticamente")
+    def discover_points(self, request, queryset):
+        success_count = 0
+        error_count = 0
+        
+        for device in queryset:
+            try:
+                # Ejecutamos la tarea asíncrona de forma síncrona para el admin
+                result = async_to_sync(bacnet_instance.discover_device_points)(device)
+                if result:
+                    success_count += 1
+                else:
+                    error_count += 1
+            except Exception as e:
+                self.message_user(request, f"Error en {device.name}: {str(e)}", messages.ERROR)
+                error_count += 1
+        
+        if success_count > 0:
+            self.message_user(request, f"Se completó el descubrimiento en {success_count} dispositivos.", messages.SUCCESS)
+        if error_count > 0:
+            self.message_user(request, f"Hubo errores en {error_count} dispositivos. Revise los logs.", messages.WARNING)
 
 @admin.register(BACnetPoint)
 class BACnetPointAdmin(admin.ModelAdmin):
