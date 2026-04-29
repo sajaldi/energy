@@ -290,7 +290,7 @@ def analyze_image_ai(evidencia_id):
         with default_storage.open(evidencia.archivo.name, 'rb') as f:
             encoded_string = base64.b64encode(f.read()).decode('utf-8')
             
-        # 2. Llamar a Ollama (Modelo LLaVA)
+        # 2. Llamar a Ollama (Modelo Moondream - Más ligero y rápido)
         ollama_url = f"{settings.OLLAMA_API_URL}/api/generate"
         prompt = (
             "Describe esta imagen de mantenimiento técnico de forma concisa pero detallada. "
@@ -299,7 +299,7 @@ def analyze_image_ai(evidencia_id):
         )
         
         payload = {
-            "model": "llava",
+            "model": "moondream",
             "prompt": prompt,
             "stream": False,
             "images": [encoded_string]
