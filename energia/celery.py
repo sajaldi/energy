@@ -16,7 +16,7 @@ app = Celery('energia')
 app.config_from_object('django.conf:settings', namespace='CELERY')
 print(f"[DEBUG] [Celery] Inicializando Celery App 'energia' (PID: {os.getpid()})")
 # Cargar módulos de tareas de todas las aplicaciones Django registradas.
-app.autodiscover_tasks(['mantenimiento', 'presupuestos', 'servicios', 'activos', 'callcenter'])
+app.autodiscover_tasks(['mantenimiento', 'presupuestos', 'servicios', 'activos', 'callcenter', 'core'])
 
 @app.task(bind=True)
 def debug_task(self):

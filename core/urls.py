@@ -9,6 +9,8 @@ urlpatterns = [
     path('', views.landing_page, name='landing_page'),
     # Ruta para la página de inicio
     path('import-consumo/', views.import_excel, name='import_consumo'),
+    path('import-consumo-async/', views.import_consumo_view, name='import_consumo_async'),
+    path('import-status/<str:task_id>/', views.get_import_status, name='import_status'),
     path('reportes/consumo-mensual/', views.reporte_consumo_mensual, name='reporte_consumo_mensual'),
     path('reportes/consumo-interactivo/', views.reporte_consumos_interactivo, name='reporte_consumo_interactivo'),
     # Ruta para la importación

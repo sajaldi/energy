@@ -135,6 +135,8 @@ def trigger_bulk_analysis_n8n(request):
     return redirect('admin:callcenter_solicitudticket_changelist')
 
 def send_ticket_to_power_automate_view(request, ticket_id):
+    # Limpiar ID de posibles comas de formateo regional
+    ticket_id = int(str(ticket_id).replace(',', ''))
     ticket = get_object_or_404(SolicitudTicket, id=ticket_id)
     
     # 0. Validación de campos obligatorios (Backend de seguridad)
@@ -599,6 +601,8 @@ def cluster_tickets_view(request, cluster_id):
     from .models import FallaTicket
     from django.contrib.auth.models import User
     
+    # Limpiar ID de posibles comas de formateo regional
+    cluster_id = int(str(cluster_id).replace(',', ''))
     cluster = get_object_or_404(GrupoTicket, id=cluster_id)
     
     # Parámetros de Filtro y Búsqueda
@@ -1424,6 +1428,9 @@ def enviar_tiempo_acordado_power_automate_ajax(request, pk):
 @require_POST
 def create_ticket_in_cluster_ajax(request, cluster_id):
     """Crea un ticket básico y lo vincula al cluster."""
+    # Limpiar ID de posibles comas de formateo regional
+    cluster_id = int(str(cluster_id).replace(',', ''))
+    
     import json
     from .models import GrupoTicket, SolicitudTicket
     from django.utils import timezone
@@ -2118,10 +2125,8 @@ def webhook_ticket_vector_callback(request):
 @login_required
 @require_POST
 def vectorize_cluster_tickets_ajax(request, cluster_id):
-    """
-    Toma todos los tickets de un cluster y los envía a re-vectorizar.
-    Útil cuando los tickets ya tienen embedding pero les falta la información de cierre.
-    """
+    # Limpiar ID de posibles comas de formateo regional
+    cluster_id = int(str(cluster_id).replace(',', ''))
     cluster = get_object_or_404(GrupoTicket, id=cluster_id)
     tickets = cluster.tickets.all()
     

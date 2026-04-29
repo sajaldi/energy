@@ -1,0 +1,305 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+    :root {
+        --sap-blue: #0070f2;
+        --sap-dark: #1c2d3d;
+        --terminal-bg: #1e1e1e;
+        --terminal-green: #00ff00;
+    }
+
+    .import-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .drop-zone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 3rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: #f8f9fa;
+        margin-bottom: 1.5rem;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+        border-color: var(--sap-blue);
+        background: #eef6ff;
+    }
+
+    .progress-container {
+        display: none;
+        margin: 2rem 0;
+    }
+
+    .progress-bar-wrapper {
+        height: 24px;
+        background: #eee;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+        position: relative;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #0070f2, #00c6ff);
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+
+    .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .terminal {
+        background: var(--terminal-bg);
+        color: var(--terminal-green);
+        padding: 1rem;
+        border-radius: 8px;
+        font-family: 'Consolas', monospace;
+        font-size: 0.85rem;
+        height: 300px;
+        overflow-y: auto;
+        margin-top: 2rem;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    .terminal-line {
+        margin-bottom: 4px;
+        border-left: 2px solid transparent;
+        padding-left: 8px;
+    }
+
+    .terminal-line.error { border-left-color: #ff4444; color: #ff8888; }
+    .terminal-line.success { border-left-color: #00ff00; }
+    .terminal-line.info { border-left-color: #00aaff; color: #88ccff; }
+
+    .btn-import {
+        background: var(--sap-blue);
+        color: white;
+        border: none;
+        padding: 0.8rem 2rem;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        display: none;
+        width: 100%;
+        font-size: 1rem;
+        transition: transform 0.2s;
+    }
+
+    .btn-import:active { transform: scale(0.98); }
+
+    .instructions-card {
+        margin-top: 2rem;
+        font-size: 0.9rem;
+        color: #555;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <div class="glass-card">
+        <h2 style="margin-top:0; color: var(--sap-dark);">
+            <i class="fas fa-file-import"></i> Importación Asíncrona de Consumo
+        </h2>
+        <p>Procesa grandes volúmenes de datos en segundo plano sin bloquear tu sesión.</p>
+
+        <form id="importForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" name="excel_file" id="fileInput" accept=".xlsx, .xls, .csv" style="display:none;">
+            
+            <div class="drop-zone" id="dropZone">
+                <i class="fas fa-cloud-upload-alt fa-3x" style="color: #ccc; margin-bottom: 1rem;"></i>
+                <div id="dropText">Arrastra tu archivo Excel/CSV aquí o haz clic para buscar</div>
+            </div>
+
+            <button type="submit" class="btn-import" id="submitBtn">
+                <i class="fas fa-play"></i> Iniciar Importación
+            </button>
+        </form>
+
+        <div class="progress-container" id="progressArea">
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+            <div class="progress-stats">
+                <span id="progressText">Procesando: 0%</span>
+                <span id="countText">0 / 0 filas</span>
+            </div>
+        </div>
+
+        <div class="terminal" id="terminal">
+            <div class="terminal-line info">Consola de importación lista. Esperando archivo...</div>
+        </div>
+
+        <div class="instructions-card">
+            <h4><i class="fas fa-info-circle"></i> Notas importantes:</h4>
+            <ul>
+                <li>Columnas requeridas: <strong>fecha</strong>, <strong>consumo</strong>, <strong>medidor</strong>.</li>
+                <li>Formatos aceptados: .xlsx, .xls, .csv.</li>
+                <li>Los medidores deben existir previamente en el sistema.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const importForm = document.getElementById('importForm');
+    const terminal = document.getElementById('terminal');
+    const progressArea = document.getElementById('progressArea');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const countText = document.getElementById('countText');
+
+    let pollingInterval = null;
+
+    // --- Drag & Drop ---
+    dropZone.onclick = () => fileInput.click();
+    
+    dropZone.ondragover = (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    };
+
+    dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    };
+
+    fileInput.onchange = () => {
+        if (fileInput.files.length) handleFile(fileInput.files[0]);
+    };
+
+    function handleFile(file) {
+        document.getElementById('dropText').innerHTML = `<strong>Archivo seleccionado:</strong> ${file.name}`;
+        submitBtn.style.display = 'block';
+        log(`Archivo "${file.name}" cargado. Listo para procesar.`, 'info');
+    }
+
+    function log(msg, type='info') {
+        const line = document.createElement('div');
+        line.className = `terminal-line ${type}`;
+        line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        terminal.appendChild(line);
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    // --- Submit & Polling ---
+    importForm.onsubmit = async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(importForm);
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando...';
+
+        try {
+            const response = await fetch('{% url "core:import_consumo_async" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                log(`Tarea creada con ID: ${data.task_id}`, 'success');
+                startPolling(data.task_id);
+                progressArea.style.display = 'block';
+                dropZone.style.display = 'none';
+                submitBtn.style.display = 'none';
+            } else {
+                Swal.fire('Error', data.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-play"></i> Iniciar Importación';
+            }
+        } catch (err) {
+            log(`Error de conexión: ${err.message}`, 'error');
+            submitBtn.disabled = false;
+        }
+    };
+
+    function startPolling(taskId) {
+        pollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`/import-status/${taskId}/`);
+                const data = await response.json();
+
+                if (data.status === 'PROGRESS') {
+                    const prog = data.progress;
+                    const percent = Math.round((prog.current / prog.total) * 100);
+                    
+                    progressBar.style.width = `${percent}%`;
+                    progressText.textContent = `Procesando: ${percent}%`;
+                    countText.textContent = `${prog.current} / ${prog.total} filas`;
+                    
+                    if (prog.last_errors && prog.last_errors.length > 0) {
+                        prog.last_errors.forEach(err => {
+                            // Solo loguear si es nuevo (simplificado)
+                            log(err, 'error');
+                        });
+                    }
+                } 
+                else if (data.status === 'SUCCESS') {
+                    clearInterval(pollingInterval);
+                    progressBar.style.width = '100%';
+                    progressBar.style.background = '#00ff00';
+                    progressText.textContent = '¡Completado!';
+                    
+                    const res = data.result;
+                    log(`Importación finalizada. Éxito: ${res.success}, Errores: ${res.errors_count}`, 'success');
+                    
+                    Swal.fire({
+                        title: '¡Importación Exitosa!',
+                        text: `Se procesaron ${res.total} filas correctamente.`,
+                        icon: 'success',
+                        confirmButtonText: 'Ver Consumos'
+                    }).then(() => {
+                        window.location.href = '{% url "admin:core_consumo_changelist" %}';
+                    });
+                }
+                else if (data.status === 'FAILURE' || data.status === 'REVOKED') {
+                    clearInterval(pollingInterval);
+                    log(`Error en la tarea: ${data.status}`, 'error');
+                    Swal.fire('Error Crítico', 'La tarea falló en el servidor.', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }, 1500);
+    }
+});
+</script>
+{% endblock %}

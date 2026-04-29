@@ -27,6 +27,11 @@ import matplotlib.cm as cm
 import numpy as np
 import json
 
+from celery.result import AsyncResult
+from django.core.files.storage import default_storage
+from django.conf import settings
+import os
+
 logger = logging.getLogger(__name__)
 
 def landing_page(request):
@@ -344,6 +349,59 @@ def import_excel(request):
             return redirect('admin:core_consumo_changelist')
 
     return render(request, 'admin/import_excel.html') # Asegúrate que tu template de importación existe
+
+
+@staff_member_required
+def import_consumo_view(request):
+    """
+    Dashboard de importación asíncrona.
+    GET: Renderiza la UI.
+    POST: Recibe el archivo, lo guarda y lanza la tarea de Celery.
+    """
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        from .tasks import import_consumo_task
+        
+        excel_file = request.FILES['excel_file']
+        
+        # 1. Guardar archivo temporalmente
+        # Usamos un nombre único para evitar colisiones
+        temp_filename = f"imports/temp_{timezone.now().strftime('%Y%m%d%H%M%S')}_{excel_file.name}"
+        path = default_storage.save(temp_filename, excel_file)
+        
+        # 2. Lanzar tarea
+        task = import_consumo_task.delay(path, user_id=request.user.id)
+        
+        return JsonResponse({
+            'success': True,
+            'task_id': task.id,
+            'message': 'Tarea iniciada correctamente.'
+        })
+
+    return render(request, 'admin/import_consumo_async.html', {
+        'title': 'Importación Asíncrona de Consumo'
+    })
+
+
+@staff_member_required
+def get_import_status(request, task_id):
+    """
+    Retorna el estado de una tarea de Celery.
+    """
+    task_result = AsyncResult(task_id)
+    
+    response_data = {
+        'task_id': task_id,
+        'status': task_result.status,
+        'result': task_result.result if task_result.ready() else None,
+    }
+    
+    # Si la tarea está en progreso, extraer la metadata personalizada
+    if task_result.status == 'PROGRESS':
+        response_data['progress'] = task_result.info
+    elif task_result.status == 'SUCCESS':
+        response_data['progress'] = {'current': 100, 'total': 100, 'percent': 100}
+        
+    return JsonResponse(response_data)
 
 
 
