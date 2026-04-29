@@ -231,6 +231,15 @@ class EvidenciaTicket(models.Model):
         null=True, 
         verbose_name="Descripción Corta"
     )
+    descripcion_ia = models.TextField(
+        blank=True, 
+        null=True, 
+        verbose_name="Análisis de IA (Visual)"
+    )
+    analizada = models.BooleanField(
+        default=False, 
+        verbose_name="Analizada por IA"
+    )
     fecha_carga = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

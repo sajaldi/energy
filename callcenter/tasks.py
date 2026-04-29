@@ -130,6 +130,16 @@ def vectorize_ticket_n8n(ticket_id):
         if ticket.clasificacion_falla_final: context_parts.append(f"FALLA FINAL: {ticket.clasificacion_falla_final}")
         if ticket.categoria_falla: context_parts.append(f"CATEGORIA: {ticket.categoria_falla}")
 
+        # --- CONTEXTO VISUAL (NUEVO) ---
+        # Incluir descripciones de IA de todas las evidencias analizadas
+        visual_parts = []
+        for ev in ticket.evidencias.filter(analizada=True):
+            if ev.descripcion_ia:
+                visual_parts.append(ev.descripcion_ia)
+        
+        if visual_parts:
+            context_parts.append(f"ANALISIS VISUAL (IA): {' | '.join(visual_parts)}")
+
         rich_context = " | ".join(context_parts)
         # Añadir instrucción para mxbai-embed-large para mejorar recuperación
         rich_context = f"Represent this document for retrieval: {rich_context}"
@@ -258,3 +268,63 @@ def bulk_vectorize_tickets():
     msg = f"[VECTORIZE] Finalizado: {procesados}/{total} procesados, {errores} errores"
     logger.info(msg)
     return {"procesados": procesados, "total": total, "errores": errores}
+
+@shared_task(name='callcenter.tasks.analyze_image_ai')
+def analyze_image_ai(evidencia_id):
+    """
+    Usa Ollama con un modelo multimodal (llava) para describir una imagen de evidencia.
+    La descripción se guarda en descripcion_ia y luego se dispara la re-vectorización del ticket.
+    """
+    import base64
+    import requests as http_requests
+    from .models import EvidenciaTicket
+    
+    try:
+        evidencia = EvidenciaTicket.objects.get(id=evidencia_id)
+        if not evidencia.archivo:
+            return False
+            
+        # 1. Preparar la imagen en Base64
+        # Si estamos usando S3/MinIO, necesitamos descargarla o leerla desde el storage
+        from django.core.files.storage import default_storage
+        with default_storage.open(evidencia.archivo.name, 'rb') as f:
+            encoded_string = base64.b64encode(f.read()).decode('utf-8')
+            
+        # 2. Llamar a Ollama (Modelo LLaVA)
+        ollama_url = f"{settings.OLLAMA_API_URL}/api/generate"
+        prompt = (
+            "Describe esta imagen de mantenimiento técnico de forma concisa pero detallada. "
+            "Enfócate en fallas, daños, reparaciones o estado de equipos. "
+            "Responde en español. No saludes, ve directo al grano."
+        )
+        
+        payload = {
+            "model": "llava",
+            "prompt": prompt,
+            "stream": False,
+            "images": [encoded_string]
+        }
+        
+        logger.info(f"[IA-VISUAL] Analizando imagen {evidencia.id} con LLaVA...")
+        resp = http_requests.post(ollama_url, json=payload, timeout=60)
+        
+        if resp.status_code == 200:
+            analysis = resp.json().get('response', '').strip()
+            evidencia.descripcion_ia = analysis
+            evidencia.analizada = True
+            evidencia.save(update_fields=['descripcion_ia', 'analizada'])
+            
+            logger.info(f"[IA-VISUAL] Imagen {evidencia.id} analizada exitosamente.")
+            
+            # 3. Forzar re-vectorización del ticket para incluir este nuevo contexto visual
+            # Usar delay para no bloquear el worker de imágenes
+            vectorize_ticket_n8n.delay(evidencia.ticket.id)
+            
+            return True
+        else:
+            logger.error(f"[IA-VISUAL] Error en Ollama: {resp.status_code}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"[IA-VISUAL] Error analizando imagen {evidencia_id}: {e}")
+        return False

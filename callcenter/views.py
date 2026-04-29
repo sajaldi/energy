@@ -528,6 +528,14 @@ def upload_evidencia_ajax(request, ticket_id):
             ext = f.name.split('.')[-1] if '.' in f.name else 'jpg'
             file_name = f'evidencia_{ticket.id}_{uuid.uuid4().hex[:6]}.{ext}'
             evidencia.archivo.save(file_name, f)
+            
+            # --- NUEVO: Disparar análisis de IA ---
+            try:
+                from .tasks import analyze_image_ai
+                analyze_image_ai.delay(evidencia.id)
+            except Exception as e:
+                logger.warning(f"No se pudo encolar el análisis de IA para evidencia {evidencia.id}: {e}")
+
         return JsonResponse({'success': True})
     return JsonResponse({'success': False}, status=400)
 
