@@ -126,6 +126,11 @@ class SolicitudTicket(models.Model):
         ordering = ['-fecha_solicitud']
 
     @property
+    def id_unlocalized(self):
+        """Retorna el ID como string sin separadores de miles."""
+        return str(self.id)
+
+    @property
     def ubicacion_jerarquica(self):
         """
         Retorna la ruta completa de la ubicación.
@@ -144,14 +149,17 @@ class SolicitudTicket(models.Model):
         return " > ".join(parts) if parts else "-"
 
     @classmethod
-    def buscar_vectorial(cls, query_embedding, limit=10):
+    def buscar_vectorial(cls, query_embedding, limit=10, filters=None):
         """
         Búsqueda semántica de tickets usando distancia coseno.
-        Recibe un vector de embedding (list[float]) y retorna los tickets más similares.
+        Permite aplicar filtros adicionales (ej: por ubicación).
         """
-        return cls.objects.exclude(
-            embedding__isnull=True
-        ).annotate(
+        qs = cls.objects.exclude(embedding__isnull=True)
+        
+        if filters:
+            qs = qs.filter(**filters)
+            
+        return qs.annotate(
             distancia=CosineDistance('embedding', query_embedding)
         ).order_by('distancia')[:limit]
 

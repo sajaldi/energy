@@ -414,7 +414,7 @@ def ticket_search_view(request):
             
             resp = http_requests.post(ollama_url, json={
                 'model': 'mxbai-embed-large',
-                'prompt': query
+                'prompt': f"Represent this query for retrieving relevant documents: {query}"
             }, timeout=15)
             
             if resp.status_code != 200:
@@ -424,9 +424,35 @@ def ticket_search_view(request):
                 if not query_embedding:
                     error = "Ollama no devolvió un embedding válido."
                 else:
-                    # 2. Buscar tickets similares
-                    resultados = SolicitudTicket.buscar_vectorial(query_embedding, limit=15)
+                    # 2. Detectar ubicación en la query para filtro estricto
+                    filtros_adicionales = {}
+                    query_lower = query.lower()
                     
+                    # Mapeo de palabras clave a campos de ubicación
+                    ubicaciones_clave = {
+                        'torre 1': {'area__icontains': 'Torre 1'},
+                        'torre 2': {'area__icontains': 'Torre 2'},
+                        'cuerpo bajo c': {'area__icontains': 'Cuerpo Bajo C'},
+                        'cuerpo bajo b': {'area__icontains': 'Cuerpo Bajo B'},
+                        'cuerpo bajo a': {'area__icontains': 'Cuerpo Bajo A'},
+                        'edificio cba': {'area__icontains': 'CBA'},
+                    }
+                    
+                    for clave, filtro in ubicaciones_clave.items():
+                        if clave in query_lower:
+                            filtros_adicionales.update(filtro)
+                            break # Aplicamos el primero que encontremos para evitar conflictos
+                    
+                    # 3. Buscar tickets similares con filtros
+                    resultados = SolicitudTicket.buscar_vectorial(
+                        query_embedding, 
+                        limit=15, 
+                        filters=filtros_adicionales
+                    )
+                    
+                    # 4. Calcular porcentaje de similitud (Relación)
+                    for t in resultados:
+                        t.similitud = round(max(0, min(100, (1 - t.distancia) * 100)), 1)
         except http_requests.exceptions.ConnectionError:
             error = "No se pudo conectar con Ollama. Verifica que esté corriendo."
         except Exception as e:
@@ -572,6 +598,7 @@ def cluster_tickets_view(request, cluster_id):
     # Parámetros de Filtro y Búsqueda
     q = request.GET.get('q', '').strip()
     status = request.GET.get('status')
+    falla_id = request.GET.get('falla')
     sort = request.GET.get('sort')
     
     # Optimizamos agregando relaciones necesarias
@@ -579,7 +606,15 @@ def cluster_tickets_view(request, cluster_id):
         'ubicacion', 'usuario_responsable', 'restriccion_acceso', 'falla_reportada', 'falla_reportada__parent'
     ).annotate(
         num_tiempos_acordados=Count('tiempos_acordados')
-    ).order_by('falla_reportada__parent__nombre', 'falla_reportada__nombre', '-fecha_solicitud')
+    )
+
+    # Ordenamiento base
+    if sort == 'estado':
+        tickets = tickets.order_by('fecha_cierre', 'cierre_enviado', '-fecha_solicitud')
+    elif sort == '-estado':
+        tickets = tickets.order_by('-fecha_cierre', '-cierre_enviado', '-fecha_solicitud')
+    else:
+        tickets = tickets.order_by('falla_reportada__parent__nombre', 'falla_reportada__nombre', '-fecha_solicitud')
     
     # Aplicar búsqueda por texto (q)
     if q:
@@ -597,6 +632,14 @@ def cluster_tickets_view(request, cluster_id):
         tickets = tickets.filter(fecha_cierre__isnull=True, cierre_enviado=False)
     elif status == 'cerrados':
         tickets = tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True))
+
+    # Filtro por Falla
+    if falla_id:
+        tickets = tickets.filter(falla_reportada_id=falla_id)
+
+    # Obtener fallas únicas presentes en este cluster para el filtro
+    fallas_ids = cluster.tickets.values_list('falla_reportada_id', flat=True).distinct()
+    fallas_opciones = FallaTicket.objects.filter(id__in=fallas_ids).order_by('nombre')
 
     # Calcular estadísticas dirigidas
     total = tickets.count()
@@ -642,6 +685,7 @@ def cluster_tickets_view(request, cluster_id):
     context = {
         'cluster': cluster,
         'tickets': tickets,
+        'fallas_opciones': fallas_opciones,
         'total': total,
         'cerrados': cerrados_count,
         'abiertos': abiertos_count,
@@ -2056,3 +2100,33 @@ def webhook_ticket_vector_callback(request):
     except Exception as e:
         logger.error(f"Error en webhook_ticket_vector_callback: {e}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def vectorize_cluster_tickets_ajax(request, cluster_id):
+    """
+    Toma todos los tickets de un cluster y los envía a re-vectorizar.
+    Útil cuando los tickets ya tienen embedding pero les falta la información de cierre.
+    """
+    cluster = get_object_or_404(GrupoTicket, id=cluster_id)
+    tickets = cluster.tickets.all()
+    
+    if not tickets.exists():
+        return JsonResponse({'success': False, 'error': 'El cluster no tiene tickets.'})
+
+    try:
+        from .tasks import vectorize_ticket_n8n
+        count = 0
+        for ticket in tickets:
+            # Forzamos el envío a n8n independientemente de si ya tiene embedding
+            vectorize_ticket_n8n.delay(ticket.id)
+            count += 1
+            
+        return JsonResponse({
+            'success': True, 
+            'message': f'Se han encolado {count} tickets para vectorización IA.'
+        })
+    except Exception as e:
+        logger.error(f"Error al encolar vectorización de cluster {cluster_id}: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+

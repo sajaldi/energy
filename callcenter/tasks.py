@@ -131,6 +131,8 @@ def vectorize_ticket_n8n(ticket_id):
         if ticket.categoria_falla: context_parts.append(f"CATEGORIA: {ticket.categoria_falla}")
 
         rich_context = " | ".join(context_parts)
+        # Añadir instrucción para mxbai-embed-large para mejorar recuperación
+        rich_context = f"Represent this document for retrieval: {rich_context}"
 
         payload = {
             'ticket_id': ticket.id,
@@ -140,7 +142,8 @@ def vectorize_ticket_n8n(ticket_id):
             # Mantener campos individuales por si n8n los usa para lógica condicional
             'servicio': ticket.servicio or '',
             'ubicacion': ticket.ubicacion.nombre if ticket.ubicacion else '',
-            'categoria_falla': ticket.categoria_falla or ''
+            'categoria_falla': ticket.categoria_falla or '',
+            'callback_url': f"{settings.INTERNAL_SITE_URL}/callcenter/api/webhook/vector-update/"
         }
         
         logger.info(f"Enviando ticket {ticket.folio} a n8n para vectorización: {n8n_url}")
@@ -227,10 +230,10 @@ def bulk_vectorize_tickets():
             prompt_text = " | ".join(partes)
             
             # Llamar a Ollama
-            resp = requests.post(ollama_url, json={
+            resp = http_requests.post(ollama_url, json={
                 'model': 'mxbai-embed-large',
-                'prompt': prompt_text
-            }, timeout=30)
+                'prompt': f"Represent this document for retrieval: {prompt_text}"
+            }, timeout=15)
             
             if resp.status_code == 200:
                 embedding = resp.json().get('embedding')

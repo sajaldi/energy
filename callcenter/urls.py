@@ -24,6 +24,7 @@ urlpatterns = [
     path('ticket/<int:ticket_id>/assign-user/', views.assign_ticket_user_ajax, name='assign_ticket_user'),
     path('ticket/<int:ticket_id>/notify-n8n/', views.notify_ticket_n8n_ajax, name='notify_ticket_n8n'),
     path('cluster/<int:cluster_id>/create-ticket/', views.create_ticket_in_cluster_ajax, name='create_ticket_in_cluster'),
+    path('cluster/<int:cluster_id>/vectorizar-ia/', views.vectorize_cluster_tickets_ajax, name='vectorizar_ia_cluster'),
     path('api/search-tickets-autocomplete/', views.search_tickets_autocomplete_ajax, name='search_tickets_autocomplete'),
     path('ticket/<int:ticket_id>/restriccion-acceso/', views.create_restriccion_acceso_ajax, name='create_restriccion_acceso_ajax'),
     path('restriccion-acceso/<int:pk>/pdf/', views.export_restriccion_acceso_pdf, name='export_restriccion_acceso_pdf'),
@@ -51,3 +52,4 @@ urlpatterns = [
     path('api/cronograma-predefinido/<int:pk>/items/', views.api_get_cronograma_items_ajax, name='api_get_cronograma_items_ajax'),
     path('api/webhook/vector-update/', views.webhook_ticket_vector_callback, name='webhook_ticket_vector_callback'),
 ]
+

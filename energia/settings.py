@@ -121,6 +121,7 @@ N8N_METADATA_SYNC_WEBHOOK = os.environ.get('N8N_METADATA_SYNC_WEBHOOK', f'{N8N_B
 # Tickets (Callcenter)
 N8N_TICKET_VECTORIZER_URL = os.environ.get('N8N_TICKET_VECTORIZER_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}vectorize-ticket')
 N8N_TICKET_NOTIFY_URL = os.environ.get('N8N_TICKET_NOTIFY_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}ticket-notification')
+INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://181.115.47.107:8000')
 
 # Materiales e Inventarios
 N8N_SOLICITUD_WEBHOOK_URL = os.environ.get('N8N_SOLICITUD_WEBHOOK_URL', f'{N8N_BASE_URL}{N8N_WEBHOOK_ENV}solicitud-material')

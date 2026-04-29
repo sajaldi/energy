@@ -139,14 +139,35 @@
         align-items: center;
         padding: 4px 12px;
         border-radius: 16px;
-        font-size: 12px;
-        font-weight: 600;
+        font-size: 13px;
+        font-weight: 700;
         white-space: nowrap;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
-    .sim-high { background: #e6f4ea; color: #137333; }
-    .sim-medium { background: #fef7e0; color: #b06000; }
-    .sim-low { background: #fce8e6; color: #c5221f; }
+    .sim-high { background: #e6f4ea; color: #137333; border: 1px solid #ceead6; }
+    .sim-medium { background: #fef7e0; color: #b06000; border: 1px solid #feefc3; }
+    .sim-low { background: #fce8e6; color: #c5221f; border: 1px solid #fad2cf; }
+
+    .similarity-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+    }
+
+    .similarity-bar-bg {
+        width: 100px;
+        height: 6px;
+        background: #eee;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .similarity-bar-fill {
+        height: 100%;
+        transition: width 1s ease-out;
+    }
 
     .result-desc {
         font-size: 14px;
@@ -239,24 +260,33 @@
     {% for ticket in resultados %}
     <div class="result-card">
         <div class="result-header">
-            <a class="result-folio" href="/admin/callcenter/solicitudticket/{{ ticket.id|unlocalize }}/change/" target="_blank">
+            <a class="result-folio" href="/admin/callcenter/solicitudticket/{{ ticket.id_unlocalized }}/change/" target="_blank">
                 📋 {{ ticket.folio|default:ticket.id_solicitud }}
             </a>
-            {% with sim=ticket.distancia %}
-                {% if sim < 0.3 %}
-                <span class="similarity-badge sim-high">
-                    <i class="fas fa-bullseye"></i>&nbsp; {{ sim|floatformat:3 }} — Alta similitud
+            <div class="similarity-container">
+                {% if ticket.similitud >= 80 %}
+                <span class="similarity-badge sim-high" title="Relación muy fuerte">
+                    <i class="fas fa-bolt"></i>&nbsp; {{ ticket.similitud }}% Relación
                 </span>
-                {% elif sim < 0.6 %}
-                <span class="similarity-badge sim-medium">
-                    <i class="fas fa-dot-circle"></i>&nbsp; {{ sim|floatformat:3 }} — Media
+                <div class="similarity-bar-bg">
+                    <div class="similarity-bar-fill" style="width: {{ ticket.similitud }}%; background: #34a853;"></div>
+                </div>
+                {% elif ticket.similitud >= 50 %}
+                <span class="similarity-badge sim-medium" title="Relación moderada">
+                    <i class="fas fa-project-diagram"></i>&nbsp; {{ ticket.similitud }}% Relación
                 </span>
+                <div class="similarity-bar-bg">
+                    <div class="similarity-bar-fill" style="width: {{ ticket.similitud }}%; background: #fbbc04;"></div>
+                </div>
                 {% else %}
-                <span class="similarity-badge sim-low">
-                    <i class="fas fa-circle"></i>&nbsp; {{ sim|floatformat:3 }} — Baja
+                <span class="similarity-badge sim-low" title="Relación débil">
+                    <i class="fas fa-link"></i>&nbsp; {{ ticket.similitud }}% Relación
                 </span>
+                <div class="similarity-bar-bg">
+                    <div class="similarity-bar-fill" style="width: {{ ticket.similitud }}%; background: #ea4335;"></div>
+                </div>
                 {% endif %}
-            {% endwith %}
+            </div>
         </div>
 
         <div class="result-desc">
@@ -273,11 +303,7 @@
             {% if ticket.servicio %}
             <span><i class="fas fa-cogs"></i> {{ ticket.servicio }}{% if ticket.subservicio %} › {{ ticket.subservicio }}{% endif %}</span>
             {% endif %}
-            {% if ticket.ubicacion %}
-            <span><i class="fas fa-map-marker-alt"></i> {{ ticket.ubicacion.nombre }}</span>
-            {% elif ticket.nivel %}
-            <span><i class="fas fa-map-marker-alt"></i> {{ ticket.nivel }}{% if ticket.grupo %} / {{ ticket.grupo }}{% endif %}</span>
-            {% endif %}
+            <span><i class="fas fa-map-marker-alt"></i> {{ ticket.ubicacion_jerarquica }}</span>
             {% if ticket.fecha_solicitud %}
             <span><i class="far fa-calendar"></i> {{ ticket.fecha_solicitud|date:"d/M/Y" }}</span>
             {% endif %}

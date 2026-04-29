@@ -54,66 +54,426 @@
                 <span class="metric-value">{{ grupos.count }}</span>
                 <span class="metric-footer">Clusters de IA detectados</span>
             </div>
-        </div>
+        </div> <!-- CIERRE CORRECTO DE METRICS GRID -->
+        
+        <!-- High-End Search Section -->
+        <section class="search-experience">
+            <div class="search-card-pro">
+                <form id="dashboard-search-form" action="{% url 'callcenter:buscar_tickets' %}" method="GET">
+                    <div class="search-main-row">
+                        <!-- Left: Mode Selector -->
+                        <div class="search-mode-selector">
+                            <div class="mode-pill" id="mode-pill-ia" onclick="setSearchMode('ia')">
+                                <i class="ph ph-sparkle"></i> IA
+                            </div>
+                            <div class="mode-pill inactive" id="mode-pill-fixed" onclick="setSearchMode('fixed')">
+                                <i class="ph ph-funnel"></i> Filtros
+                            </div>
+                            <input type="hidden" id="search-mode-input" value="ia">
+                        </div>
 
-        <!-- Groups Section -->
-        <section class="groups-section">
-            <h2 class="section-title">
-                <i class="ph ph-selection-foreground"></i> Últimos Grupos de Tickets (Clusters)
-            </h2>
+                        <!-- Center: Input -->
+                        <div class="search-field-container">
+                            <input type="text" name="q" id="search-input-pro" 
+                                   placeholder="Describa el problema (Ej: Falla de energía en torre 1)..." 
+                                   autocomplete="off">
+                            <div class="search-shortcut">
+                                <span>Enter para buscar</span>
+                            </div>
+                        </div>
 
-            <div class="groups-grid">
+                        <!-- Right: Action -->
+                        <button type="submit" class="search-btn-pro">
+                            <i class="ph ph-magnifying-glass"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <style>
+            .search-experience {
+                margin: 20px 0 40px 0;
+                display: flex;
+                justify-content: center;
+            }
+            .search-card-pro {
+                width: 100%;
+                max-width: 1100px;
+                background: white;
+                padding: 12px;
+                border-radius: 50px; /* Estilo píldora moderna */
+                box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+                border: 1px solid #eef0f2;
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }
+            .search-card-pro:focus-within {
+                transform: translateY(-2px);
+                box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+            }
+            .search-main-row {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            
+            /* Mode Selector */
+            .search-mode-selector {
+                display: flex;
+                background: #f1f3f5;
+                padding: 4px;
+                border-radius: 40px;
+                gap: 4px;
+            }
+            .mode-pill {
+                padding: 8px 18px;
+                border-radius: 30px;
+                font-size: 0.85rem;
+                font-weight: 700;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: all 0.2s;
+                color: #495057;
+            }
+            .mode-pill i { font-size: 1.1rem; }
+            
+            #mode-pill-ia { background: var(--sap-primary); color: white; }
+            #mode-pill-ia.inactive { background: transparent; color: #495057; }
+            
+            #mode-pill-fixed { background: #343a40; color: white; }
+            #mode-pill-fixed.inactive { background: transparent; color: #495057; }
+            
+            .mode-pill:hover:not(.inactive) { opacity: 0.9; }
+            .mode-pill.inactive:hover { background: #e9ecef; }
+
+            /* Input Field */
+            .search-field-container {
+                flex: 1;
+                position: relative;
+                display: flex;
+                align-items: center;
+            }
+            #search-input-pro {
+                width: 100%;
+                border: none;
+                background: transparent;
+                padding: 12px 10px;
+                font-size: 1.1rem;
+                outline: none;
+                color: #212529;
+            }
+            #search-input-pro::placeholder {
+                color: #adb5bd;
+                font-weight: 400;
+            }
+            .search-shortcut {
+                position: absolute;
+                right: 15px;
+                background: #f8f9fa;
+                padding: 4px 10px;
+                border-radius: 6px;
+                font-size: 0.7rem;
+                color: #adb5bd;
+                border: 1px solid #dee2e6;
+                pointer-events: none;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            /* Search Button */
+            .search-btn-pro {
+                width: 54px;
+                height: 54px;
+                border-radius: 50%;
+                background: var(--sap-primary);
+                color: white;
+                border: none;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-size: 1.4rem;
+                box-shadow: 0 4px 12px rgba(26,115,232,0.3);
+            }
+            .search-btn-pro:hover {
+                transform: rotate(10deg) scale(1.05);
+                filter: brightness(1.1);
+            }
+        </style>
+
+        <script>
+            function setSearchMode(mode) {
+                const iaPill = document.getElementById('mode-pill-ia');
+                const fixedPill = document.getElementById('mode-pill-fixed');
+                const input = document.getElementById('search-input-pro');
+                const form = document.getElementById('dashboard-search-form');
+                const modeInput = document.getElementById('search-mode-input');
+                
+                modeInput.value = mode;
+                
+                if (mode === 'ia') {
+                    iaPill.classList.remove('inactive');
+                    fixedPill.classList.add('inactive');
+                    input.placeholder = "Describa el problema (Búsqueda inteligente IA)...";
+                    form.action = "{% url 'callcenter:buscar_tickets' %}";
+                } else {
+                    iaPill.classList.add('inactive');
+                    fixedPill.classList.remove('inactive');
+                    input.placeholder = "Buscar por Folio, Solicitante o Texto fijo...";
+                    form.action = "{% url 'admin:callcenter_solicitudticket_changelist' %}";
+                }
+            }
+        </script>
+
+        <!-- Premium Clusters Section -->
+        <section class="clusters-experience">
+            <div class="clusters-header">
+                <div class="title-with-badge">
+                    <h2 class="modern-title">Explorador de Inteligencia</h2>
+                    <span class="pulse-badge">Live IA</span>
+                </div>
+                <p class="modern-subtitle">Agrupaciones semánticas detectadas automáticamente por el motor vectorial.</p>
+            </div>
+
+            <div class="bento-clusters-grid">
                 {% for grupo in grupos %}
-                <div class="group-card" onclick="window.location.href='{% url 'callcenter:cluster_tickets' grupo.id|unlocalize %}'" style="cursor: pointer;">
-                    <div class="group-header">
-                        <span class="group-id">{{ grupo.correlativo }}</span>
-                        <span class="group-date">
-                            <i class="ph ph-calendar"></i> {{ grupo.fecha|date:"j M, Y" }}
-                        </span>
-                    </div>
-                    <div class="group-body">
-                        <div class="group-desc" title="{{ grupo.descripcion }}">
-                            {{ grupo.descripcion|truncatewords:20 }}
+                <div class="bento-panel" onclick="window.location.href='{% url 'callcenter:cluster_tickets' grupo.id|unlocalize %}'">
+                    <div class="panel-header">
+                        <div class="panel-id-group">
+                            <span class="id-tag">#{{ grupo.correlativo }}</span>
+                            <span class="date-tag">{{ grupo.fecha|date:"d M" }}</span>
                         </div>
-                        <div class="group-stats-visual">
-                            <div class="chart-container">
-                                <canvas class="cluster-chart" 
-                                        data-cerrados="{{ grupo.num_cerrados }}" 
-                                        data-abiertos="{{ grupo.num_abiertos }}"
-                                        id="chart-{{ grupo.id|unlocalize }}"></canvas>
-                            </div>
-                            <div class="chart-legend">
-                                <div class="legend-item">
-                                    <span class="dot closed"></span>
-                                    <span>Cerrados: <strong>{{ grupo.num_cerrados }}</strong></span>
-                                </div>
-                                <div class="legend-item">
-                                    <span class="dot open"></span>
-                                    <span>Abiertos: <strong>{{ grupo.num_abiertos }}</strong></span>
-                                </div>
-                                <div class="legend-item total">
-                                    <span>Total: <strong>{{ grupo.num_tickets }}</strong></span>
-                                </div>
-                            </div>
+                        <div class="panel-status-icon">
+                            <i class="ph ph-intersect-three"></i>
                         </div>
                     </div>
-                    <div class="group-footer">
-                        <span class="btn-view">
-                            Analizar Cluster <i class="ph ph-chart-pie-slice"></i>
-                        </span>
-                        <span class="btn-view" style="color: var(--sap-text-muted);">
-                            Detalles <i class="ph ph-caret-right"></i>
-                        </span>
+
+                    <div class="panel-body">
+                        <h3 class="panel-title" title="{{ grupo.descripcion }}">
+                            {{ grupo.descripcion|truncatewords:12 }}
+                        </h3>
+                        
+                        <!-- Mini Progress Bar -->
+                        <div class="panel-progress-wrapper">
+                            <div class="progress-info">
+                                <span>Progreso de Cierre</span>
+                                <strong>{% widthratio grupo.num_cerrados grupo.num_tickets 100 %}%</strong>
+                            </div>
+                            <div class="modern-progress-bg">
+                                <div class="modern-progress-fill" style="width: {% widthratio grupo.num_cerrados grupo.num_tickets 100 %}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="panel-stats-row">
+                            <div class="stat-item">
+                                <span class="stat-val">{{ grupo.num_tickets }}</span>
+                                <span class="stat-lbl">Tickets</span>
+                            </div>
+                            <div class="stat-item active">
+                                <span class="stat-val">{{ grupo.num_abiertos }}</span>
+                                <span class="stat-lbl">Abiertos</span>
+                            </div>
+                            <div class="stat-item completed">
+                                <span class="stat-val">{{ grupo.num_cerrados }}</span>
+                                <span class="stat-lbl">Cerrados</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-footer">
+                        <span>Ver Análisis <i class="ph ph-arrow-up-right"></i></span>
                     </div>
                 </div>
                 {% empty %}
-                <div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 5rem; background: white; border-radius: 1rem; border: 2px dashed var(--sap-border);">
-                    <i class="ph ph-ghost" style="font-size: 3rem; color: var(--sap-text-muted); opacity: 0.5;"></i>
-                    <p style="color: var(--sap-text-muted); margin-top: 1rem;">No se han generado grupos de tickets todavía.</p>
+                <div class="empty-clusters">
+                    <i class="ph ph-brain"></i>
+                    <p>No hay clusters analizados todavía.</p>
                 </div>
                 {% endfor %}
             </div>
         </section>
+
+        <style>
+            .clusters-experience {
+                margin-top: 40px;
+            }
+            .modern-title {
+                font-size: 1.8rem;
+                font-weight: 800;
+                color: #1a1f36;
+                margin: 0;
+            }
+            .modern-subtitle {
+                color: #697386;
+                margin-top: 4px;
+                font-size: 0.95rem;
+            }
+            .title-with-badge {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .pulse-badge {
+                background: #e3e8ff;
+                color: #5469d4;
+                padding: 4px 10px;
+                border-radius: 6px;
+                font-size: 0.7rem;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                animation: pulse-soft 2s infinite;
+            }
+            @keyframes pulse-soft {
+                0% { box-shadow: 0 0 0 0 rgba(84, 105, 212, 0.4); }
+                70% { box-shadow: 0 0 0 6px rgba(84, 105, 212, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(84, 105, 212, 0); }
+            }
+
+            .bento-clusters-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: 20px;
+                margin-top: 24px;
+            }
+
+            .bento-panel {
+                background: white;
+                border-radius: 20px;
+                padding: 24px;
+                border: 1px solid #eef0f2;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+                cursor: pointer;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                min-height: 280px;
+                position: relative;
+                overflow: hidden;
+            }
+            .bento-panel::before {
+                content: '';
+                position: absolute;
+                top: 0; left: 0; width: 4px; height: 100%;
+                background: var(--sap-primary);
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+            .bento-panel:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+                border-color: var(--sap-primary);
+            }
+            .bento-panel:hover::before { opacity: 1; }
+
+            .panel-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 20px;
+            }
+            .id-tag {
+                background: #f1f3f5;
+                color: #495057;
+                padding: 4px 10px;
+                border-radius: 8px;
+                font-family: 'Monaco', monospace;
+                font-weight: 700;
+                font-size: 0.8rem;
+            }
+            .date-tag {
+                color: #adb5bd;
+                font-size: 0.8rem;
+                margin-left: 8px;
+            }
+            .panel-status-icon {
+                width: 32px;
+                height: 32px;
+                background: #f8f9fa;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #5469d4;
+            }
+
+            .panel-title {
+                font-size: 1.15rem;
+                font-weight: 700;
+                color: #1a1f36;
+                margin: 0 0 16px 0;
+                line-height: 1.4;
+            }
+
+            /* Progress Bar */
+            .panel-progress-wrapper {
+                margin-bottom: 20px;
+            }
+            .progress-info {
+                display: flex;
+                justify-content: space-between;
+                font-size: 0.75rem;
+                color: #697386;
+                margin-bottom: 6px;
+            }
+            .modern-progress-bg {
+                height: 8px;
+                background: #f1f3f5;
+                border-radius: 4px;
+                overflow: hidden;
+            }
+            .modern-progress-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #5469d4, #a0acff);
+                border-radius: 4px;
+            }
+
+            .panel-stats-row {
+                display: flex;
+                gap: 16px;
+                padding-top: 16px;
+                border-top: 1px solid #f1f3f5;
+            }
+            .stat-item {
+                display: flex;
+                flex-direction: column;
+            }
+            .stat-val {
+                font-weight: 800;
+                color: #1a1f36;
+                font-size: 1.1rem;
+            }
+            .stat-lbl {
+                font-size: 0.7rem;
+                color: #697386;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .stat-item.active .stat-val { color: #e9730c; }
+            .stat-item.completed .stat-val { color: #28a745; }
+
+            .panel-footer {
+                margin-top: 24px;
+                font-size: 0.85rem;
+                font-weight: 700;
+                color: var(--sap-primary);
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            
+            .empty-clusters {
+                grid-column: 1/-1;
+                text-align: center;
+                padding: 100px;
+                color: #adb5bd;
+            }
+            .empty-clusters i { font-size: 4rem; margin-bottom: 16px; opacity: 0.3; }
+        </style>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

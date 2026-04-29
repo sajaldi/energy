@@ -105,6 +105,7 @@
         }
         .btn-excel { background: #1d6f42 !important; border-color: #1d6f42 !important; color: white !important; }
         .btn-pdf { background: #bb0000 !important; border-color: #bb0000 !important; color: white !important; }
+        .btn-ai { background: #6c5ce7 !important; border-color: #a29bfe !important; color: white !important; }
     </style>
 </head>
 <body>
@@ -161,22 +162,48 @@
 
                 <div class="spacer"></div>
 
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <form method="get" class="search-form" style="display: flex; gap: 0px; position: relative;">
-                        {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
+                <div style="display: flex; gap: 1rem; align-items: center; background: #f8f9fa; padding: 10px 15px; border-radius: 12px; border: 1px solid #eee;">
+                    <form method="get" id="filter-form" style="display: flex; gap: 12px; align-items: center; width: 100%;">
                         {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
-                        <input type="text" name="q" value="{{ q }}" placeholder="Buscar por folio..." style="padding: 0 2.5rem 0 1rem; height: 2.25rem; border: 1px solid var(--sap-border); border-radius: var(--sap-radius); font-size: 0.875rem; width: 250px; outline: none;">
-                        <button type="submit" style="position: absolute; right: 0; top: 0; bottom: 0; width: 2.5rem; border: none; background: transparent; cursor: pointer; color: var(--sap-text-muted);">
-                            <i class="ph ph-magnifying-glass"></i>
-                        </button>
+                        
+                        <!-- Search Box -->
+                        <div style="position: relative; flex-grow: 1;">
+                            <i class="ph ph-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #999;"></i>
+                            <input type="text" name="q" value="{{ q }}" placeholder="Folio o solicitante..." 
+                                   style="padding: 0 12px 0 35px; height: 38px; border: 1px solid var(--sap-border); border-radius: 8px; font-size: 0.875rem; width: 100%; outline: none; background: white;">
+                        </div>
+
+                        <!-- Status Filter -->
+                        <select name="status" onchange="this.form.submit()" style="height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444;">
+                            <option value="">Todos los Estados</option>
+                            <option value="abiertos" {% if request.GET.status == 'abiertos' %}selected{% endif %}>🟢 Solo Abiertos</option>
+                            <option value="cerrados" {% if request.GET.status == 'cerrados' %}selected{% endif %}>🔴 Solo Cerrados</option>
+                        </select>
+
+                        <!-- Falla Filter -->
+                        <select name="falla" onchange="this.form.submit()" style="height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sap-border); background: white; font-size: 0.875rem; color: #444; max-width: 250px;">
+                            <option value="">Todas las Fallas</option>
+                            {% for f in fallas_opciones %}
+                                <option value="{{ f.id }}" {% if request.GET.falla == f.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ f.nombre_completo|default:f.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <!-- Buttons -->
+                        <div style="display: flex; gap: 8px;">
+                            <button type="submit" class="btn-fiori primary" style="height: 38px;">Filtrar</button>
+                            <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-excel" style="height: 38px; display: flex; align-items: center;">
+                                <i class="ph ph-file-xls"></i>
+                            </a>
+                            <a href="?export=pdf{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-pdf" style="height: 38px; display: flex; align-items: center;">
+                                <i class="ph ph-file-pdf"></i>
+                            </a>
+                            <button type="button" onclick="vectorizeClusterIA()" class="btn-fiori btn-ai" style="height: 38px; display: flex; align-items: center;">
+                                <i class="ph ph-brain"></i>
+                            </button>
+                        </div>
                     </form>
-                    
-                    <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-excel" title="Exportar a Excel">
-                        <i class="ph ph-file-xls"></i> Excel
-                    </a>
-                    <a href="?export=pdf{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-pdf" title="Exportar a PDF">
-                        <i class="ph ph-file-pdf"></i> PDF
-                    </a>
                 </div>
             </div>
         </div>
@@ -188,10 +215,10 @@
                         <th>Folio / ID</th>
                         <th>Solicitante</th>
                         <th>Ubicación</th>
-                        <th>Responsable Solicitud</th>
+                        <th>Clasificación de Falla</th>
                         <th>Técnico Asignado</th>
-                        <th>Descripción de Solicitud</th>
-                        <th>Fecha Solicitud</th>
+                        <th>Descripción</th>
+                        <th>Fecha</th>
                         <th style="cursor: pointer; white-space: nowrap; color: var(--sap-primary);" onclick="applySort('estado')">
                             Estado 
                             {% if request.GET.sort == 'estado' %}<i class="ph ph-caret-up"></i>{% elif request.GET.sort == '-estado' %}<i class="ph ph-caret-down"></i>{% endif %}
@@ -201,36 +228,31 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% regroup tickets by falla_reportada.nombre_completo as grouped_tickets %}
-                    {% for group in grouped_tickets %}
-                    <tr class="group-header" 
-                        onclick="toggleGroup(this)" 
-                        data-group-id="group-{{ forloop.index }}"
-                        style="background: #f1f3f4; cursor: pointer;">
-                        <td colspan="9" style="font-weight: 700; padding: 0.8rem 1.25rem !important; border-top: 1px solid #dee2e6 !important; border-bottom: 1px solid #dee2e6 !important; box-shadow: inset 5px 0 0 var(--sap-primary);">
-                            <i class="ph ph-caret-right caret-icon" style="margin-right: 8px; transition: transform 0.2s;"></i>
-                            {{ group.grouper|default:"Sin Clasificar" }} 
-                            <span style="font-weight: 400; color: var(--sap-text-muted); margin-left: 10px;">({{ group.list|length }} tickets)</span>
-                        </td>
-                    </tr>
-                    {% for t in group.list %}
-                    <tr class="group-row group-{{ forloop.parentloop.index }}" style="display: none;">
-                        <td style="font-weight: 700; padding-left: 2.5rem;">
-                            <a href="#" class="ticket-detail-link" data-id="{{ t.id|unlocalize }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
+                    {% for t in tickets %}
+                    <tr class="ticket-row">
+                        <td style="font-weight: 700;">
+                            <a href="#" class="ticket-detail-link" data-id="{{ t.id_unlocalized }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
                                 {{ t.folio|default:t.id_solicitud }}
                             </a>
+                            {% if t.embedding is not None %}
+                                <i class="ph ph-brain" style="color: #6c5ce7; font-size: 0.9rem; margin-left: 4px;" title="Vectorizado por IA"></i>
+                            {% endif %}
                         </td>
                         <td>{{ t.solicitante|default:"-" }}</td>
                         <td style="font-size: 0.8rem; color: var(--sap-text-muted); max-width: 150px;" title="{{ t.ubicacion_jerarquica }}">
                             {{ t.ubicacion_jerarquica|truncatechars:100 }}
                         </td>
-                        <td style="color: var(--sap-text-muted); font-size: 0.85rem;">{{ t.responsable|default:"-" }}</td>
                         <td>
-                            <a href="#" class="assign-user-link" data-id="{{ t.id|unlocalize }}" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 0.85rem; color: #555; font-weight: 500;">
+                                {{ t.falla_reportada.nombre_completo|default:"Sin Clasificar" }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="#" class="assign-user-link" data-id="{{ t.id_unlocalized }}" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
                             {% if t.usuario_responsable_id %}
-                                <span id="user-label-{{ t.id|unlocalize }}" style="font-weight: 600; color: var(--sap-primary);">{{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}</span>
+                                <span id="user-label-{{ t.id_unlocalized }}" style="font-weight: 600; color: var(--sap-primary);">{{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}</span>
                             {% else %}
-                                <span id="user-label-{{ t.id|unlocalize }}" style="color: var(--sap-label); font-style: italic;"><i class="ph ph-user-plus"></i> Sin asignar</span>
+                                <span id="user-label-{{ t.id_unlocalized }}" style="color: var(--sap-label); font-style: italic;"><i class="ph ph-user-plus"></i> Sin asignar</span>
                             {% endif %}
                             </a>
                         </td>
@@ -244,15 +266,14 @@
                             {% endif %}
                         </td>
                         <td style="display: flex; gap: 0.4rem; align-items: center;">
-                            <a href="{% url 'callcenter:ticket_cierre_visual' t.id|unlocalize %}" class="btn-fiori ghost" title="Cerrar Ticket" style="padding: 0; width: 2rem; height: 2rem;">
+                            <a href="{% url 'callcenter:ticket_cierre_visual' t.id_unlocalized %}" class="btn-fiori ghost" title="Cerrar Ticket" style="padding: 0; width: 2rem; height: 2rem;">
                                 <i class="ph ph-pencil-simple" style="font-size: 1.1rem;"></i>
                             </a>
-                            <button class="btn-fiori ghost notify-n8n-btn" data-id="{{ t.id|unlocalize }}" title="Notificar a Técnico" style="padding: 0; width: 2rem; height: 2rem; color: var(--sap-warning);">
+                            <button class="btn-fiori ghost notify-n8n-btn" data-id="{{ t.id_unlocalized }}" title="Notificar a Técnico" style="padding: 0; width: 2rem; height: 2rem; color: var(--sap-warning);">
                                 <i class="ph ph-bell" style="font-size: 1.1rem;"></i>
                             </button>
                         </td>
                     </tr>
-                    {% endfor %}
                     {% empty %}
                     <tr>
                         <td colspan="9" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
@@ -567,6 +588,48 @@
             const newSort = currentSort === field ? `-${field}` : field;
             urlParams.set('sort', newSort);
             window.location.href = "?" + urlParams.toString();
+        }
+
+        async function vectorizeClusterIA() {
+            const { isConfirmed } = await Swal.fire({
+                title: '¿Vectorizar tickets del cluster?',
+                text: "Se enviarán todos los tickets a n8n para actualizar sus vectores. Esto es útil para incluir información de cierre nueva.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#6c5ce7',
+                confirmButtonText: 'Sí, Vectorizar todo',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (isConfirmed) {
+                try {
+                    Swal.fire({ 
+                        title: 'Procesando en segundo plano...', 
+                        text: 'Esto puede tardar unos minutos en reflejarse.',
+                        allowOutsideClick: false, 
+                        didOpen: () => Swal.showLoading() 
+                    });
+
+                    const res = await fetch("{% url 'callcenter:vectorizar_ia_cluster' cluster.id|unlocalize %}", {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        Swal.fire({ 
+                            icon: 'success', 
+                            title: '¡Enviado!', 
+                            text: data.message,
+                            footer: 'Los vectores se actualizarán conforme n8n termine el proceso.'
+                        });
+                    } else {
+                        Swal.fire('Error', data.error || 'No se pudo iniciar el proceso', 'error');
+                    }
+                } catch (e) {
+                    Swal.fire('Error', 'Error de red al conectar con el servidor', 'error');
+                }
+            }
         }
     </script>
 </body>
