@@ -16,6 +16,7 @@ urlpatterns = [
     path('dashboard/cluster/<str:cluster_id>/', views.cluster_tickets_view, name='cluster_tickets'),
     path('ticket/<str:ticket_id>/cierre-visual/', views.ticket_cierre_visual_view, name='ticket_cierre_visual'),
     path('ticket/<str:ticket_id>/upload-evidencia/', views.upload_evidencia_ajax, name='upload_evidencia_visual'),
+    path('evidencia/<int:evidencia_id>/analizar-ia/', views.analyze_evidence_ai_ajax, name='analyze_evidence_ia'),
     path('ticket/<str:ticket_id>/delete-evidencia/<int:evidencia_id>/', views.delete_evidencia_ajax, name='delete_evidencia_visual'),
     path('update-descripcion-evidencia/<int:evidence_id>/', views.update_evidencia_descripcion_ajax, name='update_evidencia_descripcion_ajax'),
     path('search-activos/', views.search_activos_ajax, name='search_activos_ajax'),

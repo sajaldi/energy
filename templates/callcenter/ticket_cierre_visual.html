@@ -466,8 +466,12 @@
                         </div>
                     </div>
                     {% elif not ev.archivo.url|lower|slice:"-4:" == ".mp4" and not ev.archivo.url|lower|slice:"-5:" == ".webm" %}
-                    <div style="font-size: 9px; color: var(--sap-label); margin-top: 8px; font-style: italic; display: flex; align-items: center; gap: 4px; padding-left: 4px;">
-                        <i class="ph ph-hourglass-low"></i> Analizando imagen...
+                    <div id="ai-status-{{ ev.id }}" style="margin-top: 8px;">
+                        <button type="button" class="btn-fiori secondary" 
+                                style="font-size: 10px; padding: 4px 8px; width: 100%; justify-content: center;"
+                                onclick="analyzeIA('{{ ev.id }}')">
+                            <i class="ph ph-sparkle"></i> Analizar con IA
+                        </button>
                     </div>
                     {% endif %}
                 </div>
@@ -822,6 +826,35 @@
             }
         } catch (e) {
             Swal.fire({ icon: 'error', title: 'Error al vincular activo' });
+        }
+    }
+
+    async function analyzeIA(evidenciadId) {
+        const statusDiv = document.getElementById(`ai-status-${evidenciadId}`);
+        statusDiv.innerHTML = `<div style="font-size: 9px; color: var(--sap-label); font-style: italic; display: flex; align-items: center; gap: 4px; justify-content: center; padding: 6px;">
+                                    <i class="ph ph-hourglass-low ph-spin"></i> Procesando...
+                               </div>`;
+        
+        try {
+            const resp = await fetch(`../../evidencia/${evidenciadId}/analizar-ia/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            if (resp.ok) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Análisis iniciado',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+                // Recargar después de 8 segundos para ver resultados
+                setTimeout(() => location.reload(), 8000); 
+            }
+        } catch (e) {
+            console.error("Error al solicitar análisis IA", e);
+            statusDiv.innerHTML = `<div style="font-size: 9px; color: var(--sap-red); font-style: italic; text-align: center;">Error al iniciar</div>`;
         }
     }
 </script>
