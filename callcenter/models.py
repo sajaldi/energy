@@ -238,6 +238,7 @@ class EvidenciaTicket(models.Model):
     )
     analizada = models.BooleanField(
         default=False, 
+        null=True,
         verbose_name="Analizada por IA"
     )
     fecha_carga = models.DateTimeField(auto_now_add=True)

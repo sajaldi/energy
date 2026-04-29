@@ -522,7 +522,8 @@ def upload_evidencia_ajax(request, ticket_id):
         for f in files:
             evidencia = EvidenciaTicket.objects.create(
                 ticket=ticket, 
-                descripcion=f"Foto Evidencia {datetime.now().strftime('%H:%M')}"
+                descripcion=f"Foto Evidencia {datetime.now().strftime('%H:%M')}",
+                analizada=False
             )
             # Extraer extensión y generar nombre único
             ext = f.name.split('.')[-1] if '.' in f.name else 'jpg'
