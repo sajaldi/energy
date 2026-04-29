@@ -78,7 +78,8 @@ def import_tickets_from_df(df):
     # no permitimos que el robot los sobrescriba con valores vacíos (None/NaN).
     protected_fields = [
         'diagnostico', 'actividades', 'observaciones', 'fecha_cierre',
-        'fecha_diagnostico', 'fecha_actividades', 'fecha_observaciones'
+        'fecha_diagnostico', 'fecha_actividades', 'fecha_observaciones',
+        'correo_cierre', 'cierre_enviado'
     ]
 
     for _, row in df.iterrows():
