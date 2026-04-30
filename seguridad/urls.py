@@ -4,6 +4,7 @@ from . import views
 app_name = 'seguridad'
 
 urlpatterns = [
+    path('dashboard/', views.dashboard_view, name='dashboard'),
     path('permiso/generar/ot/<int:ot_id>/', views.generar_permiso_de_ot, name='generar_permiso_ot'),
     path('permiso/<int:permiso_id>/', views.detalle_permiso_view, name='detalle_permiso'),
     

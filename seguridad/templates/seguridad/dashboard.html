@@ -1,0 +1,438 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static humanize %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    :root {
+        --security-bg: #020617;
+        --security-card: rgba(15, 23, 42, 0.8);
+        --security-primary: #22C55E; /* Neon Green */
+        --security-danger: #EF4444; /* Neon Red */
+        --security-warning: #EAB308; /* Neon Yellow */
+        --security-info: #3b82f6;
+        --security-text: #F8FAFC;
+        --security-text-muted: #94A3B8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+    }
+
+    body {
+        font-family: 'Outfit', sans-serif !important;
+        background-color: var(--security-bg) !important;
+        color: var(--security-text) !important;
+        margin: 0;
+    }
+
+    /* Override Django Admin styles for full immersion */
+    #content { background: transparent !important; padding: 0 !important; }
+    .content-wrapper, .main-content { max-width: none !important; }
+    
+    .security-dashboard {
+        padding: 30px;
+        min-height: 100vh;
+        background: radial-gradient(circle at 10% 10%, rgba(34, 197, 94, 0.05) 0%, transparent 40%),
+                    radial-gradient(circle at 90% 90%, rgba(239, 68, 68, 0.05) 0%, transparent 40%);
+    }
+
+    /* Header Section */
+    .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+    }
+
+    .header-title h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: -1px;
+        color: var(--security-primary);
+        text-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+    }
+
+    .header-title p {
+        color: var(--security-text-muted);
+        margin: 5px 0 0 0;
+        font-size: 1.1rem;
+    }
+
+    /* KPI Cards */
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .kpi-card {
+        background: var(--security-card);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 2px;
+        background: linear-gradient(90deg, transparent, var(--card-color, var(--security-primary)), transparent);
+        opacity: 0.5;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--card-color, var(--security-primary));
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    .kpi-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--card-color, var(--security-primary));
+    }
+
+    .kpi-data h3 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .kpi-data p {
+        margin: 5px 0 0 0;
+        color: var(--security-text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 700;
+    }
+
+    /* Main Grid */
+    .main-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 25px;
+    }
+
+    @media (max-width: 1100px) {
+        .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .dashboard-panel {
+        background: var(--security-card);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 25px;
+    }
+
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .panel-header h2 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Activity List */
+    .activity-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .activity-item {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        border-left: 4px solid var(--item-color, var(--security-info));
+        transition: transform 0.2s;
+    }
+
+    .activity-item:hover {
+        transform: translateX(5px);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .activity-info { flex: 1; }
+    .activity-info h4 { margin: 0; font-size: 1rem; font-weight: 600; }
+    .activity-info p { margin: 2px 0 0 0; color: var(--security-text-muted); font-size: 0.8rem; }
+    
+    .activity-meta { text-align: right; }
+    .activity-status {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        background: rgba(255, 255, 255, 0.1);
+        text-transform: uppercase;
+    }
+
+    /* Charts Container */
+    .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    @media (max-width: 600px) { .charts-grid { grid-template-columns: 1fr; } }
+
+    .chart-container {
+        position: relative;
+        height: 250px;
+        width: 100%;
+    }
+
+    /* Buttons */
+    .btn-cyber {
+        background: var(--security-primary);
+        color: var(--security-bg) !important;
+        font-weight: 800;
+        padding: 10px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+        transition: all 0.2s;
+    }
+
+    .btn-cyber:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 25px rgba(34, 197, 94, 0.5);
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="security-dashboard">
+    <!-- Header -->
+    <div class="header-section">
+        <div class="header-title">
+            <h1>{% trans "CENTRAL DE SEGURIDAD" %}</h1>
+            <p>{% trans "Monitorización preventiva y gestión de riesgos" %}</p>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'admin:seguridad_incidente_add' %}" class="btn-cyber">
+                <ion-icon name="shield-alert-outline"></ion-icon>
+                {% trans "Reportar Incidente" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+        <div class="kpi-card" style="--card-color: var(--security-danger);">
+            <div class="kpi-icon">
+                <ion-icon name="warning-outline"></ion-icon>
+            </div>
+            <div class="kpi-data">
+                <h3>{{ total_incidentes_abiertos }}</h3>
+                <p>{% trans "Incidentes Abiertos" %}</p>
+            </div>
+        </div>
+        <div class="kpi-card" style="--card-color: var(--security-warning);">
+            <div class="kpi-icon">
+                <ion-icon name="document-text-outline"></ion-icon>
+            </div>
+            <div class="kpi-data">
+                <h3>{{ total_permisos_activos }}</h3>
+                <p>{% trans "Permisos Activos" %}</p>
+            </div>
+        </div>
+        <div class="kpi-card" style="--card-color: var(--security-primary);">
+            <div class="kpi-icon">
+                <ion-icon name="eye-outline"></ion-icon>
+            </div>
+            <div class="kpi-data">
+                <h3>{{ inspecciones_mes }}</h3>
+                <p>{% trans "Inspecciones / Mes" %}</p>
+            </div>
+        </div>
+        <div class="kpi-card" style="--card-color: var(--security-info);">
+            <div class="kpi-icon">
+                <ion-icon name="cube-outline"></ion-icon>
+            </div>
+            <div class="kpi-data">
+                <h3>{{ confiscaciones_activas }}</h3>
+                <p>{% trans "Lotes en Tránsito" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="main-grid">
+        <!-- Left Panel: Statistics & Charts -->
+        <div class="dashboard-panel">
+            <div class="panel-header">
+                <h2><ion-icon name="stats-chart-outline"></ion-icon> {% trans "Métricas de Control" %}</h2>
+            </div>
+            
+            <div class="charts-grid">
+                <div>
+                    <h4 style="margin-bottom: 15px; color: var(--security-text-muted); font-size: 0.9rem; text-align: center;">
+                        {% trans "Severidad de Incidentes" %}
+                    </h4>
+                    <div class="chart-container">
+                        <canvas id="incidentChart"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h4 style="margin-bottom: 15px; color: var(--security-text-muted); font-size: 0.9rem; text-align: center;">
+                        {% trans "Estado de Permisos (PTW)" %}
+                    </h4>
+                    <div class="chart-container">
+                        <canvas id="permitChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div style="margin-top: 40px;">
+                <div class="panel-header">
+                    <h2><ion-icon name="rocket-outline"></ion-icon> {% trans "Acciones Rápidas" %}</h2>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">
+                    <a href="{% url 'seguridad:tipo_permiso_dashboard' %}" class="activity-item" style="--item-color: var(--security-primary); text-decoration: none; text-align: center; display: block;">
+                        <ion-icon name="settings-outline" style="font-size: 1.5rem;"></ion-icon>
+                        <div style="font-weight: 700; margin-top: 5px;">{% trans "Configurar PTW" %}</div>
+                    </a>
+                    <a href="{% url 'admin:seguridad_inspeccion_add' %}" class="activity-item" style="--item-color: var(--security-info); text-decoration: none; text-align: center; display: block;">
+                        <ion-icon name="clipboard-outline" style="font-size: 1.5rem;"></ion-icon>
+                        <div style="font-weight: 700; margin-top: 5px;">{% trans "Nueva Inspección" %}</div>
+                    </a>
+                    <a href="{% url 'admin:seguridad_asignacionepp_changelist' %}" class="activity-item" style="--item-color: var(--security-warning); text-decoration: none; text-align: center; display: block;">
+                        <ion-icon name="shirt-outline" style="font-size: 1.5rem;"></ion-icon>
+                        <div style="font-weight: 700; margin-top: 5px;">{% trans "Control EPP" %}</div>
+                    </a>
+                    <a href="{% url 'seguridad:mobile_confiscaciones_lista' %}" class="activity-item" style="--item-color: var(--security-danger); text-decoration: none; text-align: center; display: block;">
+                        <ion-icon name="archive-outline" style="font-size: 1.5rem;"></ion-icon>
+                        <div style="font-weight: 700; margin-top: 5px;">{% trans "Confiscaciones" %}</div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Activity Feed -->
+        <div class="dashboard-panel">
+            <div class="panel-header">
+                <h2><ion-icon name="flash-outline"></ion-icon> {% trans "Actividad Reciente" %}</h2>
+            </div>
+            
+            <div class="activity-list">
+                {% for act in activity %}
+                <div class="activity-item" style="--item-color: var(--security-{{ act.color }});">
+                    <div class="activity-info">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 0.7rem; font-weight: 800; color: var(--security-{{ act.color }});">
+                                {{ act.tipo }}
+                            </span>
+                        </div>
+                        <h4>{{ act.titulo }}</h4>
+                        <p>{{ act.usuario.get_full_name|default:act.usuario.username }} | {{ act.fecha|naturaltime }}</p>
+                    </div>
+                    <div class="activity-meta">
+                        <span class="activity-status">{{ act.estado }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <div style="text-align: center; padding: 40px; color: var(--security-text-muted);">
+                    <ion-icon name="notifications-off-outline" style="font-size: 3rem; opacity: 0.2;"></ion-icon>
+                    <p>{% trans "Sin actividad reciente registrada" %}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Data from Django
+        const sevData = {{ chart_severidad|safe }};
+        const perData = {{ chart_permisos|safe }};
+
+        // Incident Chart
+        new Chart(document.getElementById('incidentChart'), {
+            type: 'doughnut',
+            data: {
+                labels: sevData.labels,
+                datasets: [{
+                    data: sevData.data,
+                    backgroundColor: sevData.colors,
+                    borderColor: 'rgba(2, 6, 23, 0.8)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94A3B8', font: { family: 'Outfit' } } }
+                },
+                cutout: '70%'
+            }
+        });
+
+        // Permit Chart
+        new Chart(document.getElementById('permitChart'), {
+            type: 'bar',
+            data: {
+                labels: perData.labels,
+                datasets: [{
+                    label: '{% trans "Permisos" %}',
+                    data: perData.data,
+                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#94A3B8' }, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

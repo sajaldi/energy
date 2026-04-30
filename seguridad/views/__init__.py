@@ -1,4 +1,4 @@
-from .web import generar_permiso_de_ot, detalle_permiso_view
+from .web import generar_permiso_de_ot, detalle_permiso_view, dashboard_view
 from .mobile import (
     mobile_mis_permisos, mobile_permiso_detalle, mobile_generar_permiso,
     mobile_confiscaciones_lista, mobile_confiscacion_nueva, mobile_confiscacion_ejecutar,
