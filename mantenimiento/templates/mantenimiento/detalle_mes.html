@@ -966,8 +966,8 @@
 
     <script>
         let pendingMoves = null; // {ids, date}
-        const currentYear = {{ year }};
-        const currentMonth = {{ month }};
+        const currentYear = {{ year|unlocalize }};
+        const currentMonth = {{ month|unlocalize }};
 
         // Persistencia del árbol
         document.addEventListener('DOMContentLoaded', () => {
@@ -1019,7 +1019,7 @@
         function expandAll() {
             const levels = ['row-sub', 'row-rut', 'row-ubi', 'row-cat', 'row-asset'];
             let expandedRows = [];
-            document.querySelectorAll('.row-sys, .row-sub, .row-rut, .row-ubi').forEach(row => {
+            document.querySelectorAll('.row-sys, .row-sub, .row-rut, .row-ubi, .row-cat').forEach(row => {
                 row.classList.add('open');
                 if (row.id) expandedRows.push(row.id);
             });
@@ -1035,7 +1035,7 @@
             levels.forEach(cls => {
                 document.querySelectorAll('.' + cls).forEach(row => row.classList.remove('visible'));
             });
-            document.querySelectorAll('.row-sys, .row-sub, .row-rut, .row-ubi').forEach(row => {
+            document.querySelectorAll('.row-sys, .row-sub, .row-rut, .row-ubi, .row-cat').forEach(row => {
                 row.classList.remove('open');
             });
         }
@@ -1062,12 +1062,12 @@
 
         function exportToPDF() {
             // Expandir todos los niveles
-            const levels = ['row-sub', 'row-rut', 'row-ubi', 'row-asset'];
+            const levels = ['row-sub', 'row-rut', 'row-ubi', 'row-cat', 'row-asset'];
             levels.forEach(cls => {
                 document.querySelectorAll('.' + cls).forEach(row => row.classList.add('visible'));
             });
 
-            const toggles = document.querySelectorAll('.row-sys, .row-sub, .row-rut, .row-ubi');
+            const toggles = document.querySelectorAll('.row-sys, .row-sub, .row-rut, .row-ubi, .row-cat');
             toggles.forEach(row => row.classList.add('open'));
 
             setTimeout(() => {
