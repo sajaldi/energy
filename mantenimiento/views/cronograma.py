@@ -319,6 +319,16 @@ def detalle_mes(request, year, month):
     ubi_ids = parse_ids('ubicacion_id')
     tipo_ids = parse_ids('tipo_id')
 
+    # Si se filtra por una categoría raíz (desde el General), pre-filtrar por ese Tipo ID
+    if filter_q and filter_q != 'TODOS' and not tipo_ids:
+        try:
+            root_cat = Tipo.objects.filter(nombre=filter_q, padre__isnull=True).first()
+            if root_cat: tipo_ids = [root_cat.id]
+        except: pass
+
+    # Detectar Modo Resumen (General)
+    is_summary = not (tipo_ids or ubi_ids or programacion_id) and filter_q != 'TODOS'
+
     # Crear cache key basado en parámetros
     cache_params = {
         'year': year,
@@ -435,8 +445,13 @@ def detalle_mes(request, year, month):
             if c.padre_id: c.padre = categs.get(c.padre_id)
             
         # Structure: Tree[Sys][Sub][Rut][Ubi][AssetCat][AssetKey][Day] -> List of OTs
-        tree_dict = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(list)))))))
-        system_colors = {}
+        if is_summary:
+            # Modo Ultra-Rápido: Solo rastrear días activos por Sistema Raíz
+            summary_tree = collections.defaultdict(lambda: collections.defaultdict(bool))
+            system_colors = {}
+        else:
+            tree_dict = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(list)))))))
+            system_colors = {}
 
         def add_to_tree_common(ot_dict, rut, ubi, assets, prog_color, day_key):
             tipo = rut.tipo if rut else None
@@ -451,6 +466,10 @@ def detalle_mes(request, year, month):
                 sub_name = "General"
                 system_colors[sys_name] = '#64748b'
             
+            if is_summary:
+                summary_tree[sys_name][day_key] = True
+                return
+
             asset_key = (assets[0].id, assets[0].nombre) if assets else (None, "General")
             asset_cat = assets[0].modelo.categoria.nombre if (assets and assets[0].modelo and assets[0].modelo.categoria) else "General"
             rut_key = (rut.nombre, rut.frecuencia.nombre) if rut and rut.frecuencia else (rut.nombre if rut else "OT Sin Rutina", "")
@@ -500,30 +519,39 @@ def detalle_mes(request, year, month):
 
         # Convert to list structure
         tree = []
-        for sys in sorted(tree_dict.keys()):
-            subs = []; sda = collections.defaultdict(bool)
-            for sub in sorted(tree_dict[sys].keys()):
-                ruts = []; subda = collections.defaultdict(bool)
-                for rut_key in sorted(tree_dict[sys][sub].keys()):
-                    ubis = []; rda = collections.defaultdict(bool)
-                    for ubi in sorted(tree_dict[sys][sub][rut_key].keys()):
-                        cats = []; uda = collections.defaultdict(bool)
-                        for acat in sorted(tree_dict[sys][sub][rut_key][ubi].keys()):
-                            assets_l = []
-                            for ak in sorted(tree_dict[sys][sub][rut_key][ubi][acat].keys(), key=lambda x: x[1]):
-                                cells = []
-                                for d in days_range:
-                                    ots = tree_dict[sys][sub][rut_key][ubi][acat][ak].get(d, [])
-                                    active = len(ots) > 0
-                                    gt = ots[0].get('group_type') if ots else None
-                                    cells.append({'day': d, 'ots': ots, 'active': active, 'group_type': gt})
-                                    if active: rda[d] = True; subda[d] = True; sda[d] = True; uda[d] = True
-                                assets_l.append({'label': ak[1], 'id': ak[0], 'celdas': cells})
-                            cats.append({'label': acat, 'celdas': [{'day': d, 'active': any(a['celdas'][d-1]['active'] for a in assets_l)} for d in days_range], 'activos': assets_l})
-                        ubis.append({'label': ubi, 'celdas': [{'day': d, 'active': uda[d]} for d in days_range], 'categorias': cats})
-                    ruts.append({'label': rut_key[0], 'frecuencia': rut_key[1], 'celdas': [{'day': d, 'active': rda[d]} for d in days_range], 'ubicaciones': ubis})
-                subs.append({'label': sub, 'celdas': [{'day': d, 'active': subda[d]} for d in days_range], 'rutinas': ruts})
-            tree.append({'label': sys, 'color': system_colors.get(sys, "#64748b"), 'celdas': [{'day': d, 'active': sda[d]} for d in days_range], 'subs': subs})
+        if is_summary:
+            for sys in sorted(summary_tree.keys()):
+                tree.append({
+                    'label': sys, 
+                    'color': system_colors.get(sys, "#64748b"), 
+                    'celdas': [{'day': d, 'active': summary_tree[sys].get(d, False)} for d in days_range],
+                    'subs': [] # En modo resumen no hay hijos
+                })
+        else:
+            for sys in sorted(tree_dict.keys()):
+                subs = []; sda = collections.defaultdict(bool)
+                for sub in sorted(tree_dict[sys].keys()):
+                    ruts = []; subda = collections.defaultdict(bool)
+                    for rut_key in sorted(tree_dict[sys][sub].keys()):
+                        ubis = []; rda = collections.defaultdict(bool)
+                        for ubi in sorted(tree_dict[sys][sub][rut_key].keys()):
+                            cats = []; uda = collections.defaultdict(bool)
+                            for acat in sorted(tree_dict[sys][sub][rut_key][ubi].keys()):
+                                assets_l = []
+                                for ak in sorted(tree_dict[sys][sub][rut_key][ubi][acat].keys(), key=lambda x: x[1]):
+                                    cells = []
+                                    for d in days_range:
+                                        ots = tree_dict[sys][sub][rut_key][ubi][acat][ak].get(d, [])
+                                        active = len(ots) > 0
+                                        gt = ots[0].get('group_type') if ots else None
+                                        cells.append({'day': d, 'ots': ots, 'active': active, 'group_type': gt})
+                                        if active: rda[d] = True; subda[d] = True; sda[d] = True; uda[d] = True
+                                    assets_l.append({'label': ak[1], 'id': ak[0], 'celdas': cells})
+                                cats.append({'label': acat, 'celdas': [{'day': d, 'active': any(a['celdas'][d-1]['active'] for a in assets_l)} for d in days_range], 'activos': assets_l})
+                            ubis.append({'label': ubi, 'celdas': [{'day': d, 'active': uda[d]} for d in days_range], 'categorias': cats})
+                        ruts.append({'label': rut_key[0], 'frecuencia': rut_key[1], 'celdas': [{'day': d, 'active': rda[d]} for d in days_range], 'ubicaciones': ubis})
+                    subs.append({'label': sub, 'celdas': [{'day': d, 'active': subda[d]} for d in days_range], 'rutinas': ruts})
+                tree.append({'label': sys, 'color': system_colors.get(sys, "#64748b"), 'celdas': [{'day': d, 'active': sda[d]} for d in days_range], 'subs': subs})
     
     
     # REVERTING STRATEGY: I will ONLY add the if view_mode == 'ubicacion' block and keep the rest as 'else'.
@@ -546,7 +574,8 @@ def detalle_mes(request, year, month):
         'non_working_days': non_working_days,
         'view_mode': view_mode,
         'filter_options': filter_options,
-        'current_filter': filter_q
+        'current_filter': filter_q,
+        'is_summary': is_summary
     }
     
     # BRUTAL OPTIMIZATION: Cache result for 15 minutes

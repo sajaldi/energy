@@ -734,6 +734,12 @@
                 style="background: #ef4444; color: white; border-color: #dc2626; display: flex; align-items: center; gap: 8px;">
                 <ion-icon name="document-text-outline"></ion-icon> Exportar PDF
             </button>
+            {% if current_filter and current_filter != 'TODOS' %}
+            <a href="?year={{ year }}&month={{ month }}&view_mode={{ view_mode }}{% if programacion_id %}&programacion_id={{ programacion_id }}{% endif %}"
+                class="btn" style="background: #6366f1; color: white; text-decoration: none; display: flex; align-items: center; gap: 8px;">
+                <ion-icon name="apps-outline"></ion-icon> Ver Vista General
+            </a>
+            {% endif %}
             <a href="{% url 'mantenimiento:cronograma' %}?year={{ year }}{% if programacion_id %}&programacion_id={{ programacion_id }}{% endif %}"
                 class="back-btn">
                 <ion-icon name="arrow-back-outline"></ion-icon> Volver al Cronograma
@@ -760,10 +766,15 @@
                     {% for sys in tree %}
                     <!-- NIVEL 1: SISTEMA -->
                     <tr class="row-sys" id="row-sys-{{ forloop.counter }}"
-                        onclick="toggleTree('sys-{{ forloop.counter }}', this)">
+                        {% if is_summary %}
+                        onclick="window.open('?year={{ year }}&month={{ month }}&filter_q={{ sys.label|urlencode }}&view_mode={{ view_mode }}{% if programacion_id %}&programacion_id={{ programacion_id }}{% endif %}', '_blank')"
+                        style="cursor: pointer;"
+                        {% else %}
+                        onclick="toggleTree('sys-{{ forloop.counter }}', this)"
+                        {% endif %}>
                         <td class="sticky-col indent-1"
                             style="border-left: 4px solid {{ sys.color|default:'#1e293b' }};">
-                            <span class="toggle-icon">▶</span> {{ sys.label }}
+                            {% if not is_summary %}<span class="toggle-icon">▶</span>{% endif %} {{ sys.label }}
                         </td>
                         {% for c in sys.celdas %}
                         <td class="{% if c.day in non_working_days %}non-working-day{% endif %}">
