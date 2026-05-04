@@ -343,6 +343,9 @@
 
         </div>
         <div class="panel-footer">
+            <button class="btn btn-outline" style="background: #2563eb; color: white; border: none;" onclick="notificarN8N()" id="btnNotify">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Notificar Responsable
+            </button>
             <button class="btn btn-primary" style="flex: 1; justify-content: center;" onclick="guardarAviso()">Guardar Cambios</button>
             <a href="#" id="linkAdmin" class="btn btn-outline" target="_blank" title="Ver en Admin">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
@@ -352,6 +355,44 @@
 
     <!-- JS Data -->
     <script>
+        function notificarN8N() {
+            const avisoId = document.getElementById('detalleId').value;
+            const btn = document.getElementById('btnNotify');
+            const responsable = document.getElementById('detalleResponsable').value;
+
+            if (!responsable) {
+                alert('Debe asignar un responsable antes de notificar.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = 'Enviando...';
+
+            fetch(`/mantenimiento/avisos/api/notify/${avisoId}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    btn.innerHTML = '✅ Notificado';
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> Notificar Responsable';
+                    }, 3000);
+                } else {
+                    alert('Error al notificar: ' + res.message);
+                    btn.disabled = false;
+                    btn.innerHTML = 'Notificar Responsable';
+                }
+            })
+            .catch(err => {
+                alert('Error de conexión.');
+                btn.disabled = false;
+                btn.innerHTML = 'Notificar Responsable';
+            });
+        }
+
         const tecnicos = JSON.parse('{{ tecnicos_json|safe|escapejs }}');
         
         const stateGroups = [

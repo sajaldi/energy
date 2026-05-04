@@ -108,4 +108,5 @@ urlpatterns = [
     path('avisos/api/list/', views.avisos_dashboard.api_get_avisos, name='api_get_avisos'),
     path('avisos/api/update/<int:pk>/', views.avisos_dashboard.api_update_aviso_estado, name='api_update_aviso_estado'),
     path('avisos/api/create-ot/<int:pk>/', views.avisos_dashboard.api_aviso_create_ot, name='api_aviso_create_ot'),
+    path('avisos/api/notify/<int:pk>/', views.avisos_dashboard.api_notify_responsable, name='api_notify_responsable'),
 ]

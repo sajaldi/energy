@@ -161,3 +161,17 @@ def api_aviso_create_ot(request, pk):
         
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@staff_member_required
+@require_http_methods(["POST"])
+def api_notify_responsable(request, pk):
+    """
+    Dispara una notificación al responsable del aviso vía n8n (Celery Task).
+    """
+    from ..tasks import notify_responsible_n8n
+    try:
+        # Enviar a Celery para no bloquear el request
+        notify_responsible_n8n.delay(pk)
+        return JsonResponse({'status': 'success', 'message': 'Proceso de notificación iniciado.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

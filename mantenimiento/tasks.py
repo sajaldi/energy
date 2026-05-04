@@ -1376,3 +1376,44 @@ def task_generar_ot_pdf(ot_id):
     except Exception as e:
         logger.error(f"Error generando PDF para OT #{ot_id}: {str(e)}", exc_info=True)
         return {'status': 'error', 'message': str(e)}
+
+@shared_task(name='mantenimiento.tasks.notify_responsible_n8n')
+def notify_responsible_n8n(aviso_id):
+    """
+    Envía una notificación al responsable de un aviso vía n8n.
+    """
+    from .models import Aviso
+    import requests
+    from django.conf import settings
+    
+    try:
+        aviso = Aviso.objects.select_related('responsable', 'ubicacion', 'solicitante').get(id=aviso_id)
+        
+        if not aviso.responsable:
+            return {"status": "error", "message": "El aviso no tiene un responsable asignado."}
+            
+        n8n_url = getattr(settings, 'N8N_AVISOS_WEBHOOK_URL', None)
+        if not n8n_url:
+            return {"status": "error", "message": "N8N_AVISOS_WEBHOOK_URL no configurada."}
+            
+        payload = {
+            'aviso_id': aviso.id,
+            'titulo': f"AV-{aviso.id}",
+            'descripcion': aviso.descripcion,
+            'prioridad': aviso.prioridad,
+            'ubicacion': aviso.ubicacion.nombre if aviso.ubicacion else "No especificada",
+            'solicitante': aviso.solicitante.get_full_name() or aviso.solicitante.username if aviso.solicitante else "Sistema",
+            'responsable_email': aviso.responsable.email,
+            'responsable_nombre': aviso.responsable.get_full_name() or aviso.responsable.username,
+            'creado_en': aviso.creado_en.isoformat(),
+            'url_detalle': f"{settings.SITE_URL}/admin/mantenimiento/aviso/{aviso.id}/change/"
+        }
+        
+        response = requests.post(n8n_url, json=payload, timeout=10)
+        if response.status_code in [200, 201]:
+            return {"status": "success", "message": f"Notificación enviada a {payload['responsable_nombre']}"}
+        else:
+            return {"status": "error", "message": f"Error en n8n: {response.status_code}"}
+            
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
