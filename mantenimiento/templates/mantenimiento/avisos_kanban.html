@@ -258,9 +258,14 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
             <span style="color: var(--sap-text-color); font-weight: 500;">Avisos Kanban</span>
         </div>
-        <div style="display: flex; gap: 15px;">
+        <div style="display: flex; gap: 15px; align-items: center;">
             <div class="search-bar">
-                <input type="text" id="searchInput" class="search-input" placeholder="Buscar avisos o ubicación..." autocomplete="off">
+                <select id="deptFilter" class="search-input" style="width: 200px; cursor: pointer;">
+                    <option value="">🏢 Todos los Departamentos</option>
+                </select>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 Buscar avisos o ubicación..." autocomplete="off">
             </div>
             <a href="{% url 'admin:mantenimiento_aviso_add' %}" class="btn btn-outline" target="_blank">+ Nuevo Aviso</a>
             <a href="{% url 'mantenimiento:dashboard' %}" class="btn btn-primary">Volver al Dashboard</a>
@@ -314,6 +319,11 @@
             <div class="info-group">
                 <div class="info-label">Reportado Por</div>
                 <div class="info-value" id="detalleSolicitante">...</div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Departamento</div>
+                <div class="info-value" id="detalleDepartamento" style="color: #0369a1; font-weight: 600;">...</div>
             </div>
 
             <div class="info-group">
@@ -394,6 +404,7 @@
         }
 
         const tecnicos = JSON.parse('{{ tecnicos_json|safe|escapejs }}');
+        const departamentos = JSON.parse('{{ departamentos_json|safe|escapejs }}');
         
         const stateGroups = [
             { id: 'ABIERTO', name: 'Pendientes', color: '#ef4444' },
@@ -406,6 +417,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             initResponsables();
+            initDepartamentos();
             crearColumnas();
             cargarAvisos();
 
@@ -430,6 +442,17 @@
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('otFechaInicio').value = now.toISOString().slice(0, 16);
+        }
+
+        function initDepartamentos() {
+            const select = document.getElementById('deptFilter');
+            departamentos.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                opt.textContent = d.nombre;
+                select.appendChild(opt);
+            });
+            select.addEventListener('change', () => cargarAvisos());
         }
 
         function crearColumnas() {
@@ -469,7 +492,10 @@
         }
 
         function cargarAvisos(query = '') {
-            fetch(`/mantenimiento/avisos/api/list/?search=${encodeURIComponent(query)}`)
+            const deptId = document.getElementById('deptFilter').value;
+            const search = query || document.getElementById('searchInput').value;
+            
+            fetch(`/mantenimiento/avisos/api/list/?search=${encodeURIComponent(search)}&departamento_id=${deptId}`)
                 .then(r => r.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -512,6 +538,10 @@
                 <div class="card-meta">
                     <span style="color:${pColor}; font-weight:600; font-size:0.7rem;">[${aviso.prioridad}]</span>
                      ${aviso.falla ? ` | ${aviso.falla.substring(0,15)}` : ''}
+                </div>
+                <div class="card-meta" style="color: #0369a1; font-weight: 500;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    ${aviso.departamento_nombre}
                 </div>
                 <div class="card-users">
                     <div style="display:flex; gap: 5px; align-items:center;">
@@ -563,6 +593,7 @@
             document.getElementById('detallePrioridad').innerHTML = `<span class="count-badge" style="background:#f1f5f9; color: #000;">${aviso.prioridad}</span>`;
             document.getElementById('detalleUbicacion').textContent = aviso.activo ? `${aviso.ubicacion} -> ${aviso.activo}` : aviso.ubicacion;
             document.getElementById('detalleSolicitante').textContent = aviso.solicitante;
+            document.getElementById('detalleDepartamento').textContent = aviso.departamento_nombre;
             document.getElementById('detalleResponsable').value = aviso.responsable_id || '';
             
             const dFoto = document.getElementById('detalleFoto');

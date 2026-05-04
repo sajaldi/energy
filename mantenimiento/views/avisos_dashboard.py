@@ -32,9 +32,10 @@ def api_get_avisos(request):
     Acepta filtros: search
     """
     search = request.GET.get('search', '').strip()
+    departamento_id = request.GET.get('departamento_id', '').strip()
     
     avisos_qs = Aviso.objects.select_related(
-        'ubicacion', 'solicitante', 'responsable', 'falla', 'activo'
+        'ubicacion', 'solicitante', 'responsable', 'falla', 'activo', 'departamento'
     ).order_by('-prioridad', '-creado_en')
     
     if search:
@@ -43,6 +44,9 @@ def api_get_avisos(request):
         ) | avisos_qs.filter(
             ubicacion__nombre__icontains=search
         )
+    
+    if departamento_id:
+        avisos_qs = avisos_qs.filter(departamento_id=departamento_id)
     
     data = {
         'ABIERTO': [],
@@ -69,6 +73,7 @@ def api_get_avisos(request):
             'tiene_foto': bool(aviso.foto),
             'foto_url': aviso.foto.url if aviso.foto else None,
             'falla': aviso.falla.nombre if aviso.falla else "",
+            'departamento_nombre': aviso.departamento.nombre if aviso.departamento else "General",
         }
         if aviso.estado in data:
             data[aviso.estado].append(item)
