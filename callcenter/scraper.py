@@ -30,7 +30,7 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
         page = context.new_page()
 
         print(f"[{datetime.now()}] Navegando a SIG GIA...")
-        page.goto("https://sig.gia.mx/webapp/seguridad/entrar")
+        page.goto("https://sig.gia.mx/webapp/seguridad/entrar", timeout=90000)
 
         # Login
         print("Realizando login...")
@@ -90,72 +90,78 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
         
         print(f"Aplicando filtro de fechas: {start_date} al {end_date}")
         
-        # Seleccionar inputs de fecha por su etiqueta o índice
-        # Intentar ser más específico para evitar inputs ocultos
-        inputs = page.query_selector_all("input.MuiInputBase-input:not([type='hidden'])")
-        
-        if len(inputs) >= 2:
-            try:
-                # Inicio
-                inputs[0].scroll_into_view_if_needed()
-                inputs[0].click(force=True) # Usar force=True si está cubierto
+        # Selectores más robustos para los inputs de fecha (basados en sus etiquetas)
+        inicio_selector = "div:has(> label:has-text('Inicio')) input"
+        final_selector = "div:has(> label:has-text('Final')) input"
+
+        try:
+            # Esperar a que los inputs específicos sean visibles
+            page.wait_for_selector(inicio_selector, timeout=20000)
+            page.wait_for_selector(final_selector, timeout=20000)
+            
+            # Función helper para llenar y verificar el valor del input
+            def fill_and_verify(selector, value, label):
+                input_elem = page.locator(selector)
+                input_elem.scroll_into_view_if_needed()
+                input_elem.click(force=True)
+                # Limpiar campo a fondo
                 page.keyboard.press("Control+A")
-                page.keyboard.type(start_date)
+                page.keyboard.press("Backspace")
+                page.keyboard.type(value)
                 page.keyboard.press("Enter")
+                time.sleep(1.5) # Esperar procesamiento de JS
                 
-                # Final
-                inputs[1].scroll_into_view_if_needed()
-                inputs[1].click(force=True)
-                page.keyboard.press("Control+A")
-                page.keyboard.type(end_date)
-                page.keyboard.press("Enter")
-                
-                time.sleep(1)
-                # page.screenshot(path="downloads/debug_fechas_aplicadas.png")
-            except Exception as e:
-                # page.screenshot(path="downloads/error_llenando_fechas.png")
-                print(f"Error llenando fechas: {e}")
-                browser.close()
-                return None
+                # Verificación de valor extraído
+                current_val = input_elem.input_value()
+                if current_val != value:
+                    print(f"[WARNING] El valor de {label} ({current_val}) no coincide con el solicitado ({value}). Reintentando...")
+                    input_elem.click(force=True)
+                    page.keyboard.press("Control+A")
+                    page.keyboard.type(value)
+                    page.keyboard.press("Enter")
+                    time.sleep(1)
+                else:
+                    print(f"[OK] Fecha de {label} verificada: {current_val}")
+            
+            # Llenar y verificar ambas fechas
+            fill_and_verify(inicio_selector, start_date, "Inicio")
+            fill_and_verify(final_selector, end_date, "Final")
+            
+            time.sleep(2) # Espera de seguridad antes de aplicar filtros
             
             # Aplicar filtros
             print("Clic en Aplicar filtros...")
             page.click("button#btnBuscar")
             
-            # Esperar a que la tabla se actualice y el botón de Excel sea clickeable
-            print("Filtros aplicados. Esperando a que el botón de Excel sea clickeable...")
-            try:
-                page.wait_for_selector("button#btnSolicitudesExcel", timeout=60000)
-                time.sleep(5) # Tiempo de gracia para que la tabla se pueble
-                # page.screenshot(path="downloads/debug_tabla_cargada.png")
-            except:
-                # page.screenshot(path="downloads/error_esperando_excel.png")
-                print("El botón de Excel no apareció a tiempo.")
-                browser.close()
-                return None
+            # Esperar a que la tabla se actualice (darle más tiempo al servidor)
+            print("Filtros aplicados. Esperando carga de datos...")
+            time.sleep(10) # Aumentado de 5 a 10 segundos
             
-            # Exportar Excel
-            print("Iniciando descarga de Excel...")
-            try:
-                with page.expect_download(timeout=120000) as download_info:
-                    # A veces el botón está deshabilitado mientras carga
-                    page.click("button#btnSolicitudesExcel", force=True)
-                
-                download = download_info.value
-                file_name = f"tickets_sync_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-                file_path = os.path.join(download_dir, file_name)
-                download.save_as(file_path)
-                
-                print(f"Archivo descargado en: {file_path}")
-                browser.close()
-                return file_path
-            except Exception as e:
-                print(f"Error durante la descarga: {e}")
-                browser.close()
-                return None
-        else:
-            print(f"No se encontraron suficientes campos de fecha. Encontrados: {len(inputs)}")
-            # page.screenshot(path="downloads/error_inputs_insuficientes.png")
+            page.wait_for_selector("button#btnSolicitudesExcel", timeout=60000)
+            print("Botón de Excel listo.")
+            
+        except Exception as e:
+            print(f"Error durante el filtrado de fechas: {e}")
+            browser.close()
+            return None
+
+        # Exportar Excel
+        print("Iniciando descarga de Excel...")
+        try:
+            with page.expect_download(timeout=120000) as download_info:
+                # A veces el botón está deshabilitado mientras carga
+                page.click("button#btnSolicitudesExcel", force=True)
+            
+            download = download_info.value
+            file_name = f"tickets_sync_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            file_path = os.path.join(download_dir, file_name)
+            download.save_as(file_path)
+            
+            print(f"Archivo descargado en: {file_path}")
+            browser.close()
+            return file_path
+        except Exception as e:
+            print(f"Error durante la descarga: {e}")
             browser.close()
             return None
 

@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -676,26 +677,25 @@ JAZZMIN_UI_TWEAKS = {
 # Habilitar iframes para popups y modales en el admin
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
-# ===== CELERY CONFIGURATION =====
-# Detección automática de entorno
+# ===== CELERY & REDIS CONFIGURATION =====
 
-# Celery Broker URL Configuration
+# Broker URL dynamic detection
 if IS_LOCAL:
-    # FORZADO: Usar DB 1 para evitar que el worker de producción en Coolify (DB 0) robe las tareas
-    CELERY_BROKER_URL = 'redis://default:saul123@localhost:6379/1'
-    print(f"[DEBUG] Entorno LOCAL detectado. Redis (AISLADO DB 1): {CELERY_BROKER_URL}")
+    # URL por defecto para desarrollo local (Redis en localhost)
+    # Usamos DB 1 para desarrollo local para evitar conflictos con otros servicios o si se usa el mismo Redis para prod vía túnel
+    REDIS_URL_LOCAL = os.environ.get('REDIS_URL_LOCAL', 'redis://localhost:6379/1')
+    CELERY_BROKER_URL = REDIS_URL_LOCAL
+    print(f"[DEBUG] Entorno LOCAL: Usando Redis Local en {CELERY_BROKER_URL}")
 else:
-    # Producción: Redis interno de Coolify (usa nombre del servicio)
+    # Producción: Redis interno de Coolify o variable de entorno
+    # Se prefiere CELERY_BROKER_URL definido en el entorno de Coolify
     CELERY_BROKER_URL = os.environ.get(
         'CELERY_BROKER_URL', 
-        'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'  # Nombre del servicio en Coolify
+        'redis://default:saul123@lwcc8sss480ks4oc8gcgw4go:6379/0'
     )
-    print(f"[DEBUG] Entorno PRODUCCION detectado. Redis: {CELERY_BROKER_URL}")
+    print(f"[DEBUG] Entorno PRODUCCIÓN: Usando Redis de red en {CELERY_BROKER_URL}")
 
-import sys
-sys.stdout.flush()
-
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'django-db')
+CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 
 # Celery Task Settings
@@ -715,55 +715,48 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {
     'socket_keepalive': True,
 }
 
-# Caché compartida para que Celery y Django (runserver) se vean
-# En ambos entornos usamos Redis si está disponible
+# --- CACHE CONFIGURATION ---
+# Configuración dinámica de Caché basada en la disponibilidad de Redis
 if IS_LOCAL:
-    # Local: Intentar usar el mismo Redis que Celery si está configurado
     try:
         import redis
-        # Usar la URL del broker configurada (que viene de env o default) la cual ya usa DB 1
-        redis_url = CELERY_BROKER_URL.replace('/0', '/1') if '/0' in CELERY_BROKER_URL else CELERY_BROKER_URL
-        
-        # Test connection
-        r = redis.from_url(redis_url, socket_connect_timeout=1)
+        # Intentar conectar al Redis local (DB 1)
+        r = redis.from_url(CELERY_BROKER_URL, socket_connect_timeout=2)
         r.ping()
-        # Si llega aquí, Redis está disponible
+        
         CACHES = {
             'default': {
                 'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-                'LOCATION': redis_url,
+                'LOCATION': CELERY_BROKER_URL,
                 'OPTIONS': {
                     'socket_timeout': 5,
                     'socket_connect_timeout': 5,
-                    'retry_on_timeout': True,
                 }
             }
         }
-        print(f"[DEBUG] Cache: Redis conectado exitosamente en {redis_url}")
+        print(f"[DEBUG] Cache: Redis Local conectado en {CELERY_BROKER_URL}")
     except Exception as e:
-        # Redis no disponible, usar memoria local
+        # Fallback a memoria local si Redis no está corriendo
         CACHES = {
             'default': {
                 'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
                 'LOCATION': 'unique-snowflake',
             }
         }
-        print(f"[DEBUG] Cache: LocMem (Redis no disponible en {CELERY_BROKER_URL}: {e})")
+        print(f"[DEBUG] Cache: Redis Local no disponible ({e}). Usando LocMemCache.")
 else:
-    # Producción: LocMem por ahora para evitar crashes
-    # Producción: Redis compartido
+    # Producción: Siempre usar Redis (el mismo que el broker por defecto)
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': CELERY_BROKER_URL,
             'OPTIONS': {
-                'socket_timeout': 5,
-                'socket_connect_timeout': 5,
-                'retry_on_timeout': True,
+                'socket_timeout': 10,
+                'socket_connect_timeout': 10,
             }
         }
     }
-    print(f"[DEBUG] Cache: Redis Produccion ({CELERY_BROKER_URL})")
+    print(f"[DEBUG] Cache: Redis Producción configurado en {CELERY_BROKER_URL}")
 
 sys.stdout.flush()
 
