@@ -112,9 +112,14 @@ def save_ticket_pdf_helper(ticket, request=None):
 @staff_member_required
 def trigger_sync_tickets(request):
     days = int(request.GET.get('days', 2))
+    fecha_inicio = request.GET.get('fecha_inicio', '').strip() or None
+    fecha_fin = request.GET.get('fecha_fin', '').strip() or None
     try:
-        sync_tickets_task.delay(days=days)
-        messages.success(request, f"Se ha iniciado la sincronización de los últimos {days} días en segundo plano.")
+        sync_tickets_task.delay(days=days, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
+        if fecha_inicio and fecha_fin:
+            messages.success(request, f"Se ha iniciado la sincronización del {fecha_inicio} al {fecha_fin} en segundo plano.")
+        else:
+            messages.success(request, f"Se ha iniciado la sincronización de los últimos {days} días en segundo plano.")
     except Exception as e:
         logger.error(f"Error al iniciar la sincronización: {e}")
         messages.error(request, f"Error al iniciar la sincronización: {e}")

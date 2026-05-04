@@ -4,10 +4,14 @@ from datetime import datetime, timedelta
 import pandas as pd
 from django.conf import settings
 
-def download_tickets_excel(username, password, company_name, days=2, download_dir="downloads"):
+def download_tickets_excel(username, password, company_name, days=2, download_dir="downloads", fecha_inicio=None, fecha_fin=None):
     """
     Descarga el archivo Excel de tickets desde la página de SIG GIA.
     Retorna la ruta al archivo descargado.
+    
+    Args:
+        fecha_inicio: Fecha inicio en formato dd/mm/yyyy (opcional, prioridad sobre days)
+        fecha_fin: Fecha fin en formato dd/mm/yyyy (opcional, prioridad sobre days)
     """
     try:
         from playwright.sync_api import sync_playwright
@@ -76,9 +80,13 @@ def download_tickets_excel(username, password, company_name, days=2, download_di
             browser.close()
             return None
         
-        # Calcular fechas
-        end_date = datetime.now().strftime("%d/%m/%Y")
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%d/%m/%Y")
+        # Calcular fechas: priorizar parámetros explícitos sobre days
+        if fecha_inicio and fecha_fin:
+            start_date = fecha_inicio
+            end_date = fecha_fin
+        else:
+            end_date = datetime.now().strftime("%d/%m/%Y")
+            start_date = (datetime.now() - timedelta(days=days)).strftime("%d/%m/%Y")
         
         print(f"Aplicando filtro de fechas: {start_date} al {end_date}")
         

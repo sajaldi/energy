@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views_coolify import coolify_dashboard, coolify_redeploy, coolify_logs, coolify_stream_logs, coolify_build_logs
+from .views_coolify import coolify_dashboard, coolify_redeploy, coolify_logs, coolify_stream_logs, coolify_build_logs, celery_logs, celery_stream_logs
 
 app_name = 'core'
 
@@ -31,4 +31,8 @@ urlpatterns = [
     path('devops/coolify/logs/stream/', coolify_stream_logs, name='coolify_stream_logs'),
     path('devops/coolify/logs/build/', coolify_build_logs, name='coolify_build_logs'),
     path('devops/git-history/', views.git_history_view, name='git_history'),
+    
+    # Celery Live Logs
+    path('devops/celery/logs/', celery_logs, name='celery_logs'),
+    path('devops/celery/logs/stream/', celery_stream_logs, name='celery_stream_logs'),
 ]

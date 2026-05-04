@@ -104,6 +104,30 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Celery Logs Section -->
+    <div style="margin-top: 30px; padding: 20px; background: #1a1a2e; border-radius: 12px; border: 1px solid #16213e;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+            <h2 style="color:#e94560; margin:0;">🔧 Celery Live Logs</h2>
+            <div style="display:flex; gap:8px;">
+                <button class="button" id="celery-tab-worker" onclick="setCeleryTab('worker')" 
+                    style="background:#28a745; color:white; font-weight:600; border-radius:6px; padding:6px 16px;">Worker</button>
+                <button class="button" id="celery-tab-beat" onclick="setCeleryTab('beat')" 
+                    style="background:#6c757d; color:white; font-weight:600; border-radius:6px; padding:6px 16px;">Beat</button>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="button" onclick="fetchCeleryLogs()" style="background:#17a2b8; color:white; border-radius:6px;">
+                    📋 Últimos Logs
+                </button>
+                <button class="button" id="celery-stream-btn" onclick="streamCeleryLogs()" style="background:#e94560; color:white; border-radius:6px;">
+                    ▶ En Vivo
+                </button>
+            </div>
+        </div>
+        <pre id="celeryLogsOutput" style="background:#0f3460; color:#00ff41; padding:16px; border-radius:8px; 
+            max-height:500px; overflow-y:auto; font-size:12px; line-height:1.5; white-space:pre-wrap; word-break:break-all;
+            min-height:120px;">Selecciona "Últimos Logs" o "En Vivo" para comenzar...</pre>
+    </div>
 </div>
 
 <!-- Modal Logs -->
@@ -250,6 +274,74 @@
         if (event.target == modal) {
             modal.style.display = "none";
         }
+    }
+
+    // ===== CELERY LOGS =====
+    let celeryService = 'worker';
+    let celeryReader = null;
+
+    function setCeleryTab(service) {
+        celeryService = service;
+        document.getElementById('celery-tab-worker').style.background = service === 'worker' ? '#28a745' : '#6c757d';
+        document.getElementById('celery-tab-beat').style.background = service === 'beat' ? '#28a745' : '#6c757d';
+        // Stop any active stream
+        if (celeryReader) { celeryReader.cancel(); celeryReader = null; }
+        document.getElementById('celery-stream-btn').innerText = '▶ En Vivo';
+    }
+
+    function fetchCeleryLogs() {
+        if (celeryReader) { celeryReader.cancel(); celeryReader = null; }
+        document.getElementById('celery-stream-btn').innerText = '▶ En Vivo';
+        const output = document.getElementById('celeryLogsOutput');
+        output.innerText = `Cargando logs de Celery ${celeryService}...\n`;
+
+        fetch(`/devops/celery/logs/?service=${celeryService}&tail=300`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    output.innerText = `📦 Container: ${data.container}\n${'='.repeat(60)}\n${data.logs}`;
+                } else {
+                    output.innerText = 'Error: ' + data.message;
+                }
+                output.scrollTop = output.scrollHeight;
+            })
+            .catch(err => { output.innerText = 'Error de conexión: ' + err; });
+    }
+
+    async function streamCeleryLogs() {
+        const output = document.getElementById('celeryLogsOutput');
+        const btn = document.getElementById('celery-stream-btn');
+        
+        // Toggle off
+        if (celeryReader) {
+            celeryReader.cancel(); celeryReader = null;
+            btn.innerText = '▶ En Vivo';
+            output.innerText += '\n--- Stream detenido ---';
+            return;
+        }
+
+        btn.innerText = '⏹ Detener';
+        output.innerText = `Conectando al stream de Celery ${celeryService}...\n`;
+
+        try {
+            const response = await fetch(`/devops/celery/logs/stream/?service=${celeryService}`);
+            celeryReader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { value, done } = await celeryReader.read();
+                if (done) break;
+                output.innerText += decoder.decode(value, { stream: true });
+                output.scrollTop = output.scrollHeight;
+                if (output.innerText.length > 80000) {
+                    output.innerText = output.innerText.slice(-50000);
+                }
+            }
+        } catch (err) {
+            if (err.name !== 'AbortError') output.innerText += '\nError: ' + err;
+        }
+        btn.innerText = '▶ En Vivo';
+        celeryReader = null;
     }
 </script>
 {% endblock %}

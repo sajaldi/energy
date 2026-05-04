@@ -92,34 +92,115 @@
 
                 Swal.fire({
                     title: 'Sincronizar Tickets',
-                    text: "¿Cuántos días hacia atrás desea sincronizar?",
-                    icon: 'question',
-                    input: 'number',
-                    inputValue: 2,
-                    inputAttributes: {
-                        min: 1,
-                        max: 30,
-                        step: 1
-                    },
+                    html: `
+                        <div style="text-align:left;">
+                            <div style="display:flex; gap:8px; margin-bottom:16px;">
+                                <button type="button" id="mode-quick" class="swal2-confirm swal2-styled" 
+                                    style="flex:1; font-size:14px; padding:8px; background:#28a745;">
+                                    <i class="fas fa-bolt"></i> Últimos N días
+                                </button>
+                                <button type="button" id="mode-range" class="swal2-cancel swal2-styled" 
+                                    style="flex:1; font-size:14px; padding:8px; background:#6c757d;">
+                                    <i class="fas fa-calendar-alt"></i> Rango de Fechas
+                                </button>
+                            </div>
+                            <div id="section-quick">
+                                <label style="font-weight:600; font-size:14px; display:block; margin-bottom:6px;">
+                                    Días hacia atrás:
+                                </label>
+                                <input type="number" id="sync-days" class="swal2-input" value="2" min="1" max="365"
+                                    style="margin:0; width:100%; box-sizing:border-box;">
+                            </div>
+                            <div id="section-range" style="display:none;">
+                                <label style="font-weight:600; font-size:14px; display:block; margin-bottom:6px;">
+                                    Fecha Inicio:
+                                </label>
+                                <input type="date" id="sync-fecha-inicio" class="swal2-input" 
+                                    style="margin:0 0 12px 0; width:100%; box-sizing:border-box;">
+                                <label style="font-weight:600; font-size:14px; display:block; margin-bottom:6px;">
+                                    Fecha Fin:
+                                </label>
+                                <input type="date" id="sync-fecha-fin" class="swal2-input" 
+                                    style="margin:0; width:100%; box-sizing:border-box;">
+                            </div>
+                        </div>
+                    `,
                     showCancelButton: true,
                     confirmButtonColor: '#28a745',
                     cancelButtonColor: '#6c757d',
                     confirmButtonText: '<i class="fas fa-play"></i> Iniciar',
                     cancelButtonText: 'Cancelar',
-                    inputValidator: (value) => {
-                        if (!value) {
-                            return 'Por favor ingrese un número'
-                        }
-                        if (parseInt(value) < 1) {
-                            return 'Por favor ingrese al menos 1 día'
+                    focusConfirm: false,
+                    didOpen: () => {
+                        const btnQuick = document.getElementById('mode-quick');
+                        const btnRange = document.getElementById('mode-range');
+                        const secQuick = document.getElementById('section-quick');
+                        const secRange = document.getElementById('section-range');
+
+                        // Pre-fill fecha fin con hoy
+                        const today = new Date().toISOString().split('T')[0];
+                        const twoDaysAgo = new Date(Date.now() - 2*86400000).toISOString().split('T')[0];
+                        document.getElementById('sync-fecha-fin').value = today;
+                        document.getElementById('sync-fecha-inicio').value = twoDaysAgo;
+
+                        btnQuick.addEventListener('click', () => {
+                            secQuick.style.display = '';
+                            secRange.style.display = 'none';
+                            btnQuick.style.background = '#28a745';
+                            btnRange.style.background = '#6c757d';
+                            btnQuick.dataset.active = 'true';
+                            btnRange.dataset.active = 'false';
+                        });
+                        btnRange.addEventListener('click', () => {
+                            secQuick.style.display = 'none';
+                            secRange.style.display = '';
+                            btnRange.style.background = '#28a745';
+                            btnQuick.style.background = '#6c757d';
+                            btnRange.dataset.active = 'true';
+                            btnQuick.dataset.active = 'false';
+                        });
+                        btnQuick.dataset.active = 'true';
+                        btnRange.dataset.active = 'false';
+                    },
+                    preConfirm: () => {
+                        const isRange = document.getElementById('mode-range').dataset.active === 'true';
+                        if (isRange) {
+                            const fi = document.getElementById('sync-fecha-inicio').value;
+                            const ff = document.getElementById('sync-fecha-fin').value;
+                            if (!fi || !ff) {
+                                Swal.showValidationMessage('Debe seleccionar ambas fechas');
+                                return false;
+                            }
+                            if (fi > ff) {
+                                Swal.showValidationMessage('La fecha inicio no puede ser posterior a la fecha fin');
+                                return false;
+                            }
+                            // Convertir yyyy-mm-dd a dd/mm/yyyy
+                            const toddmmyyyy = (d) => d.split('-').reverse().join('/');
+                            return { mode: 'range', fecha_inicio: toddmmyyyy(fi), fecha_fin: toddmmyyyy(ff) };
+                        } else {
+                            const days = document.getElementById('sync-days').value;
+                            if (!days || parseInt(days) < 1) {
+                                Swal.showValidationMessage('Ingrese al menos 1 día');
+                                return false;
+                            }
+                            return { mode: 'quick', days: days };
                         }
                     }
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        const days = result.value;
+                        const data = result.value;
+                        let msg, url;
+                        if (data.mode === 'range') {
+                            msg = `Se sincronizarán tickets del ${data.fecha_inicio} al ${data.fecha_fin}.`;
+                            url = `sync-tickets/?fecha_inicio=${encodeURIComponent(data.fecha_inicio)}&fecha_fin=${encodeURIComponent(data.fecha_fin)}`;
+                        } else {
+                            msg = `Se sincronizarán los últimos ${data.days} días.`;
+                            url = `sync-tickets/?days=${data.days}`;
+                        }
                         Swal.fire({
                             title: 'Iniciando Sincronización',
-                            text: `Se enviará la solicitud para sincronizar los últimos ${days} días.`,
+                            text: msg,
                             icon: 'info',
                             timer: 2000,
                             showConfirmButton: false,
@@ -127,9 +208,8 @@
                                 Swal.showLoading();
                             }
                         });
-                        // Redirección con un pequeño delay para que se vea el mensaje
                         setTimeout(() => {
-                            window.location.href = `sync-tickets/?days=${days}`;
+                            window.location.href = url;
                         }, 1000);
                     }
                 });

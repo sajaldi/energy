@@ -9,9 +9,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 @shared_task(name='callcenter.tasks.sync_tickets_task')
-def sync_tickets_task(days=2):
+def sync_tickets_task(days=2, fecha_inicio=None, fecha_fin=None):
     """
     Tarea de Celery para sincronizar tickets desde SIG GIA.
+    Si fecha_inicio y fecha_fin están definidos (formato dd/mm/yyyy), se usan esas fechas.
+    De lo contrario, se usa el parámetro days para calcular el rango.
     """
     # Estas credenciales deberían estar en variables de entorno o settings por seguridad
     username = os.environ.get('CALLCENTER_USER')
@@ -21,7 +23,10 @@ def sync_tickets_task(days=2):
         return {"status": "error", "message": "Credenciales no configuradas (ver CALLCENTER_USER / CALLCENTER_PASS)"}
     company = "Centro Cívico Gubernamental de Honduras"
     
-    logger.info(f"Iniciando sincronización de tickets de los últimos {days} días...")
+    if fecha_inicio and fecha_fin:
+        logger.info(f"Iniciando sincronización de tickets del {fecha_inicio} al {fecha_fin}...")
+    else:
+        logger.info(f"Iniciando sincronización de tickets de los últimos {days} días...")
     
     try:
         download_dir = os.path.join(settings.BASE_DIR, 'downloads')
@@ -33,7 +38,9 @@ def sync_tickets_task(days=2):
             password=password,
             company_name=company,
             days=days,
-            download_dir=download_dir
+            download_dir=download_dir,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin
         )
         
         if not file_path or not os.path.exists(file_path):
