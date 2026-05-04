@@ -215,10 +215,27 @@
         .preview-img { width: 100%; height: 100%; object-fit: contain; }
         .no-img-text { color: var(--sap-text-muted); font-size: 0.8rem; }
 
-        /* Tom Select Customization */
-        .ts-control { border-radius: 0.25rem !important; padding: 0.5rem 0.75rem !important; border: 1px solid var(--sap-border) !important; box-shadow: none !important; }
-        .ts-control:focus { border-color: var(--sap-primary) !important; }
+        /* Tab Styles */
+        .tabs { display: flex; border-bottom: 1px solid var(--sap-border); margin-bottom: 1rem; }
+        .tab-btn { padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; font-weight: 500; color: var(--sap-text-muted); position: relative; }
+        .tab-btn:hover { color: var(--sap-primary); }
+        .tab-btn.active { color: var(--sap-primary); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: var(--sap-primary); }
         
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .view-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .view-table th { text-align: left; padding: 10px; background: #f8fafc; color: var(--sap-text-muted); font-weight: 600; border-bottom: 1px solid var(--sap-border); }
+        .view-table td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
+        .view-table tr:hover { background: #f9fbff; }
+
+        .badge-status { padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+        .badge-status-operativo { background: #e7f5ed; color: #0d6832; }
+        .badge-status-mantenimiento { background: #fff8e6; color: #8a6d3b; }
+        .badge-status-reparacion { background: #fee2e2; color: #991b1b; }
+        .badge-status-fuera_servicio { background: #f3f4f6; color: #374151; }
+
     </style>
 </head>
 <body>
@@ -228,7 +245,7 @@
             <p>Estandarización de activos y equipos</p>
         </div>
         <div class="header-actions">
-            <button class="btn btn-primary" onclick="openModeloModal()">
+            <button class="btn btn-primary" onclick="openEditModal()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -366,6 +383,153 @@
         {% endif %}
     </div>
 
+    <!-- Modal para Ver Detalles del Modelo (Viewer) -->
+    <div id="viewModeloModal" class="modal-backdrop">
+        <div class="modal-content" style="max-width: 950px; width: 95%;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="background: var(--sap-primary); color: white; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <ion-icon name="cube" style="font-size: 1.5rem;"></ion-icon>
+                    </div>
+                    <div>
+                        <h2 id="view-title" style="margin:0; font-size: 1.25rem;">Cargando...</h2>
+                        <span id="view-subtitle" style="font-size: 0.85rem; color: var(--sap-text-muted);">Ficha Técnica del Modelo</span>
+                    </div>
+                </div>
+                <button class="btn-close" onclick="closeViewModelo()">&times;</button>
+            </div>
+            <div class="modal-body" style="background: #ffffff; padding: 2rem;">
+                <div style="display: flex; gap: 2.5rem; margin-bottom: 2.5rem; flex-wrap: wrap;">
+                    <div style="width: 280px; flex-shrink: 0;">
+                        <div style="background: #f8fafc; border: 1px solid var(--sap-border); border-radius: 12px; padding: 12px; height: 280px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                            <img id="view-img" src="" alt="Imagen del modelo" style="max-width:100%; max-height:100%; object-fit: contain; display: none;">
+                            <div id="view-no-img" style="color:#94a3b8; text-align:center;">
+                                <ion-icon name="image-outline" style="font-size: 4rem; opacity: 0.2;"></ion-icon>
+                                <p style="font-size: 0.85rem; font-weight: 500;">Sin imagen técnica</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="flex: 1; min-width: 350px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                            <div class="stat-item">
+                                <span class="stat-label">Marca / Fabricante</span>
+                                <span id="view-marca" style="font-weight: 600; font-size: 1.1rem; color: var(--sap-text-color); display: block; margin-top: 4px;"></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Categoría de Activo</span>
+                                <span id="view-categoria" style="font-weight: 600; font-size: 1.1rem; color: var(--sap-text-color); display: block; margin-top: 4px;"></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Unidad de Gestión</span>
+                                <span id="view-unidad" style="font-weight: 600; color: var(--sap-text-color); display: block; margin-top: 4px;"></span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Valor de Referencia</span>
+                                <span id="view-precio" style="font-weight: 700; color: var(--sap-success); font-size: 1.25rem; display: block; margin-top: 4px;"></span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #f1f5f9;">
+                            <span class="stat-label">Especificaciones y Descripción</span>
+                            <p id="view-descripcion" style="font-size: 0.95rem; line-height: 1.6; color: #4b5563; margin-top: 10px; font-style: italic;"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button id="btn-tab-rutinas" class="tab-btn active" onclick="switchTab('tab-rutinas', this)">
+                        <ion-icon name="construct-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Planes de Mantenimiento
+                    </button>
+                    <button id="btn-tab-activos" class="tab-btn" onclick="switchTab('tab-activos', this)">
+                        <ion-icon name="list-outline" style="vertical-align: middle; margin-right: 6px;"></ion-icon> Activos en Inventario
+                    </button>
+                </div>
+
+                <div id="tab-rutinas" class="tab-content active">
+                    <div id="view-rutinas-container" style="min-height: 250px;">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+                <div id="tab-activos" class="tab-content">
+                    <div id="view-activos-container" style="min-height: 250px;">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1.5rem 2rem;">
+                <button class="btn btn-outline" onclick="closeViewModelo()" style="padding: 0.6rem 1.5rem;">Cerrar Vista</button>
+                <button class="btn btn-primary" id="btn-edit-from-view" style="background: #334155; border: none; padding: 0.6rem 1.5rem;">
+                    <ion-icon name="create-outline"></ion-icon> Editar Ficha Técnica
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Ver Detalles del Activo (Ficha Rápida) -->
+    <div id="assetDetailModal" class="modal-backdrop" style="z-index: 2000;">
+        <div class="modal-content" style="max-width: 600px; width: 95%;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="background: #f1f5f9; color: var(--sap-primary); width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <ion-icon name="hardware-chip" style="font-size: 1.5rem;"></ion-icon>
+                    </div>
+                    <div>
+                        <h2 id="asset-view-title" style="margin:0; font-size: 1.1rem;">Cargando Activo...</h2>
+                        <span id="asset-view-subtitle" style="font-size: 0.75rem; color: var(--sap-text-muted);">Información de Inventario</span>
+                    </div>
+                </div>
+                <button class="btn-close" onclick="closeAssetDetail()">&times;</button>
+            </div>
+            <div class="modal-body" style="background: #ffffff; padding: 1.5rem;">
+                <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <div id="asset-view-img-container" style="width: 150px; height: 150px; background: #f8fafc; border: 1px solid var(--sap-border); border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <img id="asset-view-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        <ion-icon id="asset-view-no-img" name="image-outline" style="font-size: 3rem; color: #cbd5e1;"></ion-icon>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="margin-bottom: 12px;">
+                            <span class="stat-label">Código Interno</span>
+                            <span id="asset-view-codigo" style="font-weight: 700; font-size: 1.25rem; color: var(--sap-primary); display: block;"></span>
+                        </div>
+                        <div style="margin-bottom: 12px;">
+                            <span class="stat-label">Estado Actual</span>
+                            <div id="asset-view-estado-container"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9;">
+                    <div>
+                        <span class="stat-label">Ubicación</span>
+                        <span id="asset-view-ubicacion" style="font-size: 0.85rem; font-weight: 600; display: block; margin-top: 2px;"></span>
+                    </div>
+                    <div>
+                        <span class="stat-label">Responsable</span>
+                        <span id="asset-view-responsable" style="font-size: 0.85rem; font-weight: 600; display: block; margin-top: 2px;"></span>
+                    </div>
+                    <div>
+                        <span class="stat-label">N° de Serie</span>
+                        <span id="asset-view-serie" style="font-size: 0.85rem; font-weight: 600; display: block; margin-top: 2px;"></span>
+                    </div>
+                    <div>
+                        <span class="stat-label">Fecha Alta</span>
+                        <span id="asset-view-fecha" style="font-size: 0.85rem; font-weight: 600; display: block; margin-top: 2px;"></span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <span class="stat-label">Descripción / Observaciones</span>
+                    <p id="asset-view-desc" style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-top: 6px;"></p>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1rem 1.5rem; background: #f8fafc;">
+                <button class="btn btn-outline" onclick="closeAssetDetail()" style="font-size: 0.85rem;">Cerrar</button>
+                <a id="asset-view-full-link" href="#" target="_blank" class="btn btn-primary" style="font-size: 0.85rem; display: flex; align-items: center; gap: 6px; background: var(--sap-primary);">
+                    <ion-icon name="open-outline"></ion-icon> Ver Expediente Completo
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Modelo -->
     <div id="modeloModal" class="modal-backdrop">
         <div class="modal-content">
@@ -462,7 +626,164 @@
             new TomSelect('#filter-cat', { create: false });
         });
 
-        function openModeloModal(id = null) {
+        // --- VIEWER MODAL LOGIC ---
+
+        function openModeloModal(id) {
+            const modal = document.getElementById('viewModeloModal');
+            const title = document.getElementById('view-title');
+            const btnEdit = document.getElementById('btn-edit-from-view');
+            
+            // Reset contents
+            title.innerText = "Cargando...";
+            document.getElementById('view-marca').innerText = "-";
+            document.getElementById('view-categoria').innerText = "-";
+            document.getElementById('view-unidad').innerText = "-";
+            document.getElementById('view-precio').innerText = "-";
+            document.getElementById('view-descripcion').innerText = "";
+            document.getElementById('view-img').style.display = 'none';
+            document.getElementById('view-no-img').style.display = 'block';
+            document.getElementById('view-rutinas-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando planes...</p>';
+            document.getElementById('view-activos-container').innerHTML = '<p style="padding:40px; text-align:center; color:#999;">Cargando inventario...</p>';
+
+            // Switch to first tab by default
+            switchTab('tab-rutinas', document.getElementById('btn-tab-rutinas'));
+
+            fetch(`{% url 'activos:modelo_fiori_get' %}?id=${id}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const m = data.modelo;
+                        title.innerText = m.nombre;
+                        document.getElementById('view-marca').innerText = m.marca_nombre;
+                        document.getElementById('view-categoria').innerText = m.categoria_nombre;
+                        document.getElementById('view-unidad').innerText = m.unidad_nombre;
+                        document.getElementById('view-precio').innerText = `$${m.precio_promedio.toLocaleString()}`;
+                        document.getElementById('view-descripcion').innerText = m.descripcion || "Sin descripción técnica adicional.";
+                        
+                        if (m.image_display_url) {
+                            const img = document.getElementById('view-img');
+                            img.src = m.image_display_url;
+                            img.style.display = 'block';
+                            document.getElementById('view-no-img').style.display = 'none';
+                        }
+
+                        // Render Rutinas
+                        let rutHtml = '<table class="view-table"><thead><tr><th>Plan / Actividad</th><th>Frecuencia</th><th>Tipo</th><th>Tiempo Est.</th></tr></thead><tbody>';
+                        if (data.rutinas && data.rutinas.length > 0) {
+                            data.rutinas.forEach(r => {
+                                rutHtml += `<tr>
+                                    <td style="font-weight:600; color:var(--sap-primary);">${r.nombre}</td>
+                                    <td>${r.frecuencia}</td>
+                                    <td><span style="background:#f1f5f9; padding:2px 8px; border-radius:4px; font-size:0.7rem;">${r.tipo}</span></td>
+                                    <td style="color:#666;">${r.tiempo}</td>
+                                </tr>`;
+                            });
+                        } else {
+                            rutHtml += '<tr><td colspan="4" style="text-align:center; padding:40px; color:#999;">No hay planes de mantenimiento definidos para esta categoría.</td></tr>';
+                        }
+                        rutHtml += '</tbody></table>';
+                        document.getElementById('view-rutinas-container').innerHTML = rutHtml;
+
+                        // Render Activos
+                        let actHtml = '<table class="view-table"><thead><tr><th>Código</th><th>Nombre del Equipo</th><th>Ubicación</th><th>Estado</th></tr></thead><tbody>';
+                        if (data.activos && data.activos.length > 0) {
+                            data.activos.forEach(a => {
+                                actHtml += `<tr style="cursor:pointer;" onclick="openAssetDetail(${a.id})">
+                                    <td style="font-weight:700; color:var(--sap-primary);">${a.codigo}</td>
+                                    <td>${a.nombre}</td>
+                                    <td style="font-size:0.75rem; color:#666;">${a.ubicacion}</td>
+                                    <td><span class="badge-status badge-status-${a.estado_raw.toLowerCase()}">${a.estado}</span></td>
+                                </tr>`;
+                            });
+                            if (m.total_activos > 50) {
+                                actHtml += `<tr><td colspan="4" style="text-align:center; font-size:0.75rem; color:#999; padding:10px;">Mostrando los primeros 50 de ${m.total_activos} equipos asociados.</td></tr>`;
+                            }
+                        } else {
+                            actHtml += '<tr><td colspan="4" style="text-align:center; padding:40px; color:#999;">No hay activos físicos registrados con este modelo.</td></tr>';
+                        }
+                        actHtml += '</tbody></table>';
+                        document.getElementById('view-activos-container').innerHTML = actHtml;
+
+                        // Setup Edit button
+                        btnEdit.onclick = () => {
+                            closeViewModelo();
+                            openEditModal(id);
+                        };
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                        closeViewModelo();
+                    }
+                });
+
+            modal.style.display = 'flex';
+        }
+
+        function closeViewModelo() {
+            document.getElementById('viewModeloModal').style.display = 'none';
+        }
+
+        // --- ASSET DETAIL LOGIC ---
+
+        function openAssetDetail(id) {
+            const modal = document.getElementById('assetDetailModal');
+            
+            // Clear previous
+            document.getElementById('asset-view-title').innerText = "Cargando...";
+            document.getElementById('asset-view-codigo').innerText = "-";
+            document.getElementById('asset-view-ubicacion').innerText = "-";
+            document.getElementById('asset-view-responsable').innerText = "-";
+            document.getElementById('asset-view-serie').innerText = "-";
+            document.getElementById('asset-view-fecha').innerText = "-";
+            document.getElementById('asset-view-desc').innerText = "";
+            document.getElementById('asset-view-img').style.display = 'none';
+            document.getElementById('asset-view-no-img').style.display = 'block';
+            document.getElementById('asset-view-estado-container').innerHTML = "";
+
+            fetch(`/activos/api/activo-detalle/${id}/`)
+                .then(r => r.json())
+                .then(a => {
+                    document.getElementById('asset-view-title').innerText = a.nombre;
+                    document.getElementById('asset-view-codigo').innerText = a.codigo_interno || "S/C";
+                    document.getElementById('asset-view-ubicacion').innerText = a.ubicacion;
+                    document.getElementById('asset-view-responsable').innerText = a.responsable;
+                    document.getElementById('asset-view-serie').innerText = a.serie || "N/A";
+                    document.getElementById('asset-view-fecha').innerText = a.fecha_compra || a.creado_en;
+                    document.getElementById('asset-view-desc').innerText = a.descripcion || "Sin observaciones adicionales.";
+                    
+                    if (a.foto_url) {
+                        const img = document.getElementById('asset-view-img');
+                        img.src = a.foto_url;
+                        img.style.display = 'block';
+                        document.getElementById('asset-view-no-img').style.display = 'none';
+                    }
+
+                    document.getElementById('asset-view-estado-container').innerHTML = `
+                        <span class="badge-status badge-status-${a.estado.toLowerCase()}" style="font-size: 0.85rem; padding: 4px 12px;">${a.estado_display}</span>
+                    `;
+
+                    document.getElementById('asset-view-full-link').href = `/activos/app/activo/${a.id}/`;
+                });
+
+            modal.style.display = 'flex';
+        }
+
+        function closeAssetDetail() {
+            document.getElementById('assetDetailModal').style.display = 'none';
+        }
+
+        function switchTab(tabId, el) {
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+
+            // Update contents
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // --- EDITOR MODAL LOGIC ---
+
+        function openEditModal(id = null) {
             const modal = document.getElementById('modeloModal');
             const form = document.getElementById('modeloForm');
             const title = document.getElementById('modalTitle');
@@ -480,23 +801,15 @@
             title.innerText = id ? 'Editar Modelo' : 'Nuevo Modelo';
 
             if (id) {
-                console.log("Fetching data for model ID:", id);
                 fetch(`{% url 'activos:modelo_fiori_get' %}?id=${id}`)
-                    .then(r => {
-                        if (!r.ok) throw new Error("Error en la respuesta del servidor");
-                        return r.json();
-                    })
+                    .then(r => r.json())
                     .then(data => {
-                        console.log("Model data received:", data);
                         if (data.status === 'success') {
                             const m = data.modelo;
                             document.getElementById('mod-nombre').value = m.nombre || '';
-                            
-                            // Usar String() para asegurar que TomSelect reconozca el valor
                             if (m.marca_id) tsMarca.setValue(String(m.marca_id));
                             if (m.categoria_id) tsCat.setValue(String(m.categoria_id));
                             if (m.unidad_medida_id) tsUnidad.setValue(String(m.unidad_medida_id));
-                            
                             document.getElementById('mod-precio').value = m.precio_promedio || 0;
                             document.getElementById('mod-desc').value = m.descripcion || '';
                             document.getElementById('mod-url').value = m.imagen_url || '';
@@ -504,13 +817,7 @@
                             if (m.image_display_url) {
                                 previewUrl(m.image_display_url);
                             }
-                        } else {
-                            Swal.fire('Error en la API', data.message || 'Error desconocido', 'error');
                         }
-                    })
-                    .catch(err => {
-                        console.error("Fetch error details:", err);
-                        Swal.fire('Error de Conexión', 'No se pudieron cargar los datos del modelo. Verifique su conexión o contacte al administrador.', 'error');
                     });
             }
 
@@ -546,8 +853,6 @@
         function saveModelo(e) {
             e.preventDefault();
             const formData = new FormData(document.getElementById('modeloForm'));
-
-            // CSRF Token
             formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
             fetch(`{% url 'activos:modelo_fiori_save' %}`, {
@@ -568,10 +873,10 @@
             const id = document.getElementById('mod-id').value;
             Swal.fire({
                 title: '¿Estás seguro?',
-                text: "No podrás revertir esta acción",
+                text: "Se eliminará este modelo del catálogo.",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#bb0000',
+                confirmButtonColor: '#334155',
                 confirmButtonText: 'Sí, eliminar'
             }).then((result) => {
                 if (result.isConfirmed) {

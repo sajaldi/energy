@@ -861,7 +861,7 @@ def api_ubicacion_detalle(request, ubicacion_id):
         
     # Obtener activos de esta ubicación y todas sus descendientes
     descendants = ubicacion.get_descendants(include_self=True)
-    activos_qs = Activo.objects.filter(ubicacion__in=descendants).select_related('modelo__categoria__padre', 'modelo__categoria', 'modelo', 'ubicacion')
+    activos_qs = Activo.objects.filter(ubicacion__in=descendants).select_related('modelo__marca', 'modelo__categoria__padre', 'modelo__categoria', 'modelo', 'ubicacion')
     
     # Filtro opcional por categoría
     cat_id = request.GET.get('cat_id')
@@ -908,12 +908,22 @@ def api_ubicacion_detalle(request, ubicacion_id):
             groups[root_name]['subcats'][sub_name] = []
             
         # Serializar activo
+        # Construir nombre de modelo con marca
+        modelo_display = ""
+        if activo.modelo:
+            if activo.modelo.marca:
+                modelo_display = f"{activo.modelo.marca.nombre} {activo.modelo.nombre}"
+            else:
+                modelo_display = activo.modelo.nombre
+        else:
+            modelo_display = 'S/M'
+
         groups[root_name]['subcats'][sub_name].append({
             'id': activo.id,
             'nombre': activo.nombre,
             'codigo': activo.codigo_interno or 'S/C',
             'serie': activo.serie,
-            'modelo': activo.modelo.nombre if activo.modelo else None,
+            'modelo': modelo_display,
             'estado': activo.estado,
             'estado_display': activo.get_estado_display(),
             'descripcion': (activo.descripcion[:50] + '...') if (activo.descripcion and len(activo.descripcion) > 50) else (activo.descripcion or ''),

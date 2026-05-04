@@ -73,7 +73,7 @@ from django.contrib.auth.decorators import login_required
 
 @login_required
 def modelo_detail_api(request):
-    """API para obtener detalles de un modelo"""
+    """API para obtener detalles completos de un modelo (360 view)"""
     pk = request.GET.get('id', '').replace(',', '').replace('.', '')
     try:
         m = Modelo.objects.select_related('marca', 'categoria', 'unidad_medida').get(pk=pk)
@@ -85,23 +85,58 @@ def modelo_detail_api(request):
         except Exception as img_err:
             image_url = getattr(m, 'imagen_url', '') or ""
 
+        # Obtener activos asociados
+        activos = []
+        for a in m.activos.select_related('ubicacion').all()[:50]: # Limitar a 50 para evitar sobrecarga
+            activos.append({
+                'id': a.id,
+                'codigo': a.codigo_interno,
+                'nombre': a.nombre,
+                'ubicacion': a.ubicacion.nombre if a.ubicacion else 'Sin Ubicación',
+                'estado': a.get_estado_display(),
+                'estado_raw': a.estado
+            })
+
+        # Obtener rutinas de mantenimiento (vía categoría)
+        from mantenimiento.models import Rutina
+        rutinas = []
+        if m.categoria:
+            # Buscar rutinas vinculadas a esta categoría
+            qs_rutinas = Rutina.objects.filter(categoria_activo=m.categoria).select_related('frecuencia', 'tipo')
+            for r in qs_rutinas:
+                rutinas.append({
+                    'id': r.id,
+                    'nombre': r.nombre,
+                    'frecuencia': r.frecuencia.nombre if r.frecuencia else 'N/A',
+                    'tipo': r.tipo.nombre if r.tipo else 'General',
+                    'tiempo': str(r.tiempo_estimado) if r.tiempo_estimado else 'N/A'
+                })
+
         return JsonResponse({
             'status': 'success',
             'modelo': {
                 'id': m.id,
                 'nombre': m.nombre,
+                'marca_nombre': m.marca.nombre,
                 'marca_id': m.marca_id,
+                'categoria_nombre': m.categoria.nombre if m.categoria else "Sin Categoría",
                 'categoria_id': m.categoria_id or "",
                 'unidad_medida_id': m.unidad_medida_id or "",
+                'unidad_medida_nombre': m.unidad_medida.nombre if m.unidad_medida else "N/A",
                 'precio_promedio': float(m.precio_promedio or 0),
                 'descripcion': m.descripcion or "",
                 'imagen_url': getattr(m, 'imagen_url', '') or "",
-                'image_display_url': image_url
-            }
+                'image_display_url': image_url,
+                'total_activos': m.activos.count()
+            },
+            'activos': activos,
+            'rutinas': rutinas
         })
     except Modelo.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': f'Modelo ID {pk} no encontrado'}, status=404)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @staff_member_required
