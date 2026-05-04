@@ -319,6 +319,7 @@ class CategoriaAdmin(ImportExportModelAdmin):
     list_display = ('nombre', 'icono', 'descripcion', 'cantidad_activos')
     search_fields = ('nombre',)
     change_form_template = 'admin/activos/categoria/change_form.html'
+    change_list_template = 'admin/activos/categoria/change_list.html'
 
     def get_urls(self):
         from django.urls import path

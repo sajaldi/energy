@@ -6,8 +6,24 @@ app_name = 'activos'
 from . import views_sync
 from . import views_rutinas
 from . import views_celery
+from . import views_categorias
+from . import views_modelos
 
 urlpatterns = [
+    # Dashboard de Categorías
+    path('categorias/dashboard/', views_categorias.categorias_dashboard, name='categorias_dashboard'),
+    path('api/categoria-detalle/<int:pk>/', views_categorias.categoria_detail_api, name='categoria_detail_api'),
+    path('api/categoria-save/', views_categorias.categoria_save_api, name='categoria_save_api'),
+    path('api/categoria-delete/<int:pk>/', views_categorias.categoria_delete_api, name='categoria_delete_api'),
+    path('api/categoria-modelos/<int:pk>/', views_categorias.get_categoria_modelos_api, name='get_categoria_modelos_api'),
+    path('api/modelo-detalle-completo/<int:pk>/', views_categorias.get_modelo_details_api, name='get_modelo_details_api'),
+
+    # Dashboard de Modelos
+    path('modelos/dashboard/', views_modelos.modelos_dashboard, name='modelos_dashboard'),
+    path('api/modelo-fiori-save/', views_modelos.modelo_save_api, name='modelo_fiori_save'),
+    path('api/modelo-fiori-delete/<int:pk>/', views_modelos.modelo_delete_api, name='modelo_fiori_delete'),
+    path('api/modelo-fiori-get/', views_modelos.modelo_detail_api, name='modelo_fiori_get'),
+
     path('visor/<int:visor_id>/', views.visor_plano, name='visor_plano'),
     path('visor/plano/<int:plano_id>/', views.visor_plano, name='visor_plano_por_plano'),
     path('api/guardar-pin/', views.guardar_pin, name='guardar_pin'),

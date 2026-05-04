@@ -593,6 +593,20 @@ JAZZMIN_SETTINGS = {
     "use_google_fonts_cdn": True,
     "show_ui_builder": True,
     "custom_links": {
+        "activos": [
+            {
+                "name": "📂 Jerarquía de Categorías",
+                "url": "/activos/categorias/dashboard/",
+                "icon": "fas fa-sitemap",
+                "permissions": ["activos.view_categoria"],
+            },
+            {
+                "name": "📦 Catálogo de Modelos",
+                "url": "/activos/modelos/dashboard/",
+                "icon": "fas fa-box-open",
+                "permissions": ["activos.view_modelo"],
+            },
+        ],
         "mantenimiento": [
             {
                 "name": "📊 Dashboard Mantenimiento",

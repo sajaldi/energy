@@ -932,7 +932,7 @@ class Aviso(models.Model):
 
         def send_webhook():
             # N8N webhook endpoint (configurable en settings.py o variable de entorno)
-            url = getattr(settings, 'N8N_AVISOS_WEBHOOK_URL', 'http://localhost:5678/webhook/avisos-asignacion')
+            url = getattr(settings, 'N8N_AVISOS_WEBHOOK_URL', 'http://localhost:5678/webhook-test/avisos-asignacion')
             
             tecnico_nombre = self.responsable.get_full_name() or self.responsable.username
             tecnico_telefono = ""

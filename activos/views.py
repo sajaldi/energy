@@ -916,6 +916,8 @@ def api_ubicacion_detalle(request, ubicacion_id):
             'modelo': activo.modelo.nombre if activo.modelo else None,
             'estado': activo.estado,
             'estado_display': activo.get_estado_display(),
+            'descripcion': (activo.descripcion[:50] + '...') if (activo.descripcion and len(activo.descripcion) > 50) else (activo.descripcion or ''),
+            'modelo_descripcion': (activo.modelo.descripcion[:50] + '...') if (activo.modelo and activo.modelo.descripcion and len(activo.modelo.descripcion) > 50) else (activo.modelo.descripcion if (activo.modelo and activo.modelo.descripcion) else ''),
             'ubicacion_nombre': activo.ubicacion.nombre if activo.ubicacion else 'Sin Ubicación',
             'is_child': activo.ubicacion_id != ubicacion.id,
         })

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: letter;
+            margin: 1cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.4;
+        }
+        .header {
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 24px;
+            color: #2563eb;
+            margin: 0;
+        }
+        .priority-BAJA { color: #10b981; }
+        .priority-MEDIA { color: #f59e0b; }
+        .priority-ALTA { color: #ef4444; }
+        .priority-CRITICA { color: #7f1d1d; font-weight: bold; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background-color: #f9fafb;
+            width: 30%;
+        }
+        .description-box {
+            background-color: #f3f4f6;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            min-height: 100px;
+        }
+        .photos-container {
+            margin-top: 20px;
+        }
+        .photo-card {
+            display: inline-block;
+            width: 45%;
+            margin-right: 4%;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .photo-card img {
+            max-width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">Reporte de Aviso AV-{{ aviso.id }}</h1>
+        <p>Generado el: {{ hoy|date:"d/m/Y H:i" }}</p>
+    </div>
+
+    <table>
+        <tr>
+            <th>Estado</th>
+            <td>{{ aviso.get_estado_display }}</td>
+        </tr>
+        <tr>
+            <th>Prioridad</th>
+            <td class="priority-{{ aviso.prioridad }}">{{ aviso.get_priority_display|default:aviso.prioridad }}</td>
+        </tr>
+        <tr>
+            <th>Ubicación</th>
+            <td>{{ aviso.ubicacion.nombre }}</td>
+        </tr>
+        <tr>
+            <th>Solicitante</th>
+            <td>{{ aviso.solicitante.get_full_name|default:aviso.solicitante.username }}</td>
+        </tr>
+        <tr>
+            <th>Responsable</th>
+            <td>{{ aviso.responsable.get_full_name|default:aviso.responsable.username }}</td>
+        </tr>
+        <tr>
+            <th>Fecha Reporte</th>
+            <td>{{ aviso.creado_en|date:"d/m/Y H:i" }}</td>
+        </tr>
+    </table>
+
+    <h3>Descripción</h3>
+    <div class="description-box">
+        {{ aviso.descripcion|linebreaks }}
+    </div>
+
+    {% if aviso.foto or aviso.fotos.all %}
+    <h3>Evidencias Fotográficas</h3>
+    <div class="photos-container">
+        {% if aviso.foto %}
+        <div class="photo-card">
+            <img src="{{ aviso.foto.path }}" alt="Foto Principal">
+            <p>Foto Principal</p>
+        </div>
+        {% endif %}
+        
+        {% for f in aviso.fotos.all %}
+        <div class="photo-card">
+            <img src="{{ f.foto.path }}" alt="Foto {{ forloop.counter }}">
+            <p>Evidencia {{ forloop.counter }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        Sistema de Gestión de Energía - Módulo de Mantenimiento
+    </div>
+</body>
+</html>

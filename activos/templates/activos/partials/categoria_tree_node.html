@@ -1,0 +1,43 @@
+<div class="tree-node" data-cat-name="{{ node.categoria.nombre|lower }}">
+    <div class="tree-row cat-row {% if node.subcategorias %}has-children{% endif %}" onclick="toggleNode(this)">
+        <span class="tree-icon">
+            {% if node.subcategorias %}
+            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #6a6d70;">
+                <path d="M9 18l6-6-6-6" />
+            </svg>
+            {% else %}
+            <span style="display: inline-block; width: 16px;"></span>
+            {% endif %}
+            <ion-icon name="{{ node.categoria.icono|default:'location' }}" style="font-size: 20px; color: #326391; margin-right: 4px;"></ion-icon>
+        </span>
+        <span class="cat-name" style="font-size: 0.95rem; font-weight: 500; color: #32363a;">{{ node.categoria.nombre }}</span>
+        
+        <div class="action-btns" style="margin-left: auto;">
+            <button class="btn-action" onclick="event.stopPropagation(); openModelosDrawer({{ node.categoria.id }})" title="Ver Modelos Relacionados" style="color: #6a6d70;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+            </button>
+            <button class="btn-action" onclick="event.stopPropagation(); openCategoriaModal({{ node.categoria.id }})" title="Editar Categoría" style="color: #0070f2;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+            </button>
+            <button class="btn-action" onclick="event.stopPropagation(); openCategoriaModal(null, {{ node.categoria.id }})" title="Nueva Sub-categoría" style="color: #107e3e;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="tree-content" style="display: none;">
+        {% for subnode in node.subcategorias %}
+            {% include "activos/partials/categoria_tree_node.html" with node=subnode %}
+        {% endfor %}
+    </div>
+</div>

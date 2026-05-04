@@ -7,6 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jerarquía de Rutinas | Mantenimiento</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <style>
         :root {
             /* SAP Fiori Horizon / Quartz Colors */
@@ -594,6 +596,12 @@
         .glass-invasive {
             border: 3px solid #ef4444 !important;
         }
+
+        /* Tom Select Customization */
+        .ts-control { border-radius: 4px !important; padding: 10px 14px !important; border: 1.5px solid #e2e8f0 !important; box-shadow: none !important; font-size: 0.9rem !important; }
+        .ts-control:focus { border-color: #2563eb !important; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important; }
+        .ts-dropdown { border-radius: 4px !important; box-shadow: 0 1rem 3rem rgba(0,0,0,0.15) !important; border: 1px solid var(--border) !important; }
+        .ts-dropdown .active { background-color: #eff6ff !important; color: #0070f2 !important; }
     </style>
 </head>
 
@@ -787,6 +795,7 @@
         let rModal, tModal, rLoader, rForm, tForm, footerView, footerEdit;
         let currentRoutineId = null;
         let currentTipoId = null;
+        let tsCatActivo = null;
 
         // DEBUG LOGGER ANTIGRAVITY
         document.addEventListener('click', (e) => {
@@ -848,6 +857,17 @@
                 tForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     saveTipo();
+                });
+            }
+
+            // Initialize Tom Select for Asset Category
+            const fCatActivo = document.getElementById('f-cat-activo');
+            if (fCatActivo) {
+                tsCatActivo = new TomSelect('#f-cat-activo', {
+                    create: false,
+                    placeholder: 'Seleccione categoría de activo...',
+                    allowEmptyOption: true,
+                    maxOptions: 500,
                 });
             }
         });
@@ -1217,7 +1237,11 @@
             if (fUbic) fUbic.value = rutina.ubicacion_predeterminada_id || '';
             
             const fCatAct = document.getElementById('f-cat-activo');
-            if (fCatAct) fCatAct.value = rutina.categoria_activo_id || '';
+            if (tsCatActivo) {
+                tsCatActivo.setValue(rutina.categoria_activo_id || '');
+            } else if (fCatAct) {
+                fCatAct.value = rutina.categoria_activo_id || '';
+            }
             
             const fHor = document.getElementById('f-horario');
             if (fHor) fHor.value = rutina.horario_predeterminado_id || '';

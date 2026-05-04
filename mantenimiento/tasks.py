@@ -1393,9 +1393,32 @@ def notify_responsible_n8n(aviso_id):
             return {"status": "error", "message": "El aviso no tiene un responsable asignado."}
             
         n8n_url = getattr(settings, 'N8N_AVISOS_WEBHOOK_URL', None)
-        if not n8n_url:
-            return {"status": "error", "message": "N8N_AVISOS_WEBHOOK_URL no configurada."}
+        
+        # Si estamos en local y la URL no contiene 'webhook-test', la ajustamos para pruebas
+        if settings.IS_LOCAL and n8n_url and '/webhook/' in n8n_url:
+            n8n_url = n8n_url.replace('/webhook/', '/webhook-test/')
             
+        # Generar reporte PDF
+        pdf_base64 = ""
+        try:
+            from django.template.loader import get_template
+            from xhtml2pdf import pisa
+            from io import BytesIO
+            import base64
+            from django.utils import timezone
+            
+            template = get_template('mantenimiento/pdf/aviso_report.html')
+            context = {'aviso': aviso, 'hoy': timezone.now()}
+            html = template.render(context)
+            
+            result = BytesIO()
+            pisa_status = pisa.CreatePDF(html, dest=result)
+            
+            if not pisa_status.err:
+                pdf_base64 = base64.b64encode(result.getvalue()).decode('utf-8')
+        except Exception as pdf_err:
+            print(f"[ERROR] [PDF] Fallo al generar reporte: {str(pdf_err)}")
+
         payload = {
             'aviso_id': aviso.id,
             'titulo': f"AV-{aviso.id}",
@@ -1405,15 +1428,36 @@ def notify_responsible_n8n(aviso_id):
             'solicitante': aviso.solicitante.get_full_name() or aviso.solicitante.username if aviso.solicitante else "Sistema",
             'responsable_email': aviso.responsable.email,
             'responsable_nombre': aviso.responsable.get_full_name() or aviso.responsable.username,
+            'responsable_telefono': aviso.responsable.perfil.telefono if hasattr(aviso.responsable, 'perfil') else '',
             'creado_en': aviso.creado_en.isoformat(),
-            'url_detalle': f"{settings.SITE_URL}/admin/mantenimiento/aviso/{aviso.id}/change/"
+            'url_detalle': f"{settings.SITE_URL}/admin/mantenimiento/aviso/{aviso.id}/change/",
+            'pdf_report': pdf_base64, # PDF en base64 para que n8n lo procese
+            'has_images': bool(aviso.foto or aviso.fotos.exists()),
+            'foto_principal': f"{settings.SITE_URL}{aviso.foto.url}" if aviso.foto else ""
         }
-        
-        response = requests.post(n8n_url, json=payload, timeout=10)
-        if response.status_code in [200, 201]:
-            return {"status": "success", "message": f"Notificación enviada a {payload['responsable_nombre']}"}
-        else:
-            return {"status": "error", "message": f"Error en n8n: {response.status_code}"}
+
+        # Intentar primero con localhost, si falla o es 404, intentar con la IP de la captura
+        urls_a_probar = [n8n_url]
+        public_ip_url = n8n_url.replace('localhost', '181.115.47.107')
+        if public_ip_url not in urls_a_probar:
+            urls_a_probar.append(public_ip_url)
+
+        last_error = ""
+        for current_url in urls_a_probar:
+            try:
+                print(f"[DEBUG] [N8N] Intentando notificación a: {current_url}")
+                response = requests.post(current_url, json=payload, timeout=5)
+                if response.status_code in [200, 201]:
+                    return {"status": "success", "message": f"Notificación enviada a {payload['responsable_nombre']} vía {current_url}"}
+                last_error = f"Error {response.status_code} en {current_url}"
+            except Exception as e:
+                last_error = f"Fallo de conexión a {current_url}: {str(e)}"
+
+        return {
+            "status": "error", 
+            "message": f"No se pudo conectar con n8n después de varios intentos. Último error: {last_error}",
+            "urls_intentadas": urls_a_probar
+        }
             
     except Exception as e:
         return {"status": "error", "message": str(e)}

@@ -241,6 +241,52 @@
         gap: 8px;
         border-radius: 4px;
         cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .category-header:hover {
+        background: #e2e5e7;
+    }
+
+    .category-header .toggle-arrow {
+        transition: transform 0.3s;
+    }
+
+    .category-card.collapsed .table-container {
+        display: none;
+    }
+
+    .category-card.collapsed .toggle-arrow {
+        transform: rotate(-90deg);
+    }
+
+    .section-search {
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .section-search input {
+        width: 100%;
+        padding: 10px 40px 10px 14px;
+        border: 1px solid var(--fiori-border);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .section-search input:focus {
+        border-color: var(--fiori-primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.1);
+    }
+
+    .section-search ion-icon {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--fiori-text-secondary);
+        font-size: 1.2rem;
     }
 
     /* Asset Table */
@@ -509,18 +555,24 @@
 
             <div class="fiori-section">
                 <div class="section-title"><ion-icon name="list-outline"></ion-icon> Inventario de Equipos</div>
+                <div class="section-search">
+                    <input type="text" id="equipment-search" placeholder="Filtrar equipos por nombre, código o modelo..." onkeyup="filterEquipment(this.value)">
+                    <ion-icon name="funnel-outline"></ion-icon>
+                </div>
         `;
 
         if (data.categorias.length === 0) {
             html += '<p style="color:#999; text-align:center; padding:40px;">No hay activos asignados directamente a esta ubicación.</p>';
         } else {
-            data.categorias.forEach(cat => {
+            data.categorias.forEach((cat, idx) => {
+                const catId = 'cat-block-' + idx;
                 html += `
-                    <div class="category-card">
-                        <div class="category-header">
+                    <div class="category-card collapsed" id="${catId}">
+                        <div class="category-header" onclick="toggleCategory('${catId}')">
                             <ion-icon name="${cat.icono || 'cube'}"></ion-icon>
                             <span>${cat.nombre}</span>
-                            <span style="margin-left:auto; opacity:0.6;">${cat.total_items} items</span>
+                            <span style="margin-left:auto; opacity:0.6; font-size: 0.8rem; margin-right: 10px;">${cat.total_items} items</span>
+                            <ion-icon name="chevron-down-outline" class="toggle-arrow"></ion-icon>
                         </div>
                         <div class="table-container">
                             <table class="asset-table">
@@ -529,6 +581,8 @@
                                         <th>Código</th>
                                         <th>Nombre</th>
                                         <th>Modelo/Marca</th>
+                                        <th>Desc. Modelo</th>
+                                        <th>Desc. Activo</th>
                                         <th>Estado</th>
                                         <th>Acciones</th>
                                     </tr>
@@ -543,6 +597,8 @@
                                 <td style="font-weight:700; color:var(--fiori-primary);">${a.codigo}</td>
                                 <td>${a.nombre}</td>
                                 <td>${a.modelo || '-'}</td>
+                                <td style="color:var(--fiori-text-secondary); font-size:0.8rem;">${a.modelo_descripcion || '-'}</td>
+                                <td style="color:var(--fiori-text-secondary); font-size:0.8rem;">${a.descripcion || '-'}</td>
                                 <td><span class="status-badge status-${a.estado}">${a.estado_display}</span></td>
                                 <td>
                                     ${isSelectionMode ? `
@@ -637,6 +693,48 @@
     async function handleSearch(q) {
         if (!q || q.length < 2) return;
         // Optional implementation for global search
+    }
+
+    function toggleCategory(id) {
+        const card = document.getElementById(id);
+        if (card) card.classList.toggle('collapsed');
+    }
+
+    function filterEquipment(q) {
+        const query = q.toLowerCase().trim();
+        const rows = document.querySelectorAll('.asset-row');
+        const cards = document.querySelectorAll('.category-card');
+        
+        if (query === '') {
+            rows.forEach(r => r.style.display = '');
+            cards.forEach(c => {
+                c.style.display = '';
+                c.classList.add('collapsed');
+            });
+            return;
+        }
+
+        cards.forEach(card => {
+            let hasVisible = false;
+            const cardRows = card.querySelectorAll('.asset-row');
+            
+            cardRows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                if (text.includes(query)) {
+                    row.style.display = '';
+                    hasVisible = true;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if (hasVisible) {
+                card.style.display = '';
+                card.classList.remove('collapsed');
+            } else {
+                card.style.display = 'none';
+            }
+        });
     }
 </script>
 {% endblock %}

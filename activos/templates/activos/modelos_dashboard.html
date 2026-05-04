@@ -1,0 +1,595 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Modelos | Activos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <style>
+        :root {
+            --sap-shell-color: #354a5f;
+            --sap-background: #f7f7f7;
+            --sap-text-color: #32363a;
+            --sap-text-muted: #6a6d70;
+            --sap-primary: #0070f2;
+            --sap-primary-hover: #0056b3;
+            --sap-border: #d9d9d9;
+            --sap-card-bg: #ffffff;
+            --sap-success: #107e3e;
+            --sap-error: #bb0000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--sap-background);
+            color: var(--sap-text-color);
+            min-height: 100vh;
+        }
+
+        .dashboard-header {
+            background: var(--sap-shell-color);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header-title h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+        .header-title p { color: #d9d9d9; font-size: 0.85rem; margin-top: 2px; }
+
+        .sub-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--sap-border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            text-decoration: none;
+        }
+
+        .btn-primary { background-color: var(--sap-primary); color: white; }
+        .btn-primary:hover { background-color: var(--sap-primary-hover); }
+        .btn-outline { background-color: transparent; border-color: var(--sap-primary); color: var(--sap-primary); }
+        .btn-outline:hover { background-color: #f0f7ff; }
+        .btn-danger { background-color: var(--sap-error); color: white; }
+
+        .container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 2rem 2rem 2rem; }
+
+        /* Filter Panel */
+        .filter-panel {
+            background: #ffffff;
+            padding: 1rem 1.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid var(--sap-border);
+            margin-bottom: 1.5rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            align-items: flex-end;
+        }
+
+        .form-group { margin: 0; }
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--sap-text-muted); margin-bottom: 0.5rem; }
+        
+        .form-control {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--sap-border);
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            outline: none;
+            width: 100%;
+        }
+
+        .form-control:focus { border-color: var(--sap-primary); }
+
+        /* Grid Layout */
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .model-card {
+            background: white;
+            border-radius: 0.5rem;
+            border: 1px solid var(--sap-border);
+            padding: 1.5rem;
+            display: flex;
+            gap: 1.25rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .model-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.08);
+            border-color: var(--sap-primary);
+        }
+
+        .model-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 0.5rem;
+            object-fit: cover;
+            background: #f1f5f9;
+            border: 1px solid #eee;
+        }
+
+        .model-content { flex: 1; min-width: 0; }
+        .model-brand { font-size: 0.75rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 0.25rem; display: block; }
+        .model-name { font-size: 1rem; font-weight: 600; color: var(--sap-text-color); margin-bottom: 0.5rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .model-cat { font-size: 0.8rem; color: var(--sap-text-muted); display: flex; align-items: center; gap: 4px; }
+        
+        .model-stats {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 0.75rem;
+        }
+
+        .stat-item { flex: 1; }
+        .stat-label { font-size: 0.65rem; color: var(--sap-text-muted); text-transform: uppercase; display: block; }
+        .stat-value { font-size: 0.9rem; font-weight: 700; color: var(--sap-primary); }
+
+        /* Modal Styles */
+        .modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 650px;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 1rem 3rem rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        .modal-header { padding: 1.25rem; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; }
+        .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--sap-border); background: #f8fafc; display: flex; justify-content: flex-end; gap: 0.75rem; }
+
+        .btn-close {
+            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--sap-text-muted);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .full-width { grid-column: 1 / -1; }
+
+        .preview-img-container {
+            width: 100%;
+            height: 150px;
+            border: 2px dashed var(--sap-border);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .preview-img { width: 100%; height: 100%; object-fit: contain; }
+        .no-img-text { color: var(--sap-text-muted); font-size: 0.8rem; }
+
+        /* Tom Select Customization */
+        .ts-control { border-radius: 0.25rem !important; padding: 0.5rem 0.75rem !important; border: 1px solid var(--sap-border) !important; box-shadow: none !important; }
+        .ts-control:focus { border-color: var(--sap-primary) !important; }
+        
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <div class="header-title">
+            <h1>📦 Catálogo de Modelos</h1>
+            <p>Estandarización de activos y equipos</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openModeloModal()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg> Nuevo Modelo
+            </button>
+        </div>
+    </div>
+
+    <div class="sub-header">
+        <div class="breadcrumb" style="font-size: 0.9rem; color: var(--sap-text-muted);">
+            <span>Activos</span> / <span style="font-weight: 600; color: var(--sap-text-color);">Modelos</span>
+        </div>
+        <div style="font-size: 0.9rem; font-weight: 500;">
+            Total: <span style="color: var(--sap-primary);">{{ total_modelos }}</span> modelos registrados
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Alphabetical Filter Bar -->
+        <div class="abc-filter" style="background: white; padding: 1rem; border-radius: 0.25rem; border: 1px solid var(--sap-border); margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <a href="?{% if search %}search={{ search }}&{% endif %}{% if current_marca %}marca={{ current_marca }}&{% endif %}{% if current_cat %}categoria={{ current_cat }}&{% endif %}" 
+               style="padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.8rem; color: {% if not current_letra %}white{% else %}var(--sap-text-muted){% endif %}; background: {% if not current_letra %}var(--sap-primary){% else %}#f8f9fa{% endif %}; transition: all 0.2s;">TODOS</a>
+            
+            {% with "ABCDEFGHIJKLMNOPQRSTUVWXYZ" as alphabet %}
+                {% for char in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"|make_list %}
+                    <a href="?letra={{ char }}{% if search %}&search={{ search }}{% endif %}{% if current_marca %}&marca={{ current_marca }}{% endif %}{% if current_cat %}&categoria={{ current_cat }}{% endif %}" 
+                       style="padding: 6px 10px; text-decoration: none; border-radius: 4px; font-weight: 700; font-size: 0.8rem; min-width: 34px; text-align: center; transition: all 0.2s;
+                       {% if current_letra == char %}background: var(--sap-primary); color: white; box-shadow: 0 2px 8px rgba(0,103,197,0.3);{% else %}color: var(--sap-primary); background: #f0f7ff;{% endif %}"
+                       onmouseover="this.style.filter='brightness(0.9)'" onmouseout="this.style.filter='none'">{{ char }}</a>
+                {% endfor %}
+            {% endwith %}
+        </div>
+
+        <form class="filter-panel" method="GET">
+            <div class="form-group">
+                <label>Buscador</label>
+                <input type="text" name="search" class="form-control" placeholder="Nombre o descripción..." value="{{ search }}">
+            </div>
+            <div class="form-group">
+                <label>Marca</label>
+                <select name="marca" id="filter-marca" class="form-control">
+                    <option value="">Todas las Marcas</option>
+                    {% for m in marcas %}
+                        <option value="{{ m.id }}" {% if current_marca == m.id|stringformat:"s" %}selected{% endif %}>{{ m.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Categoría</label>
+                <select name="categoria" id="filter-cat" class="form-control">
+                    <option value="">Todas las Categorías</option>
+                    {% for c in categorias %}
+                        <option value="{{ c.id }}" {% if current_cat == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+                <a href="?" class="btn btn-outline">Limpiar</a>
+            </div>
+        </form>
+
+        {% if marcas_en_filtro %}
+        <div class="brand-index" style="background: white; padding: 0.75rem 1.5rem; border-radius: 0.25rem; border: 1px solid var(--sap-border); margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+            <span style="font-size: 0.75rem; font-weight: 700; color: var(--sap-text-muted); text-transform: uppercase; margin-right: 0.5rem;">Índice rápido:</span>
+            {% for marca in marcas_en_filtro %}
+                {% if marca in modelos_por_marca %}
+                    <!-- Salto interno si está en la página actual -->
+                    <a href="#brand-{{ marca.id }}" style="font-size: 0.85rem; text-decoration: none; color: var(--sap-primary); font-weight: 600; padding: 4px 10px; border-radius: 4px; background: #f0f7ff; transition: all 0.2s;" title="Saltar a {{ marca.nombre }}">{{ marca.nombre }}</a>
+                {% else %}
+                    <!-- Filtro directo si está en otra página -->
+                    <a href="?marca={{ marca.id }}{% if search %}&search={{ search }}{% endif %}{% if current_letra %}&letra={{ current_letra }}{% endif %}{% if current_cat %}&categoria={{ current_cat }}{% endif %}" 
+                       style="font-size: 0.85rem; text-decoration: none; color: #666; font-weight: 600; padding: 4px 10px; border-radius: 4px; background: #eee; transition: all 0.2s;" title="Ver modelos de {{ marca.nombre }}">{{ marca.nombre }}</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="model-grid">
+            <!-- ... content loop ... -->
+            {% for marca, models in modelos_por_marca.items %}
+                <div id="brand-{{ marca.id }}" class="brand-section" style="grid-column: 1 / -1; margin-top: 2rem; margin-bottom: 1rem; border-bottom: 2px solid var(--sap-primary); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 10px; scroll-margin-top: 80px;">
+                    <ion-icon name="bookmark" style="color: var(--sap-primary); font-size: 1.5rem;"></ion-icon>
+                    <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--sap-text-color);">{{ marca.nombre }}</h2>
+                    <span style="font-size: 0.85rem; background: #eee; padding: 2px 10px; border-radius: 12px; color: var(--sap-text-muted);">{{ models|length }} modelos</span>
+                </div>
+                {% for m in models %}
+                    <div class="model-card" onclick="openModeloModal('{{ m.id|stringformat:"s" }}')">
+                        <img src="{% if m.imagen %}{{ m.imagen }}{% else %}https://via.placeholder.com/150?text=No+Imagen{% endif %}" class="model-img" alt="{{ m.nombre }}">
+                        <div class="model-content">
+                            <span class="model-brand">{{ m.marca.nombre }}</span>
+                            <span class="model-name">{{ m.nombre }}</span>
+                            <div class="model-cat">
+                                <ion-icon name="folder-outline"></ion-icon>
+                                {{ m.categoria.nombre|default:"Sin Categoría" }}
+                            </div>
+                            <div class="model-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Equipos</span>
+                                    <span class="stat-value">{{ m.total_activos }}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Precio Prom.</span>
+                                    <span class="stat-value">${{ m.precio_promedio|default:"0" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% empty %}
+                <div style="grid-column: 1 / -1; text-align: center; padding: 5rem; background: white; border-radius: 0.5rem; border: 1px dashed var(--sap-border);">
+                    <ion-icon name="cube-outline" style="font-size: 4rem; opacity: 0.2;"></ion-icon>
+                    <p style="color: var(--sap-text-muted); margin-top: 1rem;">No se encontraron modelos con los filtros aplicados.</p>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="pagination-container" style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--sap-border);">
+            {% if page_obj.has_previous %}
+                <a href="?page=1{% if search %}&search={{ search }}{% endif %}{% if current_marca %}&marca={{ current_marca }}{% endif %}{% if current_cat %}&categoria={{ current_cat }}{% endif %}{% if current_letra %}&letra={{ current_letra }}{% endif %}" class="btn btn-outline">« Primera</a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_marca %}&marca={{ current_marca }}{% endif %}{% if current_cat %}&categoria={{ current_cat }}{% endif %}{% if current_letra %}&letra={{ current_letra }}{% endif %}" class="btn btn-outline">Anterior</a>
+            {% endif %}
+
+            <div style="display: flex; align-items: center; padding: 0 1rem; font-size: 0.85rem; font-weight: 600; color: var(--sap-text-muted);">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </div>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_marca %}&marca={{ current_marca }}{% endif %}{% if current_cat %}&categoria={{ current_cat }}{% endif %}{% if current_letra %}&letra={{ current_letra }}{% endif %}" class="btn btn-outline">Siguiente</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if current_marca %}&marca={{ current_marca }}{% endif %}{% if current_cat %}&categoria={{ current_cat }}{% endif %}{% if current_letra %}&letra={{ current_letra }}{% endif %}" class="btn btn-outline">Última »</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Modal Modelo -->
+    <div id="modeloModal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Nuevo Modelo</h2>
+                <button class="btn-close" onclick="closeModeloModal()">✕</button>
+            </div>
+            <form id="modeloForm" onsubmit="saveModelo(event)" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="mod-id">
+                    
+                    <div class="preview-img-container">
+                        <img id="img-preview" class="preview-img" style="display: none;">
+                        <div id="no-img-text" class="no-img-text">Sin imagen</div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Nombre del Modelo</label>
+                            <input type="text" name="nombre" id="mod-nombre" class="form-control" required placeholder="Ej: Transformer 500kVA">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Marca</label>
+                            <select name="marca_id" id="mod-marca" required class="form-control">
+                                <option value="">Selecciona Marca...</option>
+                                {% for m in marcas %}
+                                    <option value="{{ m.id }}">{{ m.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Categoría</label>
+                            <select name="categoria_id" id="mod-cat" class="form-control">
+                                <option value="">Selecciona Categoría...</option>
+                                {% for c in categorias %}
+                                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Unidad de Medida</label>
+                            <select name="unidad_medida_id" id="mod-unidad" class="form-control">
+                                <option value="">Selecciona Unidad...</option>
+                                {% for u in unidades %}
+                                    <option value="{{ u.id }}">{{ u.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Precio Promedio ($)</label>
+                            <input type="number" step="0.01" name="precio_promedio" id="mod-precio" class="form-control" placeholder="0.00">
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Descripción</label>
+                            <textarea name="descripcion" id="mod-desc" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Cargar Imagen (Archivo)</label>
+                            <input type="file" name="imagen_archivo" id="mod-file" class="form-control" accept="image/*" onchange="previewFile(this)">
+                        </div>
+
+                        <div class="form-group">
+                            <label>O URL de Imagen</label>
+                            <input type="url" name="imagen_url" id="mod-url" class="form-control" placeholder="https://..." onchange="previewUrl(this.value)">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModeloModal()">Cancelar</button>
+                    <button type="button" id="btn-delete" class="btn btn-danger" style="display: none;" onclick="deleteModelo()">Eliminar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Modelo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        let tsMarca, tsCat, tsUnidad;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Tom Selects
+            tsMarca = new TomSelect('#mod-marca', { create: false });
+            tsCat = new TomSelect('#mod-cat', { create: false });
+            tsUnidad = new TomSelect('#mod-unidad', { create: false });
+            
+            new TomSelect('#filter-marca', { create: false });
+            new TomSelect('#filter-cat', { create: false });
+        });
+
+        function openModeloModal(id = null) {
+            const modal = document.getElementById('modeloModal');
+            const form = document.getElementById('modeloForm');
+            const title = document.getElementById('modalTitle');
+            const btnDelete = document.getElementById('btn-delete');
+            
+            form.reset();
+            tsMarca.clear();
+            tsCat.clear();
+            tsUnidad.clear();
+            document.getElementById('mod-id').value = id || '';
+            document.getElementById('img-preview').style.display = 'none';
+            document.getElementById('no-img-text').style.display = 'block';
+            
+            btnDelete.style.display = id ? 'block' : 'none';
+            title.innerText = id ? 'Editar Modelo' : 'Nuevo Modelo';
+
+            if (id) {
+                console.log("Fetching data for model ID:", id);
+                fetch(`{% url 'activos:modelo_fiori_get' %}?id=${id}`)
+                    .then(r => {
+                        if (!r.ok) throw new Error("Error en la respuesta del servidor");
+                        return r.json();
+                    })
+                    .then(data => {
+                        console.log("Model data received:", data);
+                        if (data.status === 'success') {
+                            const m = data.modelo;
+                            document.getElementById('mod-nombre').value = m.nombre || '';
+                            
+                            // Usar String() para asegurar que TomSelect reconozca el valor
+                            if (m.marca_id) tsMarca.setValue(String(m.marca_id));
+                            if (m.categoria_id) tsCat.setValue(String(m.categoria_id));
+                            if (m.unidad_medida_id) tsUnidad.setValue(String(m.unidad_medida_id));
+                            
+                            document.getElementById('mod-precio').value = m.precio_promedio || 0;
+                            document.getElementById('mod-desc').value = m.descripcion || '';
+                            document.getElementById('mod-url').value = m.imagen_url || '';
+                            
+                            if (m.image_display_url) {
+                                previewUrl(m.image_display_url);
+                            }
+                        } else {
+                            Swal.fire('Error en la API', data.message || 'Error desconocido', 'error');
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Fetch error details:", err);
+                        Swal.fire('Error de Conexión', 'No se pudieron cargar los datos del modelo. Verifique su conexión o contacte al administrador.', 'error');
+                    });
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeModeloModal() {
+            document.getElementById('modeloModal').style.display = 'none';
+        }
+
+        function previewFile(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('img-preview');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    document.getElementById('no-img-text').style.display = 'none';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function previewUrl(url) {
+            if (url) {
+                const img = document.getElementById('img-preview');
+                img.src = url;
+                img.style.display = 'block';
+                document.getElementById('no-img-text').style.display = 'none';
+            }
+        }
+
+        function saveModelo(e) {
+            e.preventDefault();
+            const formData = new FormData(document.getElementById('modeloForm'));
+
+            // CSRF Token
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch(`{% url 'activos:modelo_fiori_save' %}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    Swal.fire('¡Éxito!', res.message, 'success').then(() => location.reload());
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            });
+        }
+
+        function deleteModelo() {
+            const id = document.getElementById('mod-id').value;
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "No podrás revertir esta acción",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#bb0000',
+                confirmButtonText: 'Sí, eliminar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`{% url 'activos:modelo_fiori_delete' 0 %}`.replace('0', id), {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.status === 'success') {
+                            Swal.fire('Eliminado', res.message, 'success').then(() => location.reload());
+                        } else {
+                            Swal.fire('Error', res.message, 'error');
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
