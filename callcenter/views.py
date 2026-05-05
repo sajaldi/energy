@@ -683,6 +683,9 @@ def cluster_tickets_view(request, cluster_id):
                 'Técnico Asignado': t.usuario_responsable.get_full_name() if t.usuario_responsable else 'Sin Asignar',
                 'Descripción': t.solicitud_descripcion,
                 'Fecha Solicitud': t.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if t.fecha_solicitud else '',
+                'Fecha Finalización': t.fecha_cierre.strftime('%d/%m/%Y %H:%M') if t.fecha_cierre else '',
+                'Diagnóstico': t.diagnostico or '',
+                'Acciones Realizadas': t.actividades or '',
                 'Estado': 'Cerrado' if (t.fecha_cierre or t.cierre_enviado) else 'Abierto'
             })
         df = pd.DataFrame(data)
