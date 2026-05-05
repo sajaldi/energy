@@ -167,6 +167,8 @@ class RequisitoPermiso(models.Model):
         ('NUMERICO', 'Valor Numérico'),
         ('TEXTO', 'Texto Libre'),
         ('FOTO', 'Registro Fotográfico'),
+        ('FECHAHORA', 'Fecha y Hora'),
+        ('TABLA', 'Tabla Relacionada'),
         ('HEADER', 'ENCABEZADO / GRUPO'),
     ]
     
@@ -183,6 +185,26 @@ class RequisitoPermiso(models.Model):
     valor_objetivo = models.FloatField(blank=True, null=True, help_text="Valor ideal esperado")
     rango_min = models.FloatField(blank=True, null=True)
     rango_max = models.FloatField(blank=True, null=True)
+    
+    # Nuevo campo para tabla relacionada
+    tabla_relacionada = models.CharField(max_length=100, blank=True, null=True, help_text="Modelo relacionado si el tipo es TABLA (ej: auth.User, activos.Activo)")
+    
+    # Lógica condicional: mostrar/ocultar según otro requisito
+    depende_de = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='dependientes',
+        help_text="Si se define, este requisito solo se muestra si la condición del requisito padre se cumple"
+    )
+    CONDICION_CHOICES = [
+        ('TRUE', 'Si es Verdadero / Marcado'),
+        ('FALSE', 'Si es Falso / No marcado'),
+        ('FILLED', 'Si tiene algún valor'),
+        ('EMPTY', 'Si está vacío'),
+    ]
+    depende_condicion = models.CharField(
+        max_length=20, blank=True, null=True, choices=CONDICION_CHOICES,
+        help_text="Condición sobre el requisito padre para mostrar este"
+    )
     
     class Meta:
         ordering = ['orden', 'id']

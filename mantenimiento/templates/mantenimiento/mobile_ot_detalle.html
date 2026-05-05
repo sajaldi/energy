@@ -369,6 +369,51 @@
             font-size: 13px;
             color: var(--sap-brand-color);
         }
+
+        /* Overflow Actions Menu */
+        .more-actions-menu {
+            display: none;
+            position: absolute;
+            bottom: 50px;
+            right: 0;
+            background: white;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 8px;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
+            flex-direction: column;
+            min-width: 220px;
+            z-index: 2000;
+            overflow: hidden;
+        }
+
+        .more-actions-menu.show {
+            display: flex;
+        }
+
+        .more-actions-menu > a, .more-actions-menu > button {
+            padding: 14px 16px;
+            text-align: left;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--sap-border-color);
+            width: 100%;
+            color: var(--sap-text-color);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .more-actions-menu > a:last-child, .more-actions-menu > button:last-child {
+            border-bottom: none;
+        }
+        
+        .more-actions-menu > a:hover, .more-actions-menu > button:hover {
+            background: #f8f9fa;
+        }
     </style>
 </head>
 
@@ -378,7 +423,7 @@
         <a href="javascript:history.back()" class="back-btn">
             <ion-icon name="chevron-back-outline"></ion-icon>
         </a>
-        <div class="shell-title">DCC Maintenance</div>
+        <div class="shell-title">Orden de Trabajo</div>
         <ion-icon name="notifications-outline" style="font-size: 20px;"></ion-icon>
     </header>
 
@@ -611,91 +656,96 @@
     </div>
 
     <!-- SAP Fiori Action Bar -->
-    <div class="fiori-footer" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; border-top: 1px solid var(--sap-border-color); display: flex; gap: 8px; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);">
-        {% if ot.estado == 'PROGRAMADA' or ot.estado == 'ESPERA' %}
-        <a href="{% url 'mantenimiento:mobile_ot_iniciar' ot.id %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1;">
-            <ion-icon name="play-outline"></ion-icon> Iniciar
-        </a>
-        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-ghost" style="padding: 10px 12px;">
-            <ion-icon name="create-outline"></ion-icon> Editar
-        </a>
-        {% if ot.tipo == 'NO_PROGRAMADA' %}
-        <button onclick="sendWebhook()" class="fiori-btn fiori-btn-purple" style="padding: 10px 12px;" title="Enviar Webhook">
-            <ion-icon name="mail-outline"></ion-icon>
-        </button>
-        {% endif %}
-        {% elif ot.estado == 'EJECUCION' %}
-        <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id }}" class="fiori-btn fiori-btn-ghost" style="padding: 10px 12px;" title="Materiales">
-            <ion-icon name="cube-outline"></ion-icon>
-        </a>
-        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1;">
-            <ion-icon name="create-outline"></ion-icon> Continuar
-        </a>
-        <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-success" style="flex-grow: 1;">
-            <ion-icon name="checkmark-done-outline"></ion-icon> Finalizar
-        </a>
-        <!-- Webhook en Ejecución -->
-        <button onclick="sendWebhook()" class="fiori-btn fiori-btn-purple" style="padding: 10px 12px;" title="Enviar Webhook">
-            <ion-icon name="mail-outline"></ion-icon>
-        </button>
-        {% elif ot.estado == 'REALIZADA' %}
-            <!-- Botón Dinámico de PDF -->
-            <div id="pdfActionContainer" style="flex-grow: 1; display: flex; gap: 8px;">
-                {% with ot.archivos.all as archivos %}
-                {% if archivos %}
-                    {% for a in archivos %}
-                        {% if a.nombre == "OT_"|add:ot.id|add:".pdf" or "Reporte" in a.nombre %}
-                        <a href="{{ a.archivo.url }}" target="_blank" class="fiori-btn fiori-btn-primary" style="background: #e52929; flex-grow: 1; padding: 10px 8px;">
-                            <ion-icon name="document-text-outline"></ion-icon> PDF
-                        </a>
-                        <script>window.pdfReady = true;</script>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-                {% endwith %}
-
-                {% if is_gerente or ot.tecnico == user or ot.supervisor == user %}
-                <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; border-color: var(--sap-brand-color); color: var(--sap-brand-color); padding: 10px 8px;">
-                    <ion-icon name="create-outline"></ion-icon> Editar
-                </a>
-                {% endif %}
-
-                <!-- Webhook Button -->
-                <button onclick="sendWebhook()" class="fiori-btn fiori-btn-purple" style="flex-grow: 1; padding: 10px 8px;">
-                    <ion-icon name="mail-outline"></ion-icon> Webhook
-                </button>
-                
-                <script>
-                    if (!window.pdfReady) {
-                        document.write(`
-                            <div id="pdfLoadingBtn" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; color: var(--sap-text-muted); border-color: #ddd;">
-                                <ion-icon name="sync-outline" style="animation: spin 2s linear infinite;"></ion-icon> Generando...
-                            </div>
-                        `);
-                    }
-                </script>
-            </div>
-            
-            <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" class="fiori-btn fiori-btn-ghost" style="color: var(--sap-error); border-color: var(--sap-error);" title="Generar Manualmente">
-                <ion-icon name="refresh-outline"></ion-icon>
-            </a>
-        {% endif %}
+    <div class="fiori-footer" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; border-top: 1px solid var(--sap-border-color); display: flex; gap: 8px; align-items: center; justify-content: space-between; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);">
         
-        <a href="{% url 'seguridad:mobile_generar_permiso' ot.id %}" class="fiori-btn fiori-btn-ghost" style="background: #f3e8ff; color: #7e22ce; border-color: #d8b4fe;" title="Permiso">
-            <ion-icon name="shield-checkmark-outline"></ion-icon>
-        </a>
+        <!-- Contenedor de Botones Primarios -->
+        <div style="display: flex; flex-grow: 1; gap: 8px;">
+            {% if ot.estado == 'PROGRAMADA' or ot.estado == 'ESPERA' %}
+            <a href="{% url 'mantenimiento:mobile_ot_iniciar' ot.id %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1; justify-content: center;">
+                <ion-icon name="play-outline"></ion-icon> Iniciar OT
+            </a>
+            
+            {% elif ot.estado == 'EJECUCION' %}
+            <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; justify-content: center;">
+                <ion-icon name="create-outline"></ion-icon> Continuar
+            </a>
+            <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-success" style="flex-grow: 1; justify-content: center;">
+                <ion-icon name="checkmark-done-outline"></ion-icon> Finalizar
+            </a>
+            
+            {% elif ot.estado == 'REALIZADA' %}
+                <div id="pdfActionContainer" style="flex-grow: 1; display: flex; gap: 8px;">
+                    {% with ot.archivos.all as archivos %}
+                    {% if archivos %}
+                        {% for a in archivos %}
+                            {% if a.nombre == "OT_"|add:ot.id|add:".pdf" or "Reporte" in a.nombre %}
+                            <a href="{{ a.archivo.url }}" target="_blank" class="fiori-btn fiori-btn-primary" style="background: #e52929; flex-grow: 1; justify-content: center;">
+                                <ion-icon name="document-text-outline"></ion-icon> Ver Reporte PDF
+                            </a>
+                            <script>window.pdfReady = true;</script>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    {% endwith %}
 
-        {% if user.is_superuser %}
-        <button onclick="deleteOT()" class="fiori-btn fiori-btn-danger" style="background: #ef4444; border-color: #dc2626;" title="Eliminar">
-            <ion-icon name="trash-outline"></ion-icon>
-        </button>
-        {% endif %}
+                    <script>
+                        if (!window.pdfReady) {
+                            document.write(`
+                                <div id="pdfLoadingBtn" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; justify-content: center; color: var(--sap-text-muted); border-color: #ddd;">
+                                    <ion-icon name="sync-outline" style="animation: spin 2s linear infinite;"></ion-icon> Generando...
+                                </div>
+                            `);
+                        }
+                    </script>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Botón Menú de Más Opciones -->
+        <div style="position: relative;">
+            <button onclick="document.getElementById('moreActionsMenu').classList.toggle('show'); event.stopPropagation();" class="fiori-btn fiori-btn-ghost" style="padding: 10px; border-color: transparent; font-size: 20px; color: var(--sap-text);">
+                <ion-icon name="ellipsis-vertical"></ion-icon>
+            </button>
+            
+            <!-- Menú Desplegable -->
+            <div id="moreActionsMenu" class="more-actions-menu">
+                {% if ot.estado == 'PROGRAMADA' or ot.estado == 'ESPERA' %}
+                    <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="menu-item"><ion-icon name="list-outline" style="color: var(--sap-brand-color);"></ion-icon> Ver/Editar Checklist</a>
+                    {% if ot.tipo == 'NO_PROGRAMADA' %}
+                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar Webhook</button>
+                    {% endif %}
+                {% elif ot.estado == 'EJECUCION' %}
+                    <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id }}" class="menu-item"><ion-icon name="cube-outline" style="color: var(--sap-brand-color);"></ion-icon> Solicitar Materiales</a>
+                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar Webhook</button>
+                {% elif ot.estado == 'REALIZADA' %}
+                    {% if is_gerente or ot.tecnico == user or ot.supervisor == user %}
+                    <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="menu-item"><ion-icon name="create-outline" style="color: var(--sap-brand-color);"></ion-icon> Editar Checklist</a>
+                    {% endif %}
+                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar Webhook</button>
+                    <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" class="menu-item"><ion-icon name="refresh-outline" style="color: #e52929;"></ion-icon> Forzar PDF Manual</a>
+                {% endif %}
+
+                <a href="{% url 'seguridad:mobile_generar_permiso' ot.id %}" class="menu-item"><ion-icon name="shield-checkmark-outline" style="color: #7e22ce;"></ion-icon> Permiso de Trabajo</a>
+
+                {% if user.is_superuser %}
+                <button onclick="deleteOT()" class="menu-item" style="color: #ef4444;"><ion-icon name="trash-outline" style="color: #ef4444;"></ion-icon> Eliminar Orden</button>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <div id="toast">Actualizando...</div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // Cerrar menú si se hace clic afuera
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('moreActionsMenu');
+            if (menu && menu.classList.contains('show')) {
+                menu.classList.remove('show');
+            }
+        });
+
         {% if user.is_superuser %}
         function deleteOT() {
             Swal.fire({

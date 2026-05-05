@@ -83,87 +83,250 @@
         </div>
 
         <!-- Checklist -->
-        <div class="fiori-card">
-            <h3 style="margin: 0 0 16px 0; font-size: 13px; color: var(--sap-text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid var(--sap-border-color); padding-bottom: 8px;">
-                <ion-icon name="list-outline" style="vertical-align: middle;"></ion-icon> Lista de Verificación
-            </h3>
+        <form method="post" id="checklistForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="fiori-card">
+                <h3 style="margin: 0 0 16px 0; font-size: 13px; color: var(--sap-text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid var(--sap-border-color); padding-bottom: 8px; padding: 15px 15px 0 15px;">
+                    <ion-icon name="list-outline" style="vertical-align: middle;"></ion-icon> Lista de Verificación
+                </h3>
 
-            <form method="post" id="checklistForm">
-                {% csrf_token %}
-                {% for verif in verificaciones %}
-                <label style="display: flex; align-items: start; padding: 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid {% if verif.cumple %}var(--sap-success){% else %}var(--sap-border-color){% endif %}; background: {% if verif.cumple %}var(--sap-success-bg){% else %}var(--sap-bg-color){% endif %}; transition: all 0.2s;">
-                    <input type="checkbox" name="check_{{ verif.id }}" {% if verif.cumple %}checked{% endif %} {% if permiso.estado != 'BORRADOR' %}disabled{% endif %} onchange="this.form.submit()"
-                        style="margin-right: 12px; transform: scale(1.2); margin-top: 3px; accent-color: var(--sap-brand-color);">
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: var(--sap-text-color); font-size: 14px; line-height: 1.3;">{{ verif.requisito.texto }}</div>
-                        {% if verif.requisito.es_critico %}
-                        <div style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--sap-error-bg); color: var(--sap-error); border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; margin-top: 5px; border: 1px solid var(--sap-error);">
-                            <ion-icon name="alert-circle"></ion-icon> CRÍTICO
+                <div style="padding: 0 15px 15px 15px;">
+                    {% for verif in verificaciones %}
+                        {% if verif.requisito.tipo_respuesta == 'HEADER' %}
+                        <div data-verif-id="{{ verif.id }}" data-req-id="{{ verif.requisito.id }}" {% if verif.requisito.depende_de_id %}data-depende-de="{{ verif.requisito.depende_de_id }}" data-depende-cond="{{ verif.requisito.depende_condicion }}"{% endif %} style="background: var(--sap-shell-bg); color: white; padding: 12px 16px; border-radius: 8px; margin: 25px 0 15px 0; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);">
+                            <ion-icon name="chevron-forward-circle-outline" style="font-size: 20px; color: rgba(255,255,255,0.7);"></ion-icon>
+                            {{ verif.requisito.texto }}
+                        </div>
+                        {% else %}
+                        <div class="checklist-card" data-verif-id="{{ verif.id }}" data-req-id="{{ verif.requisito.id }}" {% if verif.requisito.depende_de_id %}data-depende-de="{{ verif.requisito.depende_de_id }}" data-depende-cond="{{ verif.requisito.depende_condicion }}"{% endif %} style="padding: 15px; background: white; border: 1px solid var(--sap-border-color); border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <div style="background: var(--sap-information-bg); color: var(--sap-information); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 11px; font-weight: 700;">{{ verif.display_number }}</div>
+                                <span style="font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 600; text-transform: uppercase; background: var(--sap-neutral-bg); color: var(--sap-neutral);">{{ verif.requisito.get_tipo_respuesta_display }}</span>
+                            </div>
+
+                            <p style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; color: var(--sap-text-color);">
+                                {{ verif.requisito.texto }}
+                                {% if verif.requisito.es_critico %}
+                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; background: var(--sap-error-bg); color: var(--sap-error); border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; margin-left: 5px; border: 1px solid var(--sap-error);">
+                                    <ion-icon name="alert-circle"></ion-icon> CRÍTICO
+                                </span>
+                                {% endif %}
+                            </p>
+                            
+                            {% if verif.requisito.tipo_respuesta == 'INSTRUCCION' %}
+                            <div style="padding: 10px; background: #fffbeb; border-left: 3px solid #fbbf24; font-size: 13px; color: #92400e; border-radius: 4px 8px 8px 4px;">
+                                Siga las indicaciones especificadas. No requiere captura de datos.
+                            </div>
+                            {% elif verif.requisito.tipo_respuesta == 'CHECK' %}
+                            <label style="display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer;">
+                                <input type="checkbox" name="verif_{{ verif.id }}_bool" id="verif_{{ verif.id }}_bool" {% if verif.valor_bool %}checked{% endif %} {% if permiso.estado != 'BORRADOR' %}disabled{% endif %} style="width: 20px; height: 20px; accent-color: var(--sap-brand-color);">
+                                <span style="font-size: 14px; color: var(--sap-text-color);">Completado / Conforme</span>
+                            </label>
+                            {% elif verif.requisito.tipo_respuesta == 'NUMERICO' %}
+                            <div style="margin-top: 10px;">
+                                <input type="number" step="any" name="verif_{{ verif.id }}_num" value="{{ verif.valor_numerico|default:'' }}" {% if permiso.estado != 'BORRADOR' %}disabled{% endif %} style="width: 100%; padding: 12px; border: 1px solid var(--sap-border-color); border-radius: 10px; font-size: 14px; box-sizing: border-box; font-family: inherit;">
+                            </div>
+                            {% elif verif.requisito.tipo_respuesta == 'TEXTO' %}
+                            <div style="margin-top: 10px;">
+                                <textarea name="verif_{{ verif.id }}_text" {% if permiso.estado != 'BORRADOR' %}disabled{% endif %} placeholder="Escriba aquí..." style="width: 100%; padding: 12px; border: 1px solid var(--sap-border-color); border-radius: 10px; font-size: 14px; box-sizing: border-box; font-family: inherit; resize: none; height: 80px;">{{ verif.valor_texto|default:'' }}</textarea>
+                            </div>
+                            {% elif verif.requisito.tipo_respuesta == 'FECHAHORA' %}
+                            <div style="margin-top: 10px;">
+                                <input type="datetime-local" name="verif_{{ verif.id }}_text" value="{{ verif.valor_texto|default:'' }}" {% if permiso.estado != 'BORRADOR' %}disabled{% endif %} style="width: 100%; padding: 12px; border: 1px solid var(--sap-border-color); border-radius: 10px; font-size: 14px; box-sizing: border-box; font-family: inherit;">
+                            </div>
+                            {% elif verif.requisito.tipo_respuesta == 'TABLA' %}
+                            <div style="margin-top: 10px;">
+                                <div style="font-size: 11px; color: var(--sap-text-muted); margin-bottom: 4px;">Seleccione de: <b>{{ verif.requisito.get_tabla_relacionada_display }}</b></div>
+                                <input type="text" list="list_{{ verif.id }}" data-tabla="{{ verif.requisito.tabla_relacionada }}" class="tabla-typeahead" name="verif_{{ verif.id }}_text" value="{{ verif.valor_texto|default:'' }}" {% if permiso.estado != 'BORRADOR' %}disabled{% endif %} placeholder="Indique el nombre o código..." style="width: 100%; padding: 12px; border: 1px solid var(--sap-border-color); border-radius: 10px; font-size: 14px; box-sizing: border-box; font-family: inherit;">
+                                <datalist id="list_{{ verif.id }}"></datalist>
+                            </div>
+                            {% elif verif.requisito.tipo_respuesta == 'FOTO' %}
+                            <div style="margin-top: 10px;">
+                                {% if verif.foto %}
+                                <div style="margin-bottom: 8px; border-radius: 8px; overflow: hidden; border: 2px solid var(--sap-success); display: inline-block;">
+                                    <a href="{{ verif.foto.url }}" target="_blank">
+                                        <img src="{{ verif.foto.url }}" style="max-width: 100%; max-height: 150px; display: block;">
+                                    </a>
+                                </div>
+                                {% endif %}
+                                {% if permiso.estado == 'BORRADOR' %}
+                                <div style="font-size: 11px; color: var(--sap-text-muted); margin-bottom: 4px;">Subir o cambiar foto</div>
+                                <input type="file" accept="image/*" capture="environment" name="verif_{{ verif.id }}_foto" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid var(--sap-border-color); border-radius: 8px; background: #f9fafb;">
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            {% if verif.requisito.tipo_respuesta != 'INSTRUCCION' %}
+                            <div style="margin-top: 15px; border-top: 1px dashed var(--sap-border-color); padding-top: 10px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
+                                    <input type="checkbox" name="verif_{{ verif.id }}_na" {% if verif.no_aplica %}checked{% endif %} {% if permiso.estado != 'BORRADOR' %}disabled{% endif %} style="width: 16px; height: 16px;">
+                                    <span style="font-size: 12px; font-weight: 600; color: var(--sap-text-muted);">No aplica</span>
+                                </label>
+                                <input type="text" name="verif_{{ verif.id }}_com" value="{{ verif.comentarios|default:'' }}" {% if permiso.estado != 'BORRADOR' %}disabled{% endif %} placeholder="Comentarios adicionales (opcional)..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--sap-border-color); border-radius: 8px; font-size: 12px; box-sizing: border-box; font-family: inherit; background: var(--sap-bg-color);">
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
-                    </div>
-                </label>
-                {% empty %}
-                <div style="text-align: center; color: var(--sap-text-muted); padding: 20px; font-style: italic; font-size: 13px;">No hay requisitos definidos</div>
-                {% endfor %}
-            </form>
-        </div>
-
-        <!-- Signatures -->
-        <div class="fiori-card" style="margin-top: 15px;">
-            <h3 style="margin: 0 0 15px 0; font-size: 13px; color: var(--sap-text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
-                <ion-icon name="create-outline" style="vertical-align: middle;"></ion-icon> Autorizaciones
-            </h3>
-
-            <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
-                <div style="padding: 12px; background: var(--sap-bg-color); border-radius: 8px; border: 1px solid var(--sap-border-color);">
-                    <div style="font-size: 10px; color: var(--sap-text-muted); margin-bottom: 6px; text-transform: uppercase; font-weight: 700;">Solicitante</div>
-                    {% if permiso.solicitante %}
-                    <div style="font-weight: 700; color: var(--sap-text-color); font-size: 14px;">{{ permiso.solicitante.get_full_name|default:permiso.solicitante.username }}</div>
-                    {% else %}
-                    <div style="color: var(--sap-text-muted); font-size: 13px; font-style: italic;">Pendiente</div>
-                    {% endif %}
-                </div>
-                
-                <div style="padding: 12px; background: {% if permiso.autorizado_por %}var(--sap-success-bg){% else %}var(--sap-bg-color){% endif %}; border-radius: 8px; border: 1px solid {% if permiso.autorizado_por %}var(--sap-success){% else %}var(--sap-border-color){% endif %};">
-                    <div style="font-size: 10px; color: var(--sap-text-muted); margin-bottom: 6px; text-transform: uppercase; font-weight: 700;">Autorizante</div>
-                    {% if permiso.autorizado_por %}
-                    <div style="font-weight: 700; color: var(--sap-success); font-size: 14px;">{{ permiso.autorizado_por.get_full_name|default:permiso.autorizado_por.username }}</div>
-                    <div style="font-size: 11px; color: var(--sap-success); margin-top: 4px; font-weight: 600;">Aprobado el {{ permiso.fecha_autorizacion|date:"d M, H:i" }}</div>
-                    {% else %}
-                    <div style="color: var(--sap-text-muted); font-size: 13px; font-style: italic;">Esperando aprobación</div>
-                    {% endif %}
+                    {% empty %}
+                        <div style="text-align: center; color: var(--sap-text-muted); padding: 20px; font-style: italic; font-size: 13px;">No hay requisitos definidos para este permiso.</div>
+                    {% endfor %}
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Sticky Bottom Actions -->
-    <div style="position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); z-index: 1000; display: flex; gap: 8px; border-top: 1px solid var(--sap-border-color);">
-        
-        {% if permiso.estado == 'BORRADOR' or permiso.estado == 'SOLICITADO' %}
-        <form method="post" style="flex: 1;">
-            {% csrf_token %}
-            {% if permiso.estado == 'BORRADOR' %}
-            <button type="submit" name="accion" value="solicitar"
-                style="width: 100%; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
-                Solicitar Autorización
-            </button>
-            {% elif permiso.estado == 'SOLICITADO' and perms.seguridad.change_permisotrabajo %}
-            <button type="submit" name="accion" value="aprobar"
-                style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-                ✅ APROBAR PERMISO
-            </button>
-            {% endif %}
+            <!-- Signatures -->
+            <div class="fiori-card" style="margin-top: 15px;">
+                <h3 style="margin: 0 0 15px 0; font-size: 13px; color: var(--sap-text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; padding: 15px 15px 0 15px;">
+                    <ion-icon name="create-outline" style="vertical-align: middle;"></ion-icon> Autorizaciones
+                </h3>
+
+                <div style="display: grid; grid-template-columns: 1fr; gap: 12px; padding: 0 15px 15px 15px;">
+                    <div style="padding: 12px; background: var(--sap-bg-color); border-radius: 8px; border: 1px solid var(--sap-border-color);">
+                        <div style="font-size: 10px; color: var(--sap-text-muted); margin-bottom: 6px; text-transform: uppercase; font-weight: 700;">Solicitante</div>
+                        {% if permiso.solicitante %}
+                        <div style="font-weight: 700; color: var(--sap-text-color); font-size: 14px;">{{ permiso.solicitante.get_full_name|default:permiso.solicitante.username }}</div>
+                        {% else %}
+                        <div style="color: var(--sap-text-muted); font-size: 13px; font-style: italic;">Pendiente</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div style="padding: 12px; background: {% if permiso.autorizado_por %}var(--sap-success-bg){% else %}var(--sap-bg-color){% endif %}; border-radius: 8px; border: 1px solid {% if permiso.autorizado_por %}var(--sap-success){% else %}var(--sap-border-color){% endif %};">
+                        <div style="font-size: 10px; color: var(--sap-text-muted); margin-bottom: 6px; text-transform: uppercase; font-weight: 700;">Autorizante</div>
+                        {% if permiso.autorizado_por %}
+                        <div style="font-weight: 700; color: var(--sap-success); font-size: 14px;">{{ permiso.autorizado_por.get_full_name|default:permiso.autorizado_por.username }}</div>
+                        <div style="font-size: 11px; color: var(--sap-success); margin-top: 4px; font-weight: 600;">Aprobado el {{ permiso.fecha_autorizacion|date:"d M, H:i" }}</div>
+                        {% else %}
+                        <div style="color: var(--sap-text-muted); font-size: 13px; font-style: italic;">Esperando aprobación</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sticky Bottom Actions -->
+            <div style="position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); z-index: 1000; display: flex; gap: 8px; border-top: 1px solid var(--sap-border-color);">
+                
+                {% if permiso.estado == 'BORRADOR' or permiso.estado == 'SOLICITADO' %}
+                    {% if permiso.estado == 'BORRADOR' %}
+                    <button type="submit" name="accion" value="guardar"
+                        style="flex: 0.6; background: white; color: var(--sap-brand-color); border: 2px solid var(--sap-brand-color); padding: 12px; border-radius: 8px; font-weight: 700; font-size: 14px; text-align: center;">
+                        <ion-icon name="save-outline" style="vertical-align: middle; margin-right: 4px;"></ion-icon> Guardar
+                    </button>
+                    <button type="submit" name="accion" value="solicitar"
+                        style="flex: 1; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                        Solicitar Autorización
+                    </button>
+                    {% elif permiso.estado == 'SOLICITADO' and perms.seguridad.change_permisotrabajo %}
+                    <button type="submit" name="accion" value="aprobar"
+                        style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                        ✅ APROBAR PERMISO
+                    </button>
+                    {% endif %}
+                {% endif %}
+
+                {% if permiso.estado == 'APROBADO' or permiso.estado == 'CERRADO' %}
+                <a href="{% url 'seguridad:mobile_permiso_pdf' permiso.id %}" target="_blank"
+                    style="flex: 1; text-align: center; background: linear-gradient(135deg, #ef4444 0%, #d32f2f 100%); color: white; text-decoration: none; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <ion-icon name="document-text-outline" style="font-size: 20px;"></ion-icon>
+                    EXPORTAR PDF
+                </a>
+                {% endif %}
+            </div>
         </form>
-        {% endif %}
 
-        {% if permiso.estado == 'APROBADO' or permiso.estado == 'CERRADO' %}
-        <a href="{% url 'seguridad:mobile_permiso_pdf' permiso.id %}" target="_blank"
-            style="flex: 1; text-align: center; background: linear-gradient(135deg, #ef4444 0%, #d32f2f 100%); color: white; text-decoration: none; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <ion-icon name="document-text-outline" style="font-size: 20px;"></ion-icon>
-            EXPORTAR PDF
-        </a>
-        {% endif %}
     </div>
-    
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            document.querySelectorAll('.tabla-typeahead').forEach(input => {
+                let timeoutId;
+                const datalistId = input.getAttribute('list');
+                if (!datalistId) return;
+                const datalist = document.getElementById(datalistId);
+                const tabla = input.dataset.tabla;
+                
+                input.addEventListener('input', function() {
+                    clearTimeout(timeoutId);
+                    const q = this.value;
+                    if (q.length < 2) return; // Wait until 2 characters
+                    
+                    timeoutId = setTimeout(async () => {
+                        try {
+                            const res = await fetch(`/seguridad/app/api/buscar-tabla/?tabla=${tabla}&q=${encodeURIComponent(q)}`);
+                            if (!res.ok) throw new Error('API fetch error');
+                            const data = await res.json();
+                            
+                            datalist.innerHTML = '';
+                            data.results.forEach(item => {
+                                const opt = document.createElement('option');
+                                opt.value = item.text;
+                                datalist.appendChild(opt);
+                            });
+                        } catch(e) {
+                            console.error('Error fetching autocomplete options', e);
+                        }
+                    }, 400); // 400ms debounce
+                });
+            });
+        });
+
+        // === CONDITIONAL VISIBILITY LOGIC ===
+        function evaluateConditions() {
+            const cards = document.querySelectorAll('[data-depende-de]');
+            cards.forEach(card => {
+                const parentReqId = card.dataset.dependeDe;
+                const condition = card.dataset.dependeCond;
+                if (!parentReqId || !condition) return;
+
+                // Find parent card by req-id
+                const parentCard = document.querySelector(`[data-req-id="${parentReqId}"]`);
+                if (!parentCard) return;
+
+                const parentVerifId = parentCard.dataset.verifId;
+                let parentValue = false;
+
+                // Determine parent's value based on its input type
+                const checkInput = parentCard.querySelector(`input[name="verif_${parentVerifId}_bool"]`);
+                const numInput = parentCard.querySelector(`input[name="verif_${parentVerifId}_num"]`);
+                const textInput = parentCard.querySelector(`[name="verif_${parentVerifId}_text"]`);
+
+                if (checkInput) {
+                    parentValue = checkInput.checked;
+                } else if (numInput) {
+                    parentValue = numInput.value.trim() !== '';
+                } else if (textInput) {
+                    parentValue = textInput.value.trim() !== '';
+                }
+
+                let shouldShow = false;
+                switch (condition) {
+                    case 'TRUE':  shouldShow = parentValue === true; break;
+                    case 'FALSE': shouldShow = parentValue === false; break;
+                    case 'FILLED': shouldShow = (parentValue !== false && parentValue !== ''); break;
+                    case 'EMPTY':  shouldShow = (parentValue === false || parentValue === ''); break;
+                }
+
+                card.style.transition = 'opacity 0.3s, max-height 0.4s';
+                if (shouldShow) {
+                    card.style.display = '';
+                    card.style.opacity = '1';
+                    card.style.maxHeight = '1000px';
+                } else {
+                    card.style.opacity = '0.3';
+                    card.style.maxHeight = '0px';
+                    card.style.overflow = 'hidden';
+                    card.style.padding = '0';
+                    card.style.margin = '0';
+                    card.style.border = 'none';
+                    setTimeout(() => { card.style.display = 'none'; }, 300);
+                }
+            });
+        }
+
+        // Evaluate on load
+        evaluateConditions();
+
+        // Re-evaluate when any input changes
+        document.getElementById('checklistForm').addEventListener('change', evaluateConditions);
+        document.getElementById('checklistForm').addEventListener('input', evaluateConditions);
+    </script>
+</body>
+</html>

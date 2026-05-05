@@ -39,6 +39,9 @@ def tipo_permiso_detail_api(request, pk):
                         'valor_objetivo': r.valor_objetivo,
                         'rango_min': r.rango_min,
                         'rango_max': r.rango_max,
+                        'tabla_relacionada': r.tabla_relacionada or "",
+                        'depende_de_id': r.depende_de_id,
+                        'depende_condicion': r.depende_condicion or "",
                     }
                     for r in tipo.requisitos.all()
                 ]
@@ -111,6 +114,12 @@ def tipo_permiso_requisitos_save_api(request):
                 requisito.tipo_respuesta = r_data.get('tipo_respuesta', 'CHECK')
                 requisito.verificacion = r_data.get('verificacion', '')
                 requisito.unidad_medida = r_data.get('unidad_medida', '')
+                requisito.tabla_relacionada = r_data.get('tabla_relacionada', '')
+                
+                # Lógica condicional
+                dep_id = r_data.get('depende_de_id')
+                requisito.depende_de_id = int(dep_id) if dep_id else None
+                requisito.depende_condicion = r_data.get('depende_condicion', '') or None
                 
                 # Campos numéricos
                 try:

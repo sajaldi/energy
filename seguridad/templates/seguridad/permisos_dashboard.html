@@ -167,15 +167,24 @@
         }
 
         .modal-container {
-            background: white;
+            background: #ffffff;
             width: 95%;
-            max-width: 900px;
-            max-height: 90vh;
-            border-radius: 0.75rem;
+            max-width: 1200px;
+            height: 80vh;
+            max-height: 900px;
+            border-radius: 0.35rem;
+            box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175);
             display: flex;
             flex-direction: column;
+            position: relative;
             overflow: hidden;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-body {
+            padding: 1.5rem 2rem;
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
         }
 
         .modal-header {
@@ -184,12 +193,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-
-        .modal-body {
-            padding: 1.5rem;
-            overflow-y: auto;
-            flex: 1;
         }
 
         .modal-footer {
@@ -259,40 +262,101 @@
             box-shadow: 0 0 0 1px var(--sap-primary);
         }
 
-        /* Step Styles (Bonitos) */
+        /* STEPS "BIEN BONITO" DESIGN */
         .step-item-static {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
             display: flex;
             gap: 1.5rem;
-            position: relative;
+            background: #ffffff;
+            padding: 1.25rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .step-item-static:hover {
+            border-color: #0070f2;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transform: translateX(4px);
         }
 
         .step-number-circle {
-            width: 28px;
-            height: 28px;
-            background: var(--sap-primary);
-            color: white;
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            background: #eff6ff;
+            color: #0070f2;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 0.75rem;
-            flex-shrink: 0;
+            font-size: 0.9rem;
+            border: 2px solid #0070f2;
         }
 
-        .step-content {
-            flex: 1;
-        }
-
-        .step-actions {
+        .step-header-banner {
+            background: #354a5f;
+            color: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.25rem;
+            margin: 2rem 0 1.25rem 0;
+            font-weight: 600;
+            font-size: 0.9rem;
             display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .step-type-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #f1f5f9;
+            color: #64748b;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+
+        .step-verif-box {
+            margin-top: 0.75rem;
+            padding: 0.6rem 0.8rem;
+            background: #f8fafc;
+            border-left: 3px solid #cbd5e1;
+            font-size: 0.85rem;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .step-row-edit {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 0;
+            border: 1px dashed #cbd5e1;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .remove-step {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 24px;
+            height: 24px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .drag-handle {
@@ -300,28 +364,78 @@
             color: #cbd5e1;
         }
 
-        .remove-step {
-            color: #ef4444;
-            cursor: pointer;
-        }
-
-        .add-step-btn {
-            width: 100%;
-            padding: 1rem;
-            border: 2px dashed var(--sap-border);
+        .custom-context-menu {
+            position: absolute;
+            display: none;
+            background: white;
+            border: 1px solid var(--sap-border);
             border-radius: 8px;
-            background: #f8fafc;
-            color: var(--sap-text-muted);
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 1rem;
-            transition: all 0.2s;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 0.5rem 0;
+            z-index: 9999;
+            min-width: 200px;
         }
 
-        .add-step-btn:hover {
-            border-color: var(--sap-primary);
+        .context-menu-item {
+            padding: 0.75rem 1.25rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+
+        .context-menu-item:hover {
+            background: #f1f5f9;
             color: var(--sap-primary);
-            background: #eff6ff;
+        }
+
+        /* Searchable Tabla Widget */
+        .tabla-search-widget {
+            position: relative;
+        }
+        .tabla-search-widget input.tabla-search-input {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            padding-right: 28px;
+            border: 1px solid var(--sap-border);
+            border-radius: 0.375rem;
+            font-size: 0.8rem;
+            outline: none;
+            height: 42px;
+            box-sizing: border-box;
+            background: white;
+        }
+        .tabla-search-widget input.tabla-search-input:focus {
+            border-color: var(--sap-primary);
+            box-shadow: 0 0 0 1px var(--sap-primary);
+        }
+        .tabla-search-widget .tabla-clear-btn {
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 16px; padding: 0; line-height: 1;
+        }
+        .tabla-search-widget .tabla-clear-btn:hover { color: #ef4444; }
+        .tabla-search-widget .tabla-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0; z-index: 9999;
+            background: white; border: 1px solid var(--sap-border);
+            border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.12); display: none;
+        }
+        .tabla-search-widget .tabla-dropdown.open { display: block; }
+        .tabla-dropdown-item {
+            padding: 8px 12px; cursor: pointer; font-size: 0.8rem;
+            border-bottom: 1px solid #f1f5f9; transition: background 0.15s;
+        }
+        .tabla-dropdown-item:hover, .tabla-dropdown-item.active {
+            background: #eff6ff; color: var(--sap-primary);
+        }
+        .tabla-dropdown-item .tabla-item-app {
+            font-size: 0.65rem; color: #94a3b8; margin-left: 6px;
+        }
+        .tabla-dropdown-empty {
+            padding: 12px; text-align: center; color: #94a3b8; font-size: 0.8rem; font-style: italic;
         }
     </style>
 </head>
@@ -368,8 +482,18 @@
     <div class="modal-backdrop" id="permisoModal">
         <div class="modal-container">
             <div class="modal-header">
-                <h2 id="modalTitle">Configurar Tipo de Permiso</h2>
-                <button class="btn" style="padding: 0.25rem; background: none;" onclick="closeModal()">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="width: 40px; height: 40px; background: #eff6ff; color: #0070f2; border-radius: 0.25rem; display: flex; align-items: center; justify-content: center;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <path d="M14 2v6h6" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 id="modalTitle" style="margin: 0; font-size: 1.15rem; font-weight: 600; color: #32363a;">Editar Tipo de Permiso</h2>
+                    </div>
+                </div>
+                <button class="btn" style="padding: 0.25rem; background: none; color: #6a6d70;" onclick="closeModal()">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
             </div>
@@ -395,19 +519,71 @@
 
                 <!-- Tab Requisitos -->
                 <div id="tab-requisitos" class="tab-content">
-                    <div id="requisitos-sortable">
-                        <!-- Requisitos se cargan aquí -->
+                    <div id="steps-view-container">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h4 style="margin: 0; color: #32363a; font-size: 1rem;">Guía de Procedimiento</h4>
+                            <button type="button" class="btn btn-outline" onclick="toggleStepsEdit(true)" style="background: white; border: 1px solid #0070f2; color: #0070f2; font-weight: 600;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 5px; vertical-align: middle;">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg> Modificar Requisitos
+                            </button>
+                        </div>
+                        <div id="m-steps-list-view">
+                            <!-- Se llena vía JS (Diseño "Bonito") -->
+                        </div>
                     </div>
-                    <button class="add-step-btn" onclick="addRequisitoRow()">
-                        + Añadir nuevo requisito
-                    </button>
+
+                    <div id="steps-edit-container" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div style="margin: 0; font-size: 0.85rem; padding: 0.5rem 1rem; border-radius: 4px; background: #eff6ff; color: #0070f2; border: 1px solid #bfdbfe;">
+                                <strong>Modo Edición:</strong> Ajuste el orden y contenido del checklist.
+                            </div>
+                            <button type="button" class="btn" style="background: #e2e8f0; color: #475569; font-weight: 600;" onclick="toggleStepsEdit(false)">
+                                Volver a Vista Previa
+                            </button>
+                        </div>
+                        
+                        <div id="requisitos-sortable">
+                            <!-- Se llena vía JS (Modo Edición) -->
+                        </div>
+                        
+                        <button type="button" class="btn" onclick="addRequisitoRow()"
+                            style="width: 100%; margin-top: 1.5rem; border: 2px dashed #cbd5e1; justify-content: center; height: 50px; background: transparent; color: #475569; font-weight: 600;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="margin-right:8px; vertical-align: middle;">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Agregar Nuevo Requisito
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <div class="modal-footer">
-                <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-                <button class="btn btn-primary" onclick="savePermiso()">Guardar Cambios</button>
+                <button class="btn btn-outline" style="margin-right: auto; border: 1.5px solid #cbd5e1; color: #475569; background: white;" onclick="closeModal()">Cancelar</button>
+                <button class="btn" style="background: #10b981; color: white; font-weight: 600; display: flex; align-items: center; gap: 8px;" onclick="savePermiso()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                        <polyline points="17 21 17 13 7 13 7 21" />
+                        <polyline points="7 3 7 8 15 8" />
+                    </svg>
+                    Guardar Cambios
+                </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="stepContextMenu" class="custom-context-menu">
+        <div class="context-menu-item" id="ctx-insert-above">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+            Insertar arriba
+        </div>
+        <div class="context-menu-item" id="ctx-insert-below">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+            Insertar abajo
         </div>
     </div>
 
@@ -416,11 +592,104 @@
         const modal = document.getElementById('permisoModal');
         const sortableContainer = document.getElementById('requisitos-sortable');
 
+        function updateStepNumbers() {
+            const rows = sortableContainer.querySelectorAll('.step-row-edit');
+            rows.forEach((row, index) => {
+                const label = row.querySelector('.req-numero-label');
+                if (label) {
+                    label.innerText = `Requisito #${index + 1} - Pregunta`;
+                }
+            });
+        }
+
+        // Cache de modelos para el select de tabla
+        let _cachedModels = null;
+        async function getModelOptions() {
+            if (_cachedModels) return _cachedModels;
+            try {
+                const res = await fetch('/seguridad/app/api/buscar-tabla/?mode=list');
+                const data = await res.json();
+                _cachedModels = data.models || [];
+            } catch(e) {
+                console.error('Error cargando modelos', e);
+                _cachedModels = [];
+            }
+            return _cachedModels;
+        }
+
+        function populateTablaSelect(rowEl, selectedValue) {
+            const widget = rowEl.querySelector('.tabla-search-widget');
+            if (!widget) return;
+            const hiddenInput = widget.querySelector('.req-tabla');
+            const searchInput = widget.querySelector('.tabla-search-input');
+            const dropdown = widget.querySelector('.tabla-dropdown');
+            const clearBtn = widget.querySelector('.tabla-clear-btn');
+
+            function renderDropdown(models, filter) {
+                dropdown.innerHTML = '';
+                const q = (filter || '').toLowerCase();
+                const filtered = q ? models.filter(m => m.label.toLowerCase().includes(q) || m.value.toLowerCase().includes(q)) : models;
+
+                if (filtered.length === 0) {
+                    dropdown.innerHTML = '<div class="tabla-dropdown-empty">Sin resultados</div>';
+                } else {
+                    filtered.forEach(m => {
+                        const item = document.createElement('div');
+                        item.className = 'tabla-dropdown-item';
+                        item.dataset.value = m.value;
+                        item.innerHTML = m.label;
+                        item.addEventListener('click', () => {
+                            hiddenInput.value = m.value;
+                            searchInput.value = m.label;
+                            dropdown.classList.remove('open');
+                        });
+                        dropdown.appendChild(item);
+                    });
+                }
+            }
+
+            // Set initial label if a value exists
+            if (selectedValue) {
+                getModelOptions().then(models => {
+                    const found = models.find(m => m.value === selectedValue);
+                    searchInput.value = found ? found.label : selectedValue;
+                });
+            }
+
+            searchInput.addEventListener('focus', async () => {
+                const models = await getModelOptions();
+                renderDropdown(models, searchInput.value);
+                dropdown.classList.add('open');
+            });
+
+            searchInput.addEventListener('input', async () => {
+                const models = await getModelOptions();
+                renderDropdown(models, searchInput.value);
+                dropdown.classList.add('open');
+                // If input is cleared, clear hidden
+                if (!searchInput.value) hiddenInput.value = '';
+            });
+
+            clearBtn.addEventListener('click', () => {
+                hiddenInput.value = '';
+                searchInput.value = '';
+                dropdown.classList.remove('open');
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!widget.contains(e.target)) {
+                    dropdown.classList.remove('open');
+                }
+            });
+        }
+
         // Inicializar Sortable
         new Sortable(sortableContainer, {
             animation: 150,
             handle: '.drag-handle',
-            ghostClass: 'sortable-ghost'
+            ghostClass: 'sortable-ghost',
+            onEnd: updateStepNumbers
         });
 
         async function openModal(id) {
@@ -428,7 +697,11 @@
             document.getElementById('tipo-id').value = id || '';
             document.getElementById('tipo-nombre').value = '';
             document.getElementById('tipo-descripcion').value = '';
-            sortableContainer.innerHTML = '';
+            
+            document.getElementById('m-steps-list-view').innerHTML = '';
+            document.getElementById('requisitos-sortable').innerHTML = '';
+            
+            toggleStepsEdit(false);
 
             if (id) {
                 document.getElementById('modalTitle').innerText = 'Editar Tipo de Permiso';
@@ -438,14 +711,20 @@
                     if (data.status === 'success') {
                         document.getElementById('tipo-nombre').value = data.tipo.nombre;
                         document.getElementById('tipo-descripcion').value = data.tipo.descripcion;
-                        data.tipo.requisitos.forEach(req => addRequisitoRow(req));
+                        
+                        // Sort by orden just in case
+                        const reqs = data.tipo.requisitos.sort((a,b) => a.orden - b.orden);
+                        renderRequisitos(reqs, 'm-steps-list-view', false);
+                        renderRequisitos(reqs, 'requisitos-sortable', true);
                     }
                 } catch (e) {
                     console.error("Error cargando detalle", e);
                 }
             } else {
                 document.getElementById('modalTitle').innerText = 'Nuevo Tipo de Permiso';
-                addRequisitoRow(); // Uno vacío por defecto
+                renderRequisitos([], 'm-steps-list-view', false);
+                toggleStepsEdit(true);
+                addRequisitoRow();
             }
 
             modal.style.display = 'flex';
@@ -463,63 +742,219 @@
             event.target.classList.add('active');
         }
 
-        function addRequisitoRow(data = null) {
+        function toggleStepsEdit(editMode) {
+            if (editMode) {
+                document.getElementById('steps-view-container').style.display = 'none';
+                document.getElementById('steps-edit-container').style.display = 'block';
+            } else {
+                document.getElementById('steps-view-container').style.display = 'block';
+                document.getElementById('steps-edit-container').style.display = 'none';
+                // Sync data back to view when leaving edit mode
+                const currentData = collectRequisitosData();
+                renderRequisitos(currentData, 'm-steps-list-view', false);
+            }
+        }
+
+        function collectRequisitosData() {
+            const stepRows = document.querySelectorAll('.step-row-edit');
+            return Array.from(stepRows).map((row, index) => ({
+                id: row.dataset.id || null,
+                texto: row.querySelector('.req-texto').value,
+                tipo_respuesta: row.querySelector('.req-tipo').value,
+                es_critico: row.querySelector('.req-critico').checked,
+                verificacion: row.querySelector('.req-verif').value,
+                unidad_medida: row.querySelector('.req-unidad').value,
+                rango_min: row.querySelector('.req-min').value,
+                rango_max: row.querySelector('.req-max').value,
+                tabla_relacionada: row.querySelector('.req-tabla') ? row.querySelector('.req-tabla').value : '',
+                depende_de_id: row.querySelector('.req-depende-de') ? row.querySelector('.req-depende-de').value : '',
+                depende_condicion: row.querySelector('.req-depende-cond') ? row.querySelector('.req-depende-cond').value : '',
+                orden: index
+            }));
+        }
+
+        function renderRequisitos(requisitos, containerId, isEditable) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!requisitos || requisitos.length === 0) {
+                if (!isEditable) {
+                    container.innerHTML = '<div style="color: #94a3b8; font-style: italic; padding: 40px; text-align: center; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">Aún no se han definido requisitos para este permiso.</div>';
+                }
+                return;
+            }
+
+            requisitos.forEach((req, index) => {
+                if (isEditable) {
+                    addRequisitoRowEdit(req, container);
+                } else {
+                    if (req.tipo_respuesta === 'HEADER') {
+                        const div = document.createElement('div');
+                        div.className = 'step-header-banner';
+                        div.innerHTML = `
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                            <span>${(req.texto || 'ENCABEZADO').toUpperCase()}</span>
+                        `;
+                        container.appendChild(div);
+                    } else {
+                        const div = document.createElement('div');
+                        div.className = 'step-item-static';
+                        div.innerHTML = `
+                            <div class="step-number-circle">${index + 1}</div>
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                                    <div style="font-weight: 600; font-size: 1.05rem; color: #32363a; line-height: 1.4;">
+                                        ${req.texto || 'Nuevo Requisito'}
+                                        ${req.es_critico ? '<span style="color: #ef4444; font-size: 0.75rem; margin-left: 8px; font-weight: 800; border: 1px solid #ef4444; padding: 2px 6px; border-radius: 4px;">CRÍTICO</span>' : ''}
+                                    </div>
+                                    <span class="step-type-badge">${(req.tipo_respuesta || '').toLowerCase().replace('_', ' ')}</span>
+                                </div>
+                                ${req.verificacion ? `
+                                <div class="step-verif-box">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                    <span>${req.verificacion}</span>
+                                </div>` : ''}
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    }
+                }
+            });
+        }
+
+        function addRequisitoRowEdit(data = null, targetContainer = null, referenceNode = null, insertAfter = false) {
+            const container = targetContainer || document.getElementById('requisitos-sortable');
+            if (!container) return;
+            const index = container.querySelectorAll('.step-row-edit').length;
+
             const row = document.createElement('div');
-            row.className = 'step-item-static';
-            row.dataset.id = data ? data.id : '';
+            row.className = 'step-row-edit';
+            row.dataset.id = data ? (data.id || '') : '';
             
             row.innerHTML = `
-                <div class="step-actions">
-                    <div class="drag-handle">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 10l-2-2m2 2l2-2m-2 2l-2 2m2-2l2 2"/></svg>
-                    </div>
-                    <div class="remove-step" onclick="this.closest('.step-item-static').remove()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                    </div>
+                <div class="drag-handle" style="position: absolute; top: 1.5rem; left: 1rem;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle>
+                        <circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle>
+                    </svg>
                 </div>
-                <div class="step-content">
-                    <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; margin-bottom: 10px;">
+                <div class="remove-step" onclick="this.closest('.step-row-edit').remove(); updateStepNumbers();">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                </div>
+                <div style="flex: 1; padding-left: 2rem;">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 1rem; margin-bottom: 1rem;">
                         <div>
-                            <label class="form-label">Texto del Requisito / Pregunta</label>
-                            <input type="text" class="form-control req-texto" value="${data ? data.texto : ''}" placeholder="Ej: ¿Se cuenta con arnés de seguridad?">
+                            <label class="form-label req-numero-label" style="color: #0070f2;">Requisito #${index + 1} - Pregunta</label>
+                            <input type="text" class="form-control req-texto" value="${data ? (data.texto || '') : ''}" placeholder="Ej: ¿Se cuenta con arnés de seguridad?" style="height: 42px;">
                         </div>
                         <div>
                             <label class="form-label">Tipo de Respuesta</label>
-                            <select class="form-control req-tipo">
-                                <option value="CHECK" ${data && data.tipo_respuesta === 'CHECK' ? 'selected' : ''}>Check (Si/No/NA)</option>
-                                <option value="NUMERICO" ${data && data.tipo_respuesta === 'NUMERICO' ? 'selected' : ''}>Numérico</option>
-                                <option value="TEXTO" ${data && data.tipo_respuesta === 'TEXTO' ? 'selected' : ''}>Texto</option>
-                                <option value="FOTO" ${data && data.tipo_respuesta === 'FOTO' ? 'selected' : ''}>Foto</option>
-                                <option value="HEADER" ${data && data.tipo_respuesta === 'HEADER' ? 'selected' : ''}>Encabezado</option>
-                                <option value="INSTRUCCION" ${data && data.tipo_respuesta === 'INSTRUCCION' ? 'selected' : ''}>Instrucción</option>
+                            <select class="form-control req-tipo" style="height: 42px;">
+                                <option value="CHECK" ${data && data.tipo_respuesta === 'CHECK' ? 'selected' : ''}>✅ Check (Si/No/NA)</option>
+                                <option value="NUMERICO" ${data && data.tipo_respuesta === 'NUMERICO' ? 'selected' : ''}>🔢 Numérico</option>
+                                <option value="TEXTO" ${data && data.tipo_respuesta === 'TEXTO' ? 'selected' : ''}>📝 Texto Libre</option>
+                                <option value="FOTO" ${data && data.tipo_respuesta === 'FOTO' ? 'selected' : ''}>📸 Tomar Foto</option>
+                                <option value="FECHAHORA" ${data && data.tipo_respuesta === 'FECHAHORA' ? 'selected' : ''}>🕒 Fecha y Hora</option>
+                                <option value="TABLA" ${data && data.tipo_respuesta === 'TABLA' ? 'selected' : ''}>🔗 Tabla Relacionada</option>
+                                <option value="HEADER" ${data && data.tipo_respuesta === 'HEADER' ? 'selected' : ''}>🚩 Encabezado</option>
+                                <option value="INSTRUCCION" ${data && data.tipo_respuesta === 'INSTRUCCION' ? 'selected' : ''}>ℹ️ Instrucción</option>
                             </select>
                         </div>
                         <div style="display: flex; align-items: center; padding-top: 1.5rem; gap: 8px;">
-                            <input type="checkbox" class="req-critico" ${data && data.es_critico ? 'checked' : ''}>
-                            <label class="form-label" style="margin: 0;">Crítico</label>
+                            <input type="checkbox" class="req-critico" ${data && data.es_critico ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #ef4444;">
+                            <label class="form-label" style="margin: 0; color: #ef4444;">Crítico</label>
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 0.8fr 0.8fr 1.2fr; gap: 1rem;">
                         <div>
-                            <label class="form-label">Verificación</label>
-                            <input type="text" class="form-control req-verif" value="${data ? data.verificacion : ''}" placeholder="¿Qué revisar?">
+                            <label class="form-label">Verificación / Nota</label>
+                            <input type="text" class="form-control req-verif" value="${data ? (data.verificacion || '') : ''}" placeholder="¿Qué revisar?" style="height: 42px;">
                         </div>
                         <div>
                             <label class="form-label">U. Medida</label>
-                            <input type="text" class="form-control req-unidad" value="${data ? data.unidad_medida : ''}" placeholder="Ej: Bar">
+                            <input type="text" class="form-control req-unidad" value="${data ? (data.unidad_medida || '') : ''}" placeholder="Ej: Bar" style="height: 42px;">
                         </div>
                         <div>
-                            <label class="form-label">Min</label>
-                            <input type="number" class="form-control req-min" value="${data ? data.rango_min || '' : ''}">
+                            <label class="form-label">Mínimo</label>
+                            <input type="number" class="form-control req-min" value="${data ? (data.rango_min || '') : ''}" style="height: 42px;">
                         </div>
                         <div>
-                            <label class="form-label">Max</label>
-                            <input type="number" class="form-control req-max" value="${data ? data.rango_max || '' : ''}">
+                            <label class="form-label">Máximo</label>
+                            <input type="number" class="form-control req-max" value="${data ? (data.rango_max || '') : ''}" style="height: 42px;">
+                        </div>
+                        <div>
+                            <label class="form-label" style="color: #64748b;">Tabla (Si aplica)</label>
+                            <div class="tabla-search-widget">
+                                <input type="hidden" class="req-tabla" value="${data ? (data.tabla_relacionada || '') : ''}">
+                                <input type="text" class="tabla-search-input" placeholder="Buscar tabla..." autocomplete="off">
+                                <button type="button" class="tabla-clear-btn" title="Limpiar">×</button>
+                                <div class="tabla-dropdown"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem; padding: 0.75rem 1rem; background: #fefce8; border: 1px solid #fde68a; border-radius: 4px;">
+                        <div style="display: grid; grid-template-columns: auto 1fr 1fr; gap: 0.75rem; align-items: center;">
+                            <label style="font-size: 0.75rem; font-weight: 700; color: #92400e; white-space: nowrap;">⚡ CONDICIÓN:</label>
+                            <select class="form-control req-depende-de" style="height: 36px; font-size: 0.8rem;">
+                                <option value="">Sin condición (siempre visible)</option>
+                            </select>
+                            <select class="form-control req-depende-cond" style="height: 36px; font-size: 0.8rem;">
+                                <option value="TRUE" ${data && data.depende_condicion === 'TRUE' ? 'selected' : ''}>Si es Verdadero / Marcado</option>
+                                <option value="FALSE" ${data && data.depende_condicion === 'FALSE' ? 'selected' : ''}>Si es Falso / No marcado</option>
+                                <option value="FILLED" ${data && data.depende_condicion === 'FILLED' ? 'selected' : ''}>Si tiene algún valor</option>
+                                <option value="EMPTY" ${data && data.depende_condicion === 'EMPTY' ? 'selected' : ''}>Si está vacío</option>
+                            </select>
                         </div>
                     </div>
                 </div>
             `;
-            sortableContainer.appendChild(row);
+            
+            if (referenceNode) {
+                if (insertAfter) {
+                    referenceNode.after(row);
+                } else {
+                    referenceNode.before(row);
+                }
+            } else {
+                container.appendChild(row);
+            }
+            // Populate the tabla search widget dynamically
+            populateTablaSelect(row, data ? (data.tabla_relacionada || '') : '');
+            updateStepNumbers();
+            // Populate conditional dependency select after a short delay to let all rows render
+            setTimeout(() => refreshAllDependeDeSelects(data ? data.depende_de_id : null, row), 50);
+        }
+
+        function refreshAllDependeDeSelects(selectedIdForNew, newRow) {
+            const allRows = sortableContainer.querySelectorAll('.step-row-edit');
+            // Build list of available requisitos
+            const options = [];
+            allRows.forEach((r, i) => {
+                const id = r.dataset.id;
+                const texto = r.querySelector('.req-texto').value || `Requisito #${i + 1}`;
+                options.push({ id: id, index: i + 1, texto: texto, row: r });
+            });
+
+            allRows.forEach((r, idx) => {
+                const sel = r.querySelector('.req-depende-de');
+                if (!sel) return;
+                const currentVal = (r === newRow && selectedIdForNew) ? String(selectedIdForNew) : sel.value;
+                sel.innerHTML = '<option value="">Sin condición (siempre visible)</option>';
+                options.forEach(opt => {
+                    if (opt.row === r) return; // Can't depend on self
+                    const o = document.createElement('option');
+                    o.value = opt.id || `idx_${opt.index}`;
+                    o.textContent = `Si Requisito #${opt.index}: ${opt.texto.substring(0, 40)}`;
+                    if (currentVal && (o.value === currentVal || o.value === `idx_${opt.index}`)) o.selected = true;
+                    sel.appendChild(o);
+                });
+            });
+        }
+
+        // Add alias for the button
+        function addRequisitoRow() {
+            addRequisitoRowEdit(null);
         }
 
         async function savePermiso() {
@@ -551,19 +986,8 @@
                     const tipoId = dataGen.tipo_id;
                     
                     // 2. Guardar Requisitos
-                    const requisitos = [];
-                    document.querySelectorAll('.step-item-static').forEach(row => {
-                        requisitos.push({
-                            id: row.dataset.id,
-                            texto: row.querySelector('.req-texto').value,
-                            tipo_respuesta: row.querySelector('.req-tipo').value,
-                            es_critico: row.querySelector('.req-critico').checked,
-                            verificacion: row.querySelector('.req-verif').value,
-                            unidad_medida: row.querySelector('.req-unidad').value,
-                            rango_min: row.querySelector('.req-min').value,
-                            rango_max: row.querySelector('.req-max').value
-                        });
-                    });
+                    const requisitos = collectRequisitosData();
+
 
                     const resReq = await fetch('/seguridad/api/tipo-permiso/requisitos/save/', {
                         method: 'POST',
@@ -586,6 +1010,53 @@
                 Swal.fire('Error', 'Ocurrió un problema al guardar', 'error');
             }
         }
+        
+        // Context Menu Logic
+        let targetStepRow = null;
+        const ctxMenu = document.getElementById('stepContextMenu');
+
+        document.getElementById('requisitos-sortable').addEventListener('contextmenu', function(e) {
+            const row = e.target.closest('.step-row-edit');
+            if (row) {
+                e.preventDefault();
+                targetStepRow = row;
+                
+                // Ensure it fits within window bounds
+                const menuWidth = 200;
+                const menuHeight = 100;
+                let x = e.pageX;
+                let y = e.pageY;
+                
+                if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+                if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+
+                ctxMenu.style.left = x + 'px';
+                ctxMenu.style.top = y + 'px';
+                ctxMenu.style.display = 'block';
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.custom-context-menu')) {
+                ctxMenu.style.display = 'none';
+            }
+        });
+
+        document.getElementById('ctx-insert-above').addEventListener('click', function() {
+            if (targetStepRow) {
+                const container = document.getElementById('requisitos-sortable');
+                addRequisitoRowEdit(null, container, targetStepRow, false);
+                ctxMenu.style.display = 'none';
+            }
+        });
+
+        document.getElementById('ctx-insert-below').addEventListener('click', function() {
+            if (targetStepRow) {
+                const container = document.getElementById('requisitos-sortable');
+                addRequisitoRowEdit(null, container, targetStepRow, true);
+                ctxMenu.style.display = 'none';
+            }
+        });
     </script>
 </body>
 

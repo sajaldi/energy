@@ -5,83 +5,263 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Generar Permiso</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>Generar Permiso | DCC System</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+
+    {% include 'core/fiori_tokens.html' %}
+
     <style>
         body {
-            font-family: 'Outfit', sans-serif;
-            background: #f0f2f5;
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
             margin: 0;
-            padding: 0;
+            padding-bottom: 90px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* SAP Fiori Shell Header */
+        header {
+            background-color: var(--sap-shell-bg);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .back-btn {
+            color: white;
+            font-size: 24px;
+            margin-right: 12px;
+            display: flex;
+            text-decoration: none;
+        }
+
+        .shell-title {
+            font-size: 16px;
+            font-weight: 600;
+            flex-grow: 1;
+        }
+
+        /* Object Header */
+        .object-header {
+            background-color: white;
+            padding: 20px 16px;
+            border-bottom: 1px solid var(--sap-border-color);
+            margin-bottom: 12px;
+        }
+
+        .object-id {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 4px 0;
+            color: var(--sap-brand-color);
+        }
+
+        .object-subtitle {
+            font-size: 13px;
+            color: var(--sap-text-muted);
+        }
+
+        /* Sections & Cards */
+        .container {
+            padding: 0 12px;
+        }
+
+        .fiori-card {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: var(--sap-card-shadow);
+        }
+
+        .card-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sap-border-color);
+            background: var(--sap-bg-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--sap-label);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-content {
+            padding: 16px;
+        }
+
+        /* Fiori Form Layout */
+        .fiori-form-group {
+            margin-bottom: 16px;
+        }
+
+        .fiori-form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--sap-label);
+            margin-bottom: 6px;
+        }
+
+        .fiori-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #bcbcbc;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--sap-text);
+            background: #ffffff;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+            height: 42px;
+        }
+
+        .fiori-select:focus {
+            outline: none;
+            border-color: var(--sap-brand-color);
+            box-shadow: 0 0 0 1px var(--sap-brand-color);
+        }
+
+        /* Fiori Footer Toolbar */
+        .fiori-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid var(--sap-border);
+            padding: 12px 16px;
+            display: flex;
+            z-index: 1000;
+        }
+
+        .fiori-btn {
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            font-family: inherit;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        .fiori-btn-primary {
+            background-color: var(--sap-brand-color);
+            color: white;
+        }
+
+        .info-row {
+            margin-bottom: 12px;
+        }
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+        .info-label {
+            font-size: 12px;
+            color: var(--sap-text-muted);
+            margin-bottom: 2px;
+        }
+        .info-value {
+            font-weight: 600;
+            color: var(--sap-text-color);
+            font-size: 14px;
         }
     </style>
 </head>
 
 <body>
 
-    <div
-        style="padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 15px;">
-        <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}"
-            style="color: white; text-decoration: none; display: inline-block; margin-bottom: 10px;">
-            ← Volver
+    <header>
+        <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="back-btn">
+            <ion-icon name="chevron-back-outline"></ion-icon>
         </a>
-        <h1 style="margin: 0; font-size: 20px; font-weight: 700;">Generar Permiso de Trabajo</h1>
-        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 13px;">Para OT-{{ ot.id }}</p>
+        <div class="shell-title">Generar Permiso</div>
+        <ion-icon name="shield-checkmark-outline" style="font-size: 20px;"></ion-icon>
+    </header>
+
+    <div class="object-header">
+        <h1 class="object-id">OT #{{ ot.id }}</h1>
+        <div class="object-subtitle">Preparación de Permiso de Trabajo</div>
     </div>
 
-    <div style="padding: 0 15px 15px 15px;">
-        <!-- OT Info Card -->
-        <div
-            style="background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-            <h3
-                style="margin: 0 0 12px 0; font-size: 14px; color: #6b7280; text-transform: uppercase; font-weight: 600;">
-                Orden de Trabajo</h3>
+    <form method="post" id="permisoForm">
+        {% csrf_token %}
+        <div class="container">
+            <!-- OT Info Card -->
+            <div class="fiori-card">
+                <div class="card-header">
+                    <ion-icon name="information-circle-outline"></ion-icon>
+                    <h2>Información de Orden</h2>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <div class="info-label">Ubicación</div>
+                        <div class="info-value"><ion-icon name="location-outline" style="vertical-align: text-bottom; margin-right: 4px;"></ion-icon>{{ ot.ubicacion.nombre }}</div>
+                    </div>
 
-            <div style="margin-bottom: 10px;">
-                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 2px;">Ubicación</div>
-                <div style="font-weight: 600; color: #1f2937;">📍 {{ ot.ubicacion.nombre }}</div>
+                    <div class="info-row">
+                        <div class="info-label">Tarea Asignada</div>
+                        <div class="info-value" style="color: var(--sap-text-muted);">
+                            {% if ot.rutina %}
+                            {{ ot.rutina.nombre }}
+                            {% elif ot.aviso %}
+                            {{ ot.aviso.descripcion }}
+                            {% else %}
+                            Mantenimiento General
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div style="margin-bottom: 10px;">
-                <div style="font-size: 12px; color: #9ca3af; margin-bottom: 2px;">Tarea</div>
-                <div style="color: #4b5563;">
-                    {% if ot.rutina %}
-                    {{ ot.rutina.nombre }}
-                    {% elif ot.aviso %}
-                    {{ ot.aviso.descripcion }}
-                    {% else %}
-                    Mantenimiento General
-                    {% endif %}
+            <!-- Permit Type Selection -->
+            <div class="fiori-card">
+                <div class="card-header" style="background: rgba(10, 110, 209, 0.04);">
+                    <ion-icon name="document-text-outline" style="color: var(--sap-brand-color);"></ion-icon>
+                    <h2 style="color: var(--sap-brand-color);">Configuración de Permiso</h2>
+                </div>
+                <div class="card-content">
+                    <div class="fiori-form-group" style="margin-bottom: 0;">
+                        <label for="tipo_permiso">Tipo de Permiso Requerido</label>
+                        <select name="tipo_permiso" id="tipo_permiso" required class="fiori-select">
+                            <option value="">-- Seleccionar Tipo --</option>
+                            {% for tipo in tipos_permiso %}
+                            <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Permit Type Selection -->
-        <form method="post">
-            {% csrf_token %}
-            <div
-                style="background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                <label for="tipo_permiso"
-                    style="display: block; font-size: 14px; color: #6b7280; text-transform: uppercase; font-weight: 600; margin-bottom: 12px;">
-                    Tipo de Permiso
-                </label>
-
-                <select name="tipo_permiso" id="tipo_permiso" required
-                    style="width: 100%; padding: 14px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 15px; font-weight: 500; color: #1f2937; background: #f9fafb;">
-                    <option value="">-- Seleccionar Tipo --</option>
-                    {% for tipo in tipos_permiso %}
-                    <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <button type="submit"
-                style="width: 100%; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
-                Generar Permiso
+        <div class="fiori-footer">
+            <button type="submit" class="fiori-btn fiori-btn-primary">
+                <ion-icon name="add-circle-outline" style="font-size: 18px;"></ion-icon> Crear Permiso e Iniciar Checklist
             </button>
-        </form>
-    </div>
+        </div>
+    </form>
 
 </body>
 

@@ -63,12 +63,36 @@ def mobile_permiso_detalle(request, pk):
         return redirect('seguridad:mobile_mis_permisos')
     
     if request.method == 'POST':
-        # Guardar cambios en el checklist
-        for key, value in request.POST.items():
-            if key.startswith('check_'):
-                verif_id = key.split('_')[1]
-                verif = VerificacionRequisito.objects.get(id=verif_id, permiso=permiso)
-                verif.cumple = (value == 'on')
+        if permiso.estado == 'BORRADOR':
+            # Reset checkboxes and NA to False because unchecked inputs don't send POST data
+            VerificacionRequisito.objects.filter(permiso=permiso, requisito__tipo_respuesta='CHECK').update(valor_bool=False)
+            VerificacionRequisito.objects.filter(permiso=permiso).update(no_aplica=False)
+
+            for verif in permiso.verificaciones.all():
+                if verif.requisito.tipo_respuesta == 'CHECK':
+                    val = request.POST.get(f'verif_{verif.id}_bool')
+                    verif.valor_bool = (val == 'on')
+                elif verif.requisito.tipo_respuesta == 'NUMERICO':
+                    val = request.POST.get(f'verif_{verif.id}_num')
+                    verif.valor_numerico = float(val) if val else None
+                elif verif.requisito.tipo_respuesta in ['TEXTO', 'FECHAHORA', 'TABLA']:
+                    val = request.POST.get(f'verif_{verif.id}_text')
+                    if val is not None:
+                        verif.valor_texto = val
+                
+                if verif.requisito.tipo_respuesta == 'FOTO':
+                    foto_file = request.FILES.get(f'verif_{verif.id}_foto')
+                    if foto_file:
+                        verif.foto = foto_file
+
+                if verif.requisito.tipo_respuesta not in ['INSTRUCCION', 'HEADER']:
+                    na_val = request.POST.get(f'verif_{verif.id}_na')
+                    verif.no_aplica = (na_val == 'on')
+
+                    com_val = request.POST.get(f'verif_{verif.id}_com')
+                    if com_val is not None:
+                        verif.comentarios = com_val
+
                 verif.save()
         
         # Acciones de estado
@@ -85,12 +109,77 @@ def mobile_permiso_detalle(request, pk):
         
         return redirect('seguridad:mobile_permiso_detalle', pk=permiso.id)
     
-    verificaciones = permiso.verificaciones.select_related('requisito').all()
+    verificaciones = list(permiso.verificaciones.select_related('requisito').order_by('requisito__orden'))
+    
+    counter = 1
+    for verif in verificaciones:
+        if verif.requisito.tipo_respuesta != 'HEADER':
+            verif.display_number = counter
+            counter += 1
+        else:
+            verif.display_number = None
     
     return render(request, 'seguridad/mobile/permiso_detalle.html', {
         'permiso': permiso,
         'verificaciones': verificaciones
     })
+
+@login_required
+def api_buscar_tabla(request):
+    """API genérica para autocompletado de tablas relacionadas (Typeahead).
+    Resuelve dinámicamente cualquier modelo Django registrado en apps."""
+    from django.apps import apps
+    
+    tabla = request.GET.get('tabla', '')
+    q = request.GET.get('q', '')
+    # mode=list returns all available models for the editor dropdown
+    mode = request.GET.get('mode', '')
+    
+    if mode == 'list':
+        # Return all registered models for the editor select
+        modelos = []
+        exclude_apps = {'contenttypes', 'sessions', 'admin', 'auth_permission',
+                        'django_celery_beat', 'django_celery_results'}
+        for model in apps.get_models():
+            app = model._meta.app_label
+            if app in exclude_apps:
+                continue
+            label = f"{app}.{model.__name__}"
+            verbose = f"{model._meta.verbose_name_plural.title()} ({app})"
+            modelos.append({'value': label, 'label': verbose})
+        modelos.sort(key=lambda x: x['label'])
+        return JsonResponse({'models': modelos})
+    
+    if not tabla:
+        return JsonResponse({'results': []})
+    
+    resultados = []
+    
+    try:
+        app_label, model_name = tabla.split('.')
+        Model = apps.get_model(app_label, model_name)
+    except (ValueError, LookupError):
+        return JsonResponse({'results': [], 'error': f'Modelo {tabla} no encontrado'})
+    
+    qs = Model.objects.all()
+    
+    if q:
+        # Build a dynamic Q filter across all char/text fields
+        from django.db.models import CharField, TextField
+        text_fields = [
+            f.name for f in Model._meta.get_fields()
+            if isinstance(f, (CharField, TextField)) and not f.primary_key
+        ]
+        if text_fields:
+            q_filter = Q()
+            for field_name in text_fields[:5]:  # limit to first 5 text fields
+                q_filter |= Q(**{f'{field_name}__icontains': q})
+            qs = qs.filter(q_filter)
+    
+    for obj in qs[:20]:
+        resultados.append({'id': obj.pk, 'text': str(obj)})
+        
+    return JsonResponse({'results': resultados})
 
 @staff_member_required
 def mobile_generar_permiso(request, ot_id):

@@ -11,7 +11,7 @@ from .mobile import (
     mobile_confiscacion_entrega_pdf_view,
     mobile_confiscacion_imprimir_etiqueta,
     mobile_perfil,
-    api_crear_objeto_catalogo
+    api_crear_objeto_catalogo, api_buscar_tabla
 )
 from .pdf_views import (
     generar_permiso_pdf_view, mobile_confiscacion_pdf_view
