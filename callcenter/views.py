@@ -2203,8 +2203,9 @@ def mobile_ticket_cierre_view(request, pk):
             ticket.fecha_cierre = timezone.now()
             
         ticket.save()
-        messages.success(request, f"Ticket {ticket.folio or ticket.id_solicitud} cerrado exitosamente.")
-        return redirect('callcenter:mobile_ticket_detalle', pk=ticket.pk)
+        
+        from django.http import JsonResponse
+        return JsonResponse({'success': True})
 
     context = {
         'ticket': ticket,

@@ -290,14 +290,12 @@
                     }
 
                     Swal.fire({
-                        icon: 'success',
-                        title: '¡Ticket Cerrado!',
-                        text: 'La información se guardó correctamente.',
-                        timer: 2000,
-                        showConfirmButton: false
-                    }).then(() => {
-                        window.location.href = "{% url 'callcenter:mobile_ticket_detalle' ticket.id %}";
+                        title: 'Notificando Cierre...',
+                        html: 'Generando PDF y enviando reporte. Por favor espera.',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
                     });
+                    window.location.href = "{% url 'callcenter:send_power_automate' ticket.id %}";
                 } else {
                     Swal.fire('Error', 'Hubo un problema al guardar los datos.', 'error');
                 }
