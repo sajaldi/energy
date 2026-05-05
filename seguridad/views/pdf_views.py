@@ -56,9 +56,50 @@ def generar_permiso_pdf_view(request, permiso_id):
         with open(logo_path, "rb") as image_file:
             logo_dcc_b64 = base64.b64encode(image_file.read()).decode('utf-8')
 
+    # Filtrar y numerar requisitos dinámicamente
+    verificaciones_raw = list(permiso.verificaciones.select_related('requisito').order_by('requisito__orden'))
+    verificaciones_validas = []
+    
+    # Crear un mapa para búsqueda rápida por req_id
+    mapa_verif = {v.requisito_id: v for v in verificaciones_raw}
+    
+    for v in verificaciones_raw:
+        req = v.requisito
+        mostrar = True
+        
+        if req.depende_de_id:
+            parent_v = mapa_verif.get(req.depende_de_id)
+            if parent_v:
+                # Determinar el valor del padre
+                parent_val = None
+                if parent_v.requisito.tipo_respuesta == 'CHECK':
+                    parent_val = parent_v.valor_bool
+                elif parent_v.requisito.tipo_respuesta == 'NUMERICO':
+                    parent_val = parent_v.valor_numerico is not None
+                elif parent_v.requisito.tipo_respuesta in ['TEXTO', 'TABLA', 'FECHAHORA']:
+                    parent_val = bool(parent_v.valor_texto)
+                
+                cond = req.depende_condicion
+                if cond == 'TRUE' and parent_val is not True: mostrar = False
+                elif cond == 'FALSE' and parent_val is not False: mostrar = False
+                elif cond == 'FILLED' and not parent_val: mostrar = False
+                elif cond == 'EMPTY' and parent_val: mostrar = False
+        
+        if mostrar:
+            verificaciones_validas.append(v)
+
+    # Numeración lógica
+    counter = 1
+    for v in verificaciones_validas:
+        if v.requisito.tipo_respuesta != 'HEADER':
+            v.display_number = counter
+            counter += 1
+        else:
+            v.display_number = None
+
     context = {
         'permiso': permiso,
-        'verificaciones': permiso.verificaciones.all(),
+        'verificaciones': verificaciones_validas,
         'logo_dcc_b64': logo_dcc_b64,
         'ahora': timezone.now(),
     }

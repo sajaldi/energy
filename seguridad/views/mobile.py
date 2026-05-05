@@ -68,13 +68,18 @@ def mobile_permiso_detalle(request, pk):
             VerificacionRequisito.objects.filter(permiso=permiso, requisito__tipo_respuesta='CHECK').update(valor_bool=False)
             VerificacionRequisito.objects.filter(permiso=permiso).update(no_aplica=False)
 
-            for verif in permiso.verificaciones.all():
+            # Preparar mapa de verificaciones para evaluar condiciones
+            verificaciones_list = list(permiso.verificaciones.select_related('requisito').all())
+            mapa_verif = {v.requisito_id: v for v in verificaciones_list}
+
+            # Primera pasada: Guardar todos los valores crudos
+            for verif in verificaciones_list:
                 if verif.requisito.tipo_respuesta == 'CHECK':
                     val = request.POST.get(f'verif_{verif.id}_bool')
                     verif.valor_bool = (val == 'on')
                 elif verif.requisito.tipo_respuesta == 'NUMERICO':
                     val = request.POST.get(f'verif_{verif.id}_num')
-                    verif.valor_numerico = float(val) if val else None
+                    verif.valor_numerico = float(val) if val and val.strip() else None
                 elif verif.requisito.tipo_respuesta in ['TEXTO', 'FECHAHORA', 'TABLA']:
                     val = request.POST.get(f'verif_{verif.id}_text')
                     if val is not None:
@@ -93,6 +98,32 @@ def mobile_permiso_detalle(request, pk):
                     if com_val is not None:
                         verif.comentarios = com_val
 
+            # Segunda pasada: Limpiar valores de requisitos cuyas condiciones NO se cumplen
+            for verif in verificaciones_list:
+                req = verif.requisito
+                if req.depende_de_id:
+                    parent_v = mapa_verif.get(req.depende_de_id)
+                    if parent_v:
+                        # Evaluar condición del padre
+                        p_val = None
+                        if parent_v.requisito.tipo_respuesta == 'CHECK': p_val = parent_v.valor_bool
+                        elif parent_v.requisito.tipo_respuesta == 'NUMERICO': p_val = parent_v.valor_numerico is not None
+                        else: p_val = bool(parent_v.valor_texto)
+
+                        cond = req.depende_condicion
+                        cumple = True
+                        if cond == 'TRUE' and p_val is not True: cumple = False
+                        elif cond == 'FALSE' and p_val is not False: cumple = False
+                        elif cond == 'FILLED' and not p_val: cumple = False
+                        elif cond == 'EMPTY' and p_val: cumple = False
+
+                        if not cumple:
+                            # Si no cumple, reseteamos el valor de esta verificación
+                            verif.valor_bool = False if req.tipo_respuesta == 'CHECK' else None
+                            verif.valor_numerico = None
+                            verif.valor_texto = ""
+                            verif.no_aplica = False
+                
                 verif.save()
         
         # Acciones de estado

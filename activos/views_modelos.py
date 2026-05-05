@@ -106,6 +106,7 @@ def modelo_detail_api(request):
             for r in qs_rutinas:
                 rutinas.append({
                     'id': r.id,
+                    'codigo': r.codigo_rutina or f"RT-{r.id}",
                     'nombre': r.nombre,
                     'frecuencia': r.frecuencia.nombre if r.frecuencia else 'N/A',
                     'tipo': r.tipo.nombre if r.tipo else 'General',

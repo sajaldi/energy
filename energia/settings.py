@@ -655,6 +655,20 @@ JAZZMIN_SETTINGS = {
                 "permissions": ["iot.view_telemetry"],
             },
         ],
+        "seguridad": [
+            {
+                "name": "🛡️ Central de Seguridad",
+                "url": "/seguridad/dashboard/",
+                "icon": "fas fa-shield-virus",
+                "permissions": ["seguridad.view_incidente"],
+            },
+            {
+                "name": "⚙️ Configurar PTW",
+                "url": "/seguridad/gestion/tipos-permisos/",
+                "icon": "fas fa-id-card",
+                "permissions": ["seguridad.view_tipopermiso"],
+            },
+        ],
     },
     "changeform_format": "horizontal_tabs",
 }

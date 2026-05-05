@@ -162,19 +162,63 @@
         </thead>
         <tbody>
             {% for v in verificaciones %}
-                <tr class="step-row">
-                    <td class="text-center">{{ forloop.counter }}</td>
-                    <td>
-                        <span {% if v.requisito.es_critico %}style="color: #b91c1c; font-weight: bold;"{% endif %}>
+                {% if v.requisito.tipo_respuesta == 'HEADER' %}
+                    <tr style="background-color: #334155; color: white;">
+                        <td colspan="3" class="bold" style="padding: 6px 10px; font-size: 10px; text-transform: uppercase;">
                             {{ v.requisito.texto }}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="checkbox-row"><span class="box">{% if v.cumple %}X{% endif %}</span> Cumple</div>
-                        <div class="checkbox-row"><span class="box">{% if not v.cumple %}X{% endif %}</span> No / NA</div>
-                        {% if v.observacion %}<div style="font-size: 7px; color: #666;">Obs: {{ v.observacion }}</div>{% endif %}
-                    </td>
-                </tr>
+                        </td>
+                    </tr>
+                {% elif v.requisito.tipo_respuesta == 'INSTRUCCION' %}
+                    <tr style="background-color: #f8fafc;">
+                        <td class="text-center" style="color: #64748b; font-style: italic;">i</td>
+                        <td colspan="2" style="color: #475569; font-style: italic; border-left: 3px solid #3b82f6;">
+                            {{ v.requisito.texto }}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr class="step-row">
+                        <td class="text-center bold">{{ v.display_number }}</td>
+                        <td>
+                            <div {% if v.requisito.es_critico %}style="color: #b91c1c; font-weight: bold;"{% endif %}>
+                                {{ v.requisito.texto }}
+                            </div>
+                            {% if v.requisito.verificacion %}
+                                <div style="font-size: 7px; color: #64748b; margin-top: 2px;">
+                                    <span class="bold">Verificar:</span> {{ v.requisito.verificacion }}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td style="background-color: {% if v.requisito.es_critico and not v.cumple and not v.no_aplica %}#fef2f2{% else %}transparent{% endif %};">
+                            {% if v.no_aplica %}
+                                <span class="bold" style="color: #64748b;">N/A</span>
+                            {% else %}
+                                {% if v.requisito.tipo_respuesta == 'CHECK' %}
+                                    <div class="checkbox-row"><span class="box">{% if v.valor_bool %}X{% endif %}</span> SÍ</div>
+                                    <div class="checkbox-row"><span class="box">{% if v.valor_bool == False %}X{% endif %}</span> NO</div>
+                                {% elif v.requisito.tipo_respuesta == 'NUMERICO' %}
+                                    <span class="bold">{{ v.valor_numerico|default:"---" }}</span> 
+                                    <span style="font-size: 7px; color: #666;">{{ v.requisito.unidad_medida }}</span>
+                                {% elif v.requisito.tipo_respuesta == 'FOTO' %}
+                                    {% if v.foto %}
+                                        <span style="color: #16a34a; font-weight: bold;">[FOTO ADJUNTA]</span>
+                                    {% else %}
+                                        <span style="color: #94a3b8;">Sin captura</span>
+                                    {% endif %}
+                                {% else %}
+                                    <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; min-height: 12px;">
+                                        {{ v.valor_texto|default:"---" }}
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                            
+                            {% if v.comentarios %}
+                                <div style="font-size: 7px; color: #1e293b; margin-top: 3px; font-style: italic; border-left: 2px solid #cbd5e1; padding-left: 4px;">
+                                    {{ v.comentarios }}
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endif %}
             {% empty %}
                 <tr>
                     <td colspan="3" class="text-center" style="padding: 20px; color: #666;">No hay requisitos registrados para este tipo de permiso.</td>
