@@ -422,7 +422,7 @@ def ticket_search_view(request):
             resp = http_requests.post(ollama_url, json={
                 'model': 'mxbai-embed-large',
                 'prompt': f"Represent this query for retrieving relevant documents: {query}"
-            }, timeout=15)
+            }, timeout=60)
             
             if resp.status_code != 200:
                 error = f"Error al generar embedding: Ollama respondió {resp.status_code}"

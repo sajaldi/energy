@@ -250,7 +250,7 @@ def bulk_vectorize_tickets():
             resp = http_requests.post(ollama_url, json={
                 'model': 'mxbai-embed-large',
                 'prompt': f"Represent this document for retrieval: {prompt_text}"
-            }, timeout=15)
+            }, timeout=60)
             
             if resp.status_code == 200:
                 embedding = resp.json().get('embedding')
