@@ -721,9 +721,17 @@ def cluster_tickets_view(request, cluster_id):
         # Ubicación (Lista jerárquica)
         ruta = t.ubicacion_jerarquica if hasattr(t, 'ubicacion_jerarquica') else (t.ubicacion.ruta_completa if t.ubicacion else (t.nivel or 'Otra'))
         
-        # Soportar separadores ' > ' y ' -> '
-        sep = '->' if '->' in str(ruta) else '>'
-        partes = [p.strip() for p in str(ruta).split(sep)] if ruta else ['Otra']
+        # Soportar separadores: ' → ' (unicode), ' > ', ' -> '
+        ruta_str = str(ruta) if ruta else 'Otra'
+        if ' → ' in ruta_str:
+            sep = ' → '
+        elif ' -> ' in ruta_str:
+            sep = ' -> '
+        elif ' > ' in ruta_str:
+            sep = ' > '
+        else:
+            sep = None
+        partes = [p.strip() for p in ruta_str.split(sep)] if sep else [ruta_str]
         
         # Tiempos
         duracion_horas = None
