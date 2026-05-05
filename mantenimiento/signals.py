@@ -1,6 +1,7 @@
-from django.db.models.signals import post_save, m2m_changed
+from django.db.models.signals import post_save, m2m_changed, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
+from webpush import send_user_notification
 from .models import OrdenTrabajo, CierreOrdenTrabajo, Aviso
 from activos.models import Activo, DowntimeActivo
 
@@ -147,4 +148,56 @@ def handle_cierre_ot_status(sender, instance, **kwargs):
         except Exception as e:
             # Podríamos loguear esto, por ahora print para debug
             print(f"Error al reprogramar órdenes futuras para OT #{ot.id}: {e}")
+
+# --- Notificaciones Automáticas Web Push ---
+
+@receiver(pre_save, sender=OrdenTrabajo)
+def capture_old_ot_status(sender, instance, **kwargs):
+    """Guarda el estado anterior para detectar cambios en el post_save."""
+    try:
+        if instance.pk:
+            instance._old_estado = OrdenTrabajo.objects.get(pk=instance.pk).estado
+        else:
+            instance._old_estado = None
+    except OrdenTrabajo.DoesNotExist:
+        instance._old_estado = None
+
+@receiver(post_save, sender=OrdenTrabajo)
+def handle_ot_notifications(sender, instance, created, **kwargs):
+    """Envía notificaciones push basadas en eventos de la OT."""
+    old_estado = getattr(instance, '_old_estado', None)
+    
+    # URL base para el detalle de la OT (ajustar según tu configuración)
+    ot_url = f"/mantenimiento/app/ot/{instance.id}/"
+    icon = "/static/core/img/icon-512.png"
+
+    # 1. Nueva OT asignada a un Técnico
+    if created and instance.tecnico:
+        payload = {
+            "title": "🆕 Nueva OT Asignada",
+            "body": f"Se te ha asignado la OT {instance.codigo_de_orden or instance.id}. Revisa los detalles.",
+            "icon": icon,
+            "url": ot_url
+        }
+        send_user_notification(user=instance.tecnico, payload=payload, ttl=1000)
+
+    # 2. OT Finalizada -> Avisar al Supervisor
+    elif old_estado != 'REALIZADA' and instance.estado == 'REALIZADA' and instance.supervisor:
+        payload = {
+            "title": "✅ OT Finalizada",
+            "body": f"El técnico ha finalizado la OT {instance.codigo_de_orden or instance.id}. Pendiente de revisión.",
+            "icon": icon,
+            "url": ot_url
+        }
+        send_user_notification(user=instance.supervisor, payload=payload, ttl=1000)
+
+    # 3. OT Rechazada (De REALIZADA a EJECUCION) -> Avisar al Técnico
+    elif old_estado == 'REALIZADA' and instance.estado == 'EJECUCION' and instance.tecnico:
+        payload = {
+            "title": "⚠️ OT Devuelta",
+            "body": f"La OT {instance.codigo_de_orden or instance.id} ha sido devuelta a Ejecución. Por favor revisa las notas.",
+            "icon": icon,
+            "url": ot_url
+        }
+        send_user_notification(user=instance.tecnico, payload=payload, ttl=1000)
 

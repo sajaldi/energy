@@ -340,31 +340,66 @@
 
     </div>
 
-    {% if fotos_adjuntas %}
-    <div style="page-break-before: auto; margin-top: 20px;">
-        <div class="section-title" style="margin-bottom: 5px;">ANEXOS FOTOGRÁFICOS</div>
-        <table style="border: none;">
-            {% for foto in fotos_adjuntas %}
-            {% if forloop.counter|divisibleby:2 or forloop.first %}
-            {% if not forloop.first and forloop.counter|divisibleby:2 %}</tr>{% endif %}
-            {% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
-            {% endif %}
-            <td style="border: 1px solid #ddd; text-align: center; padding: 6px; width: 50%; vertical-align: top;">
-                <img src="{{ foto.data_uri }}" style="max-width: 100%; max-height: 280px; border-radius: 4px; object-fit: contain;">
-                <div style="font-size: 8px; font-weight: bold; margin-top: 5px;">{{ foto.nombre }}</div>
-                {% if foto.descripcion %}
-                <div style="font-size: 8px; color: #444; margin-top: 2px;">{{ foto.descripcion }}</div>
-                {% endif %}
-                <div style="font-size: 7px; color: #888; margin-top: 3px;">{{ foto.creado_en|date:"d/m/Y H:i" }}</div>
-            </td>
-            {% if forloop.last and not forloop.counter|divisibleby:2 %}
-            <td style="border: none;"></td>
-            </tr>
-            {% elif forloop.last %}
-            </tr>
-            {% endif %}
+    {% if fotos_por_momento.INICIO or fotos_por_momento.DURANTE or fotos_por_momento.CIERRE %}
+    <div style="page-break-before: always;">
+        <div class="section-title" style="margin-bottom: 10px;">ANEXOS FOTOGRÁFICOS</div>
+        
+        {% if fotos_por_momento.INICIO %}
+        <div style="background-color: #f1f5f9; padding: 5px; margin-bottom: 10px; border-left: 4px solid #64748b; font-weight: bold; font-size: 10px;">
+            EVIDENCIA DE INICIO / REPORTE ORIGINAL
+        </div>
+        <table style="border: none; margin-bottom: 20px;">
+            {% for foto in fotos_por_momento.INICIO %}
+                {% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+                <td style="border: 1px solid #ddd; text-align: center; padding: 6px; width: 50%; vertical-align: top;">
+                    <img src="{{ foto.data_uri }}" style="max-width: 100%; max-height: 250px; border-radius: 4px; object-fit: contain;">
+                    <div style="font-size: 8px; font-weight: bold; margin-top: 5px;">{{ foto.nombre }}</div>
+                    {% if foto.descripcion %}
+                    <div style="font-size: 8px; color: #444; margin-top: 2px;">{{ foto.descripcion }}</div>
+                    {% endif %}
+                </td>
+                {% if forloop.counter|divisibleby:2 or forloop.last %}</tr>{% endif %}
             {% endfor %}
         </table>
+        {% endif %}
+
+        {% if fotos_por_momento.DURANTE %}
+        <div style="background-color: #f1f5f9; padding: 5px; margin-bottom: 10px; border-left: 4px solid #0ea5e9; font-weight: bold; font-size: 10px;">
+            EVIDENCIA DURANTE LA EJECUCIÓN
+        </div>
+        <table style="border: none; margin-bottom: 20px;">
+            {% for foto in fotos_por_momento.DURANTE %}
+                {% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+                <td style="border: 1px solid #ddd; text-align: center; padding: 6px; width: 50%; vertical-align: top;">
+                    <img src="{{ foto.data_uri }}" style="max-width: 100%; max-height: 250px; border-radius: 4px; object-fit: contain;">
+                    <div style="font-size: 8px; font-weight: bold; margin-top: 5px;">{{ foto.nombre }}</div>
+                    {% if foto.descripcion %}
+                    <div style="font-size: 8px; color: #444; margin-top: 2px;">{{ foto.descripcion }}</div>
+                    {% endif %}
+                </td>
+                {% if forloop.counter|divisibleby:2 or forloop.last %}</tr>{% endif %}
+            {% endfor %}
+        </table>
+        {% endif %}
+
+        {% if fotos_por_momento.CIERRE %}
+        <div style="background-color: #f1f5f9; padding: 5px; margin-bottom: 10px; border-left: 4px solid #10b981; font-weight: bold; font-size: 10px;">
+            EVIDENCIA DE CIERRE / RESULTADOS FINALES
+        </div>
+        <table style="border: none; margin-bottom: 20px;">
+            {% for foto in fotos_por_momento.CIERRE %}
+                {% if forloop.counter0|divisibleby:2 %}<tr>{% endif %}
+                <td style="border: 1px solid #ddd; text-align: center; padding: 6px; width: 50%; vertical-align: top;">
+                    <img src="{{ foto.data_uri }}" style="max-width: 100%; max-height: 250px; border-radius: 4px; object-fit: contain;">
+                    <div style="font-size: 8px; font-weight: bold; margin-top: 5px;">{{ foto.nombre }}</div>
+                    {% if foto.descripcion %}
+                    <div style="font-size: 8px; color: #444; margin-top: 2px;">{{ foto.descripcion }}</div>
+                    {% endif %}
+                </td>
+                {% if forloop.counter|divisibleby:2 or forloop.last %}</tr>{% endif %}
+            {% endfor %}
+        </table>
+        {% endif %}
     </div>
     {% endif %}
 

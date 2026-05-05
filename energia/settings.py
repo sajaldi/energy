@@ -194,6 +194,7 @@ INSTALLED_APPS = [
     'auditorias',
     'almacen',
     'seguridad',
+    'webpush',
     'django.contrib.humanize',
     'corsheaders',
     'servicios',
@@ -823,3 +824,19 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 60.0,  # Revisa documentos nuevos cada minuto
     },
 }
+
+# Configuración de Web Push Notifications
+WEBPUSH_SETTINGS = {
+    "VAPID_PUBLIC_KEY": "BBjNVFg9HiiToaOsEDKzXXAdWa7vaWd-su_A9zVm5MwVeisPRkOVUO7FFMIn58fIt4CtDzRxyj14PDYitSGutkE",
+    "VAPID_PRIVATE_KEY": "14u5SuyBRhIfkUGJmRneQBhM493XS8d3cETeYBAbymg",
+    "VAPID_ADMIN_EMAIL": "admin@energia-dcc.com"
+}
+
+# Webhook para notificaciones de WhatsApp (n8n)
+
+# Webhook para notificaciones de WhatsApp (n8n)
+
+# Webhook para notificaciones de WhatsApp (n8n)
+
+# Webhook para notificaciones de n8n (Generico)
+N8N_OT_WHATSAPP_WEBHOOK_URL = "http://localhost:5678/webhook-test/notificar-ot"

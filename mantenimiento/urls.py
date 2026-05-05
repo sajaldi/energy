@@ -43,6 +43,7 @@ urlpatterns = [
     path('app/ot/<int:pk>/delete-file/<int:archivo_id>/', views.mobile_ot_delete_file, name='mobile_ot_delete_file'),
     path('app/ot/<int:ot_id>/update-file-name/<int:file_id>/', views.mobile_ot_update_file_name, name='mobile_ot_update_file_name'),
     path('app/ot/<int:pk>/send-webhook/', views.mobile_ot_webhook, name='mobile_ot_webhook'),
+    path('app/ot/<int:pk>/send-whatsapp/', views.mobile_ot_whatsapp_webhook, name='mobile_ot_whatsapp_webhook'),
     path('app/aviso/crear/', views.mobile_crear_aviso, name='mobile_crear_aviso'),
     path('app/aviso/<int:pk>/editar/', views.mobile_aviso_editar, name='mobile_aviso_editar'),
     path('app/aviso/<int:pk>/', views.mobile_aviso_detalle, name='mobile_aviso_detalle'),

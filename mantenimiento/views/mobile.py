@@ -15,6 +15,7 @@ from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRuti
 from activos.models import Activo, Ubicacion, DocumentoMedicion, PuntoMedicion
 from core.models import Departamento
 from ..tasks import task_generar_ot_pdf
+from webpush import send_user_notification
 
 @staff_member_required
 @mobile_permission_required('tareas_hoy')
@@ -488,15 +489,25 @@ def mobile_ot_finalizar(request, pk):
                     observaciones=f"Capturado durante cierre de OT #{ot.id}"
                 )
         
-        # 3. Guardar fotos de cierre
-        fotos_cierre = request.FILES.getlist('fotos_cierre')
-        for foto in fotos_cierre:
-            archivo = ArchivoOrdenTrabajo(
+        # 3. Guardar fotos de inicio
+        fotos_inicio = request.FILES.getlist('fotos_inicio')
+        for foto in fotos_inicio:
+            ArchivoOrdenTrabajo.objects.create(
                 orden_trabajo=ot,
                 archivo=foto,
-                subido_por=request.user
+                subido_por=request.user,
+                momento='INICIO'
             )
-            archivo.save()
+
+        # 4. Guardar fotos de cierre
+        fotos_cierre = request.FILES.getlist('fotos_cierre')
+        for foto in fotos_cierre:
+            ArchivoOrdenTrabajo.objects.create(
+                orden_trabajo=ot,
+                archivo=foto,
+                subido_por=request.user,
+                momento='CIERRE'
+            )
         
         # 4. Actualizar estado según la acción
         accion = request.POST.get('action')
@@ -519,7 +530,16 @@ def mobile_ot_finalizar(request, pk):
         if accion == 'finalize' or (ot.estado == 'REALIZADA' and is_gerente):
             if ot.estado != 'REALIZADA':
                 ot.estado = 'REALIZADA'
-                ot.fecha_ejecucion = timezone.now()
+                
+                # Capturar fecha de cierre manual si existe
+                fecha_cierre_str = request.POST.get('fecha_cierre')
+                if fecha_cierre_str:
+                    try:
+                        ot.fecha_ejecucion = timezone.make_aware(datetime.fromisoformat(fecha_cierre_str))
+                    except:
+                        ot.fecha_ejecucion = timezone.now()
+                else:
+                    ot.fecha_ejecucion = timezone.now()
             
             ot.save()
             
@@ -1069,3 +1089,67 @@ def mobile_ot_webhook(request, pk):
         return JsonResponse({'status': 'success', 'message': 'OTNP enviada'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Error llamando al webhook: {str(e)}'}, status=500)
+
+@staff_member_required
+def mobile_ot_whatsapp_webhook(request, pk):
+    """
+    Triggers a WhatsApp notification via n8n.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    ot = get_object_or_404(OrdenTrabajo, pk=pk)
+    
+    # 1. Asegurar que el PDF existe
+    filename = f"OT_{ot.id}.pdf"
+    archivo_pdf = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, nombre=filename).first()
+    
+    if not archivo_pdf:
+        from ..services import WorkOrderService
+        try:
+            archivo_pdf = WorkOrderService.save_ot_pdf_as_attachment(ot.id)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Error generando PDF: {str(e)}'}, status=500)
+
+    # --- Web Push Notification (Directa desde Django) ---
+    try:
+        pdf_url_full = str(request.build_absolute_uri(archivo_pdf.archivo.url)) if archivo_pdf else ""
+        payload = {
+            "title": f"🛠️ Notificación OT {ot.id}",
+            "body": f"Se ha solicitado seguimiento para la OT {ot.id} en {ot.ubicacion.nombre if ot.ubicacion else 'S/U'}",
+            "icon": "/static/core/img/icon-512.png",
+            "url": pdf_url_full
+        }
+        
+        if ot.tecnico:
+            send_user_notification(user=ot.tecnico, payload=payload, ttl=1000)
+        if ot.supervisor:
+            send_user_notification(user=ot.supervisor, payload=payload, ttl=1000)
+        
+        # Enviar también al usuario que gatilló la acción (tú)
+        if request.user != ot.tecnico and request.user != ot.supervisor:
+            send_user_notification(user=request.user, payload=payload, ttl=1000)
+            
+    except Exception as push_err:
+        print(f"Error enviando Web Push: {str(push_err)}")
+
+    # --- Webhook para n8n ---
+    webhook_url = getattr(settings, 'N8N_OT_WHATSAPP_WEBHOOK_URL', None) # Reutilizamos la misma variable
+    if webhook_url:
+        tecnico_nombre = ot.tecnico_puesto.nombre if ot.tecnico_puesto else (ot.tecnico.get_full_name() if ot.tecnico else "No asignado")
+        data = {
+            'event': 'ot_notification',
+            'ot_id': ot.id,
+            'codigo': str(ot.codigo_de_orden or ""),
+            'tecnico': tecnico_nombre,
+            'ubicacion': str(ot.ubicacion.nombre if ot.ubicacion else "No especificada"),
+            'descripcion': str(ot.descripcion_corta or ""),
+            'pdf_url': pdf_url_full,
+        }
+        try:
+            import requests
+            requests.post(webhook_url, json=data, timeout=5)
+        except:
+            pass
+
+    return JsonResponse({'status': 'success', 'message': 'Notificaciones enviadas (Web Push + n8n)'})

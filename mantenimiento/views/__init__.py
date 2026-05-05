@@ -47,7 +47,8 @@ from .mobile import (
     mobile_ot_eliminar,
     mobile_ot_webhook,
     mobile_ot_update_file_name,
-    mobile_crear_ot_desde_puesto
+    mobile_crear_ot_desde_puesto,
+    mobile_ot_whatsapp_webhook
 )
 from .dashboard import dashboard_cargas, asignar_puesto_ajax
 from .dashboard_general import mantenimiento_dashboard

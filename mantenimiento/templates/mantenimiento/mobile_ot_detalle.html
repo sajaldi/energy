@@ -1,4 +1,4 @@
-{% load static l10n %}
+{% load static l10n webpush_notifications %}
 <!DOCTYPE html>
 <html lang="es">
 
@@ -16,6 +16,7 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     {% include 'core/fiori_tokens.html' %}
+    {% webpush_header %}
 
     <style>
 
@@ -439,6 +440,19 @@
     </div>
 
     <div class="container">
+        <!-- Web Push Subscription -->
+        <div class="fiori-card" style="border-left: 4px solid #3b82f6; background: #eff6ff;">
+            <div class="card-content" style="padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <ion-icon name="notifications-outline" style="font-size: 24px; color: #3b82f6;"></ion-icon>
+                    <div>
+                        <h4 style="margin: 0; font-size: 14px;">Notificaciones Push</h4>
+                        <p style="margin: 0; font-size: 11px; color: #64748b;">Activa las alertas invasivas en este navegador.</p>
+                    </div>
+                </div>
+                {% webpush_button %}
+            </div>
+        </div>
         <!-- Asignación Section -->
         <div class="fiori-card">
             <div class="card-header">
@@ -729,15 +743,18 @@
                     <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="menu-item"><ion-icon name="list-outline" style="color: var(--sap-brand-color);"></ion-icon> Ver/Editar Checklist</a>
                     {% if ot.tipo == 'NO_PROGRAMADA' %}
                     <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar OTNP a MAO/Supervisión</button>
+                    <button onclick="sendWhatsAppWebhook()" class="menu-item"><ion-icon name="notifications-outline" style="color: #3b82f6;"></ion-icon> Enviar Notificación Push</button>
                     {% endif %}
                 {% elif ot.estado == 'EJECUCION' %}
                     <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id }}" class="menu-item"><ion-icon name="cube-outline" style="color: var(--sap-brand-color);"></ion-icon> Solicitar Materiales</a>
                     <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar OTNP a MAO/Supervisión</button>
+                    <button onclick="sendWhatsAppWebhook()" class="menu-item"><ion-icon name="notifications-outline" style="color: #3b82f6;"></ion-icon> Enviar Notificación Push</button>
                 {% elif ot.estado == 'REALIZADA' %}
                     {% if is_gerente or ot.tecnico == user or ot.supervisor == user %}
                     <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="menu-item"><ion-icon name="create-outline" style="color: var(--sap-brand-color);"></ion-icon> Editar Checklist</a>
                     {% endif %}
                     <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar OTNP a MAO/Supervisión</button>
+                    <button onclick="sendWhatsAppWebhook()" class="menu-item"><ion-icon name="notifications-outline" style="color: #3b82f6;"></ion-icon> Enviar Notificación Push</button>
                     <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" class="menu-item"><ion-icon name="refresh-outline" style="color: #e52929;"></ion-icon> Forzar PDF Manual</a>
                 {% endif %}
 
@@ -754,6 +771,24 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // Debug para Web Push
+        document.addEventListener('DOMContentLoaded', function() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(registration => {
+                    console.log('Service Worker listo para Push:', registration);
+                    registration.pushManager.getSubscription().then(subscription => {
+                        if (subscription) {
+                            console.log('Suscripción activa:', subscription);
+                        } else {
+                            console.warn('No hay suscripción activa. El usuario debe hacer clic en Subscribe.');
+                        }
+                    });
+                });
+            } else {
+                console.error('El navegador no soporta Service Workers.');
+            }
+        });
+
         // Cerrar menú si se hace clic afuera
         document.addEventListener('click', function(event) {
             const menu = document.getElementById('moreActionsMenu');
@@ -1147,6 +1182,20 @@
         });
 
         // === Webhook Sending ===
+        function showToast(message, icon = 'success') {
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+            });
+            Toast.fire({
+                icon: icon,
+                title: message
+            });
+        }
+
         async function sendWebhook() {
             const { value: confirm } = await Swal.fire({
                 title: '¿Enviar reporte a MAO/Supervisión?',
@@ -1161,9 +1210,11 @@
 
             if (!confirm) return;
 
-            const toast = document.getElementById('toast');
-            toast.textContent = "Iniciando envío...";
-            toast.classList.add('show');
+            Swal.fire({
+                title: 'Enviando...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading() }
+            });
 
             try {
                 const response = await fetch("{% url 'mantenimiento:mobile_ot_webhook' ot.id %}", {
@@ -1190,7 +1241,56 @@
                 console.error("Webhook error:", error);
                 Swal.fire('Error', 'No se pudo contactar con el servidor de automatización.', 'error');
             } finally {
-                toast.classList.remove('show');
+                // Done
+            }
+        }
+
+        async function sendWhatsAppWebhook() {
+            const { value: confirm } = await Swal.fire({
+                title: '¿Notificar por WhatsApp?',
+                text: "Se enviará una notificación de mantenimiento vía n8n a los grupos de WhatsApp.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#25d366',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'SÍ, NOTIFICAR',
+                cancelButtonText: 'CANCELAR'
+            });
+
+            if (!confirm) return;
+
+            Swal.fire({
+                title: 'Notificando...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading() }
+            });
+
+            try {
+                const response = await fetch("{% url 'mantenimiento:mobile_ot_whatsapp_webhook' ot.id %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    Swal.fire({
+                        title: '¡Notificado!',
+                        text: result.message,
+                        icon: 'success',
+                        timer: 3000
+                    });
+                } else {
+                    Swal.fire('Error', result.message, 'error');
+                }
+            } catch (error) {
+                console.error("WhatsApp Webhook error:", error);
+                Swal.fire('Error', 'No se pudo contactar con el servidor de n8n.', 'error');
+            } finally {
+                // Done
             }
         }
 

@@ -38,6 +38,7 @@ urlpatterns = [
     path('ayuda/', include('ayuda.urls', namespace='ayuda')),
     path('plantillas/', include('plantillas.urls', namespace='plantillas')),
     path('iot/', include('iot.urls', namespace='iot')),
+    path('webpush/', include('webpush.urls')),
     
     # App Exclusiva de Asistencia (Kiosko)
     path('asistencia/', AsistenciaKioskView.as_view(), name='asistencia_kiosk_app'),

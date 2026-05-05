@@ -3,6 +3,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from pgvector.django import VectorField, CosineDistance
 import logging
+from webpush import send_user_notification
 
 logger = logging.getLogger(__name__)
 
@@ -485,6 +486,28 @@ class RestriccionAcceso(models.Model):
 
 
 # --- Señales ---
+
+@receiver(post_save, sender=SolicitudTicket)
+def notify_ticket_assignment(sender, instance, created, **kwargs):
+    """
+    Notifica al usuario responsable cuando se le asigna un ticket.
+    """
+    if instance.usuario_responsable:
+        # Detectar si es nuevo o si el responsable cambió (opcionalmente)
+        # Por ahora lo haremos simple: si hay responsable, notificamos
+        
+        payload = {
+            "title": "🎫 Nuevo Ticket Asignado",
+            "body": f"Folio {instance.folio or instance.id_solicitud}: {instance.falla_clasificacion or 'Sin clasificación'}",
+            "icon": "/static/core/img/icon-512.png",
+            "url": f"/callcenter/dashboard/ticket/{instance.id}/" # Ajustar a tu ruta de detalle
+        }
+        
+        try:
+            send_user_notification(user=instance.usuario_responsable, payload=payload, ttl=1000)
+        except Exception as e:
+            logger.warning(f"No se pudo enviar Web Push por ticket {instance.id}: {e}")
+
 @receiver(post_save, sender=SolicitudTicket)
 def trigger_vectorize_ticket(sender, instance, **kwargs):
     """

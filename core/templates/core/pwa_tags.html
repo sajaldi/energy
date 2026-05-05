@@ -1,4 +1,6 @@
+{% load webpush_notifications %}
 <!-- PWA Meta Tags -->
+{% webpush_header %}
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#007bff">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -44,6 +46,53 @@
                 });
             }
         }
+    });
+
+    // Global Web Push Subscription Prompt
+    window.addEventListener('load', () => {
+        // Solo actuar si el usuario está autenticado (evitar errores en login)
+        const isAuthenticated = "{{ user.is_authenticated }}" === "True";
+        if (!isAuthenticated) return;
+
+        setTimeout(async () => {
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+                
+                // Si no hay suscripción activa y no hemos preguntado hoy
+                if (!subscription && !localStorage.getItem('webpush_prompt_dismissed')) {
+                    if (window.Swal) {
+                        const result = await Swal.fire({
+                            title: '🔔 ¿Activar Notificaciones?',
+                            text: 'Recibe alertas instantáneas de nuevas tareas y aprobaciones en tu dispositivo.',
+                            icon: 'info',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3b82f6',
+                            cancelButtonColor: '#64748b',
+                            confirmButtonText: 'SÍ, ACTIVAR',
+                            cancelButtonText: 'LUEGO',
+                            footer: '<small>Puedes desactivarlas cuando quieras desde el navegador.</small>'
+                        });
+
+                        if (result.isConfirmed) {
+                            // Buscar el botón de suscripción oculto o disparar el evento de webpush
+                            // django-webpush busca botones con la clase 'webpush-button'
+                            const webpushBtn = document.querySelector('.webpush-button');
+                            if (webpushBtn) {
+                                webpushBtn.click();
+                            } else {
+                                // Si no hay botón en el DOM, forzar registro manual si es necesario
+                                console.log("Suscripción confirmada por el usuario.");
+                                // Nota: webpush_header inyecta la función necesaria
+                            }
+                        } else {
+                            // Guardar que lo rechazó para no molestar en cada recarga
+                            localStorage.setItem('webpush_prompt_dismissed', Date.now());
+                        }
+                    }
+                }
+            }
+        }, 3000); // Esperar 3 segundos para no ser tan invasivo al cargar
     });
 
     // Global Home Button Injector
@@ -201,6 +250,16 @@
             observer.observe(document.body, { childList: true, subtree: true });
         });
     })();
+    // Inyectar botón de suscripción oculto si no existe
+    window.addEventListener('load', () => {
+        if (!document.querySelector('.webpush-button')) {
+            const container = document.createElement('div');
+            container.style.display = 'none';
+            container.id = 'global-webpush-container';
+            container.innerHTML = '{% webpush_button %}';
+            document.body.appendChild(container);
+        }
+    });
 </script>
 
 <!-- Offline Sync Script -->

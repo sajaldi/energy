@@ -1169,9 +1169,16 @@ class ArchivoOrdenTrabajo(models.Model):
         ('OTRO', 'Otro Archivo'),
     ]
 
+    MOMENTO_CHOICES = [
+        ('INICIO', 'Al Iniciar'),
+        ('DURANTE', 'Durante la Tarea'),
+        ('CIERRE', 'Al Finalizar'),
+    ]
+
     orden_trabajo = models.ForeignKey(OrdenTrabajo, on_delete=models.CASCADE, related_name='archivos')
     paso = models.ForeignKey('PasoRutina', on_delete=models.SET_NULL, null=True, blank=True, related_name='fotos_evidencia',
                              help_text="Paso del checklist al que pertenece esta foto (opcional)")
+    momento = models.CharField(max_length=10, choices=MOMENTO_CHOICES, default='DURANTE', db_index=True)
     archivo = models.FileField(upload_to='ot_archivos/')
     nombre = models.CharField(max_length=255, blank=True)
     tipo = models.CharField(max_length=20, choices=TIPO_ARCHIVO_CHOICES, default='OTRO')

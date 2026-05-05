@@ -140,6 +140,7 @@
 
         input[type="text"],
         input[type="number"],
+        input[type="datetime-local"],
         textarea {
             width: 100%;
             padding: 12px;
@@ -246,6 +247,12 @@
             font-size: 20px;
             color: #94a3b8;
         }
+
+        .drag-over {
+            background: #e0f2fe !important;
+            border-color: #0ea5e9 !important;
+            transform: scale(1.02);
+        }
     </style>
 </head>
 
@@ -259,8 +266,26 @@
     </header>
 
     <div class="container">
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" enctype="multipart/form-data" id="closureForm">
             {% csrf_token %}
+
+            {% csrf_token %}
+
+            <!-- EVIDENCIA DE INICIO -->
+            <div class="card">
+                <h2 class="section-title">
+                    <ion-icon name="camera-outline"></ion-icon> Evidencia de Inicio
+                </h2>
+                <div class="upload-area" id="dropZoneInicio" style="padding: 20px; border: 2px dashed #cbd5e1; border-radius: 12px; text-align: center; background: #f8fafc; transition: all 0.2s;">
+                    <ion-icon name="cloud-upload-outline" style="font-size: 32px; color: #94a3b8; margin-bottom: 8px;"></ion-icon>
+                    <p style="font-size: 13px; color: #64748b; margin: 0;">Arrastra o selecciona fotos de <b>Inicio</b></p>
+                    <input type="file" id="photoFileInputInicio" name="fotos_inicio" multiple style="display: none;">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('photoFileInputInicio').click()" style="margin-top: 10px; padding: 6px 12px; font-size: 12px;">
+                        SELECCIONAR FOTOS
+                    </button>
+                </div>
+                <div id="photoPreviewGridInicio" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px;"></div>
+            </div>
 
             {% if pasos %}
             <div class="card">
@@ -297,10 +322,10 @@
                     <div class="input-group">
                         <label>Valor numérico ({{ paso.unidad_medida|default:"---" }})</label>
                         <input type="number" step="any" name="paso_{{ paso.id }}_num" 
-                               value="{{ paso.resultado.valor_numerico|default:'' }}"
-                               {% if paso.rango_min is not None %}min="{{ paso.rango_min }}" {% endif %} 
-                               {% if paso.rango_max is not None %}max="{{ paso.rango_max }}" {% endif %} 
-                               placeholder="Ingrese medición...">
+                                value="{{ paso.resultado.valor_numerico|default:'' }}"
+                                {% if paso.rango_min is not None %}min="{{ paso.rango_min }}" {% endif %} 
+                                {% if paso.rango_max is not None %}max="{{ paso.rango_max }}" {% endif %} 
+                                placeholder="Ingrese medición...">
                         {% if paso.rango_min is not None or paso.rango_max is not None %}
                         <div class="range-info">
                             Rango: [{% if paso.rango_min is not None %}{{ paso.rango_min }}{% else %}min{% endif %} -
@@ -318,8 +343,8 @@
                         {% if paso.punto_vinculado %}
                         <label>Lectura para: <b>{{ paso.punto_vinculado.nombre }}</b> ({{ paso.punto_vinculado.unidad }})</label>
                         <input type="number" step="any" name="paso_{{ paso.id }}_num" 
-                               value="{{ paso.resultado.valor_numerico|default:'' }}"
-                               {% if paso.punto_vinculado.valor_objetivo is not None %}placeholder="Objetivo: {{ paso.punto_vinculado.valor_objetivo }}" {% endif %}>
+                                value="{{ paso.resultado.valor_numerico|default:'' }}"
+                                {% if paso.punto_vinculado.valor_objetivo is not None %}placeholder="Objetivo: {{ paso.punto_vinculado.valor_objetivo }}" {% endif %}>
                         <div class="range-info" style="color: var(--primary);">
                             <ion-icon name="information-circle"></ion-icon> Se registrará automáticamente en la ficha
                             del equipo.
@@ -334,7 +359,6 @@
                     {% elif paso.tipo_respuesta == 'FOTO' %}
                     <div class="input-group" data-foto-step="{{ paso.id }}">
                         <label><ion-icon name="camera-outline" style="vertical-align: middle;"></ion-icon> Evidencia Fotográfica</label>
-                        <!-- Fotos ya guardadas en servidor -->
                         {% if paso.fotos_guardadas %}
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; margin-bottom: 8px;">
                             {% for foto in paso.fotos_guardadas %}
@@ -347,48 +371,31 @@
                             {% endfor %}
                         </div>
                         {% endif %}
-                        <!-- Preview de fotos nuevas (aún no enviadas) -->
                         <div class="foto-preview-grid" id="fotoGrid_{{ paso.id }}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; margin-bottom: 8px;"></div>
-                        <!-- Botones: Cámara y Galería -->
                         <div style="display: flex; gap: 8px;">
-                            <div onclick="document.getElementById('fotoCam_{{ paso.id }}').click()" style="
-                                flex: 1; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px;
-                                text-align: center; cursor: pointer; background: white; transition: all 0.2s;
-                            ">
+                            <div onclick="document.getElementById('fotoCam_{{ paso.id }}').click()" style="flex: 1; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; background: white;">
                                 <ion-icon name="camera" style="font-size: 22px; color: #0ea5e9;"></ion-icon>
                                 <p style="margin: 4px 0 0; font-size: 11px; color: #94a3b8;">Cámara</p>
                             </div>
-                            <div onclick="document.getElementById('fotoGal_{{ paso.id }}').click()" style="
-                                flex: 1; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px;
-                                text-align: center; cursor: pointer; background: white; transition: all 0.2s;
-                            ">
+                            <div onclick="document.getElementById('fotoGal_{{ paso.id }}').click()" style="flex: 1; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; background: white;">
                                 <ion-icon name="images" style="font-size: 22px; color: #8b5cf6;"></ion-icon>
                                 <p style="margin: 4px 0 0; font-size: 11px; color: #94a3b8;">Galería</p>
                             </div>
                         </div>
-                        <!-- Input cámara (capture) -->
-                        <input type="file" id="fotoCam_{{ paso.id }}" accept="image/*" capture="environment" style="display: none;"
-                               onchange="addStepPhoto({{ paso.id }}, this)">
-                        <!-- Input galería (sin capture, con multiple) -->
-                        <input type="file" id="fotoGal_{{ paso.id }}" accept="image/*" multiple style="display: none;"
-                               onchange="addStepPhoto({{ paso.id }}, this)">
-                        <!-- Input real que lleva los archivos acumulados al form -->
+                        <input type="file" id="fotoCam_{{ paso.id }}" accept="image/*" capture="environment" style="display: none;" onchange="addStepPhoto({{ paso.id }}, this)">
+                        <input type="file" id="fotoGal_{{ paso.id }}" accept="image/*" multiple style="display: none;" onchange="addStepPhoto({{ paso.id }}, this)">
                         <input type="file" id="fotoReal_{{ paso.id }}" name="paso_{{ paso.id }}_fotos" multiple style="display: none;">
                     </div>
                     {% endif %}
 
                     {% if paso.tipo_respuesta != 'INSTRUCCION' %}
-                    <div class="input-group"
-                        style="margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                    <div class="input-group" style="margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
                         <div class="checkbox-group">
                             <input type="checkbox" name="paso_{{ paso.id }}_na" id="na_{{ paso.id }}" {% if paso.resultado.no_aplica %}checked{% endif %}>
                             <label for="na_{{ paso.id }}" style="margin: 0;">No aplica</label>
                         </div>
                         <label style="margin-top: 5px;">Comentarios adicionales</label>
-                        <input type="text" name="paso_{{ paso.id }}_com" 
-                               value="{{ paso.resultado.comentarios|default:'' }}"
-                               placeholder="Opcional..."
-                            style="font-size: 12px; padding: 8px;">
+                        <input type="text" name="paso_{{ paso.id }}_com" value="{{ paso.resultado.comentarios|default:'' }}" placeholder="Opcional..." style="font-size: 12px; padding: 8px;">
                     </div>
                     {% endif %}
                 </div>
@@ -402,9 +409,6 @@
                 <h2 class="section-title">
                     <ion-icon name="speedometer-outline"></ion-icon> Puntos de Medición (SAP)
                 </h2>
-                <p style="font-size: 12px; color: #94a3b8; margin-bottom: 15px;">Registre las lecturas de los
-                    instrumentos asociados a los equipos.</p>
-
                 {% for punto in puntos_medicion %}
                 <div class="medicion-item">
                     <div class="medicion-info">
@@ -412,8 +416,7 @@
                         <span>Equipo: {{ punto.activo_nombre }}</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="number" step="any" name="punto_{{ punto.id }}" class="medicion-input"
-                            placeholder="0.0">
+                        <input type="number" step="any" name="punto_{{ punto.id }}" class="medicion-input" placeholder="0.0">
                         <span class="unit">{{ punto.unidad }}</span>
                     </div>
                 </div>
@@ -422,58 +425,43 @@
             {% endif %}
 
             <div class="card" style="background: #f8fafc;">
-                <h2 class="section-title"><ion-icon name="checkmark-circle-outline"></ion-icon> Confirmación de Cierre
-                </h2>
-                <div class="input-group">
-                    <label>Comentarios Generales de la Orden</label>
-                    <textarea name="comentarios_cierre" placeholder="Breve resumen del trabajo realizado..."></textarea>
+                <h2 class="section-title"><ion-icon name="checkmark-circle-outline"></ion-icon> Confirmación de Cierre</h2>
+                
+                <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>Hora Real de Cierre</label>
+                        <input type="datetime-local" name="fecha_cierre" id="fechaCierreInput" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Comentarios Generales de la Orden</label>
+                        <textarea name="comentarios_cierre" placeholder="Breve resumen del trabajo realizado..."></textarea>
+                    </div>
                 </div>
 
-                <!-- Evidencia Fotográfica -->
                 <div class="input-group" style="margin-top: 15px;">
-                    <label><ion-icon name="camera-outline" style="vertical-align: middle;"></ion-icon> Evidencia Fotográfica</label>
+                    <label><ion-icon name="camera-outline" style="vertical-align: middle;"></ion-icon> Evidencia Fotográfica (Arrastre o Pegue aquí)</label>
                     <div id="photoPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 10px;"></div>
-                    <!-- Botones: Cámara y Galería -->
-                    <div style="display: flex; gap: 8px;">
-                        <div onclick="document.getElementById('photoCamInput').click()" style="
-                            flex: 1; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 16px;
-                            text-align: center; cursor: pointer; transition: all 0.2s; background: white;
-                        ">
+                    <div id="dropZone" style="display: flex; gap: 8px; border-radius: 12px; transition: all 0.3s; padding: 5px;">
+                        <div onclick="document.getElementById('photoCamInput').click()" style="flex: 1; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; background: white;">
                             <ion-icon name="camera" style="font-size: 28px; color: #0ea5e9;"></ion-icon>
                             <p style="margin: 6px 0 0; font-size: 12px; color: #94a3b8;"><b>Cámara</b></p>
                         </div>
-                        <div onclick="document.getElementById('photoGalInput').click()" style="
-                            flex: 1; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 16px;
-                            text-align: center; cursor: pointer; transition: all 0.2s; background: white;
-                        ">
+                        <div onclick="document.getElementById('photoGalInput').click()" style="flex: 1; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; background: white;">
                             <ion-icon name="images" style="font-size: 28px; color: #8b5cf6;"></ion-icon>
                             <p style="margin: 6px 0 0; font-size: 12px; color: #94a3b8;"><b>Galería</b></p>
                         </div>
                     </div>
-                    <!-- Input cámara -->
                     <input type="file" id="photoCamInput" accept="image/*" capture="environment" style="display: none;">
-                    <!-- Input galería -->
                     <input type="file" id="photoGalInput" accept="image/*" multiple style="display: none;">
-                    <!-- Input real que envía los archivos acumulados -->
                     <input type="file" id="photoFileInput" name="fotos_cierre" multiple style="display: none;">
                 </div>
 
-                <p style="font-size: 11px; color: #64748b; margin: 15px 0;">
-                    {% if ot.estado == 'REALIZADA' %}
-                        Usted está editando un reporte previo. Los cambios actualizarán los datos y regenerarán el PDF.
-                    {% else %}
-                        Al finalizar, la orden se marcará como <b>REALIZADA</b> y se registrarán los datos capturados.
-                    {% endif %}
-                </p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
-                    <button type="submit" name="action" value="save" class="btn-submit"
-                        style="background: white; border: 2px solid var(--primary); color: var(--primary);">
-                        <ion-icon name="save-outline"></ion-icon>
-                        {% if ot.estado == 'REALIZADA' %}Validar{% else %}Guardar{% endif %}
+                    <button type="submit" name="action" value="save" class="btn-submit" style="background: white; border: 2px solid var(--primary); color: var(--primary);">
+                        <ion-icon name="save-outline"></ion-icon>Guardar
                     </button>
                     <button type="submit" name="action" value="finalize" class="btn-submit">
-                        <ion-icon name="cloud-upload-outline"></ion-icon>
-                        {% if ot.estado == 'REALIZADA' %}Actualizar Reporte{% else %}Finalizar{% endif %}
+                        <ion-icon name="cloud-upload-outline"></ion-icon>Finalizar
                     </button>
                 </div>
             </div>
@@ -481,25 +469,27 @@
     </div>
 
     <script>
-    // ======= Step Photo Accumulator =======
-    // Per-step file arrays keyed by pasoId
-    const stepFiles = {};
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        const input = document.getElementById('fechaCierreInput');
+        if (input) input.value = now.toISOString().slice(0, 16);
+    });
 
+    const stepFiles = {};
     function addStepPhoto(pasoId, triggerInput) {
         if (!stepFiles[pasoId]) stepFiles[pasoId] = [];
         const newFiles = Array.from(triggerInput.files);
         newFiles.forEach(f => { if (f.type.startsWith('image/')) stepFiles[pasoId].push(f); });
-        triggerInput.value = ''; // reset trigger so same file can be re-selected
+        triggerInput.value = '';
         syncStepInput(pasoId);
         renderStepPreviews(pasoId);
     }
-
     function removeStepPhoto(pasoId, idx) {
         stepFiles[pasoId].splice(idx, 1);
         syncStepInput(pasoId);
         renderStepPreviews(pasoId);
     }
-
     function syncStepInput(pasoId) {
         const realInput = document.getElementById('fotoReal_' + pasoId);
         if (!realInput) return;
@@ -507,7 +497,6 @@
         (stepFiles[pasoId] || []).forEach(f => dt.items.add(f));
         realInput.files = dt.files;
     }
-
     function renderStepPreviews(pasoId) {
         const grid = document.getElementById('fotoGrid_' + pasoId);
         if (!grid) return;
@@ -520,86 +509,117 @@
             img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
             img.onload = () => URL.revokeObjectURL(img.src);
             const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.innerHTML = '&times;';
+            btn.type = 'button'; btn.innerHTML = '&times;';
             btn.style.cssText = 'position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:20px;text-align:center;';
             btn.onclick = () => removeStepPhoto(pasoId, i);
-            wrapper.appendChild(img);
-            wrapper.appendChild(btn);
+            wrapper.appendChild(img); wrapper.appendChild(btn);
             grid.appendChild(wrapper);
         });
     }
 
-    // ======= Closing Photo Accumulator =======
     (function() {
-        const camInput = document.getElementById('photoCamInput');
-        const galInput = document.getElementById('photoGalInput');
-        const realInput = document.getElementById('photoFileInput');
-        const previewGrid = document.getElementById('photoPreviewGrid');
+        function setupPhotoArea(config) {
+            const realInput = document.getElementById(config.realInputId);
+            const previewGrid = document.getElementById(config.previewGridId);
+            const dropZone = document.getElementById(config.dropZoneId);
+            const camInput = config.camInputId ? document.getElementById(config.camInputId) : null;
+            const galInput = config.galInputId ? document.getElementById(config.galInputId) : null;
 
-        if (!realInput || !previewGrid) return;
+            if (!realInput || !previewGrid) return;
+            let selectedFiles = [];
 
-        let selectedFiles = [];
+            function addFiles(files) {
+                for (let f of files) { if (f.type.startsWith('image/')) selectedFiles.push(f); }
+                syncFileInput(); renderPreviews();
+            }
 
-        function attachListener(input) {
-            if (!input) return;
-            input.addEventListener('change', () => {
-                for (let f of input.files) {
-                    if (f.type.startsWith('image/')) selectedFiles.push(f);
-                }
-                input.value = ''; // reset so same file can be re-selected
-                syncFileInput();
-                renderPreviews();
+            [camInput, galInput].filter(i => i).forEach(input => {
+                input.addEventListener('change', () => { addFiles(input.files); input.value = ''; });
             });
+
+            if (config.isMain) {
+                document.addEventListener('paste', (e) => {
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    for (let item of items) {
+                        if (item.type.startsWith('image/')) {
+                            const file = item.getAsFile();
+                            if (file) addFiles([file]);
+                        }
+                    }
+                });
+            }
+
+            if (dropZone) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+                    dropZone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+                });
+                ['dragenter', 'dragover'].forEach(evt => {
+                    dropZone.addEventListener(evt, () => dropZone.classList.add('drag-over'), false);
+                });
+                ['dragleave', 'drop'].forEach(evt => {
+                    dropZone.addEventListener(evt, () => dropZone.classList.remove('drag-over'), false);
+                });
+                dropZone.addEventListener('drop', (e) => { addFiles(e.dataTransfer.files); }, false);
+            }
+
+            // También permitir clic en el área para subir si no hay botón
+            if (dropZone && !config.hasButton) {
+                dropZone.addEventListener('click', () => realInput.click());
+            } else if (realInput && !config.hasButton) {
+                // Si hay un botón específico, el onclick ya está en el HTML
+            }
+
+            function syncFileInput() {
+                const dt = new DataTransfer();
+                selectedFiles.forEach(f => dt.items.add(f));
+                realInput.files = dt.files;
+            }
+            function removeFile(idx) {
+                selectedFiles.splice(idx, 1);
+                syncFileInput(); renderPreviews();
+            }
+            function renderPreviews() {
+                previewGrid.innerHTML = '';
+                selectedFiles.forEach((file, i) => {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1;background:#f1f5f9;';
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                    img.onload = () => URL.revokeObjectURL(img.src);
+                    const btn = document.createElement('button');
+                    btn.type = 'button'; btn.innerHTML = '&times;';
+                    btn.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:22px;text-align:center;';
+                    btn.addEventListener('click', () => removeFile(i));
+                    wrapper.appendChild(img); wrapper.appendChild(btn);
+                    previewGrid.appendChild(wrapper);
+                });
+            }
+
+            // Exponer para permitir pegado si es necesario
+            if (config.isMain) window.addMainFiles = addFiles;
         }
 
-        attachListener(camInput);
-        attachListener(galInput);
-
-        // Paste support
-        document.addEventListener('paste', (e) => {
-            const items = e.clipboardData?.items;
-            if (!items) return;
-            for (let item of items) {
-                if (item.type.startsWith('image/')) {
-                    const file = item.getAsFile();
-                    if (file) { selectedFiles.push(file); syncFileInput(); renderPreviews(); }
-                }
-            }
+        // Configurar área de Inicio
+        setupPhotoArea({
+            realInputId: 'photoFileInputInicio',
+            previewGridId: 'photoPreviewGridInicio',
+            dropZoneId: 'dropZoneInicio',
+            hasButton: true
         });
 
-        function syncFileInput() {
-            const dt = new DataTransfer();
-            selectedFiles.forEach(f => dt.items.add(f));
-            realInput.files = dt.files;
-        }
-
-        function removeFile(idx) {
-            selectedFiles.splice(idx, 1);
-            syncFileInput();
-            renderPreviews();
-        }
-
-        function renderPreviews() {
-            previewGrid.innerHTML = '';
-            selectedFiles.forEach((file, i) => {
-                const wrapper = document.createElement('div');
-                wrapper.style.cssText = 'position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1;background:#f1f5f9;';
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
-                img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-                img.onload = () => URL.revokeObjectURL(img.src);
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.innerHTML = '&times;';
-                btn.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:22px;text-align:center;';
-                btn.addEventListener('click', () => removeFile(i));
-                wrapper.appendChild(img);
-                wrapper.appendChild(btn);
-                previewGrid.appendChild(wrapper);
-            });
-        }
+        // Configurar área de Cierre
+        setupPhotoArea({
+            realInputId: 'photoFileInput',
+            previewGridId: 'photoPreviewGrid',
+            dropZoneId: 'dropZone',
+            camInputId: 'photoCamInput',
+            galInputId: 'photoGalInput',
+            isMain: true,
+            hasButton: true
+        });
     })();
     </script>
-
+</body>
 </html>

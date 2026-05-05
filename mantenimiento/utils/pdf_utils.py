@@ -154,8 +154,33 @@ def generate_ot_pdf_bytes(ot, request=None, pdf_url=None):
         with open(logo_path, "rb") as bf:
             logo_dcc_b64 = base64.b64encode(bf.read()).decode('utf-8')
 
-    # Fetch image attachments
-    fotos_adjuntas = []
+    # Fetch image attachments and categorize them
+    fotos_por_momento = {
+        'INICIO': [],
+        'DURANTE': [],
+        'CIERRE': []
+    }
+
+    # 1. Incluir fotos del Aviso vinculado como fotos de INICIO
+    if ot.aviso:
+        for foto_aviso in ot.aviso.fotos.all().order_by('creado_en'):
+            try:
+                img_data = foto_aviso.foto.read()
+                ext = os.path.splitext(foto_aviso.foto.name)[1].lower().replace('.', '')
+                mime = {'jpg': 'jpeg', 'jpeg': 'jpeg', 'png': 'png', 'gif': 'gif', 'webp': 'webp'}.get(ext, 'jpeg')
+                optimized_data = _optimize_image(img_data)
+                b64 = base64.b64encode(optimized_data).decode('utf-8')
+                
+                fotos_por_momento['INICIO'].append({
+                    'nombre': 'Reporte Original (Aviso)',
+                    'descripcion': foto_aviso.descripcion or '',
+                    'data_uri': f'data:image/{mime};base64,{b64}',
+                    'creado_en': foto_aviso.creado_en,
+                })
+            except Exception as e:
+                logger.warning(f"Error reading Aviso photo {foto_aviso.id}: {e}")
+
+    # 2. Obtener fotos de la OT y clasificarlas
     archivos_img = ArchivoOrdenTrabajo.objects.filter(orden_trabajo=ot, tipo='IMAGEN').select_related('paso').order_by('creado_en')
     vpo_dict = {item.paso_id: item for item in results_qs}
     
@@ -164,7 +189,6 @@ def generate_ot_pdf_bytes(ot, request=None, pdf_url=None):
             img_data = archivo.archivo.read()
             ext = os.path.splitext(archivo.archivo.name)[1].lower().replace('.', '')
             mime = {'jpg': 'jpeg', 'jpeg': 'jpeg', 'png': 'png', 'gif': 'gif', 'webp': 'webp'}.get(ext, 'jpeg')
-            # Optimize image for PDF (reduce size)
             optimized_data = _optimize_image(img_data)
             b64 = base64.b64encode(optimized_data).decode('utf-8')
             
@@ -176,8 +200,12 @@ def generate_ot_pdf_bytes(ot, request=None, pdf_url=None):
                 vpo = vpo_dict.get(archivo.paso_id)
                 if vpo and vpo.comentarios:
                     descripcion = vpo.comentarios
+                # Si está vinculado a un paso, forzamos momento DURANTE si no tiene uno
+                momento = 'DURANTE'
+            else:
+                momento = archivo.momento
 
-            fotos_adjuntas.append({
+            fotos_por_momento[momento].append({
                 'nombre': nombre,
                 'descripcion': descripcion,
                 'data_uri': f'data:image/{mime};base64,{b64}',
@@ -185,6 +213,9 @@ def generate_ot_pdf_bytes(ot, request=None, pdf_url=None):
             })
         except Exception as e:
             logger.warning(f"Could not read attachment {archivo.id}: {e}")
+
+    # Lista plana para compatibilidad si el template no se actualiza inmediatamente
+    fotos_adjuntas = fotos_por_momento['INICIO'] + fotos_por_momento['DURANTE'] + fotos_por_momento['CIERRE']
 
     context = {
         'ot': ot,
@@ -200,6 +231,7 @@ def generate_ot_pdf_bytes(ot, request=None, pdf_url=None):
         'logo_dcc_b64': logo_dcc_b64,
         'signature_qr_b64': signature_qr_b64,
         'fotos_adjuntas': fotos_adjuntas,
+        'fotos_por_momento': fotos_por_momento,
         'inicio_programado': ot.inicio_programado,
         'fin_programado': ot.fin_programado,
         'ahora': timezone.now(),
