@@ -248,7 +248,12 @@
                 </div>
                 
                 <div class="chart-card" style="grid-column: 1 / -1;">
-                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Ubicaciones con más Fallas</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; color: #444; font-size: 1.1rem;" id="ubicaciones-title">Ubicaciones principales con más fallas</h3>
+                        <button id="btn-back-ubicaciones" class="btn-fiori ghost" style="display: none; height: 30px; padding: 0 10px; font-size: 0.8rem;" onclick="ubicacionesGoBack()">
+                            <i class="ph ph-arrow-left"></i> Volver
+                        </button>
+                    </div>
                     <div style="position: relative; height: 350px; width: 100%;">
                         <canvas id="chartUbicaciones"></canvas>
                     </div>
@@ -744,25 +749,89 @@
                 options: commonOptions
             });
 
-            // 3. Gráfica de Ubicaciones (Barra Horizontal)
-            new Chart(document.getElementById('chartUbicaciones'), {
-                type: 'bar',
-                data: {
-                    labels: chartData.ubicaciones.labels,
-                    datasets: [{
-                        label: 'Cantidad de Tickets',
-                        data: chartData.ubicaciones.data,
-                        backgroundColor: '#0070f2',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
+            // 3. Gráfica de Ubicaciones con Drilldown jerárquico
+            let currentTree = chartData.ubicaciones_tree;
+            let treeHistory = [];
+            let chartUbic;
+
+            window.ubicacionesGoBack = function() {
+                if (treeHistory.length > 0) {
+                    currentTree = treeHistory.pop();
+                    updateUbicacionesChart();
                 }
-            });
+            };
+
+            function updateUbicacionesChart() {
+                if (!currentTree || !currentTree.children) return;
+                
+                const btnBack = document.getElementById('btn-back-ubicaciones');
+                const title = document.getElementById('ubicaciones-title');
+                
+                if (treeHistory.length > 0) {
+                    btnBack.style.display = 'inline-flex';
+                    title.innerText = `Ubicaciones dentro de: ${currentTree.name}`;
+                } else {
+                    btnBack.style.display = 'none';
+                    title.innerText = `Ubicaciones principales con más fallas`;
+                }
+
+                // Sort children by count, Top 15 max
+                const childrenArray = Object.values(currentTree.children).sort((a, b) => b.count - a.count).slice(0, 15);
+                const labels = childrenArray.map(c => c.name);
+                const data = childrenArray.map(c => c.count);
+
+                if (chartUbic) {
+                    chartUbic.data.labels = labels;
+                    chartUbic.data.datasets[0].data = data;
+                    chartUbic.update();
+                } else {
+                    chartUbic = new Chart(document.getElementById('chartUbicaciones'), {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Cantidad de Tickets',
+                                data: data,
+                                backgroundColor: '#0070f2',
+                                borderRadius: 4
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            onClick: (e, elements) => {
+                                if (elements.length > 0) {
+                                    const index = elements[0].index;
+                                    const clickedLabel = chartUbic.data.labels[index];
+                                    const childNode = currentTree.children[clickedLabel];
+                                    if (childNode && Object.keys(childNode.children).length > 0) {
+                                        treeHistory.push(currentTree);
+                                        currentTree = childNode;
+                                        updateUbicacionesChart();
+                                    }
+                                }
+                            },
+                            onHover: (e, elements) => {
+                                const canvas = e.native ? e.native.target : e.target;
+                                if (elements.length > 0) {
+                                    const index = elements[0].index;
+                                    const clickedLabel = chartUbic.data.labels[index];
+                                    const childNode = currentTree.children[clickedLabel];
+                                    if (childNode && Object.keys(childNode.children).length > 0) {
+                                        canvas.style.cursor = 'pointer';
+                                        return;
+                                    }
+                                }
+                                canvas.style.cursor = 'default';
+                            }
+                        }
+                    });
+                }
+            }
+            
+            updateUbicacionesChart();
         }
     </script>
 </body>
