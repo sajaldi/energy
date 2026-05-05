@@ -420,8 +420,11 @@
     <!-- Barra de Acciones -->
     <div class="actions-bar">
         {% if not ticket.fecha_cierre %}
-        <a href="{% url 'callcenter:ticket_cierre_visual' ticket.id %}" class="btn btn-primary">
-            <ion-icon name="checkmark-done-circle-outline"></ion-icon> Cerrar Ticket
+        <button onclick="openAssignModal()" class="btn btn-purple">
+            <ion-icon name="person-add-outline"></ion-icon> Asignar
+        </button>
+        <a href="{% url 'callcenter:mobile_ticket_cierre' ticket.id %}" class="btn btn-primary">
+            <ion-icon name="checkmark-done-circle-outline"></ion-icon> Cerrar
         </a>
         {% elif not restriccion %}
         <button onclick="openRestriccion()" class="btn btn-pink">
@@ -558,6 +561,51 @@
                 }
             } catch (error) {
                 Swal.fire('Error', 'Problema de conexión.', 'error');
+            }
+        }
+
+        async function openAssignModal() {
+            Swal.fire({
+                title: 'Cargando usuarios...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            try {
+                const res = await fetch("{% url 'callcenter:get_assignable_users' %}");
+                const users = await res.json();
+                
+                const { value: userId } = await Swal.fire({
+                    title: 'Asignar Responsable',
+                    input: 'select',
+                    inputOptions: users,
+                    inputPlaceholder: 'Selecciona un técnico',
+                    showCancelButton: true,
+                    confirmButtonText: 'Asignar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: 'var(--primary)'
+                });
+
+                if (userId) {
+                    Swal.fire({ title: 'Asignando...', didOpen: () => Swal.showLoading() });
+                    
+                    const assignRes = await fetch("{% url 'callcenter:assign_ticket_user' ticket.id %}", {
+                        method: 'POST',
+                        headers: { 
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ user_id: userId })
+                    });
+                    
+                    const data = await assignRes.json();
+                    if (data.success) {
+                        Swal.fire({ icon: 'success', title: 'Asignado con éxito', timer: 1500, showConfirmButton: false })
+                        .then(() => window.location.reload());
+                    }
+                }
+            } catch (e) {
+                Swal.fire('Error', 'No se pudieron cargar los usuarios', 'error');
             }
         }
     </script>

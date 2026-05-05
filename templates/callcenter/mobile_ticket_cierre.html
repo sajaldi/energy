@@ -1,0 +1,309 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cierre de Ticket - SoftCoM</title>
+    {% include 'core/pwa_tags.html' %}
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    {% include 'core/fiori_tokens.html' %}
+
+    <style>
+        :root {
+            --primary: #005fb8;
+            --success: #16a34a;
+            --warning: #b45309;
+            --danger: #dc3545;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            color: #1a1c1e;
+            padding-bottom: 20px;
+        }
+
+        .fiori-header {
+            background: #002e5a;
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .back-btn {
+            font-size: 24px;
+            color: white;
+            background: none;
+            border: none;
+            display: flex;
+        }
+
+        .container {
+            padding: 16px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 15px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        textarea.form-control {
+            min-height: 100px;
+            resize: none;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            box-shadow: 0 4px 12px rgba(0, 95, 184, 0.3);
+        }
+
+        /* Photo Upload Styling */
+        .photo-uploader {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            color: #64748b;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: all 0.2s;
+        }
+
+        .photo-uploader:active {
+            background: #f1f5f9;
+            transform: scale(0.98);
+        }
+
+        .photo-uploader ion-icon {
+            font-size: 48px;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .preview-item {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="fiori-header">
+        <button onclick="window.history.back()" class="back-btn">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+        <h1 style="margin: 0; font-size: 18px;">Cerrar Ticket #{{ ticket.folio|default:ticket.id_solicitud }}</h1>
+    </header>
+
+    <div class="container">
+        <form id="closing-form" method="POST">
+            {% csrf_token %}
+            
+            <div class="card">
+                <div class="form-group">
+                    <label><ion-icon name="calendar-outline"></ion-icon> Fecha y Hora de Cierre</label>
+                    <input type="datetime-local" name="fecha_cierre" class="form-control" value="{{ now }}">
+                </div>
+
+                <div class="form-group">
+                    <label><ion-icon name="search-outline"></ion-icon> Diagnóstico Técnico</label>
+                    <textarea name="diagnostico" class="form-control" placeholder="Describe la causa raíz del problema..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label><ion-icon name="hammer-outline"></ion-icon> Actividades Realizadas</label>
+                    <textarea name="actividades" class="form-control" placeholder="Detalla los pasos seguidos para la solución..." required></textarea>
+                </div>
+            </div>
+
+            <!-- Evidencias -->
+            <div class="card">
+                <label style="font-size: 13px; font-weight: 700; color: #64748b; margin-bottom: 12px; display: block; text-transform: uppercase;">
+                    <ion-icon name="images-outline"></ion-icon> Evidencias (Fotos)
+                </label>
+                
+                <div class="photo-uploader" onclick="document.getElementById('file-input').click()">
+                    <ion-icon name="camera-outline"></ion-icon>
+                    <div style="font-weight: 600;">Tomar Fotos o Elegir Archivos</div>
+                    <div style="font-size: 12px; opacity: 0.7;">Puedes seleccionar varias imágenes</div>
+                </div>
+                
+                <input type="file" id="file-input" multiple accept="image/*" style="display: none;" onchange="handleFiles(this.files)">
+                
+                <div id="preview-grid" class="preview-grid"></div>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                <ion-icon name="checkmark-circle"></ion-icon> Finalizar Cierre
+            </button>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        let selectedFiles = [];
+
+        function handleFiles(files) {
+            const grid = document.getElementById('preview-grid');
+            
+            for (let file of files) {
+                selectedFiles.push(file);
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    div.innerHTML = `
+                        <img src="${e.target.result}">
+                        <button type="button" class="remove-btn" onclick="removeFile(${selectedFiles.length - 1}, this)">×</button>
+                    `;
+                    grid.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeFile(index, element) {
+            selectedFiles.splice(index, 1);
+            element.parentElement.remove();
+        }
+
+        document.getElementById('closing-form').onsubmit = async function(e) {
+            e.preventDefault();
+            
+            Swal.fire({
+                title: 'Procesando...',
+                text: 'Guardando datos y subiendo evidencias',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            const formData = new FormData(this);
+            
+            // Añadir archivos manualmente
+            selectedFiles.forEach((file, index) => {
+                formData.append(`files`, file);
+            });
+
+            try {
+                // 1. Guardar Cierre
+                const res = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (res.ok) {
+                    // 2. Subir Evidencias (Usamos el endpoint existente que ya recibe múltiples archivos)
+                    if (selectedFiles.length > 0) {
+                        const uploadRes = await fetch("{% url 'callcenter:upload_evidencia_ajax' ticket.id %}", {
+                            method: 'POST',
+                            body: formData,
+                            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                        });
+                    }
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Ticket Cerrado!',
+                        text: 'La información se guardó correctamente.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = "{% url 'callcenter:mobile_ticket_detalle' ticket.id %}";
+                    });
+                } else {
+                    Swal.fire('Error', 'Hubo un problema al guardar los datos.', 'error');
+                }
+            } catch (err) {
+                Swal.fire('Error', 'Problema de conexión.', 'error');
+            }
+        };
+    </script>
+</body>
+</html>

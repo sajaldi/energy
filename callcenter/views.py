@@ -2164,3 +2164,38 @@ def vectorize_cluster_tickets_ajax(request, cluster_id):
         logger.error(f"Error al encolar vectorización de cluster {cluster_id}: {e}")
         return JsonResponse({'success': False, 'error': str(e)})
 
+
+@staff_member_required
+@mobile_permission_required('callcenter')
+def mobile_ticket_cierre_view(request, pk):
+    """Vista optimizada para cerrar un ticket desde dispositivos móviles."""
+    ticket = get_object_or_404(SolicitudTicket, pk=pk)
+    
+    if request.method == 'POST':
+        # Procesar cierre
+        ticket.diagnostico = request.POST.get('diagnostico', '')
+        ticket.actividades = request.POST.get('actividades', '')
+        
+        fecha_cierre_str = request.POST.get('fecha_cierre')
+        if fecha_cierre_str:
+            try:
+                from django.utils import timezone
+                from datetime import datetime
+                dt = datetime.strptime(fecha_cierre_str, '%Y-%m-%dT%H:%M')
+                ticket.fecha_cierre = timezone.make_aware(dt)
+            except:
+                ticket.fecha_cierre = timezone.now()
+        else:
+            ticket.fecha_cierre = timezone.now()
+            
+        ticket.save()
+        messages.success(request, f"Ticket {ticket.folio or ticket.id_solicitud} cerrado exitosamente.")
+        return redirect('callcenter:mobile_ticket_detalle', pk=ticket.pk)
+
+    context = {
+        'ticket': ticket,
+        'title': f'Cerrar Ticket {ticket.folio or ticket.id_solicitud}',
+        'now': timezone.now().strftime('%Y-%m-%dT%H:%M')
+    }
+    return render(request, 'callcenter/mobile_ticket_cierre.html', context)
+
