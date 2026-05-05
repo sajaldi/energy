@@ -71,11 +71,18 @@ def generate_ot_pdf_bytes(ot, request=None, pdf_url=None):
     edificio = ot.ubicacion.get_root() if ot.ubicacion else None
     edificio_nombre = edificio.nombre if edificio else "N/A"
     ubicacion_completa = ot.ubicacion.get_ruta_completa() if ot.ubicacion else "N/A"
-    activo_nombre = ot.activos.first().nombre if ot.activos.exists() else "N/A"
+    activo_obj = ot.activos.first()
+    activo_nombre = "N/A"
+    if activo_obj:
+        activo_nombre = activo_obj.nombre
+        if activo_obj.descripcion:
+            activo_nombre += f" - {activo_obj.descripcion}"
     
-    # Datos del Técnico Líder
+    # Datos del Técnico Líder (Prioridad: tecnico_puesto > tecnico user)
     tecnico_perfil = None
-    if ot.tecnico and hasattr(ot.tecnico, 'perfil_tecnico'):
+    if ot.tecnico_puesto:
+        tecnico_perfil = ot.tecnico_puesto
+    elif ot.tecnico and hasattr(ot.tecnico, 'perfil_tecnico'):
         tecnico_perfil = ot.tecnico.perfil_tecnico
 
     # Empresa Responsable (Prioridad: Campo Directo > Empresa del Perfil > Default)
@@ -85,21 +92,40 @@ def generate_ot_pdf_bytes(ot, request=None, pdf_url=None):
     elif tecnico_perfil and tecnico_perfil.empresa:
         empresa_nombre = tecnico_perfil.empresa.nombre
     
-    # Técnicos (Lista consolidada y estructurada)
-    tecnicos_list = ot.tecnicos.all()
+    # Técnicos (Lista consolidada y estructurada: Líder + Equipo)
     tecnicos_data = []
-    
-    if tecnicos_list.exists():
-        tecnico_nombre = ", ".join([t.get_full_name() or t.username for t in tecnicos_list])
-        tecnico_dni = ", ".join([t.perfil_tecnico.dni for t in tecnicos_list if hasattr(t, 'perfil_tecnico') and t.perfil_tecnico.dni]) or "N/A"
-        for t in tecnicos_list:
-            t_dni = t.perfil_tecnico.dni if hasattr(t, 'perfil_tecnico') and t.perfil_tecnico.dni else "N/A"
-            tecnicos_data.append({'nombre': t.get_full_name() or t.username, 'dni': t_dni})
-    else:
-        tecnico_nombre = ot.tecnico.get_full_name() if ot.tecnico else "N/A"
-        tecnico_dni = tecnico_perfil.dni if tecnico_perfil and tecnico_perfil.dni else "N/A"
-        if ot.tecnico:
-            tecnicos_data.append({'nombre': tecnico_nombre, 'dni': tecnico_dni})
+    seen_personnel_ids = set()
+
+    # 1. Agregar Líder
+    if tecnico_perfil:
+        t_nombre = f"{tecnico_perfil.nombre} {tecnico_perfil.apellido}" if not tecnico_perfil.user else (tecnico_perfil.user.get_full_name() or tecnico_perfil.user.username)
+        t_dni = tecnico_perfil.dni or "N/A"
+        tecnicos_data.append({'nombre': t_nombre, 'dni': t_dni, 'es_lider': True})
+        seen_personnel_ids.add(f"p_{tecnico_perfil.id}")
+
+    # 2. Agregar Colaboradores (Personal/TecnicoPuesto)
+    for p in ot.colaboradores_puesto.all():
+        p_key = f"p_{p.id}"
+        if p_key not in seen_personnel_ids:
+            p_nombre = f"{p.nombre} {p.apellido}" if not p.user else (p.user.get_full_name() or p.user.username)
+            tecnicos_data.append({'nombre': p_nombre, 'dni': p.dni or "N/A", 'es_lider': False})
+            seen_personnel_ids.add(p_key)
+
+    # 3. Agregar Colaboradores (Usuarios legacy)
+    for u in ot.tecnicos.all():
+        u_perfil = getattr(u, 'perfil_tecnico', None)
+        u_key = f"p_{u_perfil.id}" if u_perfil else f"u_{u.id}"
+        if u_key not in seen_personnel_ids:
+            tecnicos_data.append({
+                'nombre': u.get_full_name() or u.username, 
+                'dni': u_perfil.dni if u_perfil else "N/A",
+                'es_lider': False
+            })
+            seen_personnel_ids.add(u_key)
+
+    # Variables para compatibilidad con templates viejos
+    tecnico_nombre = tecnicos_data[0]['nombre'] if tecnicos_data else "N/A"
+    tecnico_dni = tecnicos_data[0]['dni'] if tecnicos_data else "N/A"
 
     # Generar QR de Firma para OTNP (Apunta a la URL del PDF)
     signature_qr_b64 = ""

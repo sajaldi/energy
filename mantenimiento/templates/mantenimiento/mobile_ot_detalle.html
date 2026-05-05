@@ -428,7 +428,7 @@
     </header>
 
     <div class="object-header">
-        <h1 class="object-id">OT #{{ ot.id }}</h1>
+        <h1 class="object-id">OT #{{ ot.codigo_de_orden|default:ot.id }}</h1>
         <div class="object-subtitle">
             {% if ot.rutina %}{{ ot.rutina.nombre }}{% elif ot.aviso %}{{ ot.aviso.descripcion }}{% else %}Correctiva General{% endif %}
         </div>
@@ -462,7 +462,7 @@
 
                     <div class="fiori-form-group">
                         <label>Empresa Responsable</label>
-                        <select name="empresa_responsable" class="fiori-select" onchange="updateOT()">
+                        <select name="empresa_responsable" id="empresa_responsable_select" class="fiori-select" onchange="updateOT(); filterTecnicosByEmpresa();">
                             <option value="none">-- Seleccionar Empresa --</option>
                             {% for e in empresas %}
                             <option value="{{ e.id }}" {% if ot.empresa_responsable_id == e.id %}selected{% endif %}>
@@ -474,11 +474,11 @@
 
                     <div class="fiori-form-group">
                         <label>Técnico Líder / Principal</label>
-                        <select name="tecnico" class="fiori-select" onchange="updateOT()">
-                            <option value="none">-- Seleccionar Técnico --</option>
-                            {% for t in tecnicos %}
-                            <option value="{{ t.id }}" {% if ot.tecnico_id == t.id %}selected{% endif %}>
-                                {{ t.get_full_name|default:t.username }}
+                        <select name="tecnico" id="tecnico_leader_select" class="fiori-select" onchange="autoSelectEmpresa(this); updateOT();">
+                            <option value="none">-- Seleccionar Responsable --</option>
+                            {% for p in personales %}
+                            <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}" {% if ot.tecnico_puesto_id == p.id %}selected{% endif %}>
+                                {{ p.nombre }} {{ p.apellido }}
                             </option>
                             {% endfor %}
                         </select>
@@ -487,12 +487,17 @@
                     <div class="fiori-form-group">
                         <label>Equipo de Técnicos (Opcional)</label>
                         <select name="tecnicos" id="tecnicosSelect" class="fiori-select" multiple="multiple" onchange="updateOT()">
-                            {% for t in tecnicos %}
-                            <option value="{{ t.id }}" {% if t.id in tecnicos_ids %}selected{% endif %}>
-                                {{ t.get_full_name|default:t.username }}
+                            {% for p in personales %}
+                            <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}" {% if p.id in colaboradores_ids %}selected{% endif %}>
+                                {{ p.nombre }} {{ p.apellido }}
                             </option>
                             {% endfor %}
                         </select>
+                    </div>
+
+                    <div class="fiori-form-group">
+                        <label>Descripción detallada</label>
+                        <textarea name="descripcion_detallada" class="fiori-input" rows="3" onchange="updateOT()">{{ ot.descripcion_detallada|default:'' }}</textarea>
                     </div>
 
                     <div class="fiori-form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -562,7 +567,10 @@
                     </div>
                     <div class="asset-info">
                         <h4>{{ activo.nombre }}</h4>
-                        <p>{{ activo.codigo_interno|default:"Sin Código" }} | {{ activo.serie|default:"S/S" }}</p>
+                        <p style="margin-bottom: 2px;">{{ activo.codigo_interno|default:"Sin Código" }} | {{ activo.serie|default:"S/S" }}</p>
+                        {% if activo.descripcion %}
+                        <p style="font-size: 11px; color: #666; font-style: italic;">{{ activo.descripcion }}</p>
+                        {% endif %}
                     </div>
                     <ion-icon name="chevron-forward-outline" style="margin-left: auto; color: #ccc;"></ion-icon>
                 </a>
@@ -634,20 +642,28 @@
                 </div>
                 <div class="attachments-grid" id="attachmentsGrid">
                     {% for archivo in ot.archivos.all %}
-                    <div class="attachment-item" id="file-{{ archivo.id }}">
-                        {% if archivo.tipo == 'IMAGEN' %}
-                        <a href="{{ archivo.archivo.url }}" target="_blank" style="width:100%;height:100%;">
-                            <img src="{{ archivo.archivo.url }}" alt="{{ archivo.nombre }}">
-                        </a>
-                        {% else %}
-                        <a href="{{ archivo.archivo.url }}" target="_blank" style="text-decoration:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
-                            <ion-icon name="document-outline" class="file-icon"></ion-icon>
-                            <span class="file-name">{{ archivo.nombre }}</span>
-                        </a>
-                        {% endif %}
-                        <button class="attachment-delete" onclick="deleteFile({{ archivo.id }})" title="Eliminar">
-                            <ion-icon name="close"></ion-icon>
-                        </button>
+                    <div class="attachment-item" id="file-{{ archivo.id }}" style="height: auto; min-height: 120px; display: flex; flex-direction: column;">
+                        <div style="position: relative; flex-grow: 1; height: 100px;">
+                            {% if archivo.tipo == 'IMAGEN' %}
+                            <a href="{{ archivo.archivo.url }}" target="_blank" style="width:100%;height:100%;">
+                                <img src="{{ archivo.archivo.url }}" alt="{{ archivo.nombre }}" style="object-fit: cover;">
+                            </a>
+                            {% else %}
+                            <a href="{{ archivo.archivo.url }}" target="_blank" style="text-decoration:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
+                                <ion-icon name="document-outline" class="file-icon"></ion-icon>
+                                <span class="file-name" style="font-size: 10px;">{{ archivo.nombre|truncatechars:15 }}</span>
+                            </a>
+                            {% endif %}
+                            <button class="attachment-delete" onclick="deleteFile({{ archivo.id }})" title="Eliminar" style="z-index: 10;">
+                                <ion-icon name="close"></ion-icon>
+                            </button>
+                        </div>
+                        <div style="padding: 4px;">
+                            <input type="text" class="fiori-input" value="{{ archivo.nombre }}" 
+                                   style="font-size: 11px; padding: 4px; height: 24px; border: none; border-bottom: 1px solid #eee;"
+                                   placeholder="Descripción..."
+                                   onchange="updateFileName({{ archivo.id }}, this.value)">
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -712,16 +728,16 @@
                 {% if ot.estado == 'PROGRAMADA' or ot.estado == 'ESPERA' %}
                     <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="menu-item"><ion-icon name="list-outline" style="color: var(--sap-brand-color);"></ion-icon> Ver/Editar Checklist</a>
                     {% if ot.tipo == 'NO_PROGRAMADA' %}
-                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar Webhook</button>
+                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar OTNP a MAO/Supervisión</button>
                     {% endif %}
                 {% elif ot.estado == 'EJECUCION' %}
                     <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id }}" class="menu-item"><ion-icon name="cube-outline" style="color: var(--sap-brand-color);"></ion-icon> Solicitar Materiales</a>
-                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar Webhook</button>
+                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar OTNP a MAO/Supervisión</button>
                 {% elif ot.estado == 'REALIZADA' %}
                     {% if is_gerente or ot.tecnico == user or ot.supervisor == user %}
                     <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="menu-item"><ion-icon name="create-outline" style="color: var(--sap-brand-color);"></ion-icon> Editar Checklist</a>
                     {% endif %}
-                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar Webhook</button>
+                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar OTNP a MAO/Supervisión</button>
                     <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" class="menu-item"><ion-icon name="refresh-outline" style="color: #e52929;"></ion-icon> Forzar PDF Manual</a>
                 {% endif %}
 
@@ -992,23 +1008,47 @@
                         div.id = 'file-' + a.id;
 
                         if (a.tipo === 'IMAGEN') {
+                            div.style.height = "auto";
+                            div.style.minHeight = "120px";
+                            div.style.display = "flex";
+                            div.style.flexDirection = "column";
                             div.innerHTML = `
-                                <a href="${a.url}" target="_blank" style="width:100%;height:100%;">
-                                    <img src="${a.url}" alt="${a.nombre}">
-                                </a>
-                                <button class="attachment-delete" onclick="deleteFile(${a.id})" title="Eliminar">
-                                    <ion-icon name="close"></ion-icon>
-                                </button>
+                                <div style="position: relative; flex-grow: 1; height: 100px;">
+                                    <a href="${a.url}" target="_blank" style="width:100%;height:100%;">
+                                        <img src="${a.url}" alt="${a.nombre}" style="object-fit: cover;">
+                                    </a>
+                                    <button class="attachment-delete" onclick="deleteFile(${a.id})" title="Eliminar" style="z-index: 10;">
+                                        <ion-icon name="close"></ion-icon>
+                                    </button>
+                                </div>
+                                <div style="padding: 4px;">
+                                    <input type="text" class="fiori-input" value="${a.nombre}" 
+                                           style="font-size: 11px; padding: 4px; height: 24px; border: none; border-bottom: 1px solid #eee;"
+                                           placeholder="Descripción..."
+                                           onchange="updateFileName(${a.id}, this.value)">
+                                </div>
                             `;
                         } else {
+                            div.style.height = "auto";
+                            div.style.minHeight = "120px";
+                            div.style.display = "flex";
+                            div.style.flexDirection = "column";
                             div.innerHTML = `
-                                <a href="${a.url}" target="_blank" style="text-decoration:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
-                                    <ion-icon name="document-outline" class="file-icon"></ion-icon>
-                                    <span class="file-name">${a.nombre}</span>
-                                </a>
-                                <button class="attachment-delete" onclick="deleteFile(${a.id})" title="Eliminar">
-                                    <ion-icon name="close"></ion-icon>
-                                </button>
+                                <div style="position: relative; flex-grow: 1; height: 100px;">
+                                    <a href="${a.url}" target="_blank" style="text-decoration:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
+                                        <ion-icon name="document-outline" class="file-icon"></ion-icon>
+                                        <span class="file-name" style="font-size: 10px;">${a.nombre}</span>
+                                    </a>
+                                    <button class="attachment-delete" onclick="deleteFile(${a.id})" title="Eliminar" style="z-index: 10;">
+                                        <ion-icon name="close"></ion-icon>
+                                    </button>
+                                </div>
+                                <div style="padding: 4px;">
+                                    <input type="text" class="fiori-input" value="${a.nombre}" 
+                                           style="font-size: 11px; padding: 4px; height: 24px; border: none; border-bottom: 1px solid #eee;"
+                                           placeholder="Descripción..."
+                                           onchange="updateFileName(${a.id}, this.value)">
+                                </div>
                             `;
                         }
                         grid.appendChild(div);
@@ -1030,6 +1070,40 @@
         }
 
         // === File Delete ===
+        async function updateFileName(archivoId, nuevoNombre) {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const toast = document.getElementById('toast');
+            toast.textContent = "Actualizando nombre...";
+            toast.classList.add('show');
+
+            const formData = new FormData();
+            formData.append('nombre', nuevoNombre);
+
+            try {
+                const url = "{% url 'mantenimiento:mobile_ot_update_file_name' ot.id 0 %}".replace('0', archivoId);
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    toast.textContent = "¡Nombre actualizado!";
+                    setTimeout(() => toast.classList.remove('show'), 2000);
+                } else {
+                    alert("Error: " + result.message);
+                    toast.classList.remove('show');
+                }
+            } catch (error) {
+                console.error("Error updating file name:", error);
+                alert("Error de conexión.");
+                toast.classList.remove('show');
+            }
+        }
+
         async function deleteFile(archivoId) {
             if (!confirm('¿Eliminar este archivo?')) return;
 
@@ -1075,8 +1149,8 @@
         // === Webhook Sending ===
         async function sendWebhook() {
             const { value: confirm } = await Swal.fire({
-                title: '¿Enviar reporte por correo?',
-                text: "Se disparará un webhook para enviar el PDF de esta OT a los interesados.",
+                title: '¿Enviar reporte a MAO/Supervisión?',
+                text: "Se notificará a la MAO y Supervisión con el PDF de esta OTNP.",
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#8b5cf6',
@@ -1120,6 +1194,77 @@
             }
         }
 
+        function updateOT() {
+            const formData = new FormData(document.getElementById('assignmentForm'));
+            
+            fetch("{% url 'mantenimiento:mobile_ot_update_ajax' ot.id %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast('Orden actualizada correctamente');
+                } else {
+                    showToast('Error al actualizar: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error de conexión');
+            });
+        }
+
+        function filterTecnicosByEmpresa() {
+            const empresaId = document.getElementById('empresa_responsable_select').value;
+            const leaderSelect = $('#tecnico_leader_select');
+            const teamSelect = $('#tecnicosSelect');
+            
+            // Filtrar Líder
+            leaderSelect.find('option').each(function() {
+                if (this.value === 'none') return;
+                const optEmpresaId = $(this).attr('data-empresa-id');
+                if (empresaId === 'none' || optEmpresaId === empresaId) {
+                    $(this).prop('disabled', false).show();
+                } else {
+                    $(this).prop('disabled', true).hide();
+                    if ($(this).is(':selected')) {
+                        leaderSelect.val('none');
+                    }
+                }
+            });
+
+            // Filtrar Equipo
+            teamSelect.find('option').each(function() {
+                const optEmpresaId = $(this).attr('data-empresa-id');
+                if (empresaId === 'none' || optEmpresaId === empresaId) {
+                    $(this).prop('disabled', false).show();
+                } else {
+                    $(this).prop('disabled', true).hide();
+                    $(this).prop('selected', false);
+                }
+            });
+
+            // Refrescar Select2
+            if (leaderSelect.hasClass('select2-hidden-accessible')) leaderSelect.trigger('change.select2');
+            if (teamSelect.hasClass('select2-hidden-accessible')) teamSelect.trigger('change.select2');
+        }
+
+        function autoSelectEmpresa(el) {
+            const empresaSelect = document.getElementById('empresa_responsable_select');
+            if (empresaSelect.value === 'none' || !empresaSelect.value) {
+                const selectedOption = el.options[el.selectedIndex];
+                const empresaId = selectedOption.getAttribute('data-empresa-id');
+                if (empresaId) {
+                    empresaSelect.value = empresaId;
+                    filterTecnicosByEmpresa();
+                }
+            }
+        }
+
         // === Initialization ===
         $(document).ready(function() {
             $('#tecnicosSelect').select2({
@@ -1127,6 +1272,16 @@
                 allowClear: true,
                 width: '100%'
             });
+
+            $('#tecnico_leader_select').select2({
+                placeholder: "Seleccionar responsable",
+                width: '100%'
+            }).on('change', function() {
+                autoSelectEmpresa(this);
+                updateOT();
+            });
+
+            filterTecnicosByEmpresa();
         });
     </script>
 

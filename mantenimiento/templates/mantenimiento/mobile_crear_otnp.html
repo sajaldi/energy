@@ -200,14 +200,48 @@
             {% csrf_token %}
 
             <div class="fiori-section">
-                <div class="section-header">Ubicación y Responsable</div>
+                <div class="section-header">Activo y Ubicación</div>
                 <div class="section-content">
+                    <div class="form-group">
+                        <label>Activo (Opcional)</label>
+                        <div class="sap-input-container" onclick="openAssetSelector()" style="cursor: pointer; display: flex; align-items: center; padding-right: 12px; background: #fff;">
+                            <input type="text" id="activo-display" readonly placeholder="Seleccione activo..." style="flex-grow: 1; pointer-events: none;">
+                            <input type="hidden" name="activo" id="activo-id">
+                            <ion-icon name="cube-outline" style="color: var(--sap-blue); font-size: 18px;"></ion-icon>
+                        </div>
+                        <div id="activo-hint" style="font-size: 11px; color: var(--sap-label); margin-top: 4px; display: none;"></div>
+                    </div>
+
                     <div class="form-group">
                         <label>Ubicación *</label>
                         <div class="sap-input-container" onclick="openLocationSelector()" style="cursor: pointer; display: flex; align-items: center; padding-right: 12px; background: #fff;">
                             <input type="text" id="ubicacion-display" readonly placeholder="Seleccione ubicación..." style="flex-grow: 1; pointer-events: none;" required>
                             <input type="hidden" name="ubicacion" id="ubicacion-id" required>
                             <ion-icon name="search-outline" style="color: var(--sap-blue); font-size: 18px;"></ion-icon>
+                        </div>
+                    </div>
+
+                    <!-- Modal Selector de Activo -->
+                    <div id="asset-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2100; backdrop-filter: blur(2px);">
+                        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: white; border-top-left-radius: 20px; border-top-right-radius: 20px; height: 85vh; display: flex; flex-direction: column; animation: slideUp 0.3s ease-out;">
+                            <div style="padding: 20px; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center;">
+                                <h3 style="margin: 0; font-size: 18px;">Buscar Activo</h3>
+                                <button type="button" onclick="closeAssetSelector()" style="background: none; border: none; font-size: 24px; color: var(--sap-label);"><ion-icon name="close-outline"></ion-icon></button>
+                            </div>
+                            
+                            <div style="padding: 12px 16px;">
+                                <div class="sap-input-container" style="display: flex; align-items: center; padding: 0 12px;">
+                                    <ion-icon name="search-outline" style="color: var(--sap-label);"></ion-icon>
+                                    <input type="text" id="asset-search" placeholder="Nombre, código o serie..." style="padding: 12px 8px;">
+                                </div>
+                            </div>
+
+                            <div id="asset-results" style="flex-grow: 1; overflow-y: auto; padding: 0 16px 20px;">
+                                <div style="text-align: center; padding: 40px 20px; color: var(--sap-label);">
+                                    <ion-icon name="search" style="font-size: 48px; opacity: 0.2;"></ion-icon>
+                                    <p>Empieza a escribir para buscar activos...</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -265,33 +299,133 @@
                             from { transform: translateY(100%); }
                             to { transform: translateY(0); }
                         }
-                        .location-item:active { background-color: #f0f7ff; }
+                        .location-item:active, .asset-item:active { background-color: #f0f7ff; }
                         .location-item.searching { margin-left: 0 !important; border-left: 3px solid #eee; }
                         .location-item.searching .path-hint { display: block !important; }
                         .location-item.searching .expand-icon { display: none; }
                         .location-item.expanded .caret { transform: rotate(90deg); }
                         .location-item.hidden { display: none !important; }
+                        
+                        .asset-item {
+                            padding: 12px;
+                            border-bottom: 1px solid #eee;
+                            cursor: pointer;
+                        }
+                        .asset-item:last-child { border-bottom: none; }
                     </style>
 
                     <div class="form-group">
-                        <label>Técnico Asignado</label>
+                        <label>Equipo de Técnicos (Opcional)</label>
                         <div class="sap-input-container">
-                            <select name="tecnico">
-                                <option value="none">-- Yo mismo ({{ request.user.get_full_name|default:request.user.username }}) --</option>
-                                {% for t in tecnicos %}
-                                    {% if t.id != request.user.id %}
-                                    <option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>
-                                    {% endif %}
+                            <select name="tecnicos" id="tecnicos-multi" multiple style="height: auto; min-height: 80px; padding: 8px;">
+                                {% for p in personales %}
+                                <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}">
+                                    {{ p.nombre }} {{ p.apellido }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div style="font-size: 11px; color: var(--sap-label); margin-top: 4px;">Solo se muestran técnicos de la empresa seleccionada.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Responsable</label>
+                        <div class="sap-input-container">
+                            <select name="tecnico" id="tecnico-select" onchange="autoSelectEmpresa(this)">
+                                <option value="none">-- Seleccione Responsable --</option>
+                                {% for p in personales %}
+                                    <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}">
+                                        {{ p.nombre }} {{ p.apellido }}
+                                    </option>
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
+
+                    <div class="form-group">
+                        <label>Empresa Responsable</label>
+                        <div class="sap-input-container">
+                            <select name="empresa_responsable" id="empresa-select" onchange="filterTecnicosByEmpresa()">
+                                <option value="none">-- Seleccione Empresa --</option>
+                                {% for e in empresas %}
+                                <option value="{{ e.id }}">{{ e.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <script>
+                        function filterTecnicosByEmpresa() {
+                            const empresaId = document.getElementById('empresa-select').value;
+                            const tecnicoSelect = document.getElementById('tecnico-select');
+                            const tecnicosMulti = document.getElementById('tecnicos-multi');
+                            
+                            // Filtrar Técnico Líder
+                            Array.from(tecnicoSelect.options).forEach(opt => {
+                                if (opt.value === 'none') return;
+                                const optEmpresaId = opt.getAttribute('data-empresa-id');
+                                if (empresaId === 'none' || optEmpresaId === empresaId) {
+                                    opt.style.display = 'block';
+                                    opt.disabled = false;
+                                } else {
+                                    opt.style.display = 'none';
+                                    opt.disabled = true;
+                                    if (opt.selected) tecnicoSelect.value = 'none';
+                                }
+                            });
+
+                            // Filtrar Equipo (Multi)
+                            Array.from(tecnicosMulti.options).forEach(opt => {
+                                const optEmpresaId = opt.getAttribute('data-empresa-id');
+                                if (empresaId === 'none' || optEmpresaId === empresaId) {
+                                    opt.style.display = 'block';
+                                    opt.disabled = false;
+                                } else {
+                                    opt.style.display = 'none';
+                                    opt.disabled = true;
+                                    opt.selected = false;
+                                }
+                            });
+                        }
+
+                        function autoSelectEmpresa(el) {
+                            const empresaSelect = document.getElementById('empresa-select');
+                            if (empresaSelect.value === 'none' || !empresaSelect.value) {
+                                const selectedOption = el.options[el.selectedIndex];
+                                const empresaId = selectedOption.getAttribute('data-empresa-id');
+                                if (empresaId) {
+                                    empresaSelect.value = empresaId;
+                                    filterTecnicosByEmpresa();
+                                }
+                            }
+                        }
+
+                        // Ejecutar al cargar
+                        document.addEventListener('DOMContentLoaded', function() {
+                            filterTecnicosByEmpresa();
+                        });
+                    </script>
                 </div>
             </div>
 
             <div class="fiori-section">
-                <div class="section-header">Detalles del Trabajo</div>
+                <div class="section-header">Programación y Detalles</div>
                 <div class="section-content">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label>Inicio Programado</label>
+                            <div class="sap-input-container">
+                                <input type="datetime-local" name="inicio_programado" id="inicio-programado" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Fin Programado</label>
+                            <div class="sap-input-container">
+                                <input type="datetime-local" name="fin_programado" id="fin-programado" required>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label>Prioridad</label>
                         <div class="sap-input-container">
@@ -320,11 +454,116 @@
     </div>
 
     <script>
+        // Initial Dates & Data
+        window.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            const pad = (n) => n.toString().padStart(2, '0');
+            
+            const formatForInput = (d) => {
+                const y = d.getFullYear();
+                const m = pad(d.getMonth() + 1);
+                const day = pad(d.getDate());
+                const h = pad(d.getHours());
+                const min = pad(d.getMinutes());
+                return `${y}-${m}-${day}T${h}:${min}`;
+            };
+            
+            document.getElementById('inicio-programado').value = formatForInput(now);
+            
+            const twoHoursLater = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+            document.getElementById('fin-programado').value = formatForInput(twoHoursLater);
+
+            // Initialize Empresa from pre-selected Tecnico
+            updateEmpresaFromTecnico();
+        });
+
+        function updateEmpresaFromTecnico() {
+            const select = document.getElementById('tecnico-select');
+            const selectedOption = select.options[select.selectedIndex];
+            const empresaId = selectedOption.getAttribute('data-empresa-id');
+            
+            if (empresaId) {
+                document.getElementById('empresa-select').value = empresaId;
+            }
+        }
+
+        // Asset Selector Logic
+        function openAssetSelector() {
+            document.getElementById('asset-modal').style.display = 'block';
+            document.getElementById('asset-search').focus();
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeAssetSelector() {
+            document.getElementById('asset-modal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        let assetSearchTimeout;
+        document.getElementById('asset-search').addEventListener('input', function(e) {
+            clearTimeout(assetSearchTimeout);
+            const q = e.target.value.trim();
+            
+            if (q.length < 2) {
+                document.getElementById('asset-results').innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: var(--sap-label);">
+                        <ion-icon name="search" style="font-size: 48px; opacity: 0.2;"></ion-icon>
+                        <p>Escribe al menos 2 caracteres...</p>
+                    </div>`;
+                return;
+            }
+
+            assetSearchTimeout = setTimeout(() => {
+                fetch(`/mantenimiento/api/search-activos/?q=${encodeURIComponent(q)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        let html = '';
+                        if (data.results.length === 0) {
+                            html = '<div style="text-align: center; padding: 20px;">No se encontraron activos.</div>';
+                        } else {
+                            data.results.forEach(a => {
+                                html += `
+                                    <div class="asset-item" onclick="selectAsset('${a.id}', '${a.text}', '${a.ubicacion_id || ''}', '${a.ubicacion_nombre || ''}')">
+                                        <div style="font-weight: 600; font-size: 14px;">${a.text}</div>
+                                        <div style="font-size: 11px; color: var(--sap-label);">
+                                            ${a.categoria} | ${a.marca} ${a.modelo}<br>
+                                            <ion-icon name="location-outline" style="vertical-align: middle;"></ion-icon> ${a.ubicacion_nombre}
+                                        </div>
+                                    </div>`;
+                            });
+                        }
+                        document.getElementById('asset-results').innerHTML = html;
+                    });
+            }, 300);
+        });
+
+        function selectAsset(id, text, ubiId, ubiName) {
+            document.getElementById('activo-id').value = id;
+            document.getElementById('activo-display').value = text;
+            document.getElementById('activo-hint').innerText = "Copiando ubicación del activo...";
+            document.getElementById('activo-hint').style.display = 'block';
+            
+            if (ubiId) {
+                document.getElementById('ubicacion-id').value = ubiId;
+                document.getElementById('ubicacion-display').value = ubiName;
+                
+                // Animación de feedback
+                const ubiInput = document.getElementById('ubicacion-display').parentElement;
+                ubiInput.style.backgroundColor = '#e8f5e9';
+                setTimeout(() => {
+                    ubiInput.style.backgroundColor = '#fff';
+                    document.getElementById('activo-hint').innerText = "Ubicación vinculada al activo.";
+                }, 800);
+            }
+            
+            closeAssetSelector();
+        }
+
         // Location Selector Logic
         function openLocationSelector() {
             document.getElementById('location-modal').style.display = 'block';
             document.getElementById('location-search').focus();
-            document.body.style.overflow = 'hidden'; // Prevent background scroll
+            document.body.style.overflow = 'hidden'; 
         }
 
         function closeLocationSelector() {
@@ -338,7 +577,6 @@
             const items = document.querySelectorAll('.location-item');
             
             if (query.length > 0) {
-                // Modo búsqueda: aplanamos todo y mostramos coincidencias
                 items.forEach(item => {
                     const name = item.dataset.name.toLowerCase();
                     const path = item.dataset.path.toLowerCase();
@@ -352,59 +590,48 @@
                     }
                 });
             } else {
-                // Modo árbol: restauramos niveles y ocultamos hijos
                 items.forEach(item => {
                     item.classList.remove('searching');
                     item.classList.remove('hidden');
-                    
-                    // Solo mostramos los de nivel 0 (raíz)
                     const depth = item.className.match(/depth-(\d+)/)[1];
                     if (depth === "0") {
                         item.style.display = 'flex';
                     } else {
                         item.style.display = 'none';
                     }
-                    // Resetear caret de los que estaban expandidos
                     item.classList.remove('expanded');
                 });
             }
         });
 
-        // Tree Navigation & Selection
         document.querySelectorAll('.location-item').forEach(item => {
             item.addEventListener('click', function(e) {
                 const isExpandClick = e.target.closest('.expand-icon');
                 const hasChildren = this.dataset.hasChildren === 'true';
                 const id = this.dataset.id;
-                
-                // Si es modo búsqueda, cualquier clic selecciona
                 const isSearching = document.getElementById('location-search').value.length > 0;
 
                 if (hasChildren && !isSearching && (isExpandClick || e.target.classList.contains('expand-icon'))) {
-                    // Lógica de expandir/colapsar
                     const isExpanded = this.classList.toggle('expanded');
                     const children = document.querySelectorAll(`.location-item[data-parent="${id}"]`);
-                    
                     children.forEach(child => {
                         if (isExpanded) {
                             child.style.display = 'flex';
                             child.classList.remove('hidden');
                         } else {
-                            // Si colapsamos, también debemos colapsar a los nietos recursivamente
                             collapseDescendants(id);
                         }
                     });
-                    return; // No seleccionamos si solo estamos expandiendo
+                    return; 
                 }
 
-                // Lógica de Selección
-                const name = this.dataset.name;
-                const path = this.dataset.path;
-                
                 document.getElementById('ubicacion-id').value = id;
-                document.getElementById('ubicacion-display').value = name;
-                document.getElementById('ubicacion-display').title = path;
+                document.getElementById('ubicacion-display').value = this.dataset.name;
+                document.getElementById('ubicacion-display').title = this.dataset.path;
                 
+                // Si el usuario cambia manualmente la ubicación, quitamos el hint del activo
+                document.getElementById('activo-hint').style.display = 'none';
+
                 closeLocationSelector();
             });
         });
@@ -421,19 +648,15 @@
 
         document.getElementById('otnp-form').onsubmit = function(e) {
             e.preventDefault();
-            
             const btn = this.querySelector('button[type="submit"]');
             btn.disabled = true;
             btn.innerText = 'Creando...';
-
             const formData = new FormData(this);
             
             fetch("{% url 'mantenimiento:mobile_crear_otnp' %}", {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}'
-                }
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
             })
             .then(res => res.json())
             .then(data => {
@@ -444,7 +667,7 @@
                         icon: 'success',
                         confirmButtonText: 'Ver Orden',
                         confirmButtonColor: '#0a6ed1'
-                    }).then((result) => {
+                    }).then(() => {
                         window.location.href = `/mantenimiento/app/ot/${data.ot_id}/`;
                     });
                 } else {

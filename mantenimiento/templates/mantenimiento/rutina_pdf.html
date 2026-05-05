@@ -177,21 +177,30 @@
         </tr>
         {% endif %}
         <tr>
-            <td class="label-cell" style="width: 15%;">Equipo:</td>
-            <td style="width: 85%;">{{ activo_nombre|default:"N/A" }}</td>
+            <td class="label-cell">Equipo:</td>
+            <td style="width: 35%;">{{ activo_nombre|default:"N/A" }}</td>
+            <td class="label-cell">Personal Asignado:</td>
+            <td style="width: 35%; font-size: 8px;">
+                {% for t in tecnicos_data %}
+                    <div style="{% if t.es_lider %}font-weight: bold;{% endif %}">
+                        {% if t.es_lider %}Lider: {% endif %}{{ t.nombre }} ({{ t.dni }})
+                    </div>
+                {% empty %}
+                    Sin personal asignado
+                {% endfor %}
+            </td>
         </tr>
         {% if ot.tipo != 'NO_PROGRAMADA' %}
         <tr>
             <td class="label-cell">Frecuencia:</td>
-            <td>{% if ot.rutina.frecuencia %}{{ ot.rutina.frecuencia.nombre }}{% else %}N/A{% endif %}</td>
+            <td colspan="3">{% if ot.rutina.frecuencia %}{{ ot.rutina.frecuencia.nombre }}{% else %}N/A{% endif %}</td>
         </tr>
         {% endif %}
         {% if ot.tipo == 'NO_PROGRAMADA' %}
         <tr>
             <td class="label-cell">Descripción Actividad:</td>
-            <td style="font-size: 10px; padding: 8px;">
-                <strong>{{ ot.descripcion_corta|default:"" }}</strong><br>
-                {{ ot.descripcion_detallada|linebreaksbr|default:"" }}
+            <td colspan="3" style="font-size: 10px; padding: 8px;">
+                {{ ot.descripcion_detallada|default:ot.descripcion_corta|linebreaksbr }}
             </td>
         </tr>
         {% endif %}
@@ -305,14 +314,14 @@
                         <img src="data:image/png;base64,{{ signature_qr_b64 }}" style="max-height: 80px; margin-bottom: 5px;"><br>
                     {% else %}
                         <div style="border-top: 1px solid black; width: 80%; margin: 0 auto; margin-bottom: 5px;"></div>
-                        <div style="font-size: 8px;">Firma Técnico</div>
+                        <div style="font-size: 8px;">Firma Técnico Responsable</div>
                     {% endif %}
                     
                     {% for t in tecnicos_data %}
-                        <div style="font-weight: bold; margin-top: 4px; font-size: 10px;">
-                            {{ t.nombre }}
+                        <div style="margin-top: 4px; font-size: 9px;">
+                            {% if t.es_lider %}<strong>Lider: {{ t.nombre }}</strong>{% else %}{{ t.nombre }}{% endif %}<br>
+                            <span style="font-size: 7px; color: #666;">DNI: {{ t.dni }}</span>
                         </div>
-                        <div style="font-size: 8px; color: #666;">DNI: {{ t.dni }}</div>
                     {% empty %}
                         <div style="font-weight: bold; margin-top: 4px; font-size: 10px;">
                             Técnico No Asignado

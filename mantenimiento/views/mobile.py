@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.db.models import Count, Q, Min
 from django.conf import settings
 from core.decorators import mobile_permission_required
-from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso, ArchivoOrdenTrabajo, Empresa, Rutina
+from ..models import Programacion, OrdenTrabajo, Aviso, ValorPasoOrden, PasoRutina, Falla, FotoAviso, ArchivoOrdenTrabajo, Empresa, Rutina, TecnicoPuesto
 from activos.models import Activo, Ubicacion, DocumentoMedicion, PuntoMedicion
 from core.models import Departamento
 from ..tasks import task_generar_ot_pdf
@@ -68,7 +68,7 @@ def mobile_programacion_detalle(request, pk):
 @staff_member_required
 @mobile_permission_required('tareas_hoy')
 def mobile_ot_detalle(request, pk):
-    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'supervisor', 'aviso', 'programacion').prefetch_related('activos', 'archivos'), pk=pk)
+    ot = get_object_or_404(OrdenTrabajo.objects.select_related('rutina', 'ubicacion', 'tecnico', 'tecnico_puesto', 'supervisor', 'aviso', 'programacion').prefetch_related('activos', 'archivos', 'colaboradores_puesto'), pk=pk)
     
     # Listas para asignación
     supervisores = User.objects.filter(
@@ -76,7 +76,8 @@ def mobile_ot_detalle(request, pk):
         Q(groups__name='Supervisor') | 
         Q(perfil_tecnico__puesto__nombre__icontains='Supervisor')
     ).distinct().order_by('first_name')
-    tecnicos = User.objects.filter(Q(groups__name='Tecnicos') | Q(perfil_tecnico__isnull=False)).distinct().order_by('first_name')
+    
+    personales = TecnicoPuesto.objects.select_related('user', 'puesto', 'empresa').filter(esta_vigente=True).order_by('nombre')
     empresas = Empresa.objects.filter(activo=True).order_by('nombre')
     
     is_gerente = request.user.groups.filter(name='Gerentes').exists() or request.user.is_superuser
@@ -88,12 +89,12 @@ def mobile_ot_detalle(request, pk):
     context = {
         'ot': ot,
         'supervisores': supervisores,
-        'tecnicos': tecnicos,
+        'personales': personales,
         'empresas': empresas,
         'is_gerente': is_gerente,
         'ubicaciones': ubicaciones,
         'resultados': ot.resultados_checklist.select_related('paso').order_by('paso__orden'),
-        'tecnicos_ids': list(ot.tecnicos.values_list('id', flat=True)),
+        'colaboradores_ids': list(ot.colaboradores_puesto.values_list('id', flat=True)),
     }
 
     return render(request, 'mantenimiento/mobile_ot_detalle.html', context)
@@ -110,25 +111,35 @@ def mobile_ot_update_ajax(request, pk):
     if ot.estado == 'REALIZADA' and not is_gerente:
         return JsonResponse({'status': 'error', 'message': 'No se puede modificar una orden finalizada'}, status=400)
 
-    tecnico_id = request.POST.get('tecnico')
-    tecnicos_ids = request.POST.getlist('tecnicos')
+    tecnico_id = request.POST.get('tecnico') # ID de TecnicoPuesto (Líder)
+    tecnicos_ids = request.POST.getlist('tecnicos') # IDs de TecnicoPuesto (Colaboradores)
     supervisor_id = request.POST.get('supervisor')
     empresa_id = request.POST.get('empresa_responsable')
     fecha_str = request.POST.get('inicio_programado')
     fecha_fin_str = request.POST.get('fin_programado')
     ubicacion_id = request.POST.get('ubicacion')
+    descripcion = request.POST.get('descripcion_detallada')
     
     try:
         if tecnico_id:
-            ot.tecnico = User.objects.get(pk=tecnico_id) if tecnico_id != 'none' else None
+            if tecnico_id == 'none':
+                ot.tecnico_puesto = None
+                ot.tecnico = None
+            else:
+                tp = TecnicoPuesto.objects.filter(pk=tecnico_id).first()
+                if tp:
+                    ot.tecnico_puesto = tp
+                    ot.tecnico = tp.user
         
         if tecnicos_ids:
-            # tecnicos_ids puede venir como ['none'] si se limpia el select múltiple
+            # Sincronizar Colaboradores (Personal)
             valid_ids = [tid for tid in tecnicos_ids if tid != 'none']
-            ot.tecnicos.set(valid_ids)
-            # Si no hay un técnico líder asignado pero sí hay colaboradores, el primero es el líder
-            if not ot.tecnico and valid_ids:
-                ot.tecnico_id = valid_ids[0]
+            ot.colaboradores_puesto.set(valid_ids)
+            
+            # Sincronizar Usuarios (para acceso al sistema de los que tengan cuenta)
+            personales_equipo = TecnicoPuesto.objects.filter(id__in=valid_ids).exclude(user__isnull=True)
+            user_ids = [p.user_id for p in personales_equipo]
+            ot.tecnicos.set(user_ids)
 
         if supervisor_id:
             ot.supervisor = User.objects.get(pk=supervisor_id) if supervisor_id != 'none' else None
@@ -138,6 +149,10 @@ def mobile_ot_update_ajax(request, pk):
 
         if ubicacion_id:
             ot.ubicacion = Ubicacion.objects.get(pk=ubicacion_id) if ubicacion_id != 'none' else None
+            
+        if descripcion is not None:
+            ot.descripcion_detallada = descripcion
+            ot.descripcion_corta = descripcion[:200]
             
         if fecha_str:
             new_date = datetime.fromisoformat(fecha_str)
@@ -724,24 +739,61 @@ def mobile_crear_otnp(request):
             ubi_id = request.POST.get('ubicacion')
             prio = request.POST.get('prioridad', 'MEDIA')
             desc = request.POST.get('descripcion', '').strip()
-            tecnico_id = request.POST.get('tecnico')
+            tecnico_id = request.POST.get('tecnico') # ID de TecnicoPuesto (Personal)
+            tecnicos_ids = request.POST.getlist('tecnicos') # IDs de TecnicoPuesto (Colaboradores)
+            empresa_id = request.POST.get('empresa_responsable')
+            activo_id = request.POST.get('activo')
+            inicio_str = request.POST.get('inicio_programado')
+            fin_str = request.POST.get('fin_programado')
             
             ubicacion = get_object_or_404(Ubicacion, pk=ubi_id) if ubi_id else None
-            tecnico = User.objects.filter(pk=tecnico_id).first() if tecnico_id and tecnico_id != 'none' else request.user
+            tecnico_puesto = TecnicoPuesto.objects.filter(pk=tecnico_id).first() if tecnico_id and tecnico_id != 'none' else None
+            empresa = Empresa.objects.filter(pk=empresa_id).first() if empresa_id and empresa_id != 'none' else None
+            activo = Activo.objects.filter(pk=activo_id).first() if activo_id else None
             
+            # Determinar técnico líder (User) a partir del puesto si existe
+            tecnico_user = tecnico_puesto.user if tecnico_puesto and tecnico_puesto.user else None
+            if not tecnico_user and not tecnico_puesto:
+                tecnico_user = request.user
+
             now = timezone.now()
             
+            # Procesar fechas si vienen
+            inicio_dt = now
+            if inicio_str:
+                try:
+                    inicio_dt = timezone.make_aware(datetime.fromisoformat(inicio_str))
+                except: pass
+                
+            fin_dt = inicio_dt + timedelta(hours=2)
+            if fin_str:
+                try:
+                    fin_dt = timezone.make_aware(datetime.fromisoformat(fin_str))
+                except: pass
+
             ot = OrdenTrabajo.objects.create(
                 tipo='NO_PROGRAMADA',
                 prioridad=prio,
                 ubicacion=ubicacion,
-                tecnico=tecnico,
+                tecnico=tecnico_user,
+                tecnico_puesto=tecnico_puesto,
+                empresa_responsable=empresa,
                 descripcion_corta=desc[:200],
                 descripcion_detallada=desc,
                 estado='PROGRAMADA',
-                inicio_programado=now,
-                fin_programado=now + timedelta(hours=2) # Default 2 hours
+                inicio_programado=inicio_dt,
+                fin_programado=fin_dt
             )
+
+            if activo:
+                ot.activos.add(activo)
+
+            if tecnicos_ids:
+                valid_ids = [tid for tid in tecnicos_ids if tid != 'none']
+                ot.colaboradores_puesto.set(valid_ids)
+                # Sincronizar usuarios
+                personales_equipo = TecnicoPuesto.objects.filter(id__in=valid_ids).exclude(user__isnull=True)
+                ot.tecnicos.set([p.user_id for p in personales_equipo])
             
             return JsonResponse({'status': 'success', 'ot_id': ot.id, 'codigo': ot.codigo_de_orden})
         except Exception as e:
@@ -756,19 +808,19 @@ def mobile_crear_otnp(request):
         u.has_children = u.sub_ubicaciones.exists()
         ubicaciones.append(u)
     
-    # Ordenar para que el árbol se vea natural (Padre seguido de sus hijos)
     ubicaciones.sort(key=lambda x: x.full_path)
 
     prioridades = OrdenTrabajo.PRIORIDAD_CHOICES
-    tecnicos = User.objects.filter(
-        Q(groups__name='Tecnicos') | 
-        Q(perfil_tecnico__isnull=False)
-    ).distinct().order_by('first_name')
+    
+    # Todos los técnicos/personal (con o sin usuario)
+    personales = TecnicoPuesto.objects.select_related('user', 'puesto', 'empresa').filter(esta_vigente=True).order_by('nombre')
+    empresas = Empresa.objects.filter(activo=True).order_by('nombre')
     
     return render(request, 'mantenimiento/mobile_crear_otnp.html', {
         'ubicaciones': ubicaciones,
         'prioridades': prioridades,
-        'tecnicos': tecnicos,
+        'personales': personales,
+        'empresas': empresas,
     })
 
 @login_required
@@ -882,6 +934,24 @@ def mobile_ot_eliminar(request, pk):
 
 
 @staff_member_required
+def mobile_ot_update_file_name(request, ot_id, file_id):
+    """
+    Actualiza el nombre/descripción de un archivo adjunto.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    nuevo_nombre = request.POST.get('nombre', '').strip()
+    if not nuevo_nombre:
+        return JsonResponse({'status': 'error', 'message': 'El nombre no puede estar vacío'}, status=400)
+    
+    archivo = get_object_or_404(ArchivoOrdenTrabajo, pk=file_id, orden_trabajo_id=ot_id)
+    archivo.nombre = nuevo_nombre
+    archivo.save()
+    
+    return JsonResponse({'status': 'success', 'message': 'Nombre actualizado'})
+
+@staff_member_required
 def mobile_ot_webhook(request, pk):
     """
     Triggers a webhook to n8n with OT details and PDF report.
@@ -929,6 +999,14 @@ def mobile_ot_webhook(request, pk):
         empresa_final = ot.empresa_responsable.nombre
 
     try:
+        # 3. Obtener correos del departamento del usuario que dispara
+        departamento_emails = []
+        if hasattr(request.user, 'perfil') and request.user.perfil.departamento:
+            dept = request.user.perfil.departamento
+            usuarios_dept = User.objects.filter(perfil__departamento=dept).exclude(email='').distinct()
+            # Unir con punto y coma para compatibilidad con sistemas de correo (Power Automate, Outlook, etc)
+            departamento_emails = ";".join(list(usuarios_dept.values_list('email', flat=True)))
+
         data = {
             'event': 'ot_report_sent',
             'ot_id': ot.id,
@@ -941,7 +1019,7 @@ def mobile_ot_webhook(request, pk):
             'tecnico_lider': str(ot.tecnico.get_full_name() if ot.tecnico else "No asignado"),
             'tecnicos_equipo': str(tecnicos_nombres),
             'tecnico_dni': str(tecnico_dni),
-            'tecnico_empresa': str(empresa_final),
+            'tecnico_empresa': str(tecnico_empresa),
             'supervisor': str(ot.supervisor.get_full_name() if ot.supervisor else "No asignado"),
             'ubicacion': str(ot.ubicacion.nombre if ot.ubicacion else "No especificada"),
             'ubicacion_completa': str(ot.ubicacion.get_ruta_completa() if ot.ubicacion else "No especificada"),
@@ -951,6 +1029,7 @@ def mobile_ot_webhook(request, pk):
             'pdf_name': str(archivo_pdf.nombre) if archivo_pdf else "",
             'user_triggered': str(request.user.get_full_name() or request.user.username),
             'site_url': str(settings.SITE_URL or ""),
+            'emails_departamento': departamento_emails,
         }
 
         import requests
@@ -960,6 +1039,6 @@ def mobile_ot_webhook(request, pk):
         if not response.ok:
             raise Exception(f"{response.status_code} - {response.text}")
             
-        return JsonResponse({'status': 'success', 'message': 'Webhook enviado exitosamente. El correo será procesado.'})
+        return JsonResponse({'status': 'success', 'message': 'OTNP enviada'})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Error llamando al webhook: {str(e)}'}, status=500)

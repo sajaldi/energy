@@ -46,6 +46,7 @@ from .mobile import (
     mobile_crear_otnp,
     mobile_ot_eliminar,
     mobile_ot_webhook,
+    mobile_ot_update_file_name,
     mobile_crear_ot_desde_puesto
 )
 from .dashboard import dashboard_cargas, asignar_puesto_ajax
