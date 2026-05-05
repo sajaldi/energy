@@ -704,6 +704,10 @@
         }
 
         let chartsRendered = false;
+        let chartFallas, chartTiempos, chartUbic;
+        let globalTickets = [];
+        let currentUbicacionPath = [];
+
         function renderCharts() {
             if (chartsRendered) return;
             chartsRendered = true;
@@ -712,126 +716,159 @@
             if (!rawData || rawData === '""') return;
             
             const chartData = JSON.parse(rawData);
-            const commonOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
-            };
-
-            // 1. Gráfica de Fallas (Doughnut)
-            new Chart(document.getElementById('chartFallas'), {
-                type: 'doughnut',
-                data: {
-                    labels: chartData.fallas.labels,
-                    datasets: [{
-                        data: chartData.fallas.data,
-                        backgroundColor: ['#0070f2', '#e9730c', '#107e3e', '#d22359', '#6c5ce7', '#00aed8', '#f39c12', '#8e44ad', '#2c3e50', '#16a085']
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right' } }
-                }
-            });
-
-            // 2. Gráfica de Tiempos de Resolución (Bar)
-            new Chart(document.getElementById('chartTiempos'), {
-                type: 'bar',
-                data: {
-                    labels: chartData.tiempos.labels,
-                    datasets: [{
-                        label: 'Horas Promedio',
-                        data: chartData.tiempos.data,
-                        backgroundColor: '#e9730c',
-                        borderRadius: 4
-                    }]
-                },
-                options: commonOptions
-            });
-
-            // 3. Gráfica de Ubicaciones con Drilldown jerárquico
-            let currentTree = chartData.ubicaciones_tree;
-            let treeHistory = [];
-            let chartUbic;
-
-            window.ubicacionesGoBack = function() {
-                if (treeHistory.length > 0) {
-                    currentTree = treeHistory.pop();
-                    updateUbicacionesChart();
-                }
-            };
-
-            function updateUbicacionesChart() {
-                if (!currentTree || !currentTree.children) return;
-                
-                const btnBack = document.getElementById('btn-back-ubicaciones');
-                const title = document.getElementById('ubicaciones-title');
-                
-                if (treeHistory.length > 0) {
-                    btnBack.style.display = 'inline-flex';
-                    title.innerText = `Ubicaciones dentro de: ${currentTree.name}`;
-                } else {
-                    btnBack.style.display = 'none';
-                    title.innerText = `Ubicaciones principales con más fallas`;
-                }
-
-                // Sort children by count, Top 15 max
-                const childrenArray = Object.values(currentTree.children).sort((a, b) => b.count - a.count).slice(0, 15);
-                const labels = childrenArray.map(c => c.name);
-                const data = childrenArray.map(c => c.count);
-
-                if (chartUbic) {
-                    chartUbic.data.labels = labels;
-                    chartUbic.data.datasets[0].data = data;
-                    chartUbic.update();
-                } else {
-                    chartUbic = new Chart(document.getElementById('chartUbicaciones'), {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Cantidad de Tickets',
-                                data: data,
-                                backgroundColor: '#0070f2',
-                                borderRadius: 4
-                            }]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            onClick: (e, elements) => {
-                                if (elements.length > 0) {
-                                    const index = elements[0].index;
-                                    const clickedLabel = chartUbic.data.labels[index];
-                                    const childNode = currentTree.children[clickedLabel];
-                                    if (childNode && Object.keys(childNode.children).length > 0) {
-                                        treeHistory.push(currentTree);
-                                        currentTree = childNode;
-                                        updateUbicacionesChart();
-                                    }
-                                }
-                            },
-                            onHover: (e, elements) => {
-                                const canvas = e.native ? e.native.target : e.target;
-                                if (elements.length > 0) {
-                                    const index = elements[0].index;
-                                    const clickedLabel = chartUbic.data.labels[index];
-                                    const childNode = currentTree.children[clickedLabel];
-                                    if (childNode && Object.keys(childNode.children).length > 0) {
-                                        canvas.style.cursor = 'pointer';
-                                        return;
-                                    }
-                                }
-                                canvas.style.cursor = 'default';
-                            }
-                        }
-                    });
-                }
-            }
+            globalTickets = chartData.raw_tickets || [];
             
-            updateUbicacionesChart();
+            updateAllCharts();
+        }
+        
+        window.ubicacionesGoBack = function() {
+            if (currentUbicacionPath.length > 0) {
+                currentUbicacionPath.pop();
+                updateAllCharts();
+            }
+        };
+
+        function updateAllCharts() {
+            // 1. Filtrar tickets basados en la jerarquía actual
+            const filteredTickets = globalTickets.filter(t => {
+                for (let i=0; i<currentUbicacionPath.length; i++) {
+                    if (t.u[i] !== currentUbicacionPath[i]) return false;
+                }
+                return true;
+            });
+            
+            // 2. Calcular Falla Counts & Tiempos
+            let fCounts = {};
+            let fTimes = {};
+            
+            // 3. Calcular Nodos Hijos de Ubicación
+            let uCounts = {};
+            const level = currentUbicacionPath.length;
+            
+            filteredTickets.forEach(t => {
+                // Frecuencia Fallas
+                fCounts[t.f] = (fCounts[t.f] || 0) + 1;
+                
+                // Tiempos
+                if (t.d !== null) {
+                    if (!fTimes[t.f]) fTimes[t.f] = [];
+                    fTimes[t.f].push(t.d);
+                }
+                
+                // Ubicación (siguiente nivel)
+                if (level < t.u.length) {
+                    const nextNode = t.u[level];
+                    if (!uCounts[nextNode]) uCounts[nextNode] = { count: 0, hasChildren: false };
+                    uCounts[nextNode].count++;
+                    if (level + 1 < t.u.length) uCounts[nextNode].hasChildren = true;
+                }
+            });
+            
+            // Formatear Top 10 Fallas
+            const topFallas = Object.entries(fCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
+            
+            // Formatear Top 10 Tiempos
+            const topTiempos = Object.entries(fTimes).map(([f, times]) => {
+                const avg = times.reduce((a,b)=>a+b,0) / times.length;
+                return [f, Math.round(avg * 10) / 10];
+            }).sort((a,b) => b[1]-a[1]).slice(0, 10);
+            
+            // Formatear Top 15 Ubicaciones
+            const topUbic = Object.entries(uCounts).sort((a,b) => b[1].count - a[1].count).slice(0, 15);
+            
+            drawFallas(topFallas.map(x=>x[0]), topFallas.map(x=>x[1]));
+            drawTiempos(topTiempos.map(x=>x[0]), topTiempos.map(x=>x[1]));
+            drawUbicaciones(topUbic);
+            
+            // UI Updates
+            const btnBack = document.getElementById('btn-back-ubicaciones');
+            const title = document.getElementById('ubicaciones-title');
+            if (level > 0) {
+                btnBack.style.display = 'inline-flex';
+                title.innerText = `Ubicaciones dentro de: ${currentUbicacionPath[level-1]}`;
+            } else {
+                btnBack.style.display = 'none';
+                title.innerText = `Ubicaciones principales con más fallas`;
+            }
+        }
+        
+        function drawFallas(labels, data) {
+            if (chartFallas) {
+                chartFallas.data.labels = labels;
+                chartFallas.data.datasets[0].data = data;
+                chartFallas.update();
+            } else {
+                chartFallas = new Chart(document.getElementById('chartFallas'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: data, backgroundColor: ['#0070f2', '#e9730c', '#107e3e', '#d22359', '#6c5ce7', '#00aed8', '#f39c12', '#8e44ad', '#2c3e50', '#16a085'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                });
+            }
+        }
+        
+        function drawTiempos(labels, data) {
+            if (chartTiempos) {
+                chartTiempos.data.labels = labels;
+                chartTiempos.data.datasets[0].data = data;
+                chartTiempos.update();
+            } else {
+                chartTiempos = new Chart(document.getElementById('chartTiempos'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: 'Horas Promedio', data: data, backgroundColor: '#e9730c', borderRadius: 4 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            }
+        }
+        
+        function drawUbicaciones(topUbic) {
+            const labels = topUbic.map(x=>x[0]);
+            const data = topUbic.map(x=>x[1].count);
+            const hasChildrenMap = topUbic.map(x=>x[1].hasChildren);
+            
+            if (chartUbic) {
+                chartUbic.data.labels = labels;
+                chartUbic.data.datasets[0].data = data;
+                chartUbic.data.hasChildrenMap = hasChildrenMap;
+                chartUbic.update();
+            } else {
+                chartUbic = new Chart(document.getElementById('chartUbicaciones'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: 'Cantidad de Tickets', data: data, backgroundColor: '#0070f2', borderRadius: 4 }],
+                        hasChildrenMap: hasChildrenMap
+                    },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                        onClick: (e, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                if (chartUbic.data.hasChildrenMap[index]) {
+                                    currentUbicacionPath.push(chartUbic.data.labels[index]);
+                                    updateAllCharts();
+                                }
+                            }
+                        },
+                        onHover: (e, elements) => {
+                            const canvas = e.native ? e.native.target : e.target;
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                if (chartUbic.data.hasChildrenMap[index]) {
+                                    canvas.style.cursor = 'pointer';
+                                    return;
+                                }
+                            }
+                            canvas.style.cursor = 'default';
+                        }
+                    }
+                });
+            }
         }
     </script>
 </body>

@@ -710,59 +710,36 @@ def cluster_tickets_view(request, cluster_id):
             return HttpResponse('Error al generar PDF', status=500)
         return response
 
-    # === Lógica para las Gráficas (Chart.js) ===
+    # === Lógica para las Gráficas (Chart.js) - Exportación Plana para PowerBI-like filter ===
     import json
-    falla_counts = {}
-    falla_tiempos = {}
+    raw_tickets = []
     
-    # Árbol Jerárquico de Ubicaciones
-    ubicaciones_tree = {"name": "Todas las Ubicaciones", "count": 0, "children": {}}
-
     for t in tickets:
         # Falla
         f_name = t.falla_reportada.nombre if t.falla_reportada else 'Sin Clasificar'
-        falla_counts[f_name] = falla_counts.get(f_name, 0) + 1
         
-        # Ubicación (Jerarquía)
+        # Ubicación (Lista jerárquica)
         ruta = t.ubicacion_jerarquica if hasattr(t, 'ubicacion_jerarquica') else (t.ubicacion.ruta_completa if t.ubicacion else (t.nivel or 'Otra'))
-        partes = [p.strip() for p in str(ruta).split('>')] if ruta else ['Otra']
         
-        ubicaciones_tree["count"] += 1
-        current = ubicaciones_tree["children"]
+        # Soportar separadores ' > ' y ' -> '
+        sep = '->' if '->' in str(ruta) else '>'
+        partes = [p.strip() for p in str(ruta).split(sep)] if ruta else ['Otra']
         
-        for i, parte in enumerate(partes):
-            if parte not in current:
-                current[parte] = {"name": parte, "count": 0, "children": {}}
-            current[parte]["count"] += 1
-            if i < len(partes) - 1:
-                current = current[parte]["children"]
-        
-        # Tiempos de Resolución Promedio
+        # Tiempos
+        duracion_horas = None
         if t.fecha_cierre and t.fecha_solicitud:
-            duracion_horas = (t.fecha_cierre - t.fecha_solicitud).total_seconds() / 3600.0
-            if duracion_horas >= 0:
-                if f_name not in falla_tiempos:
-                    falla_tiempos[f_name] = []
-                falla_tiempos[f_name].append(duracion_horas)
-
-    # Ordenar y tomar los Top 10 para Fallas y Tiempos
-    top_fallas = sorted(falla_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-    
-    promedios = {}
-    for f, tiempos in falla_tiempos.items():
-        promedios[f] = sum(tiempos) / len(tiempos)
-    top_tiempos = sorted(promedios.items(), key=lambda x: x[1], reverse=True)[:10]
+            dh = (t.fecha_cierre - t.fecha_solicitud).total_seconds() / 3600.0
+            if dh >= 0:
+                duracion_horas = dh
+                
+        raw_tickets.append({
+            'f': f_name,
+            'u': partes,
+            'd': duracion_horas
+        })
 
     chart_data = {
-        'fallas': {
-            'labels': [x[0] for x in top_fallas],
-            'data': [x[1] for x in top_fallas]
-        },
-        'ubicaciones_tree': ubicaciones_tree,
-        'tiempos': {
-            'labels': [x[0] for x in top_tiempos],
-            'data': [round(x[1], 1) for x in top_tiempos]
-        }
+        'raw_tickets': raw_tickets
     }
 
     context = {
