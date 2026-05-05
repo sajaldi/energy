@@ -2182,6 +2182,9 @@ def vectorize_cluster_tickets_ajax(request, cluster_id):
 @mobile_permission_required('mis_avisos')
 def mobile_ticket_cierre_view(request, pk):
     """Vista optimizada para cerrar un ticket desde dispositivos móviles."""
+    from django.utils import timezone
+    from datetime import datetime
+    
     ticket = get_object_or_404(SolicitudTicket, pk=pk)
     
     if request.method == 'POST':
@@ -2192,8 +2195,6 @@ def mobile_ticket_cierre_view(request, pk):
         fecha_cierre_str = request.POST.get('fecha_cierre')
         if fecha_cierre_str:
             try:
-                from django.utils import timezone
-                from datetime import datetime
                 dt = datetime.strptime(fecha_cierre_str, '%Y-%m-%dT%H:%M')
                 ticket.fecha_cierre = timezone.make_aware(dt)
             except:
