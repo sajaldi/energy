@@ -1147,8 +1147,8 @@
                     <select id="new-req-id" class="form-control">
                         <option value="">Seleccione una requisición...</option>
                         {% for req in requisiciones %}
-                        <option value="{{ req.pk }}" data-total="{{ req.cr8ca_totalenarticulos|default:0 }}"
-                            data-pagado="{{ req.monto_pagado_db|default:0 }}">
+                        <option value="{{ req.pk }}" data-total="{{ req.cr8ca_totalenarticulos|default:0|unlocalize }}"
+                            data-pagado="{{ req.monto_pagado_db|default:0|unlocalize }}">
                             {{ req.cr8ca_requisicion }} - {{ req.cr8ca_asunto|truncatechars:40 }}
                         </option>
                         {% endfor %}
@@ -1974,8 +1974,8 @@
 
                 if (selected && selected.id) {
                     const option = $(selected.element);
-                    const total = parseFloat(option.attr('data-total') || "0");
-                    const pagado = parseFloat(option.attr('data-pagado') || "0");
+                    const total = parseFloat((option.attr('data-total') || "0").replace(/,/g, ''));
+                    const pagado = parseFloat((option.attr('data-pagado') || "0").replace(/,/g, ''));
                     const saldo = total - pagado;
 
                     // Guardar valores en el input para el slider
