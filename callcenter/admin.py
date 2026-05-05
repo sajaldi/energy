@@ -160,7 +160,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
     autocomplete_fields = ('activo', 'usuario_responsable')
     date_hierarchy = 'fecha_solicitud'
     readonly_fields = ('creado_en', 'actualizado_en')
-    actions = ['analizar_con_ia']
+    actions = ['analizar_con_ia', 'exportar_a_excel']
 
     @admin.action(description="Analizar tickets con IA (n8n)")
     def analizar_con_ia(self, request, queryset):
@@ -170,6 +170,52 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
             vectorize_ticket_n8n.delay(ticket.id)
             count += 1
         self.message_user(request, f"Se han enviado {count} tickets a n8n para análisis semántico.")
+
+    @admin.action(description="Exportar tickets seleccionados a Excel (Masivo)")
+    def exportar_a_excel(self, request, queryset):
+        import tablib
+        from django.http import HttpResponse
+        
+        headers = [
+            'ID', 'Folio', 'ID Solicitud', 'Solicitante', 'Usuario Responsable', 
+            'Ubicación Física', 'Servicio', 'Área', 'Activo Relacionado', 
+            'Serie Activo', 'Deductiva (USD)', 'Fecha Solicitud', 'Fecha Cierre', 
+            'Falla Reportada', 'Diagnóstico', 'Actividades', 'Observaciones', 'Estado'
+        ]
+        
+        data = tablib.Dataset(headers=headers)
+        
+        # Optimizamos con select_related para evitar el problema N+1 queries al exportar miles de tickets
+        queryset = queryset.select_related('ubicacion', 'usuario_responsable', 'activo', 'falla_reportada')
+        
+        for t in queryset:
+            data.append((
+                t.id,
+                t.folio or '',
+                t.id_solicitud or '',
+                t.solicitante or '',
+                t.usuario_responsable.get_full_name() if t.usuario_responsable else '',
+                t.ubicacion.nombre if t.ubicacion else '',
+                t.servicio or '',
+                t.area or '',
+                t.activo.nombre if t.activo else '',
+                t.activo.serie if t.activo else '',
+                str(t.deductiva) if t.deductiva else '0.00',
+                t.fecha_solicitud.strftime("%Y-%m-%d %H:%M") if t.fecha_solicitud else '',
+                t.fecha_cierre.strftime("%Y-%m-%d %H:%M") if t.fecha_cierre else '',
+                t.falla_reportada.nombre if t.falla_reportada else '',
+                t.diagnostico or '',
+                t.actividades or '',
+                t.observaciones or '',
+                'Cerrado' if t.fecha_cierre else 'Abierto'
+            ))
+            
+        response = HttpResponse(
+            data.export('xlsx'), 
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="Exportacion_Masiva_Tickets.xlsx"'
+        return response
 
     def get_readonly_fields(self, request, obj=None):
         ro = list(self.readonly_fields)
