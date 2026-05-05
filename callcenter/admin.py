@@ -177,7 +177,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
         from django.http import HttpResponse
         
         headers = [
-            'ID', 'Folio', 'ID Solicitud', 'Solicitante', 'Usuario Responsable', 
+            'ID', 'Folio', 'ID Solicitud', 'Solicitante', 'Asignado', 'Usuario Responsable', 
             'Ubicación Física', 'Servicio', 'Área', 'Activo Relacionado', 
             'Serie Activo', 'Deductiva (USD)', 'Fecha Solicitud', 'Fecha Cierre', 
             'Falla Reportada', 'Diagnóstico', 'Actividades', 'Observaciones', 'Estado'
@@ -197,6 +197,7 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
                 t.folio or '',
                 t.id_solicitud or '',
                 t.solicitante or '',
+                t.responsable or '',
                 t.usuario_responsable.get_full_name() if t.usuario_responsable else '',
                 t.ubicacion.nombre if t.ubicacion else '',
                 t.servicio or '',
