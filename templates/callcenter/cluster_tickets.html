@@ -209,7 +209,54 @@
             </div>
         </div>
 
-        <div class="list-container">
+        <!-- Tabs -->
+        <style>
+            .tab-btn {
+                background: none; border: none; padding: 0.5rem 1rem; font-size: 1rem; font-weight: 600;
+                color: #666; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
+            }
+            .tab-btn.active {
+                color: var(--sap-primary);
+                border-bottom-color: var(--sap-primary);
+            }
+            .chart-card {
+                background: white; border-radius: var(--sap-radius); border: 1px solid var(--sap-border);
+                padding: 1.5rem; box-shadow: var(--sap-shadow);
+            }
+        </style>
+        <div style="display: flex; gap: 1rem; border-bottom: 2px solid #eee; margin-bottom: 1.5rem;">
+            <button class="tab-btn active" id="btn-tab-listado" onclick="switchTab('listado')"><i class="ph ph-list-dashes"></i> Listado de Tickets</button>
+            <button class="tab-btn" id="btn-tab-analisis" onclick="switchTab('analisis')"><i class="ph ph-chart-pie"></i> Análisis (Gráficas)</button>
+        </div>
+
+        <!-- Tab Análisis -->
+        <div id="tab-analisis" style="display: none;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                <div class="chart-card">
+                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Distribución por Tipo de Falla</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartFallas"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Tiempos de Resolución Promedio (Horas)</h3>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="chartTiempos"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card" style="grid-column: 1 / -1;">
+                    <h3 style="margin-top: 0; color: #444; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 1rem;">Ubicaciones con más Fallas</h3>
+                    <div style="position: relative; height: 350px; width: 100%;">
+                        <canvas id="chartUbicaciones"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Listado -->
+        <div id="tab-listado" class="list-container">
             <table class="visual-table">
                 <thead>
                     <tr>
@@ -632,6 +679,92 @@
                 }
             }
         }
+        }
+
+        // ============================
+        // Lógica de Pestañas y Gráficas
+        // ============================
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-tab-' + tabId).classList.add('active');
+            
+            if (tabId === 'listado') {
+                document.getElementById('tab-listado').style.display = 'block';
+                document.getElementById('tab-analisis').style.display = 'none';
+            } else {
+                document.getElementById('tab-listado').style.display = 'none';
+                document.getElementById('tab-analisis').style.display = 'block';
+                renderCharts(); // Renderizar solo al abrir la pestaña para evitar bugs visuales
+            }
+        }
+
+        let chartsRendered = false;
+        function renderCharts() {
+            if (chartsRendered) return;
+            chartsRendered = true;
+
+            const rawData = `{{ chart_data_json|safe }}`;
+            if (!rawData || rawData === '""') return;
+            
+            const chartData = JSON.parse(rawData);
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            };
+
+            // 1. Gráfica de Fallas (Doughnut)
+            new Chart(document.getElementById('chartFallas'), {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.fallas.labels,
+                    datasets: [{
+                        data: chartData.fallas.data,
+                        backgroundColor: ['#0070f2', '#e9730c', '#107e3e', '#d22359', '#6c5ce7', '#00aed8', '#f39c12', '#8e44ad', '#2c3e50', '#16a085']
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } }
+                }
+            });
+
+            // 2. Gráfica de Tiempos de Resolución (Bar)
+            new Chart(document.getElementById('chartTiempos'), {
+                type: 'bar',
+                data: {
+                    labels: chartData.tiempos.labels,
+                    datasets: [{
+                        label: 'Horas Promedio',
+                        data: chartData.tiempos.data,
+                        backgroundColor: '#e9730c',
+                        borderRadius: 4
+                    }]
+                },
+                options: commonOptions
+            });
+
+            // 3. Gráfica de Ubicaciones (Barra Horizontal)
+            new Chart(document.getElementById('chartUbicaciones'), {
+                type: 'bar',
+                data: {
+                    labels: chartData.ubicaciones.labels,
+                    datasets: [{
+                        label: 'Cantidad de Tickets',
+                        data: chartData.ubicaciones.data,
+                        backgroundColor: '#0070f2',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>
