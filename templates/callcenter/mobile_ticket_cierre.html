@@ -281,7 +281,8 @@
                 if (res.ok) {
                     // 2. Subir Evidencias (Usamos el endpoint existente que ya recibe múltiples archivos)
                     if (selectedFiles.length > 0) {
-                        const uploadRes = await fetch("{% url 'callcenter:upload_evidencia_ajax' ticket.id %}", {
+                        // Usar la ruta correcta upload_evidencia_visual
+                        const uploadRes = await fetch("{% url 'callcenter:upload_evidencia_visual' ticket.id %}", {
                             method: 'POST',
                             body: formData,
                             headers: { 'X-CSRFToken': '{{ csrf_token }}' }
