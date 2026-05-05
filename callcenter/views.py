@@ -904,14 +904,26 @@ def wizard_cluster_view(request):
         
         depto = get_object_or_404(Departamento, id=depto_id)
         
+        # Procesar folios manuales
+        manual_folios_raw = request.POST.get('manual_folios', '')
+        import re
+        manual_folios = re.split(r'[\s,]+', manual_folios_raw)
+        manual_folios = [f.strip() for f in manual_folios if f.strip()]
+
         # 1. Buscar Fallas del Catálogo vinculadas al departamento
         fallas_ids = FallaTicket.objects.filter(departamento_responsable=depto).values_list('id', flat=True)
         
-        # 2. Buscar Tickets
-        tickets_qs = SolicitudTicket.objects.filter(
-            falla_reportada_id__in=fallas_ids,
-            fecha_solicitud__range=(fecha_inicio, fecha_fin)
-        ).select_related('falla_reportada', 'falla_reportada__usuario_responsable', 'ubicacion', 'usuario_responsable')
+        # 2. Construir Filtro
+        # Por defecto: Por departamento y rango de fechas
+        q_filter = Q(falla_reportada_id__in=fallas_ids, fecha_solicitud__range=(fecha_inicio, fecha_fin))
+        
+        # Opcional: Agregar folios pegados manualmente
+        if manual_folios:
+            q_filter |= Q(folio__in=manual_folios) | Q(id_solicitud__in=manual_folios)
+
+        tickets_qs = SolicitudTicket.objects.filter(q_filter).select_related(
+            'falla_reportada', 'falla_reportada__usuario_responsable', 'ubicacion', 'usuario_responsable'
+        ).distinct()
         
         if action == 'preview':
             return render(request, 'callcenter/wizard_cluster.html', {
@@ -922,6 +934,7 @@ def wizard_cluster_view(request):
                 'tickets_count': tickets_qs.count(),
                 'tickets_preview': tickets_qs[:50], 
                 'preview_mode': True,
+                'manual_folios_raw': manual_folios_raw,
                 'title': 'Previsualización del Cluster',
                 'now': now_str,
                 'existing_cluster': existing_cluster
