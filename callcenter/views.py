@@ -453,7 +453,7 @@ def ticket_search_view(request):
                     # 3. Buscar tickets similares con filtros
                     resultados = SolicitudTicket.buscar_vectorial(
                         query_embedding, 
-                        limit=15, 
+                        limit=100, 
                         filters=filtros_adicionales
                     )
                     
