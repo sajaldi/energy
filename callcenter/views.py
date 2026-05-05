@@ -2179,7 +2179,7 @@ def vectorize_cluster_tickets_ajax(request, cluster_id):
 
 
 @staff_member_required
-@mobile_permission_required('callcenter')
+@mobile_permission_required('mis_avisos')
 def mobile_ticket_cierre_view(request, pk):
     """Vista optimizada para cerrar un ticket desde dispositivos móviles."""
     ticket = get_object_or_404(SolicitudTicket, pk=pk)
