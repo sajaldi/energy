@@ -1007,6 +1007,26 @@ def mobile_ot_webhook(request, pk):
             # Unir con punto y coma para compatibilidad con sistemas de correo (Power Automate, Outlook, etc)
             departamento_emails = ";".join(list(usuarios_dept.values_list('email', flat=True)))
 
+        from django.utils import timezone # Reload forced at 2026-05-04 20:29
+        
+        # 4. Obtener Activos asociados (De la OT o del Aviso vinculado como fallback)
+        activos_qs = list(ot.activos.values_list('nombre', flat=True))
+        if not activos_qs and ot.aviso and ot.aviso.activo:
+            activos_qs = [ot.aviso.activo.nombre]
+        activos_nombres = ", ".join(activos_qs) if activos_qs else "No especificados"
+
+        # 5. Fechas formateadas para evitar líos de zona horaria en Power Automate
+        inicio_local = timezone.localtime(ot.inicio_programado)
+        fin_local = timezone.localtime(ot.fin_programado)
+        termino_local = timezone.localtime(ot.fecha_ejecucion) if ot.fecha_ejecucion else None
+
+        # 6. Obtener nombre del Técnico Líder (Prioridad: Personal asignado > Usuario > No asignado)
+        nombre_tecnico = "No asignado"
+        if ot.tecnico_puesto:
+            nombre_tecnico = ot.tecnico_puesto.nombre
+        elif ot.tecnico:
+            nombre_tecnico = ot.tecnico.get_full_name() or ot.tecnico.username
+
         data = {
             'event': 'ot_report_sent',
             'ot_id': ot.id,
@@ -1016,11 +1036,18 @@ def mobile_ot_webhook(request, pk):
             'fecha_termino': str(ot.fecha_ejecucion.isoformat()) if ot.fecha_ejecucion else "",
             'inicio_programado': str(ot.inicio_programado.isoformat()) if ot.inicio_programado else "",
             'fin_programado': str(ot.fin_programado.isoformat()) if ot.fin_programado else "",
-            'tecnico_lider': str(ot.tecnico.get_full_name() if ot.tecnico else "No asignado"),
+            
+            # Campos de texto pre-formateados (Recomendado para Power Automate)
+            'inicio_str': inicio_local.strftime('%d/%m/%Y %H:%M'),
+            'fin_str': fin_local.strftime('%d/%m/%Y %H:%M'),
+            'termino_str': termino_local.strftime('%d/%m/%Y %H:%M') if termino_local else "Pendiente / En Ejecución",
+
+            'tecnico_lider': str(nombre_tecnico),
             'tecnicos_equipo': str(tecnicos_nombres),
             'tecnico_dni': str(tecnico_dni),
-            'tecnico_empresa': str(tecnico_empresa),
+            'tecnico_empresa': str(empresa_final),
             'supervisor': str(ot.supervisor.get_full_name() if ot.supervisor else "No asignado"),
+            'activos': str(activos_nombres),
             'ubicacion': str(ot.ubicacion.nombre if ot.ubicacion else "No especificada"),
             'ubicacion_completa': str(ot.ubicacion.get_ruta_completa() if ot.ubicacion else "No especificada"),
             'descripcion_corta': str(ot.descripcion_corta or (ot.rutina.nombre if ot.rutina else "OT Correctiva")),

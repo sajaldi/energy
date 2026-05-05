@@ -72,10 +72,12 @@ def punto_medicion_qr_pdf(request, pk):
     from django.template.loader import get_template
     from xhtml2pdf import pisa
     from activos.models import PuntoMedicion
+    from django.conf import settings
     
     punto = get_object_or_404(PuntoMedicion, pk=pk)
     
-    qr_data = f"PM-{punto.id}"
+    base_url = settings.SITE_URL.rstrip('/')
+    qr_data = f"{base_url}/activos/app/buscar/?q=PM-{punto.id}"
     
     qr = qrcode.QRCode(version=1, box_size=5, border=1)
     qr.add_data(qr_data)

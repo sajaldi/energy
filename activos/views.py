@@ -1665,8 +1665,13 @@ def qr_generator_pdf(request):
                 formatted_num = str(i).zfill(digits)
                 codigo = f"{prefix}{formatted_num}"
                 
+                # Construir URL completa para el QR
+                base_url = settings.SITE_URL.rstrip('/')
+                # Si es una ubicación (UBC) o activo (INV), enviamos al buscador que redirige automáticamente
+                qr_content = f"{base_url}/activos/app/buscar/?q={codigo}"
+                
                 qr = qrcode.QRCode(version=1, box_size=10, border=0)
-                qr.add_data(codigo)
+                qr.add_data(qr_content)
                 qr.make(fit=True)
                 img = qr.make_image(fill_color="black", back_color="white")
                 

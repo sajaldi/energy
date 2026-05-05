@@ -134,13 +134,22 @@ N8N_OT_WEBHOOK_URL = os.environ.get(
 )
 
 # --- URL del Sitio para Callbacks ---
-if os.environ.get('COOLIFY_FQDN'):
+# Priorizar SITE_URL de entorno si existe, sino usar Coolify o localhost
+env_site_url = os.environ.get('SITE_URL')
+
+if env_site_url:
+    SITE_URL = env_site_url
+elif os.environ.get('COOLIFY_FQDN'):
+    # Si estamos en Coolify pero no hay SITE_URL manual, usar el FQDN de Coolify
     SITE_URL = f"https://{os.environ.get('COOLIFY_FQDN')}"
+else:
+    SITE_URL = 'http://localhost:8000'
+
+# Configuración de URL interna
+if os.environ.get('COOLIFY_FQDN'):
     INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://kgogwsw00cwcw8g0wk0gsogg:8000')
 else:
-    SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
     if IS_LOCAL:
-        # Callback para n8n remoto (vía túnel reverso si aplica)
         INTERNAL_SITE_URL = os.environ.get('INTERNAL_SITE_URL', 'http://181.115.47.107:8000')
     else:
         INTERNAL_SITE_URL = SITE_URL
