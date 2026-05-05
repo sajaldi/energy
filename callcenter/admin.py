@@ -185,10 +185,13 @@ class SolicitudTicketAdmin(admin.ModelAdmin):
         
         data = tablib.Dataset(headers=headers)
         
-        # Optimizamos con select_related para evitar el problema N+1 queries al exportar miles de tickets
-        queryset = queryset.select_related('ubicacion', 'usuario_responsable', 'activo', 'falla_reportada')
+        # Obtenemos un QuerySet limpio ignorando el .only() del changelist original para evitar FieldError
+        from .models import SolicitudTicket
+        clean_queryset = SolicitudTicket.objects.filter(id__in=queryset.values('id')).select_related(
+            'ubicacion', 'usuario_responsable', 'activo', 'falla_reportada'
+        )
         
-        for t in queryset:
+        for t in clean_queryset:
             data.append((
                 t.id,
                 t.folio or '',
