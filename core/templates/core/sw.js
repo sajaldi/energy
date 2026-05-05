@@ -13,7 +13,21 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-    event.waitUntil(clients.claim()); // Tomar control de las páginas inmediatamente
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('[Service Worker] Borrando caché vieja:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => {
+            console.log('[Service Worker] Activado y listo.');
+            return clients.claim();
+        })
+    );
 });
 
 self.addEventListener('fetch', event => {
