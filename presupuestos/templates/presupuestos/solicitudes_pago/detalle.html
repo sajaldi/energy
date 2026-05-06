@@ -1,19 +1,18 @@
-{% extends "admin/base_site.html" %}
-{% load static humanize l10n presupuesto_tags %}
-
-{% block extrahead %}
-{{ block.super }}
-<link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
-<script src="https://unpkg.com/@phosphor-icons/web"></script>
-<!-- SweetAlert2 para feedback -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<!-- jQuery y Select2 -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitud de Pago: {{ solicitud.codigo }}</title>
+    {% load static humanize l10n presupuesto_tags %}
+    
+    <link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         #content { padding: 0 !important; background: #f5f6f7 !important; }
@@ -46,21 +45,47 @@
             font-family: var(--fiori-font) !important;
             background: var(--fiori-bg) !important;
             color: var(--fiori-text);
+            font-size: 0.875rem;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Shell Header */
+        .fiori-shell {
+            height: 48px;
+            background: #354a5f;
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .fiori-shell-logo {
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: white;
+            text-decoration: none;
         }
 
         .detail-container {
-            width: 95%;
-            max-width: 1800px;
-            margin: 0 auto;
-            padding-bottom: 5rem;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            padding: 0 2rem 5rem 2rem;
         }
 
         .info-card {
             background: var(--fiori-bg-card);
-            padding: 1.5rem 2rem;
+            padding: 1.25rem 1.5rem;
             border-radius: var(--fiori-radius);
             box-shadow: var(--fiori-shadow-card);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             border: 1px solid var(--fiori-border);
         }
 
@@ -69,29 +94,29 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--fiori-border);
-            padding-bottom: 1rem;
-            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.75rem;
         }
 
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
         }
 
         .info-item label {
             display: block;
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             color: var(--fiori-text-secondary);
             text-transform: uppercase;
             font-weight: 700;
             letter-spacing: 0.03em;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.15rem;
         }
 
         .info-item span {
-            font-size: 1rem;
-            font-weight: 500;
+            font-size: 0.9rem;
+            font-weight: 600;
             color: var(--fiori-text);
         }
 
@@ -101,7 +126,7 @@
             box-shadow: var(--fiori-shadow-card);
             border: 1px solid var(--fiori-border);
             overflow: visible;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .items-table {
@@ -112,8 +137,8 @@
         .items-table th {
             background-color: #f5f6f7;
             text-align: left;
-            padding: 0.75rem 1rem;
-            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.65rem;
             font-weight: 700;
             color: var(--fiori-text-secondary);
             text-transform: uppercase;
@@ -122,9 +147,9 @@
         }
 
         .items-table td {
-            padding: 0.625rem 1rem;
+            padding: 0.5rem 0.75rem;
             border-bottom: 1px solid #ededed;
-            font-size: 0.875rem;
+            font-size: 0.8rem;
         }
 
         .items-table tbody tr:hover {
@@ -134,12 +159,12 @@
         /* Estilos para inputs editables */
         .editable-input {
             width: 100%;
-            padding: 0.375rem 0.5rem;
+            padding: 0.25rem 0.4rem;
             border: 1px solid transparent;
             background: transparent;
             border-radius: var(--fiori-radius-sm);
             font-family: var(--fiori-font);
-            font-size: 0.875rem;
+            font-size: 0.8rem;
             color: var(--fiori-text);
             transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
         }
@@ -157,16 +182,36 @@
         }
 
         .amount-input {
-            font-weight: 600;
+            font-weight: 700;
             text-align: right;
-            max-width: 150px;
+            max-width: none;
+            border: none !important;
+            background: transparent !important;
+            padding: 0.25rem 0.5rem !important;
+            width: 100%;
+            min-width: 100px;
+            white-space: nowrap;
+        }
+
+        .amount-input:hover {
+            background: rgba(10, 110, 209, 0.05) !important;
+            border-radius: var(--fiori-radius-sm);
+        }
+
+        .amount-input:focus {
+            outline: none;
+            border: 1px solid var(--fiori-brand) !important;
+            background: var(--fiori-bg-card) !important;
+            padding: 0.25rem 0.5rem !important;
+            box-shadow: 0 0 0 2px rgba(10,110,209,0.16);
+            border-radius: var(--fiori-radius-sm);
         }
 
         .provider-header {
             background-color: #f5f6f7;
             font-weight: 700;
             color: var(--fiori-text);
-            font-size: 0.875rem;
+            font-size: 0.825rem;
             border-left: 4px solid var(--fiori-brand);
             cursor: pointer;
             transition: background-color 0.15s;
@@ -499,14 +544,20 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            display: none; /* JS activará con .active */
             justify-content: center;
             align-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(2px);
+            z-index: 999999 !important;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex !important;
         }
 
         .modal-content {
@@ -520,6 +571,12 @@
             flex-direction: column;
             box-shadow: var(--fiori-shadow-dialog);
             border: 1px solid var(--fiori-border);
+        }
+
+        #req-modal .modal-content {
+            width: 96% !important;
+            max-width: 1700px !important;
+            height: 94vh !important;
         }
 
         .modal-header {
@@ -895,10 +952,86 @@
             text-align: right;
             color: var(--fiori-text);
         }
-    </style>
-{% endblock %}
 
-{% block content %}
+        /* Fix Select2 in Admin */
+        .select2-container--default .select2-selection--single {
+            height: 38px !important;
+            border: 1px solid var(--fiori-border) !important;
+            border-radius: 4px !important;
+            display: flex;
+            align-items: center;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 38px !important;
+            padding-left: 12px !important;
+            color: var(--fiori-text) !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px !important;
+        }
+        .select2-dropdown {
+            border: 1px solid var(--fiori-border) !important;
+            box-shadow: var(--fiori-shadow-popover) !important;
+            z-index: 9999 !important;
+        }
+        .select2-search__field {
+            padding: 8px !important;
+            border: 1px solid var(--fiori-border) !important;
+            border-radius: 4px !important;
+            outline: none !important;
+        }
+
+        /* Custom Search Dropdown */
+        .search-results-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--fiori-border);
+            border-radius: 0 0 4px 4px;
+            box-shadow: var(--fiori-shadow-popover);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 2px;
+        }
+        .search-result-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+        .search-result-item:hover {
+            background: var(--fiori-hover-bg);
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        .search-result-title {
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: var(--fiori-brand);
+            display: block;
+        }
+        .search-result-subtitle {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <header class="fiori-shell">
+        <a href="/" class="fiori-shell-logo">
+            <i class="ph-fill ph-circles-three-plus" style="font-size: 1.5rem;"></i>
+            <span>Softcom Energy</span>
+        </a>
+        <div style="margin-left: 2rem; display: flex; gap: 1.5rem; font-size: 0.85rem;">
+            <a href="/admin/" style="color: #d1e4f5; text-decoration: none;">Administración</a>
+            <a href="{% url 'presupuestos:dashboard_pagos' %}" style="color: #d1e4f5; text-decoration: none;">Solicitudes de Pago</a>
+        </div>
+    </header>
 
     <!-- Context Menu -->
     <div id="provider-context-menu" class="context-menu">
@@ -1011,8 +1144,8 @@
                         <th>Descripción del Pago</th>
                         <th style="width: 120px;">Condición</th>
                         <th style="width: 120px;">Estatus</th>
-                        <th style="width: 110px; text-align: right;">Monto</th>
-                        <th style="width: 110px; text-align: right;">Pagado RQ</th>
+                        <th style="text-align: right; white-space: nowrap;">Monto</th>
+                        <th style="text-align: right; white-space: nowrap;">Pagado RQ</th>
                         <th style="width: 100px; text-align: center;">Avance</th>
                         <th style="width: 100px; text-align: center;">Acciones</th>
                     </tr>
@@ -1140,15 +1273,15 @@
             <div class="add-row-section">
                 <div class="form-group" style="flex: 2;">
                     <label>Requisición Pendiente</label>
-                    <select id="new-req-id" class="form-control">
-                        <option value="">Seleccione una requisición...</option>
-                        {% for req in requisiciones %}
-                        <option value="{{ req.pk }}" data-total="{{ req.cr8ca_totalenarticulos|default:0|unlocalize }}"
-                            data-pagado="{{ req.monto_pagado_db|default:0|unlocalize }}">
-                            {{ req.cr8ca_requisicion }} - {{ req.cr8ca_asunto|truncatechars:40 }}
-                        </option>
-                        {% endfor %}
-                    </select>
+                    <div style="position: relative; width: 100%;">
+                        <input type="text" id="req-search-input" class="form-control" 
+                               placeholder="Escriba código, asunto o proveedor..." 
+                               autocomplete="off" style="width: 100%;">
+                        <input type="hidden" id="new-req-id" name="requisicion_id">
+                        <div id="req-search-results" class="search-results-dropdown" style="display: none;">
+                            <!-- Resultados de búsqueda aquí -->
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group" style="flex: 2;">
                     <label>Descripción del Pago</label>
@@ -1325,103 +1458,7 @@
         </div>
     </div>
 
-    <div id="req-modal" class="modal-overlay" onclick="closeModal(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-header">
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <i class="ph ph-file-text" style="font-size: 1.5rem; color: var(--primary);"></i>
-                    <h2 id="modal-title" style="margin: 0; font-size: 1.25rem;">Cargando...</h2>
-                </div>
-                <button onclick="closeModal()"
-                    style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8;">
-                    <i class="ph ph-x"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="modal-grid">
-                    <div>
-                        <label
-                            style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 600;">PROVEEDOR</label>
-                        <span id="modal-proveedor" style="font-weight: 600;">-</span>
-                    </div>
-                    <div>
-                        <label
-                            style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 600;">ASUNTO</label>
-                        <span id="modal-asunto">-</span>
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 600;">TOTAL
-                            ESTIMADO</label>
-                        <span id="modal-total-est" style="color: var(--primary); font-weight: 700;">-</span>
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 0.75rem; color: #64748b; font-weight: 600;">TOTAL
-                            PAGADO</label>
-                        <span id="modal-total-pag" style="color: #059669; font-weight: 700;">-</span>
-                    </div>
-                </div>
-
-                <div
-                    style="margin-bottom: 2rem; padding: 1rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.5rem;">
-                    <label
-                        style="display: block; font-size: 0.75rem; color: #92400e; font-weight: 700; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                        <i class="ph ph-note" style="vertical-align: middle;"></i> Comentarios y Notas Internas
-                    </label>
-                    <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
-                        <textarea id="modal-comentarios"
-                            style="flex: 1; min-height: 80px; padding: 0.75rem; border: 1px solid #fcd34d; border-radius: 0.4rem; font-family: inherit; font-size: 0.9rem; resize: vertical; background: white;"
-                            placeholder="Agregar notas o comentarios sobre esta requisición..."></textarea>
-                        <button onclick="saveRequisitionComments(event)" id="modal-save-comments"
-                            style="background: #d97706; color: white; border: none; border-radius: 0.4rem; padding: 0.75rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;"
-                            title="Guardar comentarios">
-                            <i class="ph ph-floppy-disk" style="font-size: 1.25rem;"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <h3
-                    style="font-size: 1rem; margin-top: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem;">
-                    <i class="ph ph-chart-bar"></i> Línea de Tiempo de Pagos
-                </h3>
-                <div style="height: 180px; margin-bottom: 2rem;">
-                    <canvas id="requisitionTimelineChart"></canvas>
-                </div>
-
-                <h3
-                    style="font-size: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem;">
-                    <i class="ph ph-shopping-cart"></i> Artículos de la Requisición
-                </h3>
-                <table class="modal-table">
-                    <thead>
-                        <tr>
-                            <th>Descripción</th>
-                            <th style="text-align: center;">Cant.</th>
-                            <th style="text-align: right;">Costo</th>
-                            <th style="text-align: right;">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody id="modal-articulos-body"></tbody>
-                </table>
-
-                <h3
-                    style="font-size: 1rem; margin-top: 2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem;">
-                    <i class="ph ph-currency-dollar"></i> Historial de Pagos (Todas las solicitudes)
-                </h3>
-                <table class="modal-table">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Solicitud #</th>
-                            <th>Descripción Pago</th>
-                            <th style="text-align: right;">Monto</th>
-                            <th style="text-align: center;">Estatus</th>
-                        </tr>
-                    </thead>
-                    <tbody id="modal-pagos-body"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    <!-- Modal removido de aquí -->
 
     <!-- Nuevo Modal para Desglose de Gráficos -->
     <div id="graph-detail-modal" class="modal-overlay" onclick="closeGraphModal(event)">
@@ -1455,22 +1492,7 @@
         </div>
     </div>
 
-    <!-- Menú Contextual para Proveedores -->
-    <div id="provider-context-menu" class="context-menu">
-        <div class="context-menu-item" onclick="viewProviderDetails()">
-            <i class="ph ph-buildings"></i> Ver Detalles del Proveedor
-        </div>
-    </div>
-
-    <!-- Menú Contextual para Requisiciones -->
-    <div id="requisition-context-menu" class="context-menu">
-        <div class="context-menu-item" onclick="viewRequisitionDetailsFromCtx()">
-            <i class="ph ph-eye"></i> Ver Requisición
-        </div>
-        <div class="context-menu-item" onclick="openBudgetEditModal()">
-            <i class="ph ph-pencil-line"></i> Editar Presupuesto
-        </div>
-    </div>
+    <!-- Menús removidos de aquí -->
 
     <!-- Modal para Editar Presupuesto de Requisición -->
     <div id="budget-edit-modal" class="modal-overlay" onclick="closeBudgetModal(event)">
@@ -1509,6 +1531,23 @@
     </div>
 
     <script>
+        // Configuración de CSRF para fetch
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
         // Formato moneda para JS
         const currencyFormatter = new Intl.NumberFormat('en-US', {
             style: 'decimal',
@@ -1520,9 +1559,17 @@
         let timelineChart = null;
 
         async function openRequisitionModal(reqId) {
+            console.log("Abriendo modal para:", reqId);
             const modal = document.getElementById('req-modal');
+            if (!modal) {
+                console.error("No se encontró #req-modal");
+                return;
+            }
             const title = document.getElementById('modal-title');
-            modal.style.display = 'flex';
+            modal.classList.add('active');
+            
+            // Forzar reflow para asegurar que display:flex se aplique
+            modal.offsetHeight; 
 
             title.textContent = 'Cargando...';
             document.getElementById('modal-articulos-body').innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando...</td></tr>';
@@ -1539,9 +1586,17 @@
                 const data = await response.json();
 
                 title.textContent = data.codigo;
-                document.getElementById('modal-proveedor').textContent = data.proveedor;
-                document.getElementById('modal-asunto').textContent = data.asunto;
-                document.getElementById('modal-total-est').textContent = formatCurrency(data.total_estimado);
+                const provSelect = jQuery('#modal-proveedor-select');
+                if (provSelect.length) {
+                    provSelect.val(data.proveedor_id || "").trigger('change');
+                }
+                
+                const asuntoInput = document.getElementById('modal-asunto-input');
+                if (asuntoInput) asuntoInput.value = data.asunto;
+                
+                const montoInput = document.getElementById('modal-total-est-input');
+                if (montoInput) montoInput.value = data.total_estimado;
+
                 document.getElementById('modal-total-pag').textContent = formatCurrency(data.total_pagado);
 
                 // Comentarios
@@ -1627,11 +1682,63 @@
 
         function closeModal(e) {
             if (!e || e.target === document.getElementById('req-modal')) {
-                document.getElementById('req-modal').style.display = 'none';
+                document.getElementById('req-modal').classList.remove('active');
                 if (timelineChart) {
                     timelineChart.destroy();
                     timelineChart = null;
                 }
+            }
+        }
+
+        async function saveRequisitionEdits(event) {
+            const btn = event.currentTarget;
+            const textarea = document.getElementById('modal-comentarios');
+            const reqId = textarea.dataset.reqId;
+            
+            if (!reqId) return;
+
+            const provider_id = document.getElementById('modal-proveedor-select').value;
+            const asunto = document.getElementById('modal-asunto-input').value;
+            const monto = document.getElementById('modal-total-est-input').value;
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.innerHTML = '<i class="ph ph-circle-notch" style="animation: spin 1s linear infinite;"></i>';
+
+            try {
+                const response = await fetch(`/presupuestos/api/requisicion/${reqId}/update-detalle/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({ 
+                        proveedor_id,
+                        asunto,
+                        monto
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    btn.style.background = '#059669';
+                    btn.innerHTML = '<i class="ph ph-check"></i>';
+                    
+                    // Si el proveedor cambió, necesitamos recargar para actualizar grupos
+                    // Podríamos detectar si cambió, pero por simplicidad recargamos siempre tras éxito sutil
+                    setTimeout(() => {
+                        location.reload();
+                    }, 800);
+                } else {
+                    throw new Error(data.message || 'Error al guardar');
+                }
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', error.message, 'error');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                btn.style.opacity = '1';
             }
         }
 
@@ -1679,22 +1786,6 @@
                 btn.style.opacity = '1';
             }
         }
-        // Configuración de CSRF para fetch
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-        const csrftoken = getCookie('csrftoken');
         // Context Menu Logic
         let currentCtxProviderId = null;
         let currentCtxRequisitionId = null;
@@ -1935,14 +2026,92 @@
             }
         }
 
-        // Inicializar Select2
-        $(document).ready(function () {
-            $('#new-req-id').select2({
-                placeholder: "Buscar o seleccionar requisición...",
-                allowClear: true,
-                width: '100%'
+        // Lógica de búsqueda personalizada (Text Box)
+        jQuery(document).ready(function () {
+            const searchInput = jQuery('#req-search-input');
+            const resultsDiv = jQuery('#req-search-results');
+            const hiddenId = jQuery('#new-req-id');
+            const badge = jQuery('#pending-badge');
+            const slider = jQuery('#payment-slider');
+            const pctLabel = jQuery('#slider-pct');
+            let searchTimeout;
+
+            searchInput.on('input', function() {
+                const term = jQuery(this).val();
+                clearTimeout(searchTimeout);
+
+                if (term.length < 2) {
+                    resultsDiv.hide();
+                    return;
+                }
+
+                searchTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`{% url 'presupuestos:api_search_requisiciones' %}?q=${encodeURIComponent(term)}`);
+                        const data = await response.json();
+                        
+                        let html = '';
+                        if (data.results.length > 0) {
+                            data.results.forEach(res => {
+                                html += `
+                                    <div class="search-result-item" 
+                                         data-id="${res.id}" 
+                                         data-total="${res.total}" 
+                                         data-pagado="${res.pagado}"
+                                         data-text="${res.text}">
+                                        <span class="search-result-title">${res.text}</span>
+                                        <span class="search-result-subtitle">${res.asunto}</span>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            html = '<div style="padding: 15px; color: #666; font-style: italic;">No se encontraron resultados</div>';
+                        }
+                        resultsDiv.html(html).show();
+                    } catch (err) {
+                        console.error('Error en búsqueda:', err);
+                    }
+                }, 300);
             });
-            
+
+            // Manejar click en un resultado
+            resultsDiv.on('click', '.search-result-item', function() {
+                const item = jQuery(this);
+                const id = item.data('id');
+                const text = item.data('text');
+                const total = parseFloat(item.data('total') || 0);
+                const pagado = parseFloat(item.data('pagado') || 0);
+                const saldo = total - pagado;
+
+                searchInput.val(text);
+                hiddenId.val(id);
+                resultsDiv.hide();
+
+                // Lógica de saldo y slider
+                jQuery('#new-req-monto').data('saldo-full', saldo);
+                slider.val(100);
+                pctLabel.text('100%');
+                badge.text('SALDO: ' + formatCurrency(saldo)).show();
+                jQuery('#new-req-monto').val(saldo.toFixed(2));
+
+                if (!jQuery('#new-req-desc').val()) {
+                    jQuery('#new-req-desc').val('Pago Requisición');
+                }
+
+                // Abrir el modal de la requisición seleccionada automáticamente
+                if (typeof openRequisitionModal === 'function') {
+                    console.log("Iniciando apertura de modal desde búsqueda:", id);
+                    openRequisitionModal(id);
+                }
+            });
+
+            // Cerrar resultados al hacer clic fuera
+            jQuery(document).on('click', function(e) {
+                if (!searchInput.is(e.target) && !resultsDiv.has(e.target).length) {
+                    resultsDiv.hide();
+                }
+            });
+
             // Check for highlight parameter on load
             const urlParams = new URLSearchParams(window.location.search);
             const highlightId = urlParams.get('highlight');
@@ -1961,48 +2130,24 @@
                 }
             }
 
-            // Autocompletar monto al seleccionar requisición (adaptado para Select2)
-            $('#new-req-id').on('change', function () {
-                const selected = $(this).select2('data')[0];
-                const badge = $('#pending-badge');
-                const slider = $('#payment-slider');
-                const pctLabel = $('#slider-pct');
+            // Lógica del slider
+            jQuery('#payment-slider').on('input', function () {
+                const pct = parseInt(jQuery(this).val());
+                jQuery('#slider-pct').text(pct + '%');
 
-                if (selected && selected.id) {
-                    const option = $(selected.element);
-                    const total = parseFloat((option.attr('data-total') || "0").replace(/,/g, ''));
-                    const pagado = parseFloat((option.attr('data-pagado') || "0").replace(/,/g, ''));
-                    const saldo = total - pagado;
-
-                    // Guardar valores en el input para el slider
-                    $('#new-req-monto').data('saldo-full', saldo);
-
-                    // Resetear slider a 100%
-                    slider.val(100);
-                    pctLabel.text('100%');
-
-                    // Mostrar badge de saldo
-                    badge.text('SALDO: ' + formatCurrency(saldo)).show();
-                    $('#new-req-monto').val(saldo.toFixed(2));
-
-                    if (!$('#new-req-desc').val()) {
-                        $('#new-req-desc').val('Pago Requisición');
-                    }
-                } else {
-                    badge.hide();
+                const saldo = jQuery('#new-req-monto').data('saldo-full');
+                if (saldo !== undefined) {
+                    const calculado = (saldo * pct) / 100;
+                    jQuery('#new-req-monto').val(calculado.toFixed(2));
                 }
             });
 
-            // Lógica del slider
-            $('#payment-slider').on('input', function () {
-                const pct = parseInt($(this).val());
-                $('#slider-pct').text(pct + '%');
-
-                const saldo = $('#new-req-monto').data('saldo-full');
-                if (saldo !== undefined) {
-                    const calculado = (saldo * pct) / 100;
-                    $('#new-req-monto').val(calculado.toFixed(2));
-                }
+            // Inicializar Select2 para el buscador de proveedores en el modal
+            jQuery('#modal-proveedor-select').select2({
+                dropdownParent: jQuery('#req-modal'),
+                placeholder: 'Seleccione un proveedor...',
+                allowClear: true,
+                width: '100%'
             });
         });
 
@@ -2383,6 +2528,158 @@
         });
     </script>
 
-{% endblock %}
+    <!-- Menú Contextual para Proveedores -->
+    <div id="provider-context-menu" class="context-menu">
+        <div class="context-menu-item" onclick="viewProviderDetails()">
+            <i class="ph ph-buildings"></i> Ver Detalles del Proveedor
+        </div>
+    </div>
 
-</html>
+    <!-- Menú Contextual para Requisiciones -->
+    <div id="requisition-context-menu" class="context-menu">
+        <div class="context-menu-item" onclick="viewRequisitionDetailsFromCtx()">
+            <i class="ph ph-eye"></i> Ver Requisición
+        </div>
+        <div class="context-menu-item" onclick="openBudgetEditModal()">
+            <i class="ph ph-pencil-line"></i> Editar Presupuesto
+        </div>
+    </div>
+
+    <div id="req-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header" style="padding: 1.25rem 2rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <div style="display: flex; align-items: center; gap: 1.25rem;">
+                    <div style="background: var(--primary); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                        <i class="ph ph-file-text"></i>
+                    </div>
+                    <div>
+                        <h2 id="modal-title" style="margin: 0; font-size: 1.35rem; font-weight: 800; color: #1e293b; letter-spacing: -0.02em;">Cargando...</h2>
+                        <span id="modal-subtitle" style="font-size: 0.8rem; color: #64748b; font-weight: 500;">DETALLES DE REQUISICIÓN</span>
+                    </div>
+                </div>
+                <button onclick="closeModal()" style="background: #f1f5f9; border: none; font-size: 1.25rem; cursor: pointer; color: #64748b; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 2rem; overflow-y: auto;">
+                <!-- Header Edit Row -->
+                <div style="display: grid; grid-template-columns: 1.2fr 2fr 0.8fr 0.8fr auto; gap: 1.5rem; align-items: flex-end; background: white; padding: 1.75rem; border-radius: 1rem; border: 1px solid #e2e8f0; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                    <div class="form-group" style="min-width: unset;">
+                        <label style="color: #475569; font-weight: 700; font-size: 0.7rem; margin-bottom: 0.5rem;">PROVEEDOR ASIGNADO</label>
+                        <select id="modal-proveedor-select" class="form-control" style="height: 40px; font-weight: 600;">
+                            <option value="">Sin Proveedor</option>
+                            {% for p in proveedores_todos %}
+                            <option value="{{ p.pk }}">{{ p.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="min-width: unset;">
+                        <label style="color: #475569; font-weight: 700; font-size: 0.7rem; margin-bottom: 0.5rem;">ASUNTO / CONCEPTO</label>
+                        <input type="text" id="modal-asunto-input" class="form-control" style="height: 40px; font-weight: 500;">
+                    </div>
+                    <div class="form-group" style="min-width: unset;">
+                        <label style="color: #475569; font-weight: 700; font-size: 0.7rem; margin-bottom: 0.5rem;">MONTO ESTIMADO</label>
+                        <div style="position: relative;">
+                            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-weight: 800; color: #94a3b8; font-size: 0.9rem;">$</span>
+                            <input type="number" id="modal-total-est-input" class="form-control" step="0.01" style="height: 40px; padding-left: 25px; font-weight: 700; color: var(--primary); font-size: 1rem;">
+                        </div>
+                    </div>
+                    <div class="form-group" style="min-width: unset;">
+                        <label style="color: #475569; font-weight: 700; font-size: 0.7rem; margin-bottom: 0.5rem;">TOTAL PAGADO</label>
+                        <div style="height: 40px; display: flex; align-items: center;">
+                            <span id="modal-total-pag" style="color: #059669; font-weight: 800; font-size: 1.25rem;">-</span>
+                        </div>
+                    </div>
+                    <div style="padding-bottom: 2px;">
+                        <button onclick="saveRequisitionEdits(event)" id="modal-save-edits" class="btn-add" style="height: 40px; padding: 0 1.5rem; background: #0369a1; box-shadow: 0 4px 6px -1px rgba(3, 105, 161, 0.2); transition: all 0.2s;">
+                            <i class="ph ph-floppy-disk"></i> GUARDAR
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                    <!-- Left Side: Chart and Tables -->
+                    <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+                        <!-- Chart Section -->
+                        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem;">
+                            <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                <i class="ph ph-chart-line-up" style="color: #6366f1; font-size: 1.25rem;"></i> LÍNEA DE TIEMPO DE PAGOS
+                            </h3>
+                            <div style="height: 250px;">
+                                <canvas id="requisitionTimelineChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Articles Section -->
+                        <div>
+                            <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                <i class="ph ph-package" style="color: #f59e0b; font-size: 1.25rem;"></i> DETALLE DE ARTÍCULOS
+                            </h3>
+                            <div style="border: 1px solid #e2e8f0; border-radius: 1rem; overflow: hidden; background: white;">
+                                <table class="modal-table" style="margin-bottom: 0;">
+                                    <thead>
+                                        <tr style="background: #f8fafc;">
+                                            <th style="padding: 1rem;">DESCRIPCIÓN</th>
+                                            <th style="text-align: center; padding: 1rem;">CANT.</th>
+                                            <th style="text-align: right; padding: 1rem;">COSTO UNIT.</th>
+                                            <th style="text-align: right; padding: 1rem;">SUBTOTAL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="modal-articulos-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Payments Section -->
+                        <div>
+                            <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                <i class="ph ph-bank" style="color: #10b981; font-size: 1.25rem;"></i> HISTORIAL DE SOLICITUDES
+                            </h3>
+                            <div style="border: 1px solid #e2e8f0; border-radius: 1rem; overflow: hidden; background: white;">
+                                <table class="modal-table" style="margin-bottom: 0;">
+                                    <thead>
+                                        <tr style="background: #f8fafc;">
+                                            <th style="padding: 1rem;">FECHA</th>
+                                            <th style="padding: 1rem;">SOLICITUD #</th>
+                                            <th style="padding: 1rem;">DESCRIPCIÓN</th>
+                                            <th style="text-align: right; padding: 1rem;">MONTO</th>
+                                            <th style="text-align: center; padding: 1rem;">ESTATUS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="modal-pagos-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Side: Comments and Sidebars -->
+                    <div style="display: flex; flex-direction: column; gap: 2rem;">
+                        <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 1.25rem; padding: 1.75rem; position: sticky; top: 0; box-shadow: 0 10px 15px -3px rgba(251, 191, 36, 0.1);">
+                            <label style="display: block; font-size: 0.8rem; color: #92400e; font-weight: 800; margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
+                                <i class="ph ph-note-pencil" style="font-size: 1.25rem;"></i> NOTAS INTERNAS
+                            </label>
+                            <textarea id="modal-comentarios" style="width: 100%; min-height: 280px; padding: 1rem; background: rgba(255, 255, 255, 0.5); border: 1px solid #fde68a; border-radius: 0.75rem; font-size: 0.95rem; line-height: 1.6; color: #92400e; resize: none; margin-bottom: 1.5rem;" placeholder="Escribe notas relevantes para el equipo de pagos..."></textarea>
+                            <button onclick="saveRequisitionComments(event)" id="modal-save-comments" style="width: 100%; background: #d97706; color: white; border: none; border-radius: 0.75rem; padding: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.75rem; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.3);">
+                                <i class="ph ph-floppy-disk"></i> GUARDAR NOTAS
+                            </button>
+                        </div>
+                        
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.25rem; padding: 1.5rem;">
+                            <h4 style="font-size: 0.75rem; font-weight: 800; color: #475569; margin-bottom: 1rem; text-transform: uppercase;">ACCIONES RÁPIDAS</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <button class="btn-add" style="background: white; color: #0369a1; border: 1px solid #e2e8f0; width: 100%; justify-content: center; font-weight: 600;">
+                                    <i class="ph ph-printer"></i> Imprimir Detalle
+                                </button>
+                                <button class="btn-add" style="background: white; color: #dc2626; border: 1px solid #fee2e2; width: 100%; justify-content: center; font-weight: 600;">
+                                    <i class="ph ph-lock-key"></i> Bloquear Requisición
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

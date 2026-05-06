@@ -78,6 +78,46 @@ def dashboard_pagos(request):
     return render(request, 'admin/presupuestos/solicitudpago/dashboard.html', context)
 
 @login_required
+def api_search_requisiciones(request):
+    """
+    Endpoint para búsqueda asíncrona de requisiciones (Select2).
+    """
+    q = request.GET.get('q', '')
+    
+    # Anotamos el monto pagado para mostrarlo en el buscador
+    pagos_reales = ItemSolicitudPago.objects.filter(requisicion=OuterRef('pk'), estatus='PAGADO')
+    
+    requisiciones = Requisicion.objects.annotate(
+        monto_pagado_db=Coalesce(
+            Subquery(pagos_reales.values('requisicion').annotate(total=Sum('monto_solicitado')).values('total')),
+            0.0,
+            output_field=DecimalField()
+        )
+    ).select_related('proveedor')
+
+    if q:
+        requisiciones = requisiciones.filter(
+            Q(cr8ca_requisicion__icontains=q) |
+            Q(cr8ca_asunto__icontains=q) |
+            Q(proveedor__nombre__icontains=q)
+        )
+
+    # Limitar resultados para velocidad
+    requisiciones = requisiciones.order_by('-cr8ca_requisicion')[:20]
+
+    results = []
+    for r in requisiciones:
+        results.append({
+            'id': r.pk,
+            'text': f"{r.cr8ca_requisicion} - {r.cr8ca_asunto[:40]}",
+            'total': float(r.cr8ca_totalenarticulos or 0),
+            'pagado': float(r.monto_pagado_db or 0),
+            'asunto': r.cr8ca_asunto,
+        })
+
+    return JsonResponse({'results': results})
+
+@login_required
 def detalle_solicitud_pago(request, pk):
     """
     Vista detallada de una Solicitud de Pago.
@@ -88,15 +128,7 @@ def detalle_solicitud_pago(request, pk):
     from django.db.models import Sum, DecimalField
     from django.db.models.functions import Coalesce
 
-    # Anotamos el monto pagado para evitar N+1 en el select de requisiciones
-    pagos_reales = ItemSolicitudPago.objects.filter(requisicion=OuterRef('pk'), estatus='PAGADO')
-    requisiciones = Requisicion.objects.annotate(
-        monto_pagado_db=Coalesce(
-            Subquery(pagos_reales.values('requisicion').annotate(total=Sum('monto_solicitado')).values('total')),
-            0.0,
-            output_field=DecimalField()
-        )
-    ).select_related('proveedor').order_by('-cr8ca_requisicion')
+    # Ya no cargamos todas las requisiciones aquí para evitar lentitud
     
     # Agregadores para gráficos y tablas
     items_por_proveedor = {}
@@ -185,11 +217,11 @@ def detalle_solicitud_pago(request, pk):
 
     context = {
         'solicitud': solicitud,
-        'requisiciones': requisiciones,
         'items_por_proveedor': items_por_proveedor,
         'graph_data': graph_data,
         'ESTATUS_CHOICES': ItemSolicitudPago.ESTATUS_CHOICES,
         'CONDICION_CHOICES': ItemSolicitudPago.CONDICION_PAGO_CHOICES,
+        'proveedores_todos': Empresa.objects.all().order_by('nombre'),
     }
     
     return render(request, 'presupuestos/solicitudes_pago/detalle.html', context)
@@ -198,6 +230,40 @@ from django.http import JsonResponse
 import json
 
 @login_required
+@csrf_exempt
+def api_update_requisicion_fields(request, pk):
+    """
+    Actualiza campos específicos de una requisición (proveedor, monto, asunto).
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            requisicion = get_object_or_404(Requisicion, pk=pk)
+            
+            if 'proveedor_id' in data:
+                prov_id = data.get('proveedor_id')
+                if prov_id:
+                    proveedor = get_object_or_404(Empresa, pk=prov_id)
+                    requisicion.proveedor = proveedor
+                else:
+                    requisicion.proveedor = None
+            
+            if 'monto' in data:
+                monto_val = data.get('monto')
+                if monto_val is not None:
+                    requisicion.cr8ca_totalenarticulos = monto_val
+                
+            if 'asunto' in data:
+                requisicion.cr8ca_asunto = data.get('asunto')
+                
+            requisicion.save()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Solo POST'}, status=405)
+
+@login_required
+@csrf_exempt
 def api_update_item_pago(request):
     """
     Actualiza monto o descripción de un item de solicitud de pago.
@@ -315,7 +381,8 @@ def api_requisicion_detalle(request, pk):
         'codigo': requisicion.cr8ca_requisicion,
         'asunto': requisicion.cr8ca_asunto,
         'proveedor': requisicion.proveedor.nombre if requisicion.proveedor else "No asignado",
-        'total_estimado': float(requisicion.total_estimado),
+        'proveedor_id': requisicion.proveedor.id if requisicion.proveedor else None,
+        'total_estimado': float(requisicion.cr8ca_totalenarticulos or 0),
         'total_pagado': float(requisicion.monto_pagado),
         'comentarios': requisicion.cr8ca_comentarios or "",
         'partida_id': requisicion.partida_id,
