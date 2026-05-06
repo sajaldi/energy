@@ -1,0 +1,294 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static admin_modify %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    .import-container {
+        padding: 20px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-top: 20px;
+    }
+    .json-textarea {
+        width: 100%;
+        height: 400px;
+        font-family: 'Courier New', Courier, monospace;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        background-color: #f8f9fa;
+        resize: vertical;
+    }
+    .btn-import {
+        background-color: #2563eb !important;
+        color: white !important;
+        padding: 10px 25px !important;
+        border: none !important;
+        border-radius: 4px !important;
+        font-weight: bold !important;
+        cursor: pointer;
+        margin-top: 15px;
+    }
+    .btn-import:hover {
+        background-color: #1d4ed8 !important;
+    }
+    .info-box {
+        background-color: #eff6ff;
+        border-left: 4px solid #3b82f6;
+        padding: 15px;
+        margin-bottom: 20px;
+        color: #1e40af;
+    }
+    .submit-row {
+        margin-top: 20px;
+        padding: 15px;
+        background: #f8fafc;
+        border-radius: 0 0 8px 8px;
+        text-align: right;
+    }
+    .nav-tabs {
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .nav-tabs .nav-link {
+        border: none;
+        color: #64748b;
+        font-weight: 600;
+        padding: 10px 20px;
+        cursor: pointer;
+    }
+    .nav-tabs .nav-link.active {
+        color: #2563eb;
+        border-bottom: 2px solid #2563eb;
+    }
+    .api-config {
+        display: none;
+        background: #f1f5f9;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #475569;
+    }
+    .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <div class="info-box">
+        <h4 style="margin-top: 0;"><i class="fas fa-bolt"></i> Importador Dynamics 365 Pro</h4>
+        <p>Sincronice sus requisiciones directamente desde la API o pegue el contenido JSON manualmente.</p>
+    </div>
+
+    <ul class="nav nav-tabs" id="importTabs">
+        <li class="nav-item">
+            <a class="nav-link active" id="paste-tab" onclick="switchTab('paste')">Manual (Pegar JSON)</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="api-tab" onclick="switchTab('api')">Conexión Directa (API Token)</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="cloud-tab" onclick="switchTab('cloud')">Cloud Sync (Power Automate)</a>
+        </li>
+    </ul>
+
+    <form id="import-form">
+        {% csrf_token %}
+        
+        <!-- Tab Manual -->
+        <div id="paste-section">
+            <textarea name="json_data" id="json_data" class="json-textarea" placeholder='Pegue el JSON aquí (Ej: {"value": [...]})'></textarea>
+        </div>
+
+        <!-- Tab API -->
+        <div id="api-section" class="api-config">
+            <div class="form-group">
+                <label>Dynamics Organization URL</label>
+                <input type="url" id="api_url" class="form-control" value="https://ccg.crm.dynamics.com" placeholder="https://org.crm.dynamics.com">
+            </div>
+            <div class="form-group">
+                <label>Access Token (Bearer)</label>
+                <textarea id="api_token" class="form-control" rows="4" placeholder="Pegue su Bearer Token aquí..."></textarea>
+                <small class="text-muted">El token se usará solo para esta sesión de importación.</small>
+            </div>
+            <div class="form-group">
+                <label>Filtro OData (Opcional)</label>
+                <input type="text" id="api_filter" class="form-control" placeholder="Ej: $filter=createdon ge 2026-05-01T00:00:00Z">
+            </div>
+        </div>
+
+        <!-- Tab Cloud -->
+        <div id="cloud-section" class="api-config">
+            <div class="info-box" style="background-color: #f0fdf4; border-left-color: #22c55e; color: #166534;">
+                <p><strong>¿Cómo funciona?</strong></p>
+                <ol>
+                    <li>Haga clic en el botón de abajo para disparar el flujo en Power Automate.</li>
+                    <li>Power Automate consultará Dynamics 365.</li>
+                    <li>Los datos serán enviados de vuelta a Softcom automáticamente.</li>
+                </ol>
+            </div>
+            <div class="form-group" style="text-align: center; padding: 20px;">
+                <i class="fas fa-cloud-download-alt" style="font-size: 48px; color: #2563eb; margin-bottom: 15px;"></i>
+                <p>Sincronización remota vía Power Automate</p>
+            </div>
+        </div>
+        
+        <div class="submit-row">
+            <button type="button" id="process-btn" class="btn-import">
+                <i class="fas fa-sync-alt"></i> Iniciar Sincronización
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+let currentMode = 'paste';
+
+function switchTab(mode) {
+    currentMode = mode;
+    document.getElementById('paste-tab').classList.toggle('active', mode === 'paste');
+    document.getElementById('api-tab').classList.toggle('active', mode === 'api');
+    document.getElementById('cloud-tab').classList.toggle('active', mode === 'cloud');
+    
+    document.getElementById('paste-section').style.display = mode === 'paste' ? 'block' : 'none';
+    document.getElementById('api-section').style.display = mode === 'api' ? 'block' : 'none';
+    document.getElementById('cloud-section').style.display = mode === 'cloud' ? 'block' : 'none';
+}
+
+document.getElementById('process-btn').addEventListener('click', function() {
+    if (currentMode === 'paste') {
+        const jsonData = document.getElementById('json_data').value.trim();
+        if (!jsonData) {
+            Swal.fire('Error', 'Por favor pegue el JSON.', 'warning');
+            return;
+        }
+        confirmAndImport({ json_data: jsonData });
+    } else if (currentMode === 'api') {
+        const token = document.getElementById('api_token').value.trim();
+        const url = document.getElementById('api_url').value.trim();
+        const filter = document.getElementById('api_filter').value.trim();
+        
+        if (!token || !url) {
+            Swal.fire('Error', 'Token y URL son obligatorios.', 'warning');
+            return;
+        }
+        confirmAndImport({ 
+            use_api: true,
+            api_token: token,
+            api_url: url,
+            api_filter: filter
+        });
+    } else if (currentMode === 'cloud') {
+        triggerCloudSync();
+    }
+});
+
+function triggerCloudSync() {
+    Swal.fire({
+        title: '¿Iniciar Sincronización Cloud?',
+        text: "Se enviará una señal a Power Automate para recolectar las requisiciones.",
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonColor: '#2563eb',
+        confirmButtonText: 'Sí, iniciar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Enviando señal...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            fetch("{% url 'presupuestos:trigger_cloud_sync' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Proceso Iniciado', data.message, 'success');
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error');
+            });
+        }
+    });
+}
+
+function confirmAndImport(params) {
+    Swal.fire({
+        title: '¿Confirmar Sincronización?',
+        text: currentMode === 'api' ? "Se conectará a Dynamics para descargar los datos." : "Se procesará el JSON pegado.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2563eb',
+        confirmButtonText: 'Sí, sincronizar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            importData(params);
+        }
+    });
+}
+
+function importData(params) {
+    Swal.fire({
+        title: 'Sincronizando...',
+        text: 'Conectando con Dynamics 365...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    const formData = new FormData();
+    for (let key in params) {
+        formData.append(key, params[key]);
+    }
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch('', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                title: '¡Éxito!',
+                text: data.message,
+                icon: 'success'
+            }).then(() => {
+                window.location.href = "{% url 'admin:presupuestos_requisicion_changelist' %}";
+            });
+        } else {
+            Swal.fire('Error', data.message || 'Error en la sincronización.', 'error');
+        }
+    })
+    .catch(error => {
+        Swal.fire('Error Crítico', 'Error de comunicación.', 'error');
+    });
+}
+</script>
+{% endblock %}

@@ -166,3 +166,102 @@ def requisicion_webhook_update(request):
             'message': f'Error interno del servidor: {str(e)}'
         }, status=500)
 
+@csrf_exempt
+@require_POST
+def dynamics_sync_webhook(request):
+    """
+    Recibe un lote de requisiciones desde Power Automate para sincronización masiva.
+    """
+    from decimal import Decimal
+    from mantenimiento.models import Empresa
+    from django.contrib.auth.models import User
+    
+    try:
+        data = json.loads(request.body)
+        items = data.get('value', []) if isinstance(data, dict) else data
+        
+        if not items:
+            return JsonResponse({'success': False, 'message': 'No se recibieron datos o el formato es incorrecto.'}, status=400)
+
+        created_count = 0
+        updated_count = 0
+        linked_providers = 0
+        
+        priority_map = {
+            380160000: 1, # Baja
+            380160001: 2, # Normal
+            380160002: 3, # Alta
+            380160003: 4, # Urgencia
+            380160004: 5, # Emergencia
+        }
+        
+        proveedores_cache = {}
+        # Por defecto, si es nuevo, asignar a un usuario administrador o sistema
+        default_user = User.objects.filter(is_superuser=True).first()
+
+        skipped_count = 0
+        for item in items:
+            req_id = item.get('cr8ca_requisicionid')
+            if not req_id: continue
+            
+            raw_priority = item.get('cr8ca_prioridad')
+            priority = priority_map.get(raw_priority, 2)
+            
+            proveedor_guid = item.get('_cr8ca_proveedorasignado_value')
+            proveedor_obj = None
+            if proveedor_guid:
+                if proveedor_guid in proveedores_cache:
+                    proveedor_obj = proveedores_cache[proveedor_guid]
+                else:
+                    proveedor_obj = Empresa.objects.filter(dynamics_guid=proveedor_guid).first()
+                    if proveedor_obj:
+                        proveedores_cache[proveedor_guid] = proveedor_obj
+                        linked_providers += 1
+            
+            defaults = {
+                'cr8ca_requisicion': item.get('cr8ca_requisicion'),
+                'cr8ca_asunto': item.get('cr8ca_asunto') or 'Sin asunto (Importado Dynamics)',
+                'cr8ca_motivo': item.get('cr8ca_motivo') or 'Sin motivo (Importado Dynamics)',
+                'cr8ca_comentarios': item.get('cr8ca_comentarios'),
+                'cr8ca_totalenarticulos': Decimal(str(item.get('cr8ca_costo') or 0)),
+                'cr8ca_prioridad': priority,
+                'createdon': item.get('createdon'),
+                'proveedor': proveedor_obj,
+            }
+            
+            # 1. Intentar buscar por UUID de Dynamics
+            if Requisicion.objects.filter(cr8ca_requisicionid=req_id).exists():
+                # Solo nuevos
+                skipped_count += 1
+                continue
+            
+            # 2. Verificar si el NOMBRE ya existe
+            nombre_req = defaults.get('cr8ca_requisicion')
+            if Requisicion.objects.filter(cr8ca_requisicion=nombre_req).exists():
+                skipped_count += 1
+                continue
+                
+            # 3. Si es totalmente nueva, crear
+            obj = Requisicion.objects.create(
+                cr8ca_requisicionid=req_id,
+                **defaults
+            )
+            obj.usuario_solicitante = default_user
+            obj.estado_requisicion = 'BORRADOR'
+            obj.save()
+            created_count += 1
+        
+        msg = f'Sincronización Cloud exitosa. Se importaron {created_count} nuevas requisiciones.'
+        if skipped_count > 0:
+            msg += f' Se obviaron {skipped_count} ya existentes.'
+        msg += f' {linked_providers} proveedores vinculados.'
+
+        return JsonResponse({
+            'success': True, 
+            'message': msg
+        })
+
+    except Exception as e:
+        logger.exception(f"Error en dynamics_sync_webhook: {str(e)}")
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+

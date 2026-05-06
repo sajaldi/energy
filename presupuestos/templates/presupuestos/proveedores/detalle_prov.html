@@ -1,95 +1,93 @@
-{% load static %}
-{% load humanize %}
+{% extends "admin/base_site.html" %}
+{% load static humanize %}
 
-<!DOCTYPE html>
-<html lang="es">
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<style>
+    #content { padding: 0 !important; }
+    .content-wrapper, .main-content { max-width: none !important; }
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detalle Proveedor | {{ empresa.nombre }}</title>
-    <link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <style>
-        .detail-layout {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-        .stats-sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-        .summary-card {
-            background: white;
-            padding: 1.75rem;
-            border-radius: 1rem;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            border-left: 5px solid var(--primary);
-        }
-        .summary-label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.75rem;
-        }
-        .summary-value {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--text-main);
-            line-height: 1;
-        }
-        .summary-sub {
-            margin-top: 0.75rem;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
-        .table-card {
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        .table-header {
-            padding: 1.25rem 1.5rem;
-            border-bottom: 1px solid #f3f4f6;
-            background: #fdfdfd;
-            font-weight: 700;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th {
-            background: #f9fafb;
-            padding: 1rem 1.5rem;
-            text-align: left;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            font-weight: 600;
-            color: var(--text-muted);
-        }
-        td {
-            padding: 1.25rem 1.5rem;
-            border-bottom: 1px solid #f9fafb;
-            font-size: 0.9rem;
-        }
-        .amount-td {
-            text-align: right;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-weight: 600;
-        }
-    </style>
-</head>
+    .detail-layout {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+    .stats-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    .summary-card {
+        background: white;
+        padding: 1.75rem;
+        border-radius: 1rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        border-left: 5px solid var(--primary);
+    }
+    .summary-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+    }
+    .summary-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text-main);
+        line-height: 1;
+    }
+    .summary-sub {
+        margin-top: 0.75rem;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+    .table-card {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    .table-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #f3f4f6;
+        background: #fdfdfd;
+        font-weight: 700;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th {
+        background: #f9fafb;
+        padding: 1rem 1.5rem;
+        text-align: left;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+    td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #f9fafb;
+        font-size: 0.9rem;
+    }
+    .amount-td {
+        text-align: right;
+        font-family: 'Monaco', 'Consolas', monospace;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
 
-<body>
+{% block content %}
     <div class="dashboard-container">
         <!-- Header -->
         <div class="header-section">
@@ -188,6 +186,4 @@
             </div>
         </div>
     </div>
-</body>
-
-</html>
+{% endblock %}

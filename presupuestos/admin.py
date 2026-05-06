@@ -309,6 +309,7 @@ class DocumentoRequisicionInline(admin.TabularInline):
 
 @admin.register(Requisicion)
 class RequisicionAdmin(ImportExportModelAdmin):
+    change_list_template = 'admin/presupuestos/requisicion/change_list.html'
     list_display = ('cr8ca_requisicion', 'fecha', 'partida', 'item_presupuesto', 'tipo_rutina', 'proveedor', 'cr8ca_asunto', 'cr8ca_prioridad', 'cr8ca_totalenarticulos', 'usuario_solicitante', 'createdon')
     list_filter = ('fecha', 'cr8ca_prioridad', 'estado_requisicion')
     search_fields = ('cr8ca_requisicion', 'cr8ca_asunto', 'cr8ca_motivo')
@@ -326,19 +327,32 @@ class RequisicionAdmin(ImportExportModelAdmin):
         custom_urls = [
             path('import-background/', self.admin_site.admin_view(self.import_background_view), name='presupuestos_requisicion_import_background'),
             path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='presupuestos_requisicion_import_template'),
+            path('import-json/', self.admin_site.admin_view(self.import_json_view), name='presupuestos_requisicion_import_json'),
         ]
         return custom_urls + urls
 
     def import_background_btn(self, obj=None):
         from django.urls import reverse
-        url = reverse('admin:presupuestos_requisicion_import_background')
-        return format_html('<a class="button" href="{}" style="background-color: #10b981; color: white;">📥 Importación Background</a>', url)
+        url_bg = reverse('admin:presupuestos_requisicion_import_background')
+        url_json = reverse('admin:presupuestos_requisicion_import_json')
+        return format_html(
+            '<div style="display: flex; gap: 10px;">'
+            '<a class="button" href="{}" style="background-color: #10b981; color: white;">📥 Importación Excel</a>'
+            '<a class="button" href="{}" style="background-color: #3b82f6; color: white;">⚡ Importación Rápida JSON</a>'
+            '</div>', 
+            url_bg, url_json
+        )
     import_background_btn.short_description = "Acciones Masivas"
 
     def import_background_view(self, request):
         from django.shortcuts import redirect
         from django.urls import reverse
         return redirect(reverse('presupuestos:import_requisiciones_background'))
+
+    def import_json_view(self, request):
+        from django.shortcuts import redirect
+        from django.urls import reverse
+        return redirect(reverse('presupuestos:import_requisiciones_json'))
 
     def download_template_view(self, request):
         """Genera un archivo Excel con cabeceras y una fila de ejemplo"""

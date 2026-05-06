@@ -1,28 +1,24 @@
-{% load static %}
-{% load humanize %}
-{% load l10n %}
-{% load presupuesto_tags %}
+{% extends "admin/base_site.html" %}
+{% load static humanize l10n presupuesto_tags %}
 
-<!DOCTYPE html>
-<html lang="es">
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+<!-- SweetAlert2 para feedback -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detalle de Solicitud #{{ solicitud.pk }} | Energy</title>
-    <link rel="stylesheet" href="{% static 'presupuestos/css/pagos_dashboard.css' %}">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <!-- SweetAlert2 para feedback -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-    <!-- jQuery y Select2 -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- jQuery y Select2 -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
+        #content { padding: 0 !important; background: #f5f6f7 !important; }
+        .content-wrapper, .main-content { max-width: none !important; }
+
         /* ======= SAP Fiori Horizon Design Tokens ======= */
         :root {
             --fiori-shell: #354a5f;
@@ -900,9 +896,9 @@
             color: var(--fiori-text);
         }
     </style>
-</head>
+{% endblock %}
 
-<body>
+{% block content %}
 
     <!-- Context Menu -->
     <div id="provider-context-menu" class="context-menu">
@@ -2387,6 +2383,6 @@
         });
     </script>
 
-</body>
+{% endblock %}
 
 </html>

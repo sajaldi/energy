@@ -262,8 +262,8 @@ from .models import Tipo, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, R
 class EmpresaResource(resources.ModelResource):
     class Meta:
         model = Empresa
-        fields = ('id', 'nombre', 'descripcion', 'activo', 'creado_en')
-        export_order = ('id', 'nombre', 'descripcion', 'activo', 'creado_en')
+        fields = ('id', 'nombre', 'descripcion', 'activo', 'dynamics_guid', 'creado_en')
+        export_order = ('id', 'nombre', 'dynamics_guid', 'descripcion', 'activo', 'creado_en')
         skip_unchanged = True
         report_skipped = True
         import_id_fields = ('id',)
@@ -294,8 +294,8 @@ class PersonalInline(admin.TabularInline):
 @admin.register(Empresa)
 class EmpresaAdmin(ImportExportModelAdmin):
     resource_class = EmpresaResource
-    list_display = ('nombre', 'activo', 'ver_status_documentacion', 'creado_en')
-    search_fields = ('nombre',)
+    list_display = ('nombre', 'dynamics_guid', 'activo', 'ver_status_documentacion', 'creado_en')
+    search_fields = ('nombre', 'dynamics_guid')
     list_filter = ('activo',)
     inlines = [DocumentoEmpresaInline, PersonalInline]
 

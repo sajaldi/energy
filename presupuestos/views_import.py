@@ -10,6 +10,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from celery.result import AsyncResult
 from .tasks import import_requisiciones_task
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.urls import reverse
 
@@ -461,3 +462,193 @@ def api_get_partida_items(request, partida_id):
     from .models import ItemPresupuesto
     items = ItemPresupuesto.objects.filter(partida_id=partida_id).values('id', 'concepto')
     return JsonResponse({'items': list(items)})
+
+@staff_member_required
+def import_requisiciones_json(request):
+    """
+    Vista para importar requisiciones directamente desde un JSON de Dynamics.
+    """
+    if request.method == 'POST':
+        import json
+        import requests
+        from .models import Requisicion
+        from decimal import Decimal
+        
+        try:
+            use_api = request.POST.get('use_api') == 'true'
+            
+            if use_api:
+                api_token = request.POST.get('api_token', '').strip()
+                api_url = request.POST.get('api_url', '').strip().rstrip('/')
+                api_filter = request.POST.get('api_filter', '').strip()
+                
+                # Construir URL de la API
+                # Seleccionamos solo los campos necesarios para optimizar
+                fields = "cr8ca_requisicionid,cr8ca_requisicion,cr8ca_asunto,cr8ca_motivo,cr8ca_comentarios,_cr8ca_proveedorasignado_value,cr8ca_costo,createdon,cr8ca_prioridad"
+                endpoint = f"{api_url}/api/data/v9.2/cr8ca_requisicions?$select={fields}"
+                
+                if api_filter:
+                    # Si el filtro no empieza con &, lo agregamos
+                    if not api_filter.startswith('$') and not api_filter.startswith('&'):
+                        endpoint += f"&$filter={api_filter}"
+                    else:
+                        endpoint += f"&{api_filter}" if '&' in api_filter or '$' in api_filter else f"&{api_filter}"
+                
+                headers = {
+                    'Authorization': f'Bearer {api_token}',
+                    'Accept': 'application/json',
+                    'OData-MaxVersion': '4.0',
+                    'OData-Version': '4.0',
+                    'Prefer': 'odata.include-annotations="*"'
+                }
+                
+                response = requests.get(endpoint, headers=headers, timeout=30)
+                
+                if response.status_code != 200:
+                    error_data = response.json() if response.content else {'error': 'No content'}
+                    msg = error_data.get('error', {}).get('message', response.text)
+                    return JsonResponse({'success': False, 'message': f'Error Dynamics ({response.status_code}): {msg}'}, status=400)
+                
+                data = response.json()
+            else:
+                raw_data = request.POST.get('json_data', '').strip()
+                if not raw_data:
+                    return JsonResponse({'success': False, 'message': 'No se proporcionaron datos JSON.'}, status=400)
+                
+                try:
+                    data = json.loads(raw_data)
+                except json.JSONDecodeError as je:
+                    return JsonResponse({'success': False, 'message': f'JSON Inválido: {str(je)}'}, status=400)
+                
+            # Soporte para formato Dynamics {"value": [...]} o lista directa
+            items = data.get('value', []) if isinstance(data, dict) else data
+            
+            if not items:
+                return JsonResponse({'success': False, 'message': 'No se encontraron registros en el JSON.'}, status=400)
+            
+            created_count = 0
+            updated_count = 0
+            linked_providers = 0
+            
+            # Mapeo de prioridades de Dynamics
+            priority_map = {
+                380160000: 1, # Baja
+                380160001: 2, # Normal
+                380160002: 3, # Alta
+                380160003: 4, # Urgencia
+                380160004: 5, # Emergencia
+            }
+            
+            # Cache de proveedores para evitar queries repetitivas
+            proveedores_cache = {}
+            
+            skipped_count = 0
+            for item in items:
+                # El ID de Dynamics es vital para el upsert
+                req_id = item.get('cr8ca_requisicionid')
+                if not req_id:
+                    continue
+                
+                raw_priority = item.get('cr8ca_prioridad')
+                priority = priority_map.get(raw_priority, 2)
+                
+                # Mapeo de Proveedor (GUID de Dynamics)
+                proveedor_guid = item.get('_cr8ca_proveedorasignado_value')
+                proveedor_obj = None
+                
+                if proveedor_guid:
+                    if proveedor_guid in proveedores_cache:
+                        proveedor_obj = proveedores_cache[proveedor_guid]
+                    else:
+                        from mantenimiento.models import Empresa
+                        proveedor_obj = Empresa.objects.filter(dynamics_guid=proveedor_guid).first()
+                        if proveedor_obj:
+                            proveedores_cache[proveedor_guid] = proveedor_obj
+                            linked_providers += 1
+                
+                # Mapeo de campos (con valores por defecto para evitar errores de integridad)
+                defaults = {
+                    'cr8ca_requisicion': item.get('cr8ca_requisicion'),
+                    'cr8ca_asunto': item.get('cr8ca_asunto') or 'Sin asunto (Importado Dynamics)',
+                    'cr8ca_motivo': item.get('cr8ca_motivo') or 'Sin motivo (Importado Dynamics)',
+                    'cr8ca_comentarios': item.get('cr8ca_comentarios'),
+                    'cr8ca_totalenarticulos': Decimal(str(item.get('cr8ca_costo') or 0)),
+                    'cr8ca_prioridad': priority,
+                    'createdon': item.get('createdon'),
+                    'proveedor': proveedor_obj,
+                }
+                
+                # 1. Intentar buscar por UUID de Dynamics
+                if Requisicion.objects.filter(cr8ca_requisicionid=req_id).exists():
+                    # El usuario solicitó SOLO jalar los nuevos, así que obviamos los existentes
+                    skipped_count += 1
+                    continue
+                
+                # 2. Verificar si el NOMBRE ya existe (aunque no tenga UUID vinculado aún)
+                nombre_req = defaults.get('cr8ca_requisicion')
+                if Requisicion.objects.filter(cr8ca_requisicion=nombre_req).exists():
+                    skipped_count += 1
+                    continue
+                    
+                # 3. Si es totalmente nueva, crear
+                obj = Requisicion.objects.create(
+                    cr8ca_requisicionid=req_id,
+                    **defaults
+                )
+                obj.usuario_solicitante = request.user
+                obj.estado_requisicion = 'BORRADOR'
+                obj.save()
+                created_count += 1
+            
+            msg = f'Proceso completado. Se importaron {created_count} nuevas requisiciones.'
+            if skipped_count > 0:
+                msg += f' Se obviaron {skipped_count} existentes o duplicados.'
+            msg += f' Se vincularon {linked_providers} proveedores.'
+
+            return JsonResponse({'success': True, 'message': msg})
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'message': f'Error en el servidor: {str(e)}'}, status=500)
+            
+    # GET: Mostrar la interfaz de pegado
+    from django.contrib import admin
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Importador Rápido Dynamics (JSON)',
+    }
+    return render(request, 'admin/presupuestos/requisicion/import_json.html', context)
+
+@staff_member_required
+@require_POST
+def trigger_power_automate_sync(request):
+    """
+    Inicia el flujo de Power Automate mediante una petición POST al webhook proporcionado.
+    """
+    import requests
+    
+    # URL proporcionada por el usuario para listar y enviar requisiciones
+    url = "https://ce675e3ed2704594af019ed8d7d5f6.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c29ebdfe41f5419a8e8b28278bcc08cd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=uKWu_vjHtCHPKML9eoJLx6O8gluP9e0FUU0vOP0YqDA"
+    
+    try:
+        # Hacemos la petición a Power Automate (no esperamos el resultado aquí, 
+        # PA enviará los datos de vuelta a nuestro webhook asíncronamente)
+        response = requests.post(url, json={
+            "triggered_by": request.user.username,
+            "callback_url": request.build_absolute_uri('/presupuestos/webhook/dynamics-sync/')
+        }, timeout=10)
+        
+        if response.status_code in [200, 202]:
+            return JsonResponse({
+                'success': True, 
+                'message': 'Sincronización Cloud iniciada. Power Automate está procesando los datos y los enviará a Softcom en unos momentos.'
+            })
+        else:
+            return JsonResponse({
+                'success': False, 
+                'message': f'Error al disparar Power Automate (Status {response.status_code}): {response.text}'
+            })
+            
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error de conexión: {str(e)}'}, status=500)

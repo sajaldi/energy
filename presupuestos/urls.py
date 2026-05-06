@@ -27,11 +27,14 @@ urlpatterns = [
     path('requisiciones/<uuid:pk>/pdf/', views_import.requisicion_pdf, name='requisicion_pdf'),
     path('requisiciones/<uuid:pk>/unlock/', views_import.requisicion_unlock_edit, name='requisicion_unlock_edit'),
     path('requisiciones/autorizar/<uuid:pk>/', views_autorizar.requisicion_autorizar, name='requisicion_autorizar'),
-    path('api/requisicion/webhook/update/', views_webhook.requisicion_webhook_update, name='requisicion_webhook_update'),
+    path('webhook/', views_webhook.requisicion_webhook_update, name='requisicion_webhook_update'),
+    path('webhook/dynamics-sync/', views_webhook.dynamics_sync_webhook, name='dynamics_sync_webhook'),
     path('requisiciones/import-background/', views_import.import_requisiciones_background, name='import_requisiciones_background'),
     path('requisiciones/import-background/process/', views_import.import_requisiciones_process, name='import_requisiciones_process'),
     path('requisiciones/import-background/progress/', views_import.import_requisiciones_progress, name='import_requisiciones_progress'),
     path('requisiciones/import-background/template/', views_import.download_template, name='import_requisiciones_template'),
+    path('requisiciones/import-json/', views_import.import_requisiciones_json, name='import_requisiciones_json'),
+    path('requisiciones/import-json/trigger-cloud-sync/', views_import.trigger_power_automate_sync, name='trigger_cloud_sync'),
     path('api/partida/<int:partida_id>/items/', views_import.api_get_partida_items, name='api_get_partida_items'),
     
     # Pagos Dashboard

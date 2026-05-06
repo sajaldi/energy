@@ -137,6 +137,7 @@ class Empresa(models.Model):
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+    dynamics_guid = models.UUIDField(null=True, blank=True, unique=True, verbose_name="GUID de Dynamics")
 
     def tiene_documentacion_completa(self):
         """
