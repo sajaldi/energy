@@ -443,6 +443,10 @@
                 <ion-icon name="calendar-outline"></ion-icon>
                 <span>Acuerdos</span>
             </a>
+            <a href="#catalog-section" class="action-group">
+                <ion-icon name="journal-outline"></ion-icon>
+                <span>Catálogo</span>
+            </a>
         </div>
 
         <!-- Tab Content: Inventario -->
@@ -523,14 +527,102 @@
         };
 
         function updateStats(tab) {
-            const stats = tabStats[tab];
+            const stats = tabStats[tab] || [];
             const grid = document.getElementById('stats-grid');
             grid.innerHTML = stats.map(s => `
                 <div class="stat-mini">
                     <span class="label">${s.label}</span>
-                    <span class="value" style="color: ${s.color};">${s.value}</span>
+                    <span class="value" style="color: ${s.color}">${s.value}</span>
                 </div>
             `).join('');
+        }
+
+        // --- Catálogo Logic ---
+        function toggleCategory(catId) {
+            const details = document.getElementById(catId);
+            const grid = document.getElementById('category-grid-main');
+            
+            if (details.style.display === 'none') {
+                // Cerrar otros abiertos? No, mejor dejar que abran varios si quieren, pero el grid estorba
+                // Para una mejor UX móvil, ocultamos el grid cuando uno se abre
+                grid.style.display = 'none';
+                details.style.display = 'block';
+            } else {
+                details.style.display = 'none';
+                grid.style.display = 'grid';
+            }
+        }
+
+        async function showRoutinePreview(routineId) {
+            if (typeof Swal === 'undefined') {
+                // Cargar SweetAlert2 si no existe
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+                document.head.appendChild(script);
+                script.onload = () => showRoutinePreview(routineId);
+                return;
+            }
+
+            Swal.fire({
+                title: 'Cargando procedimiento...',
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                const r = await fetch(`/mantenimiento/rutinas/dashboard/detail/${routineId}/`);
+                const data = await r.json();
+                
+                if (data.status === 'success') {
+                    let stepsHtml = '<div style="text-align: left; font-size: 13px;">';
+                    data.rutina.pasos.forEach(p => {
+                        let mediaHtml = '';
+                        if (p.media && p.media.length > 0) {
+                            mediaHtml = '<div style="display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; padding-bottom: 8px;">';
+                            p.media.forEach(m => {
+                                if (m.tipo === 'IMAGE') {
+                                    mediaHtml += `<img src="${m.url}" style="height: 100px; width: 140px; border-radius: 4px; border: 1px solid #ddd; object-fit: cover; flex-shrink:0;" onclick="window.open('${m.url}', '_blank')">`;
+                                } else if (m.tipo === 'VIDEO') {
+                                    mediaHtml += `
+                                        <div style="position: relative; height: 100px; width: 140px; background: #000; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink:0;" onclick="window.open('${m.url}', '_blank')">
+                                            <ion-icon name="play-circle" style="color: white; font-size: 40px;"></ion-icon>
+                                        </div>`;
+                                }
+                            });
+                            mediaHtml += '</div>';
+                        }
+
+                        stepsHtml += `
+                            <div style="margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
+                                <div style="display: flex; gap: 12px;">
+                                    <b style="color: #0696D7; font-size: 14px;">${p.orden}.</b>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 700; color: #333; margin-bottom: 4px;">${p.descripcion}</div>
+                                        ${p.verificacion ? `<div style="font-size: 11px; color: #666; background: #f9f9f9; padding: 5px; border-radius: 4px; margin-top: 5px; border-left: 3px solid #ddd;">${p.verificacion}</div>` : ''}
+                                        ${mediaHtml}
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                    stepsHtml += '</div>';
+
+                    Swal.fire({
+                        title: `<span style="font-size: 18px; font-weight: 800;">${data.rutina.nombre}</span>`,
+                        html: `
+                            <div style="text-align: left; margin-bottom: 20px; display: flex; gap: 15px;">
+                                <div style="font-size: 11px; color: #666; background: #eee; padding: 4px 8px; border-radius: 4px;">FREC: <b>${data.rutina.frecuencia}</b></div>
+                                <div style="font-size: 11px; color: #666; background: #eee; padding: 4px 8px; border-radius: 4px;">TIEMPO: <b>${data.rutina.tiempo_estimado}</b></div>
+                            </div>
+                            <div style="max-height: 50vh; overflow-y: auto; padding-right: 5px; border-top: 2px solid #333; pt: 15px;">
+                                <h4 style="font-size: 12px; color: #999; margin: 15px 0 10px 0; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Pasos del Procedimiento</h4>
+                                ${stepsHtml}
+                            </div>
+                        `,
+                        width: '95%',
+                        confirmButtonText: 'Cerrar',
+                        confirmButtonColor: '#323232'
+                    });
+                }
+            } catch (e) { console.error(e); Swal.fire('Error', 'No se pudo cargar el procedimiento', 'error'); }
         }
 
         document.querySelectorAll('.toolbar-tab').forEach(tab => {
@@ -591,10 +683,47 @@
                     </div>
                     <ion-icon name="chevron-forward-outline" style="color: #CCC;"></ion-icon>
                 </a>
-                {% empty %}
-                <div style="padding: 30px; text-align: center; color: #999; font-size: 11px;">
-                    <ion-icon name="cafe-outline" style="font-size: 32px; margin-bottom: 10px;"></ion-icon>
-                    <p>No hay tareas pendientes para hoy.</p>
+            </div>
+        </div>
+
+        <!-- Catálogo de Procedimientos (NUEVO) -->
+        <div class="fusion-card fade-in-up" id="catalog-section" style="animation-delay: 0.3s; margin-top: 20px;">
+            <div class="fusion-card-header">
+                <h3>Catálogo de Procedimientos</h3>
+                <ion-icon name="journal-outline" style="color: var(--fusion-accent);"></ion-icon>
+            </div>
+            <div class="fusion-card-content" style="padding: 10px;">
+                <div class="category-grid" id="category-grid-main" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    {% for cat in rutinas_categorias %}
+                    <div class="category-item" onclick="toggleCategory('cat-{{ cat.id }}')" 
+                         style="background: #F8F8F8; border: 1px solid var(--fusion-border); border-radius: 4px; padding: 12px; text-align: center; cursor: pointer;">
+                        <ion-icon name="folder-open" style="font-size: 24px; color: var(--fusion-orange); margin-bottom: 5px;"></ion-icon>
+                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">{{ cat.nombre }}</div>
+                        <div style="font-size: 9px; color: #888;">{{ cat.rutinas_set.count }} rutinas</div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% for cat in rutinas_categorias %}
+                <div id="cat-{{ cat.id }}" class="category-details" style="display: none; margin-top: 15px; border-top: 1px solid var(--fusion-border); padding-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 11px; font-weight: 800; color: var(--fusion-orange);">{{ cat.nombre|upper }}</span>
+                        <button onclick="toggleCategory('cat-{{ cat.id }}')" style="background: none; border: none; font-size: 10px; font-weight: 700; color: #888;">CERRAR</button>
+                    </div>
+                    <div class="routine-list">
+                        {% for r in cat.rutinas_set.all %}
+                        <div class="routine-item" onclick="window.showRoutinePreview('{{ r.id }}')" 
+                             style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border: 1px solid #EEE; border-radius: 4px; margin-bottom: 5px;">
+                            <ion-icon name="document-text-outline" style="color: var(--fusion-accent);"></ion-icon>
+                            <div style="flex: 1;">
+                                <div style="font-size: 11px; font-weight: 700;">{{ r.nombre }}</div>
+                                <div style="font-size: 9px; color: #999;">{{ r.frecuencia.nombre }} | {{ r.tiempo_estimado }}</div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div style="font-size: 10px; color: #999; text-align: center; padding: 10px;">No hay rutinas directas en esta categoría.</div>
+                        {% endfor %}
+                    </div>
                 </div>
                 {% endfor %}
             </div>

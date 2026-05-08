@@ -870,13 +870,10 @@ def mobile_dashboard(request):
     total_requisiciones = 0
     from core.models import ElementoApp
     from presupuestos.models import Requisicion
+    from mantenimiento.models import Tipo
 
-    # --- Visibilidad dinámica por grupo ---
-    secciones_permitidas = ElementoApp.get_secciones_usuario(request.user)
-
-
-    if 'finanzas' in secciones_permitidas:
-        total_requisiciones = Requisicion.objects.count()
+    # Categorías de rutinas para el catálogo
+    rutinas_categorias = Tipo.objects.filter(padre__isnull=True).prefetch_related('rutinas_set').order_by('nombre')
 
     context = {
         'ots_hoy': ots_hoy,
@@ -885,6 +882,7 @@ def mobile_dashboard(request):
         'avisos_abiertos': avisos_abiertos,
         'planos_recientes': planos_recientes,
         'ubicaciones_raiz': ubicaciones_raiz,
+        'rutinas_categorias': rutinas_categorias,
         'pedidos_pendientes_count': pedidos_pendientes_count,
         'tiempos_acordados_count': tiempos_acordados_count,
         'mis_tiempos_acordados': mis_tiempos_acordados,
