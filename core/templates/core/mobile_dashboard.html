@@ -420,6 +420,7 @@
     <div class="toolbar">
         <div class="toolbar-tabs">
             <div class="toolbar-tab active" data-tab="mantenimiento">Mantenimiento</div>
+            <div class="toolbar-tab" data-tab="activos">Activos</div>
             <div class="toolbar-tab" data-tab="inventario">Inventario</div>
             <div class="toolbar-tab" data-tab="seguridad">Seguridad</div>
             <div class="toolbar-tab" data-tab="finanzas">Finanzas</div>
@@ -446,6 +447,22 @@
             <a href="#catalog-section" class="action-group">
                 <ion-icon name="journal-outline"></ion-icon>
                 <span>Catálogo</span>
+            </a>
+        </div>
+        
+        <!-- Tab Content: Activos (NUEVO) -->
+        <div class="toolbar-actions tab-content" id="tab-activos" style="display: none;">
+            <a href="{% url 'activos:mobile_ubicaciones' %}" class="action-group">
+                <ion-icon name="map-outline"></ion-icon>
+                <span>Ubicaciones</span>
+            </a>
+            <a href="{% url 'activos:mobile_categorias' %}" class="action-group">
+                <ion-icon name="grid-outline"></ion-icon>
+                <span>Categorías</span>
+            </a>
+            <a href="{% url 'core:mobile_scanner' %}" class="action-group">
+                <ion-icon name="qr-code-outline"></ion-icon>
+                <span>Escanear</span>
             </a>
         </div>
 
@@ -508,6 +525,11 @@
                 { label: 'Equipos', value: '{{ total_activos }}', color: 'var(--fusion-accent)' },
                 { label: 'Alertas', value: '{{ avisos_abiertos }}', color: '#D32F2F' },
                 { label: 'Tareas', value: '{{ ots_hoy.count }}', color: 'var(--fusion-orange)' }
+            ],
+            activos: [
+                { label: 'Total', value: '{{ total_activos }}', color: 'var(--fusion-accent)' },
+                { label: 'Ubicaciones', value: '{{ ubicaciones_activos.count }}', color: 'var(--fusion-orange)' },
+                { label: 'Categorías', value: '{{ categorias_activos.count }}', color: '#2E7D32' }
             ],
             inventario: [
                 { label: 'Stock Bajo', value: '12', color: '#D32F2F' },
@@ -682,12 +704,19 @@
 
                 // Dynamic Stats
                 updateStats(tabName);
+
+                // Feed content
+                document.querySelectorAll('.tab-feed').forEach(feed => feed.style.display = 'none');
+                const activeFeed = document.getElementById('feed-' + tabName);
+                if (activeFeed) activeFeed.style.display = 'block';
             });
         });
     </script>
 
     <!-- MAIN VIEWPORT (Feed) -->
     <div class="viewport">
+        <!-- Contenedor Mantenimiento -->
+        <div id="feed-mantenimiento" class="tab-feed">
 
         <!-- Quick Stats -->
         <div class="stats-grid fade-in-up" id="stats-grid" style="animation-delay: 0.1s;">
@@ -821,6 +850,58 @@
             </div>
         </div>
         {% endif %}
+        </div> <!-- Fin feed-mantenimiento -->
+
+        <!-- Contenedor Activos (NUEVO) -->
+        <div id="feed-activos" class="tab-feed" style="display: none;">
+            <!-- Explorar por Categoría -->
+            <div class="fusion-card fade-in-up" style="animation-delay: 0.1s;">
+                <div class="fusion-card-header">
+                    <h3>Explorar por Categoría</h3>
+                    <ion-icon name="grid-outline" style="color: var(--fusion-accent);"></ion-icon>
+                </div>
+                <div class="fusion-card-content" style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    {% for cat in categorias_activos %}
+                    <a href="{% url 'activos:mobile_activos_by_categoria' cat.id %}" 
+                       style="background: #F8F8F8; border: 1px solid var(--fusion-border); border-radius: 4px; padding: 15px; text-align: center; text-decoration: none; color: inherit;">
+                        <ion-icon name="layers-outline" style="font-size: 20px; color: var(--fusion-orange); margin-bottom: 5px;"></ion-icon>
+                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">{{ cat.nombre }}</div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Explorar por Ubicación -->
+            <div class="fusion-card fade-in-up" style="animation-delay: 0.2s; margin-top: 20px;">
+                <div class="fusion-card-header">
+                    <h3>Explorar por Ubicación</h3>
+                    <ion-icon name="map-outline" style="color: var(--fusion-accent);"></ion-icon>
+                </div>
+                <div class="fusion-card-content" style="padding: 10px;">
+                    <div class="location-list">
+                        {% for u in ubicaciones_activos %}
+                        <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}" class="list-item" style="text-decoration: none;">
+                            <div class="icon" style="background: #E3F2FD;">
+                                <ion-icon name="business-outline" style="color: #1976D2;"></ion-icon>
+                            </div>
+                            <div class="content">
+                                <h4 style="color: var(--fusion-text);">{{ u.nombre }}</h4>
+                                <p style="font-size: 9px;">{{ u.get_children_count }} sub-ubicaciones</p>
+                            </div>
+                            <ion-icon name="chevron-forward-outline" style="color: #CCC;"></ion-icon>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div style="height: 40px;"></div>
+        </div> <!-- Fin feed-activos -->
+
+        <!-- Contenedores vacíos para otras pestañas para evitar errores JS -->
+        <div id="feed-inventario" class="tab-feed" style="display: none;"></div>
+        <div id="feed-seguridad" class="tab-feed" style="display: none;"></div>
+        <div id="feed-finanzas" class="tab-feed" style="display: none;"></div>
 
         <div style="height: 40px;"></div> <!-- Spacer for scrolling -->
     </div>

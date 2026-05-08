@@ -870,7 +870,13 @@ def mobile_dashboard(request):
     total_requisiciones = 0
     from core.models import ElementoApp
     from presupuestos.models import Requisicion
+    from activos.models import Categoria, Ubicacion
     from mantenimiento.models import Tipo, Rutina
+
+    # Categorías de activos
+    categorias_activos = Categoria.objects.filter(padre__isnull=True).order_by('nombre')
+    # Ubicaciones de activos
+    ubicaciones_activos = Ubicacion.objects.filter(padre__isnull=True).order_by('nombre')
 
     # --- Visibilidad dinámica por grupo ---
     secciones_permitidas = ElementoApp.get_secciones_usuario(request.user)
@@ -905,6 +911,8 @@ def mobile_dashboard(request):
         'avisos_abiertos': avisos_abiertos,
         'planos_recientes': planos_recientes,
         'ubicaciones_raiz': ubicaciones_raiz,
+        'categorias_activos': categorias_activos,
+        'ubicaciones_activos': ubicaciones_activos,
         'rutinas_categorias': rutinas_categorias,
         'pedidos_pendientes_count': pedidos_pendientes_count,
         'tiempos_acordados_count': tiempos_acordados_count,
