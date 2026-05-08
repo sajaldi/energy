@@ -20,14 +20,7 @@ def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int
     # 1. Agrupar rutinas por categoría
     rutinas_por_tipo = {}
     for r in all_rutinas:
-        # Aplicamos filtros de rutina aquí (o venían pre-filtrados)
-        if frecuencia_int and r.frecuencia_id != frecuencia_int: continue
-        if puesto_int and r.puesto_trabajo_id != puesto_int: continue
-        if search:
-            s = search.lower()
-            if not (s in r.nombre.lower() or (r.codigo_rutina and s in r.codigo_rutina.lower()) or (r.descripcion and s in r.descripcion.lower())):
-                continue
-        
+        # Nota: all_rutinas ya viene filtrada desde la vista
         if r.tipo_id not in rutinas_por_tipo:
             rutinas_por_tipo[r.tipo_id] = []
         rutinas_por_tipo[r.tipo_id].append(r)
@@ -94,26 +87,41 @@ def rutinas_dashboard(request):
         puesto_int = None
 
     # --- OPTIMIZACIÓN: Carga masiva en memoria ---
-    # Cargamos todas las categorías y rutinas de UNA vez para evitar N+1
-    all_categories = list(Tipo.objects.all().order_by('nombre'))
+    all_categories_qs = Tipo.objects.all().order_by('nombre')
+    all_categories = list(all_categories_qs)
     
-    # Pre-filtrar rutinas en DB si hay filtros pesados, sino traer todo (depende del volumen)
-    # Si hay búsqueda o filtros, pre-filtramos en DB para reducir RAM
+    # Pre-calcular rutas para búsqueda jerárquica
+    cat_paths = {}
+    cat_map = {c.id: c for c in all_categories}
+    for c in all_categories:
+        path = [c.nombre]
+        curr = c.padre_id
+        while curr and curr in cat_map:
+            p_obj = cat_map[curr]
+            path.append(p_obj.nombre)
+            curr = p_obj.padre_id
+        cat_paths[c.id] = " → ".join(reversed(path)).lower()
+
     all_rutinas_qs = Rutina.objects.all().select_related('frecuencia', 'puesto_trabajo', 'tipo').prefetch_related('kpis')
     
-    # Nota: Si el volumen de rutinas es inmenso (>10k), mejor filtrar aquí en DB
     if frecuencia_int:
         all_rutinas_qs = all_rutinas_qs.filter(frecuencia_id=frecuencia_int)
     if puesto_int:
         all_rutinas_qs = all_rutinas_qs.filter(puesto_trabajo_id=puesto_int)
-    if search:
-        all_rutinas_qs = all_rutinas_qs.filter(
-            Q(nombre__icontains=search) | 
-            Q(codigo_rutina__icontains=search) |
-            Q(descripcion__icontains=search)
-        )
     
-    all_rutinas = list(all_rutinas_qs)
+    # Filtrado manual para búsqueda jerárquica (incluyendo ruta de categoría)
+    all_rutinas = []
+    s = search.lower() if search else None
+    for r in all_rutinas_qs:
+        if s:
+            path_matches = s in cat_paths.get(r.tipo_id, "")
+            name_matches = s in r.nombre.lower()
+            code_matches = r.codigo_rutina and s in r.codigo_rutina.lower()
+            desc_matches = r.descripcion and s in r.descripcion.lower()
+            
+            if not (path_matches or name_matches or code_matches or desc_matches):
+                continue
+        all_rutinas.append(r)
     
     # Construir el árbol jerárquico en memoria
     tree = build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search)
@@ -123,11 +131,30 @@ def rutinas_dashboard(request):
     puestos = PuestoTrabajo.objects.all().order_by('nombre')
     total_rutinas = Rutina.objects.count()
     
-    # Todas las categorías para el select de creación/edición
-    todas_categorias = Tipo.objects.all().order_by('nombre')
+    # Todas las categorías para el select de creación/edición (con pre-cálculo de ruta para evitar N+1)
+    all_types = {t.id: t for t in Tipo.objects.all()}
+    for t in all_types.values():
+        path = [t.nombre]
+        curr = t.padre_id
+        while curr and curr in all_types:
+            p_obj = all_types[curr]
+            path.append(p_obj.nombre)
+            curr = p_obj.padre_id
+        t.temp_ruta_completa = " → ".join(reversed(path))
+    todas_categorias = sorted(all_types.values(), key=lambda x: x.temp_ruta_completa)
     
-    # Nuevos campos para selects
-    ubicaciones = Ubicacion.objects.all().order_by('nombre')
+    # Ubicaciones con pre-cálculo de ruta
+    all_locs = {l.id: l for l in Ubicacion.objects.all()}
+    for l in all_locs.values():
+        path = [l.nombre]
+        curr = l.padre_id
+        while curr and curr in all_locs:
+            p_obj = all_locs[curr]
+            path.append(p_obj.nombre)
+            curr = p_obj.padre_id
+        l.temp_ruta_completa = " → ".join(reversed(path))
+    ubicaciones = sorted(all_locs.values(), key=lambda x: x.temp_ruta_completa)
+
     categorias_activos = Categoria.objects.all().order_by('nombre')
     horarios = Horario.objects.all().order_by('nombre')
     

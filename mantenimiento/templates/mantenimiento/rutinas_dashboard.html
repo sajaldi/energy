@@ -684,7 +684,7 @@
                     <input
                         id="cat-search-input"
                         type="text"
-                        placeholder="Buscar categoría o rutina por nombre / código..."
+                        placeholder="Buscar por nombre, código o jerarquía completa (ej: Campus → Edificio)..."
                         autocomplete="off"
                         oninput="filterCategories(this.value)"
                         style="width:100%; padding: 0.4rem 2.2rem 0.4rem 0.75rem; border: 1px solid var(--border); border-radius: 0.25rem; font-size: 0.85rem; outline: none; color: var(--text-main); transition: border-color 0.2s;"
@@ -763,10 +763,10 @@
                         
                         <div class="form-group">
                             <label class="form-label" for="tipo-padre">Categoría Padre (Opcional)</label>
-                            <select id="tipo-padre" class="form-control">
+                            <select id="tipo-padre" class="form-control" placeholder="Seleccione una categoría padre...">
                                 <option value="">-- Nodo Raíz (Sin Padre) --</option>
                                 {% for cat in todas_categorias %}
-                                <option value="{{ cat.id }}">{{ cat.get_ruta_completa }}</option>
+                                <option value="{{ cat.id }}">{{ cat.temp_ruta_completa }}</option>
                                 {% endfor %}
                             </select>
                             <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">Dejar vacío para crear una categoría principal.</div>
@@ -796,6 +796,9 @@
         let currentRoutineId = null;
         let currentTipoId = null;
         let tsCatActivo = null;
+        let tsUbicacion = null;
+        let tsCategoria = null;
+        let tsTipoPadre = null;
 
         // DEBUG LOGGER ANTIGRAVITY
         document.addEventListener('click', (e) => {
@@ -868,6 +871,58 @@
                     placeholder: 'Seleccione categoría de activo...',
                     allowEmptyOption: true,
                     maxOptions: 500,
+                });
+            }
+
+            // Initialize Tom Select for Hierarchical Location (Ubicación Predeterminada)
+            const fUbic = document.getElementById('f-ubicacion');
+            if (fUbic) {
+                tsUbicacion = new TomSelect('#f-ubicacion', {
+                    create: false,
+                    placeholder: 'Buscar ubicación (Edificio, Nivel, Área)...',
+                    allowEmptyOption: true,
+                    maxOptions: 1000,
+                    render: {
+                        option: function(data, escape) {
+                            const parts = data.text.split(' → ');
+                            const main = parts.pop();
+                            const path = parts.join(' → ');
+                            return `<div>
+                                <span style="font-weight:600; display:block;">${escape(main)}</span>
+                                ${path ? `<span style="font-size:0.75rem; color:#64748b; display:block;">${escape(path)}</span>` : ''}
+                            </div>`;
+                        },
+                        item: function(data, escape) {
+                            const parts = data.text.split(' → ');
+                            return `<div>${escape(parts[parts.length - 1])}</div>`;
+                        }
+                    }
+                });
+            }
+
+            // Initialize Tom Select for Hierarchical Category (Mantenimiento)
+            const fCatMant = document.getElementById('f-categoria');
+            if (fCatMant) {
+                tsCategoria = new TomSelect('#f-categoria', {
+                    create: false,
+                    placeholder: 'Seleccione categoría de mantenimiento...',
+                    allowEmptyOption: true,
+                    maxOptions: 500,
+                    render: {
+                        option: function(data, escape) {
+                            const parts = data.text.split(' → ');
+                            const main = parts.pop();
+                            const path = parts.join(' → ');
+                            return `<div>
+                                <span style="font-weight:600; display:block;">${escape(main)}</span>
+                                ${path ? `<span style="font-size:0.75rem; color:#64748b; display:block;">${escape(path)}</span>` : ''}
+                            </div>`;
+                        },
+                        item: function(data, escape) {
+                            const parts = data.text.split(' → ');
+                            return `<div>${escape(parts[parts.length - 1])}</div>`;
+                        }
+                    }
                 });
             }
         });
@@ -1227,14 +1282,22 @@
             setSelectByText('f-frecuencia', rutina.frecuencia);
             
             // Usar IDs para mayor precisión
-            document.getElementById('f-categoria').value = rutina.categoria_id || '';
+            if (tsCategoria) {
+                tsCategoria.setValue(rutina.categoria_id || '');
+            } else {
+                document.getElementById('f-categoria').value = rutina.categoria_id || '';
+            }
             document.getElementById('f-frecuencia').value = rutina.frecuencia_id || '';
             const fPuesto = document.getElementById('f-puesto');
             if (fPuesto) fPuesto.value = rutina.puesto_trabajo_id || '';
             
             // Nuevos campos edición
             const fUbic = document.getElementById('f-ubicacion');
-            if (fUbic) fUbic.value = rutina.ubicacion_predeterminada_id || '';
+            if (tsUbicacion) {
+                tsUbicacion.setValue(rutina.ubicacion_predeterminada_id || '');
+            } else if (fUbic) {
+                fUbic.value = rutina.ubicacion_predeterminada_id || '';
+            }
             
             const fCatAct = document.getElementById('f-cat-activo');
             if (tsCatActivo) {

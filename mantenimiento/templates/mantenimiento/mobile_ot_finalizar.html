@@ -13,129 +13,160 @@
 
     <style>
         :root {
-            --primary: #007bff;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --bg-body: #f4f7f6;
-            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            /* AutoCAD Fusion 360 Inspired Palette (Light Theme) */
+            --fusion-bg: #f9f9f9;
+            --fusion-panel: #ffffff;
+            --fusion-header: #f1f1f1;
+            --fusion-border: #d5d5d5;
+            --fusion-accent: #0696d7; /* Fusion Blue */
+            --fusion-blue: #0696d7;
+            --fusion-text: #2c2c2c;
+            --fusion-text-muted: #6e6e6e;
+            --fusion-success: #5fbb4e;
+            --fusion-danger: #e65c5c;
+            
+            --primary: var(--fusion-accent);
+            --success: var(--fusion-success);
+            --warning: #ffb800;
+            --danger: var(--fusion-danger);
+            --light: #fefefe;
+            --dark: #1a1a1a;
+            --bg-body: var(--fusion-bg);
+            --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
         }
 
         body {
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg-body);
             margin: 0;
-            padding-bottom: 50px;
-            color: #334155;
+            padding-bottom: 80px;
+            color: var(--fusion-text);
+            -webkit-font-smoothing: antialiased;
         }
 
         header {
-            background: white;
-            padding: 15px 20px;
+            background: var(--fusion-header);
+            padding: 10px 16px;
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
             display: flex;
             align-items: center;
             gap: 12px;
+            border-bottom: 1px solid var(--fusion-border);
         }
 
         .back-btn {
-            font-size: 24px;
-            color: var(--dark);
+            font-size: 22px;
+            color: var(--fusion-text-muted);
             display: flex;
+            transition: color 0.2s;
         }
+        
+        .back-btn:hover { color: var(--fusion-blue); }
 
-        h1 {
+        header h1 {
             margin: 0;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
+            color: var(--fusion-text);
+            letter-spacing: -0.2px;
         }
 
         .container {
-            padding: 15px;
+            padding: 12px;
         }
 
         .card {
-            background: white;
-            border-radius: 16px;
-            padding: 18px;
-            margin-bottom: 20px;
+            background: var(--fusion-panel);
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 12px;
             box-shadow: var(--card-shadow);
-            border: 1px solid #eef2f6;
+            border: 1px solid var(--fusion-border);
         }
 
         .section-title {
-            font-size: 13px;
-            font-weight: 700;
-            margin: 0 0 15px 0;
-            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 800;
+            margin: 0 0 12px 0;
+            color: var(--fusion-text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            border-bottom: 1px solid #eeeeee;
+            padding-bottom: 6px;
         }
 
+        /* Fusion List Item Style */
         .step-item {
-            padding: 15px;
-            background: #fcfdfe;
-            border: 1px solid #f1f5f9;
-            border-radius: 12px;
-            margin-bottom: 12px;
+            padding: 12px;
+            background: var(--fusion-panel);
+            border-bottom: 1px solid #eeeeee;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: background 0.2s;
         }
+        
+        .step-item:last-child { border-bottom: none; }
+        
+        .step-item:active { background: #f5f5f5; }
 
         .step-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
+            align-items: center;
         }
 
         .step-order {
-            background: #e0f2fe;
-            color: #0369a1;
-            width: 24px;
-            height: 24px;
+            background: #f1f1f1;
+            color: var(--fusion-text-muted);
+            width: 20px;
+            height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
-            font-size: 11px;
-            font-weight: 700;
+            border-radius: 2px;
+            font-size: 9px;
+            font-weight: 800;
+            border: 1px solid var(--fusion-border);
         }
 
         .step-type {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 8px;
-            font-weight: 600;
+            font-size: 8px;
+            padding: 2px 5px;
+            border-radius: 2px;
+            font-weight: 700;
             text-transform: uppercase;
-            background: #f1f5f9;
-            color: #64748b;
+            background: #eef2f6;
+            color: var(--fusion-blue);
         }
 
         .step-instruction {
-            padding: 10px;
-            background: #fffbeb;
-            border-left: 3px solid #fbbf24;
+            padding: 0;
             font-size: 13px;
-            color: #92400e;
-            border-radius: 4px 8px 8px 4px;
+            font-weight: 600;
+            color: var(--fusion-text);
+            line-height: 1.4;
         }
 
         .input-group {
-            margin-top: 10px;
+            margin-top: 15px;
         }
 
         label {
             display: block;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
-            margin-bottom: 6px;
-            color: #64748b;
+            margin-bottom: 8px;
+            color: var(--fusion-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         input[type="text"],
@@ -143,115 +174,193 @@
         input[type="datetime-local"],
         textarea {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
+            padding: 10px;
+            background: #ffffff;
+            border: 1px solid var(--fusion-border);
+            border-radius: 4px;
             font-size: 14px;
             box-sizing: border-box;
             font-family: inherit;
+            color: var(--fusion-text);
+            transition: all 0.2s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--fusion-blue);
+            box-shadow: 0 0 0 1px rgba(6, 150, 215, 0.2);
         }
 
         textarea {
             resize: none;
-            height: 80px;
+            height: 70px;
         }
 
         .checkbox-group {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 0;
+            padding: 10px;
+            background: #ffffff;
+            border: 1px solid var(--fusion-border);
+            border-radius: 4px;
         }
 
         .checkbox-group input {
-            width: 20px;
-            height: 20px;
-        }
-
-        .medicion-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 15px;
-            padding: 12px 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .medicion-info {
-            flex: 1;
-        }
-
-        .medicion-info span {
-            display: block;
-            font-size: 11px;
-            color: #94a3b8;
-        }
-
-        .medicion-input {
-            width: 80px;
-            text-align: center;
-            padding: 8px !important;
-        }
-
-        .unit {
-            font-size: 12px;
-            font-weight: 600;
-            color: #64748b;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--fusion-blue);
         }
 
         .btn-submit {
             width: 100%;
-            background: #10b981;
-            color: white;
-            padding: 16px;
+            background: var(--fusion-blue);
+            color: #ffffff;
+            padding: 12px;
             border: none;
-            border-radius: 14px;
-            font-size: 15px;
+            border-radius: 4px;
+            font-size: 13px;
             font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             transition: all 0.2s;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(6, 150, 215, 0.15);
         }
 
         .btn-submit:active {
             transform: scale(0.98);
+            background: #0585bf;
         }
 
         .range-info {
-            font-size: 11px;
-            margin-top: 5px;
-            color: #ef4444;
+            font-size: 9px;
+            margin-top: 4px;
+            color: var(--fusion-text-muted);
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .step-header-group {
-            background: #1e293b;
-            color: white;
-            padding: 12px 18px;
-            border-radius: 12px;
-            margin: 25px 0 15px 0;
-            font-size: 14px;
-            font-weight: 700;
+            background: #eef2f6;
+            color: var(--fusion-blue);
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 20px 0 10px 0;
+            font-size: 11px;
+            font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            gap: 8px;
+            border: 1px solid #d0dae5;
         }
 
-        .step-header-group ion-icon {
-            font-size: 20px;
-            color: #94a3b8;
+        /* Technical Photo UI */
+        .reference-media {
+            margin-bottom: 12px;
+            background: #fdfdfd;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--fusion-border);
         }
 
-        .drag-over {
-            background: #e0f2fe !important;
-            border-color: #0ea5e9 !important;
-            transform: scale(1.02);
+        .media-thumb {
+            flex: 0 0 90px;
+            aspect-ratio: 4/3;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--fusion-border);
+            background: #eeeeee;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .media-thumb:hover {
+            border-color: var(--fusion-blue);
+            box-shadow: 0 0 5px rgba(6, 150, 215, 0.3);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            max-width: 92%;
+            max-height: 80%;
+            position: relative;
+            background: #ffffff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid var(--fusion-border);
+        }
+
+        .modal-image {
+            width: 100%;
+            height: auto;
+            max-height: 70vh;
+            border-radius: 4px;
+            display: block;
+        }
+
+        .modal-video {
+            width: 100%;
+            max-height: 70vh;
+            border-radius: 4px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: var(--fusion-text);
+            font-size: 32px;
+            cursor: pointer;
+            background: #ffffff;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .modal-caption {
+            color: var(--fusion-text);
+            padding: 12px 0 0 0;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
         }
     </style>
 </head>
@@ -276,15 +385,15 @@
                 <h2 class="section-title">
                     <ion-icon name="camera-outline"></ion-icon> Evidencia de Inicio
                 </h2>
-                <div class="upload-area" id="dropZoneInicio" style="padding: 20px; border: 2px dashed #cbd5e1; border-radius: 12px; text-align: center; background: #f8fafc; transition: all 0.2s;">
-                    <ion-icon name="cloud-upload-outline" style="font-size: 32px; color: #94a3b8; margin-bottom: 8px;"></ion-icon>
-                    <p style="font-size: 13px; color: #64748b; margin: 0;">Arrastra o selecciona fotos de <b>Inicio</b></p>
+                <div class="upload-area" id="dropZoneInicio" style="padding: 16px; border: 1px dashed var(--fusion-border); border-radius: 4px; text-align: center; background: #fafafa; transition: all 0.2s;">
+                    <ion-icon name="cloud-upload-outline" style="font-size: 28px; color: var(--fusion-blue); margin-bottom: 6px;"></ion-icon>
+                    <p style="font-size: 10px; color: var(--fusion-text-muted); margin: 0; text-transform: uppercase; font-weight: 700;">Subir fotos de Inicio</p>
                     <input type="file" id="photoFileInputInicio" name="fotos_inicio" multiple style="display: none;">
-                    <button type="button" class="btn-secondary" onclick="document.getElementById('photoFileInputInicio').click()" style="margin-top: 10px; padding: 6px 12px; font-size: 12px;">
-                        SELECCIONAR FOTOS
+                    <button type="button" class="btn-submit" onclick="document.getElementById('photoFileInputInicio').click()" style="margin-top: 10px; padding: 8px 12px; font-size: 11px; background: #eef2f6; color: var(--fusion-blue); box-shadow: none; border: 1px solid #d0dae5;">
+                        <ion-icon name="add-outline"></ion-icon> SELECCIONAR
                     </button>
                 </div>
-                <div id="photoPreviewGridInicio" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px;"></div>
+                <div id="photoPreviewGridInicio" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px;"></div>
             </div>
 
             {% if pasos %}
@@ -300,29 +409,56 @@
                     {{ paso.descripcion }}
                 </div>
                 {% else %}
-                <div class="step-item">
-                    <div class="step-header">
-                        <div class="step-order">{{ paso.orden }}</div>
-                        <span class="step-type">{{ paso.get_tipo_respuesta_display }}</span>
+                <div class="step-item" id="paso-{{ paso.id }}">
+                    <div style="display: flex; gap: 12px; align-items: flex-start;">
+                        <!-- Step Icon/Thumbnail Column -->
+                        <div style="flex: 0 0 42px;">
+                            <div style="width: 42px; height: 42px; background: #f0f3f6; border: 1px solid #dce2e8; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                {% with media_files=paso.media_files.all %}
+                                {% if media_files %}
+                                    <img src="{{ media_files.0.archivo.url }}" style="width: 100%; height: 100%; object-fit: cover;" onclick="openMediaModal('{{ media_files.0.archivo.url }}', '{{ media_files.0.tipo }}', '{{ media_files.0.descripcion|escapejs }}')">
+                                {% else %}
+                                    <ion-icon name="{% if paso.tipo_respuesta == 'CHECK' %}checkmark-done-outline{% elif paso.tipo_respuesta == 'NUMERICO' %}calculator-outline{% elif paso.tipo_respuesta == 'FOTO' %}camera-outline{% else %}document-text-outline{% endif %}" 
+                                              style="font-size: 20px; color: var(--fusion-blue);"></ion-icon>
+                                {% endif %}
+                                {% endwith %}
+                            </div>
+                            <div class="step-order" style="margin: 4px auto 0;">{{ paso.orden }}</div>
+                        </div>
+
+                        <!-- Step Content Column -->
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                                <span class="step-type">{{ paso.get_tipo_respuesta_display }}</span>
+                                {% if paso.no_aplica_habilitado %}
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <input type="checkbox" name="paso_{{ paso.id }}_na" id="na_{{ paso.id }}" {% if paso.resultado.no_aplica %}checked{% endif %} style="width: 14px; height: 14px;">
+                                    <label for="na_{{ paso.id }}" style="margin: 0; font-size: 9px; font-weight: 700;">N/A</label>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <p class="step-instruction">{{ paso.descripcion }}</p>
+                        </div>
                     </div>
 
-                    <p style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0;">{{ paso.descripcion }}</p>
+                    <!-- Step Inputs Section -->
+                    <div style="margin-top: 5px; border-top: 1px solid #f0f0f0; padding-top: 10px;">
 
                     {% with media_files=paso.media_files.all %}
                     {% if media_files %}
-                    <div class="reference-media" style="margin-bottom: 12px; background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <div style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                            <ion-icon name="images-outline"></ion-icon> Fotos de Referencia
+                    <div class="reference-media">
+                        <div style="font-size: 9px; font-weight: 700; color: var(--fusion-blue); text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                            <ion-icon name="images-outline"></ion-icon> Planos / Fotos de Referencia
                         </div>
-                        <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+                        <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
                             {% for media in media_files %}
-                                <div style="flex: 0 0 120px; aspect-ratio: 4/3; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; background: white; scroll-snap-align: start;">
+                                <div class="media-thumb" onclick="openMediaModal('{{ media.archivo.url }}', '{{ media.tipo }}', '{{ media.descripcion|escapejs }}')">
                                     {% if media.tipo == 'IMAGEN' %}
-                                        <img src="{{ media.archivo.url }}" style="width: 100%; height: 100%; object-fit: cover;" onclick="window.open(this.src, '_blank')">
+                                        <img src="{{ media.archivo.url }}" style="width: 100%; height: 100%; object-fit: cover;">
                                     {% elif media.tipo == 'VIDEO' %}
                                         <div style="position: relative; width: 100%; height: 100%;">
                                             <video src="{{ media.archivo.url }}" style="width: 100%; height: 100%; object-fit: cover;"></video>
-                                            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2);" onclick="this.previousElementSibling.play()">
+                                            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4);">
                                                 <ion-icon name="play" style="color: white; font-size: 24px;"></ion-icon>
                                             </div>
                                         </div>
@@ -388,24 +524,23 @@
                         {% if paso.fotos_guardadas %}
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; margin-bottom: 8px;">
                             {% for foto in paso.fotos_guardadas %}
-                            <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#f1f5f9;border:2px solid #10b981;">
-                                <a href="{{ foto.archivo.url }}" target="_blank" style="width:100%;height:100%;display:block;">
-                                    <img src="{{ foto.archivo.url }}" style="width:100%;height:100%;object-fit:cover;">
-                                </a>
-                                <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(16,185,129,0.85);color:white;font-size:9px;text-align:center;padding:2px;">Guardada</div>
+                            <div style="position:relative;border-radius:4px;overflow:hidden;aspect-ratio:1;background:#f5f5f5;border:1px solid var(--fusion-success); cursor: pointer;" 
+                                 onclick="openMediaModal('{{ foto.archivo.url }}', 'IMAGEN', 'Evidencia Guardada - Paso {{ paso.orden }}')">
+                                <img src="{{ foto.archivo.url }}" style="width:100%;height:100%;object-fit:cover;">
+                                <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(95, 187, 78, 0.9);color:white;font-size:8px;text-align:center;padding:2px;text-transform:uppercase;font-weight:700;">OK</div>
                             </div>
                             {% endfor %}
                         </div>
                         {% endif %}
                         <div class="foto-preview-grid" id="fotoGrid_{{ paso.id }}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; margin-bottom: 8px;"></div>
                         <div style="display: flex; gap: 8px;">
-                            <div onclick="document.getElementById('fotoCam_{{ paso.id }}').click()" style="flex: 1; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; background: white;">
-                                <ion-icon name="camera" style="font-size: 22px; color: #0ea5e9;"></ion-icon>
-                                <p style="margin: 4px 0 0; font-size: 11px; color: #94a3b8;">Cámara</p>
+                            <div onclick="document.getElementById('fotoCam_{{ paso.id }}').click()" style="flex: 1; border: 1px dashed var(--fusion-border); border-radius: 4px; padding: 10px; text-align: center; cursor: pointer; background: #fafafa;">
+                                <ion-icon name="camera" style="font-size: 20px; color: var(--fusion-blue);"></ion-icon>
+                                <p style="margin: 4px 0 0; font-size: 9px; color: var(--fusion-text-muted); font-weight: 700; text-transform: uppercase;">Cámara</p>
                             </div>
-                            <div onclick="document.getElementById('fotoGal_{{ paso.id }}').click()" style="flex: 1; border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; background: white;">
-                                <ion-icon name="images" style="font-size: 22px; color: #8b5cf6;"></ion-icon>
-                                <p style="margin: 4px 0 0; font-size: 11px; color: #94a3b8;">Galería</p>
+                            <div onclick="document.getElementById('fotoGal_{{ paso.id }}').click()" style="flex: 1; border: 1px dashed var(--fusion-border); border-radius: 4px; padding: 10px; text-align: center; cursor: pointer; background: #fafafa;">
+                                <ion-icon name="images" style="font-size: 20px; color: #8b5cf6;"></ion-icon>
+                                <p style="margin: 4px 0 0; font-size: 9px; color: var(--fusion-text-muted); font-weight: 700; text-transform: uppercase;">Galería</p>
                             </div>
                         </div>
                         <input type="file" id="fotoCam_{{ paso.id }}" accept="image/*" capture="environment" style="display: none;" onchange="addStepPhoto({{ paso.id }}, this)">
@@ -415,15 +550,11 @@
                     {% endif %}
 
                     {% if paso.tipo_respuesta != 'INSTRUCCION' %}
-                    <div class="input-group" style="margin-top: 15px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
-                        <div class="checkbox-group">
-                            <input type="checkbox" name="paso_{{ paso.id }}_na" id="na_{{ paso.id }}" {% if paso.resultado.no_aplica %}checked{% endif %}>
-                            <label for="na_{{ paso.id }}" style="margin: 0;">No aplica</label>
-                        </div>
-                        <label style="margin-top: 5px;">Comentarios adicionales</label>
-                        <input type="text" name="paso_{{ paso.id }}_com" value="{{ paso.resultado.comentarios|default:'' }}" placeholder="Opcional..." style="font-size: 12px; padding: 8px;">
+                    <div class="input-group" style="margin-top: 10px; border-top: 1px dashed #eee; padding-top: 8px; display: flex; align-items: center; gap: 10px;">
+                        <input type="text" name="paso_{{ paso.id }}_com" value="{{ paso.resultado.comentarios|default:'' }}" placeholder="Añadir comentario..." style="font-size: 11px; padding: 6px; flex: 1;">
                     </div>
                     {% endif %}
+                </div>
                 </div>
                 {% endif %}
                 {% endfor %}
@@ -436,45 +567,45 @@
                     <ion-icon name="speedometer-outline"></ion-icon> Puntos de Medición (SAP)
                 </h2>
                 {% for punto in puntos_medicion %}
-                <div class="medicion-item">
-                    <div class="medicion-info">
-                        <p style="margin: 0; font-size: 13px; font-weight: 600;">{{ punto.nombre }}</p>
-                        <span>Equipo: {{ punto.activo_nombre }}</span>
+                <div style="padding: 10px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="flex: 1;">
+                        <p style="margin: 0; font-size: 12px; font-weight: 700; color: var(--fusion-text);">{{ punto.nombre }}</p>
+                        <p style="margin: 0; font-size: 9px; color: var(--fusion-text-muted);">{{ punto.activo_nombre }}</p>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="number" step="any" name="punto_{{ punto.id }}" class="medicion-input" placeholder="0.0">
-                        <span class="unit">{{ punto.unidad }}</span>
+                    <div style="display: flex; align-items: center; gap: 6px; width: 100px;">
+                        <input type="number" step="any" name="punto_{{ punto.id }}" style="text-align: right; font-size: 12px; padding: 6px;" placeholder="0.0">
+                        <span style="font-size: 10px; font-weight: 700; color: var(--fusion-blue); width: 30px;">{{ punto.unidad }}</span>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
 
-            <div class="card" style="background: #f8fafc;">
-                <h2 class="section-title"><ion-icon name="checkmark-circle-outline"></ion-icon> Confirmación de Cierre</h2>
+            <div class="card" style="border-top: 4px solid var(--fusion-blue);">
+                <h2 class="section-title" style="color: var(--fusion-blue);"><ion-icon name="checkmark-circle-outline"></ion-icon> Finalización</h2>
                 
-                <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
                     <div class="input-group">
-                        <label>Hora Real de Cierre</label>
-                        <input type="datetime-local" name="fecha_cierre" id="fechaCierreInput" required>
+                        <label>Hora de Cierre</label>
+                        <input type="datetime-local" name="fecha_cierre" id="fechaCierreInput" required style="font-size: 13px;">
                     </div>
                     <div class="input-group">
-                        <label>Comentarios Generales de la Orden</label>
-                        <textarea name="comentarios_cierre" placeholder="Breve resumen del trabajo realizado..."></textarea>
+                        <label>Comentarios de la Orden</label>
+                        <textarea name="comentarios_cierre" placeholder="Resumen del trabajo..."></textarea>
                     </div>
                 </div>
 
                 <div class="input-group" style="margin-top: 15px;">
-                    <label><ion-icon name="camera-outline" style="vertical-align: middle;"></ion-icon> Evidencia Fotográfica (Arrastre o Pegue aquí)</label>
+                    <label><ion-icon name="camera-outline" style="vertical-align: middle;"></ion-icon> Evidencia Fotográfica de Cierre</label>
                     <div id="photoPreviewGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-bottom: 10px;"></div>
-                    <div id="dropZone" style="display: flex; gap: 8px; border-radius: 12px; transition: all 0.3s; padding: 5px;">
-                        <div onclick="document.getElementById('photoCamInput').click()" style="flex: 1; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; background: white;">
-                            <ion-icon name="camera" style="font-size: 28px; color: #0ea5e9;"></ion-icon>
-                            <p style="margin: 6px 0 0; font-size: 12px; color: #94a3b8;"><b>Cámara</b></p>
+                    <div id="dropZone" style="display: flex; gap: 8px; border-radius: 4px; transition: all 0.3s; padding: 5px;">
+                        <div onclick="document.getElementById('photoCamInput').click()" style="flex: 1; border: 1px dashed var(--fusion-border); border-radius: 4px; padding: 14px; text-align: center; cursor: pointer; background: #fafafa;">
+                            <ion-icon name="camera" style="font-size: 22px; color: var(--fusion-blue);"></ion-icon>
+                            <p style="margin: 4px 0 0; font-size: 9px; color: var(--fusion-text-muted); font-weight: 700; text-transform: uppercase;"><b>Cámara</b></p>
                         </div>
-                        <div onclick="document.getElementById('photoGalInput').click()" style="flex: 1; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; background: white;">
-                            <ion-icon name="images" style="font-size: 28px; color: #8b5cf6;"></ion-icon>
-                            <p style="margin: 6px 0 0; font-size: 12px; color: #94a3b8;"><b>Galería</b></p>
+                        <div onclick="document.getElementById('photoGalInput').click()" style="flex: 1; border: 1px dashed var(--fusion-border); border-radius: 4px; padding: 14px; text-align: center; cursor: pointer; background: #fafafa;">
+                            <ion-icon name="images" style="font-size: 22px; color: #8b5cf6;"></ion-icon>
+                            <p style="margin: 4px 0 0; font-size: 9px; color: var(--fusion-text-muted); font-weight: 700; text-transform: uppercase;"><b>Galería</b></p>
                         </div>
                     </div>
                     <input type="file" id="photoCamInput" accept="image/*" capture="environment" style="display: none;">
@@ -494,7 +625,49 @@
         </form>
     </div>
 
+    <!-- Media Modal Overlay -->
+    <div id="mediaModal" class="modal-overlay" onclick="closeMediaModal()">
+        <span class="modal-close" onclick="closeMediaModal()">&times;</span>
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div id="modalBody"></div>
+            <div id="modalCaption" class="modal-caption"></div>
+        </div>
+    </div>
+
     <script>
+    function openMediaModal(src, type, caption) {
+        const modal = document.getElementById('mediaModal');
+        const modalBody = document.getElementById('modalBody');
+        const modalCaption = document.getElementById('modalCaption');
+        
+        modalBody.innerHTML = '';
+        if (type === 'IMAGEN') {
+            const img = document.createElement('img');
+            img.src = src;
+            img.className = 'modal-image';
+            modalBody.appendChild(img);
+        } else if (type === 'VIDEO') {
+            const video = document.createElement('video');
+            video.src = src;
+            video.controls = true;
+            video.autoplay = true;
+            video.className = 'modal-video';
+            modalBody.appendChild(video);
+        }
+        
+        modalCaption.innerText = caption || '';
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling
+    }
+
+    function closeMediaModal() {
+        const modal = document.getElementById('mediaModal');
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = ''; // Stop video if any
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());

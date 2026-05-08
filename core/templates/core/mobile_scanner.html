@@ -385,34 +385,79 @@
                 });
         };
 
-        // Forzar playsinline en video para Safari iOS (requerido para video inline)
-        const _videoObserver = new MutationObserver(() => {
-            const video = document.querySelector('#reader video');
-            if (video && !video.hasAttribute('playsinline')) {
-                video.setAttribute('playsinline', '');
-                video.setAttribute('webkit-playsinline', '');
+        // Observer para inyectar playsinline en el video apenas se cree (Vital para iOS Safari)
+        const _videoObserver = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList') {
+                    const video = document.querySelector('#reader video');
+                    if (video && !video.hasAttribute('playsinline')) {
+                        video.setAttribute('playsinline', 'true');
+                        video.setAttribute('webkit-playsinline', 'true');
+                        video.muted = true;
+                        video.play().catch(() => {}); // Intentar forzar play
+                    }
+                }
             }
         });
         _videoObserver.observe(document.getElementById('reader'), { childList: true, subtree: true });
 
-        // Iniciar con la cámara trasera por defecto
-        // Usamos una pequeña pausa para asegurar que el DOM esté listo para Safari
-        setTimeout(() => {
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                onScanSuccess,
-                () => {} // Suprimir logs de frames sin QR (crítico para rendimiento en Safari)
-            ).catch(err => {
-                const errMsg = typeof err === 'string' ? err : (err.message || String(err));
-                console.error("Camera error:", errMsg);
-                if (errMsg.includes("Permission") || errMsg.includes("NotAllowed") || errMsg.includes("denied")) {
-                    showToast("Error: Permiso denegado. Abre Ajustes > Safari > Cámara y permite el acceso.");
-                } else {
-                    showToast("Error al abrir cámara: " + errMsg.substring(0, 80));
+        async function startScanner() {
+            try {
+                // Intentar obtener cámaras primero (ayuda a despertar el permiso en iOS)
+                const devices = await Html5Qrcode.getCameras();
+                
+                let cameraId = null;
+                if (devices && devices.length > 0) {
+                    // Buscar cámara trasera
+                    const backCamera = devices.find(device => 
+                        device.label.toLowerCase().includes('back') || 
+                        device.label.toLowerCase().includes('trasera') ||
+                        device.label.toLowerCase().includes('environment')
+                    );
+                    cameraId = backCamera ? backCamera.id : devices[0].id;
                 }
-            });
-        }, 300);
+
+                const config = {
+                    fps: 15, // Un poco más alto para fluidez
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0,
+                    videoConstraints: {
+                        facingMode: "environment",
+                        focusMode: "continuous"
+                    }
+                };
+
+                await html5QrCode.start(
+                    cameraId ? cameraId : { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    () => {}
+                );
+
+            } catch (err) {
+                console.error("Scanner Error:", err);
+                const errMsg = typeof err === 'string' ? err : (err.message || String(err));
+                
+                if (errMsg.includes("Permission") || errMsg.includes("NotAllowed")) {
+                    showToast("Error: Permiso denegado. Ve a Ajustes > Safari > Cámara y activa 'Permitir'.");
+                    
+                    // Mostrar un botón de re-intento manual
+                    const pill = document.getElementById('main-pill');
+                    pill.innerHTML = '<span style="color:#ffc107">Permiso denegado. Toca aquí para reintentar</span>';
+                    pill.parentElement.onclick = () => location.reload();
+                } else {
+                    showToast("No se pudo iniciar la cámara: " + errMsg.substring(0, 50));
+                    // Intento desesperado sin ID específico
+                    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess, () => {})
+                        .catch(e => console.error("Final fallback failed", e));
+                }
+            }
+        }
+
+        // Iniciar con un pequeño delay
+        window.addEventListener('load', () => {
+            setTimeout(startScanner, 500);
+        });
 
         // Toggle Linterna
         document.getElementById('flash-toggle').addEventListener('click', async () => {

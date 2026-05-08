@@ -19,6 +19,17 @@
     {% webpush_header %}
 
     <style>
+        :root {
+            /* AutoCAD Fusion 360 Inspired Palette (Light Theme) */
+            --fusion-bg: #f9f9f9;
+            --fusion-panel: #ffffff;
+            --fusion-header: #f1f1f1;
+            --fusion-border: #d5d5d5;
+            --fusion-accent: #0696d7; /* Fusion Blue */
+            --fusion-blue: #0696d7;
+            --fusion-text: #2c2c2c;
+            --fusion-text-muted: #6e6e6e;
+        }
 
         body {
             font-family: var(--sap-font-family);
@@ -288,17 +299,70 @@
             gap: 10px;
         }
 
+        /* Technical Photo UI for Detalle */
         .attachment-item {
             position: relative;
-            border-radius: 8px;
+            border-radius: 4px;
             overflow: hidden;
-            border: 1px solid var(--sap-border-color);
+            border: 1px solid var(--fusion-border);
             aspect-ratio: 1;
-            background: #f8f9fa;
+            background: #1a1a1a;
             display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .attachment-item:hover {
+            transform: scale(1.02);
+            border-color: var(--fusion-blue);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            max-width: 95%;
+            max-height: 85%;
+            position: relative;
+        }
+
+        .modal-image {
+            width: 100%;
+            height: auto;
+            max-height: 80vh;
+            border: 1px solid var(--fusion-blue);
+            border-radius: 4px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: -45px;
+            right: 0;
+            color: white;
+            font-size: 35px;
+            cursor: pointer;
         }
 
         .attachment-item img {
@@ -659,9 +723,9 @@
                     <div class="attachment-item" id="file-{{ archivo.id }}" style="height: auto; min-height: 120px; display: flex; flex-direction: column;">
                         <div style="position: relative; flex-grow: 1; height: 100px;">
                             {% if archivo.tipo == 'IMAGEN' %}
-                            <a href="{{ archivo.archivo.url }}" target="_blank" style="width:100%;height:100%;">
+                            <div onclick="openMediaModal('{{ archivo.archivo.url }}', 'IMAGEN')" style="width:100%;height:100%;">
                                 <img src="{{ archivo.archivo.url }}" alt="{{ archivo.nombre }}" style="object-fit: cover;">
-                            </a>
+                            </div>
                             {% else %}
                             <a href="{{ archivo.archivo.url }}" target="_blank" style="text-decoration:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
                                 <ion-icon name="document-outline" class="file-icon"></ion-icon>
@@ -1048,10 +1112,9 @@
                             div.style.display = "flex";
                             div.style.flexDirection = "column";
                             div.innerHTML = `
-                                <div style="position: relative; flex-grow: 1; height: 100px;">
-                                    <a href="${a.url}" target="_blank" style="width:100%;height:100%;">
-                                        <img src="${a.url}" alt="${a.nombre}" style="object-fit: cover;">
-                                    </a>
+                                <div onclick="openMediaModal('${a.url}', 'IMAGEN')" style="width:100%;height:100%;">
+                                    <img src="${a.url}" alt="${a.nombre}" style="object-fit: cover;">
+                                </div>
                                     <button class="attachment-delete" onclick="deleteFile(${a.id})" title="Eliminar" style="z-index: 10;">
                                         <ion-icon name="close"></ion-icon>
                                     </button>
@@ -1294,7 +1357,38 @@
             }
         }
 
-        function updateOT() {
+    <!-- Media Modal Overlay -->
+    <div id="mediaModal" class="modal-overlay" onclick="closeMediaModal()">
+        <span class="modal-close" onclick="closeMediaModal()">&times;</span>
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        function openMediaModal(src, type) {
+            const modal = document.getElementById('mediaModal');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalBody.innerHTML = '';
+            if (type === 'IMAGEN') {
+                const img = document.createElement('img');
+                img.src = src;
+                img.className = 'modal-image';
+                modalBody.appendChild(img);
+            }
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMediaModal() {
+            const modal = document.getElementById('mediaModal');
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // === OT Update ===
+        async function updateOT() {
             const formData = new FormData(document.getElementById('assignmentForm'));
             
             fetch("{% url 'mantenimiento:mobile_ot_update_ajax' ot.id %}", {
