@@ -875,8 +875,28 @@ def mobile_dashboard(request):
     # --- Visibilidad dinámica por grupo ---
     secciones_permitidas = ElementoApp.get_secciones_usuario(request.user)
 
-    # Categorías de rutinas para el catálogo
-    rutinas_categorias = Tipo.objects.filter(padre__isnull=True).prefetch_related('rutinas').order_by('nombre')
+    # Categorías de rutinas para el catálogo (Agregando recursión para que aparezcan todas)
+    root_tipos = Tipo.objects.filter(padre__isnull=True).order_by('nombre')
+    rutinas_categorias = []
+
+    for root in root_tipos:
+        descendants = root.get_descendants(include_self=True)
+        rutinas_de_rama = Rutina.objects.filter(tipo__in=descendants).select_related('frecuencia', 'tipo')
+        if rutinas_de_rama.exists():
+            # Adjuntamos las rutinas directamente al objeto root para el template
+            root.all_rutinas = rutinas_de_rama
+            rutinas_categorias.append(root)
+    
+    # Rutinas sin categoría (General)
+    rutinas_huérfanas = Rutina.objects.filter(tipo__isnull=True).select_related('frecuencia')
+    if rutinas_huérfanas.exists():
+        general_cat = type('obj', (object,), {
+            'id': 'general',
+            'nombre': 'General / Otros',
+            'all_rutinas': rutinas_huérfanas,
+            'rutinas': rutinas_huérfanas # para compatibilidad con .count
+        })
+        rutinas_categorias.append(general_cat)
 
     context = {
         'ots_hoy': ots_hoy,
