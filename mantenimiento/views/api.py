@@ -403,6 +403,69 @@ def api_buscar_activos(request):
         })
     return JsonResponse({'results': results})
 
+@staff_member_required
+def api_buscar_activos_filtrados(request):
+    """
+    Busca activos filtrados por ubicación y categoría.
+    Especialmente para el flujo de inicio de rutinas desde QR móvil.
+    """
+    ubicacion_id = request.GET.get('ubicacion_id')
+    rutina_id = request.GET.get('rutina_id')
+    query = request.GET.get('q', '').strip()
+
+    if not ubicacion_id or not rutina_id:
+        return JsonResponse({'results': []})
+
+    from ..models import Rutina
+    try:
+        rutina = Rutina.objects.get(id=rutina_id)
+        # Determinar la categoría (prioridad: rutina -> tipo)
+        categoria = rutina.categoria_activo
+        if not categoria and rutina.tipo:
+            categoria = rutina.tipo.categoria_activo
+        
+        if not categoria:
+            return JsonResponse({'results': []})
+
+        from django.db.models import Q
+        from activos.models import Ubicacion
+        
+        # Obtener todos los descendientes de la ubicación para el filtro
+        try:
+            ubi = Ubicacion.objects.get(id=ubicacion_id)
+            descendant_ids = ubi.get_descendants(include_self=True).values_list('id', flat=True)
+        except Ubicacion.DoesNotExist:
+            return JsonResponse({'results': []})
+
+        # Filtrar activos
+        qs = Activo.objects.filter(
+            ubicacion_id__in=descendant_ids,
+            modelo__categoria=categoria
+        )
+
+        if query:
+            qs = qs.filter(
+                Q(nombre__icontains=query) |
+                Q(codigo_interno__icontains=query) |
+                Q(serie__icontains=query)
+            )
+
+        results = []
+        for a in qs.select_related('ubicacion', 'modelo__marca', 'modelo__categoria')[:50]:
+            results.append({
+                'id': a.id,
+                'nombre': a.nombre,
+                'codigo': a.codigo_interno or a.serie or 'S/C',
+                'ubicacion': a.ubicacion.nombre if a.ubicacion else 'S/U',
+                'categoria': a.modelo.categoria.nombre if a.modelo and a.modelo.categoria else 'S/C',
+                'marca_modelo': f"{a.modelo.marca.nombre if a.modelo and a.modelo.marca else ''} {a.modelo.nombre if a.modelo else ''}".strip()
+            })
+
+        return JsonResponse({'results': results})
+
+    except Rutina.DoesNotExist:
+        return JsonResponse({'results': []})
+
 @require_POST
 def api_update_foto_descripcion(request, pk):
     """

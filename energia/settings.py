@@ -160,7 +160,12 @@ else:
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 # Si no hay key de Gemini, loguear advertencia pero no detener el sistema
 if not GEMINI_API_KEY:
-    print("[WARNING] GEMINI_API_KEY no encontrada. La búsqueda semántica no funcionará.")
+    print("[WARNING] GEMINI_API_KEY no encontrada. La búsqueda semántica usará Ollama si está disponible.")
+
+# --- Ollama Configuration (Local AI) ---
+OLLAMA_URL = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+OLLAMA_MODEL_CHAT = os.environ.get('OLLAMA_MODEL_CHAT', 'llama3')
+OLLAMA_MODEL_EMBEDDING = os.environ.get('OLLAMA_MODEL_EMBEDDING', 'nomic-embed-text')
 
 
 # Configuracion de subida de archivos
@@ -655,6 +660,12 @@ JAZZMIN_SETTINGS = {
                 "name": "📊 Dashboard de KPIs",
                 "url": "/admin/servicios/kpi/",
                 "icon": "fas fa-chart-bar",
+                "permissions": ["servicios.view_kpi"],
+            },
+            {
+                "name": "🔍 Buscador RAG de KPIs",
+                "url": "/servicios/kpi/buscar/",
+                "icon": "fas fa-brain",
                 "permissions": ["servicios.view_kpi"],
             },
         ],

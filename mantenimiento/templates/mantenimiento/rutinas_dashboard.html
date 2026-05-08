@@ -1262,10 +1262,44 @@
             }
 
             pasos.sort((a, b) => a.orden - b.orden).forEach((p, index) => {
+                const pasoId = p.id || '';
+                const mediaItems = p.media || [];
+
                 if (isEditable) {
                     const row = document.createElement('div');
                     row.className = 'step-row-edit';
-                    row.dataset.id = p.id || '';
+                    row.dataset.id = pasoId;
+                    
+                    let mediaHtml = '';
+                    if (pasoId) {
+                        mediaHtml = `
+                            <div class="media-management-section" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0;">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.5rem;">Fotos/Videos de Referencia</label>
+                                <div id="media-gallery-${pasoId}" class="media-edit-gallery">
+                                    ${mediaItems.map(m => `
+                                        <div class="media-edit-item" id="media-item-${m.id}">
+                                            <button type="button" class="btn-delete-media" onclick="deleteMediaPaso(${m.id})">&times;</button>
+                                            ${m.tipo === 'IMAGEN' ? `<img src="${m.url}" alt="Referencia">` : `<video src="${m.url}"></video><div class="video-overlay"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="upload-zone-wrapper" 
+                                     onclick="document.getElementById('file-input-${pasoId}').click()"
+                                     ondragover="event.preventDefault(); this.classList.add('drag-active')"
+                                     ondragleave="this.classList.remove('drag-active')"
+                                     ondrop="handleMediaDrop(event, ${pasoId})">
+                                    <input type="file" id="file-input-${pasoId}" style="display: none;" onchange="uploadMediaPaso(this, ${pasoId})" accept="image/*,video/*">
+                                    <div class="upload-btn-label">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                        <span>Click o Arrastra para subir Foto o Video</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        mediaHtml = `<div style="margin-top: 1rem; font-size: 0.75rem; color: #94a3b8; font-style: italic;">(Guarda los pasos para habilitar la carga de archivos)</div>`;
+                    }
+
                     row.innerHTML = `
                         <div class="drag-handle">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1297,6 +1331,7 @@
                                     <input type="text" class="form-control s-verif" value="${p.verificacion || ''}" placeholder="Ej: Medir 120V" style="height: 42px; border-radius: 8px;">
                                 </div>
                             </div>
+                            ${mediaHtml}
                         </div>
                     `;
                     container.appendChild(row);
@@ -1312,6 +1347,21 @@
                     } else {
                         const div = document.createElement('div');
                         div.className = 'step-item-static';
+                        
+                        let mediaGalleryHtml = '';
+                        if (mediaItems.length > 0) {
+                            mediaGalleryHtml = `
+                                <div class="step-media-gallery" style="margin-top: 1rem; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+                                    <div style="font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; width: 100%;">Fotos/Videos de Referencia:</div>
+                                    ${mediaItems.map(m => `
+                                        <div class="media-thumb-container" onclick="openMediaLightbox('${m.url}', '${m.tipo}', '${m.descripcion || ''}')" style="border: 2px solid #e2e8f0; background: #f8fafc;">
+                                            ${m.tipo === 'IMAGEN' ? `<img src="${m.url}" style="width: 100%; height: 100%; object-fit: cover;">` : `<video src="${m.url}" style="width: 100%; height: 100%; object-fit: cover;"></video><div class="video-overlay"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `;
+                        }
+
                         div.innerHTML = `
                             <div class="step-number-circle">${index + 1}</div>
                             <div style="flex: 1;">
@@ -1324,6 +1374,7 @@
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                                     <span>${p.verificacion}</span>
                                 </div>` : ''}
+                                ${mediaGalleryHtml}
                             </div>
                         `;
                         container.appendChild(div);
@@ -1375,6 +1426,7 @@
                             <input type="text" class="form-control s-verif" placeholder="Ej: Valor esperado" style="height: 42px; border-radius: 8px;">
                         </div>
                     </div>
+                    <div style="margin-top: 1rem; font-size: 0.75rem; color: #94a3b8; font-style: italic;">(Guarda los pasos para habilitar la carga de archivos)</div>
                 </div>
             `;
             container.appendChild(row);
@@ -1436,6 +1488,127 @@
                     break;
                 }
             }
+        }
+
+        // --- MEDIA MANAGEMENT FUNCTIONS ---
+
+        function openMediaLightbox(url, tipo, caption) {
+            const lightbox = document.getElementById('mediaLightbox');
+            const content = document.getElementById('lightboxContent');
+            const captionEl = document.getElementById('lightboxCaption');
+            
+            content.innerHTML = '';
+            if (tipo === 'IMAGEN') {
+                content.innerHTML = `<img src="${url}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px; box-shadow:0 0 40px rgba(0,0,0,0.5);">`;
+            } else {
+                content.innerHTML = `<video src="${url}" controls autoplay style="max-width:100%; max-height:100%; border-radius:4px;"></video>`;
+            }
+            
+            captionEl.innerText = caption;
+            lightbox.style.display = 'flex';
+        }
+
+        function closeMediaLightbox() {
+            const lightbox = document.getElementById('mediaLightbox');
+            const content = document.getElementById('lightboxContent');
+            content.innerHTML = ''; // Stop video
+            lightbox.style.display = 'none';
+        }
+
+        function handleMediaDrop(event, pasoId) {
+            event.preventDefault();
+            const wrapper = event.currentTarget;
+            wrapper.classList.remove('drag-active');
+            
+            if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+                uploadMediaPaso(event.dataTransfer.files[0], pasoId);
+            }
+        }
+
+        function uploadMediaPaso(inputOrFile, pasoId) {
+            let file;
+            if (inputOrFile instanceof File) {
+                file = inputOrFile;
+            } else {
+                if (!inputOrFile.files || !inputOrFile.files[0]) return;
+                file = inputOrFile.files[0];
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Mostrar loader local si es posible, o el global
+            if (rLoader) rLoader.style.display = 'flex';
+            
+            fetch(`/mantenimiento/rutinas/dashboard/paso/${pasoId}/media/upload/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    showToast('Archivo subido correctamente', 'success');
+                    // Añadir al DOM sin recargar todo
+                    const gallery = document.getElementById(`media-gallery-${pasoId}`);
+                    if (gallery) {
+                        const m = res.media;
+                        const div = document.createElement('div');
+                        div.className = 'media-edit-item';
+                        div.id = `media-item-${m.id}`;
+                        div.innerHTML = `
+                            <button type="button" class="btn-delete-media" onclick="deleteMediaPaso(${m.id})">&times;</button>
+                            ${m.tipo === 'IMAGEN' ? `<img src="${m.url}" alt="Referencia">` : `<video src="${m.url}"></video><div class="video-overlay"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>`}
+                        `;
+                        gallery.appendChild(div);
+                    }
+                } else {
+                    showToast(res.message, 'error');
+                }
+                if (rLoader) rLoader.style.display = 'none';
+                if (!(inputOrFile instanceof File)) {
+                    inputOrFile.value = ''; // Reset input if it was an input
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Error al subir archivo', 'error');
+                if (rLoader) rLoader.style.display = 'none';
+                if (!(inputOrFile instanceof File)) {
+                    inputOrFile.value = '';
+                }
+            });
+        }
+
+        function deleteMediaPaso(mediaId) {
+            if (!confirm('¿Estás seguro de eliminar este archivo de referencia?')) return;
+            
+            if (rLoader) rLoader.style.display = 'flex';
+            
+            fetch(`/mantenimiento/rutinas/dashboard/paso/media/${mediaId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    showToast('Archivo eliminado', 'success');
+                    const item = document.getElementById(`media-item-${mediaId}`);
+                    if (item) item.remove();
+                } else {
+                    showToast(res.message, 'error');
+                }
+                if (rLoader) rLoader.style.display = 'none';
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Error al eliminar archivo', 'error');
+                if (rLoader) rLoader.style.display = 'none';
+            });
         }
 
         function enterEditMode() {

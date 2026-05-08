@@ -686,12 +686,17 @@
             }
 
             .no-print,
+            .fiori-shell,
             .add-row-section,
             #table-search,
             .btn-detail,
             a[href*="dashboard_pagos"],
             tr td:last-child,
-            th:last-child {
+            th:last-child,
+            .context-menu,
+            .modal-overlay,
+            .select2-container,
+            .swal2-container {
                 display: none !important;
             }
 
@@ -708,22 +713,28 @@
                 color-adjust: exact !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                zoom: 0.6;
-                display: flex !important;
-                justify-content: center !important;
+                zoom: 0.8;
+                display: block !important;
             }
 
             .detail-container {
                 max-width: 100% !important;
                 width: 100% !important;
-                margin: 0 auto !important;
-                padding: 0 !important;
+                margin: 0 !important;
+                padding: 1cm !important;
             }
 
             .info-card,
             .items-section {
                 box-shadow: none !important;
                 border: 1px solid #e2e8f0 !important;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            tr {
+                page-break-inside: avoid;
+                break-inside: avoid;
             }
 
             /* Mantener colores de fondo en impresión */
@@ -732,12 +743,21 @@
             .status-badge {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                position: static !important;
             }
 
-            .editable-input {
+            .editable-input, select.editable-input {
                 border: none !important;
                 padding: 0 !important;
                 background: transparent !important;
+                appearance: none !important;
+                -webkit-appearance: none !important;
+                color: black !important;
+            }
+            
+            /* Ocultar iconos de flecha en selects al imprimir */
+            select.editable-input {
+                background-image: none !important;
             }
         }
         /* ======= Fiori Tabs ======= */
@@ -1047,7 +1067,7 @@
 
     <div class="detail-container">
         <!-- Header / Navigation -->
-        <div
+        <div class="no-print"
             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; margin-top: 1rem;">
             <a href="{% url 'presupuestos:dashboard_pagos' %}"
                 style="text-decoration: none; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.5rem;">
@@ -1673,11 +1693,72 @@
                     `;
                 });
                 document.getElementById('modal-pagos-body').innerHTML = pagosHtml || '<tr><td colspan="5" style="text-align:center;">Sin historial de pagos</td></tr>';
+                
+                // Llenar adjuntos
+                const docsContainer = document.getElementById('modal-adjuntos-list');
+                const docsCount = document.getElementById('modal-adjuntos-count');
+                docsCount.textContent = data.documentos.length;
+
+                if (data.documentos.length === 0) {
+                    docsContainer.innerHTML = `
+                        <div style="grid-column: 1/-1; padding: 4rem 2rem; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 1rem; border: 2px dashed #e2e8f0;">
+                            <i class="ph ph-file-x" style="font-size: 3.5rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+                            <div style="font-weight: 700; font-size: 1.1rem; color: #64748b;">Sin archivos adjuntos</div>
+                            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">Esta requisición no tiene documentos cargados en Dynamics 365.</p>
+                        </div>
+                    `;
+                } else {
+                    let docsHtml = '';
+                    data.documentos.forEach(doc => {
+                        let icon = 'ph ph-file';
+                        let color = '#6366f1';
+                        if (['jpg', 'jpeg', 'png', 'webp'].includes(doc.ext)) { icon = 'ph ph-file-image'; color = '#ec4899'; }
+                        if (doc.ext === 'pdf') { icon = 'ph ph-file-pdf'; color = '#ef4444'; }
+                        if (['xls', 'xlsx'].includes(doc.ext)) { icon = 'ph ph-file-xls'; color = '#10b981'; }
+
+                        docsHtml += `
+                            <div class="doc-card" style="background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.25rem; display: flex; align-items: center; gap: 1rem; transition: all 0.2s; cursor: pointer; position: relative; overflow: hidden;" onclick="window.open('${doc.url}', '_blank')">
+                                <div style="background: #f1f5f9; color: ${color}; width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; flex-shrink: 0;">
+                                    <i class="${icon}"></i>
+                                </div>
+                                <div style="flex: 1; overflow: hidden;">
+                                    <div style="font-weight: 700; color: #1e293b; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;" title="${doc.nombre}">${doc.nombre}</div>
+                                    <div style="font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 4px;">
+                                        <i class="ph ph-calendar"></i> ${doc.fecha}
+                                    </div>
+                                </div>
+                                <div style="color: #cbd5e1; font-size: 1.25rem;">
+                                    <i class="ph ph-arrow-square-out"></i>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    docsContainer.innerHTML = docsHtml;
+                }
+                
+                // Resetear a la primera pestaña
+                switchModalTab('modal-tab-general', document.querySelector('.modal-tab-btn'));
 
             } catch (err) {
                 console.error(err);
                 title.textContent = 'Error';
             }
+        }
+
+        function switchModalTab(tabId, btn) {
+            // Ocultar todos los contenidos de pestañas del modal
+            document.querySelectorAll('.modal-tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            // Desactivar todos los botones de pestañas del modal
+            document.querySelectorAll('.modal-tab-btn').forEach(b => {
+                b.style.borderBottomColor = 'transparent';
+                b.style.color = '#64748b';
+            });
+            // Activar seleccionada
+            document.getElementById(tabId).style.display = 'block';
+            btn.style.borderBottomColor = 'var(--primary)';
+            btn.style.color = 'var(--primary)';
         }
 
         function closeModal(e) {
@@ -2597,83 +2678,105 @@
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
-                    <!-- Left Side: Chart and Tables -->
-                    <div style="display: flex; flex-direction: column; gap: 2.5rem;">
-                        <!-- Chart Section -->
-                        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem;">
-                            <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                                <i class="ph ph-chart-line-up" style="color: #6366f1; font-size: 1.25rem;"></i> LÍNEA DE TIEMPO DE PAGOS
-                            </h3>
-                            <div style="height: 250px;">
-                                <canvas id="requisitionTimelineChart"></canvas>
+                <div class="modal-tabs-header no-print" style="margin-bottom: 2rem; border-bottom: 1px solid #e2e8f0; display: flex; gap: 2rem;">
+                    <button class="modal-tab-btn active" onclick="switchModalTab('modal-tab-general', this)" style="padding: 0.75rem 0.5rem; background: none; border: none; border-bottom: 3px solid var(--primary); font-weight: 700; color: var(--primary); cursor: pointer; text-transform: uppercase; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; font-family: inherit;">
+                        <i class="ph ph-info"></i> Detalle General
+                    </button>
+                    <button class="modal-tab-btn" onclick="switchModalTab('modal-tab-adjuntos', this)" style="padding: 0.75rem 0.5rem; background: none; border: none; border-bottom: 3px solid transparent; font-weight: 700; color: #64748b; cursor: pointer; text-transform: uppercase; font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; font-family: inherit;">
+                        <i class="ph ph-paperclip"></i> Archivos Adjuntos <span id="modal-adjuntos-count" style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem;">0</span>
+                    </button>
+                </div>
+
+                <div id="modal-tab-general" class="modal-tab-content">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                        <!-- Left Side: Chart and Tables -->
+                        <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+                            <!-- Chart Section -->
+                            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem;">
+                                <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    <i class="ph ph-chart-line-up" style="color: #6366f1; font-size: 1.25rem;"></i> LÍNEA DE TIEMPO DE PAGOS
+                                </h3>
+                                <div style="height: 250px;">
+                                    <canvas id="requisitionTimelineChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Articles Section -->
+                            <div>
+                                <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    <i class="ph ph-package" style="color: #f59e0b; font-size: 1.25rem;"></i> DETALLE DE ARTÍCULOS
+                                </h3>
+                                <div style="border: 1px solid #e2e8f0; border-radius: 1rem; overflow: hidden; background: white;">
+                                    <table class="modal-table" style="margin-bottom: 0;">
+                                        <thead>
+                                            <tr style="background: #f8fafc;">
+                                                <th style="padding: 1rem;">DESCRIPCIÓN</th>
+                                                <th style="text-align: center; padding: 1rem;">CANT.</th>
+                                                <th style="text-align: right; padding: 1rem;">COSTO UNIT.</th>
+                                                <th style="text-align: right; padding: 1rem;">SUBTOTAL</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="modal-articulos-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Payments Section -->
+                            <div>
+                                <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    <i class="ph ph-bank" style="color: #10b981; font-size: 1.25rem;"></i> HISTORIAL DE SOLICITUDES
+                                </h3>
+                                <div style="border: 1px solid #e2e8f0; border-radius: 1rem; overflow: hidden; background: white;">
+                                    <table class="modal-table" style="margin-bottom: 0;">
+                                        <thead>
+                                            <tr style="background: #f8fafc;">
+                                                <th style="padding: 1rem;">FECHA</th>
+                                                <th style="padding: 1rem;">SOLICITUD #</th>
+                                                <th style="padding: 1rem;">DESCRIPCIÓN</th>
+                                                <th style="text-align: right; padding: 1rem;">MONTO</th>
+                                                <th style="text-align: center; padding: 1rem;">ESTATUS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="modal-pagos-body"></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Articles Section -->
-                        <div>
-                            <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                                <i class="ph ph-package" style="color: #f59e0b; font-size: 1.25rem;"></i> DETALLE DE ARTÍCULOS
-                            </h3>
-                            <div style="border: 1px solid #e2e8f0; border-radius: 1rem; overflow: hidden; background: white;">
-                                <table class="modal-table" style="margin-bottom: 0;">
-                                    <thead>
-                                        <tr style="background: #f8fafc;">
-                                            <th style="padding: 1rem;">DESCRIPCIÓN</th>
-                                            <th style="text-align: center; padding: 1rem;">CANT.</th>
-                                            <th style="text-align: right; padding: 1rem;">COSTO UNIT.</th>
-                                            <th style="text-align: right; padding: 1rem;">SUBTOTAL</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="modal-articulos-body"></tbody>
-                                </table>
+                        <!-- Right Side: Comments and Sidebars -->
+                        <div style="display: flex; flex-direction: column; gap: 2rem;">
+                            <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 1.25rem; padding: 1.75rem; position: sticky; top: 0; box-shadow: 0 10px 15px -3px rgba(251, 191, 36, 0.1);">
+                                <label style="display: block; font-size: 0.8rem; color: #92400e; font-weight: 800; margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
+                                    <i class="ph ph-note-pencil" style="font-size: 1.25rem;"></i> NOTAS INTERNAS
+                                </label>
+                                <textarea id="modal-comentarios" style="width: 100%; min-height: 280px; padding: 1rem; background: rgba(255, 255, 255, 0.5); border: 1px solid #fde68a; border-radius: 0.75rem; font-size: 0.95rem; line-height: 1.6; color: #92400e; resize: none; margin-bottom: 1.5rem;" placeholder="Escribe notas relevantes para el equipo de pagos..."></textarea>
+                                <button onclick="saveRequisitionComments(event)" id="modal-save-comments" style="width: 100%; background: #d97706; color: white; border: none; border-radius: 0.75rem; padding: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.75rem; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.3);">
+                                    <i class="ph ph-floppy-disk"></i> GUARDAR NOTAS
+                                </button>
                             </div>
-                        </div>
-
-                        <!-- Payments Section -->
-                        <div>
-                            <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                                <i class="ph ph-bank" style="color: #10b981; font-size: 1.25rem;"></i> HISTORIAL DE SOLICITUDES
-                            </h3>
-                            <div style="border: 1px solid #e2e8f0; border-radius: 1rem; overflow: hidden; background: white;">
-                                <table class="modal-table" style="margin-bottom: 0;">
-                                    <thead>
-                                        <tr style="background: #f8fafc;">
-                                            <th style="padding: 1rem;">FECHA</th>
-                                            <th style="padding: 1rem;">SOLICITUD #</th>
-                                            <th style="padding: 1rem;">DESCRIPCIÓN</th>
-                                            <th style="text-align: right; padding: 1rem;">MONTO</th>
-                                            <th style="text-align: center; padding: 1rem;">ESTATUS</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="modal-pagos-body"></tbody>
-                                </table>
+                            
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.25rem; padding: 1.5rem;">
+                                <h4 style="font-size: 0.75rem; font-weight: 800; color: #475569; margin-bottom: 1rem; text-transform: uppercase;">ACCIONES RÁPIDAS</h4>
+                                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                    <button class="btn-add" style="background: white; color: #0369a1; border: 1px solid #e2e8f0; width: 100%; justify-content: center; font-weight: 600;">
+                                        <i class="ph ph-printer"></i> Imprimir Detalle
+                                    </button>
+                                    <button class="btn-add" style="background: white; color: #dc2626; border: 1px solid #fee2e2; width: 100%; justify-content: center; font-weight: 600;">
+                                        <i class="ph ph-lock-key"></i> Bloquear Requisición
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Right Side: Comments and Sidebars -->
-                    <div style="display: flex; flex-direction: column; gap: 2rem;">
-                        <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 1.25rem; padding: 1.75rem; position: sticky; top: 0; box-shadow: 0 10px 15px -3px rgba(251, 191, 36, 0.1);">
-                            <label style="display: block; font-size: 0.8rem; color: #92400e; font-weight: 800; margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
-                                <i class="ph ph-note-pencil" style="font-size: 1.25rem;"></i> NOTAS INTERNAS
-                            </label>
-                            <textarea id="modal-comentarios" style="width: 100%; min-height: 280px; padding: 1rem; background: rgba(255, 255, 255, 0.5); border: 1px solid #fde68a; border-radius: 0.75rem; font-size: 0.95rem; line-height: 1.6; color: #92400e; resize: none; margin-bottom: 1.5rem;" placeholder="Escribe notas relevantes para el equipo de pagos..."></textarea>
-                            <button onclick="saveRequisitionComments(event)" id="modal-save-comments" style="width: 100%; background: #d97706; color: white; border: none; border-radius: 0.75rem; padding: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.75rem; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.3);">
-                                <i class="ph ph-floppy-disk"></i> GUARDAR NOTAS
-                            </button>
-                        </div>
-                        
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1.25rem; padding: 1.5rem;">
-                            <h4 style="font-size: 0.75rem; font-weight: 800; color: #475569; margin-bottom: 1rem; text-transform: uppercase;">ACCIONES RÁPIDAS</h4>
-                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                <button class="btn-add" style="background: white; color: #0369a1; border: 1px solid #e2e8f0; width: 100%; justify-content: center; font-weight: 600;">
-                                    <i class="ph ph-printer"></i> Imprimir Detalle
-                                </button>
-                                <button class="btn-add" style="background: white; color: #dc2626; border: 1px solid #fee2e2; width: 100%; justify-content: center; font-weight: 600;">
-                                    <i class="ph ph-lock-key"></i> Bloquear Requisición
-                                </button>
-                            </div>
+                <div id="modal-tab-adjuntos" class="modal-tab-content" style="display: none;">
+                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 2rem;">
+                        <h3 style="font-size: 0.9rem; font-weight: 800; color: #1e293b; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                            <i class="ph ph-paperclip" style="color: #6366f1; font-size: 1.25rem;"></i> ARCHIVOS Y DOCUMENTOS
+                        </h3>
+                        <div id="modal-adjuntos-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+                            <!-- Adjuntos will be injected here -->
                         </div>
                     </div>
                 </div>

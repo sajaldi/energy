@@ -1,0 +1,435 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}🔍 Buscador Inteligente de KPIs{% endblock %}
+{% block content_title %}<h1 style="display:none;"></h1>{% endblock %}
+
+{% block content %}
+<style>
+:root {
+    --rag-primary: #6366f1;
+    --rag-primary-light: #818cf8;
+    --rag-accent: #06b6d4;
+    --rag-success: #10b981;
+    --rag-warning: #f59e0b;
+    --rag-danger: #ef4444;
+    --rag-bg: #0f172a;
+    --rag-surface: #1e293b;
+    --rag-surface-2: #334155;
+    --rag-text: #e2e8f0;
+    --rag-text-muted: #94a3b8;
+    --rag-border: rgba(99, 102, 241, 0.2);
+    --rag-glass: rgba(30, 41, 59, 0.7);
+}
+#rag-root {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, var(--rag-bg) 0%, #1a1a2e 50%, #16213e 100%);
+    min-height: 100vh; padding: 24px; color: var(--rag-text);
+    margin: -20px -30px;
+}
+.rag-header {
+    text-align: center; margin-bottom: 32px; position: relative;
+}
+.rag-header h1 {
+    font-size: 2rem; font-weight: 800; margin: 0;
+    background: linear-gradient(135deg, var(--rag-primary-light), var(--rag-accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.rag-header p { color: var(--rag-text-muted); margin-top: 6px; font-size: 0.95rem; }
+.rag-search-box {
+    max-width: 780px; margin: 0 auto 28px; position: relative;
+}
+.rag-search-box input {
+    width: 100%; padding: 16px 56px 16px 52px; font-size: 1.05rem;
+    border: 2px solid var(--rag-border); border-radius: 16px;
+    background: var(--rag-glass); backdrop-filter: blur(12px);
+    color: var(--rag-text); outline: none; transition: all 0.3s;
+    box-sizing: border-box;
+}
+.rag-search-box input:focus {
+    border-color: var(--rag-primary); box-shadow: 0 0 24px rgba(99,102,241,0.25);
+}
+.rag-search-box input::placeholder { color: var(--rag-text-muted); }
+.rag-search-icon {
+    position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
+    color: var(--rag-primary-light); font-size: 1.2rem;
+}
+.rag-search-btn {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: linear-gradient(135deg, var(--rag-primary), var(--rag-accent));
+    border: none; border-radius: 10px; padding: 10px 18px;
+    color: #fff; font-weight: 600; cursor: pointer; font-size: 0.9rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.rag-search-btn:hover { transform: translateY(-50%) scale(1.05); box-shadow: 0 4px 16px rgba(99,102,241,0.4); }
+
+/* Mode Toggle */
+.rag-mode-toggle {
+    display: flex; justify-content: center; gap: 4px; margin-bottom: 24px;
+    background: var(--rag-surface); border-radius: 12px; padding: 4px;
+    max-width: 400px; margin-left: auto; margin-right: auto;
+}
+.rag-mode-btn {
+    flex: 1; padding: 10px 16px; border: none; border-radius: 10px;
+    background: transparent; color: var(--rag-text-muted); cursor: pointer;
+    font-weight: 600; font-size: 0.85rem; transition: all 0.3s;
+}
+.rag-mode-btn.active {
+    background: linear-gradient(135deg, var(--rag-primary), var(--rag-accent));
+    color: #fff; box-shadow: 0 2px 12px rgba(99,102,241,0.3);
+}
+
+/* Toolbar */
+.rag-toolbar {
+    max-width: 780px; margin: 0 auto 20px; display: flex; justify-content: flex-end; gap: 8px;
+}
+.rag-toolbar .btn-tool {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--rag-border);
+    background: var(--rag-glass); color: var(--rag-text-muted); font-size: 0.8rem;
+    cursor: pointer; transition: all 0.2s; backdrop-filter: blur(8px);
+}
+.rag-toolbar .btn-tool:hover { border-color: var(--rag-primary); color: var(--rag-primary-light); }
+
+/* Results */
+.rag-results { max-width: 780px; margin: 0 auto; }
+.rag-result-card {
+    background: var(--rag-glass); backdrop-filter: blur(12px);
+    border: 1px solid var(--rag-border); border-radius: 14px;
+    padding: 20px 24px; margin-bottom: 14px; transition: all 0.3s;
+    animation: fadeInUp 0.4s ease-out both;
+}
+.rag-result-card:hover { border-color: var(--rag-primary); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.rag-result-card:nth-child(1) { animation-delay: 0.05s; }
+.rag-result-card:nth-child(2) { animation-delay: 0.1s; }
+.rag-result-card:nth-child(3) { animation-delay: 0.15s; }
+
+.rag-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.rag-card-title { font-size: 1.05rem; font-weight: 700; color: #fff; margin: 0; }
+.rag-card-servicio { font-size: 0.8rem; color: var(--rag-accent); font-weight: 500; margin-top: 2px; }
+.rag-badges { display: flex; gap: 6px; flex-shrink: 0; }
+.rag-badge {
+    padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+}
+.rag-badge.cumplimiento { background: rgba(16,185,129,0.15); color: var(--rag-success); }
+.rag-badge.parcial { background: rgba(245,158,11,0.15); color: var(--rag-warning); }
+.rag-badge.incumplimiento { background: rgba(239,68,68,0.15); color: var(--rag-danger); }
+.rag-badge.categoria { background: rgba(99,102,241,0.15); color: var(--rag-primary-light); }
+.rag-badge.texto { background: rgba(6,182,212,0.1); color: var(--rag-accent); }
+.rag-badge.semantica { background: rgba(168,85,247,0.15); color: #a855f7; }
+.rag-card-desc { font-size: 0.88rem; color: var(--rag-text-muted); line-height: 1.5; margin-top: 8px; }
+.rag-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+.rag-similarity { font-size: 0.78rem; color: var(--rag-text-muted); }
+.rag-similarity strong { color: var(--rag-success); }
+.rag-card-link {
+    font-size: 0.8rem; color: var(--rag-primary-light); text-decoration: none; font-weight: 600;
+}
+.rag-card-link:hover { text-decoration: underline; }
+
+/* RAG Response Panel */
+.rag-ai-panel {
+    max-width: 780px; margin: 0 auto; background: var(--rag-glass);
+    backdrop-filter: blur(12px); border: 1px solid var(--rag-border);
+    border-radius: 16px; padding: 28px; display: none;
+}
+.rag-ai-panel.visible { display: block; animation: fadeInUp 0.5s ease-out; }
+.rag-ai-label {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem;
+    font-weight: 700; color: var(--rag-accent); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 16px;
+}
+.rag-ai-label .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--rag-accent); animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.rag-ai-content {
+    font-size: 0.95rem; line-height: 1.7; color: var(--rag-text);
+}
+.rag-ai-content h1,.rag-ai-content h2,.rag-ai-content h3 { color: #fff; margin-top: 16px; }
+.rag-ai-content strong { color: #fff; }
+.rag-ai-content ul,.rag-ai-content ol { padding-left: 20px; }
+.rag-ai-content li { margin-bottom: 4px; }
+.rag-ai-content code { background: var(--rag-surface-2); padding: 2px 6px; border-radius: 4px; font-size: 0.88rem; }
+.rag-ai-content table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+.rag-ai-content th { background: var(--rag-surface-2); padding: 8px 12px; text-align: left; font-size: 0.85rem; color: var(--rag-text-muted); border-bottom: 1px solid var(--rag-border); }
+.rag-ai-content td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.88rem; }
+
+/* Sources */
+.rag-sources { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--rag-border); }
+.rag-sources-title { font-size: 0.8rem; font-weight: 700; color: var(--rag-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.rag-source-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    background: var(--rag-surface-2); border-radius: 8px; margin: 0 6px 6px 0;
+    font-size: 0.8rem; color: var(--rag-text); transition: all 0.2s;
+}
+.rag-source-chip:hover { background: var(--rag-primary); color: #fff; }
+
+/* Loader */
+.rag-loader { text-align: center; padding: 40px; display: none; }
+.rag-loader.visible { display: block; }
+.rag-spinner {
+    width: 40px; height: 40px; border: 3px solid var(--rag-surface-2);
+    border-top-color: var(--rag-primary); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.rag-loader-text { color: var(--rag-text-muted); font-size: 0.9rem; }
+
+/* Empty state */
+.rag-empty { text-align: center; padding: 60px 20px; color: var(--rag-text-muted); }
+.rag-empty i { font-size: 3rem; margin-bottom: 16px; display: block; color: var(--rag-surface-2); }
+.rag-empty p { font-size: 0.95rem; max-width: 400px; margin: 0 auto; line-height: 1.6; }
+
+/* Stats bar */
+.rag-stats { max-width: 780px; margin: 0 auto 8px; display: none; font-size: 0.8rem; color: var(--rag-text-muted); padding: 0 4px; }
+.rag-stats.visible { display: flex; justify-content: space-between; }
+
+/* Notification toast */
+.rag-toast {
+    position: fixed; bottom: 24px; right: 24px; padding: 14px 22px;
+    background: var(--rag-success); color: #fff; border-radius: 10px;
+    font-weight: 600; font-size: 0.9rem; z-index: 9999;
+    box-shadow: 0 4px 20px rgba(16,185,129,0.4);
+    animation: slideInRight 0.4s ease-out; display: none;
+}
+.rag-toast.visible { display: block; }
+@keyframes slideInRight { from { opacity:0; transform: translateX(40px); } to { opacity:1; transform: translateX(0); } }
+</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<div id="rag-root">
+    <div class="rag-header">
+        <h1><i class="fas fa-brain"></i> Buscador Inteligente de KPIs</h1>
+        <p>Búsqueda semántica con IA · Retrieval-Augmented Generation</p>
+    </div>
+
+    <!-- Mode Toggle -->
+    <div class="rag-mode-toggle">
+        <button class="rag-mode-btn active" onclick="setMode('search')" id="btn-mode-search">
+            <i class="fas fa-search"></i> Búsqueda Semántica
+        </button>
+        <button class="rag-mode-btn" onclick="setMode('rag')" id="btn-mode-rag">
+            <i class="fas fa-robot"></i> Pregunta a la IA
+        </button>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="rag-search-box">
+        <i class="fas fa-search rag-search-icon"></i>
+        <input type="text" id="rag-query" placeholder="Busca KPIs por concepto o haz una pregunta..." autocomplete="off">
+        <button class="rag-search-btn" onclick="executeSearch()" id="btn-search">
+            <i class="fas fa-bolt"></i> Buscar
+        </button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="rag-toolbar">
+        {% if request.user.is_superuser %}
+        <button class="btn-tool" onclick="vectorizeAll()" id="btn-vectorize">
+            <i class="fas fa-sync-alt"></i> Re-indexar KPIs
+        </button>
+        {% endif %}
+        <button class="btn-tool" onclick="window.location.href='{% url "servicios:kpi_dashboard" %}'">
+            <i class="fas fa-chart-bar"></i> Dashboard KPIs
+        </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="rag-stats" id="rag-stats">
+        <span id="stats-count"></span>
+        <span id="stats-time"></span>
+    </div>
+
+    <!-- Loader -->
+    <div class="rag-loader" id="rag-loader">
+        <div class="rag-spinner"></div>
+        <div class="rag-loader-text" id="loader-text">Buscando por significado...</div>
+    </div>
+
+    <!-- AI Response Panel (RAG mode) -->
+    <div class="rag-ai-panel" id="rag-ai-panel">
+        <div class="rag-ai-label"><span class="pulse"></span> Respuesta de IA — Gemini</div>
+        <div class="rag-ai-content" id="rag-ai-content"></div>
+        <div class="rag-sources" id="rag-sources"></div>
+    </div>
+
+    <!-- Results (Search mode) -->
+    <div class="rag-results" id="rag-results"></div>
+
+    <!-- Empty State -->
+    <div class="rag-empty" id="rag-empty">
+        <i class="fas fa-satellite-dish"></i>
+        <p>Escribe una consulta para buscar KPIs por significado semántico o hazle una pregunta a la IA sobre los indicadores de desempeño.</p>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="rag-toast" id="rag-toast"></div>
+
+<script>
+let currentMode = 'search';
+
+function setMode(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.rag-mode-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-mode-' + mode).classList.add('active');
+    const input = document.getElementById('rag-query');
+    input.placeholder = mode === 'search'
+        ? 'Busca KPIs por concepto semántico...'
+        : 'Haz una pregunta sobre los KPIs...';
+    document.getElementById('btn-search').innerHTML = mode === 'search'
+        ? '<i class="fas fa-bolt"></i> Buscar'
+        : '<i class="fas fa-robot"></i> Preguntar';
+    // Clear previous results
+    document.getElementById('rag-results').innerHTML = '';
+    document.getElementById('rag-ai-panel').classList.remove('visible');
+    document.getElementById('rag-stats').classList.remove('visible');
+    document.getElementById('rag-empty').style.display = 'block';
+}
+
+document.getElementById('rag-query').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') executeSearch();
+});
+
+async function executeSearch() {
+    const query = document.getElementById('rag-query').value.trim();
+    if (!query) return;
+
+    const loader = document.getElementById('rag-loader');
+    const results = document.getElementById('rag-results');
+    const aiPanel = document.getElementById('rag-ai-panel');
+    const empty = document.getElementById('rag-empty');
+    const stats = document.getElementById('rag-stats');
+
+    loader.classList.add('visible');
+    results.innerHTML = '';
+    aiPanel.classList.remove('visible');
+    empty.style.display = 'none';
+    stats.classList.remove('visible');
+
+    document.getElementById('loader-text').textContent =
+        currentMode === 'search' ? 'Buscando por significado semántico...' : 'Consultando a la IA...';
+
+    const startTime = performance.now();
+
+    try {
+        if (currentMode === 'search') {
+            const resp = await fetch(`{% url 'servicios:api_kpi_busqueda' %}?q=${encodeURIComponent(query)}`);
+            const data = await resp.json();
+            const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+
+            if (data.status === 'success' && data.resultados.length > 0) {
+                renderResults(data.resultados);
+                document.getElementById('stats-count').textContent = `${data.resultados.length} resultados`;
+                document.getElementById('stats-time').textContent = `${elapsed}s`;
+                stats.classList.add('visible');
+            } else {
+                empty.style.display = 'block';
+                empty.querySelector('p').textContent = 'No se encontraron KPIs relacionados con tu búsqueda.';
+            }
+        } else {
+            const resp = await fetch(`{% url 'servicios:api_kpi_rag' %}?q=${encodeURIComponent(query)}`);
+            const data = await resp.json();
+
+            if (data.status === 'success') {
+                renderRAG(data.respuesta, data.fuentes);
+            } else {
+                empty.style.display = 'block';
+                empty.querySelector('p').textContent = data.message || 'Error al consultar la IA.';
+            }
+        }
+    } catch (err) {
+        empty.style.display = 'block';
+        empty.querySelector('p').textContent = 'Error de conexión: ' + err.message;
+    }
+
+    loader.classList.remove('visible');
+}
+
+function renderResults(items) {
+    const container = document.getElementById('rag-results');
+    container.innerHTML = items.map((r, i) => {
+        const estadoClass = r.estado_raw === 'CUMPLIMIENTO' ? 'cumplimiento'
+            : r.estado_raw === 'PARCIAL' ? 'parcial' : 'incumplimiento';
+        const matchClass = r.match_type || 'semantica';
+        const simPct = (r.similitud * 100).toFixed(0);
+        return `
+        <div class="rag-result-card" style="animation-delay:${i * 0.06}s">
+            <div class="rag-card-header">
+                <div>
+                    <div class="rag-card-title">${escHtml(r.nombre || 'Sin nombre')}</div>
+                    <div class="rag-card-servicio"><i class="fas fa-concierge-bell"></i> ${escHtml(r.servicio)}</div>
+                </div>
+                <div class="rag-badges">
+                    <span class="rag-badge ${matchClass}">${matchClass === 'texto' ? '📝 Texto' : '🧠 Semántica'}</span>
+                    <span class="rag-badge categoria">${escHtml(r.categoria)}</span>
+                    <span class="rag-badge ${estadoClass}">${escHtml(r.estado)}</span>
+                </div>
+            </div>
+            ${r.descripcion ? `<div class="rag-card-desc">${escHtml(r.descripcion)}</div>` : ''}
+            ${r.fragmento_preview && r.match_type === 'semantica' ? `<div class="rag-card-desc" style="font-style:italic;opacity:0.7;margin-top:6px;font-size:0.82rem;">"${escHtml(r.fragmento_preview)}"</div>` : ''}
+            <div class="rag-card-footer">
+                <span class="rag-similarity">Similitud: <strong>${simPct}%</strong></span>
+                <a href="/servicios/kpi/${r.id}/" class="rag-card-link"><i class="fas fa-external-link-alt"></i> Ver detalle</a>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderRAG(respuesta, fuentes) {
+    const panel = document.getElementById('rag-ai-panel');
+    const content = document.getElementById('rag-ai-content');
+    const sources = document.getElementById('rag-sources');
+
+    // Render markdown
+    content.innerHTML = marked.parse(respuesta);
+
+    // Render sources
+    if (fuentes && fuentes.length > 0) {
+        sources.innerHTML = `
+            <div class="rag-sources-title"><i class="fas fa-quote-left"></i> Fuentes consultadas (${fuentes.length} KPIs)</div>
+            ${fuentes.map(f => `
+                <a href="/servicios/kpi/${f.id}/" class="rag-source-chip" style="text-decoration:none">
+                    <i class="fas fa-chart-line"></i>
+                    <span>${escHtml(f.nombre)} · ${escHtml(f.servicio)}</span>
+                </a>
+            `).join('')}`;
+    } else {
+        sources.innerHTML = '';
+    }
+
+    panel.classList.add('visible');
+}
+
+async function vectorizeAll() {
+    const btn = document.getElementById('btn-vectorize');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Indexando...';
+    btn.disabled = true;
+
+    try {
+        const resp = await fetch(`{% url 'servicios:api_kpi_vectorize_all' %}`);
+        const data = await resp.json();
+        showToast(data.message || `${data.total} KPIs encolados para vectorización`);
+    } catch (err) {
+        showToast('Error: ' + err.message);
+    }
+
+    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Re-indexar KPIs';
+    btn.disabled = false;
+}
+
+function showToast(msg) {
+    const t = document.getElementById('rag-toast');
+    t.textContent = msg;
+    t.classList.add('visible');
+    setTimeout(() => t.classList.remove('visible'), 4000);
+}
+
+function escHtml(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Guía de Procedimiento - {{ rutina.nombre }}</title>
+    <style>
+        @page {
+            margin: 1cm;
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-size: 9pt;
+                color: #64748b;
+            }
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #1e293b;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #0070f2;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .logo {
+            height: 50px;
+        }
+        .routine-info {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+        }
+        .routine-info h1 {
+            margin: 0 0 10px 0;
+            font-size: 18pt;
+            color: #0070f2;
+        }
+        .info-grid {
+            display: table;
+            width: 100%;
+            font-size: 10pt;
+        }
+        .info-row {
+            display: table-row;
+        }
+        .info-cell {
+            display: table-cell;
+            padding: 4px 0;
+        }
+        .label {
+            font-weight: bold;
+            color: #64748b;
+            width: 120px;
+        }
+        .step-list {
+            margin-top: 20px;
+        }
+        .step-item {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+            border-left: 4px solid #e2e8f0;
+            padding-left: 15px;
+        }
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .step-number {
+            font-weight: bold;
+            font-size: 12pt;
+            color: #0070f2;
+        }
+        .step-desc {
+            font-size: 11pt;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+        .step-type {
+            font-size: 8pt;
+            text-transform: uppercase;
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #475569;
+        }
+        .step-verif {
+            font-size: 9pt;
+            color: #64748b;
+            font-style: italic;
+            margin-top: 4px;
+        }
+        .media-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .media-item {
+            width: 180px;
+            height: 120px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+        }
+        .media-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .group-header {
+            background: #334155;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 10pt;
+            margin: 30px 0 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="flex: 1;">
+            {% if logo_b64 %}
+                <img src="data:image/png;base64,{{ logo_b64 }}" class="logo">
+            {% else %}
+                <span style="font-size: 20pt; font-weight: bold; color: #0070f2;">ENERGIA</span>
+            {% endif %}
+        </div>
+        <div style="text-align: right; font-size: 9pt; color: #64748b;">
+            Documento Generado: {{ ahora|date:"d/m/Y H:i" }}<br>
+            Código: {{ rutina.codigo_rutina|default:"S/C" }}
+        </div>
+    </div>
+
+    <div class="routine-info">
+        <h1>{{ rutina.nombre }}</h1>
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-cell label">Categoría:</div>
+                <div class="info-cell">{{ rutina.tipo.nombre }}</div>
+                <div class="info-cell label">Frecuencia:</div>
+                <div class="info-cell">{{ rutina.frecuencia.nombre }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-cell label">Tiempo Est.:</div>
+                <div class="info-cell">{{ rutina.tiempo_estimado }}</div>
+                <div class="info-cell label">Personal:</div>
+                <div class="info-cell">{{ rutina.cantidad_tecnicos }} Técnico(s)</div>
+            </div>
+        </div>
+        {% if rutina.descripcion %}
+        <div style="margin-top: 10px; font-size: 10pt;">
+            <span class="label">Descripción:</span> {{ rutina.descripcion }}
+        </div>
+        {% endif %}
+        {% if rutina.herramientas %}
+        <div style="margin-top: 5px; font-size: 10pt;">
+            <span class="label">Herramientas:</span> {{ rutina.herramientas }}
+        </div>
+        {% endif %}
+    </div>
+
+    <h3 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; color: #334155;">PROCEDIMIENTO PASO A PASO</h3>
+
+    <div class="step-list">
+        {% for p in pasos %}
+            {% if p.tipo_respuesta == 'HEADER' %}
+                <div class="group-header">{{ p.descripcion }}</div>
+            {% else %}
+                <div class="step-item">
+                    <div class="step-header">
+                        <span class="step-number">Paso {{ forloop.counter }}</span>
+                        <span class="step-type">{{ p.get_tipo_respuesta_display }}</span>
+                    </div>
+                    <div class="step-desc">{{ p.descripcion }}</div>
+                    {% if p.verificacion %}
+                        <div class="step-verif">Ref/Verificación: {{ p.verificacion }}</div>
+                    {% endif %}
+
+                    {% if p.fotos %}
+                    <div class="media-gallery">
+                        {% for f in p.fotos %}
+                            <div class="media-item">
+                                <img src="{{ f.data_uri }}">
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div style="margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 8pt; color: #94a3b8; text-align: center;">
+        Este documento es una guía de referencia para el personal técnico. Los valores registrados deben coincidir con los estándares de operación definidos.
+    </div>
+</body>
+</html>

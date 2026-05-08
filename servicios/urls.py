@@ -14,4 +14,9 @@ urlpatterns = [
     path('kpi/import-background/process/', views.import_kpis_process, name='kpi_import_process'),
     path('kpi/import-background/progress/', views.import_kpis_progress, name='kpi_import_progress'),
     path('kpi/dashboard/', views.kpi_dashboard_view, name='kpi_dashboard'),
+    # RAG + Búsqueda Vectorial Semántica
+    path('kpi/buscar/', views.kpi_buscador_view, name='kpi_buscador'),
+    path('kpi/api/busqueda-semantica/', views.api_kpi_busqueda_semantica, name='api_kpi_busqueda'),
+    path('kpi/api/rag/', views.api_kpi_rag, name='api_kpi_rag'),
+    path('kpi/api/vectorize-all/', views.api_kpi_vectorize_all, name='api_kpi_vectorize_all'),
 ]

@@ -326,8 +326,12 @@ def detalle_mes(request, year, month):
             if root_cat: tipo_ids = [root_cat.id]
         except: pass
 
-    # Detectar Modo Resumen (General)
-    is_summary = not (tipo_ids or ubi_ids or programacion_id) and filter_q != 'TODOS'
+    # Flag especial: "Sin Categoría" es un label sintético para OTs sin tipo asignado
+    is_sin_categoria = (filter_q == 'Sin Categoría' and not tipo_ids)
+
+    # Detectar Modo Resumen (General): Solo cuando NO hay NINGUN filtro activo
+    # Si filter_q está presente (ej: "Sin Categoría"), ya se hizo clic en una categoría → modo detallado
+    is_summary = not (tipo_ids or ubi_ids or programacion_id or filter_q)
 
     # Crear cache key basado en parámetros
     cache_params = {
@@ -388,6 +392,10 @@ def detalle_mes(request, year, month):
                 except: pass
             filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
         
+        # "Sin Categoría": filtrar solo OTs cuya rutina NO tiene tipo asignado
+        if is_sin_categoria:
+            filtros['rutina__tipo__isnull'] = True
+        
         # BRUTAL OPTIMIZATION: Single optimized query instead of N+1
         ordenes = OrdenTrabajo.objects.filter(**filtros).select_related(
             'rutina',
@@ -406,6 +414,7 @@ def detalle_mes(request, year, month):
         proy_filtros = {'fecha_inicio__lte': month_end}
         if programacion_id: proy_filtros['id'] = programacion_id
         if tipo_ids: proy_filtros['rutina__tipo_id__in'] = list(all_tipo_ids)
+        if is_sin_categoria: proy_filtros['rutina__tipo__isnull'] = True
         
         proyecciones_qs = Programacion.objects.filter(**proy_filtros).select_related('rutina__tipo', 'rutina__frecuencia').prefetch_related('areas', 'horarios')
         if ubi_ids:

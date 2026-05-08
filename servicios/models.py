@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from pgvector.django import VectorField
 
 
 class Servicio(models.Model):
@@ -50,6 +51,9 @@ class KPI(models.Model):
     fecha_medicion = models.DateField(default=timezone.now)
     fecha_creacion = models.DateTimeField(default=timezone.now)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    # Búsqueda vectorial semántica (embedding resumen)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
     
     # Vinculación con Rutinas de Mantenimiento
     rutinas = models.ManyToManyField(
@@ -119,3 +123,36 @@ class AuditoriaResultado(models.Model):
     def __str__(self):
         status = "Cumple" if self.cumple else "No Cumple"
         return f"{self.kpi.nombre} - {self.auditoria.nombre} ({status})"
+
+
+class KPIFragmento(models.Model):
+    """Fragmento vectorizado de un KPI para búsqueda semántica RAG."""
+    kpi = models.ForeignKey(KPI, on_delete=models.CASCADE, related_name='fragmentos')
+    contenido = models.TextField(help_text="Texto compuesto del KPI para búsqueda semántica")
+    embedding = VectorField(dimensions=384, null=True, blank=True)
+    orden = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Fragmento de KPI"
+        verbose_name_plural = "Fragmentos de KPIs"
+        ordering = ['kpi', 'orden']
+        indexes = [
+            models.Index(fields=['kpi']),
+        ]
+
+    def __str__(self):
+        return f"Fragmento {self.orden} de KPI {self.kpi_id}"
+
+
+# --- Signal: Auto-vectorización de KPIs al guardar ---
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=KPI)
+def auto_vectorize_kpi(sender, instance, **kwargs):
+    """Dispara la vectorización asíncrona del KPI cada vez que se guarda."""
+    try:
+        from .tasks import generate_kpi_embedding
+        generate_kpi_embedding.delay(instance.id)
+    except Exception:
+        pass  # Silenciar si Celery/Redis no está disponible

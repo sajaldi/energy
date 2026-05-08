@@ -376,6 +376,16 @@ def api_requisicion_detalle(request, pk):
             'fecha': item.creado_en.strftime("%d/%m/%Y")
         })
         
+    documentos = []
+    for doc in requisicion.documentos.all():
+        documentos.append({
+            'id': doc.id,
+            'nombre': doc.nombre or doc.archivo.name.split('/')[-1],
+            'url': doc.archivo.url,
+            'fecha': doc.creado_en.strftime("%d/%m/%Y"),
+            'ext': doc.archivo.name.split('.')[-1].lower() if doc.archivo else ""
+        })
+        
     data = {
         'id': requisicion.pk,
         'codigo': requisicion.cr8ca_requisicion,
@@ -388,7 +398,8 @@ def api_requisicion_detalle(request, pk):
         'partida_id': requisicion.partida_id,
         'item_id': requisicion.item_presupuesto_id,
         'articulos': articulos,
-        'pagos': pagos
+        'pagos': pagos,
+        'documentos': documentos
     }
     
     return JsonResponse(data)

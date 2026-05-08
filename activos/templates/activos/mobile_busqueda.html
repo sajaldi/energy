@@ -196,7 +196,7 @@
             </button>
             <form action="{% url 'activos:mobile_busqueda' %}" method="get" class="search-box">
                 <ion-icon name="search-outline"></ion-icon>
-                <input type="text" name="q" value="{{ query }}" placeholder="Nombre, código o serie..." autofocus>
+                <input type="text" name="q" value="{{ query }}" placeholder="Nombre, código, serie o descripción..." autofocus>
             </form>
         </div>
     </header>
@@ -253,6 +253,9 @@
                 <div class="asset-info">
                     <h3 style="font-size: 15px; margin-bottom: 2px;">{{ ot.rutina.nombre|default:"OT Correctiva" }}</h3>
                     <p style="font-size: 12px; color: var(--sap-text-muted);">OT #{{ ot.codigo_de_orden|default:ot.id }} • {{ ot.inicio_programado|date:"d M, Y" }} • {{ ot.ubicacion.nombre|truncatechars:25 }}</p>
+                    {% if ot.descripcion_corta %}
+                    <p style="font-size: 11px; color: var(--sap-text-muted); font-style: italic; margin-top: 2px;">{{ ot.descripcion_corta|truncatechars:80 }}</p>
+                    {% endif %}
                     {% if ot.activos.all %}
                     <p style="font-size: 11px; color: var(--sap-brand-color); margin-top: 4px; display: flex; align-items: center; gap: 4px;">
                         <ion-icon name="cube-outline" style="font-size: 12px;"></ion-icon>

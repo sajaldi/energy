@@ -4,7 +4,9 @@ from .views import import_rutinas, import_pasos
 from .views.rutinas_dashboard import (
     rutinas_dashboard, rutina_detail_api, rutina_save_api, 
     rutina_delete_api, rutina_pasos_save_api, rutina_qr_pdf,
-    api_rutina_kpis, api_rutina_kpis_save
+    api_rutina_kpis, api_rutina_kpis_save,
+    paso_media_upload_api, paso_media_delete_api,
+    rutina_print_pdf
 )
 from .views import asistencia
 
@@ -59,11 +61,15 @@ urlpatterns = [
     path('rutinas/dashboard/', rutinas_dashboard, name='rutinas_dashboard'),
     path('rutinas/dashboard/detail/<int:pk>/', rutina_detail_api, name='rutina_detail_api'),
     path('rutinas/dashboard/qr/<int:pk>/', rutina_qr_pdf, name='rutina_qr_pdf'),
+    path('rutinas/dashboard/print/<int:pk>/', rutina_print_pdf, name='rutina_print_pdf'),
     path('rutinas/dashboard/save/', rutina_save_api, name='rutina_save_api'),
     path('rutinas/dashboard/delete/<int:pk>/', rutina_delete_api, name='rutina_delete_api'),
     path('rutinas/dashboard/rutina/pasos/save/', rutina_pasos_save_api, name='rutina_pasos_save_api'),
     path('rutinas/dashboard/rutina/<int:pk>/kpis/', api_rutina_kpis, name='api_rutina_kpis'),
     path('rutinas/dashboard/rutina/<int:pk>/kpis/save/', api_rutina_kpis_save, name='api_rutina_kpis_save'),
+    # Media de Pasos de Rutina
+    path('rutinas/dashboard/paso/<int:paso_id>/media/upload/', paso_media_upload_api, name='paso_media_upload_api'),
+    path('rutinas/dashboard/paso/media/<int:media_id>/delete/', paso_media_delete_api, name='paso_media_delete_api'),
     # API Endpoints para Tipos (Categorías) dentro del dashboard
     path('rutinas/api/tipo/<int:pk>/', views.rutinas_dashboard.tipo_detail_api, name='tipo_detail_api'),
     path('rutinas/api/tipo/save/', views.rutinas_dashboard.tipo_save_api, name='tipo_save_api'),
@@ -92,6 +98,7 @@ urlpatterns = [
     path('api/ot/<int:pk>/update/', views.api_update_ot_status_notes, name='api_update_ot_status_notes'),
     path('api/foto/<int:pk>/update-descripcion/', views.api_update_foto_descripcion, name='api_update_foto_descripcion'),
     path('api/search-activos/', views.api_buscar_activos, name='api_buscar_activos'),
+    path('api/search-activos-filtrados/', views.api_buscar_activos_filtrados, name='api_buscar_activos_filtrados'),
     path('rutina-pdf/<int:ot_id>/', views.pdf_views.generate_rutina_pdf_view, name='rutina_pdf'),
     path('aviso-pdf/<int:aviso_id>/', views.pdf_views.generate_aviso_pdf_view, name='aviso_pdf'),
 

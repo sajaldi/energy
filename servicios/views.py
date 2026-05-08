@@ -308,3 +308,179 @@ def kpi_dashboard_view(request):
         'cumplimiento_global': cumplimiento_global,
     }
     return render(request, 'admin/servicios/kpi/dashboard.html', context)
+
+
+# ================================================================
+# RAG + Búsqueda Vectorial Semántica de KPIs
+# ================================================================
+
+@staff_member_required
+def kpi_buscador_view(request):
+    """Renderiza la interfaz premium del buscador semántico RAG de KPIs."""
+    from django.contrib import admin
+    context = {
+        **admin.site.each_context(request),
+        'title': 'Buscador Inteligente de KPIs',
+    }
+    return render(request, 'admin/servicios/kpi/buscador_rag.html', context)
+
+
+@staff_member_required
+def api_kpi_busqueda_semantica(request):
+    """
+    API que realiza búsqueda híbrida de KPIs (texto + vector).
+    Usa el embedding de la consulta para buscar similitud de coseno.
+    """
+    from .models import KPI, KPIFragmento
+    from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+    from pgvector.django import CosineDistance
+    from core.ai_utils import get_embedding
+
+    query_text = request.GET.get('q', '').strip()
+    if not query_text:
+        return JsonResponse({'status': 'error', 'message': 'Query vacía'})
+
+    # 1. Búsqueda Vectorial (Semántica)
+    vector_results = []
+    try:
+        query_embedding = get_embedding(query_text, task_type="retrieval_query")
+        if query_embedding:
+            # Buscar en fragmentos
+            fragmentos = KPIFragmento.objects.annotate(
+                distance=CosineDistance('embedding', query_embedding)
+            ).order_by('distance')[:20]
+            
+            kpi_ids_vistos = set()
+            for f in fragmentos:
+                if f.kpi_id not in kpi_ids_vistos:
+                    similitud = 1 - float(f.distance)
+                    if similitud > 0.35: 
+                        vector_results.append({
+                            'id': f.kpi.id,
+                            'nombre': f.kpi.nombre,
+                            'servicio': f.kpi.servicio.nombre,
+                            'categoria': f.kpi.get_categoria_display(),
+                            'estado': f.kpi.get_estado_display(),
+                            'estado_raw': f.kpi.estado,
+                            'descripcion': (f.kpi.descripcion or '')[:200],
+                            'fragmento_preview': f.contenido[:200] + '...',
+                            'similitud': round(similitud, 4),
+                            'match_type': 'semantica'
+                        })
+                        kpi_ids_vistos.add(f.kpi_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Error búsqueda semántica: {e}")
+
+    # 2. Búsqueda de Texto
+    text_results = []
+    try:
+        kpis_texto = KPI.objects.annotate(
+            rank=SearchRank(
+                SearchVector('nombre', weight='A') + 
+                SearchVector('descripcion', weight='B') +
+                SearchVector('servicio__nombre', weight='C'),
+                SearchQuery(query_text)
+            )
+        ).filter(rank__gte=0.1).order_by('-rank')[:15]
+
+        for k in kpis_texto:
+            text_results.append({
+                'id': k.id,
+                'nombre': k.nombre,
+                'servicio': k.servicio.nombre,
+                'categoria': k.get_categoria_display(),
+                'estado': k.get_estado_display(),
+                'estado_raw': k.estado,
+                'descripcion': (k.descripcion or '')[:200],
+                'similitud': round(float(k.rank), 4),
+                'match_type': 'texto'
+            })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Error búsqueda texto: {e}")
+
+    # 3. Fusionar
+    final_map = {r['id']: r for r in vector_results}
+    for r in text_results:
+        if r['id'] not in final_map:
+            final_map[r['id']] = r
+        else:
+            final_map[r['id']]['match_type'] = 'hibrido'
+
+    resultados = sorted(final_map.values(), key=lambda x: x['similitud'], reverse=True)
+    return JsonResponse({'status': 'success', 'resultados': resultados[:20]})
+
+@staff_member_required
+def api_kpi_rag(request):
+    """
+    RAG (Retrieval Augmented Generation) para KPIs usando Gemini u Ollama.
+    """
+    from .models import KPIFragmento
+    from pgvector.django import CosineDistance
+    from core.ai_utils import get_embedding, ask_ia
+
+    query_text = request.GET.get('q', '').strip()
+    if not query_text:
+        return JsonResponse({'status': 'error', 'message': 'Query vacía'})
+
+    try:
+        query_embedding = get_embedding(query_text, task_type="retrieval_query")
+        if not query_embedding:
+            return JsonResponse({'status': 'error', 'message': 'No se pudo procesar la consulta IA'})
+
+        fragmentos = KPIFragmento.objects.annotate(
+            distance=CosineDistance('embedding', query_embedding)
+        ).order_by('distance')[:7]
+
+        context_parts = []
+        fuentes = []
+        seen_ids = set()
+        for f in fragmentos:
+            if (1 - float(f.distance)) > 0.35:
+                context_parts.append(f"KPI: {f.kpi.nombre} ({f.kpi.servicio.nombre})\nContenido: {f.contenido}")
+                if f.kpi_id not in seen_ids:
+                    fuentes.append({
+                        'id': f.kpi.id,
+                        'nombre': f.kpi.nombre,
+                        'servicio': f.kpi.servicio.nombre,
+                        'similitud': round(1 - float(f.distance), 4)
+                    })
+                    seen_ids.add(f.kpi_id)
+
+        contexto = "\n\n".join(context_parts)
+        if not contexto:
+            return JsonResponse({'status': 'success', 'respuesta': 'No encontré información relevante en los KPIs.', 'fuentes': []})
+
+        system_prompt = "Eres un analista de servicios. Responde basándote solo en el contexto proporcionado sobre KPIs. Usa Markdown."
+        respuesta = ask_ia(query_text, context=contexto, system_prompt=system_prompt)
+
+        return JsonResponse({
+            'status': 'success',
+            'respuesta': respuesta,
+            'fuentes': fuentes
+        })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error RAG: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def api_kpi_vectorize_all(request):
+    """Trigger manual para re-indexar todos los KPIs (solo superusers)."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+
+    from .tasks import vectorize_all_kpis
+    from .models import KPI
+
+    total = KPI.objects.count()
+    vectorize_all_kpis.delay()
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Vectorización de {total} KPIs iniciada. Los embeddings se generarán en segundo plano.',
+        'total': total
+    })
+

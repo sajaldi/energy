@@ -546,7 +546,12 @@
                 </div>
                 <div id="tab-locations" class="tab-content" style="display:none;">
                     ${isOffline ? '<div class="sap-loading">Datos de bodegas no disponibles offline.</div>' : `
-                    <table style="width:100%; border-collapse:collapse;">
+                    
+                    ${data.existencias && data.existencias.length > 0 ? `
+                    <div style="margin-bottom:15px; font-size:0.8rem; font-weight:700; color:var(--sap-success); display:flex; align-items:center; gap:8px;">
+                        <ion-icon name="checkmark-circle"></ion-icon> STOCK DISPONIBLE Y LOCALIZADO
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; margin-bottom:30px;">
                         <thead>
                             <tr style="border-bottom:2px solid #ddd; text-align:left;">
                                 <th style="padding:12px;">Ubicación</th>
@@ -564,6 +569,45 @@
                             `).join('')}
                         </tbody>
                     </table>
+                    ` : `
+                    <div style="background:#f1f5f9; border-radius:12px; padding:3rem 1.5rem; text-align:center; margin-bottom:20px; border:2px dashed #cbd5e1;">
+                        <ion-icon name="alert-circle-outline" style="font-size:3.5rem; color:#94a3b8; margin-bottom:1rem;"></ion-icon>
+                        <div style="font-weight:800; color:#475569; font-size:1.1rem;">Sin Existencias Confirmadas</div>
+                        <p style="margin:5px 0 0 0; color:#64748b; font-size:0.9rem;">Este material no cuenta con stock físico aprobado en ninguna bodega.</p>
+                    </div>
+                    `}
+
+                    ${data.movimientos_pendientes && data.movimientos_pendientes.length > 0 ? `
+                    <div style="margin-top:20px;">
+                        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; padding:15px;">
+                            <div style="display:flex; align-items:center; gap:10px; color:#c2410c; margin-bottom:12px;">
+                                <ion-icon name="time-outline" style="font-size:1.5rem;"></ion-icon>
+                                <h4 style="margin:0; font-size:0.95rem; font-weight:800;">MOVIMIENTOS PENDIENTES DE APROBACIÓN</h4>
+                            </div>
+                            <table style="width:100%; border-collapse:collapse; background:rgba(255,255,255,0.5); border-radius:8px;">
+                                <thead>
+                                    <tr style="text-align:left; font-size:0.75rem; color:#9a3412; border-bottom:1px solid #ffedd5;">
+                                        <th style="padding:10px;">Fecha</th>
+                                        <th style="padding:10px;">Tipo</th>
+                                        <th style="padding:10px;">Ubicación</th>
+                                        <th style="padding:10px; text-align:right;">Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.movimientos_pendientes.map(p => `
+                                        <tr style="font-size:0.85rem; border-bottom:1px solid rgba(255,255,255,0.3);">
+                                            <td style="padding:10px; font-weight:600;">${p.fecha}</td>
+                                            <td style="padding:10px;"><span style="background:#ffedd5; color:#9a3412; padding:2px 6px; border-radius:4px; font-weight:700; font-size:0.7rem;">${p.tipo}</span></td>
+                                            <td style="padding:10px;">${p.ubicacion}</td>
+                                            <td style="padding:10px; text-align:right; font-weight:800; color:#c2410c;">+${p.cantidad} ${data.unidad}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                            <p style="margin:12px 0 0 0; font-size:0.75rem; color:#9a3412; font-style:italic;">* Estos materiales ya fueron registrados pero necesitan la firma del almacenista para sumarse al stock disponible.</p>
+                        </div>
+                    </div>
+                    ` : ''}
                     `}
                 </div>
                 <div id="tab-history" class="tab-content" style="display:none;">

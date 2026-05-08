@@ -142,3 +142,27 @@ def import_consumo_task(self, file_path, user_id=None):
             'status': 'error',
             'message': str(e)
         }
+
+@shared_task(bind=True, max_retries=3)
+def task_sync_to_dynamics(self, app_label, model_name, instance_id):
+    """
+    Tarea de Celery para sincronizar un registro con Dynamics 365.
+    """
+    from django.apps import apps
+    from .dynamics_sync import sync_instance_to_dynamics
+    
+    try:
+        model = apps.get_model(app_label, model_name)
+        instance = model.objects.get(pk=instance_id)
+        
+        logger.info(f"Iniciando sincronización asíncrona para {model_name} ID: {instance_id}")
+        success = sync_instance_to_dynamics(instance)
+        
+        if not success:
+            # Reintentar si falló la conexión o hubo un error temporal
+            raise Exception("Sincronización fallida (Ver logs de core.dynamics_sync)")
+            
+    except Exception as exc:
+        logger.error(f"Error en task_sync_to_dynamics: {str(exc)}")
+        # Reintento exponencial
+        raise self.retry(exc=exc, countdown=60 * (self.request.retries + 1))

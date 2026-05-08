@@ -301,6 +301,14 @@
                 </svg>
                 Eliminar
             </button>
+            <a href="#" id="btn-print-routine" class="btn btn-outline" target="_blank" style="margin-right: auto; border: 1.5px solid #cbd5e1; color: #475569;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;">
+                    <path d="M6 9V2h12v7"></path>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                Imprimir Guía
+            </a>
             <button class="btn btn-secondary" onclick="closeRoutineModal()">Cerrar</button>
             <button class="btn btn-primary" onclick="enterEditMode()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -313,7 +321,7 @@
         </div>
 
         <div class="modal-footer" id="m-footer-edit" style="display: none;">
-            <a href="#" id="btn-print-qr" class="btn btn-outline" target="_blank" style="margin-right: auto; border: 1.5px solid #cbd5e1; color: #475569;">
+            <a href="#" id="btn-print-qr" class="btn btn-outline" target="_blank" style="margin-right: 10px; border: 1.5px solid #cbd5e1; color: #475569;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <rect x="7" y="7" width="3" height="3"></rect>
@@ -322,6 +330,14 @@
                     <rect x="14" y="14" width="3" height="3"></rect>
                 </svg>
                 Etiqueta QR
+            </a>
+            <a href="#" id="btn-print-routine-edit" class="btn btn-outline" target="_blank" style="margin-right: auto; border: 1.5px solid #cbd5e1; color: #475569;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;">
+                    <path d="M6 9V2h12v7"></path>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                Imprimir Guía
             </a>
             <button class="btn btn-secondary" onclick="exitEditMode()">Cancelar</button>
             <button class="btn btn-success" onclick="saveRoutine()">
@@ -337,14 +353,41 @@
     </div>
 </div>
 
+<!-- LIGHTBOX MODAL PARA MEDIA -->
+<div id="mediaLightbox" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:200000; align-items:center; justify-content:center; backdrop-filter:blur(8px);">
+    <button onclick="closeMediaLightbox()" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.2); border:none; color:white; width:40px; height:40px; border-radius:50%; font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
+    
+    <div id="lightboxContent" style="max-width:90%; max-height:90%; display:flex; align-items:center; justify-content:center;">
+        <!-- Se llena via JS -->
+    </div>
+    
+    <div id="lightboxCaption" style="position:absolute; bottom:30px; color:white; font-size:1rem; background:rgba(0,0,0,0.5); padding:10px 20px; border-radius:20px; max-width:80%; text-align:center;">
+    </div>
+</div>
+
 <script>
     function updateQrButton() {
         const qrBtn = document.getElementById('btn-print-qr');
+        const printBtn = document.getElementById('btn-print-routine');
+        const printBtnEdit = document.getElementById('btn-print-routine-edit');
+        
         if (currentRoutineId) {
-            qrBtn.style.display = 'inline-flex';
-            qrBtn.href = `/mantenimiento/rutinas/dashboard/qr/${currentRoutineId}/`;
+            if(qrBtn) {
+                qrBtn.style.display = 'inline-flex';
+                qrBtn.href = `/mantenimiento/rutinas/dashboard/qr/${currentRoutineId}/`;
+            }
+            if(printBtn) {
+                printBtn.style.display = 'inline-flex';
+                printBtn.href = `/mantenimiento/rutinas/dashboard/print/${currentRoutineId}/`;
+            }
+            if(printBtnEdit) {
+                printBtnEdit.style.display = 'inline-flex';
+                printBtnEdit.href = `/mantenimiento/rutinas/dashboard/print/${currentRoutineId}/`;
+            }
         } else {
-            qrBtn.style.display = 'none';
+            if(qrBtn) qrBtn.style.display = 'none';
+            if(printBtn) printBtn.style.display = 'none';
+            if(printBtnEdit) printBtnEdit.style.display = 'none';
         }
     }
 </script>
@@ -790,6 +833,120 @@
         overflow-y: auto;
         padding: 6px;
         animation: dropdownIn 0.2s ease-out;
+    }
+
+    /* MEDIA GALLERY & UPLOAD */
+    .step-media-gallery {
+        display: flex;
+        gap: 12px;
+        margin-top: 1rem;
+        overflow-x: auto;
+        padding-bottom: 8px;
+    }
+
+    .media-thumb-container {
+        position: relative;
+        width: 100px;
+        height: 70px;
+        min-width: 100px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .media-thumb-container:hover {
+        border-color: #0070f2;
+        transform: scale(1.05);
+    }
+
+    .media-thumb-container img, .media-thumb-container video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .video-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .upload-zone-wrapper {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #fff;
+        border: 2px dashed #cbd5e1;
+        border-radius: 8px;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .upload-zone-wrapper:hover, .upload-zone-wrapper.drag-active {
+        border-color: #0070f2;
+        background: #f0f7ff;
+    }
+
+    .upload-btn-label {
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        color: #64748b;
+        font-size: 0.8rem;
+        margin: 0;
+    }
+
+    .upload-btn-label svg {
+        color: #0070f2;
+    }
+
+    .media-edit-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 1rem;
+    }
+
+    .media-edit-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        aspect-ratio: 16/9;
+        border: 1px solid #e2e8f0;
+    }
+
+    .media-edit-item img, .media-edit-item video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .btn-delete-media {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 20px;
+        height: 20px;
+        background: rgba(239, 68, 68, 0.9);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 12px;
+        z-index: 5;
     }
 
     @keyframes dropdownIn {

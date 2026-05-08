@@ -1,10 +1,16 @@
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from ..models import Tipo, Rutina, Frecuencia, PuestoTrabajo, PasoRutina, Horario
+from django.http import JsonResponse, HttpResponse, Http404
+from ..models import Tipo, Rutina, Frecuencia, PuestoTrabajo, PasoRutina, Horario, MediaPasoRutina
 from activos.models import Categoria, Ubicacion
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Max
+from django.template.loader import render_to_string
+from django.utils import timezone
+from django.conf import settings
+import os
+import base64
+from playwright.sync_api import sync_playwright
 
 
 def build_in_memory_tree(all_categories, all_rutinas, frecuencia_int, puesto_int, search):
@@ -204,9 +210,13 @@ def rutina_detail_api(request, pk):
                         'valor_objetivo': p.valor_objetivo,
                         'rango_min': p.rango_min,
                         'rango_max': p.rango_max,
-                        'unidad_medida': p.unidad_medida
+                        'unidad_medida': p.unidad_medida,
+                        'media': [
+                            {'id': m.id, 'url': m.archivo.url, 'tipo': m.tipo, 'descripcion': m.descripcion}
+                            for m in p.media_files.all().order_by('orden')
+                        ]
                     }
-                    for p in rutina.pasos.all().order_by('orden')
+                    for p in rutina.pasos.prefetch_related('media_files').all().order_by('orden')
                 ]
             },
             'historial': history_data
@@ -578,3 +588,152 @@ def api_rutina_kpis_save(request, pk):
         return JsonResponse({'status': 'error', 'message': 'Rutina no encontrada'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def paso_media_upload_api(request, paso_id):
+    """API para subir archivos multimedia a un paso de rutina"""
+    from django.http import JsonResponse
+    import os
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    try:
+        paso = PasoRutina.objects.get(pk=paso_id)
+        archivo = request.FILES.get('file')
+        
+        if not archivo:
+            return JsonResponse({'status': 'error', 'message': 'No se recibió ningún archivo'}, status=400)
+        
+        # Validar tamaño (50MB máx)
+        if archivo.size > 50 * 1024 * 1024:
+            return JsonResponse({'status': 'error', 'message': 'El archivo excede el límite de 50MB'}, status=400)
+        
+        # Auto-detectar tipo por extensión
+        ext = os.path.splitext(archivo.name)[1].lower()
+        IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'}
+        VIDEO_EXTS = {'.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v'}
+        
+        if ext in IMAGE_EXTS:
+            tipo = 'IMAGEN'
+        elif ext in VIDEO_EXTS:
+            tipo = 'VIDEO'
+        else:
+            return JsonResponse({'status': 'error', 'message': f'Extensión no soportada: {ext}. Use imágenes (jpg, png, webp) o videos (mp4, webm, mov).'}, status=400)
+        
+        # Determinar orden
+        max_orden = paso.media_files.aggregate(Max('orden'))['orden__max'] or 0
+        
+        descripcion = request.POST.get('descripcion', '')
+        
+        media = MediaPasoRutina.objects.create(
+            paso=paso,
+            archivo=archivo,
+            tipo=tipo,
+            descripcion=descripcion,
+            orden=max_orden + 1
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'media': {
+                'id': media.id,
+                'url': media.archivo.url,
+                'tipo': media.tipo,
+                'descripcion': media.descripcion
+            }
+        })
+        
+    except PasoRutina.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Paso no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def paso_media_delete_api(request, media_id):
+    """API para eliminar un archivo multimedia de un paso"""
+    from django.http import JsonResponse
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+    
+    try:
+        media = MediaPasoRutina.objects.get(pk=media_id)
+        # Eliminar archivo físico
+        if media.archivo:
+            media.archivo.delete(save=False)
+        media.delete()
+        return JsonResponse({'status': 'success', 'message': 'Archivo eliminado correctamente'})
+    except MediaPasoRutina.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Archivo no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@staff_member_required
+def rutina_print_pdf(request, pk):
+    """Genera un PDF visual del procedimiento de la rutina con imágenes."""
+    try:
+        rutina = Rutina.objects.select_related('tipo', 'frecuencia').get(pk=pk)
+        pasos_qs = rutina.pasos.prefetch_related('media_files').all().order_by('orden')
+        
+        # Procesar pasos para incluir imágenes base64
+        pasos_data = []
+        for p in pasos_qs:
+            fotos = []
+            for m in p.media_files.filter(tipo='IMAGEN').order_by('orden'):
+                try:
+                    if m.archivo:
+                        # Leer archivo y convertir a base64
+                        ext = os.path.splitext(m.archivo.name)[1].lower().replace('.', '')
+                        mime = {'jpg': 'jpeg', 'jpeg': 'jpeg', 'png': 'png', 'gif': 'gif', 'webp': 'webp'}.get(ext, 'jpeg')
+                        b64 = base64.b64encode(m.archivo.read()).decode('utf-8')
+                        fotos.append({
+                            'data_uri': f'data:image/{mime};base64,{b64}'
+                        })
+                except Exception as e:
+                    print(f"Error procesando imagen para PDF: {e}")
+            
+            pasos_data.append({
+                'descripcion': p.descripcion,
+                'tipo_respuesta': p.tipo_respuesta,
+                'get_tipo_respuesta_display': p.get_tipo_respuesta_display(),
+                'verificacion': p.verificacion,
+                'fotos': fotos
+            })
+
+        # Logo opcional
+        logo_b64 = ""
+        logo_path = os.path.join(settings.BASE_DIR, 'activos', 'static', 'activos', 'img', 'logo_operadora_cc.png')
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                logo_b64 = base64.b64encode(f.read()).decode('utf-8')
+
+        context = {
+            'rutina': rutina,
+            'pasos': pasos_data,
+            'ahora': timezone.now(),
+            'logo_b64': logo_b64
+        }
+        
+        html_content = render_to_string('mantenimiento/rutina_procedimiento_pdf.html', context, request=request)
+        
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
+            page = browser.new_page()
+            page.set_content(html_content, wait_until='networkidle')
+            pdf_bytes = page.pdf(format="A4", print_background=True, margin={'top': '0', 'bottom': '0', 'left': '0', 'right': '0'})
+            browser.close()
+            
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        filename = f"Guia_Procedimiento_{rutina.codigo_rutina or rutina.id}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+
+    except Rutina.DoesNotExist:
+        raise Http404("Rutina no encontrada")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error generando PDF de rutina: {e}", exc_info=True)
+        return HttpResponse(f"Error interno: {str(e)}", status=500)

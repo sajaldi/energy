@@ -399,7 +399,7 @@ def mobile_ot_finalizar(request, pk):
     # Obtener el procedimiento y sus pasos
     pasos = []
     if ot.rutina:
-        pasos = ot.rutina.pasos.all().order_by('orden')
+        pasos = ot.rutina.pasos.prefetch_related('media_files').all().order_by('orden')
     
     # Vincular cada paso de tipo MEDICION con un punto real del activo de la OT
     # NOTA: En este sistema, la OT puede tener múltiples activos, pero para el checklist 
@@ -576,39 +576,86 @@ def mobile_ot_finalizar(request, pk):
     })
 
 @staff_member_required
+@login_required
 def mobile_crear_ot_rutina(request, rutina_id):
     """
-    Crea una OT inmediata basada en una rutina y ubicación específica.
-    Usado desde el Visor de Planos (Modo App).
+    Crea una OT inmediata basada en una rutina.
+    Si la rutina tiene categoría asociada, permite seleccionar activos.
     """
     from ..models import Rutina
     rutina = get_object_or_404(Rutina, pk=rutina_id)
-    ubicacion_id = request.GET.get('ubicacion_id')
-    ubicacion = get_object_or_404(Ubicacion, pk=ubicacion_id) if ubicacion_id else None
     
-    now = timezone.now()
-    duracion = rutina.tiempo_estimado or timedelta(hours=1)
+    # Determinar categoría asociada
+    categoria = rutina.categoria_activo or (rutina.tipo.categoria_activo if rutina.tipo else None)
     
-    ot = OrdenTrabajo.objects.create(
-        rutina=rutina,
-        ubicacion=ubicacion,
-        tecnico=request.user,
-        estado='PROGRAMADA',
-        inicio_programado=now,
-        fin_programado=now + duracion,
-        notas=f"Generada desde Visor: {rutina.nombre}"
-    )
-    
-    # Intento de vincular activos de esa ubicación que coincidan con la categoría
-    if ubicacion and rutina.tipo:
-        # Buscar activos en esta ubicación que sean de la categoría de la rutina
-        cat_activo = rutina.tipo.categoria_activo
-        if cat_activo:
-            activos_candidatos = Activo.objects.filter(ubicacion=ubicacion, modelo__categoria=cat_activo)
-            for a in activos_candidatos:
+    if request.method == 'GET':
+        # Si tiene categoría y no se especificó ubicación NI activos aún, ir a selección
+        # EXCEPCIÓN: Si viene 'confirm=1' en la URL, saltamos la selección (para compatibilidad o rapidez)
+        if categoria and not request.GET.get('ubicacion_id') and not request.GET.get('confirm'):
+            from activos.models import Ubicacion
+            ubicaciones = Ubicacion.objects.filter(padre__isnull=True).order_by('orden', 'nombre')
+            return render(request, 'mantenimiento/mobile_seleccionar_activos_rutina.html', {
+                'rutina': rutina,
+                'categoria': categoria,
+                'ubicaciones': ubicaciones,
+            })
+            
+        # Comportamiento original o automático:
+        ubicacion_id = request.GET.get('ubicacion_id')
+        ubicacion = Ubicacion.objects.filter(pk=ubicacion_id).first() if ubicacion_id else None
+        
+        now = timezone.now()
+        duracion = rutina.tiempo_estimado or timedelta(hours=1)
+        
+        ot = OrdenTrabajo.objects.create(
+            rutina=rutina,
+            ubicacion=ubicacion,
+            tecnico=request.user,
+            estado='PROGRAMADA',
+            inicio_programado=now,
+            fin_programado=now + duracion,
+            notas=f"Generada via QR/App: {rutina.nombre}"
+        )
+        
+        # Vincular automáticamente si hay ubicación y categoría
+        if ubicacion and categoria:
+             activos_candidatos = Activo.objects.filter(ubicacion=ubicacion, modelo__categoria=categoria)
+             for a in activos_candidatos:
+                 ot.activos.add(a)
+        
+        return redirect('mantenimiento:mobile_ot_detalle', pk=ot.id)
+
+    elif request.method == 'POST':
+        # Creación personalizada desde el template de selección
+        ubicacion_id = request.POST.get('ubicacion')
+        activos_ids = request.POST.getlist('activos')
+        
+        from activos.models import Ubicacion
+        ubicacion = Ubicacion.objects.filter(pk=ubicacion_id).first() if ubicacion_id else None
+        
+        now = timezone.now()
+        duracion = rutina.tiempo_estimado or timedelta(hours=1)
+        
+        ot = OrdenTrabajo.objects.create(
+            rutina=rutina,
+            ubicacion=ubicacion,
+            tecnico=request.user,
+            estado='PROGRAMADA',
+            inicio_programado=now,
+            fin_programado=now + duracion,
+            notas=f"Generada via QR (Selección): {rutina.nombre}"
+        )
+        
+        if activos_ids:
+            activos = Activo.objects.filter(id__in=activos_ids)
+            for a in activos:
                 ot.activos.add(a)
-    
-    return redirect('mantenimiento:mobile_ot_detalle', pk=ot.id)
+        
+        return JsonResponse({
+            'status': 'success', 
+            'ot_id': ot.id, 
+            'message': 'Orden de trabajo creada con éxito.'
+        })
 
 @staff_member_required
 @mobile_permission_required('tareas_hoy')

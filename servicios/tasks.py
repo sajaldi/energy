@@ -200,3 +200,149 @@ def import_kpis_task(self, file_path, file_format, user_id=None, verification_mo
 
     cache.set(cache_key, final_res, 3600)
     return final_res
+
+
+# ================================================================
+# RAG / Vectorización de KPIs
+# ================================================================
+
+def get_ollama_embedding(text):
+    """Obtiene embedding desde Ollama local."""
+    from django.conf import settings
+    import requests
+    
+    url = f"{settings.OLLAMA_URL}/api/embeddings"
+    payload = {
+        "model": settings.OLLAMA_MODEL_EMBEDDING,
+        "prompt": text
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=30)
+        response.raise_for_status()
+        embedding = response.json().get("embedding")
+        # Si el modelo tiene más dimensiones de las esperadas (384), truncamos o avisamos.
+        # Nomic-embed-text tiene 768, pero podemos truncar si es necesario para el VectorField(384)
+        return embedding[:384] if embedding else None
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error en Ollama embedding: {str(e)}")
+        return None
+
+@shared_task(name='servicios.tasks.generate_kpi_embedding')
+def generate_kpi_embedding(kpi_id):
+    """
+    Genera embeddings vectoriales para un KPI usando la infraestructura de IA disponible.
+    Compone un texto rico con todos los campos del KPI, lo fragmenta,
+    y almacena los fragmentos con sus embeddings para búsqueda semántica.
+    """
+    from .models import KPI, KPIFragmento
+    from core.ai_utils import get_embedding
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        kpi = KPI.objects.select_related('servicio').get(pk=kpi_id)
+        
+        # 1. Componer texto rico del KPI
+        parts = [
+            f"Servicio: {kpi.servicio.nombre}",
+            f"KPI: {kpi.nombre}" if kpi.nombre else "",
+            f"Categoría: {kpi.get_categoria_display()}",
+            f"Estado: {kpi.get_estado_display()}",
+        ]
+        if kpi.descripcion:
+            parts.append(f"Descripción: {kpi.descripcion}")
+        if kpi.forma_de_cumplimiento:
+            parts.append(f"Forma de cumplimiento: {kpi.forma_de_cumplimiento}")
+        if kpi.metodo_de_supervision:
+            parts.append(f"Método de supervisión: {kpi.metodo_de_supervision}")
+        if kpi.comentarios:
+            parts.append(f"Comentarios: {kpi.comentarios}")
+
+        text = "\n".join(p for p in parts if p)
+
+        if not text.strip():
+            logger.warning(f"KPI {kpi_id} no tiene texto para generar embedding.")
+            return False
+
+        # 2. Limpiar fragmentos anteriores
+        kpi.fragmentos.all().delete()
+
+        # 3. Fragmentar (chunking)
+        chunk_size = 1500
+        overlap = 200
+        chunks = []
+
+        if len(text) <= chunk_size:
+            chunks.append(text)
+        else:
+            start = 0
+            while start < len(text):
+                end = start + chunk_size
+                if end < len(text):
+                    last_space = text.rfind(' ', start, end)
+                    if last_space != -1 and last_space > start:
+                        end = last_space
+                chunk_content = text[start:end].strip()
+                if chunk_content:
+                    chunks.append(chunk_content)
+                start = end - overlap
+                if start >= len(text):
+                    break
+
+        # 4. Generar Embeddings usando utilidad centralizada
+        for i, chunk_content in enumerate(chunks):
+            try:
+                embedding_vector = get_embedding(chunk_content)
+                if embedding_vector:
+                    KPIFragmento.objects.create(
+                        kpi=kpi,
+                        contenido=chunk_content,
+                        embedding=embedding_vector,
+                        orden=i
+                    )
+            except Exception as e_api:
+                logger.error(f"Error en generación de embedding para chunk {i} del KPI {kpi_id}: {str(e_api)}")
+                continue
+
+        # 5. Embedding resumen para el KPI
+        try:
+            res_embedding = get_embedding(text[:2000])
+            if res_embedding:
+                kpi.embedding = res_embedding
+                kpi.save(update_fields=['embedding'])
+        except Exception as e_res:
+            logger.error(f"Error en embedding resumen del KPI {kpi_id}: {str(e_res)}")
+
+        logger.info(f"Procesamiento de embeddings completado para KPI {kpi_id} ({len(chunks)} fragmentos).")
+        return True
+
+    except KPI.DoesNotExist:
+        logger.error(f"KPI {kpi_id} no encontrado.")
+        return False
+    except Exception as e:
+        logger.error(f"Error en generate_kpi_embedding: {str(e)}")
+        return False
+
+
+@shared_task(name='servicios.tasks.vectorize_all_kpis')
+def vectorize_all_kpis():
+    """
+    Tarea masiva: re-indexa todos los KPIs activos para búsqueda semántica.
+    Ideal para ejecutar tras una importación masiva o migración inicial.
+    """
+    from .models import KPI
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    kpis = KPI.objects.all()
+    total = kpis.count()
+
+    for kpi in kpis:
+        generate_kpi_embedding.delay(kpi.id)
+
+    logger.info(f"Vectorización masiva iniciada: {total} KPIs encolados.")
+    return {'status': 'enqueued', 'total': total}
+

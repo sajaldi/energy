@@ -177,7 +177,20 @@ def api_get_material_stock(request, material_id):
 
     # Obtener últimos movimientos
     from .models import MovimientoInventario
-    movimientos = MovimientoInventario.objects.filter(material=material).order_by('-fecha_movimiento')[:10]
+    movimientos_qs = MovimientoInventario.objects.filter(material=material).order_by('-fecha_movimiento')
+    movimientos = movimientos_qs[:10]
+    
+    # Movimientos pendientes (para avisar al usuario)
+    pendientes = movimientos_qs.filter(estado='PENDIENTE').select_related('ubicacion_destino', 'ubicacion_origen', 'usuario')
+    mov_pendientes = [
+        {
+            'fecha': p.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
+            'tipo': p.get_tipo_display(),
+            'cantidad': float(p.cantidad),
+            'usuario': p.usuario.get_full_name() or p.usuario.username,
+            'ubicacion': (p.ubicacion_destino.nombre if p.ubicacion_destino else "N/A") if p.tipo == 'ENTRADA' else (p.ubicacion_origen.nombre if p.ubicacion_origen else "N/A")
+        } for p in pendientes
+    ]
     
     return JsonResponse({
         'id': material.id,
@@ -214,7 +227,8 @@ def api_get_material_stock(request, material_id):
                 'usuario': m.usuario.get_full_name() or m.usuario.username,
                 'ubicacion': (m.ubicacion_destino.nombre if m.ubicacion_destino else "N/A") if m.tipo == 'ENTRADA' else (m.ubicacion_origen.nombre if m.ubicacion_origen else "N/A")
             } for m in movimientos
-        ]
+        ],
+        'movimientos_pendientes': mov_pendientes
     })
 
 @csrf_exempt

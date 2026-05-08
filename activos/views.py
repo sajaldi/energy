@@ -1085,10 +1085,13 @@ def mobile_busqueda_activos(request):
                 Q(id__icontains=query) |
                 Q(codigo_de_orden__icontains=query) |
                 Q(descripcion_corta__icontains=query) |
+                Q(descripcion_detallada__icontains=query) |
+                Q(notas__icontains=query) |
+                Q(rutina__nombre__icontains=query) |
                 Q(activos__nombre__icontains=query) |
                 Q(activos__codigo_interno__icontains=query) |
                 Q(activos__serie__icontains=query)
-            ).select_related('ubicacion').distinct().order_by('-id')[:10]
+            ).select_related('ubicacion', 'rutina').distinct().order_by('-id')[:10]
         
         # Buscar Tiempos Acordados
         if 'tiempo_acordado' in secciones:

@@ -342,6 +342,28 @@ class PasoRutina(models.Model):
     def __str__(self):
         return f"{self.orden}. {self.descripcion[:50]} ({self.get_tipo_respuesta_display()})"
 
+class MediaPasoRutina(models.Model):
+    """Archivos multimedia (fotos/videos) de referencia para un paso de rutina."""
+    TIPO_CHOICES = [
+        ('IMAGEN', 'Imagen'),
+        ('VIDEO', 'Video'),
+    ]
+    
+    paso = models.ForeignKey(PasoRutina, on_delete=models.CASCADE, related_name='media_files')
+    archivo = models.FileField(upload_to='rutinas/pasos/media/', help_text="Foto o video de referencia")
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default='IMAGEN')
+    descripcion = models.CharField(max_length=200, blank=True, help_text="Descripción breve del archivo")
+    orden = models.PositiveIntegerField(default=0)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Media de Paso"
+        verbose_name_plural = "Media de Pasos"
+        ordering = ['paso', 'orden']
+
+    def __str__(self):
+        return f"Media #{self.orden} - {self.paso} ({self.get_tipo_display()})"
+
 class Rutina(models.Model):
     codigo_rutina = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="Código identificador de la rutina")
     nombre = models.CharField(max_length=200, blank=True, help_text="Deje vacío para generar un nombre automático basado en frecuencia y tipo")

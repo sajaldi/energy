@@ -10,7 +10,7 @@ from django.shortcuts import render
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from import_export.widgets import ForeignKeyWidget, DurationWidget
-from .models import Tipo, Frecuencia, Rutina, PasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Asistencia
+from .models import Tipo, Frecuencia, Rutina, PasoRutina, MediaPasoRutina, Horario, DiaHorario, RestriccionCalendario, Programacion, OrdenTrabajo, Aviso, PlanificacionMensual, CierreOrdenTrabajo, PuestoTrabajo, TecnicoPuesto, ValorPasoOrden, Falla, FotoAviso, Asistencia
 from activos.models import Categoria as CategoriaActivo
 from django.utils.safestring import mark_safe
 from django.urls import reverse, path
@@ -1205,10 +1205,22 @@ class OrdenTrabajoResource(ProgressResourceMixin, resources.ModelResource):
             except Exception as e:
                 print(f"[DEBUG] [Import OT] Error en bulk_update de códigos: {str(e)}")
 
+class MediaPasoRutinaInline(admin.TabularInline):
+    model = MediaPasoRutina
+    extra = 1
+    fields = ('archivo', 'tipo', 'orden', 'descripcion')
+
 class PasoRutinaInline(admin.TabularInline):
     model = PasoRutina
     extra = 1
     fields = ('orden', 'descripcion', 'tipo_respuesta', 'unidad_medida', 'valor_objetivo', 'rango_min', 'rango_max', 'punto_medicion_exacto', 'punto_medicion_codigo')
+
+
+@admin.register(MediaPasoRutina)
+class MediaPasoRutinaAdmin(admin.ModelAdmin):
+    list_display = ('paso', 'tipo', 'archivo', 'orden')
+    list_filter = ('tipo',)
+    search_fields = ('paso__descripcion', 'descripcion')
 
 class OrdenTrabajoInline(admin.TabularInline):
     model = OrdenTrabajo
@@ -2015,6 +2027,7 @@ class PasoRutinaAdmin(ImportExportModelAdmin):
     list_display = ('rutina', 'orden', 'tipo_respuesta', 'verificacion')
     list_filter = ('tipo_respuesta', 'rutina')
     search_fields = ('descripcion', 'verificacion', 'rutina__codigo_rutina')
+    inlines = [MediaPasoRutinaInline]
 
 
 

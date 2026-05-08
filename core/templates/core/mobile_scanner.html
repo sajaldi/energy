@@ -9,7 +9,7 @@
     {% include 'core/pwa_tags.html' %}
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
@@ -229,7 +229,11 @@
     <div id="error-toast"></div>
 
     <script>
-        const html5QrCode = new Html5Qrcode("reader");
+        const html5QrCode = new Html5Qrcode("reader", {
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+            }
+        });
         let isFlashOn = false;
         let qrPaused = false;
 
@@ -244,13 +248,7 @@
 
         const config = {
             fps: 10,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-                let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-                let qrboxSize = Math.floor(minEdgeSize * 0.7);
-                return { width: qrboxSize, height: qrboxSize };
-            },
-            // Desactivar restricciones de aspect ratio ayudan en Safari
-            aspectRatio: undefined 
+            qrbox: 250
         };
 
         const scannedCodes = new Set();
@@ -387,19 +385,31 @@
                 });
         };
 
+        // Forzar playsinline en video para Safari iOS (requerido para video inline)
+        const _videoObserver = new MutationObserver(() => {
+            const video = document.querySelector('#reader video');
+            if (video && !video.hasAttribute('playsinline')) {
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
+            }
+        });
+        _videoObserver.observe(document.getElementById('reader'), { childList: true, subtree: true });
+
         // Iniciar con la cámara trasera por defecto
         // Usamos una pequeña pausa para asegurar que el DOM esté listo para Safari
         setTimeout(() => {
             html5QrCode.start(
                 { facingMode: "environment" },
                 config,
-                onScanSuccess
+                onScanSuccess,
+                () => {} // Suprimir logs de frames sin QR (crítico para rendimiento en Safari)
             ).catch(err => {
-                console.error("Camera error:", err);
-                if (err.includes("Permission") || err.includes("NotAllowedError")) {
-                    showToast("Error: Permiso denegado. Revisa la configuración de Safari.");
+                const errMsg = typeof err === 'string' ? err : (err.message || String(err));
+                console.error("Camera error:", errMsg);
+                if (errMsg.includes("Permission") || errMsg.includes("NotAllowed") || errMsg.includes("denied")) {
+                    showToast("Error: Permiso denegado. Abre Ajustes > Safari > Cámara y permite el acceso.");
                 } else {
-                    showToast("Error al abrir cámara. Intenta recargar la página.");
+                    showToast("Error al abrir cámara: " + errMsg.substring(0, 80));
                 }
             });
         }, 300);

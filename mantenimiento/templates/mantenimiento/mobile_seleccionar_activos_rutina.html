@@ -1,0 +1,569 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Seleccionar Activos - {{ rutina.nombre }}</title>
+    {% include 'core/pwa_tags.html' %}
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root {
+            --sap-blue: #0a6ed1;
+            --sap-shell: #354a5f;
+            --sap-bg: #f7f7f7;
+            --sap-card-bg: #ffffff;
+            --sap-label: #6a6d70;
+            --sap-text: #32363a;
+            --sap-border: #d9d9d9;
+            --sap-success: #107e3e;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--sap-bg);
+            color: var(--sap-text);
+            margin: 0;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        header {
+            background-color: var(--sap-shell);
+            height: 56px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .back-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 8px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            font-size: 24px;
+            text-decoration: none;
+        }
+
+        header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .container {
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+            padding-bottom: 100px;
+        }
+
+        .fiori-card {
+            background: var(--sap-card-bg);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid var(--sap-border);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 14px 16px;
+            background: #fcfcfc;
+            border-bottom: 1px solid var(--sap-border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-header ion-icon {
+            color: var(--sap-blue);
+            font-size: 20px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--sap-shell);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-content { padding: 16px; }
+
+        .form-group { margin-bottom: 0; }
+
+        .sap-input-container {
+            background: white;
+            border: 1px solid var(--sap-border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            padding: 4px 12px;
+            transition: all 0.2s ease;
+        }
+
+        .sap-input-container:active {
+            background-color: #f0f7ff;
+            border-color: var(--sap-blue);
+        }
+
+        .sap-input-container input {
+            border: none;
+            background: transparent;
+            padding: 10px 0;
+            font-size: 15px;
+            width: 100%;
+            outline: none;
+            color: var(--sap-text);
+            pointer-events: none;
+        }
+
+        /* Asset List Styling */
+        .asset-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .asset-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--sap-border);
+            border-radius: 10px;
+            gap: 12px;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .asset-item.selected {
+            background-color: #f0f7ff;
+            border-color: var(--sap-blue);
+        }
+
+        .asset-checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid var(--sap-border);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: all 0.2s;
+        }
+
+        .asset-item.selected .asset-checkbox {
+            background-color: var(--sap-blue);
+            border-color: var(--sap-blue);
+        }
+
+        .asset-info { flex-grow: 1; }
+
+        .asset-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--sap-text);
+            margin-bottom: 2px;
+        }
+
+        .asset-meta {
+            font-size: 11px;
+            color: var(--sap-label);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .asset-tag {
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* Floating Button */
+        .fab-container {
+            position: fixed;
+            bottom: 24px;
+            left: 16px;
+            right: 16px;
+            max-width: 568px;
+            margin: 0 auto;
+            z-index: 1000;
+        }
+
+        .btn-create {
+            width: 100%;
+            background: var(--sap-blue);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(10, 110, 209, 0.4);
+            transition: transform 0.2s;
+        }
+
+        .btn-create:active { transform: scale(0.98); opacity: 0.9; }
+        .btn-create:disabled { background: #ccc; box-shadow: none; }
+
+        /* Modal Selector (same as otnp) */
+        #location-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            height: 85vh;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--sap-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .location-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f5f5f5;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .depth-0 { font-weight: 700; }
+        .depth-1 { padding-left: 36px; }
+        .depth-2 { padding-left: 56px; }
+        .depth-3 { padding-left: 76px; }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--sap-label);
+        }
+
+        .empty-state ion-icon {
+            font-size: 64px;
+            opacity: 0.2;
+            margin-bottom: 16px;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="back-btn">
+            <ion-icon name="chevron-back-outline"></ion-icon>
+        </a>
+        <h1>{{ rutina.nombre }}</h1>
+    </header>
+
+    <div class="container">
+        <!-- 1. Location Selection Card -->
+        <div class="fiori-card">
+            <div class="card-header">
+                <ion-icon name="location-outline"></ion-icon>
+                <div class="card-title">Ubicación de Trabajo</div>
+            </div>
+            <div class="card-content">
+                <div class="form-group" onclick="openLocationSelector()">
+                    <div class="sap-input-container">
+                        <input type="text" id="ubicacion-display" readonly placeholder="Seleccione ubicación para filtrar activos...">
+                        <ion-icon name="chevron-down-outline" style="color: var(--sap-label);"></ion-icon>
+                        <input type="hidden" name="ubicacion" id="ubicacion-id">
+                    </div>
+                </div>
+                <div id="category-hint" style="font-size: 12px; color: var(--sap-blue); margin-top: 10px; font-weight: 500;">
+                    <ion-icon name="funnel-outline" style="vertical-align: bottom;"></ion-icon>
+                    Filtrando por categoría: <strong>{{ categoria.nombre }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Asset Selection Card -->
+        <div class="fiori-card">
+            <div class="card-header" style="justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <ion-icon name="cube-outline"></ion-icon>
+                    <div class="card-title">Activos Detectados</div>
+                </div>
+                <div id="selection-count" style="font-size: 11px; font-weight: 700; color: var(--sap-blue); background: #eef4ff; padding: 2px 8px; border-radius: 10px; display: none;">
+                    0 seleccionados
+                </div>
+            </div>
+            <div class="card-content" style="padding: 10px;">
+                <div id="asset-list" class="asset-list">
+                    <div class="empty-state">
+                        <ion-icon name="search"></ion-icon>
+                        <p>Selecciona una ubicación para ver los activos disponibles.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Actions -->
+    <div class="fab-container">
+        <button type="button" id="btn-submit" class="btn-create" disabled onclick="submitForm()">
+            <ion-icon name="play-outline"></ion-icon>
+            Iniciar Orden de Trabajo
+        </button>
+    </div>
+
+    <!-- Location Modal -->
+    <div id="location-modal">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3 style="margin:0; font-size: 18px;">Seleccionar Ubicación</h3>
+                <button type="button" onclick="closeLocationSelector()" style="background:none; border:none; font-size: 28px; color: var(--sap-label);"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div style="padding: 12px 16px;">
+                <div style="background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; padding: 0 12px;">
+                    <ion-icon name="search-outline" style="color: var(--sap-label);"></ion-icon>
+                    <input type="text" id="location-search" placeholder="Buscar ubicación..." style="width:100%; border:none; background:transparent; padding:12px 8px; outline:none; font-size: 15px;">
+                </div>
+            </div>
+            <div id="location-list" style="flex-grow: 1; overflow-y: auto;">
+                {% for u in ubicaciones %}
+                <div class="location-item depth-{{ u.depth }}" 
+                     data-id="{{ u.id }}" 
+                     data-name="{{ u.nombre }}"
+                     data-parent="{{ u.padre_id|default:'' }}"
+                     data-has-children="{{ u.has_children|yesno:'true,false' }}">
+                    <ion-icon name="location" style="color: #ccc; font-size: 14px;"></ion-icon>
+                    <span style="flex-grow: 1;">{{ u.nombre }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rutinaId = "{{ rutina.id }}";
+        let selectedAssets = new Set();
+
+        function openLocationSelector() {
+            document.getElementById('location-modal').style.display = 'block';
+            document.getElementById('location-search').focus();
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLocationSelector() {
+            document.getElementById('location-modal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Logic for Location Picker (Hierarchical - Simplified for this view)
+        document.querySelectorAll('.location-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const id = this.dataset.id;
+                const name = this.dataset.name;
+                
+                document.getElementById('ubicacion-id').value = id;
+                document.getElementById('ubicacion-display').value = name;
+                
+                closeLocationSelector();
+                loadAssets(id);
+            });
+        });
+
+        // Search in location list
+        document.getElementById('location-search').addEventListener('input', function(e) {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.location-item').forEach(item => {
+                const name = item.dataset.name.toLowerCase();
+                item.style.display = name.includes(q) ? 'flex' : 'none';
+            });
+        });
+
+        function loadAssets(ubicacionId) {
+            const list = document.getElementById('asset-list');
+            list.innerHTML = `
+                <div style="padding: 20px;">
+                    <div class="skeleton" style="height: 60px; margin-bottom: 10px;"></div>
+                    <div class="skeleton" style="height: 60px; margin-bottom: 10px;"></div>
+                    <div class="skeleton" style="height: 60px;"></div>
+                </div>
+            `;
+
+            fetch(`/mantenimiento/api/search-activos-filtrados/?rutina_id=${rutinaId}&ubicacion_id=${ubicacionId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.results.length === 0) {
+                        list.innerHTML = `
+                            <div class="empty-state">
+                                <ion-icon name="alert-circle-outline"></ion-icon>
+                                <p>No se encontraron activos de esta categoría en la ubicación seleccionada.</p>
+                                <button onclick="openLocationSelector()" class="btn-create" style="width: auto; padding: 10px 20px; font-size: 14px; margin-top: 10px;">Cambiar Ubicación</button>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    let html = '';
+                    data.results.forEach(a => {
+                        const isSelected = selectedAssets.has(a.id.toString());
+                        html += `
+                            <div class="asset-item ${isSelected ? 'selected' : ''}" data-id="${a.id}" onclick="toggleAsset(this)">
+                                <div class="asset-checkbox">
+                                    <ion-icon name="checkmark-outline"></ion-icon>
+                                </div>
+                                <div class="asset-info">
+                                    <div class="asset-name">${a.nombre}</div>
+                                    <div class="asset-meta">
+                                        <span class="asset-tag">ID: ${a.codigo}</span>
+                                        <span class="asset-tag">${a.marca_modelo}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    list.innerHTML = html;
+                    updateSubmitButton();
+                });
+        }
+
+        function toggleAsset(el) {
+            const id = el.dataset.id;
+            if (selectedAssets.has(id)) {
+                selectedAssets.delete(id);
+                el.classList.remove('selected');
+            } else {
+                selectedAssets.add(id);
+                el.classList.add('selected');
+            }
+            updateSubmitButton();
+        }
+
+        function updateSubmitButton() {
+            const btn = document.getElementById('btn-submit');
+            const countEl = document.getElementById('selection-count');
+            
+            btn.disabled = selectedAssets.size === 0;
+            
+            if (selectedAssets.size > 0) {
+                countEl.innerText = `${selectedAssets.size} seleccionado${selectedAssets.size > 1 ? 's' : ''}`;
+                countEl.style.display = 'block';
+            } else {
+                countEl.style.display = 'none';
+            }
+        }
+
+        function submitForm() {
+            const ubicacionId = document.getElementById('ubicacion-id').value;
+            const assets = Array.from(selectedAssets);
+            
+            Swal.fire({
+                title: '¿Iniciar Orden?',
+                text: `Se creará una orden de trabajo para ${assets.length} activos.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#0a6ed1',
+                confirmButtonText: 'Sí, iniciar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const btn = document.getElementById('btn-submit');
+                    btn.disabled = true;
+                    btn.innerHTML = '<ion-icon name="refresh-outline" class="spin"></ion-icon> Creando...';
+
+                    const formData = new FormData();
+                    formData.append('ubicacion', ubicacionId);
+                    assets.forEach(id => formData.append('activos', id));
+
+                    fetch(`/mantenimiento/app/crear-ot-rutina/${rutinaId}/`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            window.location.href = `/mantenimiento/app/ot/${data.ot_id}/`;
+                        } else {
+                            Swal.fire('Error', data.message || 'Error al crear la orden', 'error');
+                            btn.disabled = false;
+                            btn.innerHTML = '<ion-icon name="play-outline"></ion-icon> Iniciar Orden de Trabajo';
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire('Error', 'No se pudo contactar al servidor', 'error');
+                        btn.disabled = false;
+                    });
+                }
+            });
+        }
+    </script>
+
+    <style>
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+
+</body>
+</html>

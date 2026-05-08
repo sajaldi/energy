@@ -23,6 +23,7 @@ from .api import (
     api_get_ot_detail,
     api_update_ot_status_notes,
     api_buscar_activos,
+    api_buscar_activos_filtrados,
     api_update_foto_descripcion
 )
 from .wizard import programar_rutina_wizard
