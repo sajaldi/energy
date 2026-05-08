@@ -594,10 +594,10 @@
                             mediaHtml = '<div style="display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; padding-bottom: 8px;">';
                             p.media.forEach(m => {
                                 if (m.tipo === 'IMAGEN') {
-                                    mediaHtml += `<img src="${m.url}" style="height: 100px; width: 140px; border-radius: 4px; border: 1px solid #ddd; object-fit: cover; flex-shrink:0;" onclick="window.open('${m.url}', '_blank')">`;
+                                    mediaHtml += `<img src="${m.url}" style="height: 100px; width: 140px; border-radius: 4px; border: 1px solid #ddd; object-fit: cover; flex-shrink:0;" onclick="window.showMediaPreview('${m.url}', 'IMAGEN')">`;
                                 } else if (m.tipo === 'VIDEO') {
                                     mediaHtml += `
-                                        <div style="position: relative; height: 100px; width: 140px; background: #000; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink:0;" onclick="window.open('${m.url}', '_blank')">
+                                        <div style="position: relative; height: 100px; width: 140px; background: #000; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink:0;" onclick="window.showMediaPreview('${m.url}', 'VIDEO')">
                                             <ion-icon name="play-circle" style="color: white; font-size: 40px;"></ion-icon>
                                             <span style="position:absolute; bottom:5px; right:5px; font-size:8px; color:white; background:rgba(0,0,0,0.5); padding:2px 4px; border-radius:2px;">VIDEO</span>
                                         </div>`;
@@ -642,6 +642,36 @@
                 Swal.fire('Error', 'No se pudo cargar el procedimiento', 'error'); 
             }
         }
+
+        // --- Previsualización de Media (NUEVO) ---
+        window.showMediaPreview = function(url, tipo) {
+            if (tipo === 'IMAGEN') {
+                Swal.fire({
+                    imageUrl: url,
+                    imageAlt: 'Imagen de referencia',
+                    showConfirmButton: false,
+                    showCloseButton: true,
+                    background: '#fff',
+                    width: 'auto',
+                    padding: '0'
+                });
+            } else if (tipo === 'VIDEO') {
+                Swal.fire({
+                    html: `
+                        <video controls autoplay style="width: 100%; border-radius: 4px; background: #000;">
+                            <source src="${url}" type="video/mp4">
+                            Tu navegador no soporta el elemento de video.
+                        </video>
+                    `,
+                    showConfirmButton: false,
+                    showCloseButton: true,
+                    background: '#000',
+                    width: 'auto',
+                    padding: '0'
+                });
+            }
+        };
+
 
 
         function closeHub() {
