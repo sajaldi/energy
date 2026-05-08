@@ -919,25 +919,119 @@ def qr_resolver(request):
         return JsonResponse({'success': True, 'redirect': code})
 
     # Caso 2: Es un código interno de un activo
-    activo = Activo.objects.filter(codigo_interno__iexact=code).first()
+    activo = Activo.objects.filter(codigo_interno__iexact=code).select_related('modelo__categoria').first()
     if activo:
-        # Redirigir a la nueva vista móvil del activo
+        from mantenimiento.models import OrdenTrabajo, Rutina
+        
+        # 1. Rutinas en curso (OTs abiertas)
+        active_ots_qs = OrdenTrabajo.objects.filter(
+            activos=activo, 
+            estado__in=['PROGRAMADA', 'EJECUCION', 'ESPERA']
+        ).select_related('rutina', 'tecnico').order_by('inicio_programado')
+        
+        active_ots = [{
+            'id': ot.id,
+            'tipo': ot.tipo,
+            'rutina_nombre': ot.rutina.nombre if ot.rutina else "Correctivo/Manual",
+            'estado': ot.get_estado_display(),
+            'tecnico': ot.tecnico.get_full_name() if ot.tecnico else "Sin asignar",
+            'url': reverse('mantenimiento:mobile_ot_detalle', args=[ot.id])
+        } for ot in active_ots_qs]
+
+        # 2. Historial (Últimas 5 realizadas)
+        history_ots_qs = OrdenTrabajo.objects.filter(
+            activos=activo, 
+            estado='REALIZADA'
+        ).select_related('rutina').order_by('-fecha_ejecucion')[:5]
+        
+        history_ots = [{
+            'id': ot.id,
+            'tipo': ot.tipo,
+            'rutina_nombre': ot.rutina.nombre if ot.rutina else "Correctivo/Manual",
+            'fecha': ot.fecha_ejecucion.strftime('%d/%m/%Y') if ot.fecha_ejecucion else "",
+            'url': reverse('mantenimiento:mobile_ot_detalle', args=[ot.id])
+        } for ot in history_ots_qs]
+
+        # 3. Rutinas aplicables (según categoría)
+        applicable_routines_qs = Rutina.objects.filter(
+            Q(categoria_activo=activo.modelo.categoria) | 
+            Q(tipo__categoria_activo=activo.modelo.categoria)
+        ).distinct() if activo.modelo and activo.modelo.categoria else Rutina.objects.none()
+        
+        applicable_routines = [{
+            'id': r.id,
+            'nombre': r.nombre,
+            'start_url': reverse('mantenimiento:mobile_crear_ot_rutina', args=[r.id]) + f"?activo={activo.id}"
+        } for r in applicable_routines_qs]
+
         return JsonResponse({
             'success': True, 
-            'redirect': reverse('activos:mobile_activo_detalle', args=[activo.id]),
+            'is_activo': True,
+            'activo': {
+                'id': activo.id,
+                'nombre': activo.nombre,
+                'codigo': activo.codigo_interno,
+                'categoria': activo.modelo.categoria.nombre if activo.modelo and activo.modelo.categoria else "N/A",
+                'url_detalle': reverse('activos:mobile_activo_detalle', args=[activo.id]),
+                'url_reportar': reverse('mantenimiento:mobile_crear_aviso') + f"?activo={activo.id}"
+            },
+            'active_ots': active_ots,
+            'history_ots': history_ots,
+            'applicable_routines': applicable_routines,
             'message': f'Equipo encontrado: {activo.nombre}'
         })
 
     # Caso 3: Es un código de Rutina de Mantenimiento
-    from mantenimiento.models import Rutina
+    from mantenimiento.models import Rutina, OrdenTrabajo
     rutina = Rutina.objects.filter(codigo_rutina__iexact=code).first()
     if rutina:
+        # Rutinas en curso de este tipo
+        active_ots_qs = OrdenTrabajo.objects.filter(
+            rutina=rutina, 
+            estado__in=['PROGRAMADA', 'EJECUCION', 'ESPERA']
+        ).select_related('tecnico').order_by('inicio_programado')[:10]
+        
+        active_ots = [{
+            'id': ot.id,
+            'tipo': ot.tipo,
+            'rutina_nombre': ot.rutina.nombre if ot.rutina else "Correctivo",
+            'estado': ot.get_estado_display(),
+            'tecnico': ot.tecnico.get_full_name() if ot.tecnico else "Sin asignar",
+            'url': reverse('mantenimiento:mobile_ot_detalle', args=[ot.id])
+        } for ot in active_ots_qs]
+
+        # Historial (Últimas 5 realizadas)
+        history_ots_qs = OrdenTrabajo.objects.filter(
+            rutina=rutina, 
+            estado='REALIZADA'
+        ).order_by('-fecha_ejecucion')[:5]
+        
+        history_ots = [{
+            'id': ot.id,
+            'tipo': ot.tipo,
+            'rutina_nombre': ot.rutina.nombre if ot.rutina else "Correctivo",
+            'fecha': ot.fecha_ejecucion.strftime('%d/%m/%Y') if ot.fecha_ejecucion else "",
+            'url': reverse('mantenimiento:mobile_ot_detalle', args=[ot.id])
+        } for ot in history_ots_qs]
+
         return JsonResponse({
             'success': True,
-            'is_routine': True,
-            'routine_id': rutina.id,
-            'routine_name': rutina.nombre,
-            'start_url': reverse('mantenimiento:mobile_crear_ot_rutina', args=[rutina.id])
+            'is_activo': True, # Reutilizamos el modal de Hub
+            'activo': {
+                'id': None,
+                'nombre': rutina.nombre,
+                'codigo': rutina.codigo_rutina or "S/C",
+                'categoria': "Rutina de Mantenimiento",
+                'url_detalle': "#",
+                'url_reportar': "#"
+            },
+            'active_ots': active_ots,
+            'history_ots': history_ots,
+            'applicable_routines': [{
+                'id': rutina.id,
+                'nombre': f"Iniciar nueva: {rutina.nombre}",
+                'start_url': reverse('mantenimiento:mobile_crear_ot_rutina', args=[rutina.id])
+            }]
         })
 
     # Caso 4: Es un código de Punto de Medición

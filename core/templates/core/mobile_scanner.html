@@ -14,7 +14,12 @@
 
     <style>
         :root {
-            --primary: #007bff;
+            --primary: #0696D7;
+            --primary-dark: #0582B9;
+            --fusion-bg: #F9F9F9;
+            --fusion-border: #D5D5D5;
+            --fusion-text: #2D2D2D;
+            --fusion-sec: #64748b;
             --dark: #212529;
             --bg-overlay: rgba(0, 0, 0, 0.6);
         }
@@ -66,7 +71,6 @@
             position: relative;
         }
 
-        /* Ocultar elementos innecesarios de la librería */
         #reader__dashboard,
         #reader__status_span,
         #reader video {
@@ -106,10 +110,6 @@
             transition: background 0.2s;
         }
 
-        .control-btn:active {
-            background: rgba(255, 255, 255, 0.4);
-        }
-
         .scanner-overlay {
             position: absolute;
             top: 50%;
@@ -137,17 +137,9 @@
         }
 
         @keyframes scan-line {
-            0% {
-                top: 0%;
-            }
-
-            50% {
-                top: 100%;
-            }
-
-            100% {
-                top: 0%;
-            }
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
         }
 
         .status-msg {
@@ -170,7 +162,6 @@
             backdrop-filter: blur(5px);
         }
 
-        /* Modal simple de error */
         #error-toast {
             position: fixed;
             bottom: 120px;
@@ -185,6 +176,159 @@
             transform: translateY(200px);
             transition: transform 0.3s ease;
             z-index: 2000;
+        }
+
+        /* Maintenance Hub Overlay */
+        .hub-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 2100;
+            display: none;
+            align-items: flex-end;
+            transition: opacity 0.3s;
+        }
+
+        .hub-overlay.active { display: flex; opacity: 1; }
+
+        .hub-card {
+            width: 100%;
+            background: var(--fusion-bg);
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--fusion-text);
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.3);
+        }
+
+        .hub-overlay.active .hub-card { transform: translateY(0); }
+
+        .hub-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--fusion-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .hub-asset-info h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .hub-asset-info p {
+            margin: 4px 0 0 0;
+            font-size: 13px;
+            color: var(--fusion-sec);
+            font-weight: 500;
+        }
+
+        .close-hub {
+            background: #e2e8f0;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--fusion-sec);
+            cursor: pointer;
+        }
+
+        .hub-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .hub-section { margin-bottom: 24px; }
+
+        .hub-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--fusion-sec);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hub-action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .hub-btn {
+            background: white;
+            border: 1px solid var(--fusion-border);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--fusion-text);
+            transition: all 0.2s;
+        }
+
+        .hub-btn:active { background: #f1f5f9; transform: scale(0.98); }
+        .hub-btn ion-icon { font-size: 24px; color: var(--primary); }
+        .hub-btn span { font-size: 12px; font-weight: 600; text-align: center; }
+
+        .hub-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .hub-list-item {
+            background: white;
+            border: 1px solid var(--fusion-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .hub-list-info { flex: 1; }
+        .hub-list-title { font-size: 14px; font-weight: 600; margin: 0; color: var(--fusion-text); }
+        .hub-list-meta { font-size: 11px; color: var(--fusion-sec); margin: 2px 0 0 0; }
+
+        .hub-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .badge-ejecucion { background: #e0f2fe; color: #0369a1; }
+        .badge-programada { background: #fef3c7; color: #92400e; }
+        .badge-espera { background: #fef3c7; color: #92400e; }
+        .badge-history { background: #f1f5f9; color: #475569; }
+
+        .empty-state {
+            text-align: center;
+            padding: 20px;
+            color: var(--fusion-sec);
+            font-size: 13px;
+            font-style: italic;
         }
     </style>
 </head>
@@ -202,15 +346,6 @@
         <span class="status-pill" id="main-pill">Enfoca el código QR del equipo</span>
     </div>
 
-    <script>
-        // Ajuste dinámico de UI según parámetros
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('multi') === '1') {
-            document.getElementById('scanner-title').innerText = "Modo Ráfaga (Múltiple)";
-            document.getElementById('main-pill').innerText = "Escaneando continuamente...";
-        }
-    </script>
-
     <div id="reader"></div>
     <div class="scanner-overlay"></div>
 
@@ -226,34 +361,86 @@
         </button>
     </div>
 
+    <!-- Maintenance Hub Overlay -->
+    <div id="hubOverlay" class="hub-overlay">
+        <div class="hub-card">
+            <div class="hub-header">
+                <div class="hub-asset-info">
+                    <h2 id="hubAssetName">Nombre del Equipo</h2>
+                    <p id="hubAssetCode">Código: --- | Categoría: ---</p>
+                </div>
+                <button class="close-hub" onclick="closeHub()">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="hub-body">
+                <div class="hub-action-grid">
+                    <a href="#" id="hubBtnDetalle" class="hub-btn">
+                        <ion-icon name="information-circle-outline"></ion-icon>
+                        <span>Ficha Técnica</span>
+                    </a>
+                    <a href="#" id="hubBtnReportar" class="hub-btn" style="border-color: #ef4444;">
+                        <ion-icon name="alert-circle-outline" style="color: #ef4444;"></ion-icon>
+                        <span style="color: #ef4444;">Reportar Falla</span>
+                    </a>
+                </div>
+
+                <div class="hub-section">
+                    <div class="hub-section-title">
+                        <ion-icon name="play-circle-outline"></ion-icon> Rutinas en Curso
+                    </div>
+                    <div id="activeRoutinesList" class="hub-list"></div>
+                </div>
+
+                <div class="hub-section">
+                    <div class="hub-section-title">
+                        <ion-icon name="add-circle-outline"></ion-icon> Iniciar Nueva Rutina
+                    </div>
+                    <div id="applicableRoutinesList" class="hub-list"></div>
+                </div>
+
+                <div class="hub-section">
+                    <div class="hub-section-title">
+                        <ion-icon name="time-outline"></ion-icon> Historial Reciente
+                    </div>
+                    <div id="historyRoutinesList" class="hub-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="error-toast"></div>
 
     <script>
-        const html5QrCode = new Html5Qrcode("reader", {
-            experimentalFeatures: {
-                useBarCodeDetectorIfSupported: true
-            }
-        });
+        const html5QrCode = new Html5Qrcode("reader", { experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
         let isFlashOn = false;
         let qrPaused = false;
+        const scannedCodes = new Set();
+        const finishBtn = document.getElementById('finish-btn');
+        const batchCountSpan = document.getElementById('batch-count');
+
+        // Observer for iOS Safari playsinline
+        const _videoObserver = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList') {
+                    const video = document.querySelector('#reader video');
+                    if (video && !video.hasAttribute('playsinline')) {
+                        video.setAttribute('playsinline', 'true');
+                        video.setAttribute('webkit-playsinline', 'true');
+                        video.muted = true;
+                        video.play().catch(() => {});
+                    }
+                }
+            }
+        });
+        _videoObserver.observe(document.getElementById('reader'), { childList: true, subtree: true });
 
         function showToast(msg) {
             const toast = document.getElementById('error-toast');
             toast.innerText = msg;
             toast.style.transform = 'translateY(0)';
-            setTimeout(() => {
-                toast.style.transform = 'translateY(200px)';
-            }, 3000);
+            setTimeout(() => { toast.style.transform = 'translateY(200px)'; }, 3000);
         }
-
-        const config = {
-            fps: 10,
-            qrbox: 250
-        };
-
-        const scannedCodes = new Set();
-        const finishBtn = document.getElementById('finish-btn');
-        const batchCountSpan = document.getElementById('batch-count');
 
         const onScanSuccess = (decodedText, decodedResult) => {
             if (qrPaused) return;
@@ -264,37 +451,26 @@
             const apiUrl = urlParams.get('api_url');
             const nextUrl = urlParams.get('next');
 
-            if (!isMulti) {
-                qrPaused = true;
-            }
-
-            // Vibración si el dispositivo lo soporta
+            if (!isMulti) qrPaused = true;
             if (navigator.vibrate) navigator.vibrate(100);
 
-            // 1. MODO BATCH (ACUMULACIÓN LOCAL) - Prioridad si es Multi pero NO tiene API
+            // 1. MODO BATCH
             if (isMulti && !apiUrl && nextUrl) {
                 if (!scannedCodes.has(decodedText)) {
                     scannedCodes.add(decodedText);
                     batchCountSpan.innerText = scannedCodes.size;
                     finishBtn.style.display = 'flex';
-                    
-                    // Feedback visual
                     const pill = document.querySelector('.status-pill');
                     pill.innerText = `Agregado: ${decodedText.slice(0, 10)}...`;
                     pill.style.background = '#059669';
-                    setTimeout(() => {
-                        pill.innerText = "Escaneando continuamente...";
-                        pill.style.background = 'rgba(0,0,0,0.5)';
-                    }, 800);
+                    setTimeout(() => { pill.innerText = "Escaneando continuamente..."; pill.style.background = 'rgba(0,0,0,0.5)'; }, 800);
                 }
                 return;
             }
 
-            // 2. MODO RÁFAGA (MULTISCAN API)
+            // 2. MODO RÁFAGA API
             if (isMulti && apiUrl) {
                 const extraDataJson = urlParams.get('extra_data'); 
-                
-                // Feedback visual inmediato
                 const pill = document.querySelector('.status-pill');
                 const originalText = pill.innerText;
                 pill.innerText = `Capturado: ${decodedText.slice(0, 10)}... ✓`;
@@ -313,189 +489,130 @@
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                     body: JSON.stringify(bodyData)
                 })
-                .then(response => response.json())
+                .then(r => r.json())
                 .then(data => {
                     if (data.status !== 'success') showToast(data.message || 'Error al registrar');
-                    setTimeout(() => {
-                        pill.innerText = originalText;
-                        pill.style.background = 'rgba(0,0,0,0.5)';
-                    }, 800);
-                })
-                .catch(err => showToast('Error de conexión'));
-                
+                    setTimeout(() => { pill.innerText = originalText; pill.style.background = 'rgba(0,0,0,0.5)'; }, 800);
+                }).catch(() => showToast('Error de conexión'));
                 return;
             }
 
-            // 3. MODO BYPASS (REDIRECCIÓN DIRECTA)
+            // 3. MODO BYPASS
             if (skipResolver && nextUrl) {
                 const separator = nextUrl.includes('?') ? '&' : '?';
                 window.location.href = `${nextUrl}${separator}code=${encodeURIComponent(decodedText)}`;
                 return;
             }
 
-            // 4. MODO ESTÁNDAR (RESOLVER EN BD)
+            // 4. MODO ESTÁNDAR (MAINTENANCE HUB)
             fetch(`{% url 'core:qr_resolver' %}?code=${encodeURIComponent(decodedText)}`)
-                .then(response => response.json())
+                .then(r => r.json())
                 .then(data => {
-                    if (data.success && data.redirect) {
+                    if (data.success && data.is_activo) {
+                        showMaintenanceHub(data);
+                    } else if (data.success && data.redirect) {
                         window.location.href = data.redirect;
                     } else if (data.success && data.is_routine) {
                         Swal.fire({
-                            title: '¿Desea iniciar esta rutina?',
-                            text: data.routine_name,
+                            title: 'Rutina Detectada',
+                            text: `¿Desea iniciar: ${data.routine_name}?`,
                             icon: 'question',
                             showCancelButton: true,
-                            confirmButtonColor: '#2563eb',
-                            cancelButtonColor: '#64748b',
-                            confirmButtonText: 'Sí, generar OT',
-                            cancelButtonText: 'Cancelar'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                window.location.href = data.start_url;
-                            } else {
-                                qrPaused = false;
-                            }
-                        });
+                            confirmButtonColor: '#0696D7',
+                            confirmButtonText: 'Sí, iniciar'
+                        }).then(r => { if(r.isConfirmed) window.location.href = data.start_url; else qrPaused = false; });
                     } else if (data.success && data.is_punto_medicion) {
-                        Swal.fire({
-                            title: 'Punto de Medición Detectado',
-                            text: `¿Desea registrar una lectura en: ${data.pm_name}?`,
-                            icon: 'info',
-                            showCancelButton: true,
-                            confirmButtonColor: '#2563eb',
-                            cancelButtonColor: '#64748b',
-                            confirmButtonText: 'Sí, registrar',
-                            cancelButtonText: 'Cancelar'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                window.location.href = data.start_url;
-                            } else {
-                                qrPaused = false;
-                            }
-                        });
+                        window.location.href = data.start_url;
                     } else {
                         showToast(data.error || 'Código no válido');
                         setTimeout(() => { qrPaused = false; }, 2000);
                     }
-                })
-                .catch(err => {
-                    console.error(err);
-                    showToast('Error de conexión');
-                    setTimeout(() => { qrPaused = false; }, 2000);
-                });
+                }).catch(() => { showToast('Error de conexión'); setTimeout(() => { qrPaused = false; }, 2000); });
         };
 
-        // Observer para inyectar playsinline en el video apenas se cree (Vital para iOS Safari)
-        const _videoObserver = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList') {
-                    const video = document.querySelector('#reader video');
-                    if (video && !video.hasAttribute('playsinline')) {
-                        video.setAttribute('playsinline', 'true');
-                        video.setAttribute('webkit-playsinline', 'true');
-                        video.muted = true;
-                        video.play().catch(() => {}); // Intentar forzar play
-                    }
-                }
-            }
-        });
-        _videoObserver.observe(document.getElementById('reader'), { childList: true, subtree: true });
+        function showMaintenanceHub(data) {
+            const asset = data.activo;
+            document.getElementById('hubAssetName').innerText = asset.nombre;
+            document.getElementById('hubAssetCode').innerText = `Código: ${asset.codigo} | Categoría: ${asset.categoria}`;
+            document.getElementById('hubBtnDetalle').href = asset.url_detalle;
+            document.getElementById('hubBtnReportar').href = asset.url_reportar;
+
+            const activeList = document.getElementById('activeRoutinesList');
+            activeList.innerHTML = data.active_ots.length > 0 ? data.active_ots.map(ot => `
+                <a href="${ot.url}" class="hub-list-item">
+                    <div class="hub-list-info">
+                        <p class="hub-list-title">${ot.rutina_nombre}</p>
+                        <p class="hub-list-meta">Téc: ${ot.tecnico}</p>
+                    </div>
+                    <span class="hub-badge badge-${ot.estado.toLowerCase()}">${ot.estado}</span>
+                </a>
+            `).join('') : '<div class="empty-state">No hay rutinas activas</div>';
+
+            const appList = document.getElementById('applicableRoutinesList');
+            appList.innerHTML = data.applicable_routines.length > 0 ? data.applicable_routines.map(r => `
+                <a href="${r.start_url}" class="hub-list-item">
+                    <div class="hub-list-info">
+                        <p class="hub-list-title">${r.nombre}</p>
+                        <p class="hub-list-meta">Tocar para iniciar nueva OT</p>
+                    </div>
+                    <ion-icon name="chevron-forward-outline" style="color:#cbd5e1"></ion-icon>
+                </a>
+            `).join('') : '<div class="empty-state">Sin rutinas predefinidas</div>';
+
+            const histList = document.getElementById('historyRoutinesList');
+            histList.innerHTML = data.history_ots.length > 0 ? data.history_ots.map(ot => `
+                <a href="${ot.url}" class="hub-list-item">
+                    <div class="hub-list-info">
+                        <p class="hub-list-title">${ot.rutina_nombre}</p>
+                        <p class="hub-list-meta">${ot.fecha}</p>
+                    </div>
+                    <span class="hub-badge badge-history">#${ot.id}</span>
+                </a>
+            `).join('') : '<div class="empty-state">Sin historial reciente</div>';
+
+            document.getElementById('hubOverlay').classList.add('active');
+        }
+
+        function closeHub() {
+            document.getElementById('hubOverlay').classList.remove('active');
+            setTimeout(() => { qrPaused = false; }, 300);
+        }
 
         async function startScanner() {
             try {
-                // Intentar obtener cámaras primero (ayuda a despertar el permiso en iOS)
                 const devices = await Html5Qrcode.getCameras();
-                
                 let cameraId = null;
                 if (devices && devices.length > 0) {
-                    // Buscar cámara trasera
-                    const backCamera = devices.find(device => 
-                        device.label.toLowerCase().includes('back') || 
-                        device.label.toLowerCase().includes('trasera') ||
-                        device.label.toLowerCase().includes('environment')
-                    );
+                    const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('trasera') || d.label.toLowerCase().includes('environment'));
                     cameraId = backCamera ? backCamera.id : devices[0].id;
                 }
-
-                const config = {
-                    fps: 15, // Un poco más alto para fluidez
-                    qrbox: { width: 250, height: 250 },
-                    aspectRatio: 1.0,
-                    videoConstraints: {
-                        facingMode: "environment",
-                        focusMode: "continuous"
-                    }
-                };
-
-                await html5QrCode.start(
-                    cameraId ? cameraId : { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    () => {}
-                );
-
+                await html5QrCode.start(cameraId || { facingMode: "environment" }, { fps: 15, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 }, onScanSuccess, () => {});
             } catch (err) {
-                console.error("Scanner Error:", err);
-                const errMsg = typeof err === 'string' ? err : (err.message || String(err));
-                
-                if (errMsg.includes("Permission") || errMsg.includes("NotAllowed")) {
-                    showToast("Error: Permiso denegado. Ve a Ajustes > Safari > Cámara y activa 'Permitir'.");
-                    
-                    // Mostrar un botón de re-intento manual
-                    const pill = document.getElementById('main-pill');
-                    pill.innerHTML = '<span style="color:#ffc107">Permiso denegado. Toca aquí para reintentar</span>';
-                    pill.parentElement.onclick = () => location.reload();
-                } else {
-                    showToast("No se pudo iniciar la cámara: " + errMsg.substring(0, 50));
-                    // Intento desesperado sin ID específico
-                    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess, () => {})
-                        .catch(e => console.error("Final fallback failed", e));
-                }
+                showToast("Error de cámara: " + err);
             }
         }
 
-        // Iniciar con un pequeño delay
-        window.addEventListener('load', () => {
-            setTimeout(startScanner, 500);
-        });
+        window.addEventListener('load', () => setTimeout(startScanner, 500));
 
-        // Toggle Linterna
         document.getElementById('flash-toggle').addEventListener('click', async () => {
             try {
                 const track = html5QrCode.getRunningTrack();
                 if (track && track.getCapabilities().torch) {
-                    const targetState = !isFlashOn;
-                    await track.applyConstraints({
-                        advanced: [{ torch: targetState }]
-                    });
-                    isFlashOn = targetState;
+                    isFlashOn = !isFlashOn;
+                    await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
                     document.getElementById('flash-toggle').style.color = isFlashOn ? '#ffc107' : 'white';
-                    document.getElementById('flash-toggle').style.background = isFlashOn ? 'rgba(255,193,7,0.2)' : 'rgba(255,255,255,0.2)';
-                } else {
-                    showToast("Flash no disponible en este dispositivo");
-                }
-            } catch (e) {
-                console.error("Error flash:", e);
-                showToast("Error al activar flash: Cámara no lista o no compatible");
-            }
+                } else showToast("Flash no disponible");
+            } catch (e) { showToast("Error flash"); }
         });
 
-        // Switch Cámara (Simple reload for now)
-        document.getElementById('camera-switch').addEventListener('click', () => {
-            location.reload();
-        });
-
-        // Evento Finalizar Batch
+        document.getElementById('camera-switch').addEventListener('click', () => location.reload());
         finishBtn.addEventListener('click', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const nextUrl = urlParams.get('next');
+            const nextUrl = new URLSearchParams(window.location.search).get('next');
             if (nextUrl) {
-                const codesArray = Array.from(scannedCodes);
                 const separator = nextUrl.includes('?') ? '&' : '?';
-                window.location.href = `${nextUrl}${separator}codigos=${encodeURIComponent(codesArray.join(','))}`;
+                window.location.href = `${nextUrl}${separator}codigos=${encodeURIComponent(Array.from(scannedCodes).join(','))}`;
             }
         });
     </script>
 </body>
-
 </html>
