@@ -625,6 +625,49 @@
             } catch (e) { console.error(e); Swal.fire('Error', 'No se pudo cargar el procedimiento', 'error'); }
         }
 
+        // --- Filtro de Catálogo (NUEVO) ---
+        function filterCatalog() {
+            const query = document.getElementById('catalog-search-input').value.toLowerCase().trim();
+            const grid = document.getElementById('category-grid-main');
+            const categories = document.querySelectorAll('.category-details');
+            
+            if (query === "") {
+                grid.style.display = 'grid';
+                categories.forEach(c => {
+                    c.style.display = 'none';
+                    // Resetear visibilidad de items internos
+                    c.querySelectorAll('.routine-item').forEach(item => item.style.display = 'flex');
+                });
+                return;
+            }
+
+            grid.style.display = 'none';
+            categories.forEach(cat => {
+                let hasMatch = false;
+                const items = cat.querySelectorAll('.routine-item');
+                
+                items.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(query)) {
+                        item.style.display = 'flex';
+                        hasMatch = true;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+
+                // Si la categoría tiene matches o el nombre de la categoría incluye el query
+                const catTitle = cat.querySelector('span').textContent.toLowerCase();
+                if (hasMatch || catTitle.includes(query)) {
+                    cat.style.display = 'block';
+                    // Si el nombre de la categoría matchea pero no hay items filtrados (porque query no está en items),
+                    // podríamos querer mostrar todos los items de esa categoría, pero es mejor ser estrictos.
+                } else {
+                    cat.style.display = 'none';
+                }
+            });
+        }
+
         document.querySelectorAll('.toolbar-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.getAttribute('data-tab');
@@ -699,6 +742,14 @@
                 <ion-icon name="journal-outline" style="color: var(--fusion-accent);"></ion-icon>
             </div>
             <div class="fusion-card-content" style="padding: 10px;">
+                <!-- Buscador de Catálogo (NUEVO) -->
+                <div class="search-catalog" style="margin-bottom: 15px; position: relative;">
+                    <ion-icon name="search-outline" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888; font-size: 14px;"></ion-icon>
+                    <input type="text" id="catalog-search-input" placeholder="Buscar procedimiento o rutina..." 
+                           onkeyup="filterCatalog()"
+                           style="width: 100%; padding: 8px 10px 8px 32px; border: 1px solid var(--fusion-border); border-radius: 4px; font-size: 11px; outline: none; background: #FFF;">
+                </div>
+
                 <div class="category-grid" id="category-grid-main" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     {% for cat in rutinas_categorias %}
                     <div class="category-item" onclick="toggleCategory('cat-{{ cat.id }}')" 
