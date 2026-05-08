@@ -377,7 +377,7 @@
                 <div class="hub-action-grid">
                     <a href="#" id="hubBtnDetalle" class="hub-btn">
                         <ion-icon name="information-circle-outline"></ion-icon>
-                        <span>Ficha Técnica</span>
+                        <span>Procedimiento</span>
                     </a>
                     <a href="#" id="hubBtnReportar" class="hub-btn" style="border-color: #ef4444;">
                         <ion-icon name="alert-circle-outline" style="color: #ef4444;"></ion-icon>
@@ -578,7 +578,7 @@
 
         async function showRoutinePreview(routineId) {
             Swal.fire({
-                title: 'Cargando detalles...',
+                title: 'Cargando procedimiento...',
                 didOpen: () => { Swal.showLoading(); }
             });
 
@@ -589,44 +589,60 @@
                 if (data.status === 'success') {
                     let stepsHtml = '<div style="text-align: left; font-size: 13px;">';
                     data.rutina.pasos.forEach(p => {
+                        let mediaHtml = '';
+                        if (p.media && p.media.length > 0) {
+                            mediaHtml = '<div style="display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; padding-bottom: 8px;">';
+                            p.media.forEach(m => {
+                                if (m.tipo === 'IMAGE') {
+                                    mediaHtml += `<img src="${m.url}" style="height: 100px; width: 140px; border-radius: 4px; border: 1px solid #ddd; object-fit: cover; flex-shrink:0;" onclick="window.open('${m.url}', '_blank')">`;
+                                } else if (m.tipo === 'VIDEO') {
+                                    mediaHtml += `
+                                        <div style="position: relative; height: 100px; width: 140px; background: #000; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink:0;" onclick="window.open('${m.url}', '_blank')">
+                                            <ion-icon name="play-circle" style="color: white; font-size: 40px;"></ion-icon>
+                                            <span style="position:absolute; bottom:5px; right:5px; font-size:8px; color:white; background:rgba(0,0,0,0.5); padding:2px 4px; border-radius:2px;">VIDEO</span>
+                                        </div>`;
+                                }
+                            });
+                            mediaHtml += '</div>';
+                        }
+
                         stepsHtml += `
-                            <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
-                                <div style="display: flex; gap: 10px;">
-                                    <b style="color: var(--primary);">${p.orden}.</b>
-                                    <div>
-                                        <div style="font-weight: 600;">${p.descripcion}</div>
-                                        ${p.verificacion ? `<div style="font-size: 11px; color: #666; margin-top: 20px;">Verificar: ${p.verificacion}</div>` : ''}
-                                        <div style="font-size: 10px; color: var(--primary); margin-top: 5px; text-transform: uppercase;">Tipo: ${p.tipo_respuesta}</div>
+                            <div style="margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
+                                <div style="display: flex; gap: 12px;">
+                                    <b style="color: #0696D7; font-size: 14px;">${p.orden}.</b>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 700; color: #333; margin-bottom: 4px;">${p.descripcion}</div>
+                                        ${p.verificacion ? `<div style="font-size: 11px; color: #666; background: #f9f9f9; padding: 5px; border-radius: 4px; margin-top: 5px; border-left: 3px solid #ddd;">${p.verificacion}</div>` : ''}
+                                        ${mediaHtml}
                                     </div>
                                 </div>
-                            </div>
-                        `;
+                            </div>`;
                     });
                     stepsHtml += '</div>';
 
                     Swal.fire({
-                        title: data.rutina.nombre,
+                        title: `<span style="font-size: 18px; font-weight: 800;">${data.rutina.nombre}</span>`,
                         html: `
-                            <div style="text-align: left; margin-bottom: 20px;">
-                                <div style="font-size: 12px; color: #666;">Frecuencia: <b>${data.rutina.frecuencia}</b></div>
-                                <div style="font-size: 12px; color: #666;">Tiempo Est.: <b>${data.rutina.tiempo_estimado}</b></div>
+                            <div style="text-align: left; margin-bottom: 20px; display: flex; gap: 15px;">
+                                <div style="font-size: 11px; color: #666; background: #eee; padding: 4px 8px; border-radius: 4px;">FREC: <b>${data.rutina.frecuencia}</b></div>
+                                <div style="font-size: 11px; color: #666; background: #eee; padding: 4px 8px; border-radius: 4px;">TIEMPO: <b>${data.rutina.tiempo_estimado}</b></div>
                             </div>
-                            <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
-                                <h4 style="font-size: 14px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">PASOS DEL PROCEDIMIENTO</h4>
+                            <div style="max-height: 50vh; overflow-y: auto; padding-right: 5px; border-top: 2px solid #333; pt: 15px;">
+                                <h4 style="font-size: 12px; color: #999; margin: 15px 0 10px 0; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Pasos del Procedimiento</h4>
                                 ${stepsHtml}
                             </div>
                         `,
+                        width: '95%',
                         confirmButtonText: 'Cerrar',
-                        confirmButtonColor: '#323232',
-                        width: '95%'
+                        confirmButtonColor: '#323232'
                     });
-                } else {
-                    Swal.fire('Error', 'No se pudo cargar la información', 'error');
                 }
-            } catch (e) {
-                Swal.fire('Error', 'Error de conexión', 'error');
+            } catch (e) { 
+                console.error(e);
+                Swal.fire('Error', 'No se pudo cargar el procedimiento', 'error'); 
             }
         }
+
 
         function closeHub() {
             document.getElementById('hubOverlay').classList.remove('active');

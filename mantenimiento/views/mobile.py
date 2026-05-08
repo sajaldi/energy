@@ -661,18 +661,54 @@ def mobile_crear_ot_rutina(request, rutina_id):
 @mobile_permission_required('tareas_hoy')
 def mobile_mis_ordenes(request):
     """
-    Muestra las órdenes de trabajo abiertas del usuario (por técnico o equipo).
+    Muestra las órdenes de trabajo abiertas del usuario (por técnico o equipo)
+    con soporte para búsqueda y filtrado.
     """
     user_q = Q(tecnico=request.user) | Q(equipo__in=request.user.groups.all())
     
+    # Búsqueda
+    search_query = request.GET.get('q', '')
+    
+    # Filtros
+    estado_filter = request.GET.get('estado', '')
+    prioridad_filter = request.GET.get('prioridad', '')
+    
     ordenes = OrdenTrabajo.objects.filter(user_q).exclude(
-        estado__in=['REALIZADA', 'CANCELADA']
-    ).select_related(
+        estado__in=['CANCELADA'] # Permitir ver Realizadas si se filtra? No, el usuario pidió "Abiertas" generalmente.
+    )
+
+    # Si no hay filtros de estado específicos, excluir REALIZADA
+    if not estado_filter:
+        ordenes = ordenes.exclude(estado='REALIZADA')
+
+    if search_query:
+        ordenes = ordenes.filter(
+            Q(id__icontains=search_query) |
+            Q(codigo_de_orden__icontains=search_query) |
+            Q(rutina__nombre__icontains=search_query) |
+            Q(aviso__descripcion__icontains=search_query) |
+            Q(ubicacion__nombre__icontains=search_query)
+        )
+    
+    if estado_filter:
+        ordenes = ordenes.filter(estado=estado_filter)
+    
+    if prioridad_filter:
+        ordenes = ordenes.filter(prioridad=prioridad_filter)
+
+    ordenes = ordenes.select_related(
         'rutina', 'ubicacion', 'tecnico', 'aviso'
     ).prefetch_related('activos').distinct().order_by('-estado', 'inicio_programado')
     
+    # Limitar para rendimiento móvil si no hay búsqueda
+    if not search_query and not estado_filter:
+        ordenes = ordenes[:50]
+
     return render(request, 'mantenimiento/mobile_mis_ordenes.html', {
         'ordenes': ordenes,
+        'q': search_query,
+        'estado_filter': estado_filter,
+        'prioridad_filter': prioridad_filter,
     })
 
 @staff_member_required
