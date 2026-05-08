@@ -870,7 +870,7 @@ def mobile_dashboard(request):
     total_requisiciones = 0
     from core.models import ElementoApp
     from presupuestos.models import Requisicion
-    from mantenimiento.models import Tipo
+    from mantenimiento.models import Tipo, Rutina
 
     # --- Visibilidad dinámica por grupo ---
     secciones_permitidas = ElementoApp.get_secciones_usuario(request.user)
