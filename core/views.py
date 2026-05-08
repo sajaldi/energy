@@ -876,7 +876,7 @@ def mobile_dashboard(request):
     secciones_permitidas = ElementoApp.get_secciones_usuario(request.user)
 
     # Categorías de rutinas para el catálogo
-    rutinas_categorias = Tipo.objects.filter(padre__isnull=True).prefetch_related('rutinas_set').order_by('nombre')
+    rutinas_categorias = Tipo.objects.filter(padre__isnull=True).prefetch_related('rutinas').order_by('nombre')
 
     context = {
         'ots_hoy': ots_hoy,
