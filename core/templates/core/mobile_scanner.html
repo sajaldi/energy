@@ -508,19 +508,10 @@
             fetch(`{% url 'core:qr_resolver' %}?code=${encodeURIComponent(decodedText)}`)
                 .then(r => r.json())
                 .then(data => {
-                    if (data.success && data.is_activo) {
+                    if (data.success && (data.is_activo || data.is_routine)) {
                         showMaintenanceHub(data);
                     } else if (data.success && data.redirect) {
                         window.location.href = data.redirect;
-                    } else if (data.success && data.is_routine) {
-                        Swal.fire({
-                            title: 'Rutina Detectada',
-                            text: `¿Desea iniciar: ${data.routine_name}?`,
-                            icon: 'question',
-                            showCancelButton: true,
-                            confirmButtonColor: '#0696D7',
-                            confirmButtonText: 'Sí, iniciar'
-                        }).then(r => { if(r.isConfirmed) window.location.href = data.start_url; else qrPaused = false; });
                     } else if (data.success && data.is_punto_medicion) {
                         window.location.href = data.start_url;
                     } else {
@@ -533,31 +524,43 @@
         function showMaintenanceHub(data) {
             const asset = data.activo;
             document.getElementById('hubAssetName').innerText = asset.nombre;
-            document.getElementById('hubAssetCode').innerText = `Código: ${asset.codigo} | Categoría: ${asset.categoria}`;
-            document.getElementById('hubBtnDetalle').href = asset.url_detalle;
-            document.getElementById('hubBtnReportar').href = asset.url_reportar;
+            document.getElementById('hubAssetCode').innerText = `Código: ${asset.codigo} | ${asset.categoria}`;
+            
+            const btnDetalle = document.getElementById('hubBtnDetalle');
+            if (data.is_routine) {
+                btnDetalle.href = "javascript:void(0)";
+                btnDetalle.onclick = () => showRoutinePreview(data.routine_id);
+                document.getElementById('hubBtnReportar').style.display = 'none';
+                document.getElementById('scanner-title').innerText = "Hub de Rutina";
+            } else {
+                btnDetalle.href = asset.url_detalle;
+                btnDetalle.onclick = null;
+                document.getElementById('hubBtnReportar').style.display = 'flex';
+                document.getElementById('hubBtnReportar').href = asset.url_reportar;
+                document.getElementById('scanner-title').innerText = "Hub del Equipo";
+            }
 
             const activeList = document.getElementById('activeRoutinesList');
             activeList.innerHTML = data.active_ots.length > 0 ? data.active_ots.map(ot => `
                 <a href="${ot.url}" class="hub-list-item">
                     <div class="hub-list-info">
                         <p class="hub-list-title">${ot.rutina_nombre}</p>
-                        <p class="hub-list-meta">Téc: ${ot.tecnico}</p>
+                        <p class="hub-list-meta">ID: ${ot.id} | Téc: ${ot.tecnico}</p>
                     </div>
                     <span class="hub-badge badge-${ot.estado.toLowerCase()}">${ot.estado}</span>
                 </a>
-            `).join('') : '<div class="empty-state">No hay rutinas activas</div>';
+            `).join('') : '<div class="empty-state">No hay órdenes en curso</div>';
 
             const appList = document.getElementById('applicableRoutinesList');
             appList.innerHTML = data.applicable_routines.length > 0 ? data.applicable_routines.map(r => `
                 <a href="${r.start_url}" class="hub-list-item">
                     <div class="hub-list-info">
                         <p class="hub-list-title">${r.nombre}</p>
-                        <p class="hub-list-meta">Tocar para iniciar nueva OT</p>
+                        <p class="hub-list-meta">Tocar para iniciar nueva ejecución</p>
                     </div>
-                    <ion-icon name="chevron-forward-outline" style="color:#cbd5e1"></ion-icon>
+                    <ion-icon name="chevron-forward-outline" style="color:#0696D7"></ion-icon>
                 </a>
-            `).join('') : '<div class="empty-state">Sin rutinas predefinidas</div>';
+            `).join('') : '<div class="empty-state">Sin rutinas aplicables</div>';
 
             const histList = document.getElementById('historyRoutinesList');
             histList.innerHTML = data.history_ots.length > 0 ? data.history_ots.map(ot => `
@@ -571,6 +574,58 @@
             `).join('') : '<div class="empty-state">Sin historial reciente</div>';
 
             document.getElementById('hubOverlay').classList.add('active');
+        }
+
+        async function showRoutinePreview(routineId) {
+            Swal.fire({
+                title: 'Cargando detalles...',
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                const r = await fetch(`/mantenimiento/rutinas/dashboard/detail/${routineId}/`);
+                const data = await r.json();
+                
+                if (data.status === 'success') {
+                    let stepsHtml = '<div style="text-align: left; font-size: 13px;">';
+                    data.rutina.pasos.forEach(p => {
+                        stepsHtml += `
+                            <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                                <div style="display: flex; gap: 10px;">
+                                    <b style="color: var(--primary);">${p.orden}.</b>
+                                    <div>
+                                        <div style="font-weight: 600;">${p.descripcion}</div>
+                                        ${p.verificacion ? `<div style="font-size: 11px; color: #666; margin-top: 20px;">Verificar: ${p.verificacion}</div>` : ''}
+                                        <div style="font-size: 10px; color: var(--primary); margin-top: 5px; text-transform: uppercase;">Tipo: ${p.tipo_respuesta}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    stepsHtml += '</div>';
+
+                    Swal.fire({
+                        title: data.rutina.nombre,
+                        html: `
+                            <div style="text-align: left; margin-bottom: 20px;">
+                                <div style="font-size: 12px; color: #666;">Frecuencia: <b>${data.rutina.frecuencia}</b></div>
+                                <div style="font-size: 12px; color: #666;">Tiempo Est.: <b>${data.rutina.tiempo_estimado}</b></div>
+                            </div>
+                            <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                                <h4 style="font-size: 14px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">PASOS DEL PROCEDIMIENTO</h4>
+                                ${stepsHtml}
+                            </div>
+                        `,
+                        confirmButtonText: 'Cerrar',
+                        confirmButtonColor: '#323232',
+                        width: '95%'
+                    });
+                } else {
+                    Swal.fire('Error', 'No se pudo cargar la información', 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Error de conexión', 'error');
+            }
         }
 
         function closeHub() {

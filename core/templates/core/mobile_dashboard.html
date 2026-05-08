@@ -4,32 +4,30 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SoftCoM App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Energia Maintenance Hub</title>
     {% include 'core/pwa_tags.html' %}
 
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     
-    {% include 'core/fiori_tokens.html' %}
-
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-light: #60a5fa;
-            --primary-dark: #1e40af;
-            --accent: #8b5cf6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --bg-body: #f8fafc;
-            --card-bg: rgba(255, 255, 255, 0.9);
-            --glass-bg: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.3);
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            /* Fusion 360 Palette */
+            --fusion-bg: #F9F9F9;
+            --fusion-sidebar: #EFEFEF;
+            --fusion-border: #D5D5D5;
+            --fusion-accent: #0696D7; /* Blue */
+            --fusion-orange: #F7941D;
+            --fusion-text: #333333;
+            --fusion-text-muted: #666666;
+            --fusion-white: #FFFFFF;
+            --fusion-dark: #323232;
+            --fusion-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --header-height: 56px;
+            --toolbar-height: 70px;
+            --bottom-nav-height: 65px;
         }
 
         * {
@@ -38,837 +36,595 @@
         }
 
         body {
-            font-family: var(--sap-font-family);
-            background-color: var(--sap-bg-color);
-            color: var(--sap-text-color);
+            font-family: 'Inter', sans-serif;
+            background-color: var(--fusion-bg);
+            color: var(--fusion-text);
             margin: 0;
-            padding-bottom: 90px;
-            overflow-x: hidden;
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
-        /* Header SAP Shell */
-        header {
-            background: var(--sap-shell-bg);
-            color: var(--sap-shell-color);
-            padding: 15px 20px;
+            padding: 0;
+            height: 100vh;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            overflow: hidden;
+            /* Support for notches */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* --- TOP BAR --- */
+        .top-bar {
+            height: var(--header-height);
+            background: var(--fusion-dark);
+            color: white;
+            display: flex;
             align-items: center;
-            position: sticky;
-            top: 0;
+            padding: 0 15px;
+            justify-content: space-between;
+            font-size: 14px;
             z-index: 1000;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
         }
 
-        .user-greeting p {
-            margin: 0;
-            font-size: 13px;
-            color: rgba(255,255,255,0.8);
-            font-weight: 400;
-        }
-
-        .user-greeting h1 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 700;
-            color: white;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            border: 2px solid rgba(255,255,255,0.3);
-        }
-
-        .container {
-            padding: 20px;
-        }
-
-        /* Search Section Fiori */
-        .search-box {
-            background: var(--sap-card-bg);
-            border-radius: 8px;
-            padding: 12px 18px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: var(--sap-card-shadow);
-            margin-bottom: 25px;
-            border: 1px solid var(--sap-border-color);
-        }
-
-        .search-box input {
-            border: none;
-            outline: none;
-            width: 100%;
-            font-family: inherit;
-            font-size: 15px;
-            background: transparent;
-        }
-
-        .search-box ion-icon {
-            color: var(--sap-brand-color);
-            font-size: 20px;
-        }
-
-        /* Stats Grid Fiori */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 25px;
-        }
-
-        .stat-card {
-            background: var(--sap-card-bg);
-            padding: 15px;
-            border-radius: var(--sap-border-radius);
-            box-shadow: var(--sap-card-shadow);
-            border: 1px solid var(--sap-border-color);
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .stat-card .icon-circle {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 5px;
-            font-size: 18px;
-        }
-
-        .stat-card .value {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--sap-text-color);
-        }
-
-        .stat-card .label {
-            font-size: 11px;
-            font-weight: 500;
-            color: var(--sap-text-muted);
-            text-transform: uppercase;
-        }
-
-        /* Actions Section */
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding: 0 5px;
-        }
-
-        .section-header h2 {
-            margin: 0;
-            font-size: 19px;
-            font-weight: 700;
-            color: var(--text-main);
-        }
-
-        .section-header a {
-            font-size: 14px;
-            color: var(--primary);
-            font-weight: 600;
-            text-decoration: none;
-        }
-
-        .actions-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 25px;
-        }
-
-        .action-card {
-            background: var(--sap-card-bg);
-            padding: 15px;
-            border-radius: var(--sap-border-radius);
-            text-decoration: none;
-            color: var(--sap-text-color);
-            box-shadow: var(--sap-card-shadow);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            border: 1px solid var(--sap-border-color);
-            transition: all 0.2s ease;
-        }
-
-        .action-card:active {
-            transform: scale(0.96);
-            background: #f0f2f4;
-        }
-
-        .action-card.featured {
-            grid-column: span 2;
-            background: var(--sap-shell-bg);
-            color: white;
-            flex-direction: row;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .action-card .icon-box {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            background: #eff6ff;
-            color: var(--sap-brand-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .action-card.featured .icon-box {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            width: 48px;
-            height: 48px;
-            font-size: 24px;
-        }
-
-        .action-card h3 {
-            margin: 0;
-            font-size: 14px;
-            font-weight: 700;
-        }
-
-        .action-card p {
-            margin: 0;
-            font-size: 11px;
-            color: var(--sap-text-muted);
-            line-height: 1.3;
-        }
-
-        .action-card.featured p {
-            color: rgba(255, 255, 255, 0.82);
-        }
-
-        /* Finanzas Scroller */
-        .scroller {
-            display: flex;
-            gap: 15px;
-            overflow-x: auto;
-            padding: 10px 5px 20px 5px;
-            margin: 0 -20px;
-            padding-left: 20px;
-            padding-right: 20px;
-            scrollbar-width: none;
-        }
-
-        .scroller::-webkit-scrollbar {
-            display: none;
-        }
-
-        .finance-card {
-            min-width: 180px;
-            background: var(--sap-card-bg);
-            padding: 15px;
-            border-radius: var(--sap-border-radius);
-            box-shadow: var(--sap-card-shadow);
-            border: 1px solid var(--sap-border-color);
-            text-decoration: none;
-            color: var(--sap-text-color);
-        }
-
-        .finance-card .header {
+        .top-bar .logo-section {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 12px;
         }
 
-        .finance-card .header .dot {
-            width: 8px;
-            height: 8px;
+        .top-bar .logo-section ion-icon {
+            font-size: 22px;
+            color: var(--fusion-orange);
+        }
+
+        .top-bar .user-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .top-bar .avatar {
+            width: 28px;
+            height: 28px;
+            background: var(--fusion-accent);
             border-radius: 50%;
-            background: var(--success);
-        }
-
-        .finance-card h4 {
-            margin: 0;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--sap-text-muted);
-        }
-
-        .finance-card .amount {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 5px;
-            display: block;
-            color: var(--sap-text-color);
-        }
-
-        .finance-card .footer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 12px;
-            color: var(--primary);
-            font-weight: 600;
+            font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        /* --- TOOLBAR (SCROLLABLE RIBBON) --- */
+        .toolbar {
+            background: var(--fusion-white);
+            border-bottom: 1px solid var(--fusion-border);
             display: flex;
-            align-items: center;
-            gap: 4px;
+            flex-direction: column;
+            flex-shrink: 0;
+            z-index: 999;
         }
 
-        /* Task List Fiori */
-        .task-card {
-            background: var(--sap-card-bg);
-            padding: 15px;
-            border-radius: var(--sap-border-radius);
-            box-shadow: var(--sap-card-shadow);
+        .toolbar-tabs {
             display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 12px;
-            border: 1px solid var(--sap-border-color);
-            border-left: 5px solid var(--sap-brand-color);
-            transition: all 0.2s;
+            padding: 0 10px;
+            gap: 1px;
+            background: #E0E0E0;
+            overflow-x: auto;
+            scrollbar-width: none;
         }
+        .toolbar-tabs::-webkit-scrollbar { display: none; }
 
-        .task-card:active {
-            transform: translateX(5px);
-        }
-
-        .task-card.priority-ALTA,
-        .task-card.priority-CRITICA {
-            border-left-color: var(--danger);
-        }
-
-        .task-card.priority-BAJA {
-            border-left-color: var(--success);
-        }
-
-        .task-date-box {
-            background: #f8fafc;
-            padding: 10px;
-            border-radius: 12px;
-            text-align: center;
-            min-width: 55px;
-        }
-
-        .task-date-box .day {
-            font-weight: 800;
-            font-size: 16px;
-            display: block;
-        }
-
-        .task-date-box .month {
+        .toolbar-tab {
+            padding: 10px 18px;
             font-size: 10px;
+            font-weight: 700;
+            color: #666;
+            cursor: pointer;
+            text-transform: uppercase;
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+        }
+
+        .toolbar-tab.active {
+            background: var(--fusion-white);
+            color: var(--fusion-text);
+            border-bottom: 2px solid var(--fusion-orange);
+        }
+
+        .toolbar-actions {
+            height: var(--toolbar-height);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 15px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .toolbar-actions::-webkit-scrollbar { display: none; }
+
+        .action-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 8px 12px;
+            min-width: 70px;
+            text-decoration: none;
+            color: var(--fusion-text);
+            border-radius: 4px;
+        }
+
+        .action-group:active {
+            background: #F0F0F0;
+        }
+
+        .action-group ion-icon {
+            font-size: 26px;
+            color: var(--fusion-accent);
+        }
+
+        .action-group span {
+            font-size: 9px;
             font-weight: 600;
-            color: var(--text-muted);
+            text-align: center;
             text-transform: uppercase;
         }
 
-        .task-info {
+        /* --- VIEWPORT (SCROLLABLE FEED) --- */
+        .viewport {
             flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: var(--fusion-bg);
+            background-image: radial-gradient(#D5D5D5 0.5px, transparent 0.5px);
+            background-size: 15px 15px;
         }
 
-        .task-info h4 {
-            margin: 0 0 4px 0;
-            font-size: 16px;
+        /* --- STATS GRID --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat-mini {
+            background: var(--fusion-white);
+            border: 1px solid var(--fusion-border);
+            padding: 12px 8px;
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .stat-mini .label {
+            font-size: 8px;
+            text-transform: uppercase;
+            color: var(--fusion-text-muted);
             font-weight: 700;
+            display: block;
+            margin-bottom: 4px;
         }
 
-        .task-info p {
+        .stat-mini .value {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--fusion-accent);
+        }
+
+        /* --- FUSION CARDS --- */
+        .fusion-card {
+            background: var(--fusion-white);
+            border: 1px solid var(--fusion-border);
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--fusion-shadow);
+        }
+
+        .fusion-card-header {
+            padding: 8px 12px;
+            background: #F1F1F1;
+            border-bottom: 1px solid var(--fusion-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .fusion-card-header h3 {
             margin: 0;
-            font-size: 13px;
-            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .fusion-card-content {
+            padding: 0;
+        }
+
+        /* --- MOBILE LIST ITEMS --- */
+        .list-item {
             display: flex;
             align-items: center;
-            gap: 4px;
+            padding: 12px;
+            border-bottom: 1px solid #EEE;
+            text-decoration: none;
+            color: var(--fusion-text);
         }
 
-        .task-badge {
-            font-size: 10px;
+        .list-item:last-child { border-bottom: none; }
+
+        .list-item:active { background: #F5F5F5; }
+
+        .list-item .icon {
+            width: 36px;
+            height: 36px;
+            background: #F0F0F0;
+            border: 1px solid var(--fusion-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .list-item .content { flex: 1; }
+
+        .list-item h4 {
+            margin: 0 0 2px 0;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .list-item p {
+            margin: 0;
+            font-size: 11px;
+            color: var(--fusion-text-muted);
+        }
+
+        .badge {
+            padding: 2px 6px;
+            font-size: 8px;
             font-weight: 700;
-            padding: 4px 8px;
-            border-radius: 6px;
-            background: var(--sap-group-bg);
-            color: var(--sap-text-muted);
-            border: 1px solid var(--sap-border-color);
+            text-transform: uppercase;
+            border-radius: 2px;
+            margin-left: 8px;
         }
+        .badge-alta { background: #FFEBEE; color: #C62828; border: 1px solid #EF9A9A; }
+        .badge-media { background: #E3F2FD; color: #1565C0; border: 1px solid #90CAF9; }
+        .badge-baja { background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; }
 
-        /* Bottom Tab Bar Fiori Shell */
-        .tab-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 70px;
-            background: #ffffff;
-            border-top: 1px solid var(--sap-border-color);
+        /* --- BOTTOM NAVIGATION --- */
+        .bottom-nav {
+            height: var(--bottom-nav-height);
+            background: var(--fusion-white);
+            border-top: 1px solid var(--fusion-border);
             display: flex;
             justify-content: space-around;
             align-items: center;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+            flex-shrink: 0;
             z-index: 1000;
         }
 
-        .tab-item {
+        .nav-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             text-decoration: none;
-            color: var(--text-muted);
+            color: var(--fusion-text-muted);
             width: 20%;
         }
 
-        .tab-item.active {
-            color: var(--sap-brand-color);
-            font-weight: 700;
+        .nav-item.active {
+            color: var(--fusion-accent);
         }
 
-        .tab-item ion-icon {
-            font-size: 26px;
+        .nav-item ion-icon {
+            font-size: 24px;
         }
 
-        .tab-item span {
-            font-size: 11px;
-            font-weight: 700;
+        .nav-item span {
+            font-size: 10px;
+            font-weight: 600;
         }
 
-        .scan-btn {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-radius: 20px;
+        .scan-fab {
+            width: 56px;
+            height: 56px;
+            background: var(--fusion-orange);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 30px;
-            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+            font-size: 28px;
+            box-shadow: 0 4px 10px rgba(247, 148, 29, 0.4);
             margin-top: -35px;
-            border: 4px solid white;
+            border: 4px solid var(--fusion-white);
         }
 
-        /* Infrastructure list */
-        .infra-grid {
-            display: flex;
-            gap: 15px;
-            overflow-x: auto;
-            padding: 10px 0 20px 0;
-            scrollbar-width: none;
+        /* --- ANIMATIONS --- */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .infra-grid::-webkit-scrollbar {
-            display: none;
-        }
-
-        .infra-item {
-            min-width: 140px;
-            background: white;
-            padding: 15px;
-            border-radius: 22px;
-            box-shadow: var(--card-shadow);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            color: var(--text-main);
-            border: 1px solid #f1f5f9;
-        }
-
-        .infra-item .icon-circle {
-            width: 45px;
-            height: 45px;
-            border-radius: 14px;
-            background: #f1f5f9;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        .infra-item span {
-            font-size: 13px;
-            font-weight: 700;
-            text-align: center;
+        .fade-in-up {
+            animation: fadeInUp 0.4s ease-out forwards;
         }
     </style>
 </head>
 
 <body>
 
-    <header>
-        <a href="{% url 'seguridad:mobile_perfil' %}" class="user-greeting" style="text-decoration: none;">
-            <p>¡Bienvenido!</p>
-            <h1>{{ user.username|capfirst }}</h1>
-        </a>
-        <a href="{% url 'seguridad:mobile_perfil' %}" style="text-decoration: none;">
-            <div class="avatar">
-                {{ user.username|slice:":1"|upper }}
+    <!-- TOP BAR (App Frame) -->
+    <div class="top-bar">
+        <div class="logo-section">
+            <ion-icon name="flash"></ion-icon>
+            <span style="font-weight: 800; letter-spacing: -0.5px; margin-right: 10px;">SOFTCoM HUB</span>
+            <!-- Búsqueda Integrada Style Fusion 360 -->
+            <div class="search-box" style="flex: 1; position: relative; margin-right: 15px;">
+                <ion-icon name="search-outline" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888; font-size: 14px;"></ion-icon>
+                <input type="text" placeholder="Buscar activos, OTs o documentos..." style="width: 100%; background: #454545; border: none; border-radius: 4px; padding: 6px 10px 6px 30px; color: white; font-size: 11px; outline: none;">
             </div>
-        </a>
-    </header>
-
-    <div class="container">
-
-        <!-- Search -->
-        <div class="search-box fade-in">
-            <ion-icon name="search-outline"></ion-icon>
-            <input type="text" placeholder="Buscar equipo o ubicación..." id="mobile-search">
         </div>
-
-        <!-- Quick Stats -->
-        <div class="stats-grid fade-in" style="animation-delay: 0.1s;">
-            <div class="stat-card">
-                <div class="icon-circle" style="background: #eff6ff; color: var(--primary);">
-                    <ion-icon name="cube-outline"></ion-icon>
-                </div>
-                <span class="value">{{ total_activos }}</span>
-                <span class="label">Activos</span>
-            </div>
-            <div class="stat-card">
-                <div class="icon-circle" style="background: #fef2f2; color: var(--danger);">
-                    <ion-icon name="notifications-outline"></ion-icon>
-                </div>
-                <span class="value">{{ avisos_abiertos }}</span>
-                <span class="label">Avisos</span>
-            </div>
-            {% if tiempos_acordados_count > 0 %}
-            <div class="stat-card" onclick="document.getElementById('tiempos-acordados-section').scrollIntoView({behavior: 'smooth'})">
-                <div class="icon-circle" style="background: #fdf2f7; color: #d81b60;">
-                    <ion-icon name="calendar-outline"></ion-icon>
-                </div>
-                <span class="value">{{ tiempos_acordados_count }}</span>
-                <span class="label">T. Acordados</span>
-            </div>
-            {% endif %}
+        <div class="user-section">
+            <div class="avatar">{{ user.username|slice:":1"|upper }}</div>
+            <ion-icon name="notifications-outline" style="font-size: 20px;"></ion-icon>
         </div>
-
-        <!-- Main Actions -->
-        <div class="section-header fade-in" style="animation-delay: 0.2s;">
-            <h2>Acceso Rápido</h2>
-        </div>
-        <div class="actions-grid fade-in" style="animation-delay: 0.2s;">
-            {% if 'scanner' in secciones %}
-            <a href="{% url 'core:mobile_scanner' %}" class="action-card featured">
-                <div class="icon-box">
-                    <ion-icon name="qr-code-outline"></ion-icon>
-                </div>
-                <div style="margin-left: 15px;">
-                    <h3>Escanear Código</h3>
-                    <p>Identificar equipo al instante</p>
-                </div>
-                <ion-icon name="chevron-forward-outline"
-                    style="margin-left: auto; font-size: 20px; opacity: 0.7;"></ion-icon>
-            </a>
-            {% endif %}
-
-            {% if 'mis_avisos' in secciones %}
-            <a href="{% url 'mantenimiento:mobile_mis_avisos' %}" class="action-card">
-                <div class="icon-box" style="background: #eef2ff; color: var(--primary);">
-                    <ion-icon name="list-outline"></ion-icon>
-                </div>
-                <h3>Mis Avisos</h3>
-                <p>Ver mis reportes</p>
-            </a>
-            {% endif %}
-
-            {% if 'tareas_hoy' in secciones %}
-            <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="action-card">
-                <div class="icon-box" style="background: #e0f2fe; color: #0284c7;">
-                    <ion-icon name="construct-outline"></ion-icon>
-                </div>
-                <h3>Mis Órdenes</h3>
-                <p>OTs abiertas</p>
-            </a>
-
-            <a href="{% url 'mantenimiento:mobile_crear_ot_desde_puesto' %}" class="action-card">
-                <div class="icon-box" style="background: #f5f3ff; color: #7c3aed;">
-                    <ion-icon name="clipboard-outline"></ion-icon>
-                </div>
-                <h3>Ejecutar Rutina</h3>
-                <p>OT desde Puesto</p>
-            </a>
-            {% endif %}
-
-            {% if 'crear_aviso' in secciones %}
-            <a href="{% url 'mantenimiento:mobile_crear_aviso' %}" class="action-card">
-                <div class="icon-box" style="background: #fff7ed; color: var(--warning);">
-                    <ion-icon name="megaphone-outline"></ion-icon>
-                </div>
-                <h3>Crear Aviso</h3>
-                <p>Reportar falla</p>
-            </a>
-            {% endif %}
-
-            {% if 'auditoria' in secciones %}
-            <a href="{% url 'auditorias:lista_auditorias' %}" class="action-card">
-                <div class="icon-box" style="background: #ecfdf5; color: var(--success);">
-                    <ion-icon name="checkbox-outline"></ion-icon>
-                </div>
-                <h3>Auditoría</h3>
-                <p>Equipos IA</p>
-            </a>
-            {% endif %}
-
-            {% if 'tiempo_acordado' in secciones %}
-            <a href="{% url 'callcenter:mobile_crear_tiempo_acordado' %}" class="action-card">
-                <div class="icon-box" style="background: #fdf2f7; color: #d81b60;">
-                    <ion-icon name="calendar-add-outline"></ion-icon>
-                </div>
-                <h3>Nuevo T. Acordado</h3>
-                <p>Extensión de tiempo</p>
-            </a>
-            {% endif %}
-        </div>
-
-        <!-- Seguridad y Vigilancia -->
-        <div class="section-header fade-in" style="animation-delay: 0.22s;">
-            <h2>Seguridad y Recorridos</h2>
-        </div>
-        <div class="actions-grid fade-in" style="animation-delay: 0.22s;">
-            <a href="{% url 'seguridad:mobile_confiscaciones_lista' %}" class="action-card">
-                <div class="icon-box" style="background: #fff1f2; color: #e11d48;">
-                    <ion-icon name="shield-checkmark-outline"></ion-icon>
-                </div>
-                <h3>Levantamientos</h3>
-                <p>Recorridos y Decomisos</p>
-            </a>
-            <a href="{% url 'seguridad:mobile_mis_permisos' %}" class="action-card">
-                <div class="icon-box" style="background: #f0fdf4; color: #16a34a;">
-                    <ion-icon name="document-lock-outline"></ion-icon>
-                </div>
-                <h3>Permisos</h3>
-                <p>Mis Trabajos Seguros</p>
-            </a>
-        </div>
-
-        <!-- Logística & Inventario -->
-        {% if 'logistica' in secciones %}
-        <div class="section-header fade-in" style="animation-delay: 0.25s;">
-            <h2>Logística e Inventario</h2>
-            <a href="{% url 'inventarios:mobile_dashboard' %}">Ver todo</a>
-        </div>
-        <div class="actions-grid fade-in" style="animation-delay: 0.25s;">
-            <a href="{% url 'inventarios:mobile_dashboard' %}" class="action-card featured" style="background: linear-gradient(135deg, #3b82f6, #1e40af);">
-                <div class="icon-box">
-                    <ion-icon name="cube-outline"></ion-icon>
-                </div>
-                <div style="margin-left: 15px;">
-                    <h3>Gestión de Materiales</h3>
-                    <p>Dashboard completo de inventarios</p>
-                </div>
-                <ion-icon name="chevron-forward-outline" style="margin-left: auto; font-size: 20px; opacity: 0.7;"></ion-icon>
-            </a>
-            <a href="{% url 'inventarios:mobile_crear_solicitud' %}" class="action-card">
-                <div class="icon-box" style="background: #eff6ff; color: var(--primary);">
-                    <ion-icon name="cart-outline"></ion-icon>
-                </div>
-                <h3>Solicitar Material</h3>
-                <p>Nueva solicitud móvil</p>
-            </a>
-
-            <a href="{% url 'inventarios:mobile_lista_pedidos' %}" class="action-card">
-                <div class="icon-box" style="background: #f0fdf4; color: var(--success);">
-                    <ion-icon name="receipt-outline"></ion-icon>
-                </div>
-                <h3>Mis Pedidos</h3>
-                <p>Ver mis solicitudes {% if pedidos_pendientes_count %}<b style="color:var(--danger)">({{ pedidos_pendientes_count }})</b>{% endif %}</p>
-            </a>
-            {% if 'gestion_almacen' in secciones %}
-            <a href="{% url 'inventarios:mobile_gestion_salidas' %}" class="action-card">
-                <div class="icon-box" style="background: #fff1f2; color: #e11d48;">
-                    <ion-icon name="clipboard-outline"></ion-icon>
-                </div>
-                <h3>Gestión de Almacén</h3>
-                <p>Despachar materiales</p>
-            </a>
-            {% endif %}
-        </div>
-        {% endif %}
-
-        <!-- Financial Section -->
-        {% if 'finanzas' in secciones %}
-        <div class="section-header fade-in" style="animation-delay: 0.3s;">
-            <h2>Gestión Financiera</h2>
-        </div>
-        <div class="scroller fade-in" style="animation-delay: 0.3s;">
-            <a href="{% url 'presupuestos:requisicion_dashboard' %}" class="finance-card">
-                <div class="header">
-                    <div class="dot" style="background: var(--warning);"></div>
-                    <h4>Requisiciones</h4>
-                </div>
-                <span class="amount">{{ total_requisiciones|default:"0" }}</span>
-                <div class="footer">
-                    Ver requisiciones <ion-icon name="arrow-forward-outline"></ion-icon>
-                </div>
-            </a>
-        </div>
-        {% endif %}
-
-        <!-- Mis Tiempos Acordados (NUEVO) -->
-        {% if mis_tiempos_acordados %}
-        <div id="tiempos-acordados-section" class="section-header fade-in" style="animation-delay: 0.45s;">
-            <h2>Mis Tiempos Acordados</h2>
-            <a href="{% url 'callcenter:tiempo_acordado_dashboard' %}">Ver todo</a>
-        </div>
-        <div class="scroller fade-in" style="animation-delay: 0.45s; margin-bottom: 25px;">
-            {% for acuerdo in mis_tiempos_acordados %}
-            <a href="{% url 'callcenter:mobile_detalle_tiempo_acordado' acuerdo.id %}" class="finance-card-link" style="text-decoration: none;">
-                <div class="finance-card" style="min-width: 220px; border-left: 4px solid {% if acuerdo.estatus == 'VENCIDO' %}var(--danger){% else %}var(--sap-brand-color){% endif %}; transition: transform 0.2s;">
-                    <div class="header">
-                        <div class="dot" style="background: {% if acuerdo.estatus == 'VENCIDO' %}var(--danger){% else %}var(--success){% endif %};"></div>
-                        <h4 style="font-weight: 700; color: var(--sap-text-color);">{{ acuerdo.ticket.folio }}</h4>
-                    </div>
-                    <p style="margin: 0 0 8px 0; font-size: 12px; color: var(--sap-text-muted); font-weight: 600;">
-                        {{ acuerdo.institucion.nombre|truncatechars:25 }}
-                    </p>
-                    <div style="font-size: 11px; margin-bottom: 10px;">
-                        <span style="color: var(--sap-text-muted);">Vence:</span> 
-                        <span style="font-weight: 700; color: {% if acuerdo.estatus == 'VENCIDO' %}var(--danger){% else %}var(--sap-text-color){% endif %};">
-                            {{ acuerdo.fecha_solucion_final|date:"d M, Y" }}
-                        </span>
-                    </div>
-                    <div class="footer">
-                        {{ acuerdo.get_estatus_display }} <ion-icon name="chevron-forward-outline"></ion-icon>
-                    </div>
-                </div>
-            </a>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- Infrastructure -->
-        {% if 'mi_planta' in secciones %}
-        <div class="section-header fade-in" style="animation-delay: 0.4s;">
-            <h2>Mi Planta</h2>
-            <a href="{% url 'activos:mobile_ubicaciones' %}">Ver todo</a>
-        </div>
-        <div class="infra-grid fade-in" style="animation-delay: 0.4s;">
-            {% for u in ubicaciones_raiz %}
-            <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}" class="infra-item">
-                <div class="icon-circle">
-                    <ion-icon name="business-outline"></ion-icon>
-                </div>
-                <span>{{ u.nombre }}</span>
-            </a>
-            {% endfor %}
-            <a href="{% url 'activos:arbol_activos' %}" class="infra-item"
-                style="background: #f1f5f9; border-style: dashed;">
-                <div class="icon-circle" style="background: white;">
-                    <ion-icon name="map-outline"></ion-icon>
-                </div>
-                <span>Mapa Visual</span>
-            </a>
-        </div>
-        {% endif %}
-
-        <!-- Today's Tasks -->
-        {% if 'tareas_hoy' in secciones %}
-        <div class="section-header fade-in" style="animation-delay: 0.5s;">
-            <h2>Tareas de Hoy</h2>
-            <a href="{% url 'mantenimiento:mobile_cronograma' %}">Calendario</a>
-        </div>
-        <div class="fade-in" style="animation-delay: 0.5s;">
-            {% for ot in ots_hoy %}
-            <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" style="text-decoration: none; color: inherit;">
-                <div class="task-card priority-{{ ot.prioridad }}"
-                     data-ot-id="{{ ot.id }}"
-                     data-ot-codigo="{{ ot.codigo_de_orden|default:"OT-"|add:ot.id|stringformat:"s" }}"
-                     data-ot-estado="{{ ot.estado }}">
-                    <div class="task-date-box">
-                        <span class="day">{{ ot.inicio_programado|date:"d" }}</span>
-                        <span class="month">{{ ot.inicio_programado|date:"M" }}</span>
-                    </div>
-                    <div class="task-info">
-                        <h4>{{ ot.rutina.nombre|default:"OT Correctiva" }}</h4>
-                        <p><ion-icon name="location-outline"></ion-icon> {{ ot.ubicacion.nombre|truncatechars:20 }}</p>
-                    </div>
-                    <div class="task-badge">
-                        {{ ot.get_estado_display }}
-                    </div>
-                </div>
-            </a>
-            {% empty %}
-            <div
-                style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: white; border-radius: 24px;">
-                <ion-icon name="happy-outline" style="font-size: 40px; margin-bottom: 10px; opacity: 0.4;"></ion-icon>
-                <p style="margin: 0; font-weight: 600;">¡Todo al día! No hay tareas para hoy.</p>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
     </div>
 
-    <!-- Tab Bar -->
-    <nav class="tab-bar">
-        <a href="{% url 'core:mobile_dashboard' %}" class="tab-item active">
-            <ion-icon name="grid-outline"></ion-icon>
+    <!-- RIBBON TOOLBAR (Scrollable Actions) -->
+    <div class="toolbar">
+        <div class="toolbar-tabs">
+            <div class="toolbar-tab active" data-tab="mantenimiento">Mantenimiento</div>
+            <div class="toolbar-tab" data-tab="inventario">Inventario</div>
+            <div class="toolbar-tab" data-tab="seguridad">Seguridad</div>
+            <div class="toolbar-tab" data-tab="finanzas">Finanzas</div>
+        </div>
+        
+        <!-- Tab Content: Mantenimiento -->
+        <div class="toolbar-actions tab-content" id="tab-mantenimiento">
+            <a href="{% url 'mantenimiento:mobile_crear_aviso' %}" class="action-group">
+                <ion-icon name="alert-circle-outline"></ion-icon>
+                <span>Reportar</span>
+            </a>
+            <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="action-group">
+                <ion-icon name="construct-outline"></ion-icon>
+                <span>Mis OTs</span>
+            </a>
+            <a href="{% url 'mantenimiento:mobile_mis_avisos' %}" class="action-group">
+                <ion-icon name="list-outline"></ion-icon>
+                <span>Mis Avisos</span>
+            </a>
+            <a href="{% url 'callcenter:mobile_crear_tiempo_acordado' %}" class="action-group">
+                <ion-icon name="calendar-outline"></ion-icon>
+                <span>Acuerdos</span>
+            </a>
+        </div>
+
+        <!-- Tab Content: Inventario -->
+        <div class="toolbar-actions tab-content" id="tab-inventario" style="display: none;">
+            <a href="{% url 'inventarios:mobile_dashboard' %}" class="action-group">
+                <ion-icon name="cube-outline"></ion-icon>
+                <span>Almacén</span>
+            </a>
+            <a href="#" class="action-group">
+                <ion-icon name="barcode-outline"></ion-icon>
+                <span>Kardex</span>
+            </a>
+            <a href="#" class="action-group">
+                <ion-icon name="swap-horizontal-outline"></ion-icon>
+                <span>Traspasos</span>
+            </a>
+            <a href="#" class="action-group">
+                <ion-icon name="receipt-outline"></ion-icon>
+                <span>Pedidos</span>
+            </a>
+        </div>
+
+        <!-- Tab Content: Seguridad -->
+        <div class="toolbar-actions tab-content" id="tab-seguridad" style="display: none;">
+            <a href="{% url 'seguridad:mobile_perfil' %}" class="action-group">
+                <ion-icon name="shield-checkmark-outline"></ion-icon>
+                <span>Permisos</span>
+            </a>
+            <a href="#" class="action-group">
+                <ion-icon name="medkit-outline"></ion-icon>
+                <span>Incidentes</span>
+            </a>
+            <a href="#" class="action-group">
+                <ion-icon name="eye-outline"></ion-icon>
+                <span>Inspección</span>
+            </a>
+        </div>
+
+        <!-- Tab Content: Finanzas -->
+        <div class="toolbar-actions tab-content" id="tab-finanzas" style="display: none;">
+            <a href="#" class="action-group">
+                <ion-icon name="wallet-outline"></ion-icon>
+                <span>Presupuesto</span>
+            </a>
+            <a href="#" class="action-group">
+                <ion-icon name="cart-outline"></ion-icon>
+                <span>Compras</span>
+            </a>
+            <a href="#" class="action-group">
+                <ion-icon name="stats-chart-outline"></ion-icon>
+                <span>Gastos</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const tabStats = {
+            mantenimiento: [
+                { label: 'Equipos', value: '{{ total_activos }}', color: 'var(--fusion-accent)' },
+                { label: 'Alertas', value: '{{ avisos_abiertos }}', color: '#D32F2F' },
+                { label: 'Tareas', value: '{{ ots_hoy.count }}', color: 'var(--fusion-orange)' }
+            ],
+            inventario: [
+                { label: 'Stock Bajo', value: '12', color: '#D32F2F' },
+                { label: 'Pedidos', value: '5', color: 'var(--fusion-accent)' },
+                { label: 'Valor', value: '$45K', color: '#2E7D32' }
+            ],
+            seguridad: [
+                { label: 'Permisos', value: '8', color: '#2E7D32' },
+                { label: 'Incidentes', value: '1', color: '#D32F2F' },
+                { label: 'EPPs', value: '92%', color: 'var(--fusion-accent)' }
+            ],
+            finanzas: [
+                { label: 'Presupuesto', value: '78%', color: 'var(--fusion-accent)' },
+                { label: 'Gastos', value: '$12K', color: 'var(--fusion-orange)' },
+                { label: 'Ahorro', value: '12%', color: '#2E7D32' }
+            ]
+        };
+
+        function updateStats(tab) {
+            const stats = tabStats[tab];
+            const grid = document.getElementById('stats-grid');
+            grid.innerHTML = stats.map(s => `
+                <div class="stat-mini">
+                    <span class="label">${s.label}</span>
+                    <span class="value" style="color: ${s.color};">${s.value}</span>
+                </div>
+            `).join('');
+        }
+
+        document.querySelectorAll('.toolbar-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.getAttribute('data-tab');
+                
+                // Active class
+                document.querySelectorAll('.toolbar-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Ribbon actions
+                document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+                document.getElementById('tab-' + tabName).style.display = 'flex';
+                
+                // Dynamic Stats
+                updateStats(tabName);
+            });
+        });
+    </script>
+
+    <!-- MAIN VIEWPORT (Feed) -->
+    <div class="viewport">
+        
+        <!-- Quick Stats -->
+        <div class="stats-grid fade-in-up" id="stats-grid" style="animation-delay: 0.1s;">
+            <div class="stat-mini">
+                <span class="label">Equipos</span>
+                <span class="value">{{ total_activos }}</span>
+            </div>
+            <div class="stat-mini">
+                <span class="label">Alertas</span>
+                <span class="value" style="color: #D32F2F;">{{ avisos_abiertos }}</span>
+            </div>
+            <div class="stat-mini">
+                <span class="label">Tareas</span>
+                <span class="value" style="color: var(--fusion-orange);">{{ ots_hoy.count }}</span>
+            </div>
+        </div>
+
+        <!-- Tareas de Hoy -->
+        <div class="fusion-card fade-in-up" style="animation-delay: 0.2s;">
+            <div class="fusion-card-header">
+                <h3>Tareas para hoy</h3>
+                <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" style="font-size: 9px; font-weight: 700; color: var(--fusion-accent); text-decoration: none;">VER TODAS</a>
+            </div>
+            <div class="fusion-card-content">
+                {% for ot in ots_hoy|slice:":5" %}
+                <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="list-item">
+                    <div class="icon">
+                        <ion-icon name="document-text-outline"></ion-icon>
+                    </div>
+                    <div class="content">
+                        <h4>OT-{{ ot.id }} <span class="badge badge-{{ ot.prioridad|lower }}">{{ ot.prioridad }}</span></h4>
+                        <p>{{ ot.rutina.nombre|truncatechars:35 }}</p>
+                    </div>
+                    <ion-icon name="chevron-forward-outline" style="color: #CCC;"></ion-icon>
+                </a>
+                {% empty %}
+                <div style="padding: 30px; text-align: center; color: #999; font-size: 11px;">
+                    <ion-icon name="cafe-outline" style="font-size: 32px; margin-bottom: 10px;"></ion-icon>
+                    <p>No hay tareas pendientes para hoy.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Mi Planta (Quick Nav) -->
+        <div class="fusion-card fade-in-up" style="animation-delay: 0.3s;">
+            <div class="fusion-card-header">
+                <h3>Infraestructura</h3>
+            </div>
+            <div class="fusion-card-content" style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                {% for u in ubicaciones_raiz|slice:":4" %}
+                <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}" style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #F5F5F5; border: 1px solid var(--fusion-border); text-decoration: none; color: var(--fusion-text); border-radius: 4px;">
+                    <ion-icon name="business-outline" style="font-size: 18px; color: var(--fusion-accent);"></ion-icon>
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase;">{{ u.nombre|truncatechars:12 }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Avisos Recientes -->
+        {% if avisos_abiertos > 0 %}
+        <div class="fusion-card fade-in-up" style="animation-delay: 0.4s;">
+            <div class="fusion-card-header">
+                <h3>Estado de Avisos</h3>
+            </div>
+            <div class="fusion-card-content" style="padding: 15px;">
+                <div style="background: #FFF9C4; border: 1px solid #FBC02D; padding: 12px; border-radius: 2px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #333; margin-bottom: 5px;">{{ avisos_abiertos }} AVISOS ABIERTOS</div>
+                    <p style="margin: 0; font-size: 10px; color: #555;">Hay fallas reportadas esperando atención técnica.</p>
+                    <a href="{% url 'mantenimiento:mobile_mis_avisos' %}" style="display: inline-block; margin-top: 10px; font-size: 10px; font-weight: 800; color: #D4A017; text-decoration: none;">REVISAR REPORTES &rarr;</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div style="height: 40px;"></div> <!-- Spacer for scrolling -->
+    </div>
+
+    <!-- BOTTOM NAVIGATION (Essential for Mobile) -->
+    <div class="bottom-nav">
+        <a href="{% url 'core:mobile_dashboard' %}" class="nav-item active">
+            <ion-icon name="home"></ion-icon>
             <span>Inicio</span>
         </a>
-        <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item">
-            <ion-icon name="calendar-clear-outline"></ion-icon>
-            <span>Agenda</span>
+        <a href="{% url 'activos:mobile_ubicaciones' %}" class="nav-item">
+            <ion-icon name="business-outline"></ion-icon>
+            <span>Planta</span>
         </a>
-
-        <a href="{% url 'core:mobile_scanner' %}" class="scan-btn">
+        <a href="{% url 'core:mobile_scanner' %}" class="scan-fab">
             <ion-icon name="scan-outline"></ion-icon>
         </a>
-
-        <a href="{% url 'activos:arbol_activos' %}" class="tab-item">
-            <ion-icon name="cube-outline"></ion-icon>
-            <span>Activos</span>
+        <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="nav-item">
+            <ion-icon name="construct-outline"></ion-icon>
+            <span>Tareas</span>
         </a>
-        {% if request.user.is_superuser %}
-        <a href="{% url 'activos:mobile_admin_dashboard' %}" class="tab-item">
-            <ion-icon name="key-outline"></ion-icon>
-            <span>Admin</span>
-        </a>
-        {% else %}
-        <a href="{% url 'seguridad:mobile_perfil' %}" class="tab-item">
+        <a href="{% url 'seguridad:mobile_perfil' %}" class="nav-item">
             <ion-icon name="person-outline"></ion-icon>
             <span>Perfil</span>
         </a>
-        {% endif %}
-    </nav>
+    </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const searchInput = document.getElementById('mobile-search');
-            if (searchInput) {
-                searchInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        window.location.href = '{% url "activos:mobile_busqueda" %}?q=' + searchInput.value;
-                    }
-                });
-            }
-        });
-    </script>
+    <!-- MINI STATUS BAR -->
+    <div style="height: 20px; background: var(--fusion-sidebar); border-top: 1px solid var(--fusion-border); display: flex; align-items: center; padding: 0 15px; font-size: 9px; color: #888; justify-content: space-between; flex-shrink: 0;">
+        <span>SESIÓN: {{ user.username|upper }}</span>
+        <div style="display: flex; gap: 10px;">
+            <span style="color: #4CAF50;">● ONLINE</span>
+            <span>v2.4-M</span>
+        </div>
+    </div>
+
 </body>
 
 </html>

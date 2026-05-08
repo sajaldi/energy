@@ -173,7 +173,7 @@ def rutinas_dashboard(request):
     })
 
 
-@staff_member_required
+@login_required
 def rutina_detail_api(request, pk):
     """API que devuelve detalles de una rutina y su historial de ejecución"""
     from django.http import JsonResponse

@@ -1016,7 +1016,9 @@ def qr_resolver(request):
 
         return JsonResponse({
             'success': True,
-            'is_activo': True, # Reutilizamos el modal de Hub
+            'is_activo': False, 
+            'is_routine': True,
+            'routine_id': rutina.id,
             'activo': {
                 'id': None,
                 'nombre': rutina.nombre,

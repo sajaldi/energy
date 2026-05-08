@@ -1810,6 +1810,15 @@ def mobile_crear_tiempo_acordado_view(request, pk=None):
             return JsonResponse({'success': False, 'error': str(e)})
 
     # Contexto para el GET
+    # Intentar obtener ticket de los parámetros GET para pre-vínculo
+    ticket = None
+    ticket_id = request.GET.get('ticket')
+    if ticket_id:
+        try:
+            ticket = SolicitudTicket.objects.get(id=ticket_id)
+        except (SolicitudTicket.DoesNotExist, ValueError):
+            pass
+
     # Solo mostramos ubicaciones que son de tipo EDIFICIO para el primer selector
     edificios = Ubicacion.objects.filter(tipo='EDIFICIO').order_by('nombre')
     enlaces = Enlace.objects.select_related('institucion', 'ubicacion').all().order_by('nombre')
@@ -1819,6 +1828,7 @@ def mobile_crear_tiempo_acordado_view(request, pk=None):
     
     return render(request, 'callcenter/mobile_crear_tiempo_acordado.html', {
         'acuerdo': acuerdo,
+        'ticket': ticket or (acuerdo.ticket if acuerdo else None),
         'enlaces': enlaces,
         'edificios': edificios,
         'cronogramas_templates': cronogramas_templates,
