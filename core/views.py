@@ -872,6 +872,9 @@ def mobile_dashboard(request):
     from presupuestos.models import Requisicion
     from mantenimiento.models import Tipo
 
+    # --- Visibilidad dinámica por grupo ---
+    secciones_permitidas = ElementoApp.get_secciones_usuario(request.user)
+
     # Categorías de rutinas para el catálogo
     rutinas_categorias = Tipo.objects.filter(padre__isnull=True).prefetch_related('rutinas_set').order_by('nombre')
 
