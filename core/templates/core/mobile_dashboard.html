@@ -43,8 +43,10 @@
             color: var(--fusion-text);
             margin: 0;
             padding: 0;
-            height: 100dvh; /* Usa viewport dinámico para evitar barras de navegación */
-            min-height: 100vh; /* Fallback */
+            height: 100dvh;
+            /* Usa viewport dinámico para evitar barras de navegación */
+            min-height: 100vh;
+            /* Fallback */
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -412,7 +414,8 @@
             </div>
         </div>
         <div class="user-section">
-            <a href="{% url 'core:mobile_scanner' %}" style="color: white; text-decoration: none; display: flex; align-items: center;">
+            <a href="{% url 'core:mobile_scanner' %}"
+                style="color: white; text-decoration: none; display: flex; align-items: center;">
                 <ion-icon name="scan-outline" style="font-size: 20px;"></ion-icon>
             </a>
             <div class="avatar">{{ user.username|slice:":1"|upper }}</div>
@@ -453,7 +456,7 @@
                 <span>Catálogo</span>
             </a>
         </div>
-        
+
         <!-- Tab Content: Activos (NUEVO) -->
         <div class="toolbar-actions tab-content" id="tab-activos" style="display: none;">
             <a href="{% url 'activos:mobile_ubicaciones' %}" class="action-group">
@@ -567,7 +570,7 @@
         function toggleCategory(catId) {
             const details = document.getElementById(catId);
             const grid = document.getElementById('category-grid-main');
-            
+
             if (details.style.display === 'none') {
                 // Cerrar otros abiertos? No, mejor dejar que abran varios si quieren, pero el grid estorba
                 // Para una mejor UX móvil, ocultamos el grid cuando uno se abre
@@ -597,7 +600,7 @@
             try {
                 const r = await fetch(`/mantenimiento/rutinas/dashboard/detail/${routineId}/`);
                 const data = await r.json();
-                
+
                 if (data.status === 'success') {
                     let stepsHtml = '<div style="text-align: left; font-size: 13px;">';
                     data.rutina.pasos.forEach(p => {
@@ -652,7 +655,7 @@
         }
 
         // --- Previsualización de Media (NUEVO) ---
-        window.showMediaPreview = function(url, tipo) {
+        window.showMediaPreview = function (url, tipo) {
             if (tipo === 'IMAGEN') {
                 Swal.fire({
                     imageUrl: url,
@@ -685,7 +688,7 @@
             const query = document.getElementById('catalog-search-input').value.toLowerCase().trim();
             const grid = document.getElementById('category-grid-main');
             const categories = document.querySelectorAll('.category-details');
-            
+
             if (query === "") {
                 grid.style.display = 'grid';
                 categories.forEach(c => {
@@ -700,7 +703,7 @@
             categories.forEach(cat => {
                 let hasMatch = false;
                 const items = cat.querySelectorAll('.routine-item');
-                
+
                 items.forEach(item => {
                     const text = item.textContent.toLowerCase();
                     if (text.includes(query)) {
@@ -751,144 +754,160 @@
         <!-- Contenedor Mantenimiento -->
         <div id="feed-mantenimiento" class="tab-feed">
 
-        <!-- Quick Stats -->
-        <div class="stats-grid fade-in-up" id="stats-grid" style="animation-delay: 0.1s;">
-            <div class="stat-mini">
-                <span class="label">Equipos</span>
-                <span class="value">{{ total_activos }}</span>
-            </div>
-            <div class="stat-mini">
-                <span class="label">Alertas</span>
-                <span class="value" style="color: #D32F2F;">{{ avisos_abiertos }}</span>
-            </div>
-            <div class="stat-mini">
-                <span class="label">Tareas</span>
-                <span class="value" style="color: var(--fusion-orange);">{{ ots_hoy.count }}</span>
-            </div>
-        </div>
-
-        <!-- Botón Grande de Escáner -->
-        <a href="{% url 'core:mobile_scanner' %}" class="fusion-card fade-in-up" style="animation-delay: 0.15s; display: flex; align-items: center; justify-content: center; gap: 15px; padding: 20px; background: var(--fusion-orange); color: white; text-decoration: none; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(247, 148, 29, 0.4);">
-            <ion-icon name="scan-outline" style="font-size: 32px;"></ion-icon>
-            <span style="font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Escanear Equipo</span>
-        </a>
-
-        <!-- Tareas de Hoy -->
-        <div class="fusion-card fade-in-up" style="animation-delay: 0.2s;">
-            <div class="fusion-card-header">
-                <h3>Tareas para hoy</h3>
-                <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}"
-                    style="font-size: 9px; font-weight: 700; color: var(--fusion-accent); text-decoration: none;">VER
-                    TODAS</a>
-            </div>
-            <div class="fusion-card-content">
-                {% for ot in ots_hoy|slice:":5" %}
-                <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="list-item">
-                    <div class="icon">
-                        <ion-icon name="document-text-outline"></ion-icon>
-                    </div>
-                    <div class="content">
-                        <h4>OT-{{ ot.id }} <span class="badge badge-{{ ot.prioridad|lower }}">{{ ot.prioridad }}</span>
-                        </h4>
-                        <p>{{ ot.rutina.nombre|truncatechars:35 }}</p>
-                    </div>
-                    <ion-icon name="chevron-forward-outline" style="color: #CCC;"></ion-icon>
-                </a>
-                {% empty %}
-                <div style="padding: 30px; text-align: center; color: #999; font-size: 11px;">
-                    <ion-icon name="cafe-outline" style="font-size: 32px; margin-bottom: 10px;"></ion-icon>
-                    <p>No hay tareas pendientes para hoy.</p>
+            <!-- Quick Stats -->
+            <div class="stats-grid fade-in-up" id="stats-grid" style="animation-delay: 0.1s;">
+                <div class="stat-mini">
+                    <span class="label">Equipos</span>
+                    <span class="value">{{ total_activos }}</span>
                 </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Catálogo de Procedimientos (NUEVO) -->
-        <div class="fusion-card fade-in-up" id="catalog-section" style="animation-delay: 0.3s; margin-top: 20px;">
-            <div class="fusion-card-header">
-                <h3>Catálogo de Procedimientos</h3>
-                <ion-icon name="journal-outline" style="color: var(--fusion-accent);"></ion-icon>
-            </div>
-            <div class="fusion-card-content" style="padding: 10px;">
-                <!-- Buscador de Catálogo (NUEVO) -->
-                <div class="search-catalog" style="margin-bottom: 15px; position: relative;">
-                    <ion-icon name="search-outline" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888; font-size: 14px;"></ion-icon>
-                    <input type="text" id="catalog-search-input" placeholder="Buscar procedimiento o rutina..." 
-                           onkeyup="filterCatalog()"
-                           style="width: 100%; padding: 8px 10px 8px 32px; border: 1px solid var(--fusion-border); border-radius: 4px; font-size: 11px; outline: none; background: #FFF;">
+                <div class="stat-mini">
+                    <span class="label">Alertas</span>
+                    <span class="value" style="color: #D32F2F;">{{ avisos_abiertos }}</span>
                 </div>
+                <div class="stat-mini">
+                    <span class="label">Tareas</span>
+                    <span class="value" style="color: var(--fusion-orange);">{{ ots_hoy.count }}</span>
+                </div>
+            </div>
 
-                <div class="category-grid" id="category-grid-main" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    {% for cat in rutinas_categorias %}
-                    <div class="category-item" onclick="toggleCategory('cat-{{ cat.id }}')" 
-                         style="background: #F8F8F8; border: 1px solid var(--fusion-border); border-radius: 4px; padding: 12px; text-align: center; cursor: pointer;">
-                        <ion-icon name="folder-open" style="font-size: 24px; color: var(--fusion-orange); margin-bottom: 5px;"></ion-icon>
-                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">{{ cat.nombre }}</div>
-                        <div style="font-size: 9px; color: #888;">{{ cat.all_rutinas.count }} rutinas</div>
+            <!-- Botón Grande de Escáner -->
+            <a href="{% url 'core:mobile_scanner' %}" class="fusion-card fade-in-up"
+                style="animation-delay: 0.15s; display: flex; align-items: center; justify-content: center; gap: 15px; padding: 20px; background: var(--fusion-orange); color: white; text-decoration: none; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(247, 148, 29, 0.4);">
+                <ion-icon name="scan-outline" style="font-size: 32px;"></ion-icon>
+                <span style="font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Abrir
+                    Scanner</span>
+            </a>
+
+            <!-- Tareas de Hoy -->
+            <div class="fusion-card fade-in-up" style="animation-delay: 0.2s;">
+                <div class="fusion-card-header">
+                    <h3>Tareas para hoy</h3>
+                    <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}"
+                        style="font-size: 9px; font-weight: 700; color: var(--fusion-accent); text-decoration: none;">VER
+                        TODAS</a>
+                </div>
+                <div class="fusion-card-content">
+                    {% for ot in ots_hoy|slice:":5" %}
+                    <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="list-item">
+                        <div class="icon">
+                            <ion-icon name="document-text-outline"></ion-icon>
+                        </div>
+                        <div class="content">
+                            <h4>OT-{{ ot.id }} <span class="badge badge-{{ ot.prioridad|lower }}">{{ ot.prioridad
+                                    }}</span>
+                            </h4>
+                            <p>{{ ot.rutina.nombre|truncatechars:35 }}</p>
+                        </div>
+                        <ion-icon name="chevron-forward-outline" style="color: #CCC;"></ion-icon>
+                    </a>
+                    {% empty %}
+                    <div style="padding: 30px; text-align: center; color: #999; font-size: 11px;">
+                        <ion-icon name="cafe-outline" style="font-size: 32px; margin-bottom: 10px;"></ion-icon>
+                        <p>No hay tareas pendientes para hoy.</p>
                     </div>
                     {% endfor %}
                 </div>
+            </div>
 
-                {% for cat in rutinas_categorias %}
-                <div id="cat-{{ cat.id }}" class="category-details" style="display: none; margin-top: 15px; border-top: 1px solid var(--fusion-border); padding-top: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <span style="font-size: 11px; font-weight: 800; color: var(--fusion-orange);">{{ cat.nombre|upper }}</span>
-                        <button onclick="toggleCategory('cat-{{ cat.id }}')" style="background: none; border: none; font-size: 10px; font-weight: 700; color: #888;">CERRAR</button>
+            <!-- Catálogo de Procedimientos (NUEVO) -->
+            <div class="fusion-card fade-in-up" id="catalog-section" style="animation-delay: 0.3s; margin-top: 20px;">
+                <div class="fusion-card-header">
+                    <h3>Catálogo de Procedimientos</h3>
+                    <ion-icon name="journal-outline" style="color: var(--fusion-accent);"></ion-icon>
+                </div>
+                <div class="fusion-card-content" style="padding: 10px;">
+                    <!-- Buscador de Catálogo (NUEVO) -->
+                    <div class="search-catalog" style="margin-bottom: 15px; position: relative;">
+                        <ion-icon name="search-outline"
+                            style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888; font-size: 14px;"></ion-icon>
+                        <input type="text" id="catalog-search-input" placeholder="Buscar procedimiento o rutina..."
+                            onkeyup="filterCatalog()"
+                            style="width: 100%; padding: 8px 10px 8px 32px; border: 1px solid var(--fusion-border); border-radius: 4px; font-size: 11px; outline: none; background: #FFF;">
                     </div>
-                    <div class="routine-list">
-                        {% for r in cat.all_rutinas %}
-                        <div class="routine-item" onclick="window.showRoutinePreview('{{ r.id }}')" 
-                             style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border: 1px solid #EEE; border-radius: 4px; margin-bottom: 5px;">
-                            <ion-icon name="document-text-outline" style="color: var(--fusion-accent);"></ion-icon>
-                            <div style="flex: 1;">
-                                <div style="font-size: 11px; font-weight: 700;">{{ r.nombre }}</div>
-                                <div style="font-size: 9px; color: #999;">{{ r.frecuencia.nombre }} | {{ r.tiempo_estimado }}</div>
+
+                    <div class="category-grid" id="category-grid-main"
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        {% for cat in rutinas_categorias %}
+                        <div class="category-item" onclick="toggleCategory('cat-{{ cat.id }}')"
+                            style="background: #F8F8F8; border: 1px solid var(--fusion-border); border-radius: 4px; padding: 12px; text-align: center; cursor: pointer;">
+                            <ion-icon name="folder-open"
+                                style="font-size: 24px; color: var(--fusion-orange); margin-bottom: 5px;"></ion-icon>
+                            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">{{ cat.nombre }}
                             </div>
+                            <div style="font-size: 9px; color: #888;">{{ cat.all_rutinas.count }} rutinas</div>
                         </div>
-                        {% empty %}
-                        <div style="font-size: 10px; color: #999; text-align: center; padding: 10px;">No hay rutinas directas en esta categoría.</div>
                         {% endfor %}
                     </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
 
-        <!-- Mi Planta (Quick Nav) -->
-        <div class="fusion-card fade-in-up" style="animation-delay: 0.3s;">
-            <div class="fusion-card-header">
-                <h3>Infraestructura</h3>
-            </div>
-            <div class="fusion-card-content"
-                style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                {% for u in ubicaciones_raiz|slice:":4" %}
-                <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}"
-                    style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #F5F5F5; border: 1px solid var(--fusion-border); text-decoration: none; color: var(--fusion-text); border-radius: 4px;">
-                    <ion-icon name="business-outline" style="font-size: 18px; color: var(--fusion-accent);"></ion-icon>
-                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase;">{{ u.nombre|truncatechars:12 }}</span>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Avisos Recientes -->
-        {% if avisos_abiertos > 0 %}
-        <div class="fusion-card fade-in-up" style="animation-delay: 0.4s;">
-            <div class="fusion-card-header">
-                <h3>Estado de Avisos</h3>
-            </div>
-            <div class="fusion-card-content" style="padding: 15px;">
-                <div style="background: #FFF9C4; border: 1px solid #FBC02D; padding: 12px; border-radius: 2px;">
-                    <div style="font-size: 11px; font-weight: 700; color: #333; margin-bottom: 5px;">{{ avisos_abiertos }} AVISOS ABIERTOS</div>
-                    <p style="margin: 0; font-size: 10px; color: #555;">Hay fallas reportadas esperando atención
-                        técnica.</p>
-                    <a href="{% url 'mantenimiento:mobile_mis_avisos' %}"
-                        style="display: inline-block; margin-top: 10px; font-size: 10px; font-weight: 800; color: #D4A017; text-decoration: none;">REVISAR
-                        REPORTES &rarr;</a>
+                    {% for cat in rutinas_categorias %}
+                    <div id="cat-{{ cat.id }}" class="category-details"
+                        style="display: none; margin-top: 15px; border-top: 1px solid var(--fusion-border); padding-top: 10px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="font-size: 11px; font-weight: 800; color: var(--fusion-orange);">{{
+                                cat.nombre|upper }}</span>
+                            <button onclick="toggleCategory('cat-{{ cat.id }}')"
+                                style="background: none; border: none; font-size: 10px; font-weight: 700; color: #888;">CERRAR</button>
+                        </div>
+                        <div class="routine-list">
+                            {% for r in cat.all_rutinas %}
+                            <div class="routine-item" onclick="window.showRoutinePreview('{{ r.id }}')"
+                                style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border: 1px solid #EEE; border-radius: 4px; margin-bottom: 5px;">
+                                <ion-icon name="document-text-outline" style="color: var(--fusion-accent);"></ion-icon>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 11px; font-weight: 700;">{{ r.nombre }}</div>
+                                    <div style="font-size: 9px; color: #999;">{{ r.frecuencia.nombre }} | {{
+                                        r.tiempo_estimado }}</div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div style="font-size: 10px; color: #999; text-align: center; padding: 10px;">No hay rutinas
+                                directas en esta categoría.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
-        </div>
-        {% endif %}
+
+            <!-- Mi Planta (Quick Nav) -->
+            <div class="fusion-card fade-in-up" style="animation-delay: 0.3s;">
+                <div class="fusion-card-header">
+                    <h3>Infraestructura</h3>
+                </div>
+                <div class="fusion-card-content"
+                    style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    {% for u in ubicaciones_raiz|slice:":4" %}
+                    <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}"
+                        style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #F5F5F5; border: 1px solid var(--fusion-border); text-decoration: none; color: var(--fusion-text); border-radius: 4px;">
+                        <ion-icon name="business-outline"
+                            style="font-size: 18px; color: var(--fusion-accent);"></ion-icon>
+                        <span style="font-size: 10px; font-weight: 700; text-transform: uppercase;">{{
+                            u.nombre|truncatechars:12 }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Avisos Recientes -->
+            {% if avisos_abiertos > 0 %}
+            <div class="fusion-card fade-in-up" style="animation-delay: 0.4s;">
+                <div class="fusion-card-header">
+                    <h3>Estado de Avisos</h3>
+                </div>
+                <div class="fusion-card-content" style="padding: 15px;">
+                    <div style="background: #FFF9C4; border: 1px solid #FBC02D; padding: 12px; border-radius: 2px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #333; margin-bottom: 5px;">{{
+                            avisos_abiertos }} AVISOS ABIERTOS</div>
+                        <p style="margin: 0; font-size: 10px; color: #555;">Hay fallas reportadas esperando atención
+                            técnica.</p>
+                        <a href="{% url 'mantenimiento:mobile_mis_avisos' %}"
+                            style="display: inline-block; margin-top: 10px; font-size: 10px; font-weight: 800; color: #D4A017; text-decoration: none;">REVISAR
+                            REPORTES &rarr;</a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div> <!-- Fin feed-mantenimiento -->
 
         <!-- Contenedor Activos (NUEVO) -->
@@ -899,12 +918,15 @@
                     <h3>Explorar por Categoría</h3>
                     <ion-icon name="grid-outline" style="color: var(--fusion-accent);"></ion-icon>
                 </div>
-                <div class="fusion-card-content" style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="fusion-card-content"
+                    style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     {% for cat in categorias_activos %}
-                    <a href="{% url 'activos:mobile_busqueda' %}?q={{ cat.nombre|urlencode }}" 
-                       style="background: #F8F8F8; border: 1px solid var(--fusion-border); border-radius: 4px; padding: 15px; text-align: center; text-decoration: none; color: inherit;">
-                        <ion-icon name="layers-outline" style="font-size: 20px; color: var(--fusion-orange); margin-bottom: 5px;"></ion-icon>
-                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">{{ cat.nombre }}</div>
+                    <a href="{% url 'activos:mobile_busqueda' %}?q={{ cat.nombre|urlencode }}"
+                        style="background: #F8F8F8; border: 1px solid var(--fusion-border); border-radius: 4px; padding: 15px; text-align: center; text-decoration: none; color: inherit;">
+                        <ion-icon name="layers-outline"
+                            style="font-size: 20px; color: var(--fusion-orange); margin-bottom: 5px;"></ion-icon>
+                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">{{ cat.nombre }}
+                        </div>
                     </a>
                     {% endfor %}
                 </div>
@@ -919,7 +941,8 @@
                 <div class="fusion-card-content" style="padding: 10px;">
                     <div class="location-list">
                         {% for u in ubicaciones_activos %}
-                        <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}" class="list-item" style="text-decoration: none;">
+                        <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}" class="list-item"
+                            style="text-decoration: none;">
                             <div class="icon" style="background: #E3F2FD;">
                                 <ion-icon name="business-outline" style="color: #1976D2;"></ion-icon>
                             </div>
