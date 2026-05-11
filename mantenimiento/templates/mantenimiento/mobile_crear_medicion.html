@@ -1,239 +1,331 @@
-{% extends 'core/base_mobile.html' %}
 {% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Medición | SoftCoM-CCG</title>
+    {% include 'core/pwa_tags.html' %}
+    {% include 'core/fiori_tokens.html' %}
 
-{% block content %}
-<!-- ESTILO SAP FIORI PARA EL HEADER -->
-<div class="fiori-header">
-    <div class="fiori-header-top">
-        <a href="javascript:history.back()" class="fiori-back-btn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-        </a>
-        <h1 class="fiori-title">Medición</h1>
-    </div>
-    <div class="fiori-header-bottom">
-        <div class="fiori-subtitle">Registrar Nueva Lectura</div>
-    </div>
-</div>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<div class="mobile-container p-4" style="background-color: #f4f4f4; min-height: calc(100vh - 120px); padding-bottom: 80px;">
-    
-    <!-- CARD DE INFORMACIÓN DEL PUNTO -->
-    <div class="fiori-card mb-4">
-        <div class="fiori-card-header">
-            <h2 class="fiori-card-title">{{ punto.activo.nombre }} <span style="color:#64748b; font-size:12px;">({{ punto.activo.codigo_interno }})</span></h2>
-        </div>
-        <div class="fiori-card-body">
-            <div class="fiori-info-group">
-                <label>Parámetro</label>
-                <div class="value">{{ punto.nombre }}</div>
-            </div>
-            
-            <div style="display: flex; gap: 16px; margin-top: 12px;">
-                <div class="fiori-info-group" style="flex: 1;">
-                    <label>Unidad</label>
-                    <div class="value" style="font-weight: 700; color: #2563eb;">{{ punto.unidad }}</div>
-                </div>
-                {% if punto.valor_objetivo %}
-                <div class="fiori-info-group" style="flex: 1;">
-                    <label>Valor Objetivo</label>
-                    <div class="value">{{ punto.valor_objetivo }} {{ punto.unidad }}</div>
-                </div>
-                {% endif %}
-            </div>
-            
-            {% if punto.ultima_lectura %}
-            <div class="fiori-info-group" style="margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
-                <label>Última Lectura</label>
-                <div class="value" style="color: #64748b;">{{ punto.ultima_lectura.valor }} {{ punto.unidad }} <span style="font-size: 11px;">({{ punto.ultima_lectura.fecha_lectura|date:"d M Y H:i" }})</span></div>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- FORMULARIO DE INGRESO -->
-    <form id="medicionForm" class="fiori-card">
-        <div class="fiori-card-header">
-            <h2 class="fiori-card-title">Ingresar Datos</h2>
-        </div>
-        <div class="fiori-card-body">
-            <div class="fiori-form-group">
-                <label for="valor">Valor Medido *</label>
-                <input type="number" step="0.01" inputmode="decimal" id="valor" name="valor" class="fiori-input fiori-input-large" required placeholder="0.00">
-            </div>
-
-            <div class="fiori-form-group" style="margin-top: 16px;">
-                <label for="observaciones">Observaciones (Opcional)</label>
-                <textarea id="observaciones" name="observaciones" rows="3" class="fiori-input" placeholder="Condiciones inusuales, ruidos, etc."></textarea>
-            </div>
-        </div>
-    </form>
-</div>
-
-<!-- FLOATING ACTION BUTTON -->
-<div class="fiori-footer-actions">
-    <button type="button" class="btn btn-primary w-100" onclick="registrarMedicion()" id="btnSave" style="border-radius: 8px; font-weight: bold; padding: 14px;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-            <polyline points="7 3 7 8 15 8"></polyline>
-        </svg>
-        Registrar Lectura
-    </button>
-</div>
-
-<!-- SCRIPTS DE SWEETALERT2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-    function registrarMedicion() {
-        const form = document.getElementById('medicionForm');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
+    <style>
+        :root {
+            --safe-area-top: env(safe-area-inset-top);
+            --safe-area-bottom: env(safe-area-inset-bottom);
         }
 
-        const formData = new FormData(form);
-        const btn = document.getElementById('btnSave');
-        
-        btn.disabled = true;
-        btn.innerHTML = 'Guardando...';
+        body {
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-        fetch(window.location.pathname, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
+        /* Header SAP Classic */
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            padding: calc(12px + var(--safe-area-top)) 16px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            color: white;
+        }
+
+        .fiori-header h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            flex: 1;
+            text-transform: uppercase;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .back-btn:active { background: rgba(255, 255, 255, 0.3); }
+
+        /* Content Area */
+        .fiori-scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-bottom: calc(100px + var(--safe-area-bottom));
+        }
+
+        /* Cards SAP Classic */
+        .fiori-card {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            box-shadow: var(--sap-card-shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sap-border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #fafafa;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-content { padding: 16px; }
+
+        /* Info Display Classic */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+        .info-item label { display: block; font-size: 10px; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-bottom: 4px; }
+        .info-item .value { font-size: 14px; font-weight: 700; color: var(--sap-text-color); }
+        .info-item .value.highlight { color: var(--sap-brand-color); font-size: 16px; }
+
+        /* Form Controls Classic */
+        .fiori-form-group {
+            margin-bottom: 16px;
+        }
+
+        .fiori-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .fiori-input, .fiori-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--sap-text-color);
+            background: #fafafa;
+            transition: all 0.2s;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .fiori-input:focus, .fiori-textarea:focus {
+            border-color: var(--sap-brand-color);
+            background: white;
+            box-shadow: inset 0 0 0 1px var(--sap-brand-color);
+        }
+
+        .fiori-input-measurement {
+            font-size: 32px;
+            font-weight: 800;
+            text-align: center;
+            color: var(--sap-brand-color);
+            padding: 20px;
+        }
+
+        .unit-indicator {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
+            margin-top: -8px;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+        }
+
+        .fiori-textarea { height: 100px; resize: none; }
+
+        /* Toolbar Actions Classic */
+        .fiori-toolbar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: white;
+            padding: 12px 16px calc(12px + var(--safe-area-bottom));
+            border-top: 1px solid var(--sap-border-color);
+            display: flex;
+            gap: 12px;
+            z-index: 1000;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+        }
+
+        .fiori-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: var(--sap-border-radius);
+            font-size: 14px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            text-transform: uppercase;
+        }
+
+        .fiori-btn-primary { background: var(--sap-brand-color); color: white; }
+        .fiori-btn:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+
+    <header class="fiori-header">
+        <button onclick="window.history.back()" class="back-btn">
+            <ion-icon name="chevron-back-outline"></ion-icon>
+        </button>
+        <h1>Medición</h1>
+    </header>
+
+    <div class="fiori-scroll-content">
+        <!-- Asset Info Card -->
+        <div class="fiori-card">
+            <div class="card-header">
+                <ion-icon name="cube-outline"></ion-icon>
+                <h2>Información del Punto</h2>
+            </div>
+            <div class="card-content">
+                <div style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">{{ punto.activo.nombre }}</div>
+                <div style="font-size: 12px; color: var(--sap-text-muted); font-weight: 600;">ID: {{ punto.activo.codigo_interno }}</div>
+                
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Parámetro</label>
+                        <div class="value highlight">{{ punto.nombre }}</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Unidad</label>
+                        <div class="value">{{ punto.unidad }}</div>
+                    </div>
+                    {% if punto.valor_objetivo %}
+                    <div class="info-item">
+                        <label>Objetivo</label>
+                        <div class="value">{{ punto.valor_objetivo }} {{ punto.unidad }}</div>
+                    </div>
+                    {% endif %}
+                    {% if punto.ultima_lectura %}
+                    <div class="info-item">
+                        <label>Última Lectura</label>
+                        <div class="value" style="color: var(--sap-text-muted);">{{ punto.ultima_lectura.valor }} {{ punto.unidad }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Card -->
+        <form id="medicionForm" class="fiori-card">
+            <div class="card-header">
+                <ion-icon name="create-outline"></ion-icon>
+                <h2>Registrar Lectura</h2>
+            </div>
+            <div class="card-content">
+                <div class="fiori-form-group">
+                    <label class="fiori-label">Valor Medido *</label>
+                    <input type="number" step="0.01" inputmode="decimal" id="valor" name="valor" 
+                           class="fiori-input fiori-input-measurement" required placeholder="0.00" autofocus>
+                </div>
+                <div class="unit-indicator">{{ punto.unidad }}</div>
+
+                <div class="fiori-form-group">
+                    <label class="fiori-label">Observaciones (Opcional)</label>
+                    <textarea id="observaciones" name="observaciones" class="fiori-textarea" 
+                              placeholder="Indique cualquier observación relevante..."></textarea>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Botones de Acción -->
+    <div class="fiori-toolbar">
+        <button type="button" class="fiori-btn fiori-btn-primary" onclick="registrarMedicion()" id="btnSave">
+            <ion-icon name="save-outline"></ion-icon>
+            Guardar Medición
+        </button>
+    </div>
+
+    <script>
+        function registrarMedicion() {
+            const form = document.getElementById('medicionForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
             }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                Swal.fire({
-                    title: '¡Registrado!',
-                    text: 'El documento de medición ha sido creado correctamente.',
-                    icon: 'success',
-                    confirmButtonColor: '#2563eb'
-                }).then(() => {
-                    // Redirigir al dashboard u otra vista
-                    window.location.href = "{% url 'core:mobile_dashboard' %}";
-                });
-            } else {
-                Swal.fire('Error', data.message || 'Error al guardar la lectura', 'error');
+
+            const formData = new FormData(form);
+            const btn = document.getElementById('btnSave');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<ion-icon name="sync-outline" class="spin"></ion-icon> Guardando...';
+
+            fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire({
+                        title: '¡Registrado!',
+                        text: 'La lectura ha sido guardada correctamente.',
+                        icon: 'success',
+                        confirmButtonColor: '#0a6ed1'
+                    }).then(() => {
+                        window.location.href = "{% url 'core:mobile_dashboard' %}";
+                    });
+                } else {
+                    Swal.fire('Error', data.message || 'Error al guardar la lectura', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<ion-icon name="save-outline"></ion-icon> Guardar Medición';
+                }
+            })
+            .catch(err => {
+                Swal.fire('Error', 'Error de conexión', 'error');
                 btn.disabled = false;
-                btn.innerHTML = 'Registrar Lectura';
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            Swal.fire('Error', 'Error de conexión', 'error');
-            btn.disabled = false;
-            btn.innerHTML = 'Registrar Lectura';
-        });
-    }
-</script>
+                btn.innerHTML = '<ion-icon name="save-outline"></ion-icon> Guardar Medición';
+            });
+        }
+    </script>
 
-<style>
-    /* FIORI STYLES REUSABLES */
-    .fiori-header {
-        background-color: #354a5f;
-        color: white;
-        padding: 16px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        position: sticky;
-        top: 0;
-        z-index: 50;
-    }
-    .fiori-header-top {
-        display: flex;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-    .fiori-back-btn {
-        color: white;
-        margin-right: 12px;
-        text-decoration: none;
-    }
-    .fiori-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin: 0;
-    }
-    .fiori-subtitle {
-        font-size: 0.85rem;
-        color: #e2e8f0;
-    }
-    .fiori-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        overflow: hidden;
-        margin-bottom: 16px;
-    }
-    .fiori-card-header {
-        padding: 12px 16px;
-        border-bottom: 1px solid #f1f5f9;
-        background: #f8fafc;
-    }
-    .fiori-card-title {
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 0;
-    }
-    .fiori-card-body {
-        padding: 16px;
-    }
-    .fiori-info-group label {
-        display: block;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        color: #64748b;
-        font-weight: 600;
-        margin-bottom: 4px;
-    }
-    .fiori-info-group .value {
-        font-size: 0.95rem;
-        color: #0f172a;
-    }
-    .fiori-form-group label {
-        display: block;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #334155;
-        margin-bottom: 8px;
-    }
-    .fiori-input {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        font-size: 1rem;
-        background: #f8fafc;
-        transition: all 0.2s;
-    }
-    .fiori-input:focus {
-        outline: none;
-        border-color: #3b82f6;
-        background: white;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-    .fiori-input-large {
-        font-size: 1.5rem;
-        font-weight: 700;
-        text-align: right;
-        padding: 16px;
-        color: #2563eb;
-    }
-    .fiori-footer-actions {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: white;
-        padding: 16px;
-        box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.05);
-        z-index: 40;
-    }
-</style>
-{% endblock %}
+    <style>
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</body>
+</html>

@@ -1632,11 +1632,14 @@ def qr_generator_pdf(request):
     from xhtml2pdf import pisa
     from .models import PlantillaEtiquetaQR
     
+    from django.shortcuts import redirect
     if request.method != 'POST':
-        return HttpResponse('Method not allowed', status=405)
+        return redirect('activos:qr_generator_dashboard')
         
     try:
         lotes_str = request.POST.get('lotes_json', '[]')
+        print_mode = request.POST.get('print_mode', 'roll') # 'roll' o 'grid'
+
         try:
             lotes = json.loads(lotes_str)
         except Exception:
@@ -1669,8 +1672,8 @@ def qr_generator_pdf(request):
                 codigo = f"{prefix}{formatted_num}"
                 
                 # Construir URL completa para el QR
+                from django.conf import settings
                 base_url = settings.SITE_URL.rstrip('/')
-                # Si es una ubicación (UBC) o activo (INV), enviamos al buscador que redirige automáticamente
                 qr_content = f"{base_url}/activos/app/buscar/?q={codigo}"
                 
                 qr = qrcode.QRCode(version=1, box_size=10, border=0)
@@ -1690,33 +1693,42 @@ def qr_generator_pdf(request):
         if not renderized_blocks:
             return HttpResponse('Ningún bloque generado válido.', status=400)
         
-        page_w = first_plantilla.ancho_cm if first_plantilla else 5
-        page_h = first_plantilla.alto_cm if first_plantilla else 5
+        page_w = float(first_plantilla.ancho_cm) if first_plantilla else 5.0
+        page_h = float(first_plantilla.alto_cm) if first_plantilla else 5.0
+        
+        # Parche de seguridad: Reducimos un 1% el tamaño del contenedor para evitar errores de redondeo en xhtml2pdf
+        safe_w = page_w * 0.98
+        safe_h = page_h * 0.98
+
         final_html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
             <style>
-                .label-page {{
-                    page-break-after: always;
-                    overflow: hidden;
-                    margin: 0;
-                    padding: 0;
-                    border: none;
-                }}
                 @page {{
                     size: {page_w}cm {page_h}cm;
                     margin: 0cm;
                 }}
                 body {{
                     font-family: Arial, sans-serif;
+                    margin: 0;
+                    padding: 0;
+                    overflow: hidden;
+                }}
+                .label-wrapper {{
+                    width: {safe_w}cm;
+                    height: {safe_h}cm;
+                    margin: 0 auto;
+                    overflow: hidden;
+                    page-break-after: always;
+                    border: none !important;
                 }}
             </style>
         </head>
-        <body style="margin: 0; padding: 0;">
-            <div class="label-page">
-                {'</div><div class="label-page">'.join(renderized_blocks)}
+        <body>
+            <div class="label-wrapper">
+                {'</div><div class="label-wrapper">'.join(renderized_blocks)}
             </div>
         </body>
         </html>

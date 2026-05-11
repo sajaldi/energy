@@ -62,7 +62,7 @@
 
     .live-paper {
         background: white;
-        border: 1px dashed #94a3b8;
+        border: none;
         padding: 40px;
         box-shadow: 0 10px 25px rgba(0,0,0,0.05);
         display: flex;
@@ -146,7 +146,7 @@
                 </div>
                 <div class="fiori-form-group" style="flex:1;">
                     <label>Grosor del Borde Externo (px)</label>
-                    <input type="number" id="inp-border" class="fiori-input" value="{{ plantilla.border_thickness }}" min="0" max="10">
+                    <input type="number" id="inp-border" class="fiori-input" value="0" min="0" max="10">
                 </div>
             </div>
 
@@ -225,9 +225,11 @@
             // Calcular tamaño CUADRADO exacto del QR para que xhtml2pdf no lo deforme
             let qrMaxCm = Math.min(boxW, contentH) * (qrZoom / 100);
             
+            let borderStyle = border > 0 ? `border: ${border}px solid black;` : 'border: none !important;';
+            
             // Generación basada en Divs apilados estriictos
             let htmlFormato = `
-<div class="print-safe-table" style="width: ${boxW}cm; height: ${boxH}cm; border: ${border}px solid black; margin: 0 auto; text-align: center; overflow: hidden; background: white;">`;
+<div class="print-safe-table" style="width: ${boxW}cm; height: ${boxH}cm; ${borderStyle} margin: 0 auto; text-align: center; overflow: hidden; background: white;">`;
 
             if (marginTop > 0) {
                 htmlFormato += `

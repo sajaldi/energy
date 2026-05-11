@@ -1,28 +1,21 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cronograma Móvil</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Cronograma | SoftCoM-CCG</title>
     {% include 'core/pwa_tags.html' %}
-
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-
     {% include 'core/fiori_tokens.html' %}
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 
     <style>
         :root {
-            --primary: #007bff;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --bg-body: #f0f2f5;
-            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --safe-area-top: env(safe-area-inset-top);
+            --safe-area-bottom: env(safe-area-inset-bottom);
         }
 
         body {
@@ -30,290 +23,356 @@
             background-color: var(--sap-bg-color);
             color: var(--sap-text-color);
             margin: 0;
-            padding-bottom: 90px;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        header {
-            background-color: var(--sap-shell-bg);
-            color: var(--sap-shell-color);
-            padding: 15px 20px;
+        /* Header SAP Classic */
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            padding: calc(12px + var(--safe-area-top)) 16px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: sticky;
             top: 0;
-            z-index: 1000;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: center;
-            gap: 15px;
+            z-index: 100;
+            color: white;
         }
 
-        header h1 {
+        .fiori-header h1 {
             margin: 0;
-            font-size: 20px;
-            font-weight: 700;
-            color: white;
-        }
-
-        .back-btn {
-            font-size: 24px;
-            color: white;
-            display: flex;
-            align-items: center;
-        }
-
-        .container {
-            padding: 15px;
-        }
-
-        .prog-card {
-            background: var(--sap-card-bg);
-            border-radius: var(--sap-border-radius);
-            padding: 16px;
-            margin-bottom: 12px;
-            box-shadow: var(--sap-card-shadow);
-            border: 1px solid var(--sap-border-color);
-        }
-
-        .prog-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-        }
-
-        .prog-info h3 {
-            margin: 0 0 5px 0;
             font-size: 16px;
             font-weight: 700;
-        }
-
-        .badge {
-            font-size: 10px;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-weight: 700;
+            color: white;
+            flex: 1;
             text-transform: uppercase;
         }
 
-        .badge-freq {
-            background: #e0f2fe;
-            color: #0369a1;
+        .back-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .badge-cat {
-            background: #f0fdf4;
-            color: #166534;
+        .back-btn:active { background: rgba(255, 255, 255, 0.3); }
+
+        /* Content Area */
+        .fiori-scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-bottom: calc(100px + var(--safe-area-bottom));
         }
 
+        /* Search Section Classic */
+        .fiori-search-container {
+            display: flex;
+            gap: 8px;
+            background: white;
+            padding: 4px;
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            box-shadow: var(--sap-card-shadow);
+        }
+
+        .fiori-search-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 8px;
+        }
+
+        .fiori-search-input {
+            border: none;
+            background: transparent;
+            width: 100%;
+            height: 40px;
+            font-size: 14px;
+            outline: none;
+            color: var(--sap-text-color);
+            font-family: inherit;
+        }
+
+        .fiori-search-btn {
+            background: var(--sap-brand-color);
+            color: white;
+            border: none;
+            border-radius: var(--sap-border-radius);
+            padding: 0 16px;
+            font-weight: 800;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        /* Programación Card Classic */
+        .fiori-card {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            box-shadow: var(--sap-card-shadow);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .fiori-card:active { background: #f0f7fd; }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .rutina-info h3 {
+            margin: 0 0 6px 0;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--sap-text-color);
+        }
+
+        .badges-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        .badge {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border: 1px solid transparent;
+        }
+
+        .badge-frecuencia { background: var(--sap-information-bg); color: var(--sap-brand-color); border-color: rgba(0, 112, 242, 0.1); }
+        .badge-tipo { background: var(--sap-success-bg); color: var(--sap-success); border-color: rgba(16, 126, 62, 0.1); }
+
+        /* Progress UI Classic */
         .progress-section {
-            margin-bottom: 15px;
+            background: #fafafa;
+            padding: 12px;
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
         }
 
         .progress-label {
             display: flex;
             justify-content: space-between;
-            font-size: 12px;
-            margin-bottom: 6px;
-            font-weight: 600;
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
         }
 
-        .progress-bar-container {
-            height: 8px;
+        .progress-track {
+            height: 6px;
             background: #e2e8f0;
-            border-radius: 4px;
+            border-radius: 3px;
             overflow: hidden;
         }
 
-        .progress-bar {
+        .progress-fill {
             height: 100%;
             background: var(--sap-brand-color);
-            transition: width 0.3s ease;
+            border-radius: 3px;
+            transition: width 0.6s ease;
         }
 
-        .next-date {
+        /* Next Execution Footer Classic */
+        .card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 10px;
+            border-top: 1px dashed var(--sap-border-color);
+        }
+
+        .proxima-fecha {
             display: flex;
             align-items: center;
             gap: 8px;
             font-size: 13px;
-            color: var(--sap-brand-color);
             font-weight: 700;
-            background: var(--sap-bg-color);
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
-            border: 1px solid var(--sap-border-color);
-        }
-
-        .next-date ion-icon {
-            font-size: 18px;
+            color: var(--sap-brand-color);
         }
 
         .status-pill {
-            display: inline-block;
-            font-size: 11px;
-            padding: 4px 10px;
-            border-radius: 20px;
-            background: var(--light);
-            margin-top: 10px;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 4px 12px;
+            border-radius: 2px;
+            background: #f1f5f9;
+            color: #64748b;
+            text-transform: uppercase;
+            border: 1px solid #e2e8f0;
         }
 
-        .status-pill.procesada {
-            background: #dcfce7;
-            color: #15803d;
-        }
+        .status-pill.active { background: var(--sap-success-bg); color: var(--sap-success); border-color: var(--sap-success); }
 
-        /* Bottom Tab Bar */
-        .tab-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 70px;
+        /* Bottom Tab Bar SAP Classic */
+        .fiori-tab-bar {
             background: white;
+            border-top: 1px solid var(--sap-border-color);
+            padding: 8px 16px calc(12px + var(--safe-area-bottom));
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             align-items: center;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-            padding-bottom: env(safe-area-inset-bottom);
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
             z-index: 1000;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
         }
 
         .tab-item {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 4px;
             text-decoration: none;
-            color: #64748b;
-            font-size: 10px;
-            font-weight: 600;
+            color: var(--sap-text-muted);
+            transition: all 0.2s;
         }
 
-        .tab-item.active {
-            color: var(--primary);
-        }
+        .tab-item ion-icon { font-size: 22px; }
+        .tab-item span { font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .tab-item.active { color: var(--sap-brand-color); }
 
-        .tab-item ion-icon {
-            font-size: 24px;
-        }
-
-        .scan-fab {
+        .tab-center-btn {
             width: 56px;
             height: 56px;
-            background: var(--primary);
+            background: var(--sap-brand-color);
             color: white;
-            border-radius: 20px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4);
-            margin-top: -30px;
+            font-size: 26px;
+            box-shadow: 0 4px 16px rgba(0, 112, 242, 0.4);
+            margin-top: -36px;
+            border: 4px solid white;
         }
     </style>
 </head>
-
 <body>
 
-    <header>
+    <header class="fiori-header">
         <a href="{% url 'core:mobile_dashboard' %}" class="back-btn">
-            <ion-icon name="arrow-back-outline"></ion-icon>
+            <ion-icon name="chevron-back-outline"></ion-icon>
         </a>
-        <h1>Cronograma de Mantenimiento</h1>
+        <h1>Cronograma Anual</h1>
     </header>
 
-    <div class="container">
-        <!-- Search Bar -->
-        <div class="search-section" style="margin-bottom: 20px;">
-            <form action="." method="get" class="search-form" style="display: flex; gap: 10px;">
-                <div class="search-input-wrapper" style="flex: 1; position: relative; background: white; border-radius: 12px; display: flex; align-items: center; padding: 0 15px; box-shadow: var(--card-shadow); border: 1px solid #e2e8f0;">
-                    <ion-icon name="search-outline" style="color: #64748b; font-size: 20px;"></ion-icon>
-                    <input type="text" name="q" placeholder="Buscar por activo o rutina..." value="{{ search_query }}" 
-                        style="border: none; background: transparent; padding: 12px 10px; width: 100%; font-family: inherit; font-size: 14px; outline: none;">
+    <div class="fiori-scroll-content">
+        <!-- Search Section -->
+        <div class="fiori-search-section">
+            <form action="." method="get" class="fiori-search-container">
+                <div class="fiori-search-wrapper">
+                    <ion-icon name="search-outline" style="color: var(--sap-text-muted);"></ion-icon>
+                    <input type="text" name="q" placeholder="Buscar rutina..." value="{{ search_query }}" class="fiori-search-input">
                     {% if search_query %}
-                    <a href="." style="color: #64748b; display: flex; align-items: center;">
-                        <ion-icon name="close-circle-outline" style="font-size: 20px;"></ion-icon>
-                    </a>
+                    <a href="." style="color: var(--sap-text-muted); display: flex;"><ion-icon name="close-circle"></ion-icon></a>
                     {% endif %}
                 </div>
-                <button type="submit" style="background: var(--primary); color: white; border: none; border-radius: 12px; padding: 0 15px; font-weight: 600; cursor: pointer;">
-                    Ir
-                </button>
+                <button type="submit" class="fiori-search-btn">Buscar</button>
             </form>
         </div>
+
+        <!-- Programaciones List -->
         {% for prog in programaciones %}
-        <a href="{% url 'mantenimiento:mobile_programacion_detalle' prog.id %}"
-            style="text-decoration: none; color: inherit;">
-            <div class="prog-card">
-                <div class="prog-header">
-                    <div class="prog-info">
-                        <h3>{{ prog.rutina.nombre }}</h3>
-                        <span class="badge badge-freq">{{ prog.rutina.frecuencia.nombre }}</span>
-                        <span class="badge badge-cat">{{ prog.rutina.tipo.nombre }}</span>
-                    </div>
-                    <div class="status-indicator">
-                        {% if prog.procesada %}
-                        <span class="status-pill procesada">Activa</span>
-                        {% else %}
-                        <span class="status-pill">Pendiente</span>
-                        {% endif %}
+        <a href="{% url 'mantenimiento:mobile_programacion_detalle' prog.id %}" class="fiori-card">
+            <div class="card-header">
+                <div class="rutina-info">
+                    <h3>{{ prog.rutina.nombre }}</h3>
+                    <div class="badges-row">
+                        <span class="badge badge-frecuencia">{{ prog.rutina.frecuencia.nombre }}</span>
+                        <span class="badge badge-tipo">{{ prog.rutina.tipo.nombre }}</span>
                     </div>
                 </div>
-
-                <div class="progress-section">
-                    <div class="progress-label">
-                        <span>Progreso Anual</span>
-                        <span>{{ prog.completas_ots }} / {{ prog.total_ots }}</span>
-                    </div>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" style="width: {{ prog.progreso_porcentaje|default:0 }}%;"></div>
-                    </div>
+                <div class="status-indicator">
+                    {% if prog.procesada %}
+                    <span class="status-pill active">Activa</span>
+                    {% else %}
+                    <span class="status-pill">Pendiente</span>
+                    {% endif %}
                 </div>
+            </div>
 
+            <div class="progress-section">
+                <div class="progress-label">
+                    <span>Avance Anual</span>
+                    <span>{{ prog.completas_ots }} / {{ prog.total_ots }} OTs</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: {{ prog.progreso_porcentaje|default:0 }}%;"></div>
+                </div>
+            </div>
+
+            <div class="card-footer">
                 {% if prog.proxima_ot %}
-                <div class="next-date">
+                <div class="proxima-fecha">
                     <ion-icon name="calendar-outline"></ion-icon>
                     <span>Próxima: {{ prog.proxima_ot|date:"d M, Y" }}</span>
                 </div>
                 {% else %}
-                <div class="next-date" style="background: #f1f5f9; color: #64748b;">
+                <div class="proxima-fecha" style="color: var(--sap-text-muted);">
                     <ion-icon name="alert-circle-outline"></ion-icon>
-                    <span>No hay fechas futuras</span>
+                    <span>Sin fechas futuras</span>
                 </div>
                 {% endif %}
+                <ion-icon name="chevron-forward-outline" style="color: var(--sap-text-muted);"></ion-icon>
             </div>
         </a>
         {% empty %}
-        <div style="text-align: center; padding: 50px 20px; color: #64748b;">
-            <ion-icon name="calendar-clear-outline" style="font-size: 48px; opacity: 0.2;"></ion-icon>
-            <p>No hay programaciones configuradas.</p>
+        <div style="text-align: center; padding: 60px 20px; color: var(--sap-text-muted);">
+            <ion-icon name="calendar-clear-outline" style="font-size: 64px; opacity: 0.1;"></ion-icon>
+            <p style="font-size: 15px; margin-top: 16px;">No se encontraron rutinas programadas.</p>
         </div>
         {% endfor %}
     </div>
 
-    <!-- Tab Bar -->
-    <nav class="fiori-tab-bar" style="position: fixed; bottom: 0; left: 0; right: 0; height: 70px; background: white; border-top: 1px solid var(--sap-border-color); display: flex; justify-content: space-around; align-items: center; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);">
-        <a href="{% url 'core:mobile_dashboard' %}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: var(--sap-text-muted); font-size: 11px; width: 20%;">
-            <ion-icon name="home-outline" style="font-size: 24px;"></ion-icon>
-            <span>Inicio</span>
+    <!-- Bottom Tab Bar -->
+    <nav class="fiori-tab-bar">
+        <a href="{% url 'core:mobile_dashboard' %}" class="tab-item">
+            <ion-icon name="grid-outline"></ion-icon>
+            <span>Dashboard</span>
         </a>
-        <a href="{% url 'mantenimiento:mobile_cronograma' %}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: var(--sap-brand-color); font-size: 11px; font-weight: 700; width: 20%;">
-            <ion-icon name="calendar" style="font-size: 24px;"></ion-icon>
+        <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="tab-item active">
+            <ion-icon name="calendar"></ion-icon>
             <span>Agenda</span>
         </a>
-
-        <a href="{% url 'core:mobile_scanner' %}" style="width: 50px; height: 50px; background: var(--sap-shell-bg); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); text-decoration: none; transform: translateY(-15px);">
-            <ion-icon name="scan-outline"></ion-icon>
+        <a href="{% url 'core:mobile_scanner' %}" class="tab-center-btn">
+            <ion-icon name="qr-code-outline"></ion-icon>
         </a>
-
-        <a href="{% url 'activos:arbol_activos' %}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: var(--sap-text-muted); font-size: 11px; width: 20%;">
-            <ion-icon name="cube-outline" style="font-size: 24px;"></ion-icon>
+        <a href="{% url 'activos:arbol_activos' %}" class="tab-item">
+            <ion-icon name="cube-outline"></ion-icon>
             <span>Activos</span>
         </a>
-        <a href="{% url 'admin:index' %}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: var(--sap-text-muted); font-size: 11px; width: 20%;">
-            <ion-icon name="person-outline" style="font-size: 24px;"></ion-icon>
+        <a href="{% url 'admin:index' %}" class="tab-item">
+            <ion-icon name="person-outline"></ion-icon>
             <span>Mi Perfil</span>
         </a>
     </nav>
 
 </body>
-
 </html>

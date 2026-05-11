@@ -284,7 +284,7 @@ class Documento(models.Model):
     )
     
     # Campo para búsqueda vectorial semántica
-    embedding = VectorField(dimensions=384, null=True, blank=True)
+    embedding = VectorField(dimensions=768, null=True, blank=True)
 
     def __str__(self):
         return f"{self.codigo} - {self.titulo}"
@@ -343,7 +343,7 @@ class DocumentoFragmento(models.Model):
     """
     documento = models.ForeignKey(Documento, on_delete=models.CASCADE, related_name='fragmentos')
     contenido = models.TextField()
-    embedding = VectorField(dimensions=384, null=True, blank=True)
+    embedding = VectorField(dimensions=768, null=True, blank=True)
     orden = models.IntegerField(default=0)
     
     class Meta:

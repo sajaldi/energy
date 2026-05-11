@@ -1,345 +1,351 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crear Aviso - SAP PM Style</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Reportar Aviso | SoftCoM-CCG</title>
     {% include 'core/pwa_tags.html' %}
+    {% include 'core/fiori_tokens.html' %}
 
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
         :root {
-            --sap-blue: #0a6ed1;
-            --sap-shell: #354a5f;
-            --sap-bg: #f7f7f7;
-            --sap-card-bg: #ffffff;
-            --sap-label: #6a6d70;
-            --sap-text: #32363a;
-            --sap-border: #d9d9d9;
-            --sap-success: #107e3e;
-            --sap-error: #bb0000;
-            --sap-warning: #e9730c;
-        }
-
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
+            --safe-area-top: env(safe-area-inset-top);
+            --safe-area-bottom: env(safe-area-inset-bottom);
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--sap-bg);
-            color: var(--sap-text);
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
             margin: 0;
-            padding-bottom: env(safe-area-inset-bottom, 20px);
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        /* SAP Shell Bar */
-        header {
-            background-color: var(--sap-shell);
-            height: 48px;
+        /* Header SAP Classic */
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            padding: calc(12px + var(--safe-area-top)) 16px 12px;
             display: flex;
             align-items: center;
-            padding: 0 16px;
+            gap: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: sticky;
             top: 0;
-            z-index: 1000;
+            z-index: 100;
             color: white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .fiori-header h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            flex: 1;
+            text-transform: uppercase;
         }
 
         .back-btn {
-            background: transparent;
-            border: none;
-            color: white;
-            padding: 8px;
-            margin-right: 8px;
             display: flex;
             align-items: center;
-            font-size: 20px;
-        }
-
-        header h1 {
-            font-size: 16px;
-            font-weight: 500;
-            margin: 0;
-            flex-grow: 1;
-        }
-
-        .container {
-            padding: 12px;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        /* SAP Style Sections (Object Page Blocks) */
-        .fiori-section {
-            background: var(--sap-card-bg);
-            border: 1px solid var(--sap-border);
-            border-radius: 8px;
-            margin-bottom: 12px;
-            overflow: hidden;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.04);
-        }
-
-        .section-header {
-            padding: 12px 16px;
-            background: #fafafa;
-            border-bottom: 1px solid var(--sap-border);
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--sap-label);
-            text-transform: uppercase;
-        }
-
-        .section-content {
-            padding: 16px;
-        }
-
-        /* SAP Form Fields */
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group:last-child {
-            margin-bottom: 0;
-        }
-
-        label {
-            display: block;
-            font-size: 13px;
-            color: var(--sap-label);
-            margin-bottom: 6px;
-        }
-
-        .sap-input-container {
-            position: relative;
-            background: white;
-            border: 1px solid var(--sap-border);
+            justify-content: center;
+            width: 36px;
+            height: 36px;
             border-radius: 4px;
-            transition: border-color 0.2s;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .sap-input-container:focus-within {
-            border-color: var(--sap-blue);
-            outline: 2px solid rgba(10, 110, 209, 0.2);
+        /* Content Area */
+        .fiori-scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-bottom: calc(100px + var(--safe-area-bottom));
         }
 
-        input,
-        select,
-        textarea {
-            width: 100%;
-            border: none;
-            background: transparent;
-            padding: 10px 12px;
-            font-family: inherit;
-            font-size: 14px;
-            color: var(--sap-text);
-            outline: none;
+        /* Cards SAP Classic */
+        .fiori-card {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            box-shadow: var(--sap-card-shadow);
+            overflow: hidden;
         }
 
-        textarea {
-            height: 100px;
-            resize: none;
-        }
-
-        /* Asset Detail Card */
-        #asset-details-card {
-            background: #f0f4f8;
-            border: 1px solid #d1d9e1;
-            border-radius: 6px;
-            padding: 12px;
-            margin-top: 12px;
-            display: none;
-            animation: slideDown 0.3s ease-out;
-        }
-
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .asset-detail-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+        .card-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sap-border-color);
+            display: flex;
+            align-items: center;
             gap: 10px;
-            font-size: 12px;
+            background: #fafafa;
         }
 
-        .asset-detail-item b {
-            color: var(--sap-label);
-            display: block;
-            margin-bottom: 2px;
+        .card-header h2 {
+            margin: 0;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
             text-transform: uppercase;
-            font-size: 10px;
             letter-spacing: 0.5px;
         }
 
-        .asset-detail-value {
-            color: var(--sap-text);
-            font-weight: 500;
+        .card-content { padding: 16px; }
+
+        /* Form Controls */
+        .fiori-form-group {
+            margin-bottom: 16px;
         }
 
-        /* Scanner Button SAP Style */
-        .scan-btn-fiori {
-            background: var(--sap-blue);
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 4px;
+        .fiori-form-group:last-child { margin-bottom: 0; }
+
+        .fiori-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--sap-text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .fiori-input, .fiori-select, .fiori-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
             font-size: 14px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            margin-bottom: 12px;
-            width: fit-content;
-        }
-
-        /* Search Status */
-        #search-status {
-            font-size: 11px;
-            margin-top: 4px;
-            min-height: 16px;
-            display: none;
-            font-weight: 600;
-        }
-
-        .status-searching { color: var(--sap-label); }
-        .status-found { color: var(--sap-success); }
-        .status-not-found { color: var(--sap-error); }
-
-        /* Hierarchical Selectors Cascade */
-        .cascade-wrapper {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        /* Action Buttons */
-        .footer-actions {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            font-family: inherit;
+            color: var(--sap-text-color);
             background: white;
-            border-top: 1px solid var(--sap-border);
-            padding: 12px 16px;
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            z-index: 900;
+            transition: all 0.2s;
+            outline: none;
         }
 
-        .sap-btn-main {
-            background: var(--sap-blue);
-            color: white;
-            border: 1px solid var(--sap-blue);
-            padding: 0 20px;
-            height: 36px;
-            border-radius: 4px;
-            font-weight: 500;
-            font-size: 14px;
-            cursor: pointer;
+        .fiori-input:focus, .fiori-select:focus, .fiori-textarea:focus {
+            border-color: var(--sap-brand-color);
+            box-shadow: inset 0 0 0 1px var(--sap-brand-color);
         }
 
-        .sap-btn-cancel {
-            background: white;
-            color: var(--sap-blue);
-            border: 1px solid var(--sap-blue);
-            padding: 0 20px;
-            height: 36px;
-            border-radius: 4px;
-            font-weight: 500;
-            font-size: 14px;
-        }
+        .fiori-textarea { height: 100px; resize: none; }
 
-        #search-results {
+        /* Search Box with Suggestions */
+        .search-wrapper { position: relative; }
+        
+        .search-results {
             position: absolute;
             top: 100%;
             left: 0;
             right: 0;
             background: white;
-            border: 1px solid var(--sap-border);
-            border-top: none;
-            z-index: 100;
-            max-height: 200px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 0 0 var(--sap-border-radius) var(--sap-border-radius);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-height: 250px;
             overflow-y: auto;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            border-radius: 0 0 4px 4px;
+            display: none;
         }
 
         .search-item {
-            padding: 10px 12px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 14px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sap-border-color);
+            cursor: pointer;
         }
 
-        .search-item:last-child {
-            border-bottom: none;
+        .search-item:last-child { border-bottom: none; }
+        .search-item:active { background: #f0f7fd; }
+
+        /* Asset Detail Card (Compact) */
+        #asset-details-card {
+            background: var(--sap-information-bg);
+            border: 1px solid rgba(10, 110, 209, 0.2);
+            border-radius: var(--sap-border-radius);
+            padding: 12px;
+            margin-top: 12px;
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
 
-        .search-item:active {
-            background: #f0f7ff;
+        .asset-info-item b { font-size: 10px; color: var(--sap-text-muted); text-transform: uppercase; display: block; margin-bottom: 2px; }
+        .asset-info-item span { font-size: 12px; font-weight: 700; color: var(--sap-text-color); }
+
+        /* Toggle Switch */
+        .fiori-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #fff8f8;
+            border: 1px solid #fee2e2;
+            border-radius: var(--sap-border-radius);
         }
 
-        /* Photo Grid */
+        .switch-input {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+
+        .switch-input input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e1;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--sap-error); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* Photo Upload UI */
+        .photo-uploader {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
         .photo-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-top: 12px;
+            gap: 10px;
         }
 
         .photo-item {
             aspect-ratio: 1;
-            background: #eee;
-            border-radius: 4px;
+            border-radius: var(--sap-border-radius);
             overflow: hidden;
+            border: 1px solid var(--sap-border-color);
             position: relative;
+            background: white;
+            display: flex;
+            flex-direction: column;
         }
 
-        .photo-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+        .photo-item img { flex: 1; object-fit: cover; min-height: 0; }
 
         .photo-remove {
             position: absolute;
-            top: 2px;
-            right: 2px;
-            background: rgba(0, 0, 0, 0.6);
+            top: 4px; right: 4px;
+            width: 20px; height: 20px;
+            background: rgba(0,0,0,0.6);
             color: white;
             border-radius: 50%;
-            width: 18px;
-            height: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 14px;
+            border: none;
+        }
+
+        /* Toolbar Actions (Classic) */
+        .fiori-toolbar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: white;
+            padding: 12px 16px calc(12px + var(--safe-area-bottom));
+            border-top: 1px solid var(--sap-border-color);
+            display: flex;
+            gap: 12px;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .fiori-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: var(--sap-border-radius);
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            text-transform: uppercase;
+        }
+
+        .fiori-btn-primary { background: var(--sap-brand-color); color: white; }
+        .fiori-btn-ghost { background: transparent; border: 1px solid var(--sap-brand-color); color: var(--sap-brand-color); }
+        .fiori-btn:active { transform: scale(0.98); opacity: 0.9; }
+
+        /* Scanner Overlay */
+        #scanner-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        #reader { width: 100%; max-width: 400px; border-radius: var(--sap-border-radius); overflow: hidden; }
+
+        .scan-btn-main {
+            background: var(--sap-brand-color);
+            color: white;
+            padding: 14px 20px;
+            border-radius: var(--sap-border-radius);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            border: none;
+            width: 100%;
+            justify-content: center;
+            text-transform: uppercase;
         }
     </style>
 </head>
-
 <body>
-    <header>
+
+    <header class="fiori-header">
         <button onclick="window.history.back()" class="back-btn">
             <ion-icon name="chevron-back-outline"></ion-icon>
         </button>
         <h1>Aviso de Avería</h1>
     </header>
 
-    <div class="container fade-in">
+    <div class="fiori-scroll-content">
         {% if error_mensaje %}
-        <div
-            style="background: #fff0f0; border-left: 4px solid var(--sap-error); color: var(--sap-error); padding: 12px; border-radius: 4px; margin-bottom: 16px; font-size: 14px;">
+        <div style="background: var(--sap-error-bg); border-left: 4px solid var(--sap-error); color: var(--sap-error); padding: 12px; border-radius: 8px; font-size: 14px;">
             {{ error_mensaje }}
         </div>
         {% endif %}
@@ -348,216 +354,179 @@
             {% csrf_token %}
 
             <!-- SECCIÓN 1: Identificación -->
-            <div class="fiori-section">
-                <div class="section-header">Información del Activo</div>
-                <div class="section-content">
-                    <button type="button" id="start-scan" class="scan-btn-fiori">
-                        <ion-icon name="camera-outline"></ion-icon>
-                        Escanear QR / Código de Barras
+            <div class="fiori-card">
+                <div class="card-header">
+                    <ion-icon name="cube-outline"></ion-icon>
+                    <h2>Identificación del Activo</h2>
+                </div>
+                <div class="card-content">
+                    <button type="button" id="start-scan" class="scan-btn-main">
+                        <ion-icon name="qr-code-outline"></ion-icon>
+                        Escanear Código QR
                     </button>
 
-                    <div class="form-group">
-                        <label>Buscar Equipo</label>
-                        <div class="sap-input-container">
-                            <input type="text" id="asset-search" placeholder="Nombre, modelo o código..."
-                                autocomplete="off"
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Buscar por Nombre o Código</label>
+                        <div class="search-wrapper">
+                            <input type="text" id="asset-search" class="fiori-input" placeholder="Ej: Motor, Transformador..." autocomplete="off"
                                 value="{% if activo %}{{ activo.nombre }} [{{ activo.codigo_interno }}]{% endif %}">
                             <input type="hidden" name="activo" id="asset-id" value="{% if activo %}{{ activo.id }}{% endif %}">
-                            <div id="search-status"></div>
-                            <div id="search-results" style="display: none;"></div>
+                            <div id="search-status" style="font-size: 11px; margin-top: 4px; display: none;"></div>
+                            <div id="search-results" class="search-results"></div>
                         </div>
 
-                        <!-- Asset Detail Card -->
+                        <!-- Detalle Compacto del Activo -->
                         <div id="asset-details-card">
-                            <div class="asset-detail-grid">
-                                <div class="asset-detail-item">
-                                    <b>Marca</b>
-                                    <span class="asset-detail-value" id="detail-marca">-</span>
-                                </div>
-                                <div class="asset-detail-item">
-                                    <b>Modelo</b>
-                                    <span class="asset-detail-value" id="detail-modelo">-</span>
-                                </div>
-                                <div class="asset-detail-item">
-                                    <b>Serie</b>
-                                    <span class="asset-detail-value" id="detail-serie">-</span>
-                                </div>
-                                <div class="asset-detail-item">
-                                    <b>Categoría</b>
-                                    <span class="asset-detail-value" id="detail-categoria">-</span>
-                                </div>
-                            </div>
+                            <div class="asset-info-item"><b>Marca</b><span id="detail-marca">-</span></div>
+                            <div class="asset-info-item"><b>Modelo</b><span id="detail-modelo">-</span></div>
+                            <div class="asset-info-item"><b>Serie</b><span id="detail-serie">-</span></div>
+                            <div class="asset-info-item"><b>Categoría</b><span id="detail-categoria">-</span></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- SECCIÓN 2: Ubicación Jerárquica -->
-            <div class="fiori-section">
-                <div class="section-header">Lugar de Avería</div>
-                <div class="section-content">
-                    <div class="cascade-wrapper">
-                        <div class="form-group">
-                            <label>Edificio</label>
-                            <div class="sap-input-container">
-                                <select id="select-sede">
-                                    <option value="">Seleccione Edificio...</option>
-                                    <!-- Populate roots via JS -->
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Nivel</label>
-                            <div class="sap-input-container">
-                                <select id="select-edificio" disabled>
-                                    <option value="">Primero seleccione Edificio</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Area</label>
-                            <div class="sap-input-container">
-                                <select id="select-area" disabled>
-                                    <option value="">Primero seleccione Nivel</option>
-                                </select>
-                            </div>
-                        </div>
+            <!-- SECCIÓN 2: Ubicación -->
+            <div class="fiori-card">
+                <div class="card-header">
+                    <ion-icon name="location-outline"></ion-icon>
+                    <h2>Ubicación Técnica</h2>
+                </div>
+                <div class="card-content">
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Edificio / Sede</label>
+                        <select id="select-sede" class="fiori-select">
+                            <option value="">Seleccione Edificio...</option>
+                        </select>
                     </div>
-                    <!-- El valor final que se envía -->
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Nivel / Piso</label>
+                        <select id="select-edificio" class="fiori-select" disabled>
+                            <option value="">Primero seleccione Edificio</option>
+                        </select>
+                    </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Área / Recinto</label>
+                        <select id="select-area" class="fiori-select" disabled>
+                            <option value="">Primero seleccione Nivel</option>
+                        </select>
+                    </div>
                     <input type="hidden" name="ubicacion" id="final-ubicacion-id" required>
                 </div>
             </div>
 
             <!-- SECCIÓN 3: Detalles -->
-            <div class="fiori-section">
-                <div class="section-header">Detalles Técnicos</div>
-                <div class="section-content">
-                    <div class="form-group">
-                        <label>Tipo de Aviso</label>
-                        <div class="sap-input-container">
-                            <select name="tipo">
-                                {% for val, label, is_selected in tipos %}
-                                <option value="{{ val }}" {% if is_selected %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+            <div class="fiori-card">
+                <div class="card-header">
+                    <ion-icon name="alert-circle-outline"></ion-icon>
+                    <h2>Detalles del Problema</h2>
+                </div>
+                <div class="card-content">
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Tipo de Reporte</label>
+                        <select name="tipo" class="fiori-select">
+                            {% for val, label, is_selected in tipos %}
+                            <option value="{{ val }}" {% if is_selected %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Prioridad</label>
-                        <div class="sap-input-container">
-                            <select name="prioridad">
-                                {% for val, label, is_selected in prioridades %}
-                                <option value="{{ val }}" {% if is_selected %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Prioridad</label>
+                        <select name="prioridad" class="fiori-select">
+                            {% for val, label, is_selected in prioridades %}
+                            <option value="{{ val }}" {% if is_selected %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #fff; border: 1px solid var(--sap-border); border-radius: 4px; margin-top: 10px;">
-                        <label style="margin: 0; font-weight: 600; color: #dc2626; display: flex; align-items: center; gap: 8px;">
-                            <ion-icon name="warning"></ion-icon> ¿Equipo Parado?
-                        </label>
-                        <div class="sap-input-container" style="width: auto;">
-                            <label style="position: relative; display: inline-block; width: 50px; height: 28px; margin: 0;">
-                                <input type="checkbox" name="equipo_parado" id="equipo_parado_toggle" {% if aviso.equipo_parado %}checked{% endif %} style="opacity: 0; width: 0; height: 0;">
-                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px;">
-                                    <span class="slider-knob" style="position: absolute; content: ''; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%;"></span>
-                                </span>
+                    <div class="fiori-form-group">
+                        <div class="fiori-switch">
+                            <label class="fiori-label" style="margin: 0; color: var(--sap-error);">
+                                <ion-icon name="flash-outline"></ion-icon> ¿Equipo Fuera de Servicio?
                             </label>
-                            <style>
-                                input:checked + span { background-color: #dc2626; }
-                                input:checked + span .slider-knob { transform: translateX(22px); }
-                            </style>
+                            <label class="switch-input">
+                                <input type="checkbox" name="equipo_parado" id="equipo_parado_toggle" {% if aviso.equipo_parado %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
 
-                    <!-- NUEVOS CAMPOS DE ASIGNACIÓN -->
-                    <div class="form-group">
-                        <label>Departamento Responsable</label>
-                        <div class="sap-input-container">
-                            <select name="departamento">
-                                <option value="none">-- Sin asignar --</option>
-                                {% for dep in departamentos %}
-                                <option value="{{ dep.id }}" {% if aviso.departamento_id == dep.id %}selected{% endif %}>{{ dep.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Departamento Destino</label>
+                        <select name="departamento" class="fiori-select">
+                            <option value="none">-- Sin asignar --</option>
+                            {% for dep in departamentos %}
+                            <option value="{{ dep.id }}" {% if aviso.departamento_id == dep.id %}selected{% endif %}>{{ dep.nombre }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Responsable Directo</label>
-                        <div class="sap-input-container">
-                            <select name="responsable">
-                                <option value="none">-- Sin asignar --</option>
-                                {% for res in responsables %}
-                                <option value="{{ res.id }}" data-departamento="{{ res.perfil.departamento_id|default:'' }}" {% if aviso.responsable_id == res.id %}selected{% endif %}>
-                                    {{ res.get_full_name|default:res.username }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Técnico Responsable</label>
+                        <select name="responsable" class="fiori-select">
+                            <option value="none">-- Sin asignar --</option>
+                            {% for res in responsables %}
+                            <option value="{{ res.id }}" data-departamento="{{ res.perfil.departamento_id|default:'' }}" {% if aviso.responsable_id == res.id %}selected{% endif %}>
+                                {{ res.get_full_name|default:res.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="form-group" id="falla-group">
-                        <label id="falla-label">Categoría</label>
-                        <div class="sap-input-container">
-                            <select name="falla">
-                                <option value="">Seleccione categoría...</option>
-                            </select>
-                        </div>
+                    <div class="fiori-form-group" id="falla-group">
+                        <label id="falla-label" class="fiori-label">Categoría</label>
+                        <select name="falla" class="fiori-select">
+                            <option value="">Seleccione categoría...</option>
+                        </select>
                     </div>
 
-                    <div class="form-group">
-                        <label id="desc-label">Descripción de Avería</label>
-                        <div class="sap-input-container">
-                            <textarea name="descripcion" id="desc-textarea" placeholder="Ej: Fuga de aceite en el motor principal..."
-                                required>{{ aviso.descripcion|default:'' }}</textarea>
-                        </div>
+                    <div class="fiori-form-group">
+                        <label id="desc-label" class="fiori-label">Descripción de la Falla</label>
+                        <textarea name="description" id="desc-textarea" class="fiori-textarea" placeholder="Describa el problema observado..." required>{{ aviso.descripcion|default:'' }}</textarea>
                     </div>
                 </div>
             </div>
 
-            <!-- SECCIÓN 4: Media -->
-            <div class="fiori-section" style="margin-bottom: 80px;">
-                <div class="section-header">Evidencias Fotográficas</div>
-                <div class="section-content">
-                    <button type="button" class="scan-btn-fiori" onclick="document.getElementById('foto-input').click()"
-                        style="background: white; color: var(--sap-blue); border: 1px solid var(--sap-blue);">
-                        <ion-icon name="camera-outline"></ion-icon>
-                        Tomar Foto
-                    </button>
-                    <input type="file" name="fotos" id="foto-input" accept="image/*" capture="environment" style="display: none;">
-
-                    <div class="photo-grid" id="photo-grid-container"></div>
+            <!-- SECCIÓN 4: Evidencias -->
+            <div class="fiori-card">
+                <div class="card-header">
+                    <ion-icon name="images-outline"></ion-icon>
+                    <h2>Evidencias Fotográficas</h2>
                 </div>
-            </div>
-
-            <div class="footer-actions">
-                <button type="button" class="sap-btn-cancel" onclick="window.history.back()">Cancelar</button>
-                <button type="submit" class="sap-btn-main" id="submit-trigger">Crear Aviso</button>
+                <div class="card-content">
+                    <div class="photo-uploader">
+                        <button type="button" class="fiori-btn fiori-btn-ghost" onclick="document.getElementById('foto-input').click()">
+                            <ion-icon name="camera-outline"></ion-icon>
+                            Capturar Imagen
+                        </button>
+                        <input type="file" name="fotos" id="foto-input" accept="image/*" capture="environment" style="display: none;">
+                        <div class="photo-grid" id="photo-grid-container"></div>
+                    </div>
+                </div>
             </div>
         </form>
     </div>
 
-    <!-- Scanner Modal SAP Style -->
-    <div id="scanner-modal"
-        style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
-        <div style="width: 100%; max-width: 400px; border-radius: 8px; overflow: hidden; position: relative;">
-            <div id="reader" style="width: 100%;"></div>
-            <button id="close-scanner"
-                style="position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.5); color: white; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                <ion-icon name="close-outline"></ion-icon>
-            </button>
-        </div>
-        <p style="color: white; margin-top: 16px;">Escaneando Código...</p>
+    <!-- Botones de Acción -->
+    <div class="fiori-toolbar">
+        <button type="button" class="fiori-btn fiori-btn-ghost" onclick="window.history.back()">Cancelar</button>
+        <button type="submit" form="order-form" class="fiori-btn fiori-btn-primary" id="submit-trigger">
+            <ion-icon name="checkmark-done-outline"></ion-icon> Crear Aviso
+        </button>
+    </div>
+
+    <!-- Scanner Overlay -->
+    <div id="scanner-modal">
+        <div id="reader"></div>
+        <button id="close-scanner" style="margin-top: 20px; background: white; border-radius: 50%; width: 50px; height: 50px; border: none; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+            <ion-icon name="close-outline"></ion-icon>
+        </button>
     </div>
 
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script>
-        // Datos de Ubicaciones (Hierarchical)
+        // Datos de Ubicaciones
         const rawUbicaciones = [
             {% for u in ubicaciones %}
             { id: {{ u.id }}, nombre: "{{ u.nombre }}", padre: {{ u.padre_id|default:"null" }}, tipo: "{{ u.tipo }}" },
@@ -571,64 +540,38 @@
 
         function populateSedes() {
             const sedes = rawUbicaciones.filter(u => u.padre === null);
-            sedes.forEach(s => {
-                const opt = new Option(s.nombre, s.id);
-                selectSede.add(opt);
-            });
+            sedes.forEach(s => selectSede.add(new Option(s.nombre, s.id)));
         }
 
         function populateEdificios(sedeId) {
             selectEdificio.innerHTML = '<option value="">Seleccione Nivel...</option>';
             selectArea.innerHTML = '<option value="">Primero seleccione Nivel</option>';
             selectArea.disabled = true;
-            
-            if (!sedeId) {
-                selectEdificio.disabled = true;
-                return;
-            }
-
+            if (!sedeId) { selectEdificio.disabled = true; return; }
             const hijos = rawUbicaciones.filter(u => u.padre == sedeId);
             if (hijos.length > 0) {
                 hijos.forEach(h => selectEdificio.add(new Option(h.nombre, h.id)));
                 selectEdificio.disabled = false;
-            } else {
-                selectEdificio.disabled = true;
-            }
+            } else { selectEdificio.disabled = true; }
         }
 
         function populateAreas(edificioId) {
             selectArea.innerHTML = '<option value="">Seleccione Area...</option>';
-            if (!edificioId) {
-                selectArea.disabled = true;
-                return;
-            }
-
+            if (!edificioId) { selectArea.disabled = true; return; }
             const hijos = rawUbicaciones.filter(u => u.padre == edificioId);
             if (hijos.length > 0) {
                 hijos.forEach(h => selectArea.add(new Option(h.nombre, h.id)));
                 selectArea.disabled = false;
-            } else {
-                selectArea.disabled = true;
-            }
+            } else { selectArea.disabled = true; }
         }
 
-        selectSede.addEventListener('change', function() {
-            populateEdificios(this.value);
-            finalUbiInput.value = this.value;
-        });
-
-        selectEdificio.addEventListener('change', function() {
-            populateAreas(this.value);
-            finalUbiInput.value = this.value || selectSede.value;
-        });
-
-        selectArea.addEventListener('change', function() {
-            finalUbiInput.value = this.value || selectEdificio.value;
-        });
+        selectSede.addEventListener('change', function() { populateEdificios(this.value); finalUbiInput.value = this.value; });
+        selectEdificio.addEventListener('change', function() { populateAreas(this.value); finalUbiInput.value = this.value || selectSede.value; });
+        selectArea.addEventListener('change', function() { finalUbiInput.value = this.value || selectEdificio.value; });
 
         populateSedes();
 
-        // Asset Search
+        // Asset Search Logic
         const assetSearch = document.getElementById('asset-search');
         const assetIdInput = document.getElementById('asset-id');
         const resultsContainer = document.getElementById('search-results');
@@ -638,22 +581,11 @@
         assetSearch.oninput = function () {
             const q = this.value.trim();
             clearTimeout(searchTimeout);
-            
-            // Clear current selection if typing
             if (q === '') {
                 assetIdInput.value = '';
                 document.getElementById('asset-details-card').style.display = 'none';
             }
-
-            if (q.length < 2) { 
-                resultsContainer.style.display = 'none'; 
-                searchStatus.style.display = 'none';
-                return; 
-            }
-
-            searchStatus.innerText = 'Buscando...';
-            searchStatus.className = 'status-searching';
-            searchStatus.style.display = 'block';
+            if (q.length < 2) { resultsContainer.style.display = 'none'; return; }
 
             searchTimeout = setTimeout(() => {
                 fetch(`{% url "mantenimiento:api_buscar_activos" %}?q=${encodeURIComponent(q)}`)
@@ -661,34 +593,15 @@
                     .then(data => {
                         resultsContainer.innerHTML = '';
                         if (data.results.length) {
-                            searchStatus.innerText = '✅ ' + data.results.length + (data.results.length == 1 ? ' activo encontrado' : ' activos encontrados');
-                            searchStatus.className = 'status-found';
-
                             data.results.forEach(i => {
                                 const div = document.createElement('div');
                                 div.className = 'search-item';
-                                div.innerHTML = `<strong>${i.text}</strong><br><small>${i.ubicacion_nombre}</small>`;
+                                div.innerHTML = `<strong>${i.text}</strong><br><small style="color: #666;">${i.ubicacion_nombre}</small>`;
                                 div.onclick = () => selectAsset(i);
                                 resultsContainer.appendChild(div);
                             });
                             resultsContainer.style.display = 'block';
-
-                            // Auto-select if exact match and only 1 result
-                            if (data.results.length === 1) {
-                                const result = data.results[0];
-                                // Check if query is contained in the text (simple exact-ish match)
-                                if (result.text.toLowerCase().includes(q.toLowerCase())) {
-                                    // If it's a very specific code (longer than 4 chars), auto select
-                                    if (q.length >= 6) {
-                                        selectAsset(result);
-                                    }
-                                }
-                            }
-                        } else {
-                            searchStatus.innerText = '❌ No se encontró ningún activo';
-                            searchStatus.className = 'status-not-found';
-                            resultsContainer.style.display = 'none';
-                        }
+                        } else { resultsContainer.style.display = 'none'; }
                     });
             }, 400);
         };
@@ -697,25 +610,18 @@
             assetSearch.value = item.text;
             assetIdInput.value = item.id;
             resultsContainer.style.display = 'none';
-            searchStatus.style.display = 'none';
-
-            // Populate Details Card
             document.getElementById('detail-marca').innerText = item.marca || '-';
             document.getElementById('detail-modelo').innerText = item.modelo || '-';
             document.getElementById('detail-serie').innerText = item.serie || '-';
             document.getElementById('detail-categoria').innerText = item.categoria || '-';
-            document.getElementById('asset-details-card').style.display = 'block';
-
-            console.log("selectAsset called, ubicacion_id:", item.ubicacion_id, "type:", typeof item.ubicacion_id);
+            document.getElementById('asset-details-card').style.display = 'grid';
             if (item.ubicacion_id) autoSelectHierarchy(item.ubicacion_id);
         }
 
         function autoSelectHierarchy(leafId) {
-            // Find full path from leaf to root
             const path = [];
             let currentId = leafId;
             let visited = new Set();
-
             while (currentId && !visited.has(currentId)) {
                 const u = rawUbicaciones.find(x => x.id == currentId);
                 if (!u) break;
@@ -723,159 +629,81 @@
                 visited.add(currentId);
                 currentId = u.padre;
             }
-
-            console.log('Hierarchy path:', path.map(p => p.nombre + '(' + p.id + ')'));
-
-            // We have 3 selects: Sede (root), Edificio (level 1), Area (level 2)
-            // If the path is deeper than 3, use only the top 3 levels
-            // If the path is 1 level, only set Sede
-            // If the path is 2, set Sede + Edificio
-            // If the path is 3+, set all three using first 3 levels
             if (path.length > 0) {
                 selectSede.value = path[0].id;
                 populateEdificios(path[0].id);
-
                 if (path.length > 1) {
                     selectEdificio.value = path[1].id;
                     populateAreas(path[1].id);
-
-                    if (path.length > 2) {
-                        // Use the deepest known area in our 3-level display
-                        selectArea.value = path[2].id;
-                    }
+                    if (path.length > 2) selectArea.value = path[2].id;
                 }
             }
-            // Always set the actual leaf as the final value
             finalUbiInput.value = leafId;
         }
 
+        // Falla Catalog Logic
         const rawFallas = {{ fallas_json|default:"[]"|safe }};
         const currentFallaId = "{{ aviso.falla_id|default:'' }}";
-        const currentUbiId = "{{ aviso.ubicacion_id|default:'' }}";
         const tipoSelect = document.querySelector('select[name="tipo"]');
         const fallaSelect = document.querySelector('select[name="falla"]');
-        const fallaGroup = document.getElementById('falla-group');
         const fallaLabel = document.getElementById('falla-label');
 
         function updateFallaCatalog() {
             const selectedTipo = tipoSelect.value;
-            // Filter fallas matching the selected type OR generic (no specific type)
             const filtered = rawFallas.filter(f => f.tipo_aviso === selectedTipo || f.tipo_aviso === '');
-            
             fallaSelect.innerHTML = '<option value="">Seleccione categoría...</option>';
             filtered.forEach(f => {
-                const opt = document.createElement('option');
-                opt.value = f.id;
-                opt.innerText = f.nombre;
-                if (currentFallaId && f.id == currentFallaId) {
-                    opt.selected = true;
-                }
-                fallaSelect.appendChild(opt);
+                const opt = new Option(f.nombre, f.id);
+                if (currentFallaId && f.id == currentFallaId) opt.selected = true;
+                fallaSelect.add(opt);
             });
-
-            // Always show catalog, adapt label
-            const typeOption = tipoSelect.options[tipoSelect.selectedIndex];
-            const typeText = typeOption.text.split('(')[0].trim();
-            const descLabel = document.getElementById('desc-label');
-            const descTextarea = document.getElementById('desc-textarea');
-
-            if (selectedTipo === 'AVERIA') {
-                fallaLabel.innerText = 'Categoría de Falla';
-                descLabel.innerText = 'Descripción de Avería';
-                descTextarea.placeholder = 'Ej: Fuga de aceite en el motor principal...';
-            } else {
-                fallaLabel.innerText = 'Categoría de ' + typeText;
-                descLabel.innerText = 'Descripción de ' + typeText;
-                
-                if (selectedTipo === 'MAL_USO') {
-                    descTextarea.placeholder = 'Detalle aquí el mal uso observado (ej: grafiti, equipo dañado intencionalmente)...';
-                } else {
-                    descTextarea.placeholder = 'Detalle aquí la información técnica o requerimientos...';
-                }
-            }
         }
-
-        if (tipoSelect) {
-            tipoSelect.addEventListener('change', updateFallaCatalog);
-            updateFallaCatalog();
-        }
+        tipoSelect.addEventListener('change', updateFallaCatalog);
+        updateFallaCatalog();
 
         // Scanner Logic
         const scannerModal = document.getElementById('scanner-modal');
-        const closeScanBtn = document.getElementById('close-scanner');
         let html5QrCode;
-
         document.getElementById('start-scan').onclick = () => {
             scannerModal.style.display = 'flex';
-            if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("reader");
-            }
-            
-            // Pausa para asegurar que Safari tenga el DOM listo
+            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
             setTimeout(() => {
-                html5QrCode.start(
-                    { facingMode: "environment" }, 
-                    { 
-                        fps: 10, 
-                        qrbox: 250,
-                        aspectRatio: undefined // Mejor compatibilidad en iOS
-                    }, 
-                    (text) => {
-                        html5QrCode.stop().then(() => {
-                            scannerModal.style.display = 'none';
-                            assetSearch.value = text;
-                            assetSearch.oninput();
-                        });
-                    }
-                ).catch(e => { 
-                    console.error("Scanner error:", e);
-                    alert("Error al abrir cámara. Verifica permisos en Safari."); 
-                    scannerModal.style.display = 'none'; 
-                });
+                html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                    html5QrCode.stop().then(() => {
+                        scannerModal.style.display = 'none';
+                        assetSearch.value = text;
+                        assetSearch.oninput();
+                    });
+                }).catch(e => { scannerModal.style.display = 'none'; alert("Error de cámara"); });
             }, 300);
         };
-        closeScanBtn.onclick = () => { 
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => scannerModal.style.display = 'none');
-            } else {
-                scannerModal.style.display = 'none';
-            }
+        document.getElementById('close-scanner').onclick = () => {
+            if (html5QrCode && html5QrCode.isScanning) html5QrCode.stop().then(() => scannerModal.style.display = 'none');
+            else scannerModal.style.display = 'none';
         };
 
-        // Photos
+        // Photo Logic
         const photoInput = document.getElementById('foto-input');
         const photoGrid = document.getElementById('photo-grid-container');
-        
-        let selectedFiles = []; // Mantener nuestro propio arreglo seguro
-        
+        let selectedFiles = [];
+
         function syncFilesInput() {
             const newDt = new DataTransfer();
             selectedFiles.forEach(f => newDt.items.add(f.file));
             photoInput.files = newDt.files;
-            
-            // Renombrar dinamicamente los descripciones[] 
-            // para que respeten el orden de la grilla DOM
-            const descInputs = photoGrid.querySelectorAll('input[type="text"]');
-            descInputs.forEach(inp => inp.name = "descripciones[]");
         }
 
         photoInput.onchange = function () {
             Array.from(this.files).forEach((file) => {
-                const fileObj = {
-                    file: file,
-                    id: Math.random().toString(36).substring(7)
-                };
+                const fileObj = { file: file, id: Math.random().toString(36).substring(7) };
                 selectedFiles.push(fileObj);
-                
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const div = document.createElement('div');
                     div.className = 'photo-item';
-                    div.style.display = 'flex';
-                    div.style.flexDirection = 'column';
                     div.innerHTML = `
-                        <img src="${e.target.result}" style="flex-grow: 1; min-height: 0;">
-                        <input type="text" name="descripciones[]" placeholder="Añadir nota..." style="width: 100%; border: none; border-top: 1px solid #ddd; padding: 4px; font-size: 10px; flex-shrink: 0; outline: none; background: #fff;">
+                        <img src="${e.target.result}">
+                        <input type="hidden" name="descripciones[]" value="">
                         <button type="button" class="photo-remove">×</button>
                     `;
                     div.querySelector('button').onclick = () => {
@@ -884,197 +712,76 @@
                         syncFilesInput();
                     };
                     photoGrid.appendChild(div);
-                    syncFilesInput(); // Sincroniza el arrelgo y Nombres []
+                    syncFilesInput();
                 };
                 reader.readAsDataURL(file);
             });
-            // Ocultamos el value nativo para que no repinte dobles al volver a clicar
             this.value = '';
         };
 
-        // Initial Load Handling
-        window.addEventListener('load', () => {
-            const initialAssetId = assetIdInput.value;
-            if (initialAssetId) {
-                {% if activo %}
-                const initialItem = {
-                    id: "{{ activo.id }}",
-                    text: "{{ activo.nombre }} [{{ activo.codigo_interno }}]",
-                    ubicacion_id: "{{ activo.ubicacion.id|default:'' }}",
-                    marca: "{{ activo.modelo.marca.nombre|default:activo.marca_legacy|default:'S/M' }}",
-                    modelo: "{{ activo.modelo.nombre|default:activo.modelo_legacy|default:'S/M' }}",
-                    categoria: "{{ activo.modelo.categoria.nombre|default:'S/C' }}",
-                    serie: "{{ activo.serie|default:'S/S' }}"
-                };
-                selectAsset(initialItem);
-                {% endif %}
-            } else {
-                // Si no hay activo pero hay una ubicación por defecto (ej. desde el scanner de ubicaciones)
-                {% if ubi_defecto %}
-                autoSelectHierarchy("{{ ubi_defecto.id }}");
-                {% endif %}
-            }
-        });
-
-        // IndexedDB wrapper
-        function saveAvisoOffline(payload) {
+        // Offline Logic
+        async function saveAvisoOffline(payload) {
+            const dbRequest = indexedDB.open('SoftcomOfflineDB', 1);
+            dbRequest.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('offlineAvisos')) db.createObjectStore('offlineAvisos', { keyPath: 'id' });
+            };
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open('SoftcomOfflineDB', 1);
-                
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains('offlineAvisos')) {
-                        db.createObjectStore('offlineAvisos', { keyPath: 'id' });
-                    }
-                };
-
-                request.onsuccess = (e) => {
+                dbRequest.onsuccess = (e) => {
                     const db = e.target.result;
                     const tx = db.transaction('offlineAvisos', 'readwrite');
-                    const store = tx.objectStore('offlineAvisos');
-                    store.add(payload);
+                    tx.objectStore('offlineAvisos').add(payload);
                     tx.oncomplete = () => resolve();
                     tx.onerror = () => reject(tx.error);
                 };
-
-                request.onerror = () => reject(request.error);
             });
         }
 
-        // Form Submit
         document.getElementById('order-form').onsubmit = async function (e) {
             const btn = document.getElementById('submit-trigger');
-
             if (!navigator.onLine) {
                 e.preventDefault();
-                btn.disabled = true;
-                btn.innerText = 'Procesando Offline...';
-                console.log("Offline mode detected. Saving locally...");
-
+                btn.disabled = true; btn.innerText = 'Guardando...';
                 try {
-                    const form = this;
-                    const formData = new FormData(form);
-                    
-                    // Convert files to base64
-                    const filePromises = [];
-                    const fileInputs = form.querySelectorAll('input[type="file"]');
-                    for (let input of fileInputs) {
-                        if (input.files) {
-                            for (let file of input.files) {
-                                filePromises.push(new Promise((resolve, reject) => {
-                                    const reader = new FileReader();
-                                    reader.onload = () => resolve({
-                                        fieldName: input.name,
-                                        name: file.name,
-                                        type: file.type,
-                                        data: reader.result
-                                    });
-                                    reader.onerror = reject;
-                                    reader.readAsDataURL(file);
-                                }));
-                            }
-                        }
-                    }
-
-                    const base64Files = await Promise.all(filePromises);
-
-                    // Construir el payload
-                    const payload = {
-                        id: Date.now() + Math.random().toString(36).substr(2, 9),
-                        timestamp: Date.now(),
-                        fields: {},
-                        files: base64Files
-                    };
-
+                    const formData = new FormData(this);
+                    const payload = { id: Date.now().toString(), timestamp: Date.now(), fields: {}, files: [] };
                     for (let [key, value] of formData.entries()) {
-                        if (!(value instanceof File)) {
-                            if (payload.fields[key] !== undefined) {
-                                if (!Array.isArray(payload.fields[key])) {
-                                    payload.fields[key] = [payload.fields[key]];
-                                }
-                                payload.fields[key].push(value);
-                            } else {
-                                payload.fields[key] = value;
-                            }
-                        }
+                        if (!(value instanceof File)) payload.fields[key] = value;
                     }
-
-                    // Guardar en IndexedDB
                     await saveAvisoOffline(payload);
-
-                    if (window.Swal) {
-                        await Swal.fire({
-                            title: 'Sin Conexión', 
-                            text: 'El aviso ha sido guardado localmente y se enviará cuando recupere la señal.', 
-                            icon: 'info',
-                            confirmButtonColor: '#0a6ed1'
-                        });
-                    } else {
-                        alert("Sin Conexión. El aviso ha sido guardado localmente y se enviará cuando recupere la señal.");
-                    }
+                    await Swal.fire('Guardado Offline', 'Se enviará cuando recuperes señal.', 'info');
                     window.location.href = "{% url 'mantenimiento:mobile_mis_avisos' %}";
-                    
-                } catch (error) {
-                    console.error("Error saving offline", error);
-                    btn.disabled = false;
-                    btn.innerText = 'Crear Aviso';
-                    if (window.Swal) Swal.fire('Error', 'No se pudo guardar el aviso offline.', 'error');
-                }
-            } else {
-                btn.disabled = true;
-                btn.innerText = 'Procesando...';
-            }
+                } catch (err) { btn.disabled = false; btn.innerText = 'Crear Aviso'; }
+            } else { btn.disabled = true; btn.innerText = 'Procesando...'; }
         };
 
-        // Initialize state if editing
+        // Initial department filter
+        const depSelect = document.querySelector('select[name="departamento"]');
+        const resSelect = document.querySelector('select[name="responsable"]');
+        if (depSelect && resSelect) {
+            const resOptions = Array.from(resSelect.options);
+            function filterResponsables() {
+                const depId = depSelect.value;
+                resOptions.forEach(opt => {
+                    if (opt.value === 'none') return;
+                    opt.style.display = (depId === 'none' || opt.getAttribute('data-departamento') === depId) ? 'block' : 'none';
+                });
+                if (resSelect.selectedOptions[0].style.display === 'none') resSelect.value = 'none';
+            }
+            depSelect.addEventListener('change', filterResponsables);
+            filterResponsables();
+        }
+
         window.addEventListener('load', () => {
-            if (currentUbiId) {
-                autoSelectHierarchy(currentUbiId);
-            }
-            if (tipoSelect) {
-                updateFallaCatalog();
-            }
-
-            // Lógica de filtrado de responsables por departamento
-            const depSelect = document.querySelector('select[name="departamento"]');
-            const resSelect = document.querySelector('select[name="responsable"]');
-            
-            if (depSelect && resSelect) {
-                const resOptions = Array.from(resSelect.options);
-                
-                function filterResponsables() {
-                    const selectedDepId = depSelect.value;
-                    const currentValue = resSelect.value;
-                    let firstValidOption = null;
-
-                    resOptions.forEach(opt => {
-                        if (opt.value === 'none') {
-                            opt.style.display = 'block';
-                            return;
-                        }
-                        
-                        const optDepId = opt.getAttribute('data-departamento');
-                        if (selectedDepId === 'none' || optDepId === selectedDepId) {
-                            opt.style.display = 'block';
-                            if (!firstValidOption) firstValidOption = opt.value;
-                        } else {
-                            opt.style.display = 'none';
-                        }
-                    });
-
-                    // Si el valor actual ya no es visible, resetear a ninguno
-                    const currentOpt = resSelect.options[resSelect.selectedIndex];
-                    if (currentOpt && currentOpt.style.display === 'none') {
-                        resSelect.value = 'none';
-                    }
-                }
-
-                depSelect.addEventListener('change', filterResponsables);
-                // Inicializar filtro
-                filterResponsables();
-            }
+            {% if activo %}selectAsset({
+                id: "{{ activo.id }}", text: "{{ activo.nombre }} [{{ activo.codigo_interno }}]",
+                ubicacion_id: "{{ activo.ubicacion.id|default:'' }}",
+                marca: "{{ activo.modelo.marca.nombre|default:activo.marca_legacy|default:'S/M' }}",
+                modelo: "{{ activo.modelo.nombre|default:activo.modelo_legacy|default:'S/M' }}",
+                categoria: "{{ activo.modelo.categoria.nombre|default:'S/C' }}",
+                serie: "{{ aviso.activo.serie|default:'S/S' }}"
+            });{% endif %}
         });
     </script>
 </body>
-
 </html>

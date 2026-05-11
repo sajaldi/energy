@@ -24,8 +24,13 @@ def get_knowledge_base():
         print(f"Error reading knowledge base: {e}")
         return ""
 
-def get_embedding(text, task_type="retrieval_document"):
+def get_embedding(text, task_type="retrieval_document", dimensions=None):
     """Obtiene embedding usando Gemini u Ollama según configuración."""
+    # Intentar obtener dimensiones por defecto de settings si no se especifican
+    if dimensions is None:
+        # Por compatibilidad con los nuevos modelos de Documentos, usamos 768 si no se dice nada.
+        dimensions = getattr(settings, "VECTOR_DIMENSIONS", 768)
+
     if API_KEY:
         import google.generativeai as genai
         genai.configure(api_key=API_KEY)
@@ -34,7 +39,7 @@ def get_embedding(text, task_type="retrieval_document"):
                 model="models/text-embedding-004",
                 content=text,
                 task_type=task_type,
-                output_dimensionality=384
+                output_dimensionality=dimensions
             )
             return result['embedding']
         except Exception as e:
@@ -50,7 +55,11 @@ def get_embedding(text, task_type="retrieval_document"):
         }, timeout=30)
         resp.raise_for_status()
         embedding = resp.json().get("embedding")
-        return embedding[:384] if embedding else None
+        
+        if embedding and dimensions:
+            # Si el embedding es más largo que lo solicitado, truncar.
+            return embedding[:dimensions]
+        return embedding
     except Exception as e:
         print(f"Error Ollama embedding: {e}")
         return None

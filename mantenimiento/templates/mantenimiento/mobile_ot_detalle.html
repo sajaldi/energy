@@ -20,19 +20,30 @@
 
     <style>
         :root {
-            /* AutoCAD Fusion 360 Inspired Palette (Light Theme) */
-            --fusion-bg: #f9f9f9;
-            --fusion-panel: #ffffff;
-            --fusion-header: #f1f1f1;
-            --fusion-border: #d5d5d5;
-            --fusion-accent: #0696d7; /* Fusion Blue */
-            --fusion-blue: #0696d7;
-            --fusion-text: #2c2c2c;
-            --fusion-text-muted: #6e6e6e;
+            /* SAP Fiori Classic Tokens */
+            --sap-bg-color: #f5f6f7;
+            --sap-shell-bg: #354a5f;
+            --sap-brand-color: #0070f2;
+            --sap-text-color: #32363a;
+            --sap-text-muted: #6a6d70;
+            --sap-border-color: #d8d8d8;
+            --sap-card-bg: #ffffff;
+            --sap-card-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+            --sap-border-radius: 2px;
+            
+            /* Semantic Colors */
+            --sap-success: #107e3e;
+            --sap-success-bg: #f0f7f3;
+            --sap-warning: #e9730c;
+            --sap-warning-bg: #fdf6f0;
+            --sap-error: #bb0000;
+            --sap-error-bg: #fff1f1;
+            --sap-information: #0a6ed1;
+            --sap-information-bg: #f0f7fd;
         }
 
         body {
-            font-family: var(--sap-font-family);
+            font-family: 'Inter', sans-serif;
             background-color: var(--sap-bg-color);
             color: var(--sap-text-color);
             margin: 0;
@@ -40,7 +51,7 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* SAP Fiori Shell Header */
+        /* SAP Fiori Shell Header (Classic) */
         header {
             background-color: var(--sap-shell-bg);
             color: white;
@@ -59,77 +70,85 @@
             margin-right: 12px;
             display: flex;
             text-decoration: none;
+            background: rgba(255,255,255,0.15);
+            padding: 4px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
         .shell-title {
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             flex-grow: 1;
+            text-transform: uppercase;
         }
 
-        /* Object Header */
+        /* Object Header (Classic) */
         .object-header {
             background-color: white;
-            padding: 20px 16px;
+            padding: 24px 16px;
             border-bottom: 1px solid var(--sap-border-color);
-            margin-bottom: 12px;
+            margin-bottom: 16px;
+            border-top: 4px solid var(--sap-brand-color);
         }
 
         .object-id {
-            font-size: 20px;
-            font-weight: 700;
+            font-size: 22px;
+            font-weight: 800;
             margin: 0 0 4px 0;
-            color: var(--sap-brand-color);
+            color: var(--sap-text-color);
         }
 
         .object-subtitle {
-            font-size: 13px;
+            font-size: 14px;
             color: var(--sap-text-muted);
-            margin-bottom: 12px;
-        }
-
-        .tag {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 11px;
+            margin-bottom: 16px;
             font-weight: 700;
             text-transform: uppercase;
         }
 
-        .tag-status-REALIZADA { background: #e7f4e9; color: #107e3e; }
-        .tag-status-EJECUCION { background: #e8f0f8; color: #0a6ed1; }
-        .tag-status-PROGRAMADA { background: #fef4e6; color: #e9730c; }
-        .tag-status-ESPERA { background: #f2f2f2; color: #6a6d70; }
+        .fiori-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
 
-        /* Sections & Cards */
+        .badge-REALIZADA { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .badge-EJECUCION { background: var(--sap-information-bg); color: var(--sap-information); border: 1px solid var(--sap-information); }
+        .badge-PROGRAMADA { background: var(--sap-warning-bg); color: var(--sap-warning); border: 1px solid var(--sap-warning); }
+        .badge-ESPERA { background: #f2f2f2; color: #6a6d70; border: 1px solid #ccc; }
+
+        /* Container & Cards (Classic) */
         .container {
-            padding: 0 12px;
+            padding: 0 16px;
         }
 
         .fiori-card {
             background: var(--sap-card-bg);
             border: 1px solid var(--sap-border-color);
             border-radius: var(--sap-border-radius);
-            margin-bottom: 12px;
+            margin-bottom: 16px;
             overflow: hidden;
             box-shadow: var(--sap-card-shadow);
         }
 
         .card-header {
             padding: 12px 16px;
-            border-bottom: 1px solid var(--sap-border-color);
-            background: var(--sap-bg-color);
+            border-bottom: 1px solid #f0f0f0;
+            background: #fafafa;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
         .card-header h2 {
             margin: 0;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--sap-label);
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -138,231 +157,131 @@
             padding: 16px;
         }
 
-        /* Fiori Form Layout */
+        /* Form Layout */
         .fiori-form-group {
             margin-bottom: 16px;
         }
 
         .fiori-form-group label {
             display: block;
-            font-size: 12px;
-            color: var(--sap-label);
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
             margin-bottom: 6px;
+            text-transform: uppercase;
         }
 
-        .fiori-input, .fiori-select {
+        .fiori-input, .fiori-select, textarea.fiori-input {
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #bcbcbc;
-            border-radius: 4px;
+            padding: 12px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
             font-family: inherit;
             font-size: 14px;
-            color: var(--sap-text);
-            background: #ffffff;
-            box-sizing: border-box;
+            color: var(--sap-text-color);
+            background: #fafafa;
+            outline: none;
             transition: border-color 0.2s;
         }
 
-        .fiori-input:focus, .fiori-select:focus {
-            outline: none;
+        .fiori-input:focus {
             border-color: var(--sap-brand-color);
-            box-shadow: 0 0 0 1px var(--sap-brand-color);
+            background: white;
+            box-shadow: inset 0 0 0 1px var(--sap-brand-color);
         }
 
-        /* Select2 Fiori Theme adjustments */
-        .select2-container .select2-selection--single {
-            height: 40px;
-            border: 1px solid #bcbcbc;
-            border-radius: 4px;
-            font-family: inherit;
-            display: flex;
-            align-items: center;
-        }
-        .select2-container--default .select2-selection--single .select2-selection__rendered {
-            color: var(--sap-text);
-            line-height: normal;
-        }
-        .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 38px;
-        }
-        .select2-container--open .select2-selection--single {
-            border-color: var(--sap-brand-color);
-            box-shadow: 0 0 0 1px var(--sap-brand-color);
+        /* Select2 Customization (Classic) */
+        .select2-container--default .select2-selection--single, 
+        .select2-container--default .select2-selection--multiple {
+            border: 1px solid var(--sap-border-color) !important;
+            border-radius: 2px !important;
+            min-height: 44px !important;
+            background: #fafafa !important;
         }
 
-        /* Asset List */
+        /* Assets (Classic) */
         .asset-item {
             display: flex;
             align-items: center;
-            padding: 12px;
-            border-bottom: 1px solid var(--sap-border);
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
             text-decoration: none;
             color: inherit;
+            transition: all 0.2s;
         }
 
-        .asset-item:last-child { border-bottom: none; }
+        .asset-item:active { background: #f0f7fd; }
 
         .asset-icon {
-            width: 32px;
-            height: 32px;
-            background: #f0f4f8;
-            border-radius: 6px;
+            width: 44px;
+            height: 44px;
+            background: var(--sap-information-bg);
+            border-radius: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin-right: 12px;
             color: var(--sap-brand-color);
+            font-size: 22px;
+            border: 1px solid rgba(0, 112, 242, 0.1);
         }
 
-        .asset-info h4 { margin: 0; font-size: 14px; font-weight: 600; }
-        .asset-info p { margin: 0; font-size: 12px; color: var(--sap-label); }
+        .asset-info h4 { margin: 0 0 4px 0; font-size: 15px; font-weight: 800; }
+        .asset-info p { margin: 0; font-size: 12px; color: var(--sap-text-muted); font-weight: 500; }
 
-        /* Fiori Footer Toolbar */
-        .fiori-footer {
+        /* Action Toolbar (Classic) */
+        .fiori-toolbar {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
             background: white;
-            border-top: 1px solid var(--sap-border);
-            padding: 12px 16px;
+            border-top: 1px solid var(--sap-border-color);
+            padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
             display: flex;
-            justify-content: flex-end;
-            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
             z-index: 1000;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
         }
 
         .fiori-btn {
-            padding: 10px 16px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            border: 1px solid transparent;
+            padding: 12px 16px;
+            border-radius: 2px;
+            font-size: 14px;
+            font-weight: 800;
             display: flex;
-            align-items: center;
-            gap: 6px;
-            text-decoration: none;
-            font-family: inherit;
-        }
-
-        .fiori-btn-primary {
-            background-color: var(--sap-brand-color);
-            color: white;
-        }
-
-        .fiori-btn-ghost {
-            background-color: transparent;
-            border-color: var(--sap-brand-color);
-            color: var(--sap-brand-color);
-        }
-
-        .fiori-btn-success {
-            background-color: var(--sap-success);
-            color: white;
-        }
-
-        .fiori-btn-purple {
-            background: #8b5cf6;
-            color: white;
-        }
-
-        .fiori-btn-danger {
-            background-color: var(--sap-error);
-            color: white;
-        }
-
-        /* Feedback Toast */
-        #toast {
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #32363a;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 13px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            z-index: 2000;
-            white-space: nowrap;
-        }
-
-        #toast.show { opacity: 1; }
-
-        /* Archivos Adjuntos */
-        .attachments-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 10px;
-        }
-
-        /* Technical Photo UI for Detalle */
-        .attachment-item {
-            position: relative;
-            border-radius: 4px;
-            overflow: hidden;
-            border: 1px solid var(--fusion-border);
-            aspect-ratio: 1;
-            background: #1a1a1a;
-            display: flex;
-            flex-direction: column;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        
-        .attachment-item:hover {
-            transform: scale(1.02);
-            border-color: var(--fusion-blue);
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            z-index: 2000;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .modal-content {
-            max-width: 95%;
-            max-height: 85%;
-            position: relative;
-        }
-
-        .modal-image {
-            width: 100%;
-            height: auto;
-            max-height: 80vh;
-            border: 1px solid var(--fusion-blue);
-            border-radius: 4px;
-        }
-
-        .modal-close {
-            position: absolute;
-            top: -45px;
-            right: 0;
-            color: white;
-            font-size: 35px;
+            gap: 8px;
+            text-decoration: none;
+            border: 1px solid transparent;
             cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+        }
+
+        .fiori-btn-primary { background: var(--sap-brand-color); color: white; }
+        .fiori-btn-ghost { background: transparent; border-color: var(--sap-brand-color); color: var(--sap-brand-color); }
+        .fiori-btn-success { background: var(--sap-success); color: white; }
+        .fiori-btn-danger { background: var(--sap-error); color: white; }
+
+        /* Media */
+        .attachments-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .attachment-item {
+            aspect-ratio: 1;
+            border: 1px solid var(--sap-border-color);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .attachment-item img {
@@ -371,114 +290,85 @@
             object-fit: cover;
         }
 
-        .attachment-item .file-icon {
-            font-size: 32px;
-            color: var(--sap-brand-color);
-            margin-bottom: 4px;
-        }
-
-        .attachment-item .file-name {
-            font-size: 10px;
-            text-align: center;
-            padding: 0 4px;
-            color: var(--sap-text-muted);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 100%;
-        }
-
         .attachment-delete {
             position: absolute;
-            top: 4px;
-            right: 4px;
+            top: 4px; right: 4px;
+            width: 24px; height: 24px;
             background: rgba(0,0,0,0.6);
             color: white;
-            border: none;
             border-radius: 50%;
-            width: 22px;
-            height: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            font-size: 12px;
+            border: none;
+            font-size: 16px;
         }
 
-        .upload-area {
-            border: 2px dashed var(--sap-border-color);
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: var(--sap-text-muted);
-            margin-bottom: 12px;
-        }
-
-        .upload-area:hover, .upload-area.dragover {
-            border-color: var(--sap-brand-color);
-            background: rgba(10, 110, 209, 0.04);
-        }
-
-        .upload-area ion-icon {
-            font-size: 28px;
-            display: block;
-            margin: 0 auto 6px;
-        }
-
-        .upload-progress {
-            display: none;
-            text-align: center;
-            padding: 12px;
+        /* Toast */
+        #toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #32363a;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 2px;
             font-size: 13px;
-            color: var(--sap-brand-color);
+            font-weight: 700;
+            z-index: 2000;
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            text-transform: uppercase;
         }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
 
-        /* Overflow Actions Menu */
+        /* Overlays */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+
         .more-actions-menu {
             display: none;
             position: absolute;
-            bottom: 50px;
-            right: 0;
+            bottom: 80px;
+            right: 16px;
             background: white;
             border: 1px solid var(--sap-border-color);
-            border-radius: 8px;
-            box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
-            flex-direction: column;
-            min-width: 220px;
-            z-index: 2000;
+            border-radius: 2px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            width: 240px;
+            z-index: 2001;
             overflow: hidden;
         }
-
-        .more-actions-menu.show {
-            display: flex;
-        }
-
-        .more-actions-menu > a, .more-actions-menu > button {
-            padding: 14px 16px;
-            text-align: left;
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid var(--sap-border-color);
+        .more-actions-menu.show { display: block; }
+        .more-actions-menu button, .more-actions-menu a {
             width: 100%;
-            color: var(--sap-text-color);
-            font-size: 14px;
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            text-align: left;
             display: flex;
             align-items: center;
             gap: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--sap-text-color);
             text-decoration: none;
+            border-bottom: 1px solid #f0f0f0;
             font-family: inherit;
-            cursor: pointer;
+            text-transform: uppercase;
         }
-
-        .more-actions-menu > a:last-child, .more-actions-menu > button:last-child {
-            border-bottom: none;
-        }
-        
-        .more-actions-menu > a:hover, .more-actions-menu > button:hover {
-            background: #f8f9fa;
-        }
+        .more-actions-menu button:active { background: #f0f7fd; }
     </style>
 </head>
 
@@ -488,144 +378,95 @@
         <a href="javascript:history.back()" class="back-btn">
             <ion-icon name="chevron-back-outline"></ion-icon>
         </a>
-        <div class="shell-title">Orden de Trabajo</div>
-        <ion-icon name="notifications-outline" style="font-size: 20px;"></ion-icon>
+        <div class="shell-title">Detalle de OT</div>
     </header>
 
     <div class="object-header">
         <h1 class="object-id">OT #{{ ot.codigo_de_orden|default:ot.id }}</h1>
         <div class="object-subtitle">
-            {% if ot.rutina %}{{ ot.rutina.nombre }}{% elif ot.aviso %}{{ ot.aviso.descripcion }}{% else %}Correctiva General{% endif %}
+            {% if ot.rutina %}{{ ot.rutina.nombre }}{% elif ot.aviso %}{{ ot.aviso.descripcion }}{% else %}Mantenimiento Correctivo{% endif %}
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="tag tag-status-{{ ot.estado|default:'ESPERA' }}">{{ ot.get_estado_display|default:'Pendiente' }}</span>
-            <div style="font-size: 12px; color: var(--sap-label); font-weight: 600;">{{ ot.get_prioridad_display|default:'Media' }}</div>
-        </div>
+        <span class="fiori-badge badge-{{ ot.estado|default:'ESPERA' }}">{{ ot.get_estado_display|default:'Pendiente' }}</span>
     </div>
 
     <div class="container">
-        <!-- Web Push Subscription -->
-        <div class="fiori-card" style="border-left: 4px solid #3b82f6; background: #eff6ff;">
+        <!-- Notificaciones Card -->
+        <div class="fiori-card" style="border-left: 4px solid var(--sap-brand-color); background: var(--sap-information-bg);">
             <div class="card-content" style="padding: 12px; display: flex; align-items: center; justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <ion-icon name="notifications-outline" style="font-size: 24px; color: #3b82f6;"></ion-icon>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <ion-icon name="notifications-outline" style="font-size: 24px; color: var(--sap-brand-color);"></ion-icon>
                     <div>
-                        <h4 style="margin: 0; font-size: 14px;">Notificaciones Push</h4>
-                        <p style="margin: 0; font-size: 11px; color: #64748b;">Activa las alertas invasivas en este navegador.</p>
+                        <h4 style="margin: 0; font-size: 14px;">Notificaciones</h4>
+                        <p style="margin: 0; font-size: 11px; color: var(--sap-text-muted);">Recibe alertas en tiempo real.</p>
                     </div>
                 </div>
                 {% webpush_button %}
             </div>
         </div>
-        <!-- Asignación Section -->
+
+        <!-- Asignación -->
         <div class="fiori-card">
             <div class="card-header">
-                <ion-icon name="people-outline"></ion-icon>
-                <h2>Asignación y Planificación</h2>
+                <ion-icon name="person-outline"></ion-icon>
+                <h2>Planificación</h2>
             </div>
             <div class="card-content">
                 <form id="assignmentForm">
                     {% csrf_token %}
                     <div class="fiori-form-group">
-                        <label>Superior / Supervisor OCC</label>
+                        <label>Supervisor Responsable</label>
                         <select name="supervisor" class="fiori-select" onchange="updateOT()">
-                            <option value="none">-- Seleccionar Supervisor --</option>
+                            <option value="none">-- Seleccionar --</option>
                             {% for s in supervisores %}
-                            <option value="{{ s.id }}" {% if ot.supervisor_id == s.id %}selected{% endif %}>
-                                {{ s.get_full_name|default:s.username }}
-                            </option>
+                            <option value="{{ s.id }}" {% if ot.supervisor_id == s.id %}selected{% endif %}>{{ s.get_full_name|default:s.username }}</option>
                             {% endfor %}
                         </select>
                     </div>
-
                     <div class="fiori-form-group">
-                        <label>Empresa Responsable</label>
+                        <label>Empresa</label>
                         <select name="empresa_responsable" id="empresa_responsable_select" class="fiori-select" onchange="updateOT(); filterTecnicosByEmpresa();">
-                            <option value="none">-- Seleccionar Empresa --</option>
+                            <option value="none">-- Seleccionar --</option>
                             {% for e in empresas %}
-                            <option value="{{ e.id }}" {% if ot.empresa_responsable_id == e.id %}selected{% endif %}>
-                                {{ e.nombre }}
-                            </option>
+                            <option value="{{ e.id }}" {% if ot.empresa_responsable_id == e.id %}selected{% endif %}>{{ e.nombre }}</option>
                             {% endfor %}
                         </select>
                     </div>
-
                     <div class="fiori-form-group">
-                        <label>Técnico Líder / Principal</label>
+                        <label>Responsable Líder</label>
                         <select name="tecnico" id="tecnico_leader_select" class="fiori-select" onchange="autoSelectEmpresa(this); updateOT();">
-                            <option value="none">-- Seleccionar Responsable --</option>
+                            <option value="none">-- Seleccionar --</option>
                             {% for p in personales %}
-                            <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}" {% if ot.tecnico_puesto_id == p.id %}selected{% endif %}>
-                                {{ p.nombre }} {{ p.apellido }}
-                            </option>
+                            <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}" {% if ot.tecnico_puesto_id == p.id %}selected{% endif %}>{{ p.nombre }} {{ p.apellido }}</option>
                             {% endfor %}
                         </select>
                     </div>
-
                     <div class="fiori-form-group">
-                        <label>Equipo de Técnicos (Opcional)</label>
-                        <select name="tecnicos" id="tecnicosSelect" class="fiori-select" multiple="multiple" onchange="updateOT()">
-                            {% for p in personales %}
-                            <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}" {% if p.id in colaboradores_ids %}selected{% endif %}>
-                                {{ p.nombre }} {{ p.apellido }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <label>Inicio Programado</label>
+                        <input type="datetime-local" name="inicio_programado" class="fiori-input" value="{{ ot.inicio_programado|date:'Y-m-d\TH:i' }}" onchange="updateOT()">
                     </div>
-
                     <div class="fiori-form-group">
-                        <label>Descripción detallada</label>
+                        <label>Descripción / Objetivo</label>
                         <textarea name="descripcion_detallada" class="fiori-input" rows="3" onchange="updateOT()">{{ ot.descripcion_detallada|default:'' }}</textarea>
-                    </div>
-
-                    <div class="fiori-form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div>
-                            <label>Inicio Programado</label>
-                            <input type="datetime-local" name="inicio_programado" class="fiori-input" 
-                                   value="{{ ot.inicio_programado|date:'Y-m-d\TH:i' }}" onchange="updateOT()">
-                        </div>
-                        <div>
-                            <label>Fin Programado</label>
-                            <input type="datetime-local" name="fin_programado" class="fiori-input" 
-                                   value="{{ ot.fin_programado|date:'Y-m-d\TH:i' }}" onchange="updateOT()">
-                        </div>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- Details Section -->
+        <!-- Ubicación e Información -->
         <div class="fiori-card">
             <div class="card-header">
-                <ion-icon name="information-circle-outline"></ion-icon>
-                <h2>Información General</h2>
+                <ion-icon name="location-outline"></ion-icon>
+                <h2>Información de Campo</h2>
             </div>
             <div class="card-content">
                 <div class="fiori-form-group">
-                    <label>Ubicación</label>
-                    <div style="font-weight: 500;">
-                        {% if ot.ubicacion %}
-                            {{ ot.ubicacion.get_ruta_completa }}
-                        {% else %}
-                            <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <select id="ubicacion_principal" name="ubicacion" form="assignmentForm" class="fiori-select" style="border: 1px dashed var(--sap-brand-color); color: var(--sap-brand-color); background: rgba(10, 110, 209, 0.04);">
-                                    <option value="">-- Edificio / Principal --</option>
-                                    {% for ubi in ubicaciones %}
-                                    <option value="{{ ubi.id }}">{{ ubi.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-
-                                <select id="ubicacion_hijo" name="ubicacion_hijo" class="fiori-select" style="border: 1px dashed #666; color: #333; background: #fafafa; display: none;">
-                                    <option value="">-- Nivel / Área (Opcional) --</option>
-                                </select>
-                            </div>
-                        {% endif %}
-                    </div>
+                    <label>Ubicación Técnica</label>
+                    <div style="font-size: 14px; font-weight: 600;">{{ ot.ubicacion.get_ruta_completa|default:"No definida" }}</div>
                 </div>
                 {% if ot.notas %}
                 <div class="fiori-form-group">
-                    <label>Notas / Instrucciones</label>
-                    <div style="font-size: 13px; line-height: 1.4; color: #555;">{{ ot.notas|linebreaks }}</div>
+                    <label>Notas del Solicitante</label>
+                    <div style="font-size: 13px; color: var(--sap-text-muted); background: #f9f9f9; padding: 10px; border-radius: 8px;">{{ ot.notas }}</div>
                 </div>
                 {% endif %}
             </div>
@@ -749,86 +590,33 @@
         </div>
     </div>
 
-    <!-- SAP Fiori Action Bar -->
-    <div class="fiori-footer" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 12px 16px; border-top: 1px solid var(--sap-border-color); display: flex; gap: 8px; align-items: center; justify-content: space-between; z-index: 1000; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);">
-        
-        <!-- Contenedor de Botones Primarios -->
-        <div style="display: flex; flex-grow: 1; gap: 8px;">
+    <!-- Toolbar Acciones -->
+    <div class="fiori-toolbar">
+        <div style="display: flex; gap: 8px; flex: 1;">
             {% if ot.estado == 'PROGRAMADA' or ot.estado == 'ESPERA' %}
-            <a href="{% url 'mantenimiento:mobile_ot_iniciar' ot.id %}" class="fiori-btn fiori-btn-primary" style="flex-grow: 1; justify-content: center;">
-                <ion-icon name="play-outline"></ion-icon> Iniciar OT
+            <a href="{% url 'mantenimiento:mobile_ot_iniciar' ot.id %}" class="fiori-btn fiori-btn-primary" style="flex: 1; justify-content: center;">
+                <ion-icon name="play-outline"></ion-icon> Iniciar Tarea
             </a>
-            
             {% elif ot.estado == 'EJECUCION' %}
-            <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; justify-content: center;">
-                <ion-icon name="create-outline"></ion-icon> Continuar
-            </a>
-            <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-success" style="flex-grow: 1; justify-content: center;">
+            <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="fiori-btn fiori-btn-success" style="flex: 1; justify-content: center;">
                 <ion-icon name="checkmark-done-outline"></ion-icon> Finalizar
             </a>
-            
             {% elif ot.estado == 'REALIZADA' %}
-                <div id="pdfActionContainer" style="flex-grow: 1; display: flex; gap: 8px;">
-                    {% with ot.archivos.all as archivos %}
-                    {% if archivos %}
-                        {% for a in archivos %}
-                            {% if a.nombre == "OT_"|add:ot.id|add:".pdf" or "Reporte" in a.nombre %}
-                            <a href="{{ a.archivo.url }}" target="_blank" class="fiori-btn fiori-btn-primary" style="background: #e52929; flex-grow: 1; justify-content: center;">
-                                <ion-icon name="document-text-outline"></ion-icon> Ver Reporte PDF
-                            </a>
-                            <script>window.pdfReady = true;</script>
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
-                    {% endwith %}
-
-                    <script>
-                        if (!window.pdfReady) {
-                            document.write(`
-                                <div id="pdfLoadingBtn" class="fiori-btn fiori-btn-ghost" style="flex-grow: 1; justify-content: center; color: var(--sap-text-muted); border-color: #ddd;">
-                                    <ion-icon name="sync-outline" style="animation: spin 2s linear infinite;"></ion-icon> Generando...
-                                </div>
-                            `);
-                        }
-                    </script>
-                </div>
+            <a href="#" id="viewPdfBtn" class="fiori-btn fiori-btn-danger" style="flex: 1; justify-content: center; background: #d32f2f;">
+                <ion-icon name="document-text-outline"></ion-icon> Reporte PDF
+            </a>
             {% endif %}
         </div>
+        <button class="fiori-btn fiori-btn-ghost" style="padding: 10px;" onclick="document.getElementById('moreActionsMenu').classList.toggle('show'); event.stopPropagation();">
+            <ion-icon name="ellipsis-vertical" style="font-size: 20px;"></ion-icon>
+        </button>
+    </div>
 
-        <!-- Botón Menú de Más Opciones -->
-        <div style="position: relative;">
-            <button onclick="document.getElementById('moreActionsMenu').classList.toggle('show'); event.stopPropagation();" class="fiori-btn fiori-btn-ghost" style="padding: 10px; border-color: transparent; font-size: 20px; color: var(--sap-text);">
-                <ion-icon name="ellipsis-vertical"></ion-icon>
-            </button>
-            
-            <!-- Menú Desplegable -->
-            <div id="moreActionsMenu" class="more-actions-menu">
-                {% if ot.estado == 'PROGRAMADA' or ot.estado == 'ESPERA' %}
-                    <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="menu-item"><ion-icon name="list-outline" style="color: var(--sap-brand-color);"></ion-icon> Ver/Editar Checklist</a>
-                    {% if ot.tipo == 'NO_PROGRAMADA' %}
-                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar OTNP a MAO/Supervisión</button>
-                    <button onclick="sendWhatsAppWebhook()" class="menu-item"><ion-icon name="notifications-outline" style="color: #3b82f6;"></ion-icon> Enviar Notificación Push</button>
-                    {% endif %}
-                {% elif ot.estado == 'EJECUCION' %}
-                    <a href="{% url 'inventarios:registrar_salida' %}?ot={{ ot.id }}" class="menu-item"><ion-icon name="cube-outline" style="color: var(--sap-brand-color);"></ion-icon> Solicitar Materiales</a>
-                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar OTNP a MAO/Supervisión</button>
-                    <button onclick="sendWhatsAppWebhook()" class="menu-item"><ion-icon name="notifications-outline" style="color: #3b82f6;"></ion-icon> Enviar Notificación Push</button>
-                {% elif ot.estado == 'REALIZADA' %}
-                    {% if is_gerente or ot.tecnico == user or ot.supervisor == user %}
-                    <a href="{% url 'mantenimiento:mobile_ot_finalizar' ot.id %}" class="menu-item"><ion-icon name="create-outline" style="color: var(--sap-brand-color);"></ion-icon> Editar Checklist</a>
-                    {% endif %}
-                    <button onclick="sendWebhook()" class="menu-item"><ion-icon name="mail-outline" style="color: #8b5cf6;"></ion-icon> Enviar OTNP a MAO/Supervisión</button>
-                    <button onclick="sendWhatsAppWebhook()" class="menu-item"><ion-icon name="notifications-outline" style="color: #3b82f6;"></ion-icon> Enviar Notificación Push</button>
-                    <a href="{% url 'mantenimiento:rutina_pdf' ot.id %}" target="_blank" class="menu-item"><ion-icon name="refresh-outline" style="color: #e52929;"></ion-icon> Forzar PDF Manual</a>
-                {% endif %}
-
-                <a href="{% url 'seguridad:mobile_generar_permiso' ot.id %}" class="menu-item"><ion-icon name="shield-checkmark-outline" style="color: #7e22ce;"></ion-icon> Permiso de Trabajo</a>
-
-                {% if user.is_superuser %}
-                <button onclick="deleteOT()" class="menu-item" style="color: #ef4444;"><ion-icon name="trash-outline" style="color: #ef4444;"></ion-icon> Eliminar Orden</button>
-                {% endif %}
-            </div>
-        </div>
+    <!-- Menú Más Acciones -->
+    <div class="more-actions-menu" id="moreActionsMenu">
+        <button onclick="sendWhatsAppWebhook()"><ion-icon name="logo-whatsapp"></ion-icon> Notificar WhatsApp</button>
+        <button onclick="sendWebhook()"><ion-icon name="paper-plane-outline"></ion-icon> Enviar a MAO</button>
+        <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}"><ion-icon name="list-outline"></ion-icon> Ir a Mis OTs</a>
     </div>
 
     <div id="toast">Actualizando...</div>

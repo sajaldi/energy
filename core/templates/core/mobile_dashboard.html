@@ -13,23 +13,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 
+    {% include 'core/fiori_tokens.html' %}
+
     <style>
         :root {
-            /* Fusion 360 Palette */
-            --fusion-bg: #F9F9F9;
-            --fusion-sidebar: #EFEFEF;
-            --fusion-border: #D5D5D5;
-            --fusion-accent: #0696D7;
-            /* Blue */
-            --fusion-orange: #FF9900; /* Amazon Orange */
-            --fusion-text: #333333;
-            --fusion-text-muted: #666666;
-            --fusion-white: #FFFFFF;
-            --fusion-dark: #323232;
-            --fusion-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
             --header-height: 56px;
-            --toolbar-height: 70px;
             --bottom-nav-height: 65px;
+            --sap-font-family: 'Inter', 'Outfit', sans-serif;
         }
 
         * {
@@ -38,307 +28,279 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--fusion-bg);
-            color: var(--fusion-text);
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
             margin: 0;
             padding: 0;
             height: 100dvh;
-            /* Usa viewport dinámico para evitar barras de navegación */
             min-height: 100vh;
-            /* Fallback */
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            /* Support for notches (el padding bottom ya está en el bottom-nav) */
             padding-top: env(safe-area-inset-top);
         }
 
-        /* --- TOP BAR --- */
-        .top-bar {
+        /* --- SAP FIORI SHELL BAR (Classic) --- */
+        .shell-bar {
             height: var(--header-height);
-            background: var(--fusion-dark);
-            color: white;
+            background: var(--sap-shell-bg);
+            color: var(--sap-shell-color);
             display: flex;
             align-items: center;
-            padding: 0 15px;
+            padding: 0 16px;
             justify-content: space-between;
-            font-size: 14px;
             z-index: 1000;
             flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .top-bar .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .top-bar .logo-section ion-icon {
-            font-size: 22px;
-            color: var(--fusion-orange);
-        }
-
-        .top-bar .user-section {
+        .shell-bar .logo-section {
             display: flex;
             align-items: center;
             gap: 12px;
         }
 
-        .top-bar .avatar {
-            width: 28px;
-            height: 28px;
-            background: var(--fusion-accent);
+        .shell-bar .logo-section ion-icon {
+            font-size: 22px;
+            color: #ffffff;
+        }
+
+        .shell-bar .title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+            text-transform: uppercase;
+        }
+
+        .shell-bar .user-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .avatar-circle {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 700;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
 
-        /* --- TOOLBAR (SCROLLABLE RIBBON) --- */
-        .toolbar {
-            background: var(--fusion-white);
-            border-bottom: 1px solid var(--fusion-border);
+        /* --- SAP FIORI TAB BAR (Classic) --- */
+        .tab-bar {
+            background: #ffffff;
+            border-bottom: 1px solid var(--sap-border-color);
+            display: flex;
+            overflow-x: auto;
+            scrollbar-width: none;
+            flex-shrink: 0;
+            padding: 0 8px;
+            gap: 0;
+        }
+
+        .tab-bar::-webkit-scrollbar { display: none; }
+
+        .tab-item {
+            padding: 14px 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--sap-text-muted);
+            white-space: nowrap;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
             display: flex;
             flex-direction: column;
-            flex-shrink: 0;
-            z-index: 999;
-        }
-
-        .toolbar-tabs {
-            display: flex;
-            padding: 0 10px;
-            gap: 1px;
-            background: #E0E0E0;
-            overflow-x: auto;
-            scrollbar-width: none;
-        }
-
-        .toolbar-tabs::-webkit-scrollbar {
-            display: none;
-        }
-
-        .toolbar-tab {
-            padding: 10px 18px;
-            font-size: 10px;
-            font-weight: 700;
-            color: #666;
-            cursor: pointer;
-            text-transform: uppercase;
-            white-space: nowrap;
-            border-bottom: 2px solid transparent;
-        }
-
-        .toolbar-tab.active {
-            background: var(--fusion-white);
-            color: var(--fusion-text);
-            border-bottom: 2px solid var(--fusion-orange);
-        }
-
-        .toolbar-actions {
-            height: var(--toolbar-height);
-            display: flex;
             align-items: center;
-            padding: 0 10px;
-            gap: 15px;
+            gap: 4px;
+            min-width: 80px;
+        }
+
+        .tab-item ion-icon {
+            font-size: 20px;
+        }
+
+        .tab-item.active {
+            color: var(--sap-brand-color);
+            border-bottom-color: var(--sap-brand-color);
+            font-weight: 700;
+            background: rgba(0, 112, 242, 0.04);
+        }
+
+        /* --- ACTION TOOLBAR --- */
+        .action-toolbar {
+            background: #ffffff;
+            border-bottom: 1px solid var(--sap-border-color);
+            padding: 12px 16px;
+            display: flex;
+            gap: 12px;
             overflow-x: auto;
             scrollbar-width: none;
+            flex-shrink: 0;
         }
 
-        .toolbar-actions::-webkit-scrollbar {
-            display: none;
-        }
+        .action-toolbar::-webkit-scrollbar { display: none; }
 
-        .action-group {
+        .fiori-action-btn {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 5px;
-            padding: 8px 12px;
+            gap: 6px;
             min-width: 70px;
             text-decoration: none;
-            color: var(--fusion-text);
-            border-radius: 4px;
+            color: var(--sap-text-color);
+            padding: 10px 8px;
+            border-radius: var(--sap-border-radius);
+            transition: background 0.2s;
+            border: 1px solid transparent;
         }
 
-        .action-group:active {
-            background: #F0F0F0;
+        .fiori-action-btn:active {
+            background: var(--sap-bg-color);
+            border-color: var(--sap-border-color);
         }
 
-        .action-group ion-icon {
-            font-size: 26px;
-            color: var(--fusion-accent);
+        .fiori-action-btn ion-icon {
+            font-size: 24px;
+            color: var(--sap-brand-color);
         }
 
-        .action-group span {
-            font-size: 9px;
-            font-weight: 600;
+        .fiori-action-btn span {
+            font-size: 10px;
+            font-weight: 700;
             text-align: center;
             text-transform: uppercase;
         }
 
-        /* --- VIEWPORT (SCROLLABLE FEED) --- */
+        /* --- VIEWPORT --- */
         .viewport {
             flex: 1;
             overflow-y: auto;
-            padding: 15px;
+            padding: 16px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            background: var(--fusion-bg);
-            background-image: radial-gradient(#D5D5D5 0.5px, transparent 0.5px);
-            background-size: 15px 15px;
+            gap: 16px;
+            background: var(--sap-bg-color);
         }
 
-        /* --- STATS GRID --- */
-        .stats-grid {
+        /* --- KPI GRID (Classic Fiori) --- */
+        .kpi-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            gap: 12px;
         }
 
-        .stat-mini {
-            background: var(--fusion-white);
-            border: 1px solid var(--fusion-border);
-            padding: 12px 8px;
+        .kpi-card {
+            background: #ffffff;
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            padding: 15px 10px;
             text-align: center;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            box-shadow: var(--sap-card-shadow);
+            border-top: 4px solid var(--sap-brand-color);
         }
 
-        .stat-mini .label {
-            font-size: 8px;
+        .kpi-card .kpi-label {
+            font-size: 10px;
             text-transform: uppercase;
-            color: var(--fusion-text-muted);
+            color: var(--sap-text-muted);
             font-weight: 700;
+            margin-bottom: 6px;
             display: block;
-            margin-bottom: 4px;
         }
 
-        .stat-mini .value {
-            font-size: 18px;
+        .kpi-card .kpi-value {
+            font-size: 22px;
             font-weight: 800;
-            color: var(--fusion-accent);
+            color: var(--sap-text-color);
         }
 
-        /* --- FUSION CARDS --- */
-        .fusion-card {
-            background: var(--fusion-white);
-            border: 1px solid var(--fusion-border);
-            display: flex;
-            flex-direction: column;
-            box-shadow: var(--fusion-shadow);
-        }
-
-        .fusion-card-header {
-            padding: 8px 12px;
-            background: #F1F1F1;
-            border-bottom: 1px solid var(--fusion-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .fusion-card-header h3 {
-            margin: 0;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .fusion-card-content {
-            padding: 0;
-        }
-
-        /* --- MOBILE LIST ITEMS --- */
-        .list-item {
+        /* --- FIORI LIST ITEMS (Classic) --- */
+        .fiori-list-item {
             display: flex;
             align-items: center;
-            padding: 12px;
-            border-bottom: 1px solid #EEE;
+            padding: 16px;
+            border-bottom: 1px solid var(--sap-border-color);
             text-decoration: none;
-            color: var(--fusion-text);
+            color: var(--sap-text-color);
+            background: #ffffff;
+            transition: all 0.2s;
+            border-left: 0px solid var(--sap-brand-color);
         }
 
-        .list-item:last-child {
-            border-bottom: none;
+        .fiori-list-item:last-child { border-bottom: none; }
+        .fiori-list-item:active { 
+            background: #f0f2f4; 
+            border-left-width: 4px;
         }
 
-        .list-item:active {
-            background: #F5F5F5;
-        }
-
-        .list-item .icon {
-            width: 36px;
-            height: 36px;
-            background: #F0F0F0;
-            border: 1px solid var(--fusion-border);
+        .fiori-list-item .item-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--sap-information-bg);
+            border-radius: var(--sap-border-radius);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            margin-right: 12px;
+            font-size: 22px;
+            color: var(--sap-brand-color);
+            margin-right: 16px;
             flex-shrink: 0;
+            border: 1px solid rgba(0, 112, 242, 0.1);
         }
 
-        .list-item .content {
-            flex: 1;
+        .fiori-list-item .item-content { flex: 1; min-width: 0; }
+
+        .fiori-list-item h4 {
+            margin: 0 0 4px 0;
+            font-size: 15px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .list-item h4 {
-            margin: 0 0 2px 0;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .list-item p {
+        .fiori-list-item p {
             margin: 0;
-            font-size: 11px;
-            color: var(--fusion-text-muted);
+            font-size: 12px;
+            color: var(--sap-text-muted);
+            font-weight: 500;
         }
 
-        .badge {
-            padding: 2px 6px;
-            font-size: 8px;
+        /* --- BADGES --- */
+        .fiori-badge {
+            padding: 2px 8px;
+            font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
             border-radius: 2px;
             margin-left: 8px;
         }
 
-        .badge-alta {
-            background: #FFEBEE;
-            color: #C62828;
-            border: 1px solid #EF9A9A;
-        }
+        .fiori-badge-error { background: var(--sap-error-bg); color: var(--sap-error); border: 1px solid var(--sap-error); }
+        .fiori-badge-warning { background: var(--sap-warning-bg); color: var(--sap-warning); border: 1px solid var(--sap-warning); }
+        .fiori-badge-success { background: var(--sap-success-bg); color: var(--sap-success); border: 1px solid var(--sap-success); }
+        .fiori-badge-info { background: var(--sap-information-bg); color: var(--sap-information); border: 1px solid var(--sap-information); }
 
-        .badge-media {
-            background: #E3F2FD;
-            color: #1565C0;
-            border: 1px solid #90CAF9;
-        }
-
-        .badge-baja {
-            background: #E8F5E9;
-            color: #2E7D32;
-            border: 1px solid #A5D6A7;
-        }
-
-        /* --- BOTTOM NAVIGATION --- */
+        /* --- BOTTOM NAVIGATION (Classic) --- */
         .bottom-nav {
             height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 15px));
             padding-bottom: env(safe-area-inset-bottom, 15px);
-            background: var(--fusion-white);
-            border-top: 1px solid var(--fusion-border);
+            background: #ffffff;
+            border-top: 1px solid var(--sap-border-color);
             display: flex;
             justify-content: space-around;
             align-items: center;
             flex-shrink: 0;
             z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         }
 
         .nav-item {
@@ -347,637 +309,334 @@
             align-items: center;
             gap: 4px;
             text-decoration: none;
-            color: var(--fusion-text-muted);
+            color: var(--sap-text-muted);
             width: 20%;
+            padding-top: 8px;
         }
 
-        .nav-item.active {
-            color: var(--fusion-accent);
-        }
+        .nav-item.active { color: var(--sap-brand-color); }
+        .nav-item ion-icon { font-size: 24px; }
+        .nav-item span { font-size: 10px; font-weight: 700; text-transform: uppercase; }
 
-        .nav-item ion-icon {
-            font-size: 24px;
-        }
-
-        .nav-item span {
-            font-size: 10px;
-            font-weight: 600;
-        }
-
-        .scan-fab {
-            width: 56px;
-            height: 56px;
-            background: var(--fusion-orange);
+        .scan-btn-fab {
+            width: 58px;
+            height: 58px;
+            background: var(--sap-brand-color);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 28px;
-            box-shadow: 0 4px 10px rgba(247, 148, 29, 0.4);
+            font-size: 30px;
+            box-shadow: 0 4px 15px rgba(0, 112, 242, 0.4);
             margin-top: -35px;
-            border: 4px solid var(--fusion-white);
+            border: 5px solid #ffffff;
+            transition: transform 0.2s;
+        }
+
+        .scan-btn-fab:active {
+            transform: scale(0.9);
+        }
+
+        /* --- ROUTINE CATALOG (Classic) --- */
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .catalog-item {
+            background: #ffffff;
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            padding: 18px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: var(--sap-card-shadow);
+        }
+
+        .catalog-item:active { 
+            background: var(--sap-bg-color);
+            border-color: var(--sap-brand-color);
+        }
+
+        .catalog-item ion-icon {
+            font-size: 32px;
+            color: var(--sap-brand-color);
+            margin-bottom: 10px;
+        }
+
+        .catalog-item .cat-name {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--sap-text-color);
+            letter-spacing: 0.3px;
         }
 
         /* --- ANIMATIONS --- */
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .fade-in-up {
-            animation: fadeInUp 0.4s ease-out forwards;
-        }
+        .fiori-animate { animation: fadeInUp 0.4s ease-out forwards; }
     </style>
+
 </head>
 
 <body>
 
-    <!-- TOP BAR (App Frame) -->
-    <div class="top-bar">
+    <!-- SAP FIORI SHELL BAR -->
+    <div class="shell-bar">
         <div class="logo-section">
             <ion-icon name="flash"></ion-icon>
-            <span style="font-weight: 800; letter-spacing: -0.5px; margin-right: 10px;">SoftCoM-CCG HUB</span>
-            <!-- Búsqueda Integrada Style Fusion 360 -->
-            <div class="search-box" style="flex: 1; position: relative; margin-right: 15px;">
-                <ion-icon name="search-outline"
-                    style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888; font-size: 14px;"></ion-icon>
-                <input type="text" placeholder="Buscar activos, OTs o documentos..."
-                    style="width: 100%; background: #454545; border: none; border-radius: 4px; padding: 6px 10px 6px 30px; color: white; font-size: 11px; outline: none;">
-            </div>
+            <span class="title">SoftCoM-CCG HUB</span>
         </div>
-        <div class="user-section">
-            <a href="{% url 'core:mobile_scanner' %}"
-                style="color: white; text-decoration: none; display: flex; align-items: center;">
-                <ion-icon name="scan-outline" style="font-size: 20px;"></ion-icon>
+        <div class="user-actions">
+            <a href="{% url 'core:mobile_scanner' %}" style="color: white; text-decoration: none;">
+                <ion-icon name="scan-outline" style="font-size: 22px;"></ion-icon>
             </a>
-            <div class="avatar">{{ user.username|slice:":1"|upper }}</div>
-            <ion-icon name="notifications-outline" style="font-size: 20px;"></ion-icon>
+            <div class="avatar-circle">{{ user.username|slice:":1"|upper }}</div>
+            <ion-icon name="notifications-outline" style="font-size: 22px;"></ion-icon>
         </div>
     </div>
 
-    <!-- RIBBON TOOLBAR (Scrollable Actions) -->
-    <div class="toolbar">
-        <div class="toolbar-tabs">
-            <div class="toolbar-tab active" data-tab="mantenimiento">Mantenimiento</div>
-            <div class="toolbar-tab" data-tab="activos">Activos</div>
-            <div class="toolbar-tab" data-tab="inventario">Inventario</div>
-            <div class="toolbar-tab" data-tab="seguridad">Seguridad</div>
-            <div class="toolbar-tab" data-tab="finanzas">Finanzas</div>
+    <!-- SAP FIORI TAB BAR -->
+    <div class="tab-bar">
+        <div class="tab-item active" data-tab="mantenimiento">
+            <ion-icon name="construct-outline"></ion-icon>
+            <span>Mant.</span>
         </div>
-
-        <!-- Tab Content: Mantenimiento -->
-        <div class="toolbar-actions tab-content" id="tab-mantenimiento">
-            <a href="{% url 'mantenimiento:mobile_crear_aviso' %}" class="action-group">
-                <ion-icon name="alert-circle-outline"></ion-icon>
-                <span>Reportar</span>
-            </a>
-            <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="action-group">
-                <ion-icon name="construct-outline"></ion-icon>
-                <span>Mis OTs</span>
-            </a>
-            <a href="{% url 'mantenimiento:mobile_mis_avisos' %}" class="action-group">
-                <ion-icon name="list-outline"></ion-icon>
-                <span>Mis Avisos</span>
-            </a>
-            <a href="{% url 'callcenter:mobile_crear_tiempo_acordado' %}" class="action-group">
-                <ion-icon name="calendar-outline"></ion-icon>
-                <span>Acuerdos</span>
-            </a>
-            <a href="#catalog-section" class="action-group">
-                <ion-icon name="journal-outline"></ion-icon>
-                <span>Catálogo</span>
-            </a>
+        <div class="tab-item" data-tab="catalogo">
+            <ion-icon name="library-outline"></ion-icon>
+            <span>Catálogo</span>
         </div>
-
-        <!-- Tab Content: Activos (NUEVO) -->
-        <div class="toolbar-actions tab-content" id="tab-activos" style="display: none;">
-            <a href="{% url 'activos:mobile_ubicaciones' %}" class="action-group">
-                <ion-icon name="map-outline"></ion-icon>
-                <span>Ubicaciones</span>
-            </a>
-            <a href="#" class="action-group">
-                <ion-icon name="grid-outline"></ion-icon>
-                <span>Categorías</span>
-            </a>
-            <a href="{% url 'core:mobile_scanner' %}" class="action-group">
-                <ion-icon name="qr-code-outline"></ion-icon>
-                <span>Escanear</span>
-            </a>
+        <div class="tab-item" data-tab="activos">
+            <ion-icon name="layers-outline"></ion-icon>
+            <span>Activos</span>
         </div>
-
-        <!-- Tab Content: Inventario -->
-        <div class="toolbar-actions tab-content" id="tab-inventario" style="display: none;">
-            <a href="{% url 'inventarios:mobile_dashboard' %}" class="action-group">
-                <ion-icon name="cube-outline"></ion-icon>
-                <span>Almacén</span>
-            </a>
-            <a href="#" class="action-group">
-                <ion-icon name="barcode-outline"></ion-icon>
-                <span>Kardex</span>
-            </a>
-            <a href="#" class="action-group">
-                <ion-icon name="swap-horizontal-outline"></ion-icon>
-                <span>Traspasos</span>
-            </a>
-            <a href="#" class="action-group">
-                <ion-icon name="receipt-outline"></ion-icon>
-                <span>Pedidos</span>
-            </a>
+        <div class="tab-item" data-tab="inventario">
+            <ion-icon name="cube-outline"></ion-icon>
+            <span>Inv.</span>
         </div>
-
-        <!-- Tab Content: Seguridad -->
-        <div class="toolbar-actions tab-content" id="tab-seguridad" style="display: none;">
-            <a href="{% url 'seguridad:mobile_perfil' %}" class="action-group">
-                <ion-icon name="shield-checkmark-outline"></ion-icon>
-                <span>Permisos</span>
-            </a>
-            <a href="#" class="action-group">
-                <ion-icon name="medkit-outline"></ion-icon>
-                <span>Incidentes</span>
-            </a>
-            <a href="#" class="action-group">
-                <ion-icon name="eye-outline"></ion-icon>
-                <span>Inspección</span>
-            </a>
+        <div class="tab-item" data-tab="seguridad">
+            <ion-icon name="shield-checkmark-outline"></ion-icon>
+            <span>Seg.</span>
         </div>
-
-        <!-- Tab Content: Finanzas -->
-        <div class="toolbar-actions tab-content" id="tab-finanzas" style="display: none;">
-            <a href="#" class="action-group">
-                <ion-icon name="wallet-outline"></ion-icon>
-                <span>Presupuesto</span>
-            </a>
-            <a href="#" class="action-group">
-                <ion-icon name="cart-outline"></ion-icon>
-                <span>Compras</span>
-            </a>
-            <a href="#" class="action-group">
-                <ion-icon name="stats-chart-outline"></ion-icon>
-                <span>Gastos</span>
-            </a>
+        <div class="tab-item" data-tab="finanzas">
+            <ion-icon name="wallet-outline"></ion-icon>
+            <span>Fin.</span>
         </div>
     </div>
 
-    <script>
-        const tabStats = {
-            mantenimiento: [
-                { label: 'Equipos', value: '{{ total_activos }}', color: 'var(--fusion-accent)' },
-                { label: 'Alertas', value: '{{ avisos_abiertos }}', color: '#D32F2F' },
-                { label: 'Tareas', value: '{{ ots_hoy.count }}', color: 'var(--fusion-orange)' }
-            ],
-            activos: [
-                { label: 'Total', value: '{{ total_activos }}', color: 'var(--fusion-accent)' },
-                { label: 'Ubicaciones', value: '{{ ubicaciones_activos.count }}', color: 'var(--fusion-orange)' },
-                { label: 'Categorías', value: '{{ categorias_activos.count }}', color: '#2E7D32' }
-            ],
-            inventario: [
-                { label: 'Stock Bajo', value: '12', color: '#D32F2F' },
-                { label: 'Pedidos', value: '5', color: 'var(--fusion-accent)' },
-                { label: 'Valor', value: '$45K', color: '#2E7D32' }
-            ],
-            seguridad: [
-                { label: 'Permisos', value: '8', color: '#2E7D32' },
-                { label: 'Incidentes', value: '1', color: '#D32F2F' },
-                { label: 'EPPs', value: '92%', color: 'var(--fusion-accent)' }
-            ],
-            finanzas: [
-                { label: 'Presupuesto', value: '78%', color: 'var(--fusion-accent)' },
-                { label: 'Gastos', value: '$12K', color: 'var(--fusion-orange)' },
-                { label: 'Ahorro', value: '12%', color: '#2E7D32' }
-            ]
-        };
+    <!-- GLOBAL SEARCH BAR -->
+    <div style="background: #ffffff; padding: 12px 16px; border-bottom: 1px solid var(--sap-border-color);">
+        <div style="position: relative;">
+            <ion-icon name="search-outline" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #888; font-size: 18px;"></ion-icon>
+            <input type="text" id="global-search-input" placeholder="Buscar activos, tareas, manuales..." 
+                   onkeyup="handleGlobalSearch(this.value)"
+                   style="width: 100%; padding: 10px 12px 10px 40px; border: 1px solid var(--sap-border-color); border-radius: 8px; background: var(--sap-bg-color); font-size: 14px; outline: none; font-family: inherit;">
+        </div>
+    </div>
 
-        function updateStats(tab) {
-            const stats = tabStats[tab] || [];
-            const grid = document.getElementById('stats-grid');
-            grid.innerHTML = stats.map(s => `
-                <div class="stat-mini">
-                    <span class="label">${s.label}</span>
-                    <span class="value" style="color: ${s.color}">${s.value}</span>
-                </div>
-            `).join('');
-        }
+    <!-- FIORI ACTION TOOLBAR -->
+    <div class="action-toolbar tab-content" id="tab-mantenimiento">
+        <a href="{% url 'mantenimiento:mobile_crear_aviso' %}" class="fiori-action-btn">
+            <ion-icon name="alert-circle-outline"></ion-icon>
+            <span>Reportar</span>
+        </a>
+        <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="fiori-action-btn">
+            <ion-icon name="list-outline"></ion-icon>
+            <span>Mis OTs</span>
+        </a>
+        <a href="{% url 'mantenimiento:mobile_mis_avisos' %}" class="fiori-action-btn">
+            <ion-icon name="notifications-outline"></ion-icon>
+            <span>Mis Avisos</span>
+        </a>
+        <a href="{% url 'callcenter:mobile_crear_tiempo_acordado' %}" class="fiori-action-btn">
+            <ion-icon name="calendar-outline"></ion-icon>
+            <span>Acuerdos</span>
+        </a>
+    </div>
+    
+    <div class="action-toolbar tab-content" id="tab-catalogo" style="display: none;">
+        <div style="flex: 1; padding: 4px 0;">
+            <div style="font-size: 12px; font-weight: 700; color: var(--sap-brand-color);">CATÁLOGO DE PROCEDIMIENTOS</div>
+            <div style="font-size: 10px; color: var(--sap-text-muted);">Explore manuales y guías técnicas</div>
+        </div>
+    </div>
 
-        // --- Catálogo Logic ---
-        function toggleCategory(catId) {
-            const details = document.getElementById(catId);
-            const grid = document.getElementById('category-grid-main');
+    <div class="action-toolbar tab-content" id="tab-activos" style="display: none;">
+        <a href="{% url 'activos:mobile_ubicaciones' %}" class="fiori-action-btn">
+            <ion-icon name="map-outline"></ion-icon>
+            <span>Planta</span>
+        </a>
+        <a href="{% url 'core:mobile_scanner' %}" class="fiori-action-btn">
+            <ion-icon name="qr-code-outline"></ion-icon>
+            <span>Escanear</span>
+        </a>
+    </div>
 
-            if (details.style.display === 'none') {
-                // Cerrar otros abiertos? No, mejor dejar que abran varios si quieren, pero el grid estorba
-                // Para una mejor UX móvil, ocultamos el grid cuando uno se abre
-                grid.style.display = 'none';
-                details.style.display = 'block';
-            } else {
-                details.style.display = 'none';
-                grid.style.display = 'grid';
-            }
-        }
+    <div class="action-toolbar tab-content" id="tab-inventario" style="display: none;">
+        <a href="{% url 'inventarios:mobile_dashboard' %}" class="fiori-action-btn">
+            <ion-icon name="cube-outline"></ion-icon>
+            <span>Almacén</span>
+        </a>
+        <a href="#" class="fiori-action-btn">
+            <ion-icon name="swap-horizontal-outline"></ion-icon>
+            <span>Movimientos</span>
+        </a>
+    </div>
 
-        async function showRoutinePreview(routineId) {
-            if (typeof Swal === 'undefined') {
-                // Cargar SweetAlert2 si no existe
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
-                document.head.appendChild(script);
-                script.onload = () => showRoutinePreview(routineId);
-                return;
-            }
-
-            Swal.fire({
-                title: 'Cargando procedimiento...',
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            try {
-                const r = await fetch(`/mantenimiento/rutinas/dashboard/detail/${routineId}/`);
-                const data = await r.json();
-
-                if (data.status === 'success') {
-                    let stepsHtml = '<div style="text-align: left; font-size: 13px;">';
-                    data.rutina.pasos.forEach(p => {
-                        let mediaHtml = '';
-                        if (p.media && p.media.length > 0) {
-                            mediaHtml = '<div style="display: flex; gap: 8px; overflow-x: auto; margin-top: 10px; padding-bottom: 8px;">';
-                            p.media.forEach(m => {
-                                if (m.tipo === 'IMAGEN') {
-                                    mediaHtml += `<img src="${m.url}" style="height: 100px; width: 140px; border-radius: 4px; border: 1px solid #ddd; object-fit: cover; flex-shrink:0;" onclick="window.showMediaPreview('${m.url}', 'IMAGEN')">`;
-                                } else if (m.tipo === 'VIDEO') {
-                                    mediaHtml += `
-                                        <div style="position: relative; height: 100px; width: 140px; background: #000; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink:0;" onclick="window.showMediaPreview('${m.url}', 'VIDEO')">
-                                            <ion-icon name="play-circle" style="color: white; font-size: 40px;"></ion-icon>
-                                        </div>`;
-                                }
-                            });
-                            mediaHtml += '</div>';
-                        }
-
-                        stepsHtml += `
-                            <div style="margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
-                                <div style="display: flex; gap: 12px;">
-                                    <b style="color: #0696D7; font-size: 14px;">${p.orden}.</b>
-                                    <div style="flex: 1;">
-                                        <div style="font-weight: 700; color: #333; margin-bottom: 4px;">${p.descripcion}</div>
-                                        ${p.verificacion ? `<div style="font-size: 11px; color: #666; background: #f9f9f9; padding: 5px; border-radius: 4px; margin-top: 5px; border-left: 3px solid #ddd;">${p.verificacion}</div>` : ''}
-                                        ${mediaHtml}
-                                    </div>
-                                </div>
-                            </div>`;
-                    });
-                    stepsHtml += '</div>';
-
-                    Swal.fire({
-                        title: `<span style="font-size: 18px; font-weight: 800;">${data.rutina.nombre}</span>`,
-                        html: `
-                            <div style="text-align: left; margin-bottom: 20px; display: flex; gap: 15px;">
-                                <div style="font-size: 11px; color: #666; background: #eee; padding: 4px 8px; border-radius: 4px;">FREC: <b>${data.rutina.frecuencia}</b></div>
-                                <div style="font-size: 11px; color: #666; background: #eee; padding: 4px 8px; border-radius: 4px;">TIEMPO: <b>${data.rutina.tiempo_estimado}</b></div>
-                            </div>
-                            <div style="max-height: 50vh; overflow-y: auto; padding-right: 5px; border-top: 2px solid #333; pt: 15px;">
-                                <h4 style="font-size: 12px; color: #999; margin: 15px 0 10px 0; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Pasos del Procedimiento</h4>
-                                ${stepsHtml}
-                            </div>
-                        `,
-                        width: '95%',
-                        confirmButtonText: 'Cerrar',
-                        confirmButtonColor: '#323232'
-                    });
-                }
-            } catch (e) { console.error(e); Swal.fire('Error', 'No se pudo cargar el procedimiento', 'error'); }
-        }
-
-        // --- Previsualización de Media (NUEVO) ---
-        window.showMediaPreview = function (url, tipo) {
-            if (tipo === 'IMAGEN') {
-                Swal.fire({
-                    imageUrl: url,
-                    imageAlt: 'Imagen de referencia',
-                    showConfirmButton: false,
-                    showCloseButton: true,
-                    background: '#fff',
-                    width: 'auto',
-                    padding: '0'
-                });
-            } else if (tipo === 'VIDEO') {
-                Swal.fire({
-                    html: `
-                        <video controls autoplay style="width: 100%; border-radius: 4px; background: #000;">
-                            <source src="${url}" type="video/mp4">
-                            Tu navegador no soporta el elemento de video.
-                        </video>
-                    `,
-                    showConfirmButton: false,
-                    showCloseButton: true,
-                    background: '#000',
-                    width: 'auto',
-                    padding: '0'
-                });
-            }
-        };
-
-        // --- Filtro de Catálogo (NUEVO) ---
-        function filterCatalog() {
-            const query = document.getElementById('catalog-search-input').value.toLowerCase().trim();
-            const grid = document.getElementById('category-grid-main');
-            const categories = document.querySelectorAll('.category-details');
-
-            if (query === "") {
-                grid.style.display = 'grid';
-                categories.forEach(c => {
-                    c.style.display = 'none';
-                    // Resetear visibilidad de items internos
-                    c.querySelectorAll('.routine-item').forEach(item => item.style.display = 'flex');
-                });
-                return;
-            }
-
-            grid.style.display = 'none';
-            categories.forEach(cat => {
-                let hasMatch = false;
-                const items = cat.querySelectorAll('.routine-item');
-
-                items.forEach(item => {
-                    const text = item.textContent.toLowerCase();
-                    if (text.includes(query)) {
-                        item.style.display = 'flex';
-                        hasMatch = true;
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
-
-                // Si la categoría tiene matches o el nombre de la categoría incluye el query
-                const catTitle = cat.querySelector('span').textContent.toLowerCase();
-                if (hasMatch || catTitle.includes(query)) {
-                    cat.style.display = 'block';
-                    // Si el nombre de la categoría matchea pero no hay items filtrados (porque query no está en items),
-                    // podríamos querer mostrar todos los items de esa categoría, pero es mejor ser estrictos.
-                } else {
-                    cat.style.display = 'none';
-                }
-            });
-        }
-
-        document.querySelectorAll('.toolbar-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                const tabName = tab.getAttribute('data-tab');
-
-                // Active class
-                document.querySelectorAll('.toolbar-tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-
-                // Ribbon actions
-                document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
-                document.getElementById('tab-' + tabName).style.display = 'flex';
-
-                // Dynamic Stats
-                updateStats(tabName);
-
-                // Feed content
-                document.querySelectorAll('.tab-feed').forEach(feed => feed.style.display = 'none');
-                const activeFeed = document.getElementById('feed-' + tabName);
-                if (activeFeed) activeFeed.style.display = 'block';
-            });
-        });
-    </script>
-
-    <!-- MAIN VIEWPORT (Feed) -->
     <div class="viewport">
-        <!-- Contenedor Mantenimiento -->
-        <div id="feed-mantenimiento" class="tab-feed">
-
-            <!-- Quick Stats -->
-            <div class="stats-grid fade-in-up" id="stats-grid" style="animation-delay: 0.1s;">
-                <div class="stat-mini">
-                    <span class="label">Equipos</span>
-                    <span class="value">{{ total_activos }}</span>
-                </div>
-                <div class="stat-mini">
-                    <span class="label">Alertas</span>
-                    <span class="value" style="color: #D32F2F;">{{ avisos_abiertos }}</span>
-                </div>
-                <div class="stat-mini">
-                    <span class="label">Tareas</span>
-                    <span class="value" style="color: var(--fusion-orange);">{{ ots_hoy.count }}</span>
-                </div>
+        <!-- KPI SECTION -->
+        <div class="kpi-grid fiori-animate" id="stats-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">Equipos</span>
+                <span class="kpi-value">{{ total_activos }}</span>
             </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Alertas</span>
+                <span class="kpi-value" style="color: var(--sap-error);">{{ avisos_abiertos }}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Tareas</span>
+                <span class="kpi-value">{{ ots_hoy.count }}</span>
+            </div>
+        </div>
 
-            <!-- Botón Grande de Escáner -->
-            <a href="{% url 'core:mobile_scanner' %}" class="fusion-card fade-in-up"
-                style="animation-delay: 0.15s; display: flex; align-items: center; justify-content: center; gap: 15px; padding: 20px; background: var(--fusion-orange); color: white; text-decoration: none; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(247, 148, 29, 0.4);">
-                <ion-icon name="scan-outline" style="font-size: 32px;"></ion-icon>
-                <span style="font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Abrir
-                    Scanner</span>
+        <!-- MANTENIMIENTO FEED -->
+        <div id="feed-mantenimiento" class="tab-feed fiori-animate" style="animation-delay: 0.1s;">
+            <!-- SCANNER BANNER -->
+            <a href="{% url 'core:mobile_scanner' %}" class="fiori-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; background: var(--sap-information-bg); border: 1px solid var(--sap-information); margin-bottom: 16px; text-decoration: none; border-left-width: 1px !important;">
+                <ion-icon name="scan-outline" style="font-size: 42px; color: var(--sap-information); margin-bottom: 12px;"></ion-icon>
+                <div style="font-weight: 800; color: var(--sap-information); text-transform: uppercase; font-size: 15px; letter-spacing: 0.5px;">Escanear Equipo</div>
             </a>
 
-            <!-- Tareas de Hoy -->
-            <div class="fusion-card fade-in-up" style="animation-delay: 0.2s;">
-                <div class="fusion-card-header">
-                    <h3>Tareas para hoy</h3>
-                    <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}"
-                        style="font-size: 9px; font-weight: 700; color: var(--fusion-accent); text-decoration: none;">VER
-                        TODAS</a>
+            <!-- TASK LIST -->
+            <div class="fiori-card">
+                <div style="padding: 12px 16px; border-bottom: 1px solid var(--sap-border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin:0; font-size: 14px; font-weight: 700;">Tareas de Hoy</h3>
+                    <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" style="font-size: 11px; color: var(--sap-brand-color); text-decoration: none; font-weight: 600;">Ver todas</a>
                 </div>
-                <div class="fusion-card-content">
+                <div class="fiori-list">
                     {% for ot in ots_hoy|slice:":5" %}
-                    <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="list-item">
-                        <div class="icon">
+                    <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="fiori-list-item">
+                        <div class="item-icon">
                             <ion-icon name="document-text-outline"></ion-icon>
                         </div>
-                        <div class="content">
-                            <h4>OT-{{ ot.id }} <span class="badge badge-{{ ot.prioridad|lower }}">{{ ot.prioridad }}</span></h4>
-                            <p>{{ ot.rutina.nombre|truncatechars:35 }}</p>
+                        <div class="item-content">
+                            <h4>OT-{{ ot.id }} <span class="fiori-badge fiori-badge-{% if ot.prioridad == 'CRITICA' or ot.prioridad == 'ALTA' %}error{% elif ot.prioridad == 'MEDIA' %}warning{% else %}success{% endif %}">{{ ot.prioridad }}</span></h4>
+                            <p>
+                                {% if ot.rutina %}
+                                    {{ ot.rutina.nombre|truncatechars:40 }}
+                                {% elif ot.descripcion_corta %}
+                                    {{ ot.descripcion_corta|truncatechars:40 }}
+                                {% elif ot.aviso %}
+                                    {{ ot.aviso.descripcion|truncatechars:40 }}
+                                {% else %}
+                                    Mantenimiento Correctivo
+                                {% endif %}
+                            </p>
                         </div>
-                        <ion-icon name="chevron-forward-outline" style="color: #CCC;"></ion-icon>
+                        <ion-icon name="chevron-forward-outline" style="color: #ccc;"></ion-icon>
                     </a>
                     {% empty %}
-                    <div style="padding: 30px; text-align: center; color: #999; font-size: 11px;">
-                        <ion-icon name="cafe-outline" style="font-size: 32px; margin-bottom: 10px;"></ion-icon>
-                        <p>No hay tareas pendientes para hoy.</p>
+                    <div style="padding: 40px 20px; text-align: center; color: var(--sap-text-muted);">
+                        <ion-icon name="cafe-outline" style="font-size: 32px; margin-bottom: 12px; opacity: 0.5;"></ion-icon>
+                        <p style="margin:0; font-size: 13px;">No hay tareas pendientes para hoy.</p>
                     </div>
                     {% endfor %}
                 </div>
             </div>
+        </div>
 
-            <!-- Catálogo de Procedimientos (NUEVO) -->
-            <div class="fusion-card fade-in-up" id="catalog-section" style="animation-delay: 0.3s; margin-top: 20px;">
-                <div class="fusion-card-header">
-                    <h3>Catálogo de Procedimientos</h3>
-                    <ion-icon name="journal-outline" style="color: var(--fusion-accent);"></ion-icon>
+        <!-- CATALOG FEED -->
+        <div id="feed-catalogo" class="tab-feed fiori-animate" style="display: none;">
+            <div id="catalog-section">
+                <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <h3 style="margin:0; font-size: 14px; font-weight: 700;">Catálogo de Procedimientos</h3>
                 </div>
-                <div class="fusion-card-content" style="padding: 10px;">
-                    <!-- Buscador de Catálogo (NUEVO) -->
-                    <div class="search-catalog" style="margin-bottom: 15px; position: relative;">
-                        <ion-icon name="search-outline"
-                            style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #888; font-size: 14px;"></ion-icon>
-                        <input type="text" id="catalog-search-input" placeholder="Buscar procedimiento o rutina..."
-                            onkeyup="filterCatalog()"
-                            style="width: 100%; padding: 8px 10px 8px 32px; border: 1px solid var(--fusion-border); border-radius: 4px; font-size: 11px; outline: none; background: #FFF;">
-                    </div>
 
-                    <div class="category-grid" id="category-grid-main"
-                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        {% for cat in rutinas_categorias %}
-                        <div class="category-item" onclick="toggleCategory('cat-{{ cat.id }}')"
-                            style="background: #F8F8F8; border: 1px solid var(--fusion-border); border-radius: 4px; padding: 12px; text-align: center; cursor: pointer;">
-                            <ion-icon name="folder-open"
-                                style="font-size: 24px; color: var(--fusion-orange); margin-bottom: 5px;"></ion-icon>
-                            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">{{ cat.nombre }}
-                            </div>
-                            <div style="font-size: 9px; color: #888;">{{ cat.all_rutinas.count }} rutinas</div>
-                        </div>
-                        {% endfor %}
-                    </div>
-
+                <div class="catalog-grid" id="category-grid-main">
                     {% for cat in rutinas_categorias %}
-                    <div id="cat-{{ cat.id }}" class="category-details"
-                        style="display: none; margin-top: 15px; border-top: 1px solid var(--fusion-border); padding-top: 10px;">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span style="font-size: 11px; font-weight: 800; color: var(--fusion-orange);">{{
-                                cat.nombre|upper }}</span>
-                            <button onclick="toggleCategory('cat-{{ cat.id }}')"
-                                style="background: none; border: none; font-size: 10px; font-weight: 700; color: #888;">CERRAR</button>
-                        </div>
-                        <div class="routine-list">
-                            {% for r in cat.all_rutinas %}
-                            <div class="routine-item" onclick="window.showRoutinePreview('{{ r.id }}')"
-                                style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border: 1px solid #EEE; border-radius: 4px; margin-bottom: 5px;">
-                                <ion-icon name="document-text-outline" style="color: var(--fusion-accent);"></ion-icon>
-                                <div style="flex: 1;">
-                                    <div style="font-size: 11px; font-weight: 700;">{{ r.nombre }}</div>
-                                    <div style="font-size: 9px; color: #999;">{{ r.frecuencia.nombre }} | {{
-                                        r.tiempo_estimado }}</div>
-                                </div>
-                            </div>
-                            {% empty %}
-                            <div style="font-size: 10px; color: #999; text-align: center; padding: 10px;">No hay rutinas
-                                directas en esta categoría.</div>
-                            {% endfor %}
-                        </div>
+                    <div class="catalog-item" onclick="toggleCategory('cat-{{ cat.id }}')">
+                        <ion-icon name="folder-outline"></ion-icon>
+                        <div class="cat-name">{{ cat.nombre }}</div>
+                        <div style="font-size: 9px; color: var(--sap-text-muted); margin-top: 4px;">{{ cat.all_rutinas.count }} rutinas</div>
                     </div>
                     {% endfor %}
                 </div>
-            </div>
 
-            <!-- Mi Planta (Quick Nav) -->
-            <div class="fusion-card fade-in-up" style="animation-delay: 0.3s;">
-                <div class="fusion-card-header">
-                    <h3>Infraestructura</h3>
-                </div>
-                <div class="fusion-card-content"
-                    style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    {% for u in ubicaciones_raiz|slice:":4" %}
-                    <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}"
-                        style="display: flex; align-items: center; gap: 10px; padding: 12px; background: #F5F5F5; border: 1px solid var(--fusion-border); text-decoration: none; color: var(--fusion-text); border-radius: 4px;">
-                        <ion-icon name="business-outline"
-                            style="font-size: 18px; color: var(--fusion-accent);"></ion-icon>
-                        <span style="font-size: 10px; font-weight: 700; text-transform: uppercase;">{{
-                            u.nombre|truncatechars:12 }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Avisos Recientes -->
-            {% if avisos_abiertos > 0 %}
-            <div class="fusion-card fade-in-up" style="animation-delay: 0.4s;">
-                <div class="fusion-card-header">
-                    <h3>Estado de Avisos</h3>
-                </div>
-                <div class="fusion-card-content" style="padding: 15px;">
-                    <div style="background: #FFF9C4; border: 1px solid #FBC02D; padding: 12px; border-radius: 2px;">
-                        <div style="font-size: 11px; font-weight: 700; color: #333; margin-bottom: 5px;">{{
-                            avisos_abiertos }} AVISOS ABIERTOS</div>
-                        <p style="margin: 0; font-size: 10px; color: #555;">Hay fallas reportadas esperando atención
-                            técnica.</p>
-                        <a href="{% url 'mantenimiento:mobile_mis_avisos' %}"
-                            style="display: inline-block; margin-top: 10px; font-size: 10px; font-weight: 800; color: #D4A017; text-decoration: none;">REVISAR
-                            REPORTES &rarr;</a>
+                {% for cat in rutinas_categorias %}
+                <div id="cat-{{ cat.id }}" class="category-details" style="display: none; margin-top: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 2px solid var(--sap-brand-color); margin-bottom: 12px;">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--sap-brand-color);">{{ cat.nombre|upper }}</span>
+                        <button onclick="toggleCategory('cat-{{ cat.id }}')" style="background: none; border: none; font-size: 11px; font-weight: 700; color: var(--sap-text-muted); cursor: pointer;">VOLVER</button>
                     </div>
-                </div>
-            </div>
-            {% endif %}
-        </div> <!-- Fin feed-mantenimiento -->
-
-        <!-- Contenedor Activos (NUEVO) -->
-        <div id="feed-activos" class="tab-feed" style="display: none;">
-            <!-- Explorar por Categoría -->
-            <div class="fusion-card fade-in-up" style="animation-delay: 0.1s;">
-                <div class="fusion-card-header">
-                    <h3>Explorar por Categoría</h3>
-                    <ion-icon name="grid-outline" style="color: var(--fusion-accent);"></ion-icon>
-                </div>
-                <div class="fusion-card-content"
-                    style="padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    {% for cat in categorias_activos %}
-                    <a href="{% url 'activos:mobile_busqueda' %}?q={{ cat.nombre|urlencode }}"
-                        style="background: #F8F8F8; border: 1px solid var(--fusion-border); border-radius: 4px; padding: 15px; text-align: center; text-decoration: none; color: inherit;">
-                        <ion-icon name="layers-outline"
-                            style="font-size: 20px; color: var(--fusion-orange); margin-bottom: 5px;"></ion-icon>
-                        <div style="font-size: 10px; font-weight: 800; text-transform: uppercase;">{{ cat.nombre }}
+                    <div class="routine-list">
+                        {% for r in cat.all_rutinas %}
+                        <div class="fiori-list-item" onclick="window.showRoutinePreview('{{ r.id }}')" style="border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--sap-border-color);">
+                            <div class="item-icon" style="background: var(--sap-bg-color); width: 32px; height: 32px; font-size: 18px;">
+                                <ion-icon name="document-text-outline"></ion-icon>
+                            </div>
+                            <div class="item-content">
+                                <div style="font-size: 13px; font-weight: 600;">{{ r.nombre }}</div>
+                                <div style="font-size: 10px; color: var(--sap-text-muted);">{{ r.frecuencia.nombre }} | {{ r.tiempo_estimado }}</div>
+                            </div>
                         </div>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Explorar por Ubicación -->
-            <div class="fusion-card fade-in-up" style="animation-delay: 0.2s; margin-top: 20px;">
-                <div class="fusion-card-header">
-                    <h3>Explorar por Ubicación</h3>
-                    <ion-icon name="map-outline" style="color: var(--fusion-accent);"></ion-icon>
-                </div>
-                <div class="fusion-card-content" style="padding: 10px;">
-                    <div class="location-list">
-                        {% for u in ubicaciones_activos %}
-                        <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}" class="list-item"
-                            style="text-decoration: none;">
-                            <div class="icon" style="background: #E3F2FD;">
-                                <ion-icon name="business-outline" style="color: #1976D2;"></ion-icon>
-                            </div>
-                            <div class="content">
-                                <h4 style="color: var(--fusion-text);">{{ u.nombre }}</h4>
-                                <p style="font-size: 9px;">{{ u.get_children_count }} sub-ubicaciones</p>
-                            </div>
-                            <ion-icon name="chevron-forward-outline" style="color: #CCC;"></ion-icon>
-                        </a>
                         {% endfor %}
                     </div>
                 </div>
+                {% endfor %}
             </div>
+        </div>
 
-            <div style="height: 40px;"></div>
-        </div> <!-- Fin feed-activos -->
+        <div id="feed-activos" class="tab-feed fiori-animate" style="display: none;">
+            <div class="catalog-grid">
+                {% for cat in categorias_activos %}
+                <a href="{% url 'activos:mobile_busqueda' %}?q={{ cat.nombre|urlencode }}" class="catalog-item" style="text-decoration: none;">
+                    <ion-icon name="layers-outline"></ion-icon>
+                    <div class="cat-name">{{ cat.nombre }}</div>
+                </a>
+                {% endfor %}
+            </div>
+            <div style="margin-top: 24px;">
+                <h3 style="margin-bottom: 12px; font-size: 14px; font-weight: 700;">Ubicaciones Principales</h3>
+                {% for u in ubicaciones_activos %}
+                <a href="{% url 'activos:mobile_ubicaciones_child' u.id %}" class="fiori-list-item" style="border-radius: 8px; border: 1px solid var(--sap-border-color); margin-bottom: 8px;">
+                    <div class="item-icon"><ion-icon name="business-outline"></ion-icon></div>
+                    <div class="item-content">
+                        <h4>{{ u.nombre }}</h4>
+                        <p>{{ u.get_children_count }} áreas vinculadas</p>
+                    </div>
+                    <ion-icon name="chevron-forward-outline"></ion-icon>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
 
-        <!-- Contenedores vacíos para otras pestañas para evitar errores JS -->
-        <div id="feed-inventario" class="tab-feed" style="display: none;"></div>
-        <div id="feed-seguridad" class="tab-feed" style="display: none;"></div>
-        <div id="feed-finanzas" class="tab-feed" style="display: none;"></div>
+        <div id="feed-inventario" class="tab-feed fiori-animate" style="display: none;"></div>
+        <div id="feed-seguridad" class="tab-feed fiori-animate" style="display: none;"></div>
+        <div id="feed-finanzas" class="tab-feed fiori-animate" style="display: none;"></div>
 
-        <div style="height: 40px;"></div> <!-- Spacer for scrolling -->
+        <div style="height: 60px;"></div>
     </div>
 
-    <!-- BOTTOM NAVIGATION (Essential for Mobile) -->
+    <!-- SAP FIORI BOTTOM NAVIGATION -->
     <div class="bottom-nav">
         <a href="{% url 'core:mobile_dashboard' %}" class="nav-item active">
-            <ion-icon name="home"></ion-icon>
+            <ion-icon name="home-outline"></ion-icon>
             <span>Inicio</span>
         </a>
         <a href="{% url 'activos:mobile_ubicaciones' %}" class="nav-item">
-            <ion-icon name="business-outline"></ion-icon>
+            <ion-icon name="map-outline"></ion-icon>
             <span>Planta</span>
         </a>
-        <a href="{% url 'core:mobile_scanner' %}" class="scan-fab">
-            <ion-icon name="scan-outline"></ion-icon>
+        <a href="{% url 'core:mobile_scanner' %}" class="scan-btn-fab">
+            <ion-icon name="qr-code-outline"></ion-icon>
         </a>
         <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="nav-item">
             <ion-icon name="construct-outline"></ion-icon>
@@ -990,15 +649,192 @@
     </div>
 
     <!-- MINI STATUS BAR -->
-    <div
-        style="height: 20px; background: var(--fusion-sidebar); border-top: 1px solid var(--fusion-border); display: flex; align-items: center; padding: 0 15px; font-size: 9px; color: #888; justify-content: space-between; flex-shrink: 0;">
-        <span>SESIÓN: {{ user.username|upper }}</span>
-        <div style="display: flex; gap: 10px;">
+    <div style="height: 24px; background: var(--sap-shell-bg); color: white; font-size: 9px; display: flex; align-items: center; padding: 0 16px; justify-content: space-between; flex-shrink: 0;">
+        <span>USUARIO: {{ user.username|upper }}</span>
+        <div style="display: flex; gap: 12px;">
             <span style="color: #4CAF50;">● ONLINE</span>
-            <span>v2.4-M</span>
+            <span>v2.5-F</span>
         </div>
     </div>
 
-</body>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        const tabStats = {
+            mantenimiento: [
+                { label: 'Equipos', value: '{{ total_activos }}', color: 'var(--sap-brand-color)' },
+                { label: 'Alertas', value: '{{ avisos_abiertos }}', color: 'var(--sap-error)' },
+                { label: 'Tareas', value: '{{ ots_hoy.count }}', color: 'var(--sap-brand-color)' }
+            ],
+            activos: [
+                { label: 'Total', value: '{{ total_activos }}', color: 'var(--sap-brand-color)' },
+                { label: 'Ubicaciones', value: '{{ ubicaciones_activos.count }}', color: 'var(--sap-brand-color)' },
+                { label: 'Categorías', value: '{{ categorias_activos.count }}', color: 'var(--sap-brand-color)' }
+            ],
+            inventario: [
+                { label: 'Stock Bajo', value: '12', color: 'var(--sap-error)' },
+                { label: 'Pedidos', value: '5', color: 'var(--sap-brand-color)' },
+                { label: 'Valor', value: '$45K', color: 'var(--sap-success)' }
+            ],
+            catalogo: [
+                { label: 'Categorías', value: '{{ rutinas_categorias|length }}', color: 'var(--sap-brand-color)' },
+                { label: 'Favoritos', value: '0', color: 'var(--sap-brand-color)' },
+                { label: 'Recientes', value: '3', color: 'var(--sap-success)' }
+            ]
+        };
 
+        function updateStats(tab) {
+            const stats = tabStats[tab] || tabStats.mantenimiento;
+            const grid = document.getElementById('stats-grid');
+            if (grid) {
+                grid.innerHTML = stats.map(s => `
+                    <div class="kpi-card">
+                        <span class="kpi-label">${s.label}</span>
+                        <span class="kpi-value" style="color: ${s.color}">${s.value}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Tab Switching Logic
+        document.querySelectorAll('.tab-item').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.getAttribute('data-tab');
+                
+                document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+                const activeContent = document.getElementById('tab-' + tabName);
+                if (activeContent) activeContent.style.display = 'flex';
+
+                document.querySelectorAll('.tab-feed').forEach(f => f.style.display = 'none');
+                const activeFeed = document.getElementById('feed-' + tabName);
+                if (activeFeed) activeFeed.style.display = 'block';
+
+                updateStats(tabName);
+            });
+        });
+
+        // Catalog Functions
+        function toggleCategory(catId) {
+            const details = document.getElementById(catId);
+            const grid = document.getElementById('category-grid-main');
+            if (details.style.display === 'none') {
+                grid.style.display = 'none';
+                details.style.display = 'block';
+            } else {
+                details.style.display = 'none';
+                grid.style.display = 'grid';
+            }
+        }
+
+        // Global Search Handler
+        function handleGlobalSearch(val) {
+            const activeTab = document.querySelector('.tab-item.active').getAttribute('data-tab');
+            
+            // Si estamos en catálogo, filtrar inmediatamente
+            if (activeTab === 'catalogo') {
+                filterCatalogFromHeader(val);
+            }
+            
+            // Si estamos en mantenimiento, filtrar tareas de hoy
+            if (activeTab === 'mantenimiento') {
+                const query = val.toLowerCase().trim();
+                const items = document.querySelectorAll('#feed-mantenimiento .fiori-list-item');
+                items.forEach(item => {
+                    if (item.textContent.toLowerCase().includes(query)) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+        }
+
+        document.getElementById('global-search-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const val = this.value.trim();
+                if (val) {
+                    window.location.href = `/activos/app/buscar/?q=${encodeURIComponent(val)}`;
+                }
+            }
+        });
+
+        function filterCatalogFromHeader(val) {
+            // Sincronizar con el filtro existente (si se decide mantener ambos, aunque aquí solo queda el del header)
+            const query = val.toLowerCase().trim();
+            const grid = document.getElementById('category-grid-main');
+            const details = document.querySelectorAll('.category-details');
+
+            if (query === "") {
+                grid.style.display = 'grid';
+                details.forEach(d => {
+                    d.style.display = 'none';
+                    d.querySelectorAll('.fiori-list-item').forEach(i => i.style.display = 'flex');
+                });
+                return;
+            }
+
+            grid.style.display = 'none';
+            details.forEach(d => {
+                let hasMatch = false;
+                d.querySelectorAll('.fiori-list-item').forEach(item => {
+                    if (item.textContent.toLowerCase().includes(query)) {
+                        item.style.display = 'flex';
+                        hasMatch = true;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                d.style.display = hasMatch ? 'block' : 'none';
+            });
+        }
+
+        async function showRoutinePreview(routineId) {
+            if (typeof Swal === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+                document.head.appendChild(script);
+                script.onload = () => showRoutinePreview(routineId);
+                return;
+            }
+
+            Swal.fire({ title: 'Cargando...', didOpen: () => Swal.showLoading() });
+
+            try {
+                const r = await fetch(`/mantenimiento/rutinas/dashboard/detail/${routineId}/`);
+                const data = await r.json();
+                if (data.status === 'success') {
+                    let stepsHtml = '<div style="text-align: left;">';
+                    data.rutina.pasos.forEach(p => {
+                        stepsHtml += `
+                            <div style="margin-bottom: 12px; padding: 12px; border: 1px solid #eee; border-radius: 8px;">
+                                <div style="display: flex; gap: 12px;">
+                                    <b style="color: var(--sap-brand-color);">${p.orden}.</b>
+                                    <div>
+                                        <div style="font-weight: 600;">${p.descripcion}</div>
+                                        ${p.verificacion ? `<div style="font-size: 11px; color: #666; margin-top: 4px;">${p.verificacion}</div>` : ''}
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                    stepsHtml += '</div>';
+
+                    Swal.fire({
+                        title: data.rutina.nombre,
+                        html: `
+                            <div style="font-size: 11px; display: flex; gap: 8px; margin-bottom: 12px;">
+                                <span style="background: #eee; padding: 2px 6px; border-radius: 4px;">${data.rutina.frecuencia}</span>
+                                <span style="background: #eee; padding: 2px 6px; border-radius: 4px;">${data.rutina.tiempo_estimado}</span>
+                            </div>
+                            <div style="max-height: 40vh; overflow-y: auto;">${stepsHtml}</div>
+                        `,
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#0070f2'
+                    });
+                }
+            } catch (e) { Swal.fire('Error', 'No se pudo cargar', 'error'); }
+        }
+    </script>
+</body>
 </html>

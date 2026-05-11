@@ -1362,19 +1362,12 @@ def api_documento_busqueda_vectorial(request):
                 'fragmento_preview': f"Coincidencia directa encontrada en metadatos del documento ({d.codigo})."
             }
 
-        # --- FASE 2: BÚSQUEDA SEMÁNTICA (VECTORIAL VÍA GEMINI) ---
-        if settings.GEMINI_API_KEY:
-            try:
-                genai.configure(api_key=settings.GEMINI_API_KEY)
-                # Generar vector para la query
-                res = genai.embed_content(
-                    model="models/text-embedding-004",
-                    content=query,
-                    task_type="retrieval_query",
-                    output_dimensionality=384
-                )
-                query_vector = res['embedding']
-                
+        # --- FASE 2: BÚSQUEDA SEMÁNTICA (VECTORIAL VÍA AI_UTILS) ---
+        try:
+            from core.ai_utils import get_embedding
+            query_vector = get_embedding(query, task_type="retrieval_query", dimensions=768)
+            
+            if query_vector:
                 fragmentos_qs = DocumentoFragmento.objects.select_related('documento')
                 if not request.user.is_superuser:
                     user_dept = getattr(request.user.perfil, 'departamento', None)
@@ -1398,9 +1391,9 @@ def api_documento_busqueda_vectorial(request):
                             'similitud': round(1 - float(f.distance), 4),
                             'fragmento_preview': f.contenido[:200].strip() + "..."
                         }
-            except Exception as ve:
-                import logging
-                logging.getLogger(__name__).warning(f"Error en fase vectorial Gemini: {str(ve)}")
+        except Exception as ve:
+            import logging
+            logging.getLogger(__name__).warning(f"Error en fase vectorial Gemini: {str(ve)}")
 
         # --- FASE 3: ORDENAR Y FORMATEAR ---
         resultados_finales = sorted(resultados_dict.values(), key=lambda x: x['similitud'], reverse=True)
@@ -1847,3 +1840,40 @@ def api_explorer_vincular_biblioteca(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+@csrf_exempt
+def api_webhook_vector_update(request):
+    """
+    Callback para n8n: Recibe el vector de embedding para un documento o fragmento.
+    Similar al de callcenter.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Solo POST'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        doc_id = data.get('documento_id')
+        fragmento_id = data.get('fragmento_id')
+        embedding = data.get('embedding')
+        
+        if not embedding:
+            return JsonResponse({'error': 'No se recibió embedding'}, status=400)
+            
+        if fragmento_id:
+            from .models import DocumentoFragmento
+            frag = get_object_or_404(DocumentoFragmento, id=fragmento_id)
+            frag.embedding = embedding
+            frag.save()
+            return JsonResponse({'status': 'ok', 'type': 'fragmento'})
+            
+        if doc_id:
+            doc = get_object_or_404(Documento, id=doc_id)
+            doc.embedding = embedding
+            doc.save()
+            return JsonResponse({'status': 'ok', 'type': 'documento'})
+            
+        return JsonResponse({'error': 'No se especificó ID de documento o fragmento'}, status=400)
+        
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error en api_webhook_vector_update: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)

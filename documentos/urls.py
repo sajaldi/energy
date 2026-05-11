@@ -51,4 +51,5 @@ urlpatterns = [
     path('api/explorer/mover/', views.api_explorer_mover_items, name='api_explorer_mover_items'),
     path('api/explorer/buscar-global/', views.api_explorer_buscar_global, name='api_explorer_buscar_global'),
     path('api/explorer/vincular-biblioteca/', views.api_explorer_vincular_biblioteca, name='api_explorer_vincular_biblioteca'),
+    path('api/webhook/vector-update/', views.api_webhook_vector_update, name='api_webhook_vector_update'),
 ]

@@ -1,242 +1,254 @@
 {% load static l10n %}
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Detalle de Programación</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Agenda Detalle | SoftCoM-CCG</title>
     {% include 'core/pwa_tags.html' %}
+    {% include 'core/fiori_tokens.html' %}
 
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 
     <style>
         :root {
-            --primary: #007bff;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --bg-body: #f0f2f5;
-            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --safe-area-top: env(safe-area-inset-top);
+            --safe-area-bottom: env(safe-area-inset-bottom);
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-body);
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
             margin: 0;
-            padding-bottom: 30px;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        header {
-            background-color: white;
-            padding: 20px;
+        /* Header SAP Classic */
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            padding: calc(12px + var(--safe-area-top)) 16px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            display: flex;
-            align-items: center;
-            gap: 15px;
+            color: white;
+        }
+
+        .fiori-header h1 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-transform: uppercase;
         }
 
         .back-btn {
-            font-size: 24px;
-            color: var(--dark);
             display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .header-info h1 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 700;
+        .back-btn:active { background: rgba(255, 255, 255, 0.3); }
+
+        /* Content Area */
+        .fiori-scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-bottom: calc(40px + var(--safe-area-bottom));
         }
 
-        .header-info p {
-            margin: 0;
-            font-size: 12px;
-            color: #64748b;
-        }
-
-        .container {
-            padding: 15px;
-        }
-
-        /* Monthly Accrodion */
-        .month-section {
-            background: white;
-            border-radius: 18px;
-            margin-bottom: 12px;
+        /* Group Section (Month) Classic */
+        .fiori-group {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            box-shadow: var(--sap-card-shadow);
             overflow: hidden;
-            box-shadow: var(--card-shadow);
+            margin-bottom: 8px;
         }
 
-        .month-header {
-            padding: 15px 20px;
+        .group-header {
+            padding: 14px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            border-bottom: 1px solid #f1f5f9;
+            background: #fafafa;
+            border-bottom: 1px solid transparent;
+            transition: all 0.2s;
         }
 
-        .month-header h2 {
-            margin: 0;
-            font-size: 15px;
-            font-weight: 700;
+        .group-header h2 { margin: 0; font-size: 14px; font-weight: 800; color: var(--sap-text-color); text-transform: uppercase; }
+        
+        .task-count {
+            font-size: 10px;
+            font-weight: 800;
+            background: var(--sap-information-bg);
+            color: var(--sap-brand-color);
+            padding: 2px 10px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            border: 1px solid rgba(0, 112, 242, 0.1);
         }
 
-        .month-header .count {
-            font-size: 11px;
-            background: var(--light);
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-weight: 700;
-        }
+        .group-content { display: none; padding: 0; }
+        .fiori-group.expanded .group-content { display: block; }
+        .fiori-group.expanded .group-header { border-bottom-color: var(--sap-border-color); }
+        .fiori-group.expanded .caret { transform: rotate(90deg); }
 
-        .month-content {
-            padding: 10px;
-        }
+        .caret { transition: transform 0.2s; color: var(--sap-brand-color); }
 
-        /* OT Item */
+        /* List Items (OTs) Classic */
         .ot-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px;
-            border-radius: 12px;
+            gap: 16px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--sap-border-color);
             text-decoration: none;
-            color: var(--dark);
-            border: 1px solid #f1f5f9;
-            margin-bottom: 8px;
+            color: inherit;
+            transition: background 0.2s;
         }
 
-        .ot-date {
-            text-align: center;
-            min-width: 45px;
-            padding-right: 12px;
-            border-right: 2px solid #f1f5f9;
+        .ot-item:last-child { border-bottom: none; }
+        .ot-item:active { background: #f0f7fd; }
+
+        .ot-date-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            height: 44px;
+            background: #fafafa;
+            border-radius: 2px;
+            border: 1px solid var(--sap-border-color);
         }
 
-        .ot-date .day {
-            display: block;
-            font-size: 16px;
-            font-weight: 700;
+        .ot-date-box .day { font-size: 16px; font-weight: 800; line-height: 1; }
+        .ot-date-box .weekday { font-size: 9px; font-weight: 800; color: var(--sap-text-muted); text-transform: uppercase; margin-top: 2px; }
+
+        .ot-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .ot-info .loc-name { font-size: 14px; font-weight: 700; color: var(--sap-text-color); }
+        
+        .status-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+        .status-pill {
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 10px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border: 1px solid transparent;
         }
 
-        .ot-date .week {
-            font-size: 10px;
-            color: #64748b;
+        .status-PROGRAMADA { background: var(--sap-warning-bg); color: var(--sap-warning); border-color: rgba(233, 115, 12, 0.1); }
+        .status-EJECUCION { background: var(--sap-information-bg); color: var(--sap-brand-color); border-color: rgba(0, 112, 242, 0.1); }
+        .status-REALIZADA { background: var(--sap-success-bg); color: var(--sap-success); border-color: rgba(16, 126, 62, 0.1); }
+        .status-CANCELADA { background: var(--sap-error-bg); color: var(--sap-error); border-color: rgba(187, 0, 0, 0.1); }
+
+        .team-pill {
+            font-size: 9px;
+            font-weight: 800;
+            background: #fafafa;
+            color: var(--sap-text-muted);
+            padding: 2px 8px;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid var(--sap-border-color);
             text-transform: uppercase;
         }
 
-        .ot-main {
-            flex: 1;
-        }
-
-        .ot-main .loc {
-            display: block;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-
-        .ot-main .status {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 4px;
-            background: #f1f5f9;
-            font-weight: 700;
-        }
-
-        .status-REALIZADA {
-            background: #dcfce7;
-            color: #15803d;
-        }
-
-        .status-EJECUCION {
-            background: #eff6ff;
-            color: #1e40af;
-        }
-
-        .status-PROGRAMADA {
-            background: #fff7ed;
-            color: #9a3412;
-        }
-
-        .ot-icon {
-            font-size: 20px;
-            color: #cbd5e1;
-        }
+        .chevron { color: var(--sap-text-muted); opacity: 0.5; }
     </style>
 </head>
-
 <body>
 
-    <header>
+    <header class="fiori-header">
         <a href="{% url 'mantenimiento:mobile_cronograma' %}" class="back-btn">
-            <ion-icon name="arrow-back-outline"></ion-icon>
+            <ion-icon name="chevron-back-outline"></ion-icon>
         </a>
-        <div class="header-info">
-            <p>Rutina:</p>
-            <h1>{{ programacion.rutina.nombre }}</h1>
-        </div>
+        <h1>{{ programacion.rutina.nombre }}</h1>
     </header>
 
-    <div class="container">
+    <div class="fiori-scroll-content">
         {% for mes in meses_data %}
-        <div class="month-section">
-            <div class="month-header">
-                <h2>{{ mes.nombre }}</h2>
-                <span class="count">{{ mes.ots|length }} Tareas</span>
+        <div class="fiori-group {% if forloop.first %}expanded{% endif %}">
+            <div class="group-header" onclick="toggleGroup(this)">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <ion-icon name="chevron-forward-outline" class="caret"></ion-icon>
+                    <h2>{{ mes.nombre }}</h2>
+                </div>
+                <span class="task-count">{{ mes.ots|length }} Tareas</span>
             </div>
-            <div class="month-content">
+            <div class="group-content">
                 {% for ot in mes.ots %}
                 <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="ot-item">
-                    <div class="ot-date">
+                    <div class="ot-date-box">
                         <span class="day">{{ ot.inicio_programado|date:"d" }}</span>
-                        <span class="week">{{ ot.inicio_programado|date:"D" }}</span>
+                        <span class="weekday">{{ ot.inicio_programado|date:"D" }}</span>
                     </div>
-                    <div class="ot-main">
-                        <span class="loc">{{ ot.ubicacion.nombre }}</span>
-                        <div style="display: flex; align-items: center; gap: 5px;">
-                            <span class="status status-{{ ot.estado }}">{{ ot.get_estado_display }}</span>
+                    <div class="ot-info">
+                        <span class="loc-name">{{ ot.ubicacion.nombre }}</span>
+                        <div class="status-row">
+                            <span class="status-pill status-{{ ot.estado }}">{{ ot.get_estado_display }}</span>
                             {% if ot.equipo %}
-                            <span class="status"
-                                style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
-                                <ion-icon name="people-outline" style="font-size: 10px;"></ion-icon> {{ ot.equipo.name
-                                }}
+                            <span class="team-pill">
+                                <ion-icon name="people-outline"></ion-icon>
+                                {{ ot.equipo.name }}
                             </span>
                             {% endif %}
                         </div>
                     </div>
-                    <div class="ot-icon">
+                    <div class="chevron">
                         <ion-icon name="chevron-forward-outline"></ion-icon>
                     </div>
                 </a>
                 {% endfor %}
             </div>
         </div>
+        {% empty %}
+        <div style="text-align: center; padding: 60px 20px; color: var(--sap-text-muted);">
+            <ion-icon name="calendar-clear-outline" style="font-size: 64px; opacity: 0.1;"></ion-icon>
+            <p style="margin-top: 16px;">No hay órdenes generadas para esta programación.</p>
+        </div>
         {% endfor %}
     </div>
 
     <script>
-        // Collapsibles simples
-        document.querySelectorAll('.month-header').forEach(header => {
-            header.addEventListener('click', () => {
-                const content = header.nextElementSibling;
-                content.style.display = content.style.display === 'none' ? 'block' : 'none';
-            });
-        });
-
-        // Abrir el primer mes por defecto
-        const firstContent = document.querySelector('.month-content');
-        if (firstContent) {
-            // firstContent.style.display = 'block';
+        function toggleGroup(header) {
+            const group = header.parentElement;
+            group.classList.toggle('expanded');
         }
     </script>
 </body>
-
 </html>

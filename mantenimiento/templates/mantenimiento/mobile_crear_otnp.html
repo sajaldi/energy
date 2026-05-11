@@ -3,535 +3,492 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crear OT No Programada</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Nueva OT No Programada | SoftCoM-CCG</title>
     {% include 'core/pwa_tags.html' %}
+    {% include 'core/fiori_tokens.html' %}
 
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
         :root {
-            --sap-blue: #0a6ed1;
-            --sap-shell: #354a5f;
-            --sap-bg: #f7f7f7;
-            --sap-card-bg: #ffffff;
-            --sap-label: #6a6d70;
-            --sap-text: #32363a;
-            --sap-border: #d9d9d9;
-            --sap-success: #107e3e;
-            --sap-error: #bb0000;
-            --sap-warning: #e9730c;
+            --safe-area-top: env(safe-area-inset-top);
+            --safe-area-bottom: env(safe-area-inset-bottom);
         }
-
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--sap-bg);
-            color: var(--sap-text);
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
             margin: 0;
-            padding-bottom: env(safe-area-inset-bottom, 20px);
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        header {
-            background-color: var(--sap-shell);
-            height: 48px;
+        /* Header SAP Classic */
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            padding: calc(12px + var(--safe-area-top)) 16px 12px;
             display: flex;
             align-items: center;
-            padding: 0 16px;
+            gap: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: sticky;
             top: 0;
-            z-index: 1000;
+            z-index: 100;
             color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .back-btn {
-            background: transparent;
-            border: none;
-            color: white;
-            padding: 8px;
-            margin-right: 8px;
-            display: flex;
-            align-items: center;
-            font-size: 20px;
-            text-decoration: none;
-        }
-
-        header h1 {
-            font-size: 16px;
-            font-weight: 500;
+        .fiori-header h1 {
             margin: 0;
-            flex-grow: 1;
-        }
-
-        .container {
-            padding: 12px;
-            max-width: 600px;
-            margin: 0 auto;
-            padding-bottom: 80px;
-        }
-
-        .fiori-section {
-            background: var(--sap-card-bg);
-            border: 1px solid var(--sap-border);
-            border-radius: 8px;
-            margin-bottom: 12px;
-            overflow: hidden;
-            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.04);
-        }
-
-        .section-header {
-            padding: 12px 16px;
-            background: #fafafa;
-            border-bottom: 1px solid var(--sap-border);
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--sap-label);
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            flex: 1;
             text-transform: uppercase;
         }
 
-        .section-content { padding: 16px; }
-
-        .form-group { margin-bottom: 16px; }
-        .form-group:last-child { margin-bottom: 0; }
-
-        label {
-            display: block;
-            font-size: 13px;
-            color: var(--sap-label);
-            margin-bottom: 6px;
-            font-weight: 500;
-        }
-
-        .sap-input-container {
-            background: white;
-            border: 1px solid var(--sap-border);
+        .back-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
             border-radius: 4px;
-            transition: border-color 0.2s;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .sap-input-container:focus-within {
-            border-color: var(--sap-blue);
-            outline: 2px solid rgba(10, 110, 209, 0.2);
+        .back-btn:active { background: rgba(255, 255, 255, 0.3); }
+
+        /* Content Area */
+        .fiori-scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding-bottom: calc(100px + var(--safe-area-bottom));
         }
 
-        input, select, textarea {
+        /* Cards SAP Classic */
+        .fiori-card {
+            background: var(--sap-card-bg);
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            box-shadow: var(--sap-card-shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sap-border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #fafafa;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-content { padding: 16px; }
+
+        /* Form Controls Classic */
+        .fiori-form-group {
+            margin-bottom: 16px;
+        }
+
+        .fiori-form-group:last-child { margin-bottom: 0; }
+
+        .fiori-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .fiori-input-wrapper {
+            position: relative;
+            background: #fafafa;
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            transition: all 0.2s;
+        }
+
+        .fiori-input-wrapper:focus-within {
+            border-color: var(--sap-brand-color);
+            background: white;
+            box-shadow: inset 0 0 0 1px var(--sap-brand-color);
+        }
+
+        .fiori-input, .fiori-select, .fiori-textarea {
             width: 100%;
+            padding: 12px 0;
             border: none;
-            background: transparent;
-            padding: 10px 12px;
-            font-family: inherit;
             font-size: 14px;
-            color: var(--sap-text);
+            font-family: inherit;
+            color: var(--sap-text-color);
+            background: transparent;
             outline: none;
         }
 
-        textarea { height: 100px; resize: none; }
+        .fiori-select, .fiori-textarea { 
+            padding: 12px; 
+            border: 1px solid var(--sap-border-color); 
+            border-radius: var(--sap-border-radius); 
+            background: #fafafa; 
+        }
+        
+        .fiori-select:focus, .fiori-textarea:focus { 
+            border-color: var(--sap-brand-color); 
+            background: white;
+            box-shadow: inset 0 0 0 1px var(--sap-brand-color);
+        }
 
-        .footer-actions {
+        .fiori-textarea { height: 100px; resize: none; }
+
+        /* Multi Select Mockup */
+        .fiori-multi-select {
+            height: auto;
+            min-height: 100px;
+            padding: 8px !important;
+        }
+
+        /* Toolbar Actions Classic */
+        .fiori-toolbar {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            bottom: 0; left: 0; right: 0;
             background: white;
-            border-top: 1px solid var(--sap-border);
-            padding: 12px 16px;
+            padding: 12px 16px calc(12px + var(--safe-area-bottom));
+            border-top: 1px solid var(--sap-border-color);
             display: flex;
-            justify-content: flex-end;
             gap: 12px;
-            z-index: 900;
+            z-index: 1000;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
         }
 
-        .sap-btn-main {
-            background: var(--sap-blue);
-            color: white;
-            border: 1px solid var(--sap-blue);
-            padding: 0 20px;
-            height: 40px;
-            border-radius: 4px;
-            font-weight: 600;
+        .fiori-btn {
+            flex: 1;
+            height: 48px;
+            border-radius: var(--sap-border-radius);
             font-size: 14px;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(10, 110, 209, 0.2);
-        }
-
-        .sap-btn-cancel {
-            background: white;
-            color: var(--sap-blue);
-            border: 1px solid var(--sap-blue);
-            padding: 0 20px;
-            height: 40px;
-            border-radius: 4px;
-            font-weight: 500;
-            font-size: 14px;
-            text-decoration: none;
+            font-weight: 800;
             display: flex;
             align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            text-decoration: none;
+            text-transform: uppercase;
         }
 
-        .priority-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 6px;
+        .fiori-btn-primary { background: var(--sap-brand-color); color: white; }
+        .fiori-btn-ghost { background: transparent; border: 1px solid var(--sap-brand-color); color: var(--sap-brand-color); }
+        .fiori-btn:active { transform: scale(0.98); }
+
+        /* Fiori Sheet Modal Classic */
+        .fiori-sheet {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
         }
-        .dot-BAJA { background: var(--sap-success); }
-        .dot-MEDIA { background: var(--sap-warning); }
-        .dot-ALTA { background: var(--sap-error); }
-        .dot-CRITICA { background: #000; }
+
+        .fiori-sheet-content {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: white;
+            border-radius: 4px 4px 0 0;
+            height: 85vh;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+        }
+
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .sheet-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sap-border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fafafa;
+        }
+
+        .sheet-header h3 { margin: 0; font-size: 16px; font-weight: 700; text-transform: uppercase; }
+
+        .sheet-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .selector-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--sap-border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background 0.2s;
+        }
+
+        .selector-item:active { background: #f0f7fd; }
+
+        /* Hierarchy styles */
+        .location-item { margin-left: calc(var(--depth) * 20px); border-left: 1px solid #eee; }
+        .location-item .caret { transition: transform 0.2s; color: var(--sap-brand-color); }
+        .location-item.expanded .caret { transform: rotate(90deg); }
     </style>
 </head>
 <body>
 
-    <header>
+    <header class="fiori-header">
         <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="back-btn">
             <ion-icon name="chevron-back-outline"></ion-icon>
         </a>
         <h1>Nueva OT No Programada</h1>
     </header>
 
-    <div class="container">
+    <div class="fiori-scroll-content">
         <form id="otnp-form">
             {% csrf_token %}
 
-            <div class="fiori-section">
-                <div class="section-header">Activo y Ubicación</div>
-                <div class="section-content">
-                    <div class="form-group">
-                        <label>Activo (Opcional)</label>
-                        <div class="sap-input-container" onclick="openAssetSelector()" style="cursor: pointer; display: flex; align-items: center; padding-right: 12px; background: #fff;">
-                            <input type="text" id="activo-display" readonly placeholder="Seleccione activo..." style="flex-grow: 1; pointer-events: none;">
+            <!-- SECCIÓN 1: Activo y Ubicación -->
+            <div class="fiori-card">
+                <div class="card-header">
+                    <ion-icon name="location-outline"></ion-icon>
+                    <h2>Activo y Ubicación</h2>
+                </div>
+                <div class="card-content">
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Activo (Opcional)</label>
+                        <div class="fiori-input-wrapper" onclick="openAssetSelector()" style="cursor: pointer;">
+                            <input type="text" id="activo-display" class="fiori-input" readonly placeholder="Seleccione activo..." style="pointer-events: none;">
                             <input type="hidden" name="activo" id="activo-id">
-                            <ion-icon name="cube-outline" style="color: var(--sap-blue); font-size: 18px;"></ion-icon>
+                            <ion-icon name="cube-outline" style="color: var(--sap-brand-color);"></ion-icon>
                         </div>
-                        <div id="activo-hint" style="font-size: 11px; color: var(--sap-label); margin-top: 4px; display: none;"></div>
+                        <div id="activo-hint" style="font-size: 11px; color: var(--sap-brand-color); margin-top: 6px; display: none; font-weight: 600;"></div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Ubicación *</label>
-                        <div class="sap-input-container" onclick="openLocationSelector()" style="cursor: pointer; display: flex; align-items: center; padding-right: 12px; background: #fff;">
-                            <input type="text" id="ubicacion-display" readonly placeholder="Seleccione ubicación..." style="flex-grow: 1; pointer-events: none;" required>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Ubicación *</label>
+                        <div class="fiori-input-wrapper" onclick="openLocationSelector()" style="cursor: pointer;">
+                            <input type="text" id="ubicacion-display" class="fiori-input" readonly placeholder="Seleccione ubicación..." style="pointer-events: none;" required>
                             <input type="hidden" name="ubicacion" id="ubicacion-id" required>
-                            <ion-icon name="search-outline" style="color: var(--sap-blue); font-size: 18px;"></ion-icon>
+                            <ion-icon name="search-outline" style="color: var(--sap-brand-color);"></ion-icon>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Modal Selector de Activo -->
-                    <div id="asset-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2100; backdrop-filter: blur(2px);">
-                        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: white; border-top-left-radius: 20px; border-top-right-radius: 20px; height: 85vh; display: flex; flex-direction: column; animation: slideUp 0.3s ease-out;">
-                            <div style="padding: 20px; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center;">
-                                <h3 style="margin: 0; font-size: 18px;">Buscar Activo</h3>
-                                <button type="button" onclick="closeAssetSelector()" style="background: none; border: none; font-size: 24px; color: var(--sap-label);"><ion-icon name="close-outline"></ion-icon></button>
-                            </div>
-                            
-                            <div style="padding: 12px 16px;">
-                                <div class="sap-input-container" style="display: flex; align-items: center; padding: 0 12px;">
-                                    <ion-icon name="search-outline" style="color: var(--sap-label);"></ion-icon>
-                                    <input type="text" id="asset-search" placeholder="Nombre, código o serie..." style="padding: 12px 8px;">
-                                </div>
-                            </div>
-
-                            <div id="asset-results" style="flex-grow: 1; overflow-y: auto; padding: 0 16px 20px;">
-                                <div style="text-align: center; padding: 40px 20px; color: var(--sap-label);">
-                                    <ion-icon name="search" style="font-size: 48px; opacity: 0.2;"></ion-icon>
-                                    <p>Empieza a escribir para buscar activos...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Modal Selector de Ubicación -->
-                    <div id="location-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; backdrop-filter: blur(2px);">
-                        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: white; border-top-left-radius: 20px; border-top-right-radius: 20px; height: 85vh; display: flex; flex-direction: column; animation: slideUp 0.3s ease-out;">
-                            <div style="padding: 20px; border-bottom: 1px solid var(--sap-border); display: flex; justify-content: space-between; align-items: center;">
-                                <h3 style="margin: 0; font-size: 18px;">Seleccionar Ubicación</h3>
-                                <button type="button" onclick="closeLocationSelector()" style="background: none; border: none; font-size: 24px; color: var(--sap-label);"><ion-icon name="close-outline"></ion-icon></button>
-                            </div>
-                            
-                            <div style="padding: 12px 16px;">
-                                <div class="sap-input-container" style="display: flex; align-items: center; padding: 0 12px;">
-                                    <ion-icon name="search-outline" style="color: var(--sap-label);"></ion-icon>
-                                    <input type="text" id="location-search" placeholder="Buscar por nombre o nivel..." style="padding: 12px 8px;">
-                                </div>
-                            </div>
-
-                            <div id="location-list" style="flex-grow: 1; overflow-y: auto; padding: 0 16px 20px;">
-                                {% for u in ubicaciones %}
-                                <div class="location-item depth-{{ u.depth }}" 
-                                     data-id="{{ u.id }}" 
-                                     data-name="{{ u.nombre }}" 
-                                     data-path="{{ u.full_path }}"
-                                     data-parent="{{ u.padre_id|default:'' }}"
-                                     data-has-children="{{ u.has_children|yesno:'true,false' }}"
-                                     style="padding: 12px 10px; border-bottom: 1px solid #f8f8f8; cursor: pointer; display: flex; align-items: center; 
-                                            margin-left: calc({{ u.depth }} * 20px); 
-                                            {% if u.depth > 0 %}display: none;{% endif %}">
-                                    
-                                    <div class="expand-icon" style="width: 24px; display: flex; align-items: center; color: var(--sap-label);">
-                                        {% if u.has_children %}
-                                            <ion-icon name="chevron-forward-outline" class="caret" style="transition: transform 0.2s;"></ion-icon>
-                                        {% else %}
-                                            <ion-icon name="ellipse" style="font-size: 6px; opacity: 0.3; margin-left: 4px;"></ion-icon>
-                                        {% endif %}
-                                    </div>
-
-                                    <div style="flex-grow: 1;">
-                                        <div style="font-weight: {% if u.depth == 0 %}600{% else %}500{% endif %}; font-size: 14px; color: var(--sap-text);">{{ u.nombre }}</div>
-                                        <div class="path-hint" style="font-size: 10px; color: var(--sap-label); display: none;">{{ u.full_path }}</div>
-                                    </div>
-                                    
-                                    <div style="color: var(--sap-blue); opacity: 0; transition: opacity 0.2s;" class="check-icon">
-                                        <ion-icon name="checkmark-circle" style="font-size: 20px;"></ion-icon>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <style>
-                        @keyframes slideUp {
-                            from { transform: translateY(100%); }
-                            to { transform: translateY(0); }
-                        }
-                        .location-item:active, .asset-item:active { background-color: #f0f7ff; }
-                        .location-item.searching { margin-left: 0 !important; border-left: 3px solid #eee; }
-                        .location-item.searching .path-hint { display: block !important; }
-                        .location-item.searching .expand-icon { display: none; }
-                        .location-item.expanded .caret { transform: rotate(90deg); }
-                        .location-item.hidden { display: none !important; }
-                        
-                        .asset-item {
-                            padding: 12px;
-                            border-bottom: 1px solid #eee;
-                            cursor: pointer;
-                        }
-                        .asset-item:last-child { border-bottom: none; }
-                    </style>
-
-                    <div class="form-group">
-                        <label>Equipo de Técnicos (Opcional)</label>
-                        <div class="sap-input-container">
-                            <select name="tecnicos" id="tecnicos-multi" multiple style="height: auto; min-height: 80px; padding: 8px;">
-                                {% for p in personales %}
+            <!-- SECCIÓN 2: Responsables -->
+            <div class="fiori-card">
+                <div class="card-header">
+                    <ion-icon name="people-outline"></ion-icon>
+                    <h2>Asignación</h2>
+                </div>
+                <div class="card-content">
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Líder Responsable</label>
+                        <select name="tecnico" id="tecnico-select" class="fiori-select" onchange="autoSelectEmpresa(this)">
+                            <option value="none">-- Seleccione Responsable --</option>
+                            {% for p in personales %}
                                 <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}">
                                     {{ p.nombre }} {{ p.apellido }}
                                 </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div style="font-size: 11px; color: var(--sap-label); margin-top: 4px;">Solo se muestran técnicos de la empresa seleccionada.</div>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Responsable</label>
-                        <div class="sap-input-container">
-                            <select name="tecnico" id="tecnico-select" onchange="autoSelectEmpresa(this)">
-                                <option value="none">-- Seleccione Responsable --</option>
-                                {% for p in personales %}
-                                    <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}">
-                                        {{ p.nombre }} {{ p.apellido }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Empresa Ejecutora</label>
+                        <select name="empresa_responsable" id="empresa-select" class="fiori-select" onchange="filterTecnicosByEmpresa()">
+                            <option value="none">-- Seleccione Empresa --</option>
+                            {% for e in empresas %}
+                            <option value="{{ e.id }}">{{ e.nombre }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Empresa Responsable</label>
-                        <div class="sap-input-container">
-                            <select name="empresa_responsable" id="empresa-select" onchange="filterTecnicosByEmpresa()">
-                                <option value="none">-- Seleccione Empresa --</option>
-                                {% for e in empresas %}
-                                <option value="{{ e.id }}">{{ e.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Equipo de Técnicos (Opcional)</label>
+                        <select name="tecnicos" id="tecnicos-multi" class="fiori-select fiori-multi-select" multiple>
+                            {% for p in personales %}
+                            <option value="{{ p.id }}" data-empresa-id="{{ p.empresa_id|default:'' }}">
+                                {{ p.nombre }} {{ p.apellido }}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
-
-                    <script>
-                        function filterTecnicosByEmpresa() {
-                            const empresaId = document.getElementById('empresa-select').value;
-                            const tecnicoSelect = document.getElementById('tecnico-select');
-                            const tecnicosMulti = document.getElementById('tecnicos-multi');
-                            
-                            // Filtrar Técnico Líder
-                            Array.from(tecnicoSelect.options).forEach(opt => {
-                                if (opt.value === 'none') return;
-                                const optEmpresaId = opt.getAttribute('data-empresa-id');
-                                if (empresaId === 'none' || optEmpresaId === empresaId) {
-                                    opt.style.display = 'block';
-                                    opt.disabled = false;
-                                } else {
-                                    opt.style.display = 'none';
-                                    opt.disabled = true;
-                                    if (opt.selected) tecnicoSelect.value = 'none';
-                                }
-                            });
-
-                            // Filtrar Equipo (Multi)
-                            Array.from(tecnicosMulti.options).forEach(opt => {
-                                const optEmpresaId = opt.getAttribute('data-empresa-id');
-                                if (empresaId === 'none' || optEmpresaId === empresaId) {
-                                    opt.style.display = 'block';
-                                    opt.disabled = false;
-                                } else {
-                                    opt.style.display = 'none';
-                                    opt.disabled = true;
-                                    opt.selected = false;
-                                }
-                            });
-                        }
-
-                        function autoSelectEmpresa(el) {
-                            const empresaSelect = document.getElementById('empresa-select');
-                            if (empresaSelect.value === 'none' || !empresaSelect.value) {
-                                const selectedOption = el.options[el.selectedIndex];
-                                const empresaId = selectedOption.getAttribute('data-empresa-id');
-                                if (empresaId) {
-                                    empresaSelect.value = empresaId;
-                                    filterTecnicosByEmpresa();
-                                }
-                            }
-                        }
-
-                        // Ejecutar al cargar
-                        document.addEventListener('DOMContentLoaded', function() {
-                            filterTecnicosByEmpresa();
-                        });
-                    </script>
                 </div>
             </div>
 
-            <div class="fiori-section">
-                <div class="section-header">Programación y Detalles</div>
-                <div class="section-content">
+            <!-- SECCIÓN 3: Detalles y Tiempo -->
+            <div class="fiori-card">
+                <div class="card-header">
+                    <ion-icon name="time-outline"></ion-icon>
+                    <h2>Programación y Detalles</h2>
+                </div>
+                <div class="card-content">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div class="form-group">
-                            <label>Inicio Programado</label>
-                            <div class="sap-input-container">
-                                <input type="datetime-local" name="inicio_programado" id="inicio-programado" required>
-                            </div>
+                        <div class="fiori-form-group">
+                            <label class="fiori-label">Inicio</label>
+                            <input type="datetime-local" name="inicio_programado" id="inicio-programado" class="fiori-select" required>
                         </div>
-                        <div class="form-group">
-                            <label>Fin Programado</label>
-                            <div class="sap-input-container">
-                                <input type="datetime-local" name="fin_programado" id="fin-programado" required>
-                            </div>
+                        <div class="fiori-form-group">
+                            <label class="fiori-label">Fin</label>
+                            <input type="datetime-local" name="fin_programado" id="fin-programado" class="fiori-select" required>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Prioridad</label>
-                        <div class="sap-input-container">
-                            <select name="prioridad">
-                                {% for val, label in prioridades %}
-                                <option value="{{ val }}" {% if val == 'MEDIA' %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Prioridad</label>
+                        <select name="prioridad" class="fiori-select">
+                            {% for val, label in prioridades %}
+                            <option value="{{ val }}" {% if val == 'MEDIA' %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Descripción del Motivo *</label>
-                        <div class="sap-input-container">
-                            <textarea name="descripcion" placeholder="Explique por qué se está creando esta orden no programada..." required></textarea>
-                        </div>
+                    <div class="fiori-form-group">
+                        <label class="fiori-label">Descripción del Motivo *</label>
+                        <textarea name="descripcion" class="fiori-textarea" placeholder="Explique la necesidad de esta orden..." required></textarea>
                     </div>
                 </div>
-            </div>
-
-            <div class="footer-actions">
-                <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="sap-btn-cancel">Cancelar</a>
-                <button type="submit" class="sap-btn-main">Crear Orden</button>
             </div>
         </form>
     </div>
 
+    <!-- Botones de Acción -->
+    <div class="fiori-toolbar">
+        <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" class="fiori-btn fiori-btn-ghost">Cancelar</a>
+        <button type="submit" form="otnp-form" class="fiori-btn fiori-btn-primary">
+            <ion-icon name="checkmark-done-outline"></ion-icon> Crear Orden
+        </button>
+    </div>
+
+    <!-- Modal Activos -->
+    <div id="asset-modal" class="fiori-sheet">
+        <div class="fiori-sheet-content">
+            <div class="sheet-header">
+                <h3>Buscar Activo</h3>
+                <button onclick="closeAssetSelector()" class="back-btn"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div style="padding: 16px;">
+                <div class="fiori-input-wrapper">
+                    <ion-icon name="search-outline" style="color: var(--sap-text-muted);"></ion-icon>
+                    <input type="text" id="asset-search" class="fiori-input" placeholder="Nombre o Código..." style="margin-left: 8px;">
+                </div>
+            </div>
+            <div id="asset-results" class="sheet-body">
+                <div style="text-align: center; padding: 40px 20px; color: var(--sap-text-muted);">
+                    <ion-icon name="cube-outline" style="font-size: 48px; opacity: 0.2;"></ion-icon>
+                    <p>Busque un activo por nombre o código interno...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ubicaciones -->
+    <div id="location-modal" class="fiori-sheet">
+        <div class="fiori-sheet-content">
+            <div class="sheet-header">
+                <h3>Ubicación Técnica</h3>
+                <button onclick="closeLocationSelector()" class="back-btn"><ion-icon name="close-outline"></ion-icon></button>
+            </div>
+            <div style="padding: 16px;">
+                <div class="fiori-input-wrapper">
+                    <ion-icon name="search-outline" style="color: var(--sap-text-muted);"></ion-icon>
+                    <input type="text" id="location-search" class="fiori-input" placeholder="Filtrar ubicaciones..." style="margin-left: 8px;">
+                </div>
+            </div>
+            <div id="location-list" class="sheet-body" style="padding: 0;">
+                {% for u in ubicaciones %}
+                <div class="selector-item location-item" 
+                     data-id="{{ u.id }}" 
+                     data-name="{{ u.nombre }}" 
+                     data-path="{{ u.full_path }}"
+                     data-parent="{{ u.padre_id|default:'' }}"
+                     data-has-children="{{ u.has_children|yesno:'true,false' }}"
+                     style="--depth: {{ u.depth }}; {% if u.depth > 0 %}display: none;{% endif %}">
+                    
+                    <div class="expand-icon" style="width: 24px; display: flex; align-items: center;">
+                        {% if u.has_children %}
+                            <ion-icon name="chevron-forward-outline" class="caret"></ion-icon>
+                        {% else %}
+                            <ion-icon name="ellipse" style="font-size: 6px; opacity: 0.2; margin-left: 6px;"></ion-icon>
+                        {% endif %}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; font-size: 14px;">{{ u.nombre }}</div>
+                        <div class="path-hint" style="font-size: 10px; color: var(--sap-text-muted); display: none;">{{ u.full_path }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Initial Dates & Data
-        window.addEventListener('DOMContentLoaded', () => {
-            const now = new Date();
-            const pad = (n) => n.toString().padStart(2, '0');
-            
-            const formatForInput = (d) => {
-                const y = d.getFullYear();
-                const m = pad(d.getMonth() + 1);
-                const day = pad(d.getDate());
-                const h = pad(d.getHours());
-                const min = pad(d.getMinutes());
-                return `${y}-${m}-${day}T${h}:${min}`;
-            };
-            
-            document.getElementById('inicio-programado').value = formatForInput(now);
-            
-            const twoHoursLater = new Date(now.getTime() + (2 * 60 * 60 * 1000));
-            document.getElementById('fin-programado').value = formatForInput(twoHoursLater);
+        // Init dates
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        const formatForInput = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        document.getElementById('inicio-programado').value = formatForInput(now);
+        document.getElementById('fin-programado').value = formatForInput(new Date(now.getTime() + 7200000));
 
-            // Initialize Empresa from pre-selected Tecnico
-            updateEmpresaFromTecnico();
-        });
+        // Selector Modals
+        function openAssetSelector() { document.getElementById('asset-modal').style.display = 'block'; document.getElementById('asset-search').focus(); }
+        function closeAssetSelector() { document.getElementById('asset-modal').style.display = 'none'; }
+        function openLocationSelector() { document.getElementById('location-modal').style.display = 'block'; document.getElementById('location-search').focus(); }
+        function closeLocationSelector() { document.getElementById('location-modal').style.display = 'none'; }
 
-        function updateEmpresaFromTecnico() {
-            const select = document.getElementById('tecnico-select');
-            const selectedOption = select.options[select.selectedIndex];
-            const empresaId = selectedOption.getAttribute('data-empresa-id');
-            
-            if (empresaId) {
-                document.getElementById('empresa-select').value = empresaId;
-            }
-        }
-
-        // Asset Selector Logic
-        function openAssetSelector() {
-            document.getElementById('asset-modal').style.display = 'block';
-            document.getElementById('asset-search').focus();
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeAssetSelector() {
-            document.getElementById('asset-modal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-        }
-
+        // Asset Search
         let assetSearchTimeout;
-        document.getElementById('asset-search').addEventListener('input', function(e) {
+        document.getElementById('asset-search').addEventListener('input', (e) => {
             clearTimeout(assetSearchTimeout);
             const q = e.target.value.trim();
-            
-            if (q.length < 2) {
-                document.getElementById('asset-results').innerHTML = `
-                    <div style="text-align: center; padding: 40px 20px; color: var(--sap-label);">
-                        <ion-icon name="search" style="font-size: 48px; opacity: 0.2;"></ion-icon>
-                        <p>Escribe al menos 2 caracteres...</p>
-                    </div>`;
-                return;
-            }
-
+            if (q.length < 2) return;
             assetSearchTimeout = setTimeout(() => {
                 fetch(`/mantenimiento/api/search-activos/?q=${encodeURIComponent(q)}`)
                     .then(res => res.json())
                     .then(data => {
                         let html = '';
-                        if (data.results.length === 0) {
-                            html = '<div style="text-align: center; padding: 20px;">No se encontraron activos.</div>';
-                        } else {
-                            data.results.forEach(a => {
-                                html += `
-                                    <div class="asset-item" onclick="selectAsset('${a.id}', '${a.text}', '${a.ubicacion_id || ''}', '${a.ubicacion_nombre || ''}')">
-                                        <div style="font-weight: 600; font-size: 14px;">${a.text}</div>
-                                        <div style="font-size: 11px; color: var(--sap-label);">
-                                            ${a.categoria} | ${a.marca} ${a.modelo}<br>
-                                            <ion-icon name="location-outline" style="vertical-align: middle;"></ion-icon> ${a.ubicacion_nombre}
-                                        </div>
-                                    </div>`;
-                            });
-                        }
+                        if (data.results.length === 0) html = '<div style="padding: 20px; text-align: center;">Sin resultados</div>';
+                        else data.results.forEach(a => {
+                            html += `<div class="selector-item" onclick="selectAsset('${a.id}', '${a.text}', '${a.ubicacion_id || ''}', '${a.ubicacion_nombre || ''}')">
+                                <ion-icon name="cube-outline" style="color: var(--sap-brand-color);"></ion-icon>
+                                <div><div style="font-weight:600;">${a.text}</div><div style="font-size:11px;color:#666;">${a.ubicacion_nombre}</div></div>
+                            </div>`;
+                        });
                         document.getElementById('asset-results').innerHTML = html;
                     });
             }, 300);
@@ -540,147 +497,78 @@
         function selectAsset(id, text, ubiId, ubiName) {
             document.getElementById('activo-id').value = id;
             document.getElementById('activo-display').value = text;
-            document.getElementById('activo-hint').innerText = "Copiando ubicación del activo...";
-            document.getElementById('activo-hint').style.display = 'block';
-            
             if (ubiId) {
                 document.getElementById('ubicacion-id').value = ubiId;
                 document.getElementById('ubicacion-display').value = ubiName;
-                
-                // Animación de feedback
-                const ubiInput = document.getElementById('ubicacion-display').parentElement;
-                ubiInput.style.backgroundColor = '#e8f5e9';
-                setTimeout(() => {
-                    ubiInput.style.backgroundColor = '#fff';
-                    document.getElementById('activo-hint').innerText = "Ubicación vinculada al activo.";
-                }, 800);
+                document.getElementById('activo-hint').innerText = "📍 Ubicación sincronizada con el activo";
+                document.getElementById('activo-hint').style.display = 'block';
             }
-            
             closeAssetSelector();
         }
 
-        // Location Selector Logic
-        function openLocationSelector() {
-            document.getElementById('location-modal').style.display = 'block';
-            document.getElementById('location-search').focus();
-            document.body.style.overflow = 'hidden'; 
-        }
-
-        function closeLocationSelector() {
-            document.getElementById('location-modal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-        }
-
-        // Search logic
-        document.getElementById('location-search').addEventListener('input', function(e) {
+        // Location Logic
+        const locationItems = document.querySelectorAll('.location-item');
+        document.getElementById('location-search').addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase().trim();
-            const items = document.querySelectorAll('.location-item');
-            
-            if (query.length > 0) {
-                items.forEach(item => {
-                    const name = item.dataset.name.toLowerCase();
-                    const path = item.dataset.path.toLowerCase();
-                    
-                    item.classList.add('searching');
-                    if (name.includes(query) || path.includes(query)) {
-                        item.classList.remove('hidden');
-                        item.style.display = 'flex';
-                    } else {
-                        item.classList.add('hidden');
-                    }
-                });
-            } else {
-                items.forEach(item => {
-                    item.classList.remove('searching');
-                    item.classList.remove('hidden');
-                    const depth = item.className.match(/depth-(\d+)/)[1];
-                    if (depth === "0") {
-                        item.style.display = 'flex';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                    item.classList.remove('expanded');
-                });
-            }
+            locationItems.forEach(item => {
+                const visible = query === '' ? (item.style.getPropertyValue('--depth') === "0") : (item.dataset.name.toLowerCase().includes(query) || item.dataset.path.toLowerCase().includes(query));
+                item.style.display = visible ? 'flex' : 'none';
+                if (query !== '') item.classList.add('searching'); else item.classList.remove('searching');
+            });
         });
 
-        document.querySelectorAll('.location-item').forEach(item => {
+        locationItems.forEach(item => {
             item.addEventListener('click', function(e) {
-                const isExpandClick = e.target.closest('.expand-icon');
-                const hasChildren = this.dataset.hasChildren === 'true';
                 const id = this.dataset.id;
-                const isSearching = document.getElementById('location-search').value.length > 0;
-
-                if (hasChildren && !isSearching && (isExpandClick || e.target.classList.contains('expand-icon'))) {
-                    const isExpanded = this.classList.toggle('expanded');
-                    const children = document.querySelectorAll(`.location-item[data-parent="${id}"]`);
-                    children.forEach(child => {
-                        if (isExpanded) {
-                            child.style.display = 'flex';
-                            child.classList.remove('hidden');
-                        } else {
-                            collapseDescendants(id);
-                        }
-                    });
-                    return; 
+                const isExpand = e.target.closest('.expand-icon');
+                if (isExpand && this.dataset.hasChildren === 'true') {
+                    const expanded = this.classList.toggle('expanded');
+                    document.querySelectorAll(`.location-item[data-parent="${id}"]`).forEach(c => c.style.display = expanded ? 'flex' : 'none');
+                    return;
                 }
-
                 document.getElementById('ubicacion-id').value = id;
                 document.getElementById('ubicacion-display').value = this.dataset.name;
-                document.getElementById('ubicacion-display').title = this.dataset.path;
-                
-                // Si el usuario cambia manualmente la ubicación, quitamos el hint del activo
                 document.getElementById('activo-hint').style.display = 'none';
-
                 closeLocationSelector();
             });
         });
 
-        function collapseDescendants(parentId) {
-            const children = document.querySelectorAll(`.location-item[data-parent="${parentId}"]`);
-            children.forEach(child => {
-                child.style.display = 'none';
-                child.classList.remove('expanded');
-                const childId = child.dataset.id;
-                collapseDescendants(childId);
+        // Responsables filter
+        const depSelect = document.getElementById('empresa-select');
+        const tecSelect = document.getElementById('tecnico-select');
+        const multiSelect = document.getElementById('tecnicos-multi');
+        function filterTecnicosByEmpresa() {
+            const eId = depSelect.value;
+            [tecSelect, multiSelect].forEach(sel => {
+                Array.from(sel.options).forEach(opt => {
+                    if (opt.value === 'none') return;
+                    const match = eId === 'none' || opt.dataset.empresaId === eId;
+                    opt.style.display = match ? 'block' : 'none';
+                    opt.disabled = !match;
+                    if (!match && opt.selected) { opt.selected = false; if (sel === tecSelect) sel.value = 'none'; }
+                });
             });
         }
+        function autoSelectEmpresa(el) {
+            const eId = el.options[el.selectedIndex].dataset.empresaId;
+            if (eId && (depSelect.value === 'none' || !depSelect.value)) { depSelect.value = eId; filterTecnicosByEmpresa(); }
+        }
 
+        // Submit
         document.getElementById('otnp-form').onsubmit = function(e) {
             e.preventDefault();
             const btn = this.querySelector('button[type="submit"]');
-            btn.disabled = true;
-            btn.innerText = 'Creando...';
-            const formData = new FormData(this);
-            
+            btn.disabled = true; btn.innerText = 'Procesando...';
             fetch("{% url 'mantenimiento:mobile_crear_otnp' %}", {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                method: 'POST', body: new FormData(this), headers: { 'X-CSRFToken': '{{ csrf_token }}' }
             })
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    Swal.fire({
-                        title: '¡Orden Creada!',
-                        text: `Se ha generado la orden ${data.codigo}`,
-                        icon: 'success',
-                        confirmButtonText: 'Ver Orden',
-                        confirmButtonColor: '#0a6ed1'
-                    }).then(() => {
-                        window.location.href = `/mantenimiento/app/ot/${data.ot_id}/`;
-                    });
-                } else {
-                    Swal.fire('Error', data.message || 'Error desconocido', 'error');
-                    btn.disabled = false;
-                    btn.innerText = 'Crear Orden';
-                }
-            })
-            .catch(err => {
-                Swal.fire('Error de conexión', 'No se pudo contactar al servidor', 'error');
-                btn.disabled = false;
-                btn.innerText = 'Crear Orden';
-            });
+                    Swal.fire({ title:'¡Éxito!', text:`Orden ${data.codigo} creada`, icon:'success', confirmButtonColor:'#0a6ed1'})
+                        .then(() => window.location.href = `/mantenimiento/app/ot/${data.ot_id}/`);
+                } else { Swal.fire('Error', data.message, 'error'); btn.disabled = false; btn.innerText = 'Crear Orden'; }
+            }).catch(() => { Swal.fire('Error', 'Conexión fallida', 'error'); btn.disabled = false; });
         };
     </script>
 </body>

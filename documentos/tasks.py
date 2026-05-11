@@ -4,6 +4,7 @@ from django.core.files.storage import default_storage
 import os
 import tempfile
 import json
+from core.ai_utils import get_embedding
 
 logger = logging.getLogger(__name__)
 # Configuración global de encodings para importación
@@ -224,22 +225,17 @@ def import_comentarios_task(self, file_path, file_format, user_id=None, verifica
 @shared_task(name='documentos.tasks.generate_document_embedding')
 def generate_document_embedding(documento_id):
     """
-    Genera embeddings vectoriales para el contenido de texto de un documento usando Google Gemini API.
+    Genera embeddings vectoriales para el contenido de texto de un documento.
     Fracciona el texto en fragmentos (chunking) para mejorar la calidad de la búsqueda en documentos largos.
+    Usa el modelo configurado (Gemini u Ollama/nomic-embed-text) con 768 dimensiones.
     """
     from .models import Documento, DocumentoFragmento
     from django.conf import settings
-    import google.generativeai as genai
     import logging
     
     logger = logging.getLogger(__name__)
     
     try:
-        if not settings.GEMINI_API_KEY:
-            logger.warning(f"No hay GEMINI_API_KEY configurada. Abortando embedding para doc {documento_id}")
-            return False
-            
-        genai.configure(api_key=settings.GEMINI_API_KEY)
         doc = Documento.objects.get(pk=documento_id)
         
         if not doc.contenido_texto:
@@ -274,43 +270,77 @@ def generate_document_embedding(documento_id):
                 if start >= len(text):
                     break
 
-        # 3. Generar Embeddings vía API Gemini
-        # Usamos text-embedding-004 con dimensionalidad forzada a 384 para compatibilidad
+        # 3. Generar Embeddings para cada fragmento (768 dimensiones)
         for i, chunk_content in enumerate(chunks):
             try:
-                result = genai.embed_content(
-                    model="models/text-embedding-004",
-                    content=chunk_content,
-                    task_type="retrieval_document",
-                    output_dimensionality=384
-                )
-                embedding_vector = result['embedding']
+                embedding_vector = get_embedding(chunk_content, dimensions=768)
                 
-                DocumentoFragmento.objects.create(
-                    documento=doc,
-                    contenido=chunk_content,
-                    embedding=embedding_vector,
-                    orden=i
-                )
-            except Exception as e_api:
-                logger.error(f"Error en Gemini API para chunk {i} del doc {documento_id}: {str(e_api)}")
+                if embedding_vector:
+                    DocumentoFragmento.objects.create(
+                        documento=doc,
+                        contenido=chunk_content,
+                        embedding=embedding_vector,
+                        orden=i
+                    )
+            except Exception as e_emb:
+                logger.error(f"Error generando embedding para chunk {i} del doc {documento_id}: {str(e_emb)}")
                 continue
 
         # 4. Generar embedding resumen para el documento (primeros 2000 chars)
         try:
-            res_result = genai.embed_content(
-                model="models/text-embedding-004",
-                content=text[:2000],
-                task_type="retrieval_document",
-                output_dimensionality=384
-            )
-            doc.embedding = res_result['embedding']
+            # Añadimos prefijo para mejorar recuperación en modelos como nomic/mxbai
+            prefix = "Represent this document for retrieval: "
+            summary_text = f"{prefix}{text[:2000]}"
+            doc.embedding = get_embedding(summary_text, dimensions=768)
             doc.save()
         except Exception as e_res:
-             logger.error(f"Error en Gemini API para resumen del doc {documento_id}: {str(e_res)}")
+             logger.error(f"Error generando embedding resumen para doc {documento_id}: {str(e_res)}")
 
-        logger.info(f"Embedding Gemini generado para doc {documento_id} ({len(chunks)} chunks).")
+        logger.info(f"Embeddings (768d) generados para doc {documento_id} ({len(chunks)} chunks).")
         return True
+        
+    except Documento.DoesNotExist:
+        logger.error(f"Documento {documento_id} no encontrado.")
+        return False
+    except Exception as e:
+        logger.error(f"Error en generate_document_embedding: {str(e)}")
+        return False
+
+@shared_task(name='documentos.tasks.vectorize_document_n8n')
+def vectorize_document_n8n(documento_id):
+    """
+    Envía los datos del documento al webhook de n8n para generación de embedding.
+    Similar a la vectorización de tickets.
+    """
+    from .models import Documento
+    import requests
+    from django.conf import settings
+    
+    try:
+        doc = Documento.objects.get(id=documento_id)
+        
+        n8n_url = getattr(settings, 'N8N_DOCUMENT_VECTORIZER_URL', None)
+        if not n8n_url:
+            # Si no hay URL específica, intentar usar la de procesamiento general o loguear
+            logger.warning("N8N_DOCUMENT_VECTORIZER_URL no está configurada.")
+            return False
+            
+        payload = {
+            'documento_id': doc.id,
+            'codigo': doc.codigo,
+            'titulo': doc.titulo,
+            'texto': doc.contenido_texto[:10000], # Limitar para no saturar el payload
+            'callback_url': f"{settings.INTERNAL_SITE_URL}/documentos/api/update-texto/{doc.id}/"
+        }
+        
+        logger.info(f"Enviando documento {doc.codigo} a n8n para vectorización: {n8n_url}")
+        response = requests.post(n8n_url, json=payload, timeout=15)
+        
+        return response.status_code in [200, 201]
+            
+    except Exception as e:
+        logger.error(f"Error en vectorize_document_n8n para doc {documento_id}: {e}")
+        return False
         
     except Documento.DoesNotExist:
         logger.error(f"Documento {documento_id} no encontrado.")

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Mis Órdenes | SoftCoM-CCG</title>
     {% include 'core/pwa_tags.html' %}
+    {% include 'core/fiori_tokens.html' %}
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -13,327 +14,339 @@
 
     <style>
         :root {
-            /* Fusion 360 Palette */
-            --fusion-bg: #F0F0F0;
-            --fusion-sidebar: #EFEFEF;
-            --fusion-border: #D5D5D5;
-            --fusion-accent: #0696D7;
-            --fusion-orange: #F7941D;
-            --fusion-dark: #323232;
-            --fusion-text: #333333;
-            --fusion-text-muted: #666666;
-            --fusion-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            --safe-area-top: env(safe-area-inset-top);
+            --safe-area-bottom: env(safe-area-inset-bottom);
         }
-
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--fusion-bg);
-            color: var(--fusion-text);
+            font-family: var(--sap-font-family);
+            background-color: var(--sap-bg-color);
+            color: var(--sap-text-color);
             margin: 0;
-            padding-bottom: env(safe-area-inset-bottom, 20px);
-            overflow-x: hidden;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            overscroll-behavior-y: contain;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* --- HEADER (Style Fusion 360) --- */
-        .header {
-            background-color: var(--fusion-dark);
-            height: 60px;
+        /* Header Estilo SAP Classic */
+        .fiori-header {
+            background: var(--sap-shell-bg);
+            padding: calc(12px + var(--safe-area-top)) 16px 12px;
             display: flex;
             align-items: center;
-            padding: 0 15px;
+            gap: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: sticky;
             top: 0;
-            z-index: 1000;
+            z-index: 100;
             color: white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .fiori-header h1 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            flex: 1;
+            text-transform: uppercase;
         }
 
         .back-btn {
-            background: transparent;
-            border: none;
-            color: white;
-            font-size: 24px;
             display: flex;
             align-items: center;
-            margin-right: 10px;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            color: white;
             text-decoration: none;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .back-btn:active { background: rgba(255, 255, 255, 0.3); }
+
+        /* Search & Filter Bar */
+        .fiori-search-bar {
+            background: white;
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            border-bottom: 1px solid var(--sap-border-color);
         }
 
         .search-container {
             flex: 1;
             position: relative;
-            margin-right: 10px;
         }
 
         .search-container ion-icon {
             position: absolute;
-            left: 10px;
+            left: 12px;
             top: 50%;
             transform: translateY(-50%);
-            color: #888;
-            font-size: 16px;
+            color: var(--sap-text-muted);
+            font-size: 18px;
         }
 
-        .search-input {
+        .fiori-input {
             width: 100%;
-            background: #454545;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 10px 8px 35px;
-            color: white;
-            font-size: 13px;
+            padding: 12px 12px 12px 38px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            font-size: 14px;
+            background: #fafafa;
+            transition: all 0.2s;
             outline: none;
         }
 
-        .search-input::placeholder { color: #888; }
+        .fiori-input:focus {
+            border-color: var(--sap-brand-color);
+            background: white;
+            box-shadow: inset 0 0 0 1px var(--sap-brand-color);
+        }
 
         .filter-toggle {
-            background: #454545;
-            border: none;
-            border-radius: 4px;
-            width: 36px;
-            height: 36px;
+            width: 44px;
+            height: 44px;
+            border-radius: var(--sap-border-radius);
+            border: 1px solid var(--sap-border-color);
+            background: white;
+            color: var(--sap-brand-color);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
             font-size: 20px;
+            cursor: pointer;
         }
 
-        /* --- FILTER PANEL --- */
-        .filter-panel {
-            background: var(--fusion-sidebar);
-            border-bottom: 1px solid var(--fusion-border);
-            padding: 15px;
+        .filter-toggle.active {
+            background: var(--sap-brand-color);
+            color: white;
+            border-color: var(--sap-brand-color);
+        }
+
+        /* Filter Panel */
+        .fiori-filter-panel {
+            background: white;
+            border-bottom: 1px solid var(--sap-border-color);
+            padding: 16px;
             display: none;
-            animation: slideDown 0.3s ease;
-        }
-
-        @keyframes slideDown {
-            from { transform: translateY(-20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            flex-direction: column;
+            gap: 16px;
         }
 
         .filter-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            gap: 12px;
         }
 
         .filter-group label {
             display: block;
-            font-size: 10px;
-            font-weight: 700;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--sap-text-muted);
+            margin-bottom: 6px;
             text-transform: uppercase;
-            color: var(--fusion-text-muted);
-            margin-bottom: 5px;
         }
 
-        .filter-select {
+        .fiori-select {
             width: 100%;
-            padding: 8px;
-            border: 1px solid var(--fusion-border);
-            border-radius: 4px;
-            background: white;
+            padding: 12px;
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
             font-size: 13px;
-            outline: none;
+            background: #fafafa;
         }
 
         .apply-btn {
-            background: var(--fusion-accent);
+            background: var(--sap-brand-color);
             color: white;
             border: none;
-            border-radius: 4px;
-            padding: 10px;
+            border-radius: var(--sap-border-radius);
+            padding: 14px;
             font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        /* Scroll Content */
+        .fiori-scroll-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: calc(80px + var(--safe-area-bottom));
+        }
+
+        .results-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .results-info span {
             font-size: 12px;
+            font-weight: 700;
+            color: var(--sap-text-muted);
             text-transform: uppercase;
-            width: 100%;
-            margin-top: 15px;
         }
 
-        /* --- LIST CONTAINER --- */
-        .viewport {
-            padding: 15px;
+        /* Card OT (Classic Fiori) */
+        .fiori-card {
+            background: var(--sap-card-bg);
+            border: 1px solid var(--sap-border-color);
+            border-radius: var(--sap-border-radius);
+            padding: 16px;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: var(--sap-card-shadow);
+            transition: all 0.2s;
+            position: relative;
+            border-left: 5px solid var(--sap-brand-color);
         }
 
-        .section-title {
-            font-size: 11px;
-            font-weight: 800;
-            color: var(--fusion-text-muted);
-            text-transform: uppercase;
-            margin-bottom: 12px;
+        .fiori-card:active {
+            transform: translateX(5px);
+            background: #fafafa;
+        }
+
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        /* --- OT CARD (FUSION 360 STYLE) --- */
-        .ot-card {
-            background: white;
-            border: 1px solid var(--fusion-border);
-            border-radius: 6px;
-            margin-bottom: 12px;
-            padding: 0;
-            overflow: hidden;
-            display: block;
-            text-decoration: none;
-            color: inherit;
-            box-shadow: var(--fusion-shadow);
-            transition: transform 0.15s ease;
-        }
-
-        .ot-card:active { transform: scale(0.98); }
-
-        .ot-card-accent {
-            width: 4px;
-            height: 100%;
-            position: absolute;
-            left: 0;
-            top: 0;
-        }
-
-        .accent-EJECUCION { background: var(--fusion-accent); }
-        .accent-PROGRAMADA { background: var(--fusion-orange); }
-        .accent-ESPERA { background: #888; }
-        .accent-REALIZADA { background: #4CAF50; }
-
-        .ot-body {
-            padding: 12px 15px 12px 20px;
-            position: relative;
-        }
-
-        .ot-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 8px;
-        }
-
         .ot-id {
-            font-size: 10px;
+            font-size: 12px;
             font-weight: 800;
-            color: var(--fusion-text-muted);
-            background: #F0F0F0;
-            padding: 2px 6px;
-            border-radius: 2px;
+            color: var(--sap-brand-color);
         }
-
-        .ot-status {
-            font-size: 9px;
-            font-weight: 800;
-            text-transform: uppercase;
-            padding: 3px 8px;
-            border-radius: 10px;
-        }
-
-        .status-EJECUCION { background: #E3F2FD; color: #1565C0; }
-        .status-PROGRAMADA { background: #FFF3E0; color: #E65100; }
-        .status-ESPERA { background: #F5F5F5; color: #616161; }
 
         .ot-title {
-            font-size: 14px;
-            font-weight: 700;
-            margin: 0 0 8px 0;
-            color: var(--fusion-text);
-            line-height: 1.3;
+            font-size: 15px;
+            font-weight: 800;
+            margin: 0;
+            color: var(--sap-text-color);
+            line-height: 1.4;
         }
 
-        .ot-info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
+        .info-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
         }
 
         .info-item {
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 11px;
-            color: var(--fusion-text-muted);
+            font-size: 12px;
+            color: var(--sap-text-muted);
+            font-weight: 500;
         }
 
         .info-item ion-icon {
-            font-size: 14px;
-            color: var(--fusion-accent);
+            font-size: 16px;
+            color: var(--sap-brand-color);
         }
 
-        .ot-footer {
-            background: #FAFAFA;
-            border-top: 1px solid #F0F0F0;
-            padding: 8px 15px;
+        .card-footer {
+            margin-top: 4px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(0,0,0,0.05);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .priority-badge {
-            font-size: 9px;
+        /* Status Badges (Classic) */
+        .fiori-badge {
+            font-size: 10px;
             font-weight: 800;
-            padding: 2px 6px;
+            padding: 4px 10px;
             border-radius: 2px;
             text-transform: uppercase;
+            border: 1px solid transparent;
         }
 
-        .p-CRITICA, .p-ALTA { background: #FFEBEE; color: #C62828; }
-        .p-MEDIA { background: #E3F2FD; color: #1565C0; }
-        .p-BAJA { background: #E8F5E9; color: #2E7D32; }
+        .badge-success { background: var(--sap-success-bg); color: var(--sap-success); border-color: var(--sap-success); }
+        .badge-warning { background: var(--sap-warning-bg); color: var(--sap-warning); border-color: var(--sap-warning); }
+        .badge-error { background: var(--sap-error-bg); color: var(--sap-error); border-color: var(--sap-error); }
+        .badge-info { background: var(--sap-information-bg); color: var(--sap-information); border-color: var(--sap-information); }
 
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--fusion-text-muted);
-        }
-
-        .empty-state ion-icon {
-            font-size: 48px;
-            margin-bottom: 10px;
-            opacity: 0.3;
-        }
-
-        /* Floating Add Button */
-        .fab {
+        /* FAB (Classic) */
+        .fiori-fab {
             position: fixed;
             right: 20px;
-            bottom: 30px;
-            width: 56px;
-            height: 56px;
-            background: var(--fusion-orange);
+            bottom: calc(20px + var(--safe-area-bottom));
+            width: 58px;
+            height: 58px;
+            background: var(--sap-brand-color);
+            color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 28px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            font-size: 30px;
+            box-shadow: 0 4px 15px rgba(0, 112, 242, 0.4);
             text-decoration: none;
-            z-index: 1001;
+            z-index: 1000;
+            transition: all 0.2s;
+            border: 4px solid white;
+        }
+
+        .fiori-fab:active { transform: scale(0.9); }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--sap-text-muted);
+        }
+
+        .empty-state ion-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.2;
         }
     </style>
 </head>
 <body>
 
     <form id="search-form" method="GET" action="{% url 'mantenimiento:mobile_mis_ordenes' %}">
-        <header class="header">
+        <header class="fiori-header">
             <a href="{% url 'core:mobile_dashboard' %}" class="back-btn">
                 <ion-icon name="chevron-back-outline"></ion-icon>
             </a>
-            <div class="search-container">
-                <ion-icon name="search-outline"></ion-icon>
-                <input type="text" name="q" class="search-input" placeholder="Buscar por folio, equipo..." value="{{ q }}">
-            </div>
-            <button type="button" class="filter-toggle" id="btn-toggle-filters">
-                <ion-icon name="options-outline"></ion-icon>
-            </button>
+            <h1>Mis Órdenes de Trabajo</h1>
         </header>
 
-        <div class="filter-panel" id="panel-filters">
+        <div class="fiori-search-bar">
+            <div class="search-container">
+                <ion-icon name="search-outline"></ion-icon>
+                <input type="text" name="q" class="fiori-input" placeholder="Buscar OT o equipo..." value="{{ q }}">
+            </div>
+            <div class="filter-toggle" id="btn-toggle-filters">
+                <ion-icon name="filter-outline"></ion-icon>
+            </div>
+        </div>
+
+        <div class="fiori-filter-panel" id="panel-filters">
             <div class="filter-grid">
                 <div class="filter-group">
                     <label>Estado</label>
-                    <select name="estado" class="filter-select">
+                    <select name="estado" class="fiori-select">
                         <option value="">Todos</option>
                         <option value="PROGRAMADA" {% if estado_filter == 'PROGRAMADA' %}selected{% endif %}>Programada</option>
                         <option value="EJECUCION" {% if estado_filter == 'EJECUCION' %}selected{% endif %}>En Ejecución</option>
@@ -343,7 +356,7 @@
                 </div>
                 <div class="filter-group">
                     <label>Prioridad</label>
-                    <select name="prioridad" class="filter-select">
+                    <select name="prioridad" class="fiori-select">
                         <option value="">Todas</option>
                         <option value="CRITICA" {% if prioridad_filter == 'CRITICA' %}selected{% endif %}>Crítica</option>
                         <option value="ALTA" {% if prioridad_filter == 'ALTA' %}selected{% endif %}>Alta</option>
@@ -356,73 +369,76 @@
         </div>
     </form>
 
-    <div class="viewport">
-        <div class="section-title">
+    <div class="fiori-scroll-content">
+        <div class="results-info">
             <span>Resultados: {{ ordenes.count }}</span>
             {% if q or estado_filter or prioridad_filter %}
-                <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" style="color: var(--fusion-orange); text-decoration: none; font-size: 9px;">LIMPIAR</a>
+                <a href="{% url 'mantenimiento:mobile_mis_ordenes' %}" style="color: var(--sap-brand-color); text-decoration: none; font-size: 11px; font-weight: 700;">LIMPIAR</a>
             {% endif %}
         </div>
 
         {% for ot in ordenes %}
-        <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="ot-card">
-            <div class="ot-body">
-                <div class="ot-card-accent accent-{{ ot.estado }}"></div>
-                <div class="ot-header">
-                    <span class="ot-id">{{ ot.codigo_de_orden|default:"OT-"|add:ot.id|stringformat:"s" }}</span>
-                    <span class="ot-status status-{{ ot.estado }}">{{ ot.get_estado_display }}</span>
-                </div>
+        <a href="{% url 'mantenimiento:mobile_ot_detalle' ot.id %}" class="fiori-card">
+            <div class="card-header">
+                <span class="ot-id">#{{ ot.codigo_de_orden|default:ot.id }}</span>
+                <span class="fiori-badge {% if ot.estado == 'REALIZADA' %}badge-success{% elif ot.estado == 'EJECUCION' %}badge-info{% elif ot.estado == 'ESPERA' %}badge-warning{% else %}badge-info{% endif %}">
+                    {{ ot.get_estado_display }}
+                </span>
+            </div>
+            <div class="card-body" style="padding: 0;">
                 <h3 class="ot-title">
                     {% if ot.rutina %}
                         {{ ot.rutina.nombre }}
                     {% elif ot.aviso %}
-                        {{ ot.aviso.descripcion|truncatechars:60 }}
+                        {{ ot.aviso.descripcion|truncatechars:80 }}
                     {% else %}
-                        Orden Correctiva
+                        Mantenimiento Correctivo
                     {% endif %}
                 </h3>
-                <div class="ot-info-grid">
+                <div class="info-row" style="margin-top: 12px;">
                     <div class="info-item">
                         <ion-icon name="location-outline"></ion-icon>
-                        <span>{{ ot.ubicacion.nombre|truncatechars:18|default:"S/U" }}</span>
+                        <span>{{ ot.ubicacion.nombre|truncatechars:20|default:"S/U" }}</span>
                     </div>
                     <div class="info-item">
                         <ion-icon name="calendar-outline"></ion-icon>
-                        <span>{{ ot.inicio_programado|date:"d/m/y H:i" }}</span>
+                        <span>{{ ot.inicio_programado|date:"d M Y, H:i" }}</span>
                     </div>
                 </div>
             </div>
-            <div class="ot-footer">
-                <span class="priority-badge p-{{ ot.prioridad }}">{{ ot.get_prioridad_display }}</span>
-                <span style="font-size: 9px; color: #999; font-weight: 700;">{{ ot.get_tipo_display }}</span>
+            <div class="card-footer">
+                <span class="fiori-badge {% if ot.prioridad == 'CRITICA' or ot.prioridad == 'ALTA' %}badge-error{% elif ot.prioridad == 'MEDIA' %}badge-warning{% else %}badge-success{% endif %}">
+                    {{ ot.get_prioridad_display }}
+                </span>
+                <span style="font-size: 11px; color: var(--sap-text-muted); font-weight: 600;">{{ ot.get_tipo_display }}</span>
             </div>
         </a>
         {% empty %}
         <div class="empty-state">
             <ion-icon name="search-outline"></ion-icon>
-            <p style="font-weight: 700; margin: 0;">No se encontraron órdenes</p>
-            <p style="font-size: 11px; margin: 5px 0 0;">Intenta con otros filtros o términos de búsqueda.</p>
+            <p style="font-weight: 700; margin: 0; color: var(--sap-text-color);">No hay órdenes</p>
+            <p style="font-size: 13px; margin: 8px 0 0;">Intenta ajustar los filtros de búsqueda.</p>
         </div>
         {% endfor %}
     </div>
 
-    <a href="{% url 'mantenimiento:mobile_crear_otnp' %}" class="fab" title="Crear OT No Programada">
+    <a href="{% url 'mantenimiento:mobile_crear_otnp' %}" class="fiori-fab">
         <ion-icon name="add-outline"></ion-icon>
     </a>
 
     <script>
         $(document).ready(function() {
             $('#btn-toggle-filters').on('click', function() {
-                $('#panel-filters').slideToggle(200);
+                $(this).toggleClass('active');
+                $('#panel-filters').slideToggle(200).css('display', 'flex');
             });
 
-            // Auto-submit search after typing stops
             let typingTimer;
-            $('.search-input').on('keyup', function() {
+            $('.fiori-input').on('keyup', function() {
                 clearTimeout(typingTimer);
                 typingTimer = setTimeout(function() {
                     $('#search-form').submit();
-                }, 1000);
+                }, 800);
             });
         });
     </script>
