@@ -699,7 +699,6 @@ def ticket_dashboard_view(request):
                 node['total'] += c_stats['total']
                 node['abiertos'] += c_stats['abiertos']
                 node['cerrados'] += c_stats['cerrados']
-                # Combinar loc_stats (opcional, pero ayuda a ver ubicaciones en niveles superiores)
                 for lid, lstat in c_stats['loc_stats'].items():
                     if lid not in node['loc_stats']:
                         node['loc_stats'][lid] = {'total':0, 'abiertos':0, 'cerrados':0}
@@ -714,7 +713,7 @@ def ticket_dashboard_view(request):
     f_tree = build_falla_tree()
 
     # Función para convertir loc_stats de un nodo Falla en un árbol de Ubicaciones
-    def build_loc_tree_for_falla(loc_stats):
+    def build_loc_tree_for_falla(loc_stats, offset_level=0):
         u_nodes = {uid: {
             'id': uid,
             'nombre': ubicaciones[uid].nombre,
@@ -727,36 +726,31 @@ def ticket_dashboard_view(request):
         } for uid, stat in loc_stats.items() if uid in ubicaciones}
 
         u_roots = []
-        # Link children
         for uid, node in u_nodes.items():
             if node['padre_id'] and node['padre_id'] in u_nodes:
                 u_nodes[node['padre_id']]['children'].append(node)
             else:
                 u_roots.append(node)
         
-        def accumulate_u(node, level=0):
+        def accumulate_u(node, level):
             node['level'] = level
             for child in node['children']:
                 c_stats = accumulate_u(child, level + 1)
-                # No sumamos aquí porque loc_stats ya vienen pre-agregadas si queremos ver totales de rama
-                # Pero si loc_stats son SOLO hojas, sí deberíamos sumar.
-                # Como vienen de Tickets directos, solo tienen data las que tienen tickets.
-                # Así que SÍ debemos acumular hacia arriba.
                 node['total'] += c_stats['total']
                 node['abiertos'] += c_stats['abiertos']
                 node['cerrados'] += c_stats['cerrados']
             return node
         
-        # Necesitamos asegurarnos que los padres existan aunque no tengan tickets directos
-        # para que el árbol se vea completo.
-        # Por simplicidad en este dashboard, mostraremos solo las ramas con data.
-        for r in u_roots: accumulate_u(r)
+        for r in u_roots: accumulate_u(r, offset_level)
         return u_roots
 
     # Enriquecer el árbol de fallas con sus árboles de ubicaciones
     def finalize_tree(f_nodes):
         for fn in f_nodes:
-            fn['loc_tree'] = build_loc_tree_for_falla(fn['loc_stats'])
+            # Determinamos el nivel para las ubicaciones: debe ser el nivel de la falla más profunda o del nodo actual?
+            # Si la falla tiene hijos, las ubicaciones se verán al final de sus propios hijos.
+            # Pero para que el árbol sea coherente, las ubicaciones cuelgan del nodo actual.
+            fn['loc_tree'] = build_loc_tree_for_falla(fn['loc_stats'], offset_level=fn['level'] + 1)
             finalize_tree(fn['children'])
     
     finalize_tree(f_tree)
