@@ -256,6 +256,24 @@
                 to { opacity: 1; transform: translateY(0); }
             }
 
+            /* --- Hierarchical Tree Styles --- */
+            .tree-row {
+                transition: background 0.2s;
+            }
+            .tree-row:hover { background: #f0f7ff !important; }
+            .tree-icon {
+                font-size: 1.1rem;
+                color: var(--sap-primary);
+                transition: transform 0.2s;
+            }
+            .depth-1 { background-color: #fcfcfc; }
+            .depth-2 { background-color: #f9f9f9; }
+            .depth-3 { background-color: #f7f7f7; }
+            
+            .modern-table td {
+                padding: 12px 16px;
+            }
+
             /* --- SAP Fiori Enhanced Location Dashboard --- */
             .location-experience {
                 animation: dashboardFadeIn 0.6s ease-out;
@@ -511,10 +529,10 @@
             <section class="location-experience">
                 <div class="clusters-header" style="margin-top: 40px;">
                     <div class="title-with-badge">
-                        <h2 class="modern-title">Distribución por Ubicaciones</h2>
+                        <h2 class="modern-title">Distribución Jerárquica</h2>
                         <span class="pulse-badge" style="background: #eef5fa; color: #0070b2; animation: none; border: 1px solid #0070b2;">SAP Fiori Mode</span>
                     </div>
-                    <p class="modern-subtitle">Análisis del volumen de tickets basado en la jerarquía física de activos.</p>
+                    <p class="modern-subtitle">Análisis del volumen de tickets basado en la jerarquía de Ubicaciones y Tipos de Falla.</p>
                 </div>
 
                 <!-- KPI Tiles Row -->
@@ -542,51 +560,43 @@
                 </div>
 
                 <div class="location-dashboard-grid">
-                    <!-- Table Section -->
+                    <!-- Table Section: Locations -->
                     <div class="location-card-pro">
-                        <div class="table-header-actions">
-                            <h3 style="font-size: 1rem; color: #32363a; margin: 0;">Detalle por Área</h3>
-                            <div class="table-search-box">
-                                <i class="ph ph-magnifying-glass"></i>
-                                <input type="text" id="location-table-filter" placeholder="Filtrar ubicaciones..." onkeyup="filterLocationTable()">
-                            </div>
+                        <div class="table-header-actions" style="margin-bottom: 15px;">
+                            <h3 style="font-size: 1rem; color: #32363a; margin: 0;"><i class="ph ph-map-pin"></i> Por Ubicación</h3>
                         </div>
-                        <div class="location-table-wrapper">
-                            <table class="modern-table" id="location-master-table">
+                        <div class="modern-table-container">
+                            <table class="modern-table" id="location-tree-table">
                                 <thead>
                                     <tr>
-                                        <th>Ubicación / Área</th>
-                                        <th>Categoría</th>
-                                        <th style="text-align: center;">Total</th>
-                                        <th style="text-align: center;">Abiertos</th>
-                                        <th style="text-align: center;">Cerrados</th>
+                                        <th>UBICACIÓN / ÁREA</th>
+                                        <th style="text-align: center;">TOTAL</th>
+                                        <th style="text-align: center;">ABIERTOS</th>
+                                        <th style="text-align: center;">CERRADOS</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for loc in ubicaciones_stats %}
-                                    <tr onclick="showLocationDetails('{{ loc.nombre|escapejs }}')">
-                                        <td>
-                                            <div class="loc-info">
-                                                <span class="loc-name">{{ loc.nombre }}</span>
-                                                <span class="loc-path">{{ loc.ruta_completa }}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span class="id-tag" style="background: #f2f2f2; color: #5e696e; border:none; font-size: 0.75rem;">
-                                                {{ loc.categoria.nombre|default:"Sin Categoría" }}
-                                            </span>
-                                        </td>
-                                        <td style="text-align: center;">
-                                            <span class="stat-pill total">{{ loc.total_tickets }}</span>
-                                        </td>
-                                        <td style="text-align: center;">
-                                            <span class="stat-pill open">{{ loc.abiertos }}</span>
-                                        </td>
-                                        <td style="text-align: center;">
-                                            <span class="stat-pill closed">{{ loc.cerrados }}</span>
-                                        </td>
+                                    {% include "callcenter/partials/dashboard_tree_rows.html" with nodes=ubicaciones_tree prefix="loc" %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Table Section: Failures -->
+                        <div class="table-header-actions" style="margin-top: 40px; margin-bottom: 15px;">
+                            <h3 style="font-size: 1rem; color: #32363a; margin: 0;"><i class="ph ph-warning-circle"></i> Por Tipo de Falla</h3>
+                        </div>
+                        <div class="modern-table-container">
+                            <table class="modern-table" id="failure-tree-table">
+                                <thead>
+                                    <tr>
+                                        <th>CATEGORÍA DE FALLA</th>
+                                        <th style="text-align: center;">TOTAL</th>
+                                        <th style="text-align: center;">ABIERTOS</th>
+                                        <th style="text-align: center;">CERRADOS</th>
                                     </tr>
-                                    {% endfor %}
+                                </thead>
+                                <tbody>
+                                    {% include "callcenter/partials/dashboard_tree_rows.html" with nodes=fallas_tree prefix="fail" %}
                                 </tbody>
                             </table>
                         </div>
@@ -876,23 +886,36 @@
             const table = document.getElementById("location-master-table");
             const tr = table.getElementsByTagName("tr");
 
-            for (let i = 1; i < tr.length; i++) {
-                const tdName = tr[i].getElementsByClassName("loc-name")[0];
-                const tdPath = tr[i].getElementsByClassName("loc-path")[0];
-                if (tdName || tdPath) {
-                    const txtValue = (tdName.textContent || tdName.innerText) + " " + (tdPath.textContent || tdPath.innerText);
-                    if (txtValue.toLowerCase().indexOf(filter) > -1) {
-                        tr[i].style.display = "";
-                    } else {
-                        tr[i].style.display = "none";
-                    }
-                }
+        // Lógica de Árbol Jerárquico (Acordeón)
+        function toggleTreeRow(id) {
+            const children = document.querySelectorAll(`[data-parent="${id}"]`);
+            const icon = document.getElementById(`icon-${id}`);
+            const isExpanding = icon && icon.classList.contains('ph-caret-right');
+
+            if (isExpanding) {
+                if (icon) icon.classList.replace('ph-caret-right', 'ph-caret-down');
+                children.forEach(child => {
+                    child.style.display = '';
+                });
+            } else {
+                if (icon) icon.classList.replace('ph-caret-down', 'ph-caret-right');
+                hideDescendants(id);
             }
+        }
+
+        function hideDescendants(parentId) {
+            const children = document.querySelectorAll(`[data-parent="${parentId}"]`);
+            children.forEach(child => {
+                child.style.display = 'none';
+                const childId = child.getAttribute('data-id');
+                const childIcon = document.getElementById(`icon-${childId}`);
+                if (childIcon) childIcon.classList.replace('ph-caret-down', 'ph-caret-right');
+                hideDescendants(childId);
+            });
         }
 
         function showLocationDetails(locationName) {
             console.log("Consultando detalles para: " + locationName);
-            // Implementar modal o drill-down aquí
         }
 
         document.addEventListener('DOMContentLoaded', function() {

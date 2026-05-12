@@ -614,9 +614,12 @@ def ticket_dashboard_view(request):
     """
     Dashboard principal de tickets y grupos (clusters).
     """
-    from .models import SolicitudTicket, GrupoTicket
+    from .models import SolicitudTicket, GrupoTicket, FallaTicket
     from django.db.models import Count, Q
-    
+    from activos.models.ubicacion import Ubicacion
+    from activos.models.categoria import Categoria
+    import json
+
     # Métricas Globales
     total_tickets = SolicitudTicket.objects.count()
     tickets_cerrados = SolicitudTicket.objects.filter(
@@ -624,33 +627,87 @@ def ticket_dashboard_view(request):
     ).count()
     tickets_abiertos = total_tickets - tickets_cerrados
     
-    # Grupos Recientes con conteo de tickets y estadísticas de cierre
-    from django.db.models import Prefetch, Count, Q
+    # Grupos Recientes
     grupos = GrupoTicket.objects.annotate(
         num_tickets=Count('tickets'),
         num_cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True)),
         num_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False))
     ).order_by('-fecha')[:12]
 
-    # --- NUEVO: Estadísticas por Ubicaciones y Categorías ---
-    from activos.models.ubicacion import Ubicacion
-    from activos.models.categoria import Categoria
+    # --- 1. JERARQUÍA DE UBICACIONES ---
+    # Obtenemos todas las ubicaciones con tickets
+    u_stats = Ubicacion.objects.annotate(
+        t_total=Count('tickets'),
+        t_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False)),
+        t_cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True))
+    )
+    
+    # Mapeo rápido
+    u_dict = {u.id: {
+        'id': u.id,
+        'nombre': u.nombre,
+        'padre_id': u.padre_id,
+        'total': u.t_total,
+        'abiertos': u.t_abiertos,
+        'cerrados': u.t_cerrados,
+        'children': [],
+        'level': 0
+    } for u in u_stats}
 
-    # 1. Tickets por Ubicación (Top 20 con más tickets)
-    ubicaciones_stats = Ubicacion.objects.filter(tickets__isnull=False).annotate(
-        total_tickets=Count('tickets'),
-        abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False)),
-        cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True))
-    ).order_by('-total_tickets')[:20]
+    # Construir Árbol y Acumular Totales (Hacia arriba)
+    def build_hierarchy(nodes_dict):
+        roots = []
+        # Primero linkeamos hijos
+        for nid, node in nodes_dict.items():
+            if node['padre_id'] and node['padre_id'] in nodes_dict:
+                nodes_dict[node['padre_id']]['children'].append(node)
+            else:
+                roots.append(node)
+        
+        # Luego acumulamos totales de forma recursiva
+        def accumulate(node, current_level=0):
+            node['level'] = current_level
+            for child in node['children']:
+                child_totals = accumulate(child, current_level + 1)
+                node['total'] += child_totals['total']
+                node['abiertos'] += child_totals['abiertos']
+                node['cerrados'] += child_totals['cerrados']
+            return node
+            
+        for r in roots:
+            accumulate(r)
+        
+        # Retornamos solo los que tienen tickets (o hijos con tickets)
+        def has_data(node):
+            node['children'] = [c for c in node['children'] if has_data(c)]
+            return node['total'] > 0
+            
+        return [r for r in roots if has_data(r)]
 
-    # 2. Tickets por Categoría (de la ubicación)
-    # Agrupamos por el nombre de la categoría para evitar duplicados si hay IDs distintos con mismo nombre
+    ubicaciones_tree = build_hierarchy(u_dict)
+
+    # --- 2. JERARQUÍA DE FALLAS ---
+    f_stats = FallaTicket.objects.annotate(
+        t_total=Count('tickets'),
+        t_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False)),
+        t_cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True))
+    )
+    f_dict = {f.id: {
+        'id': f.id,
+        'nombre': f.nombre,
+        'padre_id': f.parent_id,
+        'total': f.t_total,
+        'abiertos': f.t_abiertos,
+        'cerrados': f.t_cerrados,
+        'children': [],
+        'level': 0
+    } for f in f_stats}
+    fallas_tree = build_hierarchy(f_dict)
+
+    # --- 3. CATEGORÍAS (Para Gráfica) ---
     categorias_stats = Categoria.objects.filter(ubicaciones__tickets__isnull=False).annotate(
         total_tickets=Count('ubicaciones__tickets')
     ).order_by('-total_tickets')
-
-    # Convertir a JSON para gráficas si es necesario
-    import json
     cat_labels = [c.nombre for c in categorias_stats]
     cat_data = [c.total_tickets for c in categorias_stats]
     
@@ -659,8 +716,8 @@ def ticket_dashboard_view(request):
         'cerrados': tickets_cerrados,
         'abiertos': tickets_abiertos,
         'grupos': grupos,
-        'ubicaciones_stats': ubicaciones_stats,
-        'categorias_stats': categorias_stats,
+        'ubicaciones_tree': ubicaciones_tree,
+        'fallas_tree': fallas_tree,
         'cat_labels_json': json.dumps(cat_labels),
         'cat_data_json': json.dumps(cat_data),
         'title': 'Dashboard de Tickets'

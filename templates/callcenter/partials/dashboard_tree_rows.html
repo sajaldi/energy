@@ -1,0 +1,35 @@
+{% for node in nodes %}
+<tr class="tree-row depth-{{ node.level }} {{ prefix }}-parent-{{ node.padre_id|default:'none' }}" 
+    data-id="{{ prefix }}-{{ node.id }}" 
+    data-parent="{{ prefix }}-{{ node.padre_id|default:'none' }}"
+    {% if node.children %}onclick="toggleTreeRow('{{ prefix }}-{{ node.id }}')"{% endif %}
+    style="{% if node.level > 0 %}display: none;{% endif %} cursor: pointer;">
+    
+    <td style="padding-left: {{ node.level|add:node.level|add:node.level }}0px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            {% if node.children %}
+                <i class="ph ph-caret-right tree-icon" id="icon-{{ prefix }}-{{ node.id }}"></i>
+            {% else %}
+                <i class="ph ph-dot" style="opacity: 0.3;"></i>
+            {% endif %}
+            <span class="loc-name" style="font-weight: {% if node.children %}700{% else %}400{% endif %};">
+                {{ node.nombre }}
+            </span>
+        </div>
+    </td>
+    <td style="text-align: center;">
+        <span class="stat-pill total">{{ node.total }}</span>
+    </td>
+    <td style="text-align: center;">
+        <span class="stat-pill open">{{ node.abiertos }}</span>
+    </td>
+    <td style="text-align: center;">
+        <span class="stat-pill closed">{{ node.cerrados }}</span>
+    </td>
+</tr>
+
+{% if node.children %}
+    {% include "callcenter/partials/dashboard_tree_rows.html" with nodes=node.children prefix=prefix %}
+{% endif %}
+
+{% endfor %}
