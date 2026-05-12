@@ -630,13 +630,13 @@ def ticket_dashboard_view(request):
     if fecha_inicio_str:
         try:
             f_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
-            ticket_qs = ticket_qs.filter(fecha_registro__gte=f_inicio)
+            ticket_qs = ticket_qs.filter(fecha_solicitud__gte=f_inicio)
         except ValueError: pass
         
     if fecha_fin_str:
         try:
             f_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-            ticket_qs = ticket_qs.filter(fecha_registro__lte=f_fin)
+            ticket_qs = ticket_qs.filter(fecha_solicitud__lte=f_fin)
         except ValueError: pass
 
     # Métricas Globales (Filtradas)
