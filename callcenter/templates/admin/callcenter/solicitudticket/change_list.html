@@ -67,6 +67,11 @@
     </a>
 </li>
 <li>
+    <a href="#" id="sync-folios-btn" class="btn-sync-tickets" style="background-color: #ffc107 !important; color: #212529 !important;">
+        <i class="fas fa-list-ol"></i> {% trans "Importar por Folio" %}
+    </a>
+</li>
+<li>
     <a href="#" id="sync-tickets-btn" class="btn-sync-tickets">
         <i class="fas fa-sync-alt"></i> {% trans "Sincronizar SIG GIA" %}
     </a>
@@ -210,6 +215,46 @@
                         });
                         setTimeout(() => {
                             window.location.href = url;
+                        }, 1000);
+                    }
+                });
+            });
+        }
+
+        const foliosBtn = document.getElementById('sync-folios-btn');
+        if (foliosBtn) {
+            foliosBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                
+                Swal.fire({
+                    title: 'Importar por Folio',
+                    text: 'Ingrese los folios de los tickets separados por comas o espacios (ej: SS26-144555, SS26-144556)',
+                    input: 'textarea',
+                    inputPlaceholder: 'Pegue aquí los folios...',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ffc107',
+                    confirmButtonText: '<span style="color:#212529"><i class="fas fa-download"></i> Importar</span>',
+                    cancelButtonText: 'Cancelar',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Debe ingresar al menos un folio'
+                        }
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const folios = result.value;
+                        Swal.fire({
+                            title: 'Procesando',
+                            text: 'Iniciando sincronización de folios específicos...',
+                            icon: 'info',
+                            timer: 2000,
+                            showConfirmButton: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                        setTimeout(() => {
+                            window.location.href = `sync-by-folios/?folios=${encodeURIComponent(folios)}`;
                         }, 1000);
                     }
                 });

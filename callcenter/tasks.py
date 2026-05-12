@@ -335,3 +335,49 @@ def analyze_image_ai(evidencia_id):
     except Exception as e:
         logger.error(f"[IA-VISUAL] Error analizando imagen {evidencia_id}: {e}")
         return False
+
+@shared_task(name='callcenter.tasks.sync_tickets_by_folio_list_task')
+def sync_tickets_by_folio_list_task(folios_list):
+    """
+    Sincroniza múltiples tickets específicos por su folio.
+    """
+    username = os.environ.get('CALLCENTER_USER')
+    password = os.environ.get('CALLCENTER_PASS')
+    if not username or not password:
+        return {"status": "error", "message": "Credenciales no configuradas."}
+    company = "Centro Cívico Gubernamental de Honduras"
+    
+    from .scraper import download_tickets_by_folio_list
+    from .utils import import_tickets_from_df
+    
+    try:
+        download_dir = os.path.join(settings.BASE_DIR, 'downloads')
+        files = download_tickets_by_folio_list(
+            username=username,
+            password=password,
+            company_name=company,
+            folios_list=folios_list,
+            download_dir=download_dir
+        )
+        
+        if not files:
+            return {"status": "error", "message": "No se descargaron archivos de tickets."}
+            
+        dfs = []
+        for f in files:
+            if os.path.exists(f):
+                dfs.append(pd.read_excel(f))
+                # Limpieza opcional inmediata
+                # os.remove(f)
+        
+        if not dfs:
+            return {"status": "error", "message": "No se pudieron leer los archivos Excel."}
+            
+        combined_df = pd.concat(dfs, ignore_index=True)
+        creados, actualizados = import_tickets_from_df(combined_df)
+        
+        return {"status": "success", "creados": creados, "actualizados": actualizados, "total_solicitados": len(folios_list)}
+        
+    except Exception as e:
+        logger.error(f"Error en sync_tickets_by_folio_list_task: {e}")
+        return {"status": "error", "message": str(e)}

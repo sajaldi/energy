@@ -138,6 +138,35 @@ def trigger_bulk_analysis_n8n(request):
         logger.error(f"Error al iniciar el análisis masivo: {e}")
         messages.error(request, f"Error al iniciar el análisis masivo: {e}")
     return redirect('admin:callcenter_solicitudticket_changelist')
+    
+@staff_member_required
+def trigger_sync_by_folios(request):
+    """
+    Inicia la sincronización de tickets específicos por folio.
+    Recibe un parámetro 'folios' (string separado por comas).
+    """
+    from .tasks import sync_tickets_by_folio_list_task
+    folios_str = request.GET.get('folios', '').strip()
+    if not folios_str:
+        messages.error(request, "No se proporcionaron folios para sincronizar.")
+        return redirect('admin:callcenter_solicitudticket_changelist')
+        
+    # Limpiar y separar folios
+    folios_list = [f.strip() for f in folios_str.replace(',', ' ').split() if f.strip()]
+    
+    if not folios_list:
+        messages.error(request, "La lista de folios es inválida.")
+        return redirect('admin:callcenter_solicitudticket_changelist')
+        
+    try:
+        sync_tickets_by_folio_list_task.delay(folios_list)
+        messages.success(request, f"Se ha iniciado la sincronización de {len(folios_list)} tickets específicos en segundo plano.")
+    except Exception as e:
+        logger.error(f"Error al iniciar la sincronización por folios: {e}")
+        messages.error(request, f"Error al iniciar la sincronización: {e}")
+        
+    return redirect('admin:callcenter_solicitudticket_changelist')
+
 
 def send_ticket_to_power_automate_view(request, ticket_id):
     # Limpiar ID de posibles comas de formateo regional

@@ -332,6 +332,83 @@ def sync_individual_ticket(username, password, company_name, ticket_folio, fecha
             browser.close()
             return {"status": "error", "message": str(e), "screenshot": error_screenshot}
 
+def download_tickets_by_folio_list(username, password, company_name, folios_list, download_dir="downloads"):
+    """
+    Descarga los archivos Excel de tickets específicos desde SIG GIA.
+    Navega por cada folio, busca y descarga el Excel individual.
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("Error: Playwright no está instalado.")
+        return []
+
+    if not os.path.exists(download_dir):
+        os.makedirs(download_dir)
+
+    downloaded_files = []
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(accept_downloads=True, ignore_https_errors=True, viewport={'width': 1920, 'height': 1080})
+        page = context.new_page()
+
+        print(f"[{datetime.now()}] Iniciando descarga masiva por folios...")
+        page.goto("https://sig.gia.mx/webapp/seguridad/entrar", timeout=90000)
+
+        # 1. Login
+        page.fill("input#usaurio", username)
+        page.fill("input#combinacion", password)
+        page.click("div#select-simpleSelect")
+        page.click(f"li[role='option']:has-text('{company_name}')")
+        page.click("button:has-text('INGRESAR')")
+        page.wait_for_selector("text=Solicitudes", timeout=60000)
+
+        # 2. Navegar a SSA Seguimiento
+        page.goto("https://sig.gia.mx/webapp/admin/Solicitud/SeguimientoAtencion")
+        page.wait_for_selector("input.MuiSwitch-input", timeout=60000)
+        page.click("input.MuiSwitch-input") # Activar búsqueda avanzada
+        time.sleep(2)
+
+        for folio in folios_list:
+            folio = folio.strip()
+            if not folio: continue
+            
+            print(f"Buscando ticket: {folio}")
+            try:
+                # Limpiar y llenar campo de búsqueda
+                page.wait_for_selector("id=busqueda", timeout=20000)
+                page.click("id=busqueda")
+                page.keyboard.press("Control+A")
+                page.keyboard.press("Backspace")
+                page.fill("id=busqueda", folio)
+                
+                # Aplicar filtros
+                page.click("id=btnBuscar")
+                
+                # Esperar a que el botón de Excel esté listo (significa que la tabla cargó)
+                # Damos un tiempo para que el servidor procese
+                time.sleep(3)
+                page.wait_for_selector("button#btnSolicitudesExcel", timeout=30000)
+                
+                # Descargar Excel
+                with page.expect_download(timeout=60000) as download_info:
+                    page.click("button#btnSolicitudesExcel", force=True)
+                
+                download = download_info.value
+                file_name = f"sync_{folio}_{datetime.now().strftime('%H%M%S')}.xlsx"
+                file_path = os.path.join(download_dir, file_name)
+                download.save_as(file_path)
+                downloaded_files.append(file_path)
+                print(f"Descargado: {folio}")
+                
+            except Exception as e:
+                print(f"Error descargando {folio}: {e}")
+                continue
+
+        browser.close()
+        return downloaded_files
+
 if __name__ == "__main__":
 
     # Prueba local
