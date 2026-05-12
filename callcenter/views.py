@@ -700,15 +700,29 @@ def ticket_dashboard_view(request):
             d_data[did][fid]['locs'][uid]['abiertos'] += stat['t_abiertos']
             d_data[did][fid]['locs'][uid]['cerrados'] += stat['t_cerrados']
 
-    # Función para construir jerarquía de ubicaciones
+    # Función para construir jerarquía de ubicaciones (con ancestros)
     def build_loc_tree(loc_stats, offset_level, parent_dom_id):
+        # 1. Identificar todas las ubicaciones involucradas y sus ancestros
+        relevant_uids = set(loc_stats.keys())
+        all_uids = set()
+        for uid in relevant_uids:
+            curr = uid
+            while curr:
+                all_uids.add(curr)
+                u_obj = ubicaciones.get(curr)
+                curr = u_obj.padre_id if u_obj else None
+        
+        # 2. Inicializar nodos
         u_nodes = {uid: {
             'id': uid, 'nombre': ubicaciones[uid].nombre, 'padre_id': ubicaciones[uid].padre_id,
-            'total': stat['total'], 'abiertos': stat['abiertos'], 'cerrados': stat['cerrados'],
+            'total': loc_stats.get(uid, {}).get('total', 0),
+            'abiertos': loc_stats.get(uid, {}).get('abiertos', 0),
+            'cerrados': loc_stats.get(uid, {}).get('cerrados', 0),
             'children': [], 'is_loc': True,
             'dom_id': f"loc-{uid}"
-        } for uid, stat in loc_stats.items() if uid in ubicaciones}
+        } for uid in all_uids if uid in ubicaciones}
         
+        # 3. Vincular padres e hijos
         u_roots = []
         for uid, node in u_nodes.items():
             if node['padre_id'] and node['padre_id'] in u_nodes:
