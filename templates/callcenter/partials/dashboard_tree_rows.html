@@ -1,25 +1,27 @@
 {% for node in nodes %}
 <tr class="tree-row depth-{{ node.level }} {{ prefix }}-parent-{{ node.padre_id|default:'none' }}" 
-    data-id="{{ prefix }}-{{ node.id }}{% if node.is_loc %}-loc{% endif %}" 
-    data-parent="{{ prefix }}-{{ node.padre_id|default:'none' }}{% if node.is_loc %}-loc{% endif %}"
-    {% if node.children or node.loc_tree %}onclick="toggleTreeRow('{{ prefix }}-{{ node.id }}{% if node.is_loc %}-loc{% endif %}')"{% endif %}
+    data-id="{{ prefix }}-{{ node.id }}{% if node.is_loc %}-loc{% endif %}{% if node.is_depto %}-dep{% endif %}" 
+    data-parent="{{ prefix }}-{{ node.padre_id|default:'none' }}{% if node.is_loc %}-loc{% endif %}{% if node.is_depto %}-dep{% endif %}"
+    {% if node.children or node.loc_tree %}onclick="toggleTreeRow('{{ prefix }}-{{ node.id }}{% if node.is_loc %}-loc{% endif %}{% if node.is_depto %}-dep{% endif %}')"{% endif %}
     style="{% if node.level > 0 %}display: none;{% endif %} cursor: pointer;">
     
     <td style="padding-left: {{ node.level|add:node.level|add:node.level }}0px;">
         <div style="display: flex; align-items: center; gap: 8px;">
             {% if node.children or node.loc_tree %}
-                <i class="ph ph-caret-right tree-icon" id="icon-{{ prefix }}-{{ node.id }}{% if node.is_loc %}-loc{% endif %}"></i>
+                <i class="ph ph-caret-right tree-icon" id="icon-{{ prefix }}-{{ node.id }}{% if node.is_loc %}-loc{% endif %}{% if node.is_depto %}-dep{% endif %}"></i>
             {% else %}
                 <i class="ph ph-dot" style="opacity: 0.3;"></i>
             {% endif %}
             
-            {% if node.is_loc %}
+            {% if node.is_depto %}
+                <i class="ph ph-buildings" style="font-size: 0.9rem; color: #1a1f36;"></i>
+            {% elif node.is_loc %}
                 <i class="ph ph-map-pin" style="font-size: 0.8rem; color: #697386;"></i>
             {% else %}
                 <i class="ph ph-warning-circle" style="font-size: 0.8rem; color: #0070b2;"></i>
             {% endif %}
 
-            <span class="loc-name" style="font-weight: {% if node.children or node.loc_tree %}700{% else %}400{% endif %}; color: {% if node.is_loc %}#4a4a4a{% else %}#1a1f36{% endif %};">
+            <span class="loc-name" style="font-weight: {% if node.children or node.loc_tree or node.is_depto %}700{% else %}400{% endif %}; color: {% if node.is_depto %}#1a1f36{% elif node.is_loc %}#4a4a4a{% else %}#1a1f36{% endif %}; text-transform: {% if node.is_depto %}uppercase{% else %}none{% endif %}; letter-spacing: {% if node.is_depto %}0.5px{% else %}normal{% endif %};">
                 {{ node.nombre }}
             </span>
         </div>

@@ -634,126 +634,133 @@ def ticket_dashboard_view(request):
         num_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False))
     ).order_by('-fecha')[:12]
 
-    # --- AGREGACIÓN MULTIDIMENSIONAL (Falla -> Ubicación) ---
-    # 1. Obtener conteos base por (Falla, Ubicación)
-    from django.db.models import Sum
-    raw_stats = SolicitudTicket.objects.values('falla_reportada_id', 'ubicacion_id').annotate(
+    # --- AGREGACIÓN MULTIDIMENSIONAL (Depto -> Falla -> Ubicación) ---
+    # 1. Obtener conteos base por (Depto, Falla, Ubicación)
+    raw_stats = SolicitudTicket.objects.values(
+        'falla_reportada__departamento_responsable_id',
+        'falla_reportada_id', 
+        'ubicacion_id'
+    ).annotate(
         t_total=Count('id'),
         t_abiertos=Count('id', filter=Q(fecha_cierre__isnull=True) & Q(cierre_enviado=False)),
         t_cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True))
     )
 
     # 2. Cargar Catálogos
+    from core.models import Departamento
+    deptos = {d.id: d for d in Departamento.objects.all()}
     fallas = {f.id: f for f in FallaTicket.objects.all()}
     ubicaciones = {u.id: u for u in Ubicacion.objects.all()}
 
-    # 3. Construir Árbol de Fallas con Ubicaciones anidadas
-    # f_tree[falla_id] = { stats, locations_tree }
-    f_data = {}
+    # 3. Organizar datos por Depto -> Falla -> Loc
+    # d_data[depto_id][falla_id] = { stats, locs: {uid: stats} }
+    d_data = {}
     
     for stat in raw_stats:
+        did = stat['falla_reportada__departamento_responsable_id']
         fid = stat['falla_reportada_id']
         uid = stat['ubicacion_id']
         
-        if not fid: continue # Ignorar sin falla para el árbol jerárquico
+        if not did: did = 0 # "Sin Departamento"
+        if not fid: continue
         
-        if fid not in f_data:
-            f_data[fid] = {'total': 0, 'abiertos': 0, 'cerrados': 0, 'locs': {}}
+        if did not in d_data:
+            d_data[did] = {}
         
-        f_data[fid]['total'] += stat['t_total']
-        f_data[fid]['abiertos'] += stat['t_abiertos']
-        f_data[fid]['cerrados'] += stat['t_cerrados']
+        if fid not in d_data[did]:
+            d_data[did][fid] = {'total': 0, 'abiertos': 0, 'cerrados': 0, 'locs': {}}
+        
+        d_data[did][fid]['total'] += stat['t_total']
+        d_data[did][fid]['abiertos'] += stat['t_abiertos']
+        d_data[did][fid]['cerrados'] += stat['t_cerrados']
         
         if uid:
-            f_data[fid]['locs'][uid] = {
-                'total': stat['t_total'],
-                'abiertos': stat['t_abiertos'],
-                'cerrados': stat['t_cerrados']
-            }
+            if uid not in d_data[did][fid]['locs']:
+                d_data[did][fid]['locs'][uid] = {'total': 0, 'abiertos': 0, 'cerrados': 0}
+            d_data[did][fid]['locs'][uid]['total'] += stat['t_total']
+            d_data[did][fid]['locs'][uid]['abiertos'] += stat['t_abiertos']
+            d_data[did][fid]['locs'][uid]['cerrados'] += stat['t_cerrados']
 
-    # Función para construir jerarquía de fallas acumulando hacia arriba
-    def build_falla_tree():
-        nodes = {fid: {
-            'id': fid,
-            'nombre': fallas[fid].nombre,
-            'padre_id': fallas[fid].parent_id,
-            'total': data['total'],
-            'abiertos': data['abiertos'],
-            'cerrados': data['cerrados'],
-            'children': [],
-            'loc_stats': data['locs'], # Stats directas por loc
-            'is_falla': True
-        } for fid, data in f_data.items()}
-
-        roots = []
-        for fid, node in nodes.items():
-            if node['padre_id'] and node['padre_id'] in nodes:
-                nodes[node['padre_id']]['children'].append(node)
-            else:
-                roots.append(node)
-        
-        def accumulate(node, level=0):
-            node['level'] = level
-            for child in node['children']:
-                c_stats = accumulate(child, level + 1)
-                node['total'] += c_stats['total']
-                node['abiertos'] += c_stats['abiertos']
-                node['cerrados'] += c_stats['cerrados']
-                for lid, lstat in c_stats['loc_stats'].items():
-                    if lid not in node['loc_stats']:
-                        node['loc_stats'][lid] = {'total':0, 'abiertos':0, 'cerrados':0}
-                    node['loc_stats'][lid]['total'] += lstat['total']
-                    node['loc_stats'][lid]['abiertos'] += lstat['abiertos']
-                    node['loc_stats'][lid]['cerrados'] += lstat['cerrados']
-            return node
-
-        for r in roots: accumulate(r)
-        return roots
-
-    f_tree = build_falla_tree()
-
-    # Función para convertir loc_stats de un nodo Falla en un árbol de Ubicaciones
-    def build_loc_tree_for_falla(loc_stats, offset_level=0):
+    # Función para construir jerarquía de ubicaciones
+    def build_loc_tree(loc_stats, offset_level):
         u_nodes = {uid: {
-            'id': uid,
-            'nombre': ubicaciones[uid].nombre,
-            'padre_id': ubicaciones[uid].padre_id,
-            'total': stat['total'],
-            'abiertos': stat['abiertos'],
-            'cerrados': stat['cerrados'],
-            'children': [],
-            'is_loc': True
+            'id': uid, 'nombre': ubicaciones[uid].nombre, 'padre_id': ubicaciones[uid].padre_id,
+            'total': stat['total'], 'abiertos': stat['abiertos'], 'cerrados': stat['cerrados'],
+            'children': [], 'is_loc': True
         } for uid, stat in loc_stats.items() if uid in ubicaciones}
-
+        
         u_roots = []
         for uid, node in u_nodes.items():
             if node['padre_id'] and node['padre_id'] in u_nodes:
                 u_nodes[node['padre_id']]['children'].append(node)
-            else:
-                u_roots.append(node)
-        
-        def accumulate_u(node, level):
+            else: u_roots.append(node)
+            
+        def acc_u(node, level):
             node['level'] = level
-            for child in node['children']:
-                c_stats = accumulate_u(child, level + 1)
-                node['total'] += c_stats['total']
-                node['abiertos'] += c_stats['abiertos']
-                node['cerrados'] += c_stats['cerrados']
+            for c in node['children']:
+                cs = acc_u(c, level + 1)
+                node['total'] += cs['total']
+                node['abiertos'] += cs['abiertos']
+                node['cerrados'] += cs['cerrados']
             return node
         
-        for r in u_roots: accumulate_u(r, offset_level)
+        for r in u_roots: acc_u(r, offset_level)
         return u_roots
 
-    # Enriquecer el árbol de fallas con sus árboles de ubicaciones
-    def finalize_tree(f_nodes):
-        for fn in f_nodes:
-            # Determinamos el nivel para las ubicaciones: debe ser el nivel de la falla más profunda o del nodo actual?
-            # Si la falla tiene hijos, las ubicaciones se verán al final de sus propios hijos.
-            # Pero para que el árbol sea coherente, las ubicaciones cuelgan del nodo actual.
-            fn['loc_tree'] = build_loc_tree_for_falla(fn['loc_stats'], offset_level=fn['level'] + 1)
-            finalize_tree(fn['children'])
-    
-    finalize_tree(f_tree)
+    # Función para construir jerarquía de fallas dentro de un depto
+    def build_falla_tree(f_stats_dict, offset_level):
+        f_nodes = {fid: {
+            'id': fid, 'nombre': fallas[fid].nombre, 'padre_id': fallas[fid].parent_id,
+            'total': data['total'], 'abiertos': data['abiertos'], 'cerrados': data['cerrados'],
+            'children': [], 'loc_stats': data['locs'], 'is_falla': True
+        } for fid, data in f_stats_dict.items() if fid in fallas}
+        
+        f_roots = []
+        for fid, node in f_nodes.items():
+            if node['padre_id'] and node['padre_id'] in f_nodes:
+                f_nodes[node['padre_id']]['children'].append(node)
+            else: f_roots.append(node)
+            
+        def acc_f(node, level):
+            node['level'] = level
+            for c in node['children']:
+                cs = acc_f(c, level + 1)
+                node['total'] += cs['total']; node['abiertos'] += cs['abiertos']; node['cerrados'] += cs['cerrados']
+                for lid, ls in cs['loc_stats'].items():
+                    if lid not in node['loc_stats']: node['loc_stats'][lid] = {'total':0,'abiertos':0,'cerrados':0}
+                    node['loc_stats'][lid]['total'] += ls['total']
+                    node['loc_stats'][lid]['abiertos'] += ls['abiertos']
+                    node['loc_stats'][lid]['cerrados'] += ls['cerrados']
+            node['loc_tree'] = build_loc_tree(node['loc_stats'], node['level'] + 1)
+            return node
+            
+        for r in f_roots: acc_f(r, offset_level)
+        return f_roots
+
+    # Construir el árbol final de Departamentos
+    final_tree = []
+    for did, f_stats in d_data.items():
+        depto_name = deptos[did].nombre if did in deptos else "Sin Departamento"
+        d_node = {
+            'id': did,
+            'nombre': depto_name,
+            'is_depto': True,
+            'level': 0,
+            'total': 0,
+            'abiertos': 0,
+            'cerrados': 0,
+            'children': build_falla_tree(f_stats, 1)
+        }
+        # Acumular totales del depto desde sus fallas raíz
+        for fn in d_node['children']:
+            d_node['total'] += fn['total']
+            d_node['abiertos'] += fn['abiertos']
+            d_node['cerrados'] += fn['cerrados']
+        
+        if d_node['total'] > 0:
+            final_tree.append(d_node)
+
+    final_tree.sort(key=lambda x: x['total'], reverse=True)
 
     # --- CATEGORÍAS (Para Gráfica) ---
     categorias_stats = Categoria.objects.filter(ubicaciones__tickets__isnull=False).annotate(
