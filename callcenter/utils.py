@@ -55,6 +55,8 @@ def import_tickets_from_df(df):
         try:
             dt = pd.to_datetime(val)
             if pd.isna(dt): return None
+            # Convert pandas Timestamp to native python datetime
+            dt = dt.to_pydatetime()
             if timezone.is_naive(dt):
                 return timezone.make_aware(dt)
             return dt

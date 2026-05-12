@@ -1134,7 +1134,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE callcenter_solicitudticket \nSET \n  fecha_actividades = (to_date('{{ $node[\"Variables\"].json.mensaje_original }}', 'DD/MM/YYYY') + (fecha_actividades::time))::timestamp,\n  fecha_cierre = (to_date('{{ $node[\"Variables\"].json.mensaje_original }}', 'DD/MM/YYYY') + (fecha_cierre::time))::timestamp\nWHERE folio = split_part((SELECT status FROM bot_sessions WHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}'), ':', 2);",
+        "query": "=UPDATE callcenter_solicitudticket \nSET \n  fecha_actividades = ((to_date('{{ $node[\"Variables\"].json.mensaje_original }}', \\'DD/MM/YYYY\\') + (fecha_actividades::time)) AT TIME ZONE \\'America/Tegucigalpa\\'),\n  fecha_cierre = ((to_date('{{ $node[\"Variables\"].json.mensaje_original }}', \\'DD/MM/YYYY\\') + (fecha_cierre::time)) AT TIME ZONE \\'America/Tegucigalpa\\')\nWHERE folio = split_part((SELECT status FROM bot_sessions WHERE phone_number = '{{ $node[\"Variables\"].json.telefono }}'), ':', 2);",
         "options": {}
       },
       "id": "actualizar-fecha-manual-id",

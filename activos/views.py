@@ -1247,7 +1247,7 @@ def mobile_ubicaciones(request, parent_id=None):
     ubicaciones = ubicaciones_qs.annotate(
         num_sub=Count('sub_ubicaciones', distinct=True),
         num_activos=Count('activos', distinct=True)
-    ).select_related('categoria__mantenimiento_tipo').order_by('orden', 'nombre')
+    ).prefetch_related('categoria__mantenimiento_tipo').order_by('orden', 'nombre')
     
     # Mapear visores de forma masiva
     visores = {v.plano.ubicacion_id: v for v in VisorPlano.objects.select_related('plano').filter(plano__ubicacion__in=ubicaciones)}
@@ -1264,8 +1264,10 @@ def mobile_ubicaciones(request, parent_id=None):
         
         # Verificar si tiene rutinas asociadas vía categoría
         u.has_rutinas = False
-        if u.categoria and hasattr(u.categoria, 'mantenimiento_tipo'):
-            m_cat = u.categoria.mantenimiento_tipo
+        if u.categoria:
+            m_cats = u.categoria.mantenimiento_tipo.all()
+            if m_cats:
+                m_cat = m_cats[0]
             # Verificar si m_cat o algún ancestro tiene rutinas
             curr = m_cat
             while curr:

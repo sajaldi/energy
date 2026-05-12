@@ -521,7 +521,24 @@ def ticket_cierre_visual_view(request, ticket_id):
     
     if request.method == 'POST':
         # AJAX Save Progress
-        ticket.fecha_cierre = request.POST.get('fecha_cierre') or ticket.fecha_cierre
+        fecha_cierre_str = request.POST.get('fecha_cierre')
+        if fecha_cierre_str:
+            from django.utils import timezone
+            from datetime import datetime
+            dt = None
+            # Intentar varios formatos comunes
+            for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+                try:
+                    dt = datetime.strptime(fecha_cierre_str, fmt)
+                    ticket.fecha_cierre = timezone.make_aware(dt) if timezone.is_naive(dt) else dt
+                    break
+                except ValueError:
+                    # Fallback si el formato falla
+                    pass
+            else:
+                # Si falla todo, dejar que Django intente procesar el string o mantener el actual
+                pass
+        
         ticket.diagnostico = request.POST.get('diagnostico', '')
         ticket.actividades = request.POST.get('actividades', '')
         ticket.observaciones = request.POST.get('observaciones', '')
