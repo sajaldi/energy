@@ -620,12 +620,38 @@ def ticket_dashboard_view(request):
         num_cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True)),
         num_abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False))
     ).order_by('-fecha')[:12]
+
+    # --- NUEVO: Estadísticas por Ubicaciones y Categorías ---
+    from activos.models.ubicacion import Ubicacion
+    from activos.models.categoria import Categoria
+
+    # 1. Tickets por Ubicación (Top 20 con más tickets)
+    ubicaciones_stats = Ubicacion.objects.filter(tickets__isnull=False).annotate(
+        total_tickets=Count('tickets'),
+        abiertos=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=True) & Q(tickets__cierre_enviado=False)),
+        cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True))
+    ).order_by('-total_tickets')[:20]
+
+    # 2. Tickets por Categoría (de la ubicación)
+    # Agrupamos por el nombre de la categoría para evitar duplicados si hay IDs distintos con mismo nombre
+    categorias_stats = Categoria.objects.filter(ubicaciones__tickets__isnull=False).annotate(
+        total_tickets=Count('ubicaciones__tickets')
+    ).order_by('-total_tickets')
+
+    # Convertir a JSON para gráficas si es necesario
+    import json
+    cat_labels = [c.nombre for c in categorias_stats]
+    cat_data = [c.total_tickets for c in categorias_stats]
     
     context = {
         'total': total_tickets,
         'cerrados': tickets_cerrados,
         'abiertos': tickets_abiertos,
         'grupos': grupos,
+        'ubicaciones_stats': ubicaciones_stats,
+        'categorias_stats': categorias_stats,
+        'cat_labels_json': json.dumps(cat_labels),
+        'cat_data_json': json.dumps(cat_data),
         'title': 'Dashboard de Tickets'
     }
     return render(request, 'callcenter/ticket_dashboard.html', context)
@@ -989,7 +1015,13 @@ def wizard_cluster_view(request):
         
         # Opcional: Agregar folios pegados manualmente
         if manual_folios:
-            q_filter |= Q(folio__in=manual_folios) | Q(id_solicitud__in=manual_folios)
+            # Separar folios numéricos para id_solicitud (BigIntegerField) para evitar ValueError
+            numeric_folios = [f for f in manual_folios if f.isdigit()]
+            q_filter_manual = Q(folio__in=manual_folios)
+            if numeric_folios:
+                q_filter_manual |= Q(id_solicitud__in=numeric_folios)
+            
+            q_filter |= q_filter_manual
 
         tickets_qs = SolicitudTicket.objects.filter(q_filter).select_related(
             'falla_reportada', 'falla_reportada__usuario_responsable', 'ubicacion', 'usuario_responsable'
