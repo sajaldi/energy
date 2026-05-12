@@ -2,17 +2,76 @@
 {% load i18n admin_urls static %}
 
 {% block object-tools-items %}
-<li>
-    <a href="{% url 'documentos:busqueda_vectorial' %}" class="addlink"
-        style="background: #0ea5e9; border-color: #0284c7; margin-right: 10px;">
-        🔍 {% trans "Búsqueda Semántica IA" %}
-    </a>
-</li>
-<li>
-    <a href="{% url 'documentos:documento_wizard' %}" class="addlink"
-        style="background: #4f46e5; border-color: #4338ca;">
-        {% trans "Crear con Wizard ✨" %}
-    </a>
-</li>
+    <li>
+        <a href="javascript:void(0);" onclick="vectorizarTodo();" class="addlink" style="background: #10b981; margin-right: 5px; border:none;">
+            🧠 Vectorizar Todo
+        </a>
+    </li>
+    <li>
+        <a href="{% url 'documentos:busqueda_vectorial' %}" class="addlink" style="background: #6366f1; border:none;">
+            🔍 Búsqueda Semántica
+        </a>
+    </li>
+    {{ block.super }}
+{% endblock %}
+
+{% block extrahead %}
 {{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function vectorizarTodo() {
+        Swal.fire({
+            title: '¿Iniciar Vectorización Masiva?',
+            text: "El sistema procesará todos los documentos con texto para habilitar la búsqueda inteligente. Esto corre en segundo plano vía Celery.",
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, iniciar proceso',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Procesando...',
+                    text: 'Enviando comando al servidor...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                fetch("{% url 'documentos:api_documento_migrar_embeddings' %}")
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            Swal.fire(
+                                '¡En marcha!',
+                                data.message,
+                                'success'
+                            );
+                        } else {
+                            Swal.fire(
+                                'Error',
+                                data.error || 'Ocurrió un error inesperado',
+                                'error'
+                            );
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire(
+                            'Error de Conexión',
+                            'No se pudo contactar con el servidor.',
+                            'error'
+                        );
+                    });
+            }
+        });
+    }
+</script>
+<style>
+    .object-tools a.addlink {
+        color: white !important;
+        font-weight: bold;
+    }
+</style>
 {% endblock %}

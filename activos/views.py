@@ -1671,10 +1671,8 @@ def qr_generator_pdf(request):
                 formatted_num = str(i).zfill(digits)
                 codigo = f"{prefix}{formatted_num}"
                 
-                # Construir URL completa para el QR
-                from django.conf import settings
-                base_url = settings.SITE_URL.rstrip('/')
-                qr_content = f"{base_url}/activos/app/buscar/?q={codigo}"
+                # El contenido del QR es ahora solo el texto identificador puro (solicitado por usuario)
+                qr_content = codigo
                 
                 qr = qrcode.QRCode(version=1, box_size=10, border=0)
                 qr.add_data(qr_content)
@@ -1710,19 +1708,26 @@ def qr_generator_pdf(request):
                     size: {page_w}cm {page_h}cm;
                     margin: 0cm;
                 }}
+                * {{
+                    border: 0 none !important;
+                    outline: 0 none !important;
+                    box-sizing: border-box;
+                }}
                 body {{
                     font-family: Arial, sans-serif;
                     margin: 0;
                     padding: 0;
                     overflow: hidden;
+                    background-color: white;
                 }}
                 .label-wrapper {{
-                    width: {safe_w}cm;
-                    height: {safe_h}cm;
-                    margin: 0 auto;
+                    width: {page_w * 0.96}cm;
+                    height: {page_h * 0.96}cm;
+                    margin: 0;
+                    padding: 0;
                     overflow: hidden;
                     page-break-after: always;
-                    border: none !important;
+                    border: 0 none !important;
                 }}
             </style>
         </head>

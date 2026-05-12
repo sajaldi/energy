@@ -236,10 +236,15 @@ def generate_document_embedding(documento_id):
     logger = logging.getLogger(__name__)
     
     try:
+        from django.core.cache import cache
+        # Marcar como procesando en caché (expira en 1 hora por seguridad)
+        cache.set(f"doc_ia_status_{documento_id}", "PROCESANDO", 3600)
+        
         doc = Documento.objects.get(pk=documento_id)
         
         if not doc.contenido_texto:
             logger.warning(f"Documento {documento_id} no tiene texto para generar embedding.")
+            cache.delete(f"doc_ia_status_{documento_id}")
             return False
             
         # 1. Limpiar fragmentos anteriores para evitar duplicidad al re-procesar
@@ -293,17 +298,23 @@ def generate_document_embedding(documento_id):
             summary_text = f"{prefix}{text[:2000]}"
             doc.embedding = get_embedding(summary_text, dimensions=768)
             doc.save()
+            
+            # Finalizado: Eliminar marca de procesamiento
+            cache.delete(f"doc_ia_status_{documento_id}")
         except Exception as e_res:
              logger.error(f"Error generando embedding resumen para doc {documento_id}: {str(e_res)}")
+             cache.delete(f"doc_ia_status_{documento_id}")
 
         logger.info(f"Embeddings (768d) generados para doc {documento_id} ({len(chunks)} chunks).")
         return True
         
     except Documento.DoesNotExist:
         logger.error(f"Documento {documento_id} no encontrado.")
+        cache.delete(f"doc_ia_status_{documento_id}")
         return False
     except Exception as e:
         logger.error(f"Error en generate_document_embedding: {str(e)}")
+        cache.delete(f"doc_ia_status_{documento_id}")
         return False
 
 @shared_task(name='documentos.tasks.vectorize_document_n8n')

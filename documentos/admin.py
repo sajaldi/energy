@@ -114,7 +114,7 @@ class MetadatoValorInline(admin.TabularInline):
 
 @admin.register(Documento)
 class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
-    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'fecha_inicio', 'vista_rapida_button', 'trazabilidad_link')
+    list_display = ('codigo', 'titulo', 'tipo_documento', 'estado_actual', 'get_vectorizado_status', 'ver_en_mapa_button', 'fecha_inicio', 'vista_rapida_button', 'trazabilidad_link')
     list_filter = ('tipo_documento', 'disciplina', 'estado_actual', 'fecha_inicio', 'departamentos')
     search_fields = ('codigo', 'titulo', 'revisiones__comentarios')
     filter_horizontal = ('activos', 'ubicaciones', 'departamentos')
@@ -146,6 +146,10 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         ('Estado y Herramientas', {
             'fields': (('estado_actual', 'ultima_revision'), ('vista_rapida_button', 'sync_metadatos_button', 'get_word_templates_buttons'))
         }),
+        ('Inteligencia Artificial', {
+            'fields': (('get_vectorizado_status', 'ver_en_mapa_button'), 'gestionar_bibliotecas_button'),
+            'description': 'Vectorización, visualización 3D y gestión de bibliotecas del documento.'
+        }),
         ('Seguridad y Acceso', {
             'fields': ('departamentos',),
             'description': 'Si se seleccionan departamentos, solo los usuarios de dichos departamentos podrán ver este documento.'
@@ -159,7 +163,21 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         }),
     )
     
-    readonly_fields = ('ultima_revision', 'gestionar_bibliotecas_button', 'vista_rapida_button', 'trazabilidad_link', 'contenido_texto_display', 'get_word_templates_buttons', 'sync_metadatos_button') 
+    readonly_fields = ('ultima_revision', 'gestionar_bibliotecas_button', 'vista_rapida_button', 'trazabilidad_link', 'ver_en_mapa_button', 'contenido_texto_display', 'get_word_templates_buttons', 'sync_metadatos_button', 'get_vectorizado_status') 
+
+    def ver_en_mapa_button(self, obj):
+        if not obj.pk:
+            return "-"
+        
+        if obj.embedding is None:
+            return format_html('<span style="color:#94a3b8; font-size:0.8rem;">(Sin vectorizar)</span>')
+            
+        url = reverse('documentos:documento_espacio_vectorial', args=[obj.id])
+        return format_html(
+            '<a class="button" href="{}" target="_blank" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: 700; font-size: 0.8rem; display: inline-block;">🧠 Ver en Espacio 3D</a>',
+            url
+        )
+    ver_en_mapa_button.short_description = "Espacio Vectorial"
 
     def gestionar_bibliotecas_button(self, obj):
         if not obj.pk: return "-"
@@ -454,6 +472,72 @@ class DocumentoAdmin(TemplateExportMixin, admin.ModelAdmin):
         )
     solicitar_firmas_link.short_description = "Firmas"
 
+    def get_vectorizado_status(self, obj):
+        """Indica si el documento tiene embeddings generados o si está procesando"""
+        from django.core.cache import cache
+        status = cache.get(f"doc_ia_status_{obj.id}")
+        
+        if status == "PROCESANDO":
+            return format_html(
+                '<span id="ia-status-{0}" title="IA está trabajando..." style="font-size: 1.2rem; cursor: wait; animation: pulse 1s infinite;">🧠 ⏳</span>'
+                '<style>@keyframes pulse {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0.3; }} 100% {{ opacity: 1; }} }}</style>',
+                obj.id
+            )
+            
+        if obj.embedding is not None:
+            return format_html('<span title="Vectorizado (IA Lista)" style="font-size: 1.2rem;">🧠 ✅</span>')
+        
+        # Botón para vectorizar si está pendiente
+        return format_html(
+            '<span id="ia-status-{0}" onclick="triggerAdminVectorize({0}, this)" title="Clic para vectorizar ahora" style="font-size: 1.2rem; cursor: pointer; transition: transform 0.2s; display: inline-block;" onmouseover="this.style.transform=\'scale(1.3)\'" onmouseout="this.style.transform=\'scale(1)\'">🧠 ⚪</span>'
+            '<script>'
+            'if(typeof triggerAdminVectorize === "undefined") {{'
+            '  window.triggerAdminVectorize = function(id, el) {{'
+            '    const originalHTML = el.innerHTML;'
+            '    el.innerHTML = "🧠 ⏳";'
+            '    el.style.animation = "pulse 1s infinite";'
+            '    el.style.pointerEvents = "none";'
+            '    fetch("/documentos/api/vectorize/" + id + "/", {{ method: "POST", headers: {{"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value}} }})'
+            '    .then(res => res.json())'
+            '    .then(data => {{'
+            '       if (data.status === "error") {{'
+            '           if (data.message.includes("texto")) {{'
+            '               el.innerHTML = "⚡ ⏳";'
+            '               fetch("/documentos/api/trigger-extraction/" + id + "/", {{ method: "POST", headers: {{"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value}} }})'
+            '               .then(r => r.json()).then(d => {{'
+            '                   alert("El documento no tenía texto. Se ha enviado a n8n para su extracción automática. Vuelve a intentar vectorizar en unos minutos.");'
+            '                   el.innerHTML = "⚡ ⚪";'
+            '                   el.style.animation = "none";'
+            '                   el.style.pointerEvents = "auto";'
+            '               }}).catch(e => {{'
+            '                   alert("Error intentando extraer texto con n8n.");'
+            '                   el.innerHTML = originalHTML;'
+            '                   el.style.animation = "none";'
+            '                   el.style.pointerEvents = "auto";'
+            '               }});'
+            '           }} else {{'
+            '               alert("No se puede vectorizar: " + data.message);'
+            '               el.innerHTML = originalHTML;'
+            '               el.style.animation = "none";'
+            '               el.style.pointerEvents = "auto";'
+            '           }}'
+            '       }} else {{'
+            '           console.log("IA Task Started", data);'
+            '           alert("Tarea iniciada: " + data.message);'
+            '       }}'
+            '    }}).catch(err => {{'
+            '       alert("Error de red al intentar vectorizar.");'
+            '       el.innerHTML = originalHTML;'
+            '       el.style.animation = "none";'
+            '       el.style.pointerEvents = "auto";'
+            '    }});'
+            '  }}'
+            '}}'
+            '</script>',
+            obj.id
+        )
+    get_vectorizado_status.short_description = "IA"
+
 class MetadatoConfigForm(forms.ModelForm):
     class Meta:
         model = MetadatoConfig
@@ -578,12 +662,46 @@ class ComentarioBibliotecaInline(admin.TabularInline):
 
 @admin.register(Biblioteca)
 class BibliotecaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'cantidad_documentos', 'gestionar_biblioteca_button', 'visualizar_biblioteca_link', 'creado_por', 'creado_en')
+    list_display = ('nombre', 'cantidad_documentos', 'get_progreso_ia', 'vectorize_button', 'gestionar_biblioteca_button', 'visualizar_biblioteca_link', 'creado_por', 'creado_en')
     list_filter = ('creado_en', 'actualizado_en')
     search_fields = ('nombre', 'descripcion', 'documentos__codigo', 'documentos__titulo')
     filter_horizontal = ('documentos',)
-    readonly_fields = ('creado_en', 'actualizado_en', 'gestionar_biblioteca_button')
+    readonly_fields = ('creado_en', 'actualizado_en', 'gestionar_biblioteca_button', 'get_progreso_ia')
     inlines = [ComentarioBibliotecaInline]
+
+    def get_progreso_ia(self, obj):
+        from django.core.cache import cache
+        docs = obj.documentos.all()
+        total = docs.count()
+        if total == 0: return "-"
+        
+        vectorizados = docs.filter(embedding__isnull=False).count()
+        porcentaje = int((vectorizados / total) * 100)
+        
+        # Verificar si alguno está procesando
+        procesando = False
+        for d in docs:
+            if cache.get(f"doc_ia_status_{d.id}") == "PROCESANDO":
+                procesando = True
+                break
+        
+        color = "#10b981" if porcentaje == 100 else "#6366f1"
+        if porcentaje == 0: color = "#94a3b8"
+        if procesando: color = "#f59e0b" # Naranja para procesando
+        
+        label = f"{vectorizados} / {total} ({porcentaje}%)"
+        if procesando: label += " - ⏳ Trabajando..."
+        
+        return format_html(
+            '''
+            <div style="width: 100px; background: #f1f5f9; border-radius: 10px; height: 8px; overflow: hidden; margin-top: 4px;">
+                <div style="width: {}%; background: {}; height: 100%;"></div>
+            </div>
+            <small style="color: {}; font-weight: bold;">{}</small>
+            ''',
+            porcentaje, color, color if procesando else "#64748b", label
+        )
+    get_progreso_ia.short_description = "Progreso IA"
 
     fieldsets = (
         ('Información', {
@@ -609,6 +727,58 @@ class BibliotecaAdmin(admin.ModelAdmin):
             f'<a href="{url}" class="button" style="background:#64748b; color:white; padding:6px 15px; border-radius:6px; font-weight:700; text-decoration:none;">👁️ Ver Galería</a>'
         )
     visualizar_biblioteca_link.short_description = "Vista Pública"
+
+    def vectorize_button(self, obj):
+        if not obj.pk: return "-"
+        return format_html(
+            '''
+            <button type="button" onclick="vectorizarBiblioteca({0}, '{1}')" class="button" 
+                    style="background: #10b981; color: white; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: 700; font-size: 0.8rem;">
+                🧠 Vectorizar
+            </button>
+            <script>
+                if (typeof window.vectorizarBiblioteca === 'undefined') {{
+                    window.vectorizarBiblioteca = function(bibId, bibNombre) {{
+                        if (!window.Swal) {{
+                            const script = document.createElement('script');
+                            script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+                            document.head.appendChild(script);
+                            script.onload = () => window.vectorizarBiblioteca(bibId, bibNombre);
+                            return;
+                        }}
+                        
+                        Swal.fire({{
+                            title: '¿Vectorizar Biblioteca?',
+                            text: `Se procesarán los documentos de "${{bibNombre}}". Esto habilitará la búsqueda inteligente para esta colección.`,
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonColor: '#10b981',
+                            cancelButtonColor: '#6b7280',
+                            confirmButtonText: 'Sí, iniciar',
+                            cancelButtonText: 'Cancelar'
+                        }}).then((result) => {{
+                            if (result.isConfirmed) {{
+                                Swal.fire({{
+                                    title: 'Encolando...',
+                                    didOpen: () => Swal.showLoading(),
+                                    allowOutsideClick: false
+                                }});
+                                
+                                fetch(`/documentos/api/biblioteca/vectorize/${{bibId}}/`)
+                                    .then(res => res.json())
+                                    .then(data => {{
+                                        Swal.fire('¡Éxito!', data.message, 'success');
+                                    }})
+                                    .catch(err => Swal.fire('Error', 'No se pudo iniciar el proceso', 'error'));
+                            }}
+                        }});
+                    }};
+                }}
+            </script>
+            ''',
+            obj.pk, obj.nombre
+        )
+    vectorize_button.short_description = "IA"
 
     def gestionar_biblioteca_button(self, obj):
         if not obj.pk: return "-"

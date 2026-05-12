@@ -1,0 +1,815 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Espacio Vectorial — {{ documento.codigo }}{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --ev-bg: #0a0a1a;
+        --ev-card: rgba(15, 15, 35, 0.85);
+        --ev-border: rgba(99, 102, 241, 0.3);
+        --ev-accent: #6366f1;
+        --ev-glow: rgba(99, 102, 241, 0.5);
+        --ev-text: #e2e8f0;
+        --ev-muted: #94a3b8;
+    }
+
+    #ev-wrapper {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--ev-bg);
+        z-index: 9999;
+        font-family: 'Inter', -apple-system, sans-serif;
+        overflow: hidden;
+    }
+
+    #ev-header {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        padding: 16px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        z-index: 100;
+        background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+    }
+
+    #ev-header .back-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 8px;
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    #ev-header .back-btn:hover {
+        background: rgba(255,255,255,0.2);
+    }
+
+    #ev-header h1 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: white;
+        flex: 1;
+    }
+    #ev-header h1 span {
+        color: var(--ev-accent);
+    }
+
+    /* Search bars */
+    .ev-search-container {
+        display: flex;
+        gap: 12px;
+        margin-left: auto;
+        position: relative;
+    }
+    .ev-search-input {
+        background-color: rgba(15, 15, 35, 0.8) !important;
+        border: 1px solid rgba(99, 102, 241, 0.4) !important;
+        color: #e2e8f0 !important;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        outline: none;
+        width: 280px;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+    }
+    .ev-search-input::placeholder {
+        color: #64748b !important;
+    }
+    .ev-search-input:focus {
+        border-color: #818cf8 !important;
+        box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+    }
+    #search-results {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0; /* Alinear a la derecha para que no se salga de la pantalla */
+        width: 500px; /* Hacerlo más ancho para ver bien los resultados */
+        background: rgba(15, 15, 35, 0.95);
+        border: 1px solid var(--ev-border);
+        border-radius: 12px;
+        max-height: 400px;
+        overflow-y: auto;
+        display: none;
+        flex-direction: column;
+        z-index: 1000;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.7), 0 0 20px rgba(99, 102, 241, 0.2);
+        backdrop-filter: blur(20px);
+    }
+    #search-results::-webkit-scrollbar { width: 6px; }
+    #search-results::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.5); border-radius: 3px; }
+    
+    .search-result-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        transition: background 0.15s;
+    }
+    .search-result-item:hover {
+        background: rgba(99, 102, 241, 0.2);
+    }
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+    .sr-title { font-size: 13px; font-weight: 700; color: #f8fafc; }
+    .sr-desc { font-size: 11px; color: #94a3b8; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* Info Panel */
+    #ev-info-panel {
+        position: absolute;
+        top: 80px; right: 24px;
+        width: 340px;
+        background: var(--ev-card);
+        border: 1px solid var(--ev-border);
+        border-radius: 12px;
+        padding: 20px;
+        z-index: 10;
+        backdrop-filter: blur(20px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 80px var(--ev-glow);
+        transition: all 0.3s ease;
+    }
+
+    #ev-info-panel h3 {
+        margin: 0 0 4px;
+        font-size: 14px;
+        font-weight: 700;
+        color: white;
+    }
+    #ev-info-panel .subtitle {
+        font-size: 11px;
+        color: var(--ev-muted);
+        margin-bottom: 16px;
+    }
+
+    .ev-stat {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        font-size: 12px;
+    }
+    .ev-stat:last-child { border-bottom: none; }
+    .ev-stat label { color: var(--ev-muted); }
+    .ev-stat value { color: white; font-weight: 600; }
+
+    /* Selected node panel */
+    #ev-selected {
+        position: absolute;
+        bottom: 24px; left: 24px;
+        width: 380px;
+        max-height: calc(100vh - 120px);
+        background: var(--ev-card);
+        border: 1px solid var(--ev-border);
+        border-radius: 12px;
+        padding: 16px 20px;
+        z-index: 10;
+        backdrop-filter: blur(20px);
+        display: none;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        overflow-y: auto;
+    }
+    #ev-selected h4 {
+        margin: 0 0 4px;
+        font-size: 13px;
+        font-weight: 700;
+        color: white;
+    }
+    #ev-selected .detail {
+        font-size: 11px;
+        color: var(--ev-muted);
+        margin-bottom: 8px;
+    }
+    #ev-selected .actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    #ev-selected .actions a {
+        padding: 6px 12px;
+        background: var(--ev-accent);
+        color: white;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    #ev-selected .actions a:hover {
+        filter: brightness(1.2);
+    }
+    #ev-selected .actions a.secondary {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* Connection list */
+    .conn-list-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--ev-muted);
+        margin-bottom: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .conn-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        cursor: pointer;
+        transition: background 0.15s;
+        border-radius: 4px;
+        padding-left: 4px;
+    }
+    .conn-item:hover {
+        background: rgba(99, 102, 241, 0.1);
+    }
+    .conn-item:last-child { border-bottom: none; }
+    .conn-strength-bar {
+        width: 4px;
+        border-radius: 2px;
+        min-height: 28px;
+        flex-shrink: 0;
+    }
+    .conn-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .conn-info .conn-code {
+        font-size: 11px;
+        font-weight: 700;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .conn-info .conn-title {
+        font-size: 10px;
+        color: var(--ev-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .conn-pct {
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+        min-width: 40px;
+        text-align: right;
+    }
+
+    /* Text preview */
+    .sel-texto-preview {
+        background: rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        font-size: 11px;
+        line-height: 1.5;
+        color: #cbd5e1;
+        max-height: 120px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .sel-texto-preview:hover {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.4);
+    }
+    .sel-texto-preview::-webkit-scrollbar { width: 4px; }
+    .sel-texto-preview::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 2px; }
+    .sel-texto-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--ev-muted);
+        margin-bottom: 4px;
+    }
+
+    /* Legend */
+    #ev-legend {
+        position: absolute;
+        bottom: 24px; right: 24px;
+        background: var(--ev-card);
+        border: 1px solid var(--ev-border);
+        border-radius: 10px;
+        padding: 12px 16px;
+        z-index: 10;
+        backdrop-filter: blur(20px);
+        font-size: 11px;
+        color: var(--ev-muted);
+    }
+    .legend-item {
+        display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+    }
+    .legend-item:last-child { margin-bottom: 0; }
+    .legend-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+    }
+
+    /* Loading overlay */
+    #ev-loading {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 16px;
+        z-index: 20;
+        background: var(--ev-bg);
+    }
+    .loader-ring {
+        width: 48px; height: 48px;
+        border: 3px solid rgba(99,102,241,0.2);
+        border-top-color: var(--ev-accent);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #ev-loading span { color: var(--ev-muted); font-size: 13px; }
+
+    /* 3D canvas */
+    #graph-3d {
+        width: 100%;
+        height: 100%;
+    }
+</style>
+
+<div id="ev-wrapper">
+    <!-- Loading -->
+    <div id="ev-loading">
+        <div class="loader-ring"></div>
+        <span>Proyectando espacio vectorial...</span>
+    </div>
+
+    <!-- Header -->
+    <div id="ev-header">
+        <a href="javascript:history.back()" class="back-btn">← Volver</a>
+        <h1>🧠 Espacio Vectorial — <span>{{ documento.codigo }}</span></h1>
+        
+        <div class="ev-search-container">
+            <input type="text" id="search-semantic" class="ev-search-input" placeholder="Buscador semántico (vectores)...">
+            <input type="text" id="search-doc" class="ev-search-input" placeholder="Buscar documento específico...">
+            
+            <div id="search-results"></div>
+        </div>
+    </div>
+
+    <!-- 3D Graph Container -->
+    <div id="graph-3d"></div>
+
+    <!-- Info Panel -->
+    <div id="ev-info-panel">
+        <h3>{{ documento.codigo }}</h3>
+        <div class="subtitle">{{ documento.titulo|truncatechars:60 }}</div>
+        <div class="ev-stat"><label>Tipo</label><value>{{ documento.tipo_documento|default:"S/A" }}</value></div>
+        <div class="ev-stat"><label>Vecinos Mostrados</label><value id="neighbor-count">—</value></div>
+        <div class="ev-stat"><label>Más Cercano</label><value id="closest-doc">—</value></div>
+        <div class="ev-stat"><label>Distancia Coseno</label><value id="closest-dist">—</value></div>
+    </div>
+
+    <!-- Selected Node Detail -->
+    <div id="ev-selected">
+        <h4 id="sel-titulo">—</h4>
+        <div class="detail" id="sel-detail">—</div>
+        <div class="sel-texto-label">Contenido extraído</div>
+        <div class="sel-texto-preview" id="sel-texto">Sin texto extraído.</div>
+        <div class="detail" id="sel-connections" style="color: #fb923c; margin-bottom: 6px;">—</div>
+        <div class="actions">
+            <a href="#" id="sel-link-admin">Abrir en Admin</a>
+            <a href="#" id="sel-link-space" class="secondary">Ver su espacio</a>
+        </div>
+        <div class="conn-list-title">Conexiones más fuertes</div>
+        <div id="conn-list"></div>
+    </div>
+
+    <!-- Legend -->
+    <div id="ev-legend">
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #ff4444; box-shadow: 0 0 8px #ff4444;"></div>
+            Nodo seleccionado
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #ff4444; width: 14px; height: 3px; border-radius: 2px;"></div>
+            Conexión fuertísima
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #fb923c; width: 10px; height: 2px; border-radius: 2px;"></div>
+            Conexión fuerte
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #6366f1; width: 8px; height: 1px; border-radius: 2px;"></div>
+            Conexión media
+        </div>
+        <div style="font-size: 10px; margin-top: 8px; color: #64748b;">Clic en cualquier nodo para ver sus conexiones</div>
+    </div>
+
+    <!-- Full Text Modal -->
+    <div id="ev-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:10000; backdrop-filter:blur(5px); justify-content:center; align-items:center;">
+        <div style="background:var(--ev-card); border:1px solid var(--ev-border); border-radius:12px; width:90%; max-width:800px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+            <div style="padding:16px 24px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center;">
+                <h3 id="modal-title" style="margin:0; color:white; font-size:16px;">—</h3>
+                <button onclick="document.getElementById('ev-modal').style.display='none'" style="background:none; border:none; color:var(--ev-muted); font-size:24px; cursor:pointer; padding:0; line-height:1;">&times;</button>
+            </div>
+            <div id="modal-content" style="padding:24px; overflow-y:auto; color:#e2e8f0; font-size:14px; line-height:1.6; font-family: -apple-system, sans-serif;"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
+<script src="https://unpkg.com/3d-force-graph@1.73.0/dist/3d-force-graph.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<script>
+const DOC_ID = {{ documento.id }};
+const API_URL = `/documentos/api/espacio-vectorial/${DOC_ID}/`;
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+{% if not documento.contenido_texto %}
+// Si no hay texto, forzamos la extracción usando n8n
+setTimeout(() => {
+    fetch(`/documentos/api/trigger-extraction/${DOC_ID}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': CSRF_TOKEN
+        }
+    }).then(r => r.json()).then(data => {
+        console.log('Trigger de extracción n8n disparado:', data);
+        const toast = document.createElement('div');
+        toast.style.cssText = "position:absolute; top:80px; left:50%; transform:translateX(-50%); background:#fb923c; color:white; padding:10px 20px; border-radius:8px; z-index:10000; font-weight:600; font-size:13px; box-shadow:0 4px 12px rgba(0,0,0,0.3); transition: opacity 0.5s;";
+        toast.innerHTML = "⚡ Enviando documento a extraer texto con n8n...";
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 5000);
+    }).catch(err => console.error("Error lanzando extracción n8n", err));
+}, 1000);
+{% endif %}
+
+let GraphInstance = null;
+let allNodes = [];
+let allPuntos = [];
+let activeNodeId = null;
+
+function dist3D(a, b) {
+    return Math.sqrt((a.x - b.x)**2 + (a.y - b.y)**2 + (a.z - b.z)**2);
+}
+
+function buildLinksFromNode(sourceId) {
+    const src = allNodes.find(n => n.id === sourceId);
+    if (!src) return [];
+
+    const links = [];
+    allNodes.forEach(n => {
+        if (n.id === sourceId) return;
+        const d = dist3D(src, n);
+        links.push({ source: sourceId, target: n.id, dist3d: d });
+    });
+
+    links.sort((a, b) => a.dist3d - b.dist3d);
+    const maxD = links.length ? links[links.length - 1].dist3d : 1;
+    
+    links.forEach(l => {
+        const targetNode = allNodes.find(n => n.id === l.target);
+        const srcNode = allNodes.find(n => n.id === l.source);
+        
+        if (l.source === DOC_ID && targetNode) {
+            // Conexión desde nodo central: Similitud Coseno Real
+            l.strength = Math.max(0, 1 - targetNode.distance);
+        } else if (l.target === DOC_ID && srcNode) {
+            // Conexión hacia nodo central
+            l.strength = Math.max(0, 1 - srcNode.distance);
+        } else {
+            // Conexión inferida en el espacio 3D (no normalizamos a 100%)
+            const raw = 1 - (l.dist3d / maxD);
+            l.strength = raw * 0.85; // Cap máximo 85% para inferencias
+        }
+    });
+    return links;
+}
+
+function getLinkColor(s) {
+    if (s > 0.85) return '#ff4444';
+    if (s > 0.75) return '#fb923c';
+    if (s > 0.60) return '#818cf8';
+    return '#334155';
+}
+
+function getLinkWidth(s) {
+    if (s > 0.85) return 5;
+    if (s > 0.75) return 2.5;
+    if (s > 0.60) return 1;
+    return 0.3;
+}
+
+function getLinkOpacity(s) {
+    if (s > 0.85) return 1.0;
+    if (s > 0.75) return 0.7;
+    if (s > 0.60) return 0.4;
+    return 0.1;
+}
+
+async function initGraph() {
+    try {
+        const resp = await fetch(API_URL);
+        const data = await resp.json();
+
+        if (data.status !== 'success') {
+            document.getElementById('ev-loading').innerHTML = `<span style="color:#ef4444;">⚠️ ${data.message || 'Error cargando datos.'}</span>`;
+            return;
+        }
+
+        allPuntos = data.puntos;
+        document.getElementById('neighbor-count').textContent = allPuntos.length - 1;
+        const closest = allPuntos.filter(p => !p.is_target).sort((a,b) => a.distance - b.distance)[0];
+        if (closest) {
+            document.getElementById('closest-doc').textContent = closest.codigo;
+            document.getElementById('closest-dist').textContent = closest.distance.toFixed(4);
+        }
+
+        const SCALE = 40;
+        allNodes = allPuntos.map(p => ({
+            id: p.id,
+            codigo: p.codigo,
+            titulo: p.titulo,
+            tipo: p.tipo,
+            x: p.x * SCALE, y: p.y * SCALE, z: p.z * SCALE,
+            fx: p.x * SCALE, fy: p.y * SCALE, fz: p.z * SCALE,
+            color: p.is_target ? '#ff4444' : p.color,
+            is_target: p.is_target,
+            distance: p.distance,
+            texto: p.texto || '',
+            texto_completo: p.texto_completo || ''
+        }));
+
+        activeNodeId = DOC_ID;
+        const initialLinks = buildLinksFromNode(DOC_ID);
+
+        document.getElementById('ev-loading').style.display = 'none';
+
+        GraphInstance = ForceGraph3D()(document.getElementById('graph-3d'))
+            .backgroundColor('#0a0a1a')
+            .nodeLabel(n => `<div style="background:rgba(0,0,0,0.92);color:white;padding:8px 12px;border-radius:8px;font-size:12px;max-width:280px;border:1px solid ${n.id===activeNodeId?'#ff4444':n.color};pointer-events:none;">
+                <b>${n.codigo}</b><br>
+                <span style="color:#94a3b8;">${n.titulo}</span><br>
+                <span style="color:#6366f1;font-size:10px;">${n.tipo} ${n.distance > 0 ? '· d=' + n.distance.toFixed(4) : '· ORIGEN'}</span>
+            </div>`)
+            .nodeVal(n => n.id === activeNodeId ? 3 : 1.5)
+            .nodeOpacity(1)
+            .nodeColor(n => n.id === activeNodeId ? '#ff4444' : n.color)
+            .linkWidth(link => getLinkWidth(link.strength || 0))
+            .linkColor(link => getLinkColor(link.strength || 0))
+            .linkOpacity(link => getLinkOpacity(link.strength || 0))
+            .linkDirectionalParticles(link => (link.strength || 0) > 0.65 ? 4 : 0)
+            .linkDirectionalParticleWidth(2)
+            .linkDirectionalParticleSpeed(0.008)
+            .linkDirectionalParticleColor(link => (link.strength || 0) > 0.80 ? '#ff6666' : '#fbbf24')
+            .onNodeClick(node => {
+                activeNodeId = node.id;
+                const newLinks = buildLinksFromNode(node.id);
+
+                // Preserve node positions before updating
+                const posMap = {};
+                allNodes.forEach(n => { posMap[n.id] = { fx: n.fx, fy: n.fy, fz: n.fz, x: n.x, y: n.y, z: n.z }; });
+
+                // Clone nodes to force re-render with updated colors/sizes
+                const freshNodes = allNodes.map(n => ({
+                    ...n,
+                    ...posMap[n.id],
+                    color: n.id === activeNodeId ? '#ff4444' : (n.is_target ? '#ff4444' : allPuntos.find(p=>p.id===n.id)?.color || n.color),
+                }));
+
+                GraphInstance.graphData({ nodes: freshNodes, links: newLinks });
+                allNodes = freshNodes;
+
+                // Re-apply custom node objects after data swap
+                applyNodeObjects();
+
+                // UI panel
+                const panel = document.getElementById('ev-selected');
+                panel.style.display = 'block';
+                document.getElementById('sel-titulo').textContent = `${node.codigo} — ${node.titulo}`;
+                document.getElementById('sel-detail').textContent = `${node.tipo} · Distancia: ${node.distance > 0 ? node.distance.toFixed(4) : 'ORIGEN'}`;
+                
+                const textoPreview = document.getElementById('sel-texto');
+                textoPreview.textContent = (node.texto || 'Sin texto extraído.') + (node.texto_completo && node.texto_completo.length > 300 ? '...' : '');
+                textoPreview.onclick = () => {
+                    document.getElementById('ev-modal').style.display = 'flex';
+                    document.getElementById('modal-title').textContent = `${node.codigo} — Contenido Completo`;
+                    document.getElementById('modal-content').innerHTML = marked.parse(node.texto_completo || 'Sin contenido extraído.');
+                };
+
+                document.getElementById('sel-link-admin').href = `/admin/documentos/documento/${node.id}/change/`;
+                document.getElementById('sel-link-space').href = `/documentos/espacio-vectorial/${node.id}/`;
+                const strongLinks = newLinks.filter(l => l.strength > 0.60).sort((a,b) => b.strength - a.strength);
+                document.getElementById('sel-connections').textContent = `🔗 ${strongLinks.length} conexiones relevantes de ${newLinks.length} totales`;
+
+                // Populate connection list
+                const listEl = document.getElementById('conn-list');
+                listEl.innerHTML = '';
+                strongLinks.forEach(link => {
+                    const targetId = link.source === node.id ? link.target : link.source;
+                    const targetNode = allNodes.find(n => n.id === targetId);
+                    if (!targetNode) return;
+                    const pct = Math.round(link.strength * 100);
+                    let barColor = '#334155';
+                    let pctColor = '#64748b';
+                    if (link.strength > 0.85) { barColor = '#ff4444'; pctColor = '#ff4444'; }
+                    else if (link.strength > 0.75) { barColor = '#fb923c'; pctColor = '#fb923c'; }
+                    else if (link.strength > 0.60) { barColor = '#818cf8'; pctColor = '#818cf8'; }
+                    
+                    const item = document.createElement('div');
+                    item.className = 'conn-item';
+                    item.innerHTML = `
+                        <div class="conn-strength-bar" style="background:${barColor};"></div>
+                        <div class="conn-info">
+                            <div class="conn-code">${targetNode.codigo}</div>
+                            <div class="conn-title">${targetNode.titulo}</div>
+                        </div>
+                        <div class="conn-pct" style="color:${pctColor};">${pct}%</div>
+                    `;
+                    item.onclick = () => {
+                        // Click to navigate to that node
+                        GraphInstance.emitParticle(link);
+                        const hyp2 = Math.hypot(targetNode.x, targetNode.y, targetNode.z) || 1;
+                        const r2 = 1 + 100 / hyp2;
+                        GraphInstance.cameraPosition(
+                            { x: targetNode.x * r2, y: targetNode.y * r2, z: targetNode.z * r2 },
+                            targetNode, 1000
+                        );
+                    };
+                    listEl.appendChild(item);
+                });
+
+                // Camera
+                const hyp = Math.hypot(node.x, node.y, node.z) || 1;
+                const ratio = 1 + 100 / hyp;
+                GraphInstance.cameraPosition(
+                    { x: node.x * ratio, y: node.y * ratio, z: node.z * ratio },
+                    node, 1200
+                );
+            })
+            .onNodeHover(node => {
+                document.getElementById('graph-3d').style.cursor = node ? 'pointer' : 'default';
+            })
+            .d3Force('charge', null)
+            .d3Force('center', null)
+            .cooldownTicks(0)
+            .graphData({ nodes: allNodes, links: initialLinks });
+
+        function applyNodeObjects() {
+            GraphInstance.nodeThreeObject(node => {
+                if (node.id === activeNodeId) {
+                    const group = new THREE.Group();
+                    // Core sphere
+                    const core = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.8, 24, 24),
+                        new THREE.MeshBasicMaterial({ color: '#ff4444' })
+                    );
+                    group.add(core);
+                    // Glow
+                    const glow = new THREE.Mesh(
+                        new THREE.SphereGeometry(1.5, 24, 24),
+                        new THREE.MeshBasicMaterial({ color: '#ff4444', transparent: true, opacity: 0.18 })
+                    );
+                    group.add(glow);
+                    // Ring
+                    const ring = new THREE.Mesh(
+                        new THREE.RingGeometry(1.8, 2.2, 32),
+                        new THREE.MeshBasicMaterial({ color: '#ff6666', transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+                    );
+                    group.add(ring);
+                    return group;
+                }
+                return false;
+            });
+        }
+        applyNodeObjects();
+
+        // Initial camera focus
+        const target = allNodes.find(n => n.is_target);
+        if (target) {
+            setTimeout(() => {
+                GraphInstance.cameraPosition(
+                    { x: target.x + 80, y: target.y + 50, z: target.z + 80 },
+                    target, 2000
+                );
+            }, 600);
+        }
+
+    } catch (err) {
+        console.error(err);
+        document.getElementById('ev-loading').innerHTML = `<span style="color:#ef4444;">Error: ${err.message}</span>`;
+    }
+}
+
+// Lógica de Buscadores
+const searchDocInput = document.getElementById('search-doc');
+const searchSemanticInput = document.getElementById('search-semantic');
+const searchResults = document.getElementById('search-results');
+
+function renderSearchResults(results) {
+    searchResults.innerHTML = '';
+    if (results.length === 0) {
+        searchResults.style.display = 'none';
+        return;
+    }
+    
+    results.forEach(res => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        div.innerHTML = `
+            <div class="sr-title">${res.codigo} - ${res.titulo || 'Sin título'}</div>
+            <div class="sr-desc">${res.preview || res.tipo || ''}</div>
+        `;
+        div.onclick = () => {
+            searchResults.style.display = 'none';
+            // Navigating to the clicked document's vector space
+            window.location.href = `/documentos/espacio-vectorial/${res.id}/`;
+        };
+        searchResults.appendChild(div);
+    });
+    searchResults.style.display = 'flex';
+}
+
+// Búsqueda específica en los nodos cargados en el espacio actual
+searchDocInput.addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    if (!q) {
+        searchResults.style.display = 'none';
+        // Reset colors
+        GraphInstance.nodeColor(n => n.id === activeNodeId ? '#ff4444' : n.color);
+        return;
+    }
+    
+    // Highlight local nodes
+    GraphInstance.nodeColor(n => {
+        if (n.id === activeNodeId) return '#ff4444';
+        const match = n.codigo?.toLowerCase().includes(q) || n.titulo?.toLowerCase().includes(q);
+        return match ? '#22d3ee' : '#1e293b'; // highlight in cyan, dim others
+    });
+
+    // Populate dropdown with local matches
+    const matches = allNodes.filter(n => n.codigo?.toLowerCase().includes(q) || n.titulo?.toLowerCase().includes(q));
+    renderSearchResults(matches.map(m => ({ id: m.id, codigo: m.codigo, titulo: m.titulo, tipo: m.tipo })));
+});
+
+// Búsqueda semántica usando el backend de n8n/Gemini (híbrido)
+let debounceTimer;
+searchSemanticInput.addEventListener('input', (e) => {
+    const q = e.target.value.trim();
+    clearTimeout(debounceTimer);
+    if (!q) {
+        searchResults.style.display = 'none';
+        return;
+    }
+    
+    debounceTimer = setTimeout(async () => {
+        try {
+            const resp = await fetch(`/documentos/api/busqueda-vectorial/?q=${encodeURIComponent(q)}`);
+            const data = await resp.json();
+            if (data.status === 'success') {
+                renderSearchResults(data.documentos.map(d => ({
+                    id: d.id,
+                    codigo: d.codigo,
+                    titulo: d.titulo,
+                    preview: `Similitud: ${Math.round(d.similitud * 100)}% - ${d.fragmento_preview || ''}`
+                })));
+            }
+        } catch(err) {
+            console.error("Error en búsqueda semántica", err);
+        }
+    }, 500); // 500ms debounce
+});
+
+// Hide results when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.ev-search-container')) {
+        searchResults.style.display = 'none';
+    }
+});
+
+initGraph();
+</script>
+
+{% endblock %}

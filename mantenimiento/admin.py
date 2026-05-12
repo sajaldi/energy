@@ -100,6 +100,20 @@ class TipoHierarchicalWidget(ForeignKeyWidget):
         self._cache[val_str] = result
         return result
 
+class FlexibleCategoriaWidget(ForeignKeyWidget):
+    """
+    Widget para Categoria que es insensible a mayúsculas y limpia espacios.
+    """
+    def clean(self, value, row=None, *args, **kwargs):
+        val_str = str(value).strip()
+        if not val_str: return None
+        try:
+            return self.model.objects.get(nombre__iexact=val_str)
+        except self.model.DoesNotExist:
+            raise ValueError(f"La categoría '{val_str}' no existe en el sistema. Verifica que esté escrita exactamente igual.")
+        except self.model.MultipleObjectsReturned:
+            return self.model.objects.filter(nombre__iexact=val_str).first()
+
 class TipoResource(ProgressResourceMixin, resources.ModelResource):
     """
     Resource para import/export de tipos jerárquicos.
@@ -114,7 +128,7 @@ class TipoResource(ProgressResourceMixin, resources.ModelResource):
     categoria_activo = fields.Field(
         column_name='categoria_activo',
         attribute='categoria_activo',
-        widget=ForeignKeyWidget(CategoriaActivo, field='nombre')
+        widget=FlexibleCategoriaWidget(CategoriaActivo, field='nombre')
     )
     
     ruta_completa = fields.Field(
@@ -131,7 +145,7 @@ class TipoResource(ProgressResourceMixin, resources.ModelResource):
         skip_unchanged = True
         report_skipped = True
         use_transactions = False # Desactivado para evitar bloqueos en SQLite con Celery
-        import_id_fields = ('id', 'codigo')
+        import_id_fields = ('codigo',)
 
     def before_import_row(self, row, **kwargs):
         """
@@ -157,6 +171,7 @@ class TipoResource(ProgressResourceMixin, resources.ModelResource):
         
         codigo = row.get('codigo')
         if codigo:
+            codigo = str(codigo).strip()
             try:
                 return self.get_queryset().get(codigo=codigo)
             except (Tipo.DoesNotExist, ValueError):

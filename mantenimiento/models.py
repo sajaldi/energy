@@ -21,7 +21,7 @@ class Tipo(models.Model):
     nombre = models.CharField(max_length=100)
     codigo = models.CharField(max_length=50, unique=True, null=True, blank=True, verbose_name="Código")
     padre = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subtipos')
-    categoria_activo = models.OneToOneField('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimiento_tipo', help_text="Vincular con una categoría de activo particular")
+    categoria_activo = models.ForeignKey('activos.Categoria', on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimiento_tipo', help_text="Vincular con una categoría de activo particular")
     servicio = models.ForeignKey(
         'servicios.Servicio',
         on_delete=models.SET_NULL,

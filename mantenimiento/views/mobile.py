@@ -297,13 +297,27 @@ def mobile_crear_aviso(request, pk=None):
             'activo': activo,
             'ubicacion': ubicacion,
             'falla_id': request.POST.get('falla'),
-            'descripcion': request.POST.get('descripcion'),
+            'descripcion': request.POST.get('descripcion') or request.POST.get('description') or '',
             'prioridad': request.POST.get('prioridad', 'MEDIA'),
             'tipo': request.POST.get('tipo', 'SOLICITUD'),
             'responsable_id': request.POST.get('responsable') if request.POST.get('responsable') and request.POST.get('responsable') != 'none' else None,
             'departamento_id': request.POST.get('departamento') if request.POST.get('departamento') and request.POST.get('departamento') != 'none' else None,
             'equipo_parado': request.POST.get('equipo_parado') == 'on',
         }
+
+        if not data['descripcion'].strip():
+            tipos = [(v, l, v == request.POST.get('tipo', 'SOLICITUD')) for v, l in Aviso.TIPO_CHOICES]
+            prioridades = [(v, l, v == request.POST.get('prioridad', 'MEDIA')) for v, l in Aviso.PRIORIDAD_CHOICES]
+            ubicaciones = Ubicacion.objects.all().order_by('nombre')
+            return render(request, 'mantenimiento/mobile_crear_aviso.html', {
+                'aviso': instance,
+                'activo': activo,
+                'prioridades': prioridades,
+                'tipos': tipos,
+                'fallas_json': fallas_json,
+                'ubicaciones': ubicaciones,
+                'error_mensaje': 'La descripción del aviso es obligatoria.'
+            })
         
         # Estado solo si estamos editando o si se envía explícitamente
         estado_post = request.POST.get('estado')

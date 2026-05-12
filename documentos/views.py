@@ -1293,12 +1293,158 @@ def biblioteca_visualizar(request, bib_id):
         if len(cadena) > 0:
             cadenas_trazabilidad.append(cadena)
 
+    from django.core.cache import cache
+    for doc in documentos:
+        doc.ia_status = cache.get(f"doc_ia_status_{doc.id}")
+        doc.is_vectorizado = doc.embedding is not None
+
     return render(request, 'documentos/biblioteca_visualizar.html', {
         'biblioteca': biblioteca,
         'documentos': documentos,
         'comentarios': biblioteca.comentarios.all().order_by('-fecha'),
         'cadenas_trazabilidad': cadenas_trazabilidad,
-        'estados': Documento.ESTADOS
+        'estados': Documento.ESTADOS,
+    })
+    
+@login_required
+def api_biblioteca_mapa_datos(request, bib_id):
+    """
+    Retorna los datos de documentos proyectados en un espacio 3D 
+    basado en sus embeddings para la visualización psicodélica.
+    """
+    from .models import Biblioteca, Documento
+    import numpy as np
+    import random
+    
+    biblioteca = get_object_or_404(Biblioteca, id=bib_id)
+    # Solo documentos que tengan embedding
+    docs_qs = biblioteca.documentos.filter(embedding__isnull=False).select_related('tipo_documento')
+    
+    data = []
+    embeddings_list = []
+    docs_list = []
+
+    for d in docs_qs:
+        emb = np.array(d.embedding)
+        embeddings_list.append(emb)
+        docs_list.append(d)
+
+    if not embeddings_list:
+        return JsonResponse({'status': 'empty', 'message': 'No hay documentos vectorizados aún.'})
+
+    # Proyección simple a 3D (X, Y, Z) 
+    # Usamos una matriz de proyección fija para que las posiciones sean consistentes
+    seed = 42
+    np.random.seed(seed)
+    # Proyectamos de 768 (o lo que sea) a 3
+    proj_matrix = np.random.randn(embeddings_list[0].shape[0], 3)
+    
+    for i, emb in enumerate(embeddings_list):
+        coords = np.dot(emb, proj_matrix)
+        # Añadimos un pequeño jitter aleatorio para evitar solapamientos perfectos
+        jitter = np.random.uniform(-2, 2, 3)
+        coords = coords + jitter
+        
+        d = docs_list[i]
+        data.append({
+            'id': d.id,
+            'codigo': d.codigo,
+            'titulo': d.titulo,
+            'tipo': d.tipo_documento.nombre if d.tipo_documento else "S/A",
+            'x': float(coords[0]),
+            'y': float(coords[1]),
+            'z': float(coords[2]),
+            'color': "#" + "".join([random.choice("0123456789ABCDEF") for _ in range(6)]) # Color aleatorio para el look psicodélico
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'puntos': data
+    })
+
+@login_required
+def documento_espacio_vectorial(request, doc_id):
+    """
+    Vista standalone para visualizar un documento en su espacio vectorial 3D.
+    Muestra el documento junto a sus vecinos más cercanos (por coseno).
+    No depende de bibliotecas.
+    """
+    documento = get_object_or_404(Documento, id=doc_id)
+    return render(request, 'documentos/espacio_vectorial.html', {
+        'documento': documento,
+    })
+
+@login_required
+def api_documento_espacio_datos(request, doc_id):
+    """
+    API que retorna la proyección 3D del documento y sus N vecinos más cercanos.
+    Usa todos los documentos vectorizados del sistema.
+    """
+    import numpy as np
+    import random
+    from pgvector.django import CosineDistance
+
+    documento = get_object_or_404(Documento, id=doc_id)
+    
+    if documento.embedding is None:
+        return JsonResponse({'status': 'error', 'message': 'Este documento aún no ha sido vectorizado.'}, status=400)
+
+    # Buscar los 50 documentos más cercanos por similitud coseno
+    vecinos = (
+        Documento.objects
+        .filter(embedding__isnull=False)
+        .annotate(distance=CosineDistance('embedding', documento.embedding))
+        .order_by('distance')[:50]
+    ).select_related('tipo_documento')
+
+    embeddings_list = []
+    docs_list = []
+
+    for d in vecinos:
+        emb = np.array(d.embedding)
+        embeddings_list.append(emb)
+        docs_list.append(d)
+
+    if not embeddings_list:
+        return JsonResponse({'status': 'empty', 'message': 'No hay documentos vectorizados.'})
+
+    # Proyección a 3D con semilla fija para consistencia
+    np.random.seed(42)
+    proj_matrix = np.random.randn(embeddings_list[0].shape[0], 3)
+
+    data = []
+    for i, emb in enumerate(embeddings_list):
+        coords = np.dot(emb, proj_matrix)
+        # Small jitter to prevent exact overlapping without ruining distances
+        jitter = np.random.uniform(-0.05, 0.05, 3)
+        coords = coords + jitter
+
+        d = docs_list[i]
+        is_target = (d.id == doc_id)
+        
+        data.append({
+            'id': d.id,
+            'codigo': d.codigo,
+            'titulo': d.titulo,
+            'tipo': d.tipo_documento.nombre if d.tipo_documento else "S/A",
+            'x': float(coords[0]),
+            'y': float(coords[1]),
+            'z': float(coords[2]),
+            'is_target': is_target,
+            'distance': round(float(d.distance), 4) if hasattr(d, 'distance') else 0,
+            'color': '#ff4444' if is_target else "#" + "".join([random.choice("6789ABCDEF") for _ in range(6)]),
+            'texto': (d.contenido_texto or '')[:300],
+            'texto_completo': d.contenido_texto or ''
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'puntos': data,
+        'documento': {
+            'id': documento.id,
+            'codigo': documento.codigo,
+            'titulo': documento.titulo,
+        }
     })
 
 @require_POST
@@ -1378,7 +1524,7 @@ def api_documento_busqueda_vectorial(request):
                 
                 fragmentos = fragmentos_qs.annotate(
                     distance=CosineDistance('embedding', query_vector)
-                ).order_by('distance')[:40]
+                ).filter(distance__lt=0.35).order_by('distance')[:40]
 
                 for f in fragmentos:
                     # Si el documento ya está por texto, no lo pisamos (prioridad a texto)
@@ -1429,6 +1575,34 @@ def api_documento_migrar_embeddings(request):
         'status': 'success', 
         'enqueued': count, 
         'message': f'Se ha iniciado la re-indexación completa de {count} documentos usando la nueva lógica de fragmentos.'
+    })
+
+@login_required
+def api_biblioteca_vectorize(request, bib_id):
+    """
+    Vectoriza únicamente los documentos pertenecientes a una biblioteca específica.
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'No autorizado'}, status=403)
+        
+    from .tasks import generate_document_embedding
+    from .models import Biblioteca
+    
+    biblioteca = get_object_or_404(Biblioteca, id=bib_id)
+    
+    # Solo documentos que tengan texto extraído
+    docs_con_texto = biblioteca.documentos.exclude(
+        contenido_texto__isnull=True
+    ).exclude(contenido_texto='')
+    
+    count = docs_con_texto.count()
+    for d in docs_con_texto:
+        generate_document_embedding.delay(d.id)
+        
+    return JsonResponse({
+        'status': 'success', 
+        'enqueued': count, 
+        'message': f'Se ha iniciado la vectorización de {count} documentos de la biblioteca "{biblioteca.nombre}".'
     })
 
 @login_required
