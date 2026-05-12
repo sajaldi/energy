@@ -12,7 +12,6 @@ urlpatterns = [
     
     # Visual Closure Interface
     path('dashboard/', views.ticket_dashboard_view, name='ticket_dashboard'),
-    path('dashboard/get-children/', views.get_dashboard_node_children_ajax, name='get_dashboard_children'),
     path('wizard-cluster/', views.wizard_cluster_view, name='wizard_cluster'),
     path('dashboard/cluster/<str:cluster_id>/', views.cluster_tickets_view, name='cluster_tickets'),
     path('ticket/<str:ticket_id>/cierre-visual/', views.ticket_cierre_visual_view, name='ticket_cierre_visual'),

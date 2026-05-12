@@ -1547,53 +1547,7 @@ class ProgramacionAdmin(admin.ModelAdmin):
 
 
 
-class FallaResource(resources.ModelResource):
-    padre = fields.Field(
-        column_name='padre',
-        attribute='padre',
-        widget=ForeignKeyWidget(Falla, field='nombre')
-    )
-    puestos_trabajo = fields.Field(
-        column_name='puestos_trabajo',
-        attribute='puestos_trabajo',
-        widget=ManyToManyWidget(PuestoTrabajo, field='nombre')
-    )
-    ruta_completa = fields.Field(
-        column_name='ruta_completa',
-        attribute='get_ruta_completa',
-        readonly=True
-    )
-
-    class Meta:
-        model = Falla
-        fields = ('id', 'nombre', 'descripcion', 'padre', 'tipo_aviso', 'puestos_trabajo', 'ruta_completa')
-        export_order = ('id', 'nombre', 'padre', 'tipo_aviso', 'puestos_trabajo', 'ruta_completa', 'descripcion')
-        import_id_fields = ('id',)
-        skip_unchanged = True
-        report_skipped = True
-
-    def get_instance(self, instance_loader, row):
-        """Intenta buscar por ID o por nombre+padre para actualizaciones."""
-        obj_id = row.get('id')
-        if obj_id:
-            try:
-                return self.get_queryset().get(id=obj_id)
-            except (Falla.DoesNotExist, ValueError):
-                pass
-        
-        nombre = row.get('nombre')
-        if nombre:
-            # Si no hay padre en el row, buscamos uno raíz con ese nombre
-            padre_nombre = row.get('padre')
-            if not padre_nombre:
-                return self.get_queryset().filter(nombre=nombre, padre__isnull=True).first()
-            else:
-                return self.get_queryset().filter(nombre=nombre, padre__nombre=padre_nombre).first()
-        
-        return None
-
 class FallaInline(admin.TabularInline):
-
     model = Falla
     extra = 1
     fk_name = 'padre'
@@ -1602,42 +1556,13 @@ class FallaInline(admin.TabularInline):
     verbose_name_plural = "Sub-fallas / Categorías"
 
 @admin.register(Falla)
-class FallaAdmin(ImportExportModelAdmin):
-
-    resource_class = FallaResource
-    list_display = ('nombre', 'tipo_aviso', 'padre', 'get_puestos_trabajo', 'get_ruta_completa', 'import_link')
-
+class FallaAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'tipo_aviso', 'padre', 'get_puestos_trabajo', 'get_ruta_completa')
     list_filter = ('tipo_aviso', 'padre', 'puestos_trabajo')
-
     search_fields = ('nombre',)
     raw_id_fields = ('padre',)
     filter_horizontal = ('puestos_trabajo',)
     inlines = [FallaInline]
-    change_list_template = "admin/mantenimiento/procedimiento/change_list.html"
-
-    def get_urls(self):
-        urls = super().get_urls()
-        from .views.import_fallas import import_fallas_background, import_fallas_process, import_fallas_progress
-        
-        custom_urls = [
-            path('import-background/', self.admin_site.admin_view(import_fallas_background), name='mantenimiento_falla_import_background'),
-            path('import-background/process/', csrf_exempt(self.admin_site.admin_view(import_fallas_process)), name='mantenimiento_falla_import_process'),
-            path('import-background/progress/', self.admin_site.admin_view(import_fallas_progress), name='mantenimiento_falla_import_progress'),
-            path('import-background/template/', self.admin_site.admin_view(self.download_template_view), name='mantenimiento_falla_import_template'),
-        ]
-        return custom_urls + urls
-
-    def download_template_view(self, request):
-        dataset = FallaResource().export(queryset=Falla.objects.none())
-        response = HttpResponse(dataset.xlsx, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename="plantilla_importacion_fallas.xlsx"'
-        return response
-
-    def import_link(self, obj=None):
-        url = reverse('admin:mantenimiento_falla_import_background')
-        return mark_safe(f'<a class="button" href="{url}" style="background: #2563eb; color: white; font-weight: 700;">📥 IMPORTAR MASIVO</a>')
-    import_link.short_description = 'Acciones'
-
 
     def get_puestos_trabajo(self, obj):
         return ", ".join([p.nombre for p in obj.puestos_trabajo.all()])
