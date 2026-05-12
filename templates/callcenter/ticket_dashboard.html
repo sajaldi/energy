@@ -107,6 +107,77 @@
                 border: 1px solid #eef0f2;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
             }
+
+            /* --- Filter Bar Styles --- */
+            .dashboard-filter-bar {
+                background: white;
+                margin: 0 40px 24px 40px;
+                padding: 16px 24px;
+                border-radius: var(--sap-radius);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                border: 1px solid #e2e8f0;
+            }
+            .filter-form-grid {
+                display: flex;
+                align-items: flex-end;
+                gap: 20px;
+                flex-wrap: wrap;
+            }
+            .filter-group {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+            .filter-group label {
+                font-size: 0.75rem;
+                font-weight: 600;
+                color: #64748b;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .fiori-input-date {
+                padding: 8px 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 4px;
+                font-size: 0.85rem;
+                color: #1e293b;
+                outline: none;
+                transition: border 0.2s;
+            }
+            .fiori-input-date:focus { border-color: #0070b2; }
+            
+            .filter-actions {
+                display: flex;
+                gap: 10px;
+                margin-left: auto;
+            }
+            .fiori-btn-primary {
+                background: #0070b2;
+                color: white;
+                border: none;
+                padding: 8px 20px;
+                border-radius: 4px;
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.85rem;
+            }
+            .fiori-btn-secondary {
+                background: white;
+                color: #64748b;
+                border: 1px solid #e2e8f0;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: 600;
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.85rem;
+            }
             .search-card-pro:focus-within {
                 transform: translateY(-2px);
                 box-shadow: 0 15px 40px rgba(0,0,0,0.12);
@@ -452,6 +523,28 @@
             <div class="tab-item" id="tab-btn-locations" onclick="switchDashboardTab('locations')">
                 <i class="ph ph-map-pin"></i> Dashboard por Ubicaciones
             </div>
+        </div>
+
+        <!-- Dashboard Global Filters Bar -->
+        <div class="dashboard-filter-bar">
+            <form method="GET" class="filter-form-grid">
+                <div class="filter-group">
+                    <label for="fecha_inicio"><i class="ph ph-calendar"></i> Desde</label>
+                    <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ fecha_inicio|default:'' }}" class="fiori-input-date">
+                </div>
+                <div class="filter-group">
+                    <label for="fecha_fin"><i class="ph ph-calendar"></i> Hasta</label>
+                    <input type="date" name="fecha_fin" id="fecha_fin" value="{{ fecha_fin|default:'' }}" class="fiori-input-date">
+                </div>
+                <div class="filter-actions">
+                    <button type="submit" class="fiori-btn-primary">
+                        <i class="ph ph-funnel"></i> Filtrar Datos
+                    </button>
+                    <a href="{% url 'ticket_dashboard' %}" class="fiori-btn-secondary">
+                        <i class="ph ph-arrow-counter-clockwise"></i> Resetear
+                    </a>
+                </div>
+            </form>
         </div>
 
         <!-- View: Clusters -->

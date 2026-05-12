@@ -618,16 +618,35 @@ def ticket_dashboard_view(request):
     from django.db.models import Count, Q
     from activos.models.ubicacion import Ubicacion
     from activos.models.categoria import Categoria
+    from datetime import datetime
     import json
 
-    # Métricas Globales
-    total_tickets = SolicitudTicket.objects.count()
-    tickets_cerrados = SolicitudTicket.objects.filter(
+    # --- Filtros de Fecha ---
+    fecha_inicio_str = request.GET.get('fecha_inicio')
+    fecha_fin_str = request.GET.get('fecha_fin')
+    
+    ticket_qs = SolicitudTicket.objects.all()
+    
+    if fecha_inicio_str:
+        try:
+            f_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
+            ticket_qs = ticket_qs.filter(fecha_registro__gte=f_inicio)
+        except ValueError: pass
+        
+    if fecha_fin_str:
+        try:
+            f_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            ticket_qs = ticket_qs.filter(fecha_registro__lte=f_fin)
+        except ValueError: pass
+
+    # Métricas Globales (Filtradas)
+    total_tickets = ticket_qs.count()
+    tickets_cerrados = ticket_qs.filter(
         Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)
     ).count()
     tickets_abiertos = total_tickets - tickets_cerrados
     
-    # Grupos Recientes
+    # Grupos Recientes (Podrían filtrarse también, pero usualmente se quieren ver los últimos generados)
     grupos = GrupoTicket.objects.annotate(
         num_tickets=Count('tickets'),
         num_cerrados=Count('tickets', filter=Q(tickets__fecha_cierre__isnull=False) | Q(tickets__cierre_enviado=True)),
@@ -636,7 +655,7 @@ def ticket_dashboard_view(request):
 
     # --- AGREGACIÓN MULTIDIMENSIONAL (Depto -> Falla -> Ubicación) ---
     # 1. Obtener conteos base por (Depto, Falla, Ubicación)
-    raw_stats = SolicitudTicket.objects.values(
+    raw_stats = ticket_qs.values(
         'falla_reportada__departamento_responsable_id',
         'falla_reportada_id', 
         'ubicacion_id'
@@ -777,6 +796,8 @@ def ticket_dashboard_view(request):
         'f_tree': f_tree,
         'cat_labels_json': json.dumps(cat_labels),
         'cat_data_json': json.dumps(cat_data),
+        'fecha_inicio': fecha_inicio_str,
+        'fecha_fin': fecha_fin_str,
         'title': 'Dashboard de Tickets'
     }
     return render(request, 'callcenter/ticket_dashboard.html', context)
