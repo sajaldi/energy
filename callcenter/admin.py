@@ -443,66 +443,13 @@ class CronogramaItemPredefinidoAdmin(admin.ModelAdmin):
     search_fields = ('descripcion', 'cronograma__nombre')
     autocomplete_fields = ('cronograma', 'predecesores')
 
-
-class FallaTicketResource(resources.ModelResource):
-    parent = fields.Field(
-        column_name='parent',
-        attribute='parent',
-        widget=ForeignKeyWidget(FallaTicket, field='nombre')
-    )
-    departamento_responsable = fields.Field(
-        column_name='departamento_responsable',
-        attribute='departamento_responsable',
-        widget=ForeignKeyWidget('core.Departamento', 'nombre')
-    )
-    usuario_responsable = fields.Field(
-        column_name='usuario_responsable',
-        attribute='usuario_responsable',
-        widget=ForeignKeyWidget('auth.User', 'username')
-    )
-
-    class Meta:
-        model = FallaTicket
-        fields = ('id', 'nombre', 'parent', 'descripcion', 'departamento_responsable', 'usuario_responsable')
-        export_order = ('id', 'nombre', 'parent', 'departamento_responsable', 'usuario_responsable', 'descripcion')
-        import_id_fields = ('id',)
-        skip_unchanged = True
-        report_skipped = True
-
-    def get_instance(self, instance_loader, row):
-        """Intenta buscar por ID o por nombre para actualizaciones."""
-        obj_id = row.get('id')
-        if obj_id:
-            try:
-                return self.get_queryset().get(id=obj_id)
-            except FallaTicket.DoesNotExist:
-                return None
-        
-        nombre = row.get('nombre')
-        if nombre:
-            try:
-                return self.get_queryset().get(nombre=nombre)
-            except FallaTicket.DoesNotExist:
-                return None
-        return None
-
 @admin.register(FallaTicket)
-class FallaTicketAdmin(ImportExportModelAdmin):
-    resource_class = FallaTicketResource
+class FallaTicketAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'parent', 'departamento_responsable', 'usuario_responsable', 'get_tickets_count')
     list_filter = ('parent', 'departamento_responsable', 'usuario_responsable')
     search_fields = ('nombre', 'descripcion')
     autocomplete_fields = ('parent', 'usuario_responsable')
     
-    change_list_template = "admin/callcenter/fallaticket/change_list.html"
-
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path('importar-background/', self.admin_site.admin_view(views.import_fallatickets_process), name='callcenter_fallaticket_import_background'),
-        ]
-        return custom_urls + urls
-
     def get_tickets_count(self, obj):
         return obj.tickets.count()
     get_tickets_count.short_description = "Tickets vinculados"

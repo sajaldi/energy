@@ -1613,8 +1613,7 @@ class FallaAdmin(ImportExportModelAdmin):
     raw_id_fields = ('padre',)
     filter_horizontal = ('puestos_trabajo',)
     inlines = [FallaInline]
-    change_list_template = "admin/mantenimiento/falla/change_list.html"
-
+    change_list_template = "admin/mantenimiento/procedimiento/change_list.html"
 
     def get_urls(self):
         urls = super().get_urls()

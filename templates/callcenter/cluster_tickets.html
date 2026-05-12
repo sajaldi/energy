@@ -290,70 +290,58 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% regroup tickets by falla_reportada.parent.nombre as grouped_tickets %}
-                    {% for group in grouped_tickets %}
-                        <tr class="group-header" onclick="toggleGroup(this)" data-group-id="group-{{ forloop.counter }}" style="cursor: pointer; background: var(--sap-field-background);">
-                            <td colspan="9" style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--sap-border-color);">
-                                <div style="display: flex; align-items: center; gap: 1rem;">
-                                    <i class="ph ph-caret-right caret-icon" style="transition: transform 0.3s; {% if request.GET.q %}transform: rotate(90deg);{% endif %}"></i>
-                                    <span style="font-weight: 700; color: var(--sap-brand-color);">{{ group.grouper|default:"Sin Clasificar" }}</span>
-                                    <span class="sap-badge" style="background: var(--sap-neutral-color); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px;">{{ group.list|length }}</span>
-                                </div>
-                            </td>
-                        </tr>
-                        {% for t in group.list %}
-                        <tr class="ticket-row group-row group-{{ forloop.parentloop.counter }}" style="{% if request.GET.q %}display: table-row;{% else %}display: none;{% endif %}">
-                            <td style="font-weight: 700;">
-                                <a href="#" class="ticket-detail-link" data-id="{{ t.id_unlocalized }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
-                                    {{ t.folio|default:t.id_solicitud }}
-                                </a>
-                                {% if t.embedding is not None %}
-                                    <i class="ph ph-brain" style="color: #6c5ce7; font-size: 0.9rem; margin-left: 4px;" title="Vectorizado por IA"></i>
-                                {% endif %}
-                            </td>
-                            <td>{{ t.solicitante|default:"-" }}</td>
-                            <td style="font-size: 0.8rem; color: var(--sap-text-muted); max-width: 150px;" title="{{ t.ubicacion_jerarquica }}">
-                                {{ t.ubicacion_jerarquica|truncatechars:100 }}
-                            </td>
-                            <td>
-                                <span style="font-size: 0.85rem; color: #555; font-weight: 500;">
-                                    {{ t.falla_reportada.nombre_completo|default:"Sin Clasificar" }}
-                                </span>
-                            </td>
-                            <td>
-                                <a href="#" class="assign-user-link" data-id="{{ t.id_unlocalized }}" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
-                                {% if t.usuario_responsable_id %}
-                                    <span id="user-label-{{ t.id_unlocalized }}" style="font-weight: 600; color: var(--sap-primary);">{{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}</span>
-                                {% else %}
-                                    <span id="user-label-{{ t.id_unlocalized }}" style="color: var(--sap-label); font-style: italic;"><i class="ph ph-user-plus"></i> Sin asignar</span>
-                                {% endif %}
-                                </a>
-                            </td>
-                            <td><span style="color: var(--sap-text-muted);" title="{{ t.solicitud_descripcion }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
-                            <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
-                            <td>
-                                {% if t.fecha_cierre or t.cierre_enviado %}
-                                    <span class="badge badge-success"><i class="ph ph-check-circle"></i> Cerrado</span>
-                                {% else %}
-                                    <span class="badge badge-warning"><i class="ph ph-clock"></i> Abierto</span>
-                                {% endif %}
-                            </td>
-                            <td style="display: flex; gap: 0.4rem; align-items: center;">
-                                <a href="{% url 'callcenter:ticket_cierre_visual' t.id_unlocalized %}" class="btn-fiori ghost" title="Cerrar Ticket" style="padding: 0; width: 2rem; height: 2rem;">
-                                    <i class="ph ph-pencil-simple" style="font-size: 1.1rem;"></i>
-                                </a>
-                                <button class="btn-fiori ghost notify-n8n-btn" data-id="{{ t.id_unlocalized }}" title="Notificar a Técnico" style="padding: 0; width: 2rem; height: 2rem; color: var(--sap-warning);">
-                                    <i class="ph ph-bell" style="font-size: 1.1rem;"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                    {% for t in tickets %}
+                    <tr class="ticket-row">
+                        <td style="font-weight: 700;">
+                            <a href="#" class="ticket-detail-link" data-id="{{ t.id_unlocalized }}" data-folio="{{ t.folio|default:t.id_solicitud }}" style="color: var(--sap-blue); text-decoration: none;">
+                                {{ t.folio|default:t.id_solicitud }}
+                            </a>
+                            {% if t.embedding is not None %}
+                                <i class="ph ph-brain" style="color: #6c5ce7; font-size: 0.9rem; margin-left: 4px;" title="Vectorizado por IA"></i>
+                            {% endif %}
+                        </td>
+                        <td>{{ t.solicitante|default:"-" }}</td>
+                        <td style="font-size: 0.8rem; color: var(--sap-text-muted); max-width: 150px;" title="{{ t.ubicacion_jerarquica }}">
+                            {{ t.ubicacion_jerarquica|truncatechars:100 }}
+                        </td>
+                        <td>
+                            <span style="font-size: 0.85rem; color: #555; font-weight: 500;">
+                                {{ t.falla_reportada.nombre_completo|default:"Sin Clasificar" }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="#" class="assign-user-link" data-id="{{ t.id_unlocalized }}" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                            {% if t.usuario_responsable_id %}
+                                <span id="user-label-{{ t.id_unlocalized }}" style="font-weight: 600; color: var(--sap-primary);">{{ t.usuario_responsable.get_full_name|default:t.usuario_responsable.username }}</span>
+                            {% else %}
+                                <span id="user-label-{{ t.id_unlocalized }}" style="color: var(--sap-label); font-style: italic;"><i class="ph ph-user-plus"></i> Sin asignar</span>
+                            {% endif %}
+                            </a>
+                        </td>
+                        <td><span style="color: var(--sap-text-muted);" title="{{ t.solicitud_descripcion }}">{{ t.solicitud_descripcion|truncatechars:60|default:"-" }}</span></td>
+                        <td>{{ t.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if t.fecha_cierre or t.cierre_enviado %}
+                                <span class="badge badge-success"><i class="ph ph-check-circle"></i> Cerrado</span>
+                            {% else %}
+                                <span class="badge badge-warning"><i class="ph ph-clock"></i> Abierto</span>
+                            {% endif %}
+                        </td>
+                        <td style="display: flex; gap: 0.4rem; align-items: center;">
+                            <a href="{% url 'callcenter:ticket_cierre_visual' t.id_unlocalized %}" class="btn-fiori ghost" title="Cerrar Ticket" style="padding: 0; width: 2rem; height: 2rem;">
+                                <i class="ph ph-pencil-simple" style="font-size: 1.1rem;"></i>
+                            </a>
+                            <button class="btn-fiori ghost notify-n8n-btn" data-id="{{ t.id_unlocalized }}" title="Notificar a Técnico" style="padding: 0; width: 2rem; height: 2rem; color: var(--sap-warning);">
+                                <i class="ph ph-bell" style="font-size: 1.1rem;"></i>
+                            </button>
+                        </td>
+                    </tr>
                     {% empty %}
-                        <tr>
-                            <td colspan="9" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
-                                No hay tickets asignados a este grupo.
-                            </td>
-                        </tr>
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 4rem; color: var(--sap-text-muted);">
+                            No hay tickets asignados a este grupo.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
