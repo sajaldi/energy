@@ -345,6 +345,17 @@
                                 <button class="btn-fiori ghost notify-n8n-btn" data-id="{{ t.id_unlocalized }}" title="Notificar a Técnico" style="padding: 0; width: 2rem; height: 2rem; color: var(--sap-warning);">
                                     <i class="ph ph-bell" style="font-size: 1.1rem;"></i>
                                 </button>
+                                <button class="btn-fiori ghost copy-whatsapp-btn" 
+                                        data-folio="{{ t.folio|default:t.id_solicitud }}"
+                                        data-ubicacion="{{ t.ubicacion_jerarquica }}"
+                                        data-solicitante="{{ t.solicitante|default:'-' }}"
+                                        data-falla="{{ t.falla_reportada.nombre_completo|default:'Sin Clasificar' }}"
+                                        data-desc="{{ t.solicitud_descripcion|default:'-'|escapejs }}"
+                                        data-fecha="{{ t.fecha_solicitud|date:'d/m/Y H:i' }}"
+                                        title="Copiar para WhatsApp" 
+                                        style="padding: 0; width: 2rem; height: 2rem; color: #25D366;">
+                                    <i class="ph ph-whatsapp-logo" style="font-size: 1.1rem;"></i>
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -545,6 +556,34 @@
             if (notifyBtn) {
                 e.preventDefault();
                 notifyTicketN8N(notifyBtn.dataset.id);
+            }
+
+            const copyWhatsappBtn = e.target.closest('.copy-whatsapp-btn');
+            if (copyWhatsappBtn) {
+                e.preventDefault();
+                const folio = copyWhatsappBtn.dataset.folio;
+                const ubicacion = copyWhatsappBtn.dataset.ubicacion;
+                const solicitante = copyWhatsappBtn.dataset.solicitante;
+                const falla = copyWhatsappBtn.dataset.falla;
+                const desc = copyWhatsappBtn.dataset.desc;
+                const fecha = copyWhatsappBtn.dataset.fecha;
+                
+                const textToCopy = `📋 *TICKET:* ${folio}\n📍 *UBICACIÓN:* ${ubicacion}\n👤 *SOLICITANTE:* ${solicitante}\n⚠️ *FALLA:* ${falla}\n📝 *DESCRIPCIÓN:* ${desc}\n📅 *FECHA:* ${fecha}`;
+                
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Copiado!',
+                        text: 'Información lista para compartir en WhatsApp.',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        position: 'top-end',
+                        toast: true
+                    });
+                }).catch(err => {
+                    console.error('Error al copiar: ', err);
+                    Swal.fire('Error', 'No se pudo copiar al portapapeles. Da permisos a tu navegador.', 'error');
+                });
             }
         });
 
