@@ -701,18 +701,22 @@ def ticket_dashboard_view(request):
             d_data[did][fid]['locs'][uid]['cerrados'] += stat['t_cerrados']
 
     # Función para construir jerarquía de ubicaciones
-    def build_loc_tree(loc_stats, offset_level):
+    def build_loc_tree(loc_stats, offset_level, parent_dom_id):
         u_nodes = {uid: {
             'id': uid, 'nombre': ubicaciones[uid].nombre, 'padre_id': ubicaciones[uid].padre_id,
             'total': stat['total'], 'abiertos': stat['abiertos'], 'cerrados': stat['cerrados'],
-            'children': [], 'is_loc': True
+            'children': [], 'is_loc': True,
+            'dom_id': f"loc-{uid}"
         } for uid, stat in loc_stats.items() if uid in ubicaciones}
         
         u_roots = []
         for uid, node in u_nodes.items():
             if node['padre_id'] and node['padre_id'] in u_nodes:
+                node['dom_parent_id'] = f"loc-{node['padre_id']}"
                 u_nodes[node['padre_id']]['children'].append(node)
-            else: u_roots.append(node)
+            else:
+                node['dom_parent_id'] = parent_dom_id
+                u_roots.append(node)
             
         def acc_u(node, level):
             node['level'] = level
@@ -727,18 +731,22 @@ def ticket_dashboard_view(request):
         return u_roots
 
     # Función para construir jerarquía de fallas dentro de un depto
-    def build_falla_tree(f_stats_dict, offset_level):
+    def build_falla_tree(f_stats_dict, offset_level, parent_dom_id):
         f_nodes = {fid: {
             'id': fid, 'nombre': fallas[fid].nombre, 'padre_id': fallas[fid].parent_id,
             'total': data['total'], 'abiertos': data['abiertos'], 'cerrados': data['cerrados'],
-            'children': [], 'loc_stats': data['locs'], 'is_falla': True
+            'children': [], 'loc_stats': data['locs'], 'is_falla': True,
+            'dom_id': f"fail-{fid}"
         } for fid, data in f_stats_dict.items() if fid in fallas}
         
         f_roots = []
         for fid, node in f_nodes.items():
             if node['padre_id'] and node['padre_id'] in f_nodes:
+                node['dom_parent_id'] = f"fail-{node['padre_id']}"
                 f_nodes[node['padre_id']]['children'].append(node)
-            else: f_roots.append(node)
+            else:
+                node['dom_parent_id'] = parent_dom_id
+                f_roots.append(node)
             
         def acc_f(node, level):
             node['level'] = level
@@ -750,7 +758,7 @@ def ticket_dashboard_view(request):
                     node['loc_stats'][lid]['total'] += ls['total']
                     node['loc_stats'][lid]['abiertos'] += ls['abiertos']
                     node['loc_stats'][lid]['cerrados'] += ls['cerrados']
-            node['loc_tree'] = build_loc_tree(node['loc_stats'], node['level'] + 1)
+            node['loc_tree'] = build_loc_tree(node['loc_stats'], node['level'] + 1, node['dom_id'])
             return node
             
         for r in f_roots: acc_f(r, offset_level)
@@ -760,6 +768,7 @@ def ticket_dashboard_view(request):
     final_tree = []
     for did, f_stats in d_data.items():
         depto_name = deptos[did].nombre if did in deptos else "Sin Departamento"
+        depto_dom_id = f"dep-{did}"
         d_node = {
             'id': did,
             'nombre': depto_name,
@@ -768,9 +777,10 @@ def ticket_dashboard_view(request):
             'total': 0,
             'abiertos': 0,
             'cerrados': 0,
-            'children': build_falla_tree(f_stats, 1)
+            'dom_id': depto_dom_id,
+            'dom_parent_id': 'none',
+            'children': build_falla_tree(f_stats, 1, depto_dom_id)
         }
-        # Acumular totales del depto desde sus fallas raíz
         for fn in d_node['children']:
             d_node['total'] += fn['total']
             d_node['abiertos'] += fn['abiertos']
