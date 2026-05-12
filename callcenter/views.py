@@ -793,7 +793,7 @@ def ticket_dashboard_view(request):
         'cerrados': tickets_cerrados,
         'abiertos': tickets_abiertos,
         'grupos': grupos,
-        'f_tree': f_tree,
+        'final_tree': final_tree,
         'cat_labels_json': json.dumps(cat_labels),
         'cat_data_json': json.dumps(cat_data),
         'fecha_inicio': fecha_inicio_str,
