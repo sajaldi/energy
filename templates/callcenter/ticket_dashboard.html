@@ -256,7 +256,50 @@
                 to { opacity: 1; transform: translateY(0); }
             }
 
-            /* Location Dashboard Layout */
+            /* --- SAP Fiori Enhanced Location Dashboard --- */
+            .location-experience {
+                animation: dashboardFadeIn 0.6s ease-out;
+            }
+            
+            .fiori-kpi-row {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 16px;
+                margin: 24px 0;
+            }
+            .fiori-tile {
+                background: white;
+                border-radius: 8px;
+                padding: 16px;
+                border: 1px solid #d9d9d9;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                transition: transform 0.2s, box-shadow 0.2s;
+                cursor: default;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .fiori-tile:hover {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                transform: translateY(-2px);
+            }
+            .fiori-tile .tile-title {
+                font-size: 0.8rem;
+                color: #6a6d70;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+            .fiori-tile .tile-value {
+                font-size: 1.8rem;
+                font-weight: 700;
+                color: #32363a;
+            }
+            .fiori-tile .tile-footer {
+                font-size: 0.75rem;
+                color: #5e696e;
+                margin-top: auto;
+            }
+
             .location-dashboard-grid {
                 display: grid;
                 grid-template-columns: 1fr 380px;
@@ -265,60 +308,81 @@
             }
             .location-card-pro {
                 background: white;
-                border-radius: 24px;
-                padding: 30px;
-                border: 1px solid #eef0f2;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+                border-radius: 12px;
+                padding: 0; /* Table fills the card */
+                border: 1px solid #d9d9d9;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+                overflow: hidden;
             }
-            .location-table-wrapper {
-                overflow-x: auto;
+            
+            .table-header-actions {
+                padding: 16px 24px;
+                border-bottom: 1px solid #efefef;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: #fbfbfc;
             }
+            .table-search-box {
+                position: relative;
+                width: 300px;
+            }
+            .table-search-box input {
+                width: 100%;
+                padding: 8px 12px 8px 36px;
+                border-radius: 6px;
+                border: 1px solid #d9d9d9;
+                font-size: 0.9rem;
+            }
+            .table-search-box i {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #6a6d70;
+            }
+
             .modern-table {
                 width: 100%;
-                border-collapse: separate;
-                border-spacing: 0;
+                border-collapse: collapse;
             }
             .modern-table th {
-                text-align: left;
-                padding: 16px;
-                color: #8792a2;
+                background: #f7f7f7;
+                padding: 12px 16px;
                 font-size: 0.75rem;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                font-weight: 800;
-                border-bottom: 1px solid #f1f3f5;
-            }
-            .modern-table td {
-                padding: 20px 16px;
-                border-bottom: 1px solid #f8f9fa;
-                vertical-align: middle;
-            }
-            .loc-info {
-                display: flex;
-                flex-direction: column;
-            }
-            .loc-name {
                 font-weight: 700;
-                color: #1a1f36;
-                font-size: 1.05rem;
+                color: #5e696e;
+                text-transform: uppercase;
+                border-bottom: 2px solid #0070b2;
+                text-align: left;
             }
-            .loc-path {
-                font-size: 0.75rem;
-                color: #adb5bd;
-                margin-top: 4px;
+            .modern-table tr {
+                transition: background 0.2s;
             }
+            .modern-table tr:nth-child(even) { background: #fbfbfc; }
+            .modern-table tr:hover { background: #eef5fa !important; cursor: pointer; }
+            .modern-table td {
+                padding: 14px 16px;
+                border-bottom: 1px solid #efefef;
+                color: #32363a;
+                font-size: 0.9rem;
+            }
+            
+            .loc-name { font-weight: 700; color: #004065; }
+            .loc-path { font-size: 0.75rem; color: #6a6d70; display: block; margin-top: 2px; }
+
             .stat-pill {
-                padding: 6px 12px;
-                border-radius: 8px;
-                font-weight: 800;
-                font-size: 0.85rem;
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
+                padding: 4px 10px;
+                border-radius: 4px;
+                font-weight: 700;
+                font-size: 0.8rem;
+                display: inline-block;
+                min-width: 45px;
+                text-align: center;
             }
-            .stat-pill.total { background: #f1f3f5; color: #495057; }
-            .stat-pill.open { background: #fff4e6; color: #d9480f; }
-            .stat-pill.closed { background: #ebfbee; color: #2b8a3e; }
+            .stat-pill.total { background: #f2f2f2; color: #32363a; }
+            .stat-pill.open { background: #fff4e6; color: #e9730c; border: 1px solid #ffd8a8; }
+            .stat-pill.closed { background: #ebfbee; color: #2b7c2b; border: 1px solid #b2f2bb; }
 
             .chart-sidebar {
                 display: flex;
@@ -327,19 +391,14 @@
             }
             .sidebar-card {
                 background: white;
-                border-radius: 24px;
+                border-radius: 12px;
                 padding: 24px;
-                border: 1px solid #eef0f2;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+                border: 1px solid #d9d9d9;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.03);
             }
             .chart-container-main {
-                position: relative;
-                height: 300px;
-                width: 100%;
+                height: 320px;
                 margin-top: 20px;
-            }
-            @media (max-width: 1100px) {
-                .location-dashboard-grid { grid-template-columns: 1fr; }
             }
         </style>
 
@@ -445,24 +504,53 @@
                 {% endfor %}
             </div>
         </section>
-        </div>
-
-        <!-- View: Locations -->
+         <!-- View: Locations -->
         <div id="view-locations" class="dashboard-view">
             <section class="location-experience">
                 <div class="clusters-header" style="margin-top: 40px;">
                     <div class="title-with-badge">
                         <h2 class="modern-title">Distribución por Ubicaciones</h2>
-                        <span class="pulse-badge" style="background: #ebfbee; color: #2b8a3e;">Mapa de Gestión</span>
+                        <span class="pulse-badge" style="background: #eef5fa; color: #0070b2; animation: none; border: 1px solid #0070b2;">SAP Fiori Mode</span>
                     </div>
                     <p class="modern-subtitle">Análisis del volumen de tickets basado en la jerarquía física de activos.</p>
+                </div>
+
+                <!-- KPI Tiles Row -->
+                <div class="fiori-kpi-row">
+                    <div class="fiori-tile">
+                        <span class="tile-title">Total General</span>
+                        <span class="tile-value">{{ total|intcomma }}</span>
+                        <span class="tile-footer">Tickets Históricos</span>
+                    </div>
+                    <div class="fiori-tile" style="border-left: 4px solid #bb0000;">
+                        <span class="tile-title">Total Abiertos</span>
+                        <span class="tile-value">{{ abiertos|intcomma }}</span>
+                        <span class="tile-footer">Requieren Atención</span>
+                    </div>
+                    <div class="fiori-tile" style="border-left: 4px solid #2b7c2b;">
+                        <span class="tile-title">Total Cerrados</span>
+                        <span class="tile-value">{{ cerrados|intcomma }}</span>
+                        <span class="tile-footer">Gestión Finalizada</span>
+                    </div>
+                    <div class="fiori-tile">
+                        <span class="tile-title">Resolución</span>
+                        <span class="tile-value">{% widthratio cerrados total 100 %}%</span>
+                        <span class="tile-footer">Efectividad Global</span>
+                    </div>
                 </div>
 
                 <div class="location-dashboard-grid">
                     <!-- Table Section -->
                     <div class="location-card-pro">
+                        <div class="table-header-actions">
+                            <h3 style="font-size: 1rem; color: #32363a; margin: 0;">Detalle por Área</h3>
+                            <div class="table-search-box">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="location-table-filter" placeholder="Filtrar ubicaciones..." onkeyup="filterLocationTable()">
+                            </div>
+                        </div>
                         <div class="location-table-wrapper">
-                            <table class="modern-table">
+                            <table class="modern-table" id="location-master-table">
                                 <thead>
                                     <tr>
                                         <th>Ubicación / Área</th>
@@ -474,7 +562,7 @@
                                 </thead>
                                 <tbody>
                                     {% for loc in ubicaciones_stats %}
-                                    <tr>
+                                    <tr onclick="showLocationDetails('{{ loc.nombre|escapejs }}')">
                                         <td>
                                             <div class="loc-info">
                                                 <span class="loc-name">{{ loc.nombre }}</span>
@@ -482,7 +570,7 @@
                                             </div>
                                         </td>
                                         <td>
-                                            <span class="id-tag" style="background: #e3e8ff; color: #5469d4; border:none;">
+                                            <span class="id-tag" style="background: #f2f2f2; color: #5e696e; border:none; font-size: 0.75rem;">
                                                 {{ loc.categoria.nombre|default:"Sin Categoría" }}
                                             </span>
                                         </td>
@@ -505,29 +593,31 @@
                     <!-- Sidebar Stats -->
                     <div class="chart-sidebar">
                         <div class="sidebar-card">
-                            <h3 class="panel-title" style="font-size: 1rem; margin-bottom: 10px;">Por Categoría</h3>
-                            <p class="modern-subtitle" style="font-size: 0.8rem;">Distribución global por tipo de ubicación.</p>
+                            <h3 class="panel-title" style="font-size: 1rem; margin-bottom: 10px; color: #32363a;">Distribución por Categoría</h3>
+                            <p class="modern-subtitle" style="font-size: 0.8rem;">Análisis de carga por tipo de activo.</p>
                             <div class="chart-container-main">
                                 <canvas id="categoryDistributionChart"></canvas>
                             </div>
                         </div>
 
-                        <div class="sidebar-card">
-                            <h3 class="panel-title" style="font-size: 1rem; margin-bottom: 15px;">Resumen Rápido</h3>
+                        <div class="sidebar-card" style="background: #fbfbfc;">
+                            <h3 class="panel-title" style="font-size: 1rem; margin-bottom: 15px; color: #32363a;">Resumen de Eficiencia</h3>
                             <div class="panel-progress-wrapper" style="margin-bottom: 15px;">
                                 <div class="progress-info">
-                                    <span>Tasa de Resolución</span>
-                                    <strong>{% widthratio cerrados total 100 %}%</strong>
+                                    <span style="color: #5e696e;">Tasa de Resolución</span>
+                                    <strong style="color: #0070b2;">{% widthratio cerrados total 100 %}%</strong>
                                 </div>
-                                <div class="modern-progress-bg">
-                                    <div class="modern-progress-fill" style="width: {% widthratio cerrados total 100 %}%"></div>
+                                <div class="modern-progress-bg" style="height: 12px; background: #d9d9d9;">
+                                    <div class="modern-progress-fill" style="width: {% widthratio cerrados total 100 %}% ; background: #0070b2;"></div>
                                 </div>
                             </div>
-                            <p class="modern-subtitle" style="font-size: 0.75rem;">Total de tickets procesados: <strong>{{ total }}</strong></p>
+                            <p class="modern-subtitle" style="font-size: 0.75rem;">Total de tickets procesados: <strong style="color: #32363a;">{{ total }}</strong></p>
                         </div>
                     </div>
                 </div>
             </section>
+        </div>
+   </section>
         </div>
 
         <style>
@@ -772,15 +862,38 @@
                     },
                     scales: {
                         r: {
-                            ticks: { display: false }
-                        }
-                    }
+                            ticks: { display:                    }
                 }
             });
         }
 
+        // Filtrado dinámico de la tabla de ubicaciones (Fiori Style)
+        function filterLocationTable() {
+            const input = document.getElementById("location-table-filter");
+            const filter = input.value.toLowerCase();
+            const table = document.getElementById("location-master-table");
+            const tr = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < tr.length; i++) {
+                const tdName = tr[i].getElementsByClassName("loc-name")[0];
+                const tdPath = tr[i].getElementsByClassName("loc-path")[0];
+                if (tdName || tdPath) {
+                    const txtValue = (tdName.textContent || tdName.innerText) + " " + (tdPath.textContent || tdPath.innerText);
+                    if (txtValue.toLowerCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        function showLocationDetails(locationName) {
+            console.log("Consultando detalles para: " + locationName);
+            // Implementar modal o drill-down aquí
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Inicializar gráficas de mini-clusters
             const charts = document.querySelectorAll('.cluster-chart');
             charts.forEach(canvas => {
                 const cerrados = parseInt(canvas.dataset.cerrados);
@@ -792,7 +905,7 @@
                         labels: ['Cerrados', 'Abiertos'],
                         datasets: [{
                             data: [cerrados, abiertos],
-                            backgroundColor: ['#28a745', '#e9730c'],
+                            backgroundColor: ['#2b7c2b', '#e9730c'],
                             borderWidth: 0,
                             hoverOffset: 4
                         }]
@@ -810,6 +923,5 @@
             });
         });
     </script>
-
 </body>
 </html>
