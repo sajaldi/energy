@@ -744,15 +744,30 @@ def ticket_dashboard_view(request):
         for r in u_roots: acc_u(r, offset_level)
         return u_roots
 
-    # Función para construir jerarquía de fallas dentro de un depto
+    # Función para construir jerarquía de fallas dentro de un depto (con ancestros)
     def build_falla_tree(f_stats_dict, offset_level, parent_dom_id):
+        # 1. Identificar todas las fallas involucradas y sus ancestros
+        relevant_fids = set(f_stats_dict.keys())
+        all_fids = set()
+        for fid in relevant_fids:
+            curr = fid
+            while curr:
+                all_fids.add(curr)
+                f_obj = fallas.get(curr)
+                curr = f_obj.parent_id if f_obj else None
+        
+        # 2. Inicializar nodos
         f_nodes = {fid: {
             'id': fid, 'nombre': fallas[fid].nombre, 'padre_id': fallas[fid].parent_id,
-            'total': data['total'], 'abiertos': data['abiertos'], 'cerrados': data['cerrados'],
-            'children': [], 'loc_stats': data['locs'], 'is_falla': True,
+            'total': f_stats_dict.get(fid, {}).get('total', 0),
+            'abiertos': f_stats_dict.get(fid, {}).get('abiertos', 0),
+            'cerrados': f_stats_dict.get(fid, {}).get('cerrados', 0),
+            'children': [], 'loc_stats': f_stats_dict.get(fid, {}).get('locs', {}),
+            'is_falla': True,
             'dom_id': f"fail-{fid}"
-        } for fid, data in f_stats_dict.items() if fid in fallas}
+        } for fid in all_fids if fid in fallas}
         
+        # 3. Vincular padres e hijos
         f_roots = []
         for fid, node in f_nodes.items():
             if node['padre_id'] and node['padre_id'] in f_nodes:
@@ -767,11 +782,14 @@ def ticket_dashboard_view(request):
             for c in node['children']:
                 cs = acc_f(c, level + 1)
                 node['total'] += cs['total']; node['abiertos'] += cs['abiertos']; node['cerrados'] += cs['cerrados']
+                # Acumular loc_stats hacia arriba para que los padres también tengan el árbol de ubicaciones completo
                 for lid, ls in cs['loc_stats'].items():
                     if lid not in node['loc_stats']: node['loc_stats'][lid] = {'total':0,'abiertos':0,'cerrados':0}
                     node['loc_stats'][lid]['total'] += ls['total']
                     node['loc_stats'][lid]['abiertos'] += ls['abiertos']
                     node['loc_stats'][lid]['cerrados'] += ls['cerrados']
+            
+            # Construir el árbol de ubicaciones para este nodo de falla
             node['loc_tree'] = build_loc_tree(node['loc_stats'], node['level'] + 1, node['dom_id'])
             return node
             
