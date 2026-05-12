@@ -631,9 +631,9 @@ def build_loc_tree_helper(loc_stats, offset_level, parent_dom_id, ubicaciones):
     relevant_uids = set(loc_stats.keys())
     all_uids = set()
     for uid in relevant_uids:
-        curr = uid
-        while curr:
-            all_uids.add(curr); u_obj = ubicaciones.get(curr)
+        curr = uid; visited = set()
+        while curr and curr not in visited:
+            visited.add(curr); all_uids.add(curr); u_obj = ubicaciones.get(curr)
             curr = u_obj.padre_id if u_obj else None
     
     u_nodes = {uid: {
@@ -662,9 +662,9 @@ def build_falla_tree_helper(f_stats_dict, offset_level, parent_dom_id, fallas, u
     relevant_fids = set(f_stats_dict.keys())
     all_fids = set()
     for fid in relevant_fids:
-        curr = fid
-        while curr:
-            all_fids.add(curr); f_obj = fallas.get(curr)
+        curr = fid; visited = set()
+        while curr and curr not in visited:
+            visited.add(curr); all_fids.add(curr); f_obj = fallas.get(curr)
             curr = f_obj.parent_id if f_obj else None
             
     f_nodes = {fid: {
@@ -744,43 +744,108 @@ def get_dashboard_node_children_ajax(request):
     from django.template.loader import render_to_string
     
     node_id = request.GET.get('node_id', '') # ej: dep-1, fail-5, loc-10
+    # Contexto para saber bajo qué falla estamos si es una ubicación
+    falla_context = request.GET.get('falla_id', '') 
     level = int(request.GET.get('level', 0))
     prefix = request.GET.get('prefix', 'uni')
     ticket_qs = get_filtered_ticket_qs(request)
     
-    fallas = {f.id: f for f in FallaTicket.objects.all()}
-    ubicaciones = {u.id: u for u in Ubicacion.objects.all()}
     children = []
-
+    
     if node_id.startswith('dep-'):
+        # Cargar Fallas RAÍZ del departamento
         did = int(node_id.replace('dep-', ''))
-        f_stats_raw = ticket_qs.filter(falla_reportada__departamento_responsable_id=did if did else None).values('falla_reportada_id', 'ubicacion_id').annotate(
+        f_qs = ticket_qs.filter(falla_reportada__departamento_responsable_id=did if did else None)
+        
+        # Identificar las fallas raíz que tienen tickets (directos o en sus hijos)
+        # Para simplificar y ser rápido, buscaremos los ancestros de todas las fallas con tickets
+        f_stats_raw = f_qs.values('falla_reportada_id').annotate(
             t_total=Count('id'), t_abiertos=Count('id', filter=Q(fecha_cierre__isnull=True) & Q(cierre_enviado=False)),
             t_cerrados=Count('id', filter=Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True))
         )
-        f_data = {}
+        
+        all_relevant_fids = set()
+        falla_totals = {} # {fid: {total, abiertos, cerrados}}
+        
+        fallas_cache = {f.id: f for f in FallaTicket.objects.all()}
+        
         for s in f_stats_raw:
             fid = s['falla_reportada_id']
             if not fid: continue
-            if fid not in f_data: f_data[fid] = {'total':0,'abiertos':0,'cerrados':0,'locs':{}}
-            f_data[fid]['total'] += s['t_total']; f_data[fid]['abiertos'] += s['t_abiertos']; f_data[fid]['cerrados'] += s['t_cerrados']
-            uid = s['ubicacion_id']
-            if uid:
-                if uid not in f_data[fid]['locs']: f_data[fid]['locs'][uid] = {'total':0,'abiertos':0,'cerrados':0}
-                f_data[fid]['locs'][uid]['total'] += s['t_total']; f_data[fid]['locs'][uid]['abiertos'] += s['t_abiertos']; f_data[fid]['locs'][uid]['cerrados'] += s['t_cerrados']
-        children = build_falla_tree_helper(f_data, level + 1, node_id, fallas, ubicaciones)
+            curr = fid; visited = set()
+            while curr and curr not in visited:
+                visited.add(curr); all_relevant_fids.add(curr)
+                if curr not in falla_totals: falla_totals[curr] = {'total':0, 'abiertos':0, 'cerrados':0}
+                falla_totals[curr]['total'] += s['t_total']
+                falla_totals[curr]['abiertos'] += s['t_abiertos']
+                falla_totals[curr]['cerrados'] += s['t_cerrados']
+                f_obj = fallas_cache.get(curr)
+                curr = f_obj.parent_id if f_obj else None
+        
+        # Solo devolvemos las fallas que son hijos DIRECTOS del departamento (sus raíces en este contexto)
+        # En este caso, son aquellas cuyo padre_id NO está en all_relevant_fids 
+        # (porque si su padre está, entonces no son la raíz del árbol de este depto)
+        for fid in all_relevant_fids:
+            f_obj = fallas_cache[fid]
+            if not f_obj.parent_id or f_obj.parent_id not in all_relevant_fids:
+                # Tiene hijos si hay subfallas o si tiene tickets directos en ubicaciones
+                has_sub = FallaTicket.objects.filter(parent_id=fid).exists()
+                has_locs = ticket_qs.filter(falla_reportada_id=fid).exists()
+                children.append({
+                    'id': fid, 'nombre': f_obj.nombre, 'is_falla': True, 'level': level + 1,
+                    'total': falla_totals[fid]['total'], 'abiertos': falla_totals[fid]['abiertos'], 'cerrados': falla_totals[fid]['cerrados'],
+                    'dom_id': f"fail-{fid}", 'dom_parent_id': node_id, 
+                    'has_children': has_sub or has_locs
+                })
 
     elif node_id.startswith('fail-'):
-        # En el caso de fallas, build_falla_tree_helper ya devuelve los hijos (sub-fallas y loc_tree)
-        # Pero si entramos aquí es porque clicamos una falla que YA está en el DOM pero sus hijos no se precargaron
-        # Actualmente el depto carga TODO el árbol de fallas. Si queremos que sea 100% lazy, el depto solo cargaría fallas RAÍZ.
-        # Por simplicidad y UX, dejaré que el Depto cargue el árbol de fallas (que es pequeño) y las ubicaciones sean lazy.
-        pass
+        # ...
+        sub_fallas = FallaTicket.objects.filter(parent_id=fid)
+        for sf in sub_fallas:
+            sf_tickets = ticket_qs.filter(Q(falla_reportada_id=sf.id) | Q(falla_reportada__parent_id=sf.id))
+            t_count = sf_tickets.count()
+            if t_count > 0:
+                has_sub_sf = FallaTicket.objects.filter(parent_id=sf.id).exists()
+                has_locs_sf = ticket_qs.filter(falla_reportada_id=sf.id).exists()
+                children.append({
+                    'id': sf.id, 'nombre': sf.nombre, 'is_falla': True, 'level': level + 1,
+                    'total': t_count, 
+                    'abiertos': sf_tickets.filter(fecha_cierre__isnull=True, cierre_enviado=False).count(),
+                    'cerrados': sf_tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).count(),
+                    'dom_id': f"fail-{sf.id}", 'dom_parent_id': node_id, 
+                    'has_children': has_sub_sf or has_locs_sf
+                })
+        
+        # ... (Ubicaciones)
+        for uid in all_loc_ids:
+            u_obj = ubicaciones_cache[uid]
+            if not u_obj.padre_id or u_obj.padre_id not in all_loc_ids:
+                has_sub_l = Ubicacion.objects.filter(padre_id=uid).exists()
+                children.append({
+                    'id': uid, 'nombre': u_obj.nombre, 'is_loc': True, 'level': level + 1,
+                    'total': loc_totals[uid]['total'], 'abiertos': loc_totals[uid]['abiertos'], 'cerrados': loc_totals[uid]['cerrados'],
+                    'dom_id': f"loc-{uid}", 'dom_parent_id': node_id, 
+                    'has_children': has_sub_l,
+                    'falla_id': fid
+                })
 
     elif node_id.startswith('loc-'):
-        # Cargar sub-ubicaciones
-        pass
+        # ...
+        for sl in sub_locs:
+            # ...
+            if t_count > 0:
+                has_sub_sl = Ubicacion.objects.filter(padre_id=sl.id).exists()
+                children.append({
+                    'id': sl.id, 'nombre': sl.nombre, 'is_loc': True, 'level': level + 1,
+                    'total': t_count,
+                    'abiertos': sl_tickets.filter(fecha_cierre__isnull=True, cierre_enviado=False).count(),
+                    'cerrados': sl_tickets.filter(Q(fecha_cierre__isnull=False) | Q(cierre_enviado=True)).count(),
+                    'dom_id': f"loc-{sl.id}", 'dom_parent_id': node_id, 
+                    'has_children': has_sub_sl,
+                    'falla_id': fid
+                })
 
+    children.sort(key=lambda x: x['total'], reverse=True)
     html = render_to_string('callcenter/partials/dashboard_tree_rows.html', {'nodes': children, 'prefix': prefix})
     return HttpResponse(html)
 

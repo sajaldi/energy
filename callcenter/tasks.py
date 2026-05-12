@@ -392,3 +392,85 @@ def sync_tickets_by_folio_list_task(folios_list):
     except Exception as e:
         logger.error(f"Error en sync_tickets_by_folio_list_task: {e}")
         return {"status": "error", "message": str(e)}
+
+@shared_task(name='callcenter.tasks.import_fallatickets_task')
+def import_fallatickets_task(file_path, user_id, verification_mode=True):
+    """
+    Tarea de Celery para importar el catálogo de fallas de tickets en segundo plano.
+    """
+    from django.contrib.auth.models import User
+    from django.core.cache import cache
+    from .admin import FallaTicketResource
+    import tablib
+
+    cache_key = f"import_fallatickets_progress_{user_id}"
+    cache.set(cache_key, {'status': 'starting', 'progress': 0, 'message': 'Iniciando importación...'}, 3600)
+
+    try:
+        user = User.objects.get(id=user_id)
+        
+        if not os.path.exists(file_path):
+            cache.set(cache_key, {'status': 'error', 'message': 'Archivo no encontrado.'}, 3600)
+            return
+
+        # Cargar datos
+        with open(file_path, 'rb') as f:
+            dataset = tablib.Dataset().load(f.read(), format='xlsx')
+
+        resource = FallaTicketResource()
+        
+        # Dry run para validación
+        cache.set(cache_key, {'status': 'processing', 'progress': 20, 'message': 'Validando datos...'}, 3600)
+        result = resource.import_data(dataset, dry_run=True, raise_errors=False)
+
+        if result.has_errors():
+            errors = []
+            for row_errors in result.row_errors():
+                for error in row_errors[1]:
+                    errors.append(f"Fila {row_errors[0]}: {str(error.error)}")
+            
+            cache.set(cache_key, {
+                'status': 'error', 
+                'message': 'Se encontraron errores en la validación.',
+                'details': errors[:10]  # Mostrar solo los primeros 10 errores
+            }, 3600)
+            return
+
+        if verification_mode:
+            # Modo verificación completado
+            cache.set(cache_key, {
+                'status': 'verified',
+                'progress': 100,
+                'message': 'Validación exitosa.',
+                'totals': {
+                    'new': result.totals['new'],
+                    'update': result.totals['update'],
+                    'delete': result.totals['delete'],
+                    'skip': result.totals['skip'],
+                    'total': len(dataset)
+                }
+            }, 3600)
+            return
+
+        # Importación real
+        cache.set(cache_key, {'status': 'processing', 'progress': 50, 'message': 'Aplicando cambios...'}, 3600)
+        result = resource.import_data(dataset, dry_run=False, raise_errors=True)
+
+        cache.set(cache_key, {
+            'status': 'completed',
+            'progress': 100,
+            'message': 'Importación finalizada con éxito.',
+            'totals': {
+                'new': result.totals['new'],
+                'update': result.totals['update'],
+                'delete': result.totals['delete'],
+                'skip': result.totals['skip'],
+                'total': len(dataset)
+            }
+        }, 3600)
+
+    except Exception as e:
+        logger.error(f"Error en import_fallatickets_task: {e}")
+        cache.set(cache_key, {'status': 'error', 'message': f'Error crítico: {str(e)}'}, 3600)
+    finally:
+        pass
