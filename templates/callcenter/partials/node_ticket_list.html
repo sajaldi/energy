@@ -1,0 +1,64 @@
+<div class="node-tickets-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0 fw-bold">Tickets: {{ node_name }}</h6>
+        <span class="badge bg-primary rounded-pill">{{ tickets.count }}</span>
+    </div>
+
+    <div class="table-responsive w-100" style="max-height: calc(100vh - 200px); overflow-y: auto;">
+        <table class="table table-sm table-hover align-middle w-100" style="font-size: 0.9rem; width: 100% !important; table-layout: fixed;">
+            <thead class="table-light sticky-top">
+                <tr>
+                    <th>Folio / ID</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Responsable</th>
+                    <th>Ubicación / Falla</th>
+                    <th class="text-end">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tickets %}
+                <tr>
+                    <td>
+                        <div class="fw-bold text-primary">{{ t.folio }}</div>
+                        <div class="text-muted small">#{{ t.id_solicitud }}</div>
+                    </td>
+                    <td>
+                        <div class="small">{{ t.fecha_solicitud|date:"d/m/Y" }}</div>
+                        <div class="text-muted smallest" style="font-size: 0.7rem;">{{ t.fecha_solicitud|date:"H:i" }}</div>
+                    </td>
+                    <td>
+                        {% if t.fecha_cierre or t.cierre_enviado %}
+                            <span class="badge bg-success-soft text-success">Cerrado</span>
+                        {% else %}
+                            <span class="badge bg-warning-soft text-warning">Abierto</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="small text-muted">{{ t.usuario_responsable.get_full_name|default:t.responsable|default:"Sin asignar" }}</div>
+                    </td>
+                    <td>
+                        <div class="fw-bold">{{ t.ubicacion.nombre|default:"Sin Ubicación" }}</div>
+                        <div class="small text-muted">{{ t.falla_reportada.nombre }}</div>
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'callcenter:mobile_ticket_detalle' t.pk %}" class="btn btn-icon btn-sm btn-outline-primary" title="Ver Detalle">
+                            <i class="ph ph-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center py-4 text-muted">No hay tickets para este nivel.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .bg-success-soft { background-color: #e6f4ea; }
+    .bg-warning-soft { background-color: #fff4e5; }
+    .btn-icon { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+</style>

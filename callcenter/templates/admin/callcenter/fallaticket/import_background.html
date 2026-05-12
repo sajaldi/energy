@@ -1,0 +1,156 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    .import-container { max-width: 800px; margin: 40px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    .progress-wrapper { margin-top: 30px; display: none; }
+    .progress-bar { width: 100%; height: 25px; background-color: #f0f0f0; border-radius: 15px; overflow: hidden; position: relative; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #2563eb, #1d4ed8); width: 0%; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold; }
+    .status-text { margin-top: 10px; text-align: center; color: #64748b; font-weight: 500; }
+    .file-upload-zone { border: 2px dashed #cbd5e1; padding: 40px; text-align: center; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+    .file-upload-zone:hover { border-color: #2563eb; background-color: #eff6ff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <h2 style="margin-bottom: 20px; color: #1e293b;">
+        <span style="color: #2563eb">🎫</span> Importación de Catálogo de Fallas (Call Center)
+    </h2>
+
+    <div style="background: #eff6ff; border-left: 4px solid #2563eb; padding: 15px; margin-bottom: 25px;">
+        <p style="margin: 0; color: #1e40af;">
+            <strong>Modo Seguro:</strong> Esta importación permite cargar el catálogo de fallas jerárquico. 
+            Asegúrese de que el nombre del <b>parent</b> coincida exactamente para mantener la jerarquía.
+        </p>
+    </div>
+
+    <form id="importForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="file-upload-zone" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" name="file" style="display: none;" accept=".xlsx">
+            <div style="font-size: 3rem; color: #94a3b8; margin-bottom: 15px;">📄</div>
+            <h3 style="color: #475569; margin: 0;">Selecciona tu archivo de Fallas</h3>
+            <p style="color: #94a3b8; margin-top: 5px;">Soporta Excel (.xlsx)</p>
+            <div id="fileName" style="margin-top: 15px; font-weight: bold; color: #2563eb;"></div>
+        </div>
+
+        <div style="margin-top: 25px; text-align: right;">
+            <a href="../" class="button" style="background-color: #cbd5e1; color: white; padding: 10px 20px; text-decoration: none; margin-right: 10px;">Cancelar</a>
+            <button type="submit" class="button" style="background-color: #2563eb; color: white; padding: 10px 25px; border-radius: 4px; border: none; cursor: pointer; font-size: 1rem;">
+                🚀 Validar y Analizar
+            </button>
+        </div>
+    </form>
+
+    <div class="progress-wrapper" id="progressWrapper">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill">0%</div>
+        </div>
+        <div class="status-text" id="statusText">Iniciando proceso...</div>
+    </div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const importForm = document.getElementById('importForm');
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressFill = document.getElementById('progressFill');
+    const statusText = document.getElementById('statusText');
+
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            fileName.textContent = this.files[0].name;
+            fileName.style.display = 'block';
+        }
+    });
+
+    importForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (!fileInput.files.length) { Swal.fire('Error', 'Selecciona un archivo primero', 'error'); return; }
+
+        importForm.style.opacity = '0.5';
+        importForm.style.pointerEvents = 'none';
+        progressWrapper.style.display = 'block';
+
+        const formData = new FormData(this);
+        fetch('', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'started') { startPolling(); }
+            else { Swal.fire('Error', data.message || 'Error al iniciar', 'error'); resetUI(); }
+        });
+    });
+
+    function startPolling() {
+        const interval = setInterval(() => {
+            fetch('?action=status')
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'processing' || data.status === 'starting') {
+                    const p = data.progress || 0;
+                    progressFill.style.width = p + '%';
+                    progressFill.textContent = p + '%';
+                    statusText.textContent = data.message;
+                } else if (data.status === 'verified') {
+                    clearInterval(interval);
+                    Swal.fire({
+                        title: 'Validación Exitosa',
+                        html: `<p><b>Resumen de cambios:</b></p>
+                               <p>Nuevos: ${data.totals.new}</p>
+                               <p>Actualizados: ${data.totals.update}</p>
+                               <p>Omitidos: ${data.totals.skip}</p>
+                               <p>¿Deseas aplicar estos cambios ahora?</p>`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, importar ahora',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) { applyImport(); }
+                        else { resetUI(); }
+                    });
+                } else if (data.status === 'completed') {
+                    clearInterval(interval);
+                    Swal.fire('¡Éxito!', 'Catálogo importado correctamente', 'success').then(() => {
+                        window.location.href = '../';
+                    });
+                } else if (data.status === 'error') {
+                    clearInterval(interval);
+                    Swal.fire('Error', data.message, 'error');
+                    resetUI();
+                }
+            });
+        }, 1000);
+    }
+
+    function applyImport() {
+        progressFill.style.width = '0%';
+        statusText.textContent = 'Aplicando cambios...';
+        const formData = new FormData();
+        formData.append('confirm', 'true');
+        fetch('', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'started') { startPolling(); }
+        });
+    }
+
+    function resetUI() {
+        importForm.style.opacity = '1';
+        importForm.style.pointerEvents = 'auto';
+        progressWrapper.style.display = 'none';
+    }
+</script>
+{% endblock %}

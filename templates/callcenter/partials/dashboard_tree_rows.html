@@ -35,14 +35,12 @@
     <td style="text-align: center;">
         <span class="stat-pill closed">{{ node.cerrados }}</span>
     </td>
+    <td style="text-align: center;">
+        <button class="btn btn-sm btn-light p-1" 
+                onclick="event.stopPropagation(); showNodeTickets('{{ node.id }}', '{{ node.is_depto|yesno:'depto,' }}{{ node.is_falla|yesno:'falla,' }}{{ node.is_loc|yesno:'loc,' }}', '{{ node.nombre|escapejs }}')"
+                title="Ver Tickets">
+            <i class="ph ph-list-bullets" style="font-size: 1rem; color: #5469d4;"></i>
+        </button>
+    </td>
 </tr>
-
-{% if node.children %}
-    {% include "callcenter/partials/dashboard_tree_rows.html" with nodes=node.children prefix=prefix %}
-{% endif %}
-
-{% if node.loc_tree %}
-    {% include "callcenter/partials/dashboard_tree_rows.html" with nodes=node.loc_tree prefix=prefix %}
-{% endif %}
-
 {% endfor %}

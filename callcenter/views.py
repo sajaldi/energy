@@ -609,6 +609,27 @@ def update_evidencia_descripcion_ajax(request, evidence_id):
         return JsonResponse({'success': True})
     return JsonResponse({'success': False}, status=400)
 
+def get_filtered_ticket_qs(request):
+    """Helper para obtener el queryset de tickets filtrado por fecha."""
+    from datetime import datetime
+    fecha_inicio_str = request.GET.get('fecha_inicio')
+    fecha_fin_str = request.GET.get('fecha_fin')
+    
+    qs = SolicitudTicket.objects.all()
+    
+    if fecha_inicio_str:
+        try:
+            f_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
+            qs = qs.filter(fecha_solicitud__gte=f_inicio)
+        except ValueError: pass
+        
+    if fecha_fin_str:
+        try:
+            f_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            qs = qs.filter(fecha_solicitud__lte=f_fin)
+        except ValueError: pass
+    return qs
+
 @staff_member_required
 def ticket_dashboard_view(request):
     """
@@ -622,22 +643,11 @@ def ticket_dashboard_view(request):
     import json
 
     # --- Filtros de Fecha ---
+    ticket_qs = get_filtered_ticket_qs(request)
+    
+    # Re-obtener strings para el context si es necesario (o usar lo que vino en GET)
     fecha_inicio_str = request.GET.get('fecha_inicio')
     fecha_fin_str = request.GET.get('fecha_fin')
-    
-    ticket_qs = SolicitudTicket.objects.all()
-    
-    if fecha_inicio_str:
-        try:
-            f_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
-            ticket_qs = ticket_qs.filter(fecha_solicitud__gte=f_inicio)
-        except ValueError: pass
-        
-    if fecha_fin_str:
-        try:
-            f_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-            ticket_qs = ticket_qs.filter(fecha_solicitud__lte=f_fin)
-        except ValueError: pass
 
     # Métricas Globales (Filtradas)
     total_tickets = ticket_qs.count()
@@ -719,14 +729,14 @@ def ticket_dashboard_view(request):
             'abiertos': loc_stats.get(uid, {}).get('abiertos', 0),
             'cerrados': loc_stats.get(uid, {}).get('cerrados', 0),
             'children': [], 'is_loc': True,
-            'dom_id': f"loc-{uid}"
+            'dom_id': f"{parent_dom_id}-loc-{uid}" # Único por contexto
         } for uid in all_uids if uid in ubicaciones}
         
         # 3. Vincular padres e hijos
         u_roots = []
         for uid, node in u_nodes.items():
             if node['padre_id'] and node['padre_id'] in u_nodes:
-                node['dom_parent_id'] = f"loc-{node['padre_id']}"
+                node['dom_parent_id'] = node['dom_id'].replace(f"-loc-{uid}", f"-loc-{node['padre_id']}")
                 u_nodes[node['padre_id']]['children'].append(node)
             else:
                 node['dom_parent_id'] = parent_dom_id
@@ -734,11 +744,11 @@ def ticket_dashboard_view(request):
             
         def acc_u(node, level):
             node['level'] = level
+            # Asegurar que dom_parent_id sea correcto si es raíz
+            if 'dom_parent_id' not in node: node['dom_parent_id'] = parent_dom_id
             for c in node['children']:
                 cs = acc_u(c, level + 1)
-                node['total'] += cs['total']
-                node['abiertos'] += cs['abiertos']
-                node['cerrados'] += cs['cerrados']
+                node['total'] += cs['total']; node['abiertos'] += cs['abiertos']; node['cerrados'] += cs['cerrados']
             return node
         
         for r in u_roots: acc_u(r, offset_level)
@@ -752,8 +762,7 @@ def ticket_dashboard_view(request):
         for fid in relevant_fids:
             curr = fid
             while curr:
-                all_fids.add(curr)
-                f_obj = fallas.get(curr)
+                all_fids.add(curr); f_obj = fallas.get(curr)
                 curr = f_obj.parent_id if f_obj else None
         
         # 2. Inicializar nodos
@@ -764,14 +773,14 @@ def ticket_dashboard_view(request):
             'cerrados': f_stats_dict.get(fid, {}).get('cerrados', 0),
             'children': [], 'loc_stats': f_stats_dict.get(fid, {}).get('locs', {}),
             'is_falla': True,
-            'dom_id': f"fail-{fid}"
+            'dom_id': f"{parent_dom_id}-fail-{fid}" # Único por depto
         } for fid in all_fids if fid in fallas}
         
         # 3. Vincular padres e hijos
         f_roots = []
         for fid, node in f_nodes.items():
             if node['padre_id'] and node['padre_id'] in f_nodes:
-                node['dom_parent_id'] = f"fail-{node['padre_id']}"
+                node['dom_parent_id'] = node['dom_id'].replace(f"-fail-{fid}", f"-fail-{node['padre_id']}")
                 f_nodes[node['padre_id']]['children'].append(node)
             else:
                 node['dom_parent_id'] = parent_dom_id
@@ -779,6 +788,7 @@ def ticket_dashboard_view(request):
             
         def acc_f(node, level):
             node['level'] = level
+            if 'dom_parent_id' not in node: node['dom_parent_id'] = parent_dom_id
             for c in node['children']:
                 cs = acc_f(c, level + 1)
                 node['total'] += cs['total']; node['abiertos'] += cs['abiertos']; node['cerrados'] += cs['cerrados']
@@ -796,46 +806,47 @@ def ticket_dashboard_view(request):
         for r in f_roots: acc_f(r, offset_level)
         return f_roots
 
-    # Construir el árbol final de Departamentos
-    final_tree = []
-    for did, f_stats in d_data.items():
-        depto_name = deptos[did].nombre if did in deptos else "Sin Departamento"
-        depto_dom_id = f"dep-{did}"
-        d_node = {
-            'id': did,
-            'nombre': depto_name,
-            'is_depto': True,
-            'level': 0,
-            'total': 0,
-            'abiertos': 0,
-            'cerrados': 0,
-            'dom_id': depto_dom_id,
-            'dom_parent_id': 'none',
-            'children': build_falla_tree(f_stats, 1, depto_dom_id)
-        }
-        for fn in d_node['children']:
-            d_node['total'] += fn['total']
-            d_node['abiertos'] += fn['abiertos']
-            d_node['cerrados'] += fn['cerrados']
-        
-        if d_node['total'] > 0:
-            final_tree.append(d_node)
-
-    final_tree.sort(key=lambda x: x['total'], reverse=True)
-
     # --- CATEGORÍAS (Para Gráfica) ---
     categorias_stats = Categoria.objects.filter(ubicaciones__tickets__isnull=False).annotate(
         total_tickets=Count('ubicaciones__tickets')
     ).order_by('-total_tickets')
     cat_labels = [c.nombre for c in categorias_stats]
     cat_data = [c.total_tickets for c in categorias_stats]
+
+    # --- FLATTEN THE TREE ---
+    def flatten_tree(nodes, flattened_list):
+        for node in nodes:
+            flattened_list.append(node)
+            if 'children' in node and node['children']:
+                flatten_tree(node['children'], flattened_list)
+            if 'loc_tree' in node and node['loc_tree']:
+                flatten_tree(node['loc_tree'], flattened_list)
+    
+    # Construir el árbol final de Departamentos
+    temp_tree = []
+    for did, f_stats in d_data.items():
+        depto_name = deptos[did].nombre if did in deptos else "Sin Departamento"
+        depto_dom_id = f"dep-{did}"
+        d_node = {
+            'id': did, 'nombre': depto_name, 'is_depto': True, 'level': 0, 'total': 0, 'abiertos': 0, 'cerrados': 0,
+            'dom_id': depto_dom_id, 'dom_parent_id': 'none',
+            'children': build_falla_tree(f_stats, 1, depto_dom_id)
+        }
+        for fn in d_node['children']:
+            d_node['total'] += fn['total']; d_node['abiertos'] += fn['abiertos']; d_node['cerrados'] += fn['cerrados']
+        if d_node['total'] > 0: temp_tree.append(d_node)
+
+    temp_tree.sort(key=lambda x: x['total'], reverse=True)
+    
+    flat_nodes = []
+    flatten_tree(temp_tree, flat_nodes)
     
     context = {
         'total': total_tickets,
         'cerrados': tickets_cerrados,
         'abiertos': tickets_abiertos,
         'grupos': grupos,
-        'final_tree': final_tree,
+        'flat_nodes': flat_nodes,
         'cat_labels_json': json.dumps(cat_labels),
         'cat_data_json': json.dumps(cat_data),
         'fecha_inicio': fecha_inicio_str,
@@ -2564,4 +2575,98 @@ def mobile_ticket_cierre_view(request, pk):
         'now': timezone.now().strftime('%Y-%m-%dT%H:%M')
     }
     return render(request, 'callcenter/mobile_ticket_cierre.html', context)
+
+@staff_member_required
+def import_fallatickets_process(request):
+    """
+    Vista para manejar el flujo de importación asíncrona del catálogo de fallas de tickets.
+    """
+    from django.core.cache import cache
+    from django.core.files.storage import default_storage
+    from .tasks import import_fallatickets_task
+    import os
+
+    cache_key = f"import_fallatickets_progress_{request.user.id}"
+
+    if request.method == 'GET':
+        action = request.GET.get('action')
+        if action == 'status':
+            progress = cache.get(cache_key)
+            return JsonResponse(progress or {'status': 'idle'})
+        
+        return render(request, 'admin/callcenter/fallaticket/import_background.html', {
+            'title': 'Importación Asíncrona de Catálogo de Fallas'
+        })
+
+    if request.method == 'POST':
+        # Paso 1: Subida de archivo y validación inicial (Verification Mode)
+        if 'file' in request.FILES:
+            file = request.FILES['file']
+            file_path = default_storage.save(f'tmp/fallas_tickets_import_{request.user.id}.xlsx', file)
+            full_path = os.path.join(settings.MEDIA_ROOT, file_path)
+            
+            # Guardar ruta en cache para el siguiente paso
+            cache.set(f"import_fallatickets_file_{request.user.id}", full_path, 3600)
+            
+            # Lanzar tarea en modo verificación
+            import_fallatickets_task.delay(full_path, request.user.id, verification_mode=True)
+            return JsonResponse({'status': 'started'})
+
+        # Paso 2: Confirmación de importación real
+        if request.POST.get('confirm') == 'true':
+            full_path = cache.get(f"import_fallatickets_file_{request.user.id}")
+            if not full_path or not os.path.exists(full_path):
+                return JsonResponse({'status': 'error', 'message': 'Archivo no encontrado. Por favor suba el archivo de nuevo.'})
+            
+            # Lanzar tarea en modo real
+            import_fallatickets_task.delay(full_path, request.user.id, verification_mode=False)
+            return JsonResponse({'status': 'started'})
+
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+@staff_member_required
+def get_dashboard_node_tickets_ajax(request):
+    """
+    Retorna el listado de tickets filtrado por nodo (Depto, Falla o Ubicación).
+    """
+    from django.template.loader import render_to_string
+    from django.db.models import Q
+    from core.models import Departamento
+    from .models import FallaTicket
+    from activos.models import Ubicacion
+    
+    depto_id = request.GET.get('depto_id')
+    falla_id = request.GET.get('falla_id')
+    ubicacion_id = request.GET.get('ubicacion_id')
+    
+    ticket_qs = get_filtered_ticket_qs(request)
+    node_name = "Tickets Seleccionados"
+    
+    if depto_id and depto_id != '0':
+        ticket_qs = ticket_qs.filter(falla_reportada__departamento_responsable_id=depto_id)
+        try: node_name = Departamento.objects.get(id=depto_id).nombre
+        except: pass
+    elif depto_id == '0':
+        ticket_qs = ticket_qs.filter(falla_reportada__departamento_responsable__isnull=True)
+        node_name = "Sin Departamento"
+        
+    if falla_id:
+        ticket_qs = ticket_qs.filter(Q(falla_reportada_id=falla_id) | Q(falla_reportada__parent_id=falla_id))
+        try: node_name = FallaTicket.objects.get(id=falla_id).nombre
+        except: pass
+        
+    if ubicacion_id:
+        try:
+            loc = Ubicacion.objects.get(id=ubicacion_id)
+            desc_ids = loc.get_descendants(include_self=True).values_list('id', flat=True)
+            ticket_qs = ticket_qs.filter(ubicacion_id__in=desc_ids)
+            node_name = loc.nombre
+        except: pass
+
+    html = render_to_string('callcenter/partials/node_ticket_list.html', {
+        'tickets': ticket_qs.order_by('-fecha_solicitud')[:100],
+        'node_name': node_name
+    }, request=request)
+    
+    return JsonResponse({'html': html})
 
