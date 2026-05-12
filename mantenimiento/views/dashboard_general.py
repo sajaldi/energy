@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
-from ..models import OrdenTrabajo, Aviso, TecnicoPuesto
+from ..models import OrdenTrabajo, Aviso, TecnicoPuesto, Empresa
+from seguridad.models import TipoPermiso
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
@@ -43,6 +44,12 @@ def mantenimiento_dashboard(request):
         estado__in=['ABIERTO', 'PROCESO']
     ).select_related('ubicacion', 'activo', 'solicitante').order_by('-prioridad', '-creado_en')[:8]
 
+    # Datos para modal de creación de OTNP
+    personales = TecnicoPuesto.objects.select_related('user', 'puesto', 'empresa').filter(esta_vigente=True).order_by('nombre')
+    empresas = Empresa.objects.filter(activo=True).order_by('nombre')
+    prioridades = OrdenTrabajo.PRIORIDAD_CHOICES
+    tipos_permiso = TipoPermiso.objects.all().order_by('nombre')
+
     context = {
         'title': 'Sistema de Gestión de Mantenimiento',
         'ots_totales': ots_totales,
@@ -56,6 +63,10 @@ def mantenimiento_dashboard(request):
         'tecnicos_disponibles': tecnicos_disponibles,
         'proximas_ots': proximas_ots,
         'avisos_prioritarios': avisos_prioritarios,
+        'personales': personales,
+        'empresas': empresas,
+        'prioridades': prioridades,
+        'tipos_permiso': tipos_permiso,
     }
     
     return render(request, 'mantenimiento/dashboard.html', context)
