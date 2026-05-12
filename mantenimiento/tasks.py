@@ -1461,3 +1461,191 @@ def notify_responsible_n8n(aviso_id):
             
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@shared_task(bind=True, name='mantenimiento.tasks.import_fallas_task')
+def import_fallas_task(self, file_path, file_format, user_id=None, verification_mode=False, dry_run=False, import_name="Importación Fallas"):
+    """
+    Tarea Celery para importar o VERIFICAR CATALOGO DE FALLAS con seguimiento de progreso real.
+    """
+    from tablib import Dataset
+    from django.core.files.storage import default_storage
+    from .admin import FallaResource
+    from django.core.cache import cache
+    from .models import Falla
+    from activos.models import RegistroImportacion
+    from django.contrib.auth.models import User
+    import sys
+
+    user = User.objects.get(id=user_id) if user_id else None
+    registro = None
+    if not verification_mode and not dry_run:
+        registro = RegistroImportacion.objects.create(
+            nombre=import_name,
+            tipo='Catálogo de Fallas',
+            usuario=user,
+            estado='PROCESANDO'
+        )
+
+    # Marcador de progreso en caché
+    cache_key = f"import_fallas_progress_{user_id}" if user_id else "import_fallas_progress_system"
+
+    # Inicializar resource
+    resource = FallaResource()
+    resource.celery_task = self
+    resource.cache_key = cache_key
+    resource.total_rows = 0
+
+    # Leer archivo
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            file_content = f.read()
+            if file_format == 'csv':
+                dataset = Dataset().load(try_decode(file_content), format='csv')
+            elif file_format in ['xls', 'xlsx']:
+                dataset = Dataset().load(file_content, format=file_format)
+            else:
+                raise ValueError(f"Formato no soportado: {file_format}")
+    except Exception as e:
+        if registro:
+            registro.estado = 'ERROR'
+            registro.detalles_error = str(e)
+            registro.save()
+        error_res = {'status': 'error', 'message': f'Error al leer archivo: {str(e)}'}
+        cache.set(cache_key, error_res, 3600)
+        return error_res
+
+    total_rows = len(dataset)
+    resource.total_rows = total_rows
+    if registro:
+        registro.total_filas = total_rows
+        registro.save()
+        
+    # Estado inicial
+    progress_info = {
+        'current': 0, 
+        'total': total_rows, 
+        'status': 'Iniciando verificacion...' if verification_mode else 'Iniciando importacion...', 
+        'percent': 0,
+        'new': 0,
+        'updated': 0,
+        'skipped': 0,
+        'errors': 0,
+        'found': 0,
+        'not_found': 0,
+        'verification_mode': verification_mode
+    }
+    cache.set(cache_key, progress_info, 3600)
+    self.update_state(state='PROGRESS', meta=progress_info)
+    sys.stdout.flush()
+
+    if verification_mode:
+        results = []
+        codes_seen = set()
+        found_count = 0
+        not_found_count = 0
+        
+        for i, row in enumerate(dataset.dict, start=1):
+            nombre = str(row.get('nombre') or '').strip()
+            padre_nombre = str(row.get('padre') or '').strip()
+            
+            if not nombre:
+                status = "SIN NOMBRE"
+                not_found_count += 1
+            else:
+                identifier = f"{nombre}|{padre_nombre}"
+                if identifier in codes_seen:
+                    status = "REPETIDO EN ARCHIVO"
+                else:
+                    codes_seen.add(identifier)
+                    exists = Falla.objects.filter(nombre=nombre)
+                    if padre_nombre:
+                        exists = exists.filter(padre__nombre=padre_nombre)
+                    else:
+                        exists = exists.filter(padre__isnull=True)
+                    
+                    if exists.exists():
+                        found_count += 1
+                        status = "EXISTE (Se actualizará)"
+                    else:
+                        not_found_count += 1
+                        status = "NO EXISTE (Se creará)"
+            
+            results.append(f"Fila {i}: {nombre} -> {status}")
+            
+            if i % 10 == 0 or i == total_rows:
+                progress_info.update({
+                    'current': i,
+                    'status': f'Verificando {i}/{total_rows}...',
+                    'percent': int((i / total_rows) * 100),
+                    'found': found_count,
+                    'not_found': not_found_count,
+                })
+                cache.set(cache_key, progress_info, 3600)
+                self.update_state(state='PROGRESS', meta=progress_info)
+
+        final_res = {
+            'status': 'completed',
+            'status_code': 'completed',
+            'total': total_rows,
+            'found': found_count,
+            'not_found': not_found_count,
+            'results': results,
+            'verification_mode': True
+        }
+    else:
+        # Modo IMPORTACIÓN real
+        try:
+            result = resource.import_data(dataset, dry_run=dry_run, raise_errors=False)
+            
+            detailed_errors = []
+            for error in result.base_errors:
+                detailed_errors.append(f"Error General: {str(error.error)}")
+            
+            for line, errors in result.row_errors():
+                for error in errors:
+                    detailed_errors.append(f"Fila {line}: {str(error.error)}")
+                    
+            if registro:
+                registro.filas_nuevas = result.totals.get('new', 0)
+                registro.filas_actualizadas = result.totals.get('update', 0)
+                registro.filas_omitidas = result.totals.get('skip', 0)
+                registro.filas_error = len(detailed_errors)
+                registro.estado = 'COMPLETADO'
+                if detailed_errors:
+                    registro.detalles_error = "\n".join(detailed_errors[:50])
+                registro.save()
+
+            final_res = {
+                'status': 'completed',
+                'status_code': 'completed',
+                'total': total_rows,
+                'new': result.totals.get('new', 0),
+                'updated': result.totals.get('update', 0),
+                'skipped': result.totals.get('skip', 0),
+                'errors': len(detailed_errors),
+                'error_list': detailed_errors,
+                'verification_mode': False,
+                'dry_run': dry_run,
+                'file_path': file_path
+            }
+        except Exception as e:
+            if registro:
+                registro.estado = 'ERROR'
+                registro.detalles_error = str(e)
+                registro.save()
+            error_msg = f"Error crítico en importación: {str(e)}"
+            progress_info.update({'status': 'error', 'message': error_msg})
+            cache.set(cache_key, progress_info, 3600)
+            return {'status': 'error', 'message': error_msg}
+
+    # Limpiar archivo original SOLO si no es dry_run
+    if not dry_run:
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
+        except:
+            pass
+        
+    cache.set(cache_key, final_res, 3600)
+    return final_res
+

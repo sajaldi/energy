@@ -954,19 +954,58 @@
 
 
         // Lógica de Árbol Jerárquico (Acordeón)
-        function toggleTreeRow(id) {
-            const children = document.querySelectorAll(`[data-parent="${id}"]`);
-            const icon = document.getElementById(`icon-${id}`);
+        // Lógica de Árbol Jerárquico (Acordeón con Lazy Loading)
+        function toggleTreeRow(parentId) {
+            const row = document.querySelector(`[data-id="${parentId}"]`);
+            const icon = document.getElementById(`icon-${parentId}`);
+            const childrenRows = document.querySelectorAll(`[data-parent="${parentId}"]`);
+            
+            if (childrenRows.length === 0 && row.dataset.hasChildren === "true") {
+                if (icon) icon.className = 'ph ph-spinner-gap ph-spin tree-icon';
+                
+                const rawId = parentId.replace('uni-', ''); 
+                const levelMatch = row.classList.value.match(/depth-(\d+)/);
+                const level = levelMatch ? parseInt(levelMatch[1]) : 0;
+                
+                const params = new URLSearchParams(window.location.search);
+                params.append('node_id', rawId);
+                params.append('level', level);
+                params.append('prefix', 'uni');
+                
+                fetch(`{% url "callcenter:get_dashboard_children" %}?${params.toString()}`)
+                    .then(response => response.text())
+                    .then(html => {
+                        if (html.trim()) {
+                            row.insertAdjacentHTML('afterend', html);
+                            toggleTreeRow(parentId);
+                        } else {
+                            row.dataset.hasChildren = "false";
+                            if (icon) icon.className = 'ph ph-dot';
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error loading children:", err);
+                        if (icon) icon.className = 'ph ph-caret-right tree-icon';
+                    });
+                return;
+            }
+
             const isExpanding = icon && icon.classList.contains('ph-caret-right');
 
             if (isExpanding) {
-                if (icon) icon.classList.replace('ph-caret-right', 'ph-caret-down');
-                children.forEach(child => {
-                    child.style.display = '';
+                if (icon) {
+                    icon.classList.remove('ph-caret-right', 'ph-spinner-gap', 'ph-spin');
+                    icon.classList.add('ph-caret-down');
+                }
+                childrenRows.forEach(child => {
+                    child.style.display = 'table-row';
                 });
             } else {
-                if (icon) icon.classList.replace('ph-caret-down', 'ph-caret-right');
-                hideDescendants(id);
+                if (icon) {
+                    icon.classList.remove('ph-caret-down');
+                    icon.classList.add('ph-caret-right');
+                }
+                hideDescendants(parentId);
             }
         }
 
@@ -976,7 +1015,9 @@
                 child.style.display = 'none';
                 const childId = child.getAttribute('data-id');
                 const childIcon = document.getElementById(`icon-${childId}`);
-                if (childIcon) childIcon.classList.replace('ph-caret-down', 'ph-caret-right');
+                if (childIcon && childIcon.classList.contains('ph-caret-down')) {
+                    childIcon.classList.replace('ph-caret-down', 'ph-caret-right');
+                }
                 hideDescendants(childId);
             });
         }
