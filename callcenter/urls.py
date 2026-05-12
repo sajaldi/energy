@@ -25,6 +25,7 @@ urlpatterns = [
     path('ticket/<str:ticket_id>/assign-user/', views.assign_ticket_user_ajax, name='assign_ticket_user'),
     path('ticket/<str:ticket_id>/notify-n8n/', views.notify_ticket_n8n_ajax, name='notify_ticket_n8n'),
     path('cluster/<str:cluster_id>/create-ticket/', views.create_ticket_in_cluster_ajax, name='create_ticket_in_cluster'),
+    path('cluster/<str:cluster_id>/add-tickets-folios/', views.add_tickets_to_cluster_ajax, name='add_tickets_to_cluster_folios'),
     path('cluster/<str:cluster_id>/vectorizar-ia/', views.vectorize_cluster_tickets_ajax, name='vectorizar_ia_cluster'),
     path('api/search-tickets-autocomplete/', views.search_tickets_autocomplete_ajax, name='search_tickets_autocomplete'),
     path('ticket/<str:ticket_id>/restriccion-acceso/', views.create_restriccion_acceso_ajax, name='create_restriccion_acceso_ajax'),

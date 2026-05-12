@@ -195,6 +195,9 @@
                         <!-- Buttons -->
                         <div style="display: flex; gap: 8px;">
                             <button type="submit" class="btn-fiori primary" style="height: 38px;">Filtrar</button>
+                            <button type="button" onclick="importTicketsByFolios()" class="btn-fiori" style="height: 38px; background: #ffc107 !important; border-color: #ffc107 !important; color: #212529 !important;" title="Importar por Folio">
+                                <i class="ph ph-list-plus"></i>
+                            </button>
                             <a href="?export=excel{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if q %}&q={{ q }}{% endif %}" class="btn-fiori btn-excel" style="height: 38px; display: flex; align-items: center;">
                                 <i class="ph ph-file-xls"></i>
                             </a>
@@ -648,6 +651,64 @@
             const newSort = currentSort === field ? `-${field}` : field;
             urlParams.set('sort', newSort);
             window.location.href = "?" + urlParams.toString();
+        }
+
+        async function importTicketsByFolios() {
+            const { value: folios } = await Swal.fire({
+                title: 'Importar Tickets por Folio',
+                input: 'textarea',
+                inputLabel: 'Pega los folios aquí (separados por comas, espacios o saltos de línea)',
+                inputPlaceholder: 'Ej: SS26-144555, SS26-144556...',
+                inputAttributes: {
+                    'aria-label': 'Pega los folios aquí'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Importar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#ffc107',
+                confirmButtonTextColor: '#212529',
+                preConfirm: (value) => {
+                    if (!value) {
+                        Swal.showValidationMessage('Debes ingresar al menos un folio');
+                    }
+                    return value;
+                }
+            });
+
+            if (folios) {
+                try {
+                    Swal.fire({
+                        title: 'Procesando...',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+
+                    const formData = new FormData();
+                    formData.append('folios', folios);
+                    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+                    const res = await fetch("{% url 'callcenter:add_tickets_to_cluster_folios' cluster.id|unlocalize %}", {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await res.json();
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Éxito!',
+                            text: data.message,
+                            confirmButtonText: 'Entendido'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', data.error || 'Ocurrió un error al procesar la solicitud', 'error');
+                    }
+                } catch (e) {
+                    Swal.fire('Error', 'Error de red al intentar importar', 'error');
+                }
+            }
         }
 
         async function vectorizeClusterIA() {

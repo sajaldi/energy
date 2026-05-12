@@ -2261,6 +2261,55 @@ def vectorize_cluster_tickets_ajax(request, cluster_id):
 
 
 @staff_member_required
+@require_POST
+def add_tickets_to_cluster_ajax(request, cluster_id):
+    """Agrega tickets existentes a un cluster mediante una lista de folios (pegado)."""
+    # Limpiar ID de posibles comas de formateo regional
+    cluster_id = int(str(cluster_id).replace(',', ''))
+    cluster = get_object_or_404(GrupoTicket, id=cluster_id)
+    
+    folios_raw = request.POST.get('folios', '').strip()
+    if not folios_raw:
+        return JsonResponse({'success': False, 'error': 'No se proporcionaron folios.'})
+    
+    # Parsear folios (separados por comas, espacios o saltos de línea)
+    import re
+    folios = list(set([f.strip() for f in re.split(r'[\s,]+', folios_raw) if f.strip()]))
+    
+    if not folios:
+        return JsonResponse({'success': False, 'error': 'No se encontraron folios válidos en el texto.'})
+    
+    try:
+        from django.db.models import Q
+        # Buscar tickets
+        tickets_encontrados = SolicitudTicket.objects.filter(
+            Q(folio__in=folios) | Q(folio__iexact=folios) # __in es más eficiente para listas
+        )
+        
+        # Si falló la búsqueda masiva exacta (por temas de case sensitivity en algunos DBs)
+        # o si queremos ser más exhaustivos:
+        if tickets_encontrados.count() < len(folios):
+            query = Q()
+            for f in folios:
+                query |= Q(folio__iexact=f)
+            tickets_encontrados = SolicitudTicket.objects.filter(query)
+
+        count_antes = cluster.tickets.count()
+        cluster.tickets.add(*tickets_encontrados)
+        count_despues = cluster.tickets.count()
+        
+        vinculados = count_despues - count_antes
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Se procesaron {len(folios)} folios. Se encontraron {tickets_encontrados.count()} tickets y se vincularon {vinculados} nuevos al cluster.'
+        })
+    except Exception as e:
+        logger.error(f"Error vinculando folios a cluster {cluster_id}: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@staff_member_required
 @mobile_permission_required('mis_avisos')
 def mobile_ticket_cierre_view(request, pk):
     """Vista optimizada para cerrar un ticket desde dispositivos móviles."""
