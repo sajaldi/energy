@@ -1103,12 +1103,10 @@ def mobile_busqueda_activos(request):
 
         # Buscar Tickets de Call Center (NUEVO) - Solo si tiene acceso a Mis Avisos
         if 'mis_avisos' in secciones:
-            tickets = SolicitudTicket.objects.filter(
-                Q(folio__icontains=query) |
-                Q(id_solicitud__icontains=query) |
-                Q(solicitante__icontains=query) |
-                Q(solicitud_descripcion__icontains=query)
-            ).order_by('-fecha_solicitud')[:20]
+            search_q = Q(folio__icontains=query) | Q(solicitante__icontains=query) | Q(solicitud_descripcion__icontains=query)
+            if query.isdigit():
+                search_q |= Q(id_solicitud=query)
+            tickets = SolicitudTicket.objects.filter(search_q).order_by('-fecha_solicitud')[:20]
 
         
         # Si solo hay un activo y ninguna orden/acuerdo/ticket, redirigir directo

@@ -764,3 +764,33 @@ def rutina_print_pdf(request, pk):
         import logging
         logging.getLogger(__name__).error(f"Error generando PDF de rutina: {e}", exc_info=True)
         return HttpResponse(f"Error interno: {str(e)}", status=500)
+
+@staff_member_required
+def rutina_move_api(request, pk):
+    """API para mover una rutina de una categoría a otra"""
+    from django.http import JsonResponse
+    import json
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        tipo_id = data.get('tipo_id')
+        
+        rutina = Rutina.objects.get(pk=pk)
+        if tipo_id:
+            rutina.tipo = Tipo.objects.get(pk=tipo_id)
+        else:
+            rutina.tipo = None
+            
+        rutina.save(update_fields=['tipo'])
+        
+        return JsonResponse({'status': 'success', 'message': 'Rutina movida correctamente'})
+    except Rutina.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Rutina no encontrada'}, status=404)
+    except Tipo.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'La categoría destino no existe'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+

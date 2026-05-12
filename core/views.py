@@ -1150,12 +1150,10 @@ def global_search(request):
         ).select_related('ubicacion', 'modelo__marca')[:20]
         
         # 2. Tickets
-        results['tickets'] = SolicitudTicket.objects.filter(
-            Q(folio__icontains=query) |
-            Q(id_solicitud__icontains=query) |
-            Q(solicitante__icontains=query) |
-            Q(solicitud_descripcion__icontains=query)
-        )[:20]
+        search_q = Q(folio__icontains=query) | Q(solicitante__icontains=query) | Q(solicitud_descripcion__icontains=query)
+        if query.isdigit():
+            search_q |= Q(id_solicitud=query)
+        results['tickets'] = SolicitudTicket.objects.filter(search_q)[:20]
 
         # 3. Documentos
         results['documentos'] = Documento.objects.filter(

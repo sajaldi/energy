@@ -643,14 +643,10 @@ def cluster_tickets_view(request, cluster_id):
     
     # Aplicar búsqueda por texto (q)
     if q:
-        tickets = tickets.filter(
-            Q(folio__icontains=q) | 
-            Q(solicitud_descripcion__icontains=q) | 
-            Q(id_solicitud__icontains=q) |
-            Q(responsable__icontains=q) |
-            Q(usuario_responsable__first_name__icontains=q) |
-            Q(usuario_responsable__last_name__icontains=q)
-        ).distinct()
+        search_q = Q(folio__icontains=q) | Q(solicitud_descripcion__icontains=q) | Q(responsable__icontains=q)
+        if q.isdigit():
+            search_q |= Q(id_solicitud=q)
+        tickets = tickets.filter(search_q | Q(usuario_responsable__first_name__icontains=q) | Q(usuario_responsable__last_name__icontains=q)).distinct()
         
     # Filtro por Status
     if status == 'abiertos':
@@ -1551,9 +1547,11 @@ def search_tickets_autocomplete_ajax(request):
     if len(q) < 2:
         return JsonResponse({'results': []})
         
-    tickets = SolicitudTicket.objects.filter(
-        Q(folio__icontains=q) | Q(id_solicitud__icontains=q) | Q(solicitud_descripcion__icontains=q)
-    )[:10]
+    search_q = Q(folio__icontains=q) | Q(solicitud_descripcion__icontains=q)
+    if q.isdigit():
+        search_q |= Q(id_solicitud=q)
+    
+    tickets = SolicitudTicket.objects.filter(search_q)[:10]
     
     results = []
     for t in tickets:
