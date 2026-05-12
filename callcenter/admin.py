@@ -72,51 +72,63 @@ class GrupoTicketAdmin(admin.ModelAdmin):
     def importar_tickets_view(self, request, object_id):
         grupo = self.get_object(request, object_id)
         
-        if request.method == "POST" and request.FILES.get('excel_file'):
-            file = request.FILES['excel_file']
+        if request.method == "POST":
+            folios_raw = []
+            
+            # 1. Procesar Textarea
+            folios_text = request.POST.get('folios_string', '').strip()
+            if folios_text:
+                import re
+                folios_raw.extend(re.split(r'[\s,]+', folios_text))
+            
+            # 2. Procesar Archivo
+            if request.FILES.get('excel_file'):
+                file = request.FILES['excel_file']
+                try:
+                    df = pd.read_excel(file) if file.name.endswith('.xlsx') else pd.read_csv(file)
+                    df.columns = [str(c).lower().strip() for c in df.columns]
+                    if 'folio' in df.columns:
+                        folios_raw.extend(df['folio'].dropna().astype(str).tolist())
+                    else:
+                        folios_raw.extend(df.iloc[:, 0].dropna().astype(str).tolist())
+                except Exception as e:
+                    messages.error(request, f"Error al leer el archivo: {e}")
+
+            # Limpiar y quitar duplicados
+            folios = list(set([f.strip() for f in folios_raw if f.strip()]))
+
+            if not folios:
+                messages.warning(request, "No se proporcionaron folios válidos.")
+                return HttpResponseRedirect("./")
+
             try:
-                # Leer folios del Excel
-                df = pd.read_excel(file) if file.name.endswith('.xlsx') else pd.read_csv(file)
-                
-                # Normalizar nombres de columnas
-                df.columns = [str(c).lower().strip() for c in df.columns]
-                
-                folios_raw = []
-                if 'folio' in df.columns:
-                    folios_raw = df['folio'].dropna().astype(str).tolist()
-                else:
-                    # Si no hay columna 'folio', tomamos la primera columna
-                    folios_raw = df.iloc[:, 0].dropna().astype(str).tolist()
-
-                # Limpiar espacios en los folios
-                folios = [f.strip() for f in folios_raw if f.strip()]
-
-                # Buscar los tickets (Usamos __in pero con limpieza previa)
-                # NOTA: Folio en la DB podría ser sensible a mayúsculas, usamos __in directamente pero
-                # los folios buscados ya no tienen espacios.
+                # Buscar los tickets
                 tickets_encontrados = SolicitudTicket.objects.filter(folio__in=folios)
-                
-                # Si falló la búsqueda exacta, probamos individualmente con limpieza
-                if not tickets_encontrados.exists() and folios:
-                    from django.db.models import Q
-                    query = Q()
-                    for f in folios:
-                        query |= Q(folio__iexact=f)
-                    tickets_encontrados = SolicitudTicket.objects.filter(query)
+                ids_to_add = list(tickets_encontrados.values_list('id', flat=True))
+
+                # Si faltan tickets, buscar con iexact
+                if len(ids_to_add) < len(folios):
+                    found_folios = set(tickets_encontrados.values_list('folio', flat=True))
+                    missing_folios = [f for f in folios if f not in found_folios]
+                    if missing_folios:
+                        from django.db.models import Q
+                        query = Q()
+                        for f in missing_folios:
+                            query |= Q(folio__iexact=f)
+                        more_tickets = SolicitudTicket.objects.filter(query)
+                        ids_to_add = list(set(ids_to_add + list(more_tickets.values_list('id', flat=True))))
 
                 # Asociarlos al grupo
                 count_antes = grupo.tickets.count()
-                ids_seleccionados = list(tickets_encontrados.values_list('id', flat=True))
-                grupo.tickets.add(*ids_seleccionados)
+                grupo.tickets.add(*ids_to_add)
                 count_despues = grupo.tickets.count()
                 
                 agregados = count_despues - count_antes
-                
-                messages.success(request, f"Se procesaron {len(folios)} filas del archivo. Se encontraron {len(ids_seleccionados)} tickets en la base de datos. Se agregaron {agregados} tickets nuevos al grupo.")
+                messages.success(request, f"Se procesaron {len(folios)} folios. Se encontraron {len(ids_to_add)} tickets. Se vincularon {agregados} nuevos.")
                 return HttpResponseRedirect("../")
                 
             except Exception as e:
-                messages.error(request, f"Error al procesar el archivo: {str(e)}")
+                messages.error(request, f"Error al procesar: {str(e)}")
                 return HttpResponseRedirect("../")
 
         return render(request, "admin/callcenter/grupoticket/importar_modal.html", {"grupo": grupo})

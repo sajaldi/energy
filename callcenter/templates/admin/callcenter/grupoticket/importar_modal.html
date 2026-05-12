@@ -14,21 +14,32 @@
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="card-body">
-                <p>Sube un archivo Excel (.xlsx) o CSV con el listado de <strong>Folios</strong>.</p>
-                <ul>
-                    <li>El sistema buscará los tickets que coincidan con los folios proporcionados.</li>
-                    <li>Si el archivo no tiene encabezado "folio", se leerá la primera columna.</li>
-                </ul>
-
-                <div class="form-group">
-                    <label for="excel_file">Archivo Excel/CSV:</label>
-                    <input type="file" name="excel_file" class="form-control-file" accept=".xlsx, .csv" required>
+                <p>Puedes agregar tickets al grupo de dos formas:</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="folios_string"><strong>1. Pegado de Folios:</strong></label>
+                            <textarea name="folios_string" id="folios_string" class="form-control" rows="8" placeholder="SS26-144555&#10;SS26-144556&#10;SS26-144557"></textarea>
+                            <small class="form-text text-muted">Separa los folios por comas, espacios o saltos de línea.</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="excel_file"><strong>2. Subida de Archivo:</strong></label>
+                            <input type="file" name="excel_file" class="form-control-file" accept=".xlsx, .csv">
+                            <small class="form-text text-muted">Excel (.xlsx) o CSV con el listado de Folios.</small>
+                        </div>
+                        <div class="mt-4">
+                            <a href="{% url 'admin:callcenter_grupoticket_plantilla' %}" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-download"></i> Descargar Plantilla (.xlsx)
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="mt-3">
-                    <a href="{% url 'admin:callcenter_grupoticket_plantilla' %}" class="btn btn-outline-info btn-sm">
-                        <i class="fas fa-download"></i> Descargar Formato de Ejemplo (.xlsx)
-                    </a>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i> Solo se procesarán tickets que ya existan en la base de datos.
                 </div>
             </div>
 
