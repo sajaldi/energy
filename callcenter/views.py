@@ -432,72 +432,83 @@ def webhook_evidencia_ticket(request, folio):
 @staff_member_required
 def ticket_search_view(request):
     """
-    Buscador semántico de tickets usando embeddings vectoriales.
-    Genera el embedding de la query usando Ollama y busca por distancia coseno.
+    Buscador Híbrido de tickets:
+    1. Semántico: Usa embeddings vectoriales (Ollama + PGVector).
+    2. Palabra Clave: Búsqueda tradicional icontains en campos clave.
+    Combina ambos resultados para mayor robustez.
     """
     from django.shortcuts import render
     from django.conf import settings
+    from django.db.models import Q
     import requests as http_requests
     
     query = request.GET.get('q', '').strip()
-    resultados = []
+    resultados_finales = []
     error = None
     
     if query:
-        try:
-            # 1. Generar embedding de la query usando Ollama
-            ollama_url = f'{settings.OLLAMA_API_URL}/api/embeddings'
+        # --- 1. BÚSQUEDA TRADICIONAL (Palabra Clave) ---
+        # Útil para tickets sin embedding o búsquedas exactas
+        keyword_q = Q(folio__icontains=query) | \
+                    Q(solicitud_descripcion__icontains=query) | \
+                    Q(falla_descripcion__icontains=query) | \
+                    Q(area__icontains=query) | \
+                    Q(nivel__icontains=query) | \
+                    Q(servicio__icontains=query)
+        
+        if query.isdigit():
+            keyword_q |= Q(id_solicitud=query)
             
+        keyword_results = SolicitudTicket.objects.filter(keyword_q).select_related('ubicacion')[:50]
+        for t in keyword_results:
+            t.similitud = 70.0  # Puntaje base para coincidencia por palabra clave
+            t.metodo = "Palabra Clave"
+        
+        # --- 2. BÚSQUEDA SEMÁNTICA ---
+        semantic_results = []
+        try:
+            ollama_url = f'{settings.OLLAMA_API_URL}/api/embeddings'
             resp = http_requests.post(ollama_url, json={
                 'model': 'mxbai-embed-large',
                 'prompt': f"Represent this query for retrieving relevant documents: {query}"
-            }, timeout=60)
+            }, timeout=15) # Timeout más corto para no bloquear
             
-            if resp.status_code != 200:
-                error = f"Error al generar embedding: Ollama respondió {resp.status_code}"
-            else:
+            if resp.status_code == 200:
                 query_embedding = resp.json().get('embedding')
-                if not query_embedding:
-                    error = "Ollama no devolvió un embedding válido."
-                else:
-                    # 2. Detectar ubicación en la query para filtro estricto
-                    filtros_adicionales = {}
-                    query_lower = query.lower()
-                    
-                    # Mapeo de palabras clave a campos de ubicación
-                    ubicaciones_clave = {
-                        'torre 1': {'area__icontains': 'Torre 1'},
-                        'torre 2': {'area__icontains': 'Torre 2'},
-                        'cuerpo bajo c': {'area__icontains': 'Cuerpo Bajo C'},
-                        'cuerpo bajo b': {'area__icontains': 'Cuerpo Bajo B'},
-                        'cuerpo bajo a': {'area__icontains': 'Cuerpo Bajo A'},
-                        'edificio cba': {'area__icontains': 'CBA'},
-                    }
-                    
-                    for clave, filtro in ubicaciones_clave.items():
-                        if clave in query_lower:
-                            filtros_adicionales.update(filtro)
-                            break # Aplicamos el primero que encontremos para evitar conflictos
-                    
-                    # 3. Buscar tickets similares con filtros
-                    resultados = SolicitudTicket.buscar_vectorial(
-                        query_embedding, 
-                        limit=100, 
-                        filters=filtros_adicionales
-                    )
-                    
-                    # 4. Calcular porcentaje de similitud (Relación)
-                    for t in resultados:
+                if query_embedding:
+                    # Buscamos sin filtros estrictos para que la semántica trabaje el contexto
+                    semantic_results = SolicitudTicket.buscar_vectorial(query_embedding, limit=50)
+                    for t in semantic_results:
                         t.similitud = round(max(0, min(100, (1 - t.distancia) * 100)), 1)
-        except http_requests.exceptions.ConnectionError:
-            error = "No se pudo conectar con Ollama. Verifica que esté corriendo."
+                        t.metodo = "IA Semántica"
+            else:
+                logger.warning(f"Ollama falló: {resp.status_code}")
         except Exception as e:
-            error = f"Error inesperado: {str(e)}"
-            logger.error(f"Error en ticket_search_view: {e}", exc_info=True)
+            logger.warning(f"Error en búsqueda semántica (posiblemente Ollama offline): {e}")
+            # No bloqueamos el error para permitir que los resultados por palabra clave se vean
+
+        # --- 3. COMBINACIÓN Y RANKING ---
+        # Usamos un diccionario para evitar duplicados, priorizando el puntaje más alto
+        seen_ids = {}
+        
+        # Prioridad a los semánticos si son buenos matches (>75%)
+        for t in semantic_results:
+            seen_ids[t.id] = t
+            
+        # Añadir keyword results
+        for t in keyword_results:
+            if t.id in seen_ids:
+                # Si ya estaba, le damos un boost si también coincide por palabra clave
+                seen_ids[t.id].similitud = min(100, seen_ids[t.id].similitud + 5)
+            else:
+                seen_ids[t.id] = t
+        
+        # Ordenar por similitud
+        resultados_finales = sorted(seen_ids.values(), key=lambda x: x.similitud, reverse=True)
     
     return render(request, 'callcenter/buscar_tickets.html', {
         'query': query,
-        'resultados': resultados,
+        'resultados': resultados_finales,
         'error': error,
     })
 

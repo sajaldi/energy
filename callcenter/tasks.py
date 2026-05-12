@@ -125,9 +125,20 @@ def vectorize_ticket_n8n(ticket_id):
         if ticket.folio: context_parts.append(f"FOLIO: {ticket.folio}")
         if ticket.solicitante: context_parts.append(f"SOLICITANTE: {ticket.solicitante}")
         if ticket.servicio: context_parts.append(f"SERVICIO: {ticket.servicio} > {ticket.subservicio or ''}")
-        if ticket.ubicacion: context_parts.append(f"UBICACION: {ticket.ubicacion.ruta_completa}")
-        elif ticket.nivel: context_parts.append(f"UBICACION: {ticket.nivel} > {ticket.grupo or ''}")
         
+        # Ubicación detallada
+        if ticket.ubicacion: 
+            context_parts.append(f"UBICACION: {ticket.ubicacion.ruta_completa}")
+            if ticket.ubicacion.tipo: context_parts.append(f"TIPO UBICACION: {ticket.ubicacion.tipo}")
+        else:
+            loc_parts = [p for p in [ticket.area, ticket.nivel, ticket.grupo, ticket.unidad] if p]
+            if loc_parts:
+                context_parts.append(f"UBICACION: {' > '.join(loc_parts)}")
+        
+        # Activo si existe
+        if ticket.activo:
+            context_parts.append(f"ACTIVO: {ticket.activo.nombre} (Tag: {ticket.activo.tag or ''})")
+
         if ticket.solicitud_descripcion: context_parts.append(f"SOLICITUD: {ticket.solicitud_descripcion}")
         if ticket.falla_descripcion: context_parts.append(f"FALLA: {ticket.falla_descripcion} ({ticket.falla_clasificacion or ''})")
         if ticket.diagnostico: context_parts.append(f"DIAGNOSTICO: {ticket.diagnostico}")
