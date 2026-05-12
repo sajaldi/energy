@@ -2,53 +2,88 @@
  * Admin Search Hijacker - SoftCom CCG
  * Redirige la búsqueda del navbar a nuestra vista global unificada.
  */
-document.addEventListener('DOMContentLoaded', function () {
-    function hijack() {
-        // Buscar inputs con nombre 'q' (estándar de Django admin y Jazzmin)
-        const allSearchInputs = document.querySelectorAll('input[name="q"]');
+(function() {
+    function setupGlobalSearch() {
+        const targetUrl = "/admin/global-search/";
 
-        allSearchInputs.forEach(function(searchInput) {
-            const searchForm = searchInput.closest('form');
-            if (!searchForm) return;
-
-            // Sólo interceptar si el input está en el header/navbar (no en el listado de objetos)
-            const inHeader = searchInput.closest('.main-header, .navbar, #jazmin-navbar, .nav-sidebar');
-            if (!inHeader) return; 
-
-            // Redirigir a nuestra vista unificada
-            if (!searchForm.action.includes('/admin/global-search/')) {
-                searchForm.action = "/admin/global-search/";
-                searchForm.method = "GET";
+        // Función para ejecutar la búsqueda global
+        function doSearch(query) {
+            if (query && query.trim()) {
+                window.location.href = targetUrl + "?q=" + encodeURIComponent(query.trim());
+                return true;
             }
+            return false;
+        }
 
-            // Mejorar placeholder para que sea claro que es GLOBAL
-            searchInput.placeholder = "Búsqueda Global (Equipos, Tickets, Usuarios...)";
-            searchInput.title = "Buscar en todo el sistema";
+        // 1. Interceptar el evento de envío del formulario (Enter)
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            const qInput = form.querySelector('input[name="q"]');
             
-            // Si hay un label cerca (ej. en el sidebar), actualizarlo
-            const label = searchForm.querySelector('label') || searchForm.previousElementSibling;
-            if (label && label.tagName === 'LABEL') {
-                label.innerText = "Buscador Global";
+            // Solo actuar si es un input de búsqueda en el header/navbar
+            if (qInput && (form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                doSearch(qInput.value);
+                return false;
             }
+        }, true);
 
-            // Limpiar filtros ocultos de Jazzmin que forzarían la búsqueda a un solo modelo
-            searchForm.querySelectorAll('input[type="hidden"]').forEach(function(hidden) {
-                hidden.remove();
+        // 2. Interceptar el click en el botón de búsqueda (Lupa)
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('button');
+            if (btn) {
+                const form = btn.closest('form');
+                if (form) {
+                    const qInput = form.querySelector('input[name="q"]');
+                    if (qInput && (form.closest('.navbar') || form.closest('.main-header'))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        doSearch(qInput.value);
+                    }
+                }
+            }
+        }, true);
+
+        // 3. Función para "limpiar" visualmente el buscador de Jazzmin
+        function polishSearchInputs() {
+            const allSearchInputs = document.querySelectorAll('input[name="q"]');
+            allSearchInputs.forEach(function(input) {
+                const form = input.closest('form');
+                if (!form || !(form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) return;
+
+                // Cambiar el placeholder para indicar que es GLOBAL
+                input.placeholder = "Búsqueda Global...";
+                input.title = "Buscar en todo el sistema";
+                
+                // Desactivar el autocompletado nativo de Jazzmin
+                input.setAttribute('autocomplete', 'off');
+                input.removeAttribute('data-typeahead');
+                
+                // Forzar visualmente la acción (por si acaso)
+                form.action = targetUrl;
+
+                // Quitar filtros ocultos
+                form.querySelectorAll('input[type="hidden"]').forEach(function(hidden) {
+                    if (hidden.name !== 'csrfmiddlewaretoken') {
+                        hidden.remove();
+                    }
+                });
             });
+        }
 
-            // Asegurar que el nombre del parámetro sea 'q'
-            searchInput.name = "q";
-        });
+        // Ejecutar pulido inicial y observar cambios
+        polishSearchInputs();
+        const observer = new MutationObserver(polishSearchInputs);
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        console.log("[SoftCom] Global Search interceptor ARMED.");
     }
 
-    // Ejecutar al cargar
-    hijack();
-
-    // Observar cambios en el DOM por si Jazzmin renderiza elementos dinámicamente
-    const observer = new MutationObserver((mutations) => {
-        hijack();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    console.log("[SoftCom] Global Search hijacker active.");
-});
+    // Iniciar
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupGlobalSearch);
+    } else {
+        setupGlobalSearch();
+    }
+})();

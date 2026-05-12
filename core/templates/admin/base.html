@@ -7,6 +7,85 @@
 
 {% block extrajs %}
 {{ block.super }}
+<script>
+/**
+ * Admin Search Hijacker - SoftCom CCG
+ * Redirige la búsqueda del navbar a nuestra vista global unificada.
+ */
+(function() {
+    function setupGlobalSearch() {
+        const targetUrl = "/admin/global-search/";
+
+        function doSearch(query) {
+            if (query && query.trim()) {
+                window.location.href = targetUrl + "?q=" + encodeURIComponent(query.trim());
+                return true;
+            }
+            return false;
+        }
+
+        // Interceptar Submit (Enter)
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            const qInput = form.querySelector('input[name="q"]');
+            if (qInput && (form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) {
+                e.preventDefault();
+                e.stopPropagation();
+                doSearch(qInput.value);
+                return false;
+            }
+        }, true);
+
+        // Interceptar Click en el botón
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('button');
+            if (btn) {
+                const form = btn.closest('form');
+                if (form) {
+                    const qInput = form.querySelector('input[name="q"]');
+                    if (qInput && (form.closest('.navbar') || form.closest('.main-header'))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        doSearch(qInput.value);
+                    }
+                }
+            }
+        }, true);
+
+        function polishSearchInputs() {
+            const allSearchInputs = document.querySelectorAll('input[name="q"]');
+            allSearchInputs.forEach(function(input) {
+                const form = input.closest('form');
+                if (!form || !(form.closest('.navbar') || form.closest('.main-header') || form.closest('.nav-sidebar'))) return;
+
+                input.placeholder = "Búsqueda Global...";
+                input.title = "Buscar en todo el sistema";
+                input.setAttribute('autocomplete', 'off');
+                input.removeAttribute('data-typeahead');
+                form.action = targetUrl;
+
+                form.querySelectorAll('input[type="hidden"]').forEach(function(hidden) {
+                    if (hidden.name !== 'csrfmiddlewaretoken') {
+                        hidden.remove();
+                    }
+                });
+            });
+        }
+
+        polishSearchInputs();
+        const observer = new MutationObserver(polishSearchInputs);
+        observer.observe(document.body, { childList: true, subtree: true });
+        
+        console.log("[SoftCom] Global Search interceptor ARMED (Embedded).");
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupGlobalSearch);
+    } else {
+        setupGlobalSearch();
+    }
+})();
+</script>
 <!-- DEBUG AYUDA: {{ context_help_article }} -->
 {% if not hide_chatbot %}
 <script>
